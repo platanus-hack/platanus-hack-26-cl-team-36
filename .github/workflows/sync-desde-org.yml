@@ -10,8 +10,12 @@
 name: Sincroniza desde la organización
 
 on:
+  # GitHub no garantiza los horarios: los atrasa o salta cuando tiene carga, sobre
+  # todo en el minuto 0. Por eso corre en los minutos 2, 7, 12... Si no hay corridas
+  # programadas en la pestaña Actions, desactivar y reactivar el workflow suele
+  # destrabarlo. Mientras tanto, se puede correr a mano con "Run workflow".
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "2-59/5 * * * *"
   workflow_dispatch:
 
 concurrency:
