@@ -1,0 +1,238 @@
+{
+ "url": "https://www.ejemplo.test/",
+ "instruction": "Encontrar cómo dar de baja",
+ "task_id": "tarea-demo",
+ "timestamp": "2026-11-21_10-00-00",
+ "engine": "claude-code",
+ "user_model": "modelo",
+ "judge_model": "modelo",
+ "effort": "low",
+ "criteria": {
+  "criterion": "Se ve cómo dar de baja",
+  "evidence": []
+ },
+ "nodes": [
+  {
+   "id": "n1",
+   "url": "https://ejemplo.test/",
+   "title": "Inicio",
+   "visits": 4,
+   "profiles": [
+    "first_time",
+    "hurried",
+    "mobile"
+   ],
+   "is_start": true,
+   "endings": {
+    "success": 0,
+    "failed": 0,
+    "abandoned": 0
+   }
+  },
+  {
+   "id": "n2",
+   "url": "https://ejemplo.test/ayuda",
+   "title": "Ayuda",
+   "visits": 2,
+   "profiles": [
+    "first_time",
+    "hurried"
+   ],
+   "is_start": false,
+   "endings": {
+    "success": 0,
+    "failed": 0,
+    "abandoned": 0
+   }
+  },
+  {
+   "id": "n3",
+   "url": "https://ejemplo.test/ayuda/baja",
+   "title": "Cómo dar de baja",
+   "visits": 2,
+   "profiles": [
+    "first_time",
+    "hurried"
+   ],
+   "is_start": false,
+   "endings": {
+    "success": 2,
+    "failed": 0,
+    "abandoned": 0
+   }
+  },
+  {
+   "id": "n4",
+   "url": "https://ejemplo.test/planes",
+   "title": "Planes",
+   "visits": 2,
+   "profiles": [
+    "hurried",
+    "mobile"
+   ],
+   "is_start": false,
+   "endings": {
+    "success": 0,
+    "failed": 1,
+    "abandoned": 0
+   }
+  }
+ ],
+ "branches": [
+  {
+   "source": "n1",
+   "target": "n2",
+   "action": "clic «Ayuda»",
+   "successes": 2,
+   "failures": 0,
+   "times_s": [
+    3.0,
+    2
+   ],
+   "steps": [
+    1,
+    1
+   ],
+   "profiles": [
+    "first_time",
+    "hurried"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "first_time",
+     "success": true,
+     "actions": []
+    },
+    {
+     "profile": "hurried",
+     "success": true,
+     "actions": []
+    }
+   ],
+   "median_time_s": 2.5,
+   "cost": 0.2877
+  },
+  {
+   "source": "n2",
+   "target": "n3",
+   "action": "clic «Dar de baja»",
+   "successes": 2,
+   "failures": 0,
+   "times_s": [
+    3,
+    2
+   ],
+   "steps": [
+    1,
+    1
+   ],
+   "profiles": [
+    "first_time",
+    "hurried"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "first_time",
+     "success": true,
+     "actions": []
+    },
+    {
+     "profile": "hurried",
+     "success": true,
+     "actions": []
+    }
+   ],
+   "median_time_s": 2.5,
+   "cost": 0.2877
+  },
+  {
+   "source": "n1",
+   "target": "n4",
+   "action": "clic «Ver planes»",
+   "successes": 0,
+   "failures": 2,
+   "times_s": [
+    2.0,
+    2.0
+   ],
+   "steps": [
+    1,
+    1
+   ],
+   "profiles": [
+    "hurried",
+    "mobile"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "hurried",
+     "success": false,
+     "actions": []
+    },
+    {
+     "profile": "mobile",
+     "success": false,
+     "actions": []
+    }
+   ],
+   "median_time_s": 2.0,
+   "cost": 1.3863
+  },
+  {
+   "source": "n4",
+   "target": "n1",
+   "action": "atrás",
+   "successes": 0,
+   "failures": 1,
+   "times_s": [
+    4
+   ],
+   "steps": [
+    2
+   ],
+   "profiles": [
+    "hurried"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "hurried",
+     "success": false,
+     "actions": [
+      "scroll down x5"
+     ]
+    }
+   ],
+   "median_time_s": 4,
+   "cost": 1.0986
+  }
+ ],
+ "recommended_route": {
+  "start_node": "n1",
+  "end_node": "n3",
+  "steps": [
+   {
+    "source": "n1",
+    "target": "n2",
+    "action": "clic «Ayuda»",
+    "successes": 2,
+    "failures": 0,
+    "median_time_s": 2.5,
+    "cost": 0.2877,
+    "preceding_actions": []
+   },
+   {
+    "source": "n2",
+    "target": "n3",
+    "action": "clic «Dar de baja»",
+    "successes": 2,
+    "failures": 0,
+    "median_time_s": 2.5,
+    "cost": 0.2877,
+    "preceding_actions": []
+   }
+  ],
+  "total_cost": 0.8631,
+  "estimated_probability": 0.422,
+  "total_median_time_s": 5.0
+ }
+}

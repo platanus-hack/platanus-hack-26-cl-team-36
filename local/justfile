@@ -6,6 +6,7 @@
 #      just local down                       stops them
 #   3. just local test                       before pushing
 #   4. just local explore <url> "<task>"     synthetic users (calls Claude)
+#   5. just local backoffice                 viewer of those runs, at http://localhost:4848
 #
 # Recipes run from the repo root, so every path here is relative to it. What `up`
 # leaves behind (process ids and logs) goes to local/.state/, outside git.
@@ -177,7 +178,7 @@ logs:
 
 # ── 3. Test ───────────────────────────────────────────────────────────────
 
-# Backend and extension tests, extension lint and web_evaluator tests; does not call Claude
+# Backend, backoffice and extension tests, extension lint and web_evaluator tests; does not call Claude
 [group('3. Test · before pushing')]
 test: _ready
     npm run check
@@ -229,3 +230,11 @@ validate task="all" *options: _ready
 _ready:
     @test -x extension/node_modules/.bin/web-ext -a -x agents/app/web_evaluator/.venv/bin/python \
         || { echo "Dependencies are missing: run \`just local setup\` first." >&2; exit 1; }
+
+# ── 5. Backoffice ─────────────────────────────────────────────────────────
+
+# Read-only viewer of the runs in agents/.runs/ at http://localhost:4848 (Ctrl+C to stop)
+[group('5. Backoffice · see the runs')]
+backoffice:
+    @echo "Backoffice at http://localhost:4848 · Ctrl+C to stop"
+    npm --prefix backoffice start
