@@ -5,6 +5,7 @@ Uso, desde agents/app/web_evaluator/:
     uv run main.py --task wom-baja-fibra
     uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal"
     uv run main.py --goals ../../.runs/www.wom.cl/goals/goals.json --limit 3
+    uv run main.py --task wom-baja-fibra --css tema.css
 """
 
 import argparse
@@ -106,6 +107,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="graba un video .webm de cada intento, además de las capturas de cada paso",
     )
+    parser.add_argument(
+        "--css",
+        type=Path,
+        default=None,
+        metavar="ARCHIVO",
+        help="aplica este tema (CSS bajo html.mi-tema) en cada página, como la extensión; queda registrado en la tanda",
+    )
     return parser
 
 
@@ -140,6 +148,8 @@ def main() -> None:
         parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión, o usa --engine api")
     if args.cdp_url and args.browser != "local":
         parser.error("--cdp-url solo sirve con --browser local")
+    if args.css is not None and not args.css.is_file():
+        parser.error(f"no existe el archivo de tema {args.css}")
     profiles = args.profiles or ("first_time" if args.goals else ",".join(PROFILES))
     profile_keys = [key.strip() for key in profiles.split(",") if key.strip()]
     unknown = [key for key in profile_keys if key not in PROFILES]
@@ -147,7 +157,7 @@ def main() -> None:
         parser.error(f"perfiles desconocidos: {', '.join(unknown)}; disponibles: {', '.join(PROFILES)}")
     if args.goals:
         options = {"engine": args.engine, "user_model": args.model, "effort": args.effort, "cdp_url": args.cdp_url,
-                   "browser": args.browser, "record_video": args.record_video}
+                   "browser": args.browser, "record_video": args.record_video, "tema_css": args.css}
         summary = asyncio.run(run_catalog(catalog, args.goals, RUNS_DIR, args.goal, args.limit, args.rerun, profile_keys,
                                           **options))
         print(f"\nListo. Resumen: {display_path(summary)}")
@@ -165,6 +175,7 @@ def main() -> None:
         task_id=args.task,
         browser=args.browser,
         record_video=args.record_video,
+        tema_css=args.css,
     ))
     print(f"\nListo. Reporte: {display_path(batch_dir / 'report.md')}")
 

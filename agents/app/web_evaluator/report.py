@@ -30,6 +30,12 @@ def _cell(text) -> str:
     return str(text or "").replace("|", "\\|").replace("\n", " ")
 
 
+def _tema_label(tema: dict | None) -> str:
+    if not tema:
+        return "ninguno (el sitio tal cual)"
+    return f"`{tema['archivo']}` (sha256 `{tema['sha256']}`, {tema['bytes']} bytes; copia en [tema.css](tema.css))"
+
+
 def _outcome_label(outcome: str | None) -> str:
     return _OUTCOME_LABELS.get(outcome or "", outcome or "?")
 
@@ -125,6 +131,7 @@ def generate(
         f"- **Motor:** {engine_label}",
         f"- **Modelos:** usuarios `{meta['user_model']}` (esfuerzo {meta['effort']}); juez `{meta['judge_model']}`",
         f"- **Límites por usuario:** {config.MAX_STEPS} acciones y {config.MAX_SECONDS // 60} minutos",
+        f"- **Tema:** {_tema_label(meta.get('tema'))}",
         "",
         f"**Criterio de éxito:** {criteria.get('criterion', '(no disponible)')}",
         "",

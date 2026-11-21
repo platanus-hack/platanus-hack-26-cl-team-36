@@ -2,6 +2,7 @@
 
 import asyncio
 import functools
+import hashlib
 import json
 import shutil
 import tempfile
@@ -14,7 +15,7 @@ import config
 import proposal
 import reference
 import report
-from browser import BrowserSession, create_context, open_browsers
+from browser import BrowserSession, NavegadorConTema, create_context, open_browsers
 from engines import ApiEngine, ClaudeCodeEngine
 from harness import SyntheticUser
 from judge import ApiJudge, ClaudeCodeJudge, judge_run, propose_criteria
@@ -81,6 +82,17 @@ async def _record_verdict(judge, instruction: str, criteria: dict, run: Run, run
     print(f"[{run.profile}] veredicto: {run.verdict['outcome']} — {run.verdict['justification']}", flush=True)
 
 
+def describir_tema(css_path: Path) -> tuple[str, dict]:
+    """El CSS de un tema y cómo se registra en la tanda: archivo, sha256 corto y tamaño."""
+    contenido = css_path.read_bytes()
+    datos = {
+        "archivo": css_path.name,
+        "sha256": hashlib.sha256(contenido).hexdigest()[:12],
+        "bytes": len(contenido),
+    }
+    return contenido.decode("utf-8"), datos
+
+
 def models_for(engine: str, user_model: str | None = None) -> tuple[str, str]:
     """Los modelos (usuarios, juez). En AWS (bedrock) solo Haiku; en local, Sonnet y Opus (ver config.py)."""
     if engine == "bedrock":
@@ -100,10 +112,19 @@ async def run_batch(
     task_id: str | None = None,
     browser: str = "local",
     record_video: bool = False,
+    tema_css: Path | None = None,
 ) -> Path:
-    """Corre una tanda y devuelve su carpeta, con report.md, route_tree.json y una carpeta por perfil."""
+    """Corre una tanda y devuelve su carpeta, con report.md, route_tree.json y una carpeta por perfil.
+
+    Con `tema_css`, cada página de cada usuario (y la del criterio) se ve con ese tema, como con la extensión. La
+    tanda deja una copia en `tema.css` y lo registra en `route_tree.json` (`tema`), para distinguirla de una sin tema.
+    """
+    css, tema = describir_tema(tema_css) if tema_css else (None, None)
     batch_dir = output_dir / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     batch_dir.mkdir(parents=True, exist_ok=False)
+    if css is not None:
+        (batch_dir / "tema.css").write_text(css, encoding="utf-8")
+        print(f"[tema] {tema['archivo']} (sha256 {tema['sha256']})", flush=True)
 
     user_model, judge_model = models_for(engine, user_model)
 
@@ -132,6 +153,9 @@ async def run_batch(
                 criteria_browser, *user_browsers = await asyncio.gather(
                     *(browsers.open() for _ in range(len(profile_keys) + 1))
                 )
+                if css is not None:
+                    criteria_browser = NavegadorConTema(criteria_browser, css)
+                    user_browsers = [NavegadorConTema(user_browser, css) for user_browser in user_browsers]
                 criteria_task = asyncio.create_task(_criteria_for(judge, criteria_browser, url, instruction))
                 users = [
                     SyntheticUser(
@@ -175,6 +199,7 @@ async def run_batch(
         "user_model": user_model,
         "judge_model": judge_model,
         "effort": effort,
+        "tema": tema,
     }
     _write_json(batch_dir / "criteria.json", criteria)
     _write_json(batch_dir / "route_tree.json", {**meta, "criteria": criteria, **tree})

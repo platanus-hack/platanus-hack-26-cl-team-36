@@ -83,6 +83,10 @@ def build_route_tree(runs: list[dict]) -> dict:
         start = run["start"]
         current = node_key(start["url"], start["title"])
         visit(current, start["url"], start["title"], profile)["is_start"] = True
+        last = run["steps"][-1] if run["steps"] else start
+        # Si el intento tuvo éxito, la página donde terminó sirvió aunque el usuario haya salido de ella antes para
+        # explorar otra rama (los perfiles exploradores lo hacen): esa salida no convierte en callejón la rama de entrada.
+        final_node = node_key(last["url"], last["title"]) if outcome == "success" else None
 
         # Un tramo es lo que pasa entre llegar a un nodo y salir de él hacia otro.
         legs: list[dict] = []
@@ -95,7 +99,7 @@ def build_route_tree(runs: list[dict]) -> dict:
                 in_page_actions.append(action_signature(step))
                 continue  # acción dentro de la misma página: se suma al tramo
             visit(target, step["url"], step["title"], profile)
-            if "went_back" in step.get("signals", []) and legs:
+            if "went_back" in step.get("signals", []) and legs and legs[-1]["target"] != final_node:
                 legs[-1]["dead_end"] = True  # la rama que llevó a esta página no servía
             legs.append({
                 "source": current,
