@@ -8,16 +8,13 @@ El evaluador web (`agents/app/web_evaluator/`) corre en AgentCore Runtime; lo de
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
 Actions, con el plan de Terraform, quedarían a la vista. El repo personal es privado y es una copia de `main` de este.
 
-**Por qué `us-east-2`.** La cuenta de AWS se creó con el registro nuevo de AWS (*Sign up for AWS (new)*). Con ese
-registro, la cuenta es un "proyecto" dentro de una organización que administra AWS. Las políticas de esa organización
-solo dejan crear recursos regionales, como S3 o Lambda, en la región asignada al proyecto, y a Chile le corresponde
-`us-east-2` (Ohio). Cualquier otra región responde *explicit deny in a service control policy*. La región del
-proyecto se ve en [settings.aws.com](https://settings.aws.com) → Project → Additional info.
+**La cuenta de AWS.** Todo corre en una subcuenta de desarrollo de la organización de AWS de Unholster. Antes
+usábamos una cuenta creada para la hackatón con el registro nuevo de AWS, pero esa cuenta no deja crear runtimes de
+AgentCore (*maxAgents limit exceeded*, y subir la cuota requiere un caso a AWS Support).
 
-**Por qué AgentCore va en otra cuenta.** La cuenta de la hackatón no deja crear runtimes de AgentCore: el despliegue
-falla con *maxAgents limit exceeded* y subir esa cuota requiere un caso a AWS Support. Por eso el evaluador web se
-despliega en una cuenta de desarrollo aparte, con su propio bootstrap, y la Lambda sigue en la cuenta de la hackatón.
-El workflow `AgentCore` asume `AGENTCORE_ROLE_ARN`; si esa variable no existe, usa `AWS_ROLE_ARN`, como antes.
+**Por qué `us-east-2`.** Es la región donde partió el proyecto (la cuenta anterior solo permitía esa). AgentCore y el
+perfil de inferencia de EE.UU. de Claude Haiku 5.5 (`us.anthropic.claude-haiku-5-5`) están disponibles ahí, así que
+la mantenemos.
 
 ## Cómo llega un cambio a AWS
 
@@ -53,20 +50,18 @@ abajo).
 ## Puesta en marcha (una vez)
 
 Necesitas Terraform 1.11 o más nuevo (`brew install hashicorp/tap/terraform`) y la AWS CLI con un perfil de la cuenta
-de la hackatón, con permisos de administrador.
+del proyecto, con permisos de administrador.
 
 **1. Bootstrap**, quien tenga la cuenta de AWS:
 
 ```bash
-export AWS_PROFILE=<perfil de la cuenta de la hackatón>
+export AWS_PROFILE=<perfil de la cuenta del proyecto>
 aws sts get-caller-identity          # confirma que es la cuenta correcta antes de seguir
 cd infra/bootstrap
 terraform init
+# Si Terraform no logra renovar la sesión SSO: eval "$(aws configure export-credentials --format env)"
 terraform apply -var="email_alertas=<correo para las alertas>"
 ```
-
-Para la cuenta de AgentCore se repite el bootstrap con su perfil y un estado aparte, para no mezclarlo con el de la
-cuenta de la hackatón: `terraform apply -state=terraform.agentcore.tfstate -var="email_alertas=<correo>"`.
 
 Guarda `infra/bootstrap/terraform.tfstate`: no se sube al repo y sirve para modificar o borrar estos recursos. La
 alerta avisa al pasar el 50 % y el 100 % de 20 USD al mes, contando el gasto antes de descontar créditos.
@@ -74,8 +69,6 @@ alerta avisa al pasar el 50 % y el 100 % de 20 USD al mes, contando el gasto ant
 **2. Repo personal**, Brayan como dueño, en Settings → Secrets and variables → Actions:
 
 - Variable `AWS_ROLE_ARN`: el valor de `terraform output -raw aws_role_arn` del paso 1.
-- Variable `AGENTCORE_ROLE_ARN`: lo mismo, del bootstrap de la cuenta de AgentCore
-  (`terraform output -state=terraform.agentcore.tfstate -raw aws_role_arn`).
 - Secreto `SYNC_TOKEN`: un token fine-grained (GitHub → Settings → Developer settings → Fine-grained tokens) con
   acceso solo a `hackathon-grupo36`, y permisos *Contents* y *Workflows* en lectura y escritura. El token por defecto
   de Actions no sirve: no puede subir cambios a `.github/workflows/` y lo que sube no dispara otros workflows.
@@ -113,8 +106,7 @@ Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resume
 ## Al terminar la hackatón
 
 1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El evaluador web no es parte de
-   Terraform: en CloudFormation (us-east-2) de la cuenta de AgentCore, borra el stack `AgentCore-ChameleonAgents-…` y
-   después `CDKToolkit`.
+   Terraform: en CloudFormation (us-east-2), borra el stack `AgentCore-ChameleonAgents-…` y después `CDKToolkit`.
 2. Desactiva `Sincroniza desde la organización`. Corre unas 290 veces al día y cada vez cuenta como un minuto de los
    2.000 gratis al mes de un repo privado.
 3. Para borrar también lo de `bootstrap/`, quita `prevent_destroy` del bucket, vacíalo (incluidas las versiones

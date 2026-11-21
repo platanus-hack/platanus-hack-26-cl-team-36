@@ -26,7 +26,7 @@ PAGE_LOAD_ATTEMPTS = 2       # intentos de carga inicial antes de dar el intento
 NO_EFFECT_THRESHOLD = 0.005  # fracción de píxeles que deben cambiar para que una acción "tenga efecto"
 
 # AWS: el motor `bedrock`, el navegador `agentcore` y el evaluador desplegado en AgentCore Runtime.
-# La cuenta de la hackatón solo permite us-east-2 (ver infra/README.md).
+# El proyecto vive en us-east-2 (ver infra/README.md).
 AWS_REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-2"
 # Claude en Amazon Bedrock por el endpoint bedrock-runtime, con el perfil de inferencia de EE.UU. (us.anthropic.claude-...).
 # En us-east-2, Haiku 5.5 no está en bedrock-mantle ni se sirve solo en la región: AWS lo ofrece por perfiles que

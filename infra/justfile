@@ -1,6 +1,6 @@
 # AWS environment: the web evaluator in AgentCore Runtime, through the AgentCore CLI
 # (infra/agentcore/). From anywhere in the repo, as `just aws <command>`. They use your
-# AWS credentials for the AgentCore account (see infra/README.md): export AWS_PROFILE=<profile>.
+# AWS credentials for the project account: export AWS_PROFILE=<profile>.
 #
 #   just aws explore wom-baja-fibra              a task from agents/tasks/, on AgentCore
 #   just aws explore <url> "<task>" [profiles]   any site, on AgentCore
@@ -12,7 +12,7 @@
 set positional-arguments
 
 agentcore := "../node_modules/.bin/agentcore"
-list_heading := "Run as `just aws <command>`, with AWS_PROFILE set to the AgentCore account:\n"
+list_heading := "Run as `just aws <command>`, with AWS_PROFILE set to the project account:\n"
 
 # What `just aws` alone runs.
 [private]

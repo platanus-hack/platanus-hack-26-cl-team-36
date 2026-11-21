@@ -48,7 +48,7 @@ uv run main.py --engine api --task wom-baja-fibra
 ## En AWS (AgentCore)
 
 El mismo evaluador corre en [AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/), con Claude en Amazon
-Bedrock y AgentCore Browser, y gasta de la cuenta de AWS de la hackatón en vez de tu plan. La
+Bedrock y AgentCore Browser, y gasta de la cuenta de AWS del proyecto en vez de tu plan. La
 [CLI de AgentCore](https://github.com/aws/agentcore-cli) empaqueta esta carpeta para arm64 y la despliega; su
 configuración está en [`infra/agentcore/`](../../../infra/README.md#carpetas), junto al resto de la infraestructura. La
 entrada en AWS es `agentcore_app.py`; `main.py` sigue siendo el comando local.
@@ -62,7 +62,7 @@ Ese endpoint no acepta la caché automática, así que `ApiEngine` marca el punt
 más la puntería de los clics que Sonnet, y esos errores se cuentan como fricción del sitio; conviene comparar una misma
 tarea en local y en AWS antes de confiar en los resultados.
 
-Con `export AWS_PROFILE=<perfil de la cuenta de la hackatón>`, una prueba de concepto en tres pasos:
+Con `export AWS_PROFILE=<perfil de la cuenta del proyecto>`, una prueba de concepto en tres pasos:
 
 ```bash
 just local explore https://example.com "Encontrar el enlace More information" --profiles first_time \
