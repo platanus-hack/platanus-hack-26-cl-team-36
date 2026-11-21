@@ -46,9 +46,11 @@ jobs:
       # setup-uv ya no publica un tag por versión mayor (no existe @v10): va la versión exacta.
       - uses: astral-sh/setup-uv@v10.4.0
 
+      # AgentCore corre en otra cuenta que la Lambda (ver infra/README.md): la cuenta de la hackatón
+      # no deja crear runtimes (maxAgents). Sin AGENTCORE_ROLE_ARN, usa la misma cuenta que Terraform.
       - uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ vars.AGENTCORE_ROLE_ARN || vars.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: CLI de AgentCore (la versión fijada en package.json)
