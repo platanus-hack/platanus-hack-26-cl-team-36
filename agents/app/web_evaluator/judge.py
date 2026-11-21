@@ -33,6 +33,7 @@ _VERDICT_SCHEMA = {
 
 _CRITERIA_SYSTEM_PROMPT = """Defines criterios de éxito para pruebas de usabilidad de sitios web.
 Recibes una tarea y la captura de la página inicial del sitio. Propón un criterio de éxito que se pueda verificar mirando SOLO una captura de pantalla final (sin URL ni código): qué debe verse en pantalla cuando la tarea está cumplida. El criterio debe servir tanto en escritorio como en móvil.
+Si la tarea pide comparar o elegir el valor extremo (por ejemplo, "el más barato"), NO exijas que se vean todas las opciones a la vez: una captura de un carrusel o de una lista larga no las muestra todas. Exige en cambio que se vea el dato que responde la tarea (la opción elegida con su valor visible, por ejemplo su precio) junto a su nombre.
 Responde en español: "criterion" en una o dos frases, y "evidence" con 2 a 4 elementos visibles concretos que lo confirmarían."""
 
 _VERDICT_SYSTEM_PROMPT = """Juzgas el resultado de un intento de un usuario sintético en una prueba de usabilidad.
@@ -40,6 +41,7 @@ Recibes la tarea, el criterio de éxito, cómo terminó el intento y la última 
 - "success": la captura muestra evidencia que cumple el criterio.
 - "failed": el usuario terminó en un estado equivocado (creyó cumplir la tarea pero la captura no cumple el criterio, o la pantalla muestra un error).
 - "abandoned": el usuario se detuvo, se rindió, quedó bloqueado o se le acabaron los pasos o el tiempo sin cumplir el criterio.
+Criterio de consistencia: si la captura muestra el dato que responde la tarea y coincide con lo que declaró el usuario en su mensaje final, es "success", aunque no se vean todas las opciones de una comparación. No descartes una respuesta por falta de elementos que el criterio no pedía. Si el dato no aparece ni en la captura ni en el mensaje, es "failed".
 Responde en español con "outcome" y una "justification" de una sola frase."""
 
 
@@ -61,21 +63,29 @@ class ClaudeCodeJudge:
 class ApiJudge:
     name = "api"
 
-    def __init__(self, client, model: str = config.JUDGE_MODEL, effort: str = config.JUDGE_EFFORT):
+    def __init__(
+        self, client, model: str = config.JUDGE_MODEL, effort: str = config.JUDGE_EFFORT, fallbacks: bool = True
+    ):
         self.client = client
         self.model = model
         self.effort = effort
+        # Bedrock no tiene el parámetro `fallbacks`: ahí una negativa del modelo queda como error del juez.
+        self.fallbacks = fallbacks
 
     async def ask_json(self, system_prompt: str, text: str, image: bytes, schema: dict) -> dict:
-        response = await self.client.beta.messages.create(
-            model=self.model,
-            max_tokens=config.JUDGE_MAX_TOKENS,
-            system=system_prompt,
-            messages=[{"role": "user", "content": [{"type": "text", "text": text}, png_image_block(image)]}],
-            output_config={"effort": self.effort, "format": {"type": "json_schema", "schema": schema}},
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-        )
+        request = {
+            "model": self.model,
+            "max_tokens": config.JUDGE_MAX_TOKENS,
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": [{"type": "text", "text": text}, png_image_block(image)]}],
+            "output_config": {"effort": self.effort, "format": {"type": "json_schema", "schema": schema}},
+        }
+        if self.fallbacks:
+            response = await self.client.beta.messages.create(
+                **request, betas=["server-side-fallback-2026-07-01"], fallbacks="default"
+            )
+        else:
+            response = await self.client.messages.create(**request)
         if response.stop_reason == "refusal":
             raise RuntimeError(getattr(response.stop_details, "explanation", None) or "el modelo se negó")
         response_text = next((block.text for block in response.content if block.type == "text"), None)

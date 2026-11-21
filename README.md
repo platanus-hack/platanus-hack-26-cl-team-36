@@ -16,7 +16,7 @@ team-36
 ## Desarrollo local
 
 Requisitos: [`just`](https://github.com/casey/just) (`brew install just`), Node.js 22 o más reciente con npm, Firefox
-y, para el paso 4, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
+y, para los pasos 4, 6 y 7, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
 clon nuevo, en este orden:
 
 ```bash
@@ -27,16 +27,35 @@ just local down                       #    stops them (just local logs follows t
 just local test                       # 3. before pushing: every test that does not call Claude
 just local explore <url> "<task>"     # 4. synthetic users try a task on a site (calls Claude)
 just local validate [wom|sii|dt]      #    the reference tasks in agents/tasks/ (calls Claude)
+just local route <task>               # 6. reference route of a task in agents/tasks/ (calls Claude)
+just local goals <url>                #    goal catalog of a site and, with --routes, their routes (calls Claude)
+just local site <url> [goals]         # 7. catalog, routes, synthetic users and a summary per site (calls Claude)
+just local summary <url>              #    rewrites that summary from the files on disk
+```
+
+Los despliegues y las versiones de la extensión corren como GitHub Actions en el repo personal
+[brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36), una copia de `main` de este
+(ver [infra/README.md](infra/README.md)). Necesitan [`gh`](https://cli.github.com) con la sesión iniciada:
+
+```bash
+just sync                             # copies main to the personal repo now and follows the deploy, if any
+just publish v0.3.0                   # signs that version of the extension and publishes it as a release
 ```
 
 Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del repo; los comandos están en
 [`local/justfile`](local/justfile).
+
+El evaluador también corre en AWS, en AgentCore Runtime, con Claude en Bedrock y la cuenta de la hackatón
+(`export AWS_PROFILE=<perfil>`): `just aws explore wom-baja-fibra` o `just aws explore <url> "<task>"`. Se despliega
+solo al mergear a `main`; los detalles están en [el evaluador](agents/app/web_evaluator/README.md#en-aws-agentcore) y
+en [la infraestructura](infra/README.md).
 
 | Pieza | Qué es |
 |---|---|
 | [`extension/`](extension/README.md) | Extensión de Firefox que cambia el diseño de cada sitio aplicando un tema |
 | `backend/` | API que le dice a la extensión qué tema corresponde a cada página |
 | [`agents/app/web_evaluator/`](agents/app/web_evaluator/README.md) | Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos |
+| [`agents/app/web_mapper/`](agents/app/web_mapper/README.md) | Mapeador: lee el DOM para catalogar los objetivos de un sitio y encontrar la ruta de referencia de cada uno |
 
 Before Submitting:
 

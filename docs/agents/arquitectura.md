@@ -6,10 +6,12 @@ AgentCore y qué se pasan el evaluador y el optimizador. Es para quien vaya a co
 
 ## Distribución de directorios
 
-**`agents/` es un proyecto de AgentCore, y cada agente es una carpeta con sus herramientas.** Se sigue la estructura
-que genera la CLI de AgentCore (`agentcore create`): una carpeta de configuración, `agentcore/`, y una carpeta por
-agente dentro de `app/`. El mismo código corre de dos formas: como script en tu computador y, cuando haga falta
-escalar, en AgentCore. Seguir esa estructura desde el comienzo evita mover código al pasar de una a otra.
+**Cada agente es una carpeta de `agents/app/` con sus herramientas, y su despliegue en AgentCore vive en `infra/`.**
+Se sigue la estructura que genera la CLI de AgentCore (`agentcore create`): una carpeta por agente dentro de `app/` y
+una carpeta de configuración, `agentcore/`. Esa configuración está en `infra/agentcore/`, junto al resto de la
+infraestructura; `infra/` es el proyecto de la CLI y apunta al código de `agents/app/`. El mismo código corre de dos
+formas: como script en tu computador y, cuando haga falta escalar, en AgentCore. Seguir esa estructura desde el
+comienzo evita mover código al pasar de una a otra.
 
 Así se ubica en el repositorio:
 
@@ -17,8 +19,8 @@ Así se ubica en el repositorio:
 platanus-hack-26-cl-team-36/
   backend/  extension/                   ← lo que ya existe: la extensión y su servidor
   docs/  .specs/  .spikes/                ← documentación y pruebas cortas
-  agents/                                 ← NUEVO: el proyecto de AgentCore
-    agentcore/                            ← configuración de despliegue (se crea en el avance 5)
+  infra/agentcore/                        ← configuración de despliegue en AgentCore (ver infra/README.md)
+  agents/                                 ← NUEVO: el código de los agentes
     app/
       web_evaluator/                      ← MIDE: agentes que usan la página solo con capturas
         main.py                           ← punto de entrada (script local hoy, AgentCore después)
@@ -27,6 +29,9 @@ platanus-hack-26-cl-team-36/
         tools/                            ← SOLO las nueve acciones que el agente puede pedir
         judge.py                          ← fuera de tools/ a propósito: lee la URL y el DOM
         profiles/                         ← un perfil de agente por archivo
+      web_mapper/                         ← MAPEA: lee el DOM, cataloga los objetivos y sus rutas de referencia
+        main.py                           ← punto de entrada: route y goals
+        mapper/                           ← vista del DOM, exploración, verificación, esquema y catálogo
       web_optimizer/                      ← PROPONE: lee lo que deja el evaluador y escribe un parche
         main.py                           ← punto de entrada
         model/load.py                     ← qué Claude se usa
@@ -35,15 +40,15 @@ platanus-hack-26-cl-team-36/
     .runs/                                ← recorridos, capturas y resúmenes (fuera de git)
 ```
 
-**Los dos agentes:**
+**Los agentes:**
 
-| | `web_evaluator` | `web_optimizer` |
-|---|---|---|
-| **Qué hace** | Intenta una tarea N veces y mide cuántas veces se logra. | Lee dónde se pierden los agentes y propone un parche. |
-| **Qué ve** | Solo capturas de lo visible. | Recorridos, grafo y el DOM de la página. |
-| **Qué puede hacer** | Las nueve acciones de la sección 3 del [evaluador](evaluador.md). | Leer archivos de `.runs/` y escribir un parche. |
-| **Qué entrega** | Recorridos, grafo y resumen de la tanda. | Una variante nueva para que el evaluador la mida. |
-| **Quién decide** | El juez, no el agente. | La regla del experimento (PR 6) y una persona. |
+| | `web_evaluator` | `web_mapper` | `web_optimizer` |
+|---|---|---|---|
+| **Qué hace** | Intenta una tarea N veces y mide cuántas veces se logra. | Cataloga los objetivos de un sitio y encuentra la ruta de referencia de cada uno, con sus pasos mínimos. | Lee dónde se pierden los agentes y propone un parche. |
+| **Qué ve** | Solo capturas de lo visible. | El DOM de la página y capturas. | Recorridos, grafo y el DOM de la página. |
+| **Qué puede hacer** | Las nueve acciones de la sección 3 del [evaluador](evaluador.md). | Clic, escribir, elegir, teclas, atrás y scroll sobre elementos a la vista; no puede ir a una URL ni seguir un enlace a otro host. | Leer archivos de `.runs/` y escribir un parche. |
+| **Qué entrega** | Recorridos, grafo y resumen de la tanda. | `goals.json`: los objetivos clasificados. `route.json`: la ruta verificada y la cita que la respalda. | Una variante nueva para que el evaluador la mida. |
+| **Quién decide** | El juez, no el agente. | La repetición: la ruta vale si llega a la misma página y la cita está en ella. | La regla del experimento (PR 6) y una persona. |
 
 **`tools/` contiene solo lo que el agente puede pedir.** El juez queda fuera de esa carpeta a propósito. Así las
 reglas 2 y 3 de la sección 2 del [evaluador](evaluador.md) se ven en la estructura: si algo está en `tools/`, el agente lo puede usar, y nada que lea
@@ -53,15 +58,33 @@ la URL o el DOM puede estar ahí.
 
 - **`web_evaluator`, con guion bajo.** Python no puede importar una carpeta con guion, y el nombre de un runtime de
   AgentCore tampoco lo acepta (patrón `[a-zA-Z][a-zA-Z0-9_]{0,47}`).
-- **En el avance 1 no existe `agents/agentcore/`.** `main.py` se corre como un script de Python, pero conviene
+- **En el avance 1 no existe `infra/agentcore/`.** `main.py` se corre como un script de Python, pero conviene
   escribirlo desde ya cumpliendo el contrato HTTP que espera AgentCore Runtime, para que el avance 5 sea desplegar y
-  no reescribir. No está comprobado que `agentcore create` acepte una carpeta que ya existe; si no, se crea el proyecto
-  aparte y se copia `agentcore/`.
+  no reescribir. La CLI acepta código fuera de su proyecto: `infra/agentcore/agentcore.json` apunta a
+  `../agents/app/web_evaluator`.
 - **La plantilla de AgentCore usa Strands, pero no es obligatorio.** AgentCore Runtime acepta cualquier código. Lo que
   importa es que el ciclo cumpla las tres reglas de la sección 2 del [evaluador](evaluador.md).
 
 En el glosario siguen siendo "Evaluador" y "Optimizador"; en el código se proponen `web_evaluator` y `web_optimizer`.
 Se decide junto con la pregunta "¿Qué nombres se usan?" del plan (sección 6).
+
+## Flujo por sitio
+
+**Cada objetivo evaluable de un sitio pasa por el Mapeador y por el evaluador, y un resumen los compara.** Se
+comunican por archivos en `agents/.runs/`. El Mapeador decide en el catálogo qué objetivos se evalúan (`exclusion`) y
+con qué tarea (`instruction`); el evaluador solo lo lee. `just local site <url> <N>` corre todo.
+
+```mermaid
+flowchart LR
+  C["web_mapper goals<br/>catálogo"] -->|"goals.json"| R["web_mapper goals --routes<br/>ruta por objetivo"]
+  R -->|"reference/desktop/route.json"| E["web_evaluator --goals<br/>una tanda por objetivo"]
+  E -->|"report.md, reference_comparison.json"| S["summary.md<br/>Mapeador contra evaluador"]
+  E -.->|"proposed.json, si usó menos pasos"| A["web_mapper adopt<br/>verifica y adopta"]
+  A -.-> R
+```
+
+La ruta de referencia es la más corta verificada entre las exploradas. Por eso el Mapeador busca una más corta después
+de la primera, y un intento que usa menos pasos queda propuesto hasta que `adopt` lo verifica repitiéndolo.
 
 ## Del evaluador al optimizador
 
@@ -110,3 +133,20 @@ python agents/app/web_evaluator/main.py --task <id> --variant <id | control> --n
 **Sobre el nombre.** Se planteó "web refinator". "Refinator" no existe en inglés ("refiner" sí), y el glosario ya
 llama Optimizador a esta pieza. Se propone `web_optimizer` para no tener dos nombres para lo mismo.
 
+## Almacén
+
+**Las salidas de los agentes tienen un solo árbol por sitio, igual en `agents/.runs/` y en S3.** Lo define el paquete
+[`agents/shared/`](../../agents/shared/README.md) (`shared.store`): las claves, los ids de corrida, el manifiesto y
+los backends local y S3.
+
+```
+<host>/
+  cataloger/<run>/                       manifest.json outline.json goals.json goals.md
+  guide/<goal>/<viewport>/<run>/         manifest.json route.json route.md step_00.png …
+  visitor/<goal>/<run>/                  manifest.json criteria.json route_tree.json comparison.json report.md
+      <profile>/                         run.json step_00.png … video.webm
+  summary/<run>/                         manifest.json summary.json summary.md
+```
+
+`<run>` es el instante UTC de inicio y la última corrida es la última clave. Cada `manifest.json` dice qué es la
+carpeta y de qué corridas viene.

@@ -1,0 +1,74 @@
+# AWS environment: the web evaluator in AgentCore Runtime, through the AgentCore CLI
+# (infra/agentcore/). From anywhere in the repo, as `just aws <command>`. They use your
+# AWS credentials for the hackathon account: export AWS_PROFILE=<profile>.
+#
+#   just aws explore wom-baja-fibra              a task from agents/tasks/, on AgentCore
+#   just aws explore <url> "<task>" [profiles]   any site, on AgentCore
+#   just aws deploy                              deploys from your computer (CI does it on every merge)
+#
+# Recipes run from infra/, the AgentCore CLI project: its configuration is in infra/agentcore/ and the
+# code it deploys in agents/app/web_evaluator/.
+
+set positional-arguments
+
+agentcore := "../node_modules/.bin/agentcore"
+list_heading := "Run as `just aws <command>`, with AWS_PROFILE set to the hackathon account:\n"
+
+# What `just aws` alone runs.
+[private]
+[default]
+help:
+    @just --list aws --unsorted --list-heading '{{ list_heading }}'
+
+# Synthetic users on AgentCore: a task id from agents/tasks/, or a URL and a task. Saves report.md in agents/.runs/aws/
+[group('Synthetic users on AgentCore · Claude on Bedrock, billed to the AWS account')]
+explore target task="" profiles="": _ready
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ "$1" == http* ]]; then
+        [ -n "$2" ] || { echo "usage: just aws explore <url> \"<task>\" [profiles]" >&2; exit 1; }
+        payload=$(node -e 'const [url, instruction, profiles] = process.argv.slice(1);
+            console.log(JSON.stringify({url, instruction, profiles: profiles ? profiles.split(",") : undefined}))' "$1" "$2" "$3")
+    else
+        [ -f "../agents/tasks/$1.json" ] || { echo "error: no task agents/tasks/$1.json" >&2; exit 1; }
+        payload=$(node -e 'const t = require(process.argv[1]), profiles = process.argv[2];
+            console.log(JSON.stringify({url: t.start_url, instruction: t.description, task_id: t.id,
+                profiles: profiles ? profiles.split(",") : undefined}))' "$PWD/../agents/tasks/$1.json" "$3")
+    fi
+    out="agents/.runs/aws/$(date +%Y-%m-%d_%H-%M-%S)"
+    mkdir -p "../$out"
+    # The runtime answers in a stream: a status line every 20 s, then the outcomes and the report.
+    {{ agentcore }} invoke --runtime web_evaluator --payload "$payload" | node -e '
+        const fs = require("fs"), out = process.argv[1];
+        require("readline").createInterface({input: process.stdin}).on("line", (line) => {
+            if (!line.startsWith("data: ")) return;
+            const event = JSON.parse(line.slice(6));
+            if (event.report) {
+                fs.writeFileSync(`../${out}/report.md`, event.report);
+                console.log(`done in ${event.seconds} s:`, event.outcomes, `\nReport: ${out}/report.md`);
+            } else if (event.error) {
+                console.error(`error: ${event.error}`);
+                process.exitCode = 1;
+            } else {
+                console.log(`${event.status}${event.seconds ? ` · ${event.seconds} s` : ""}`);
+            }
+        });' "$out"
+
+# Deploys the web evaluator to AgentCore from your computer. CI does the same on every merge to main
+[group('Deploy')]
+deploy: _ready
+    {{ agentcore }} deploy
+
+# What is deployed: the runtime, its version and its status
+[group('Deploy')]
+status: _ready
+    {{ agentcore }} status
+
+# The runtime logs from the last 30 minutes. E.g. just aws logs --tail
+[group('Deploy')]
+logs *options: _ready
+    {{ agentcore }} logs runtime --name web_evaluator --since 30m "$@"
+
+[private]
+_ready:
+    @test -x {{ agentcore }} || { echo "The AgentCore CLI is missing: run \`just local setup\` first." >&2; exit 1; }

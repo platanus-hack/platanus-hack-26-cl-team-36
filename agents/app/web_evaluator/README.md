@@ -20,16 +20,19 @@ uv run playwright install chromium
 uv run main.py --task wom-baja-fibra
 uv run main.py --task sii-exencion-contribuciones --profiles mobile --effort low
 uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
+uv run main.py --goals ../../.runs/www.wom.cl/goals/goals.json --limit 3
 ```
 
 | Opción | Qué hace |
 |---|---|
 | `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). Las corridas quedan en `agents/.runs/<id>/`. |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. Las corridas quedan en `agents/.runs/`. |
-| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres). |
-| `--engine` | `claude-code` (por defecto) o `api`. |
-| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`). |
+| `--goals <goals.json>` | Un catálogo del [Mapeador](../web_mapper/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
+| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--goals`, `first_time`). |
+| `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
+| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-haiku-5-5`). |
 | `--output` | Otra carpeta para las corridas. |
+| `--browser` | `local` (Chromium, por defecto) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 | `--record-video` | Graba un video `.webm` de cada intento (al tamaño del viewport), además de las capturas de cada paso. El reporte enlaza el video y marca en qué minuto ocurre cada paso. |
 
@@ -41,6 +44,51 @@ oficial de computer use:
 export ANTHROPIC_API_KEY=...
 uv run main.py --engine api --task wom-baja-fibra
 ```
+
+## En AWS (AgentCore)
+
+El mismo evaluador corre en [AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/), con Claude en Amazon
+Bedrock y AgentCore Browser, y gasta de la cuenta de AWS de la hackatón en vez de tu plan. La
+[CLI de AgentCore](https://github.com/aws/agentcore-cli) empaqueta esta carpeta para arm64 y la despliega; su
+configuración está en [`infra/agentcore/`](../../../infra/README.md#carpetas), junto al resto de la infraestructura. La
+entrada en AWS es `agentcore_app.py`; `main.py` sigue siendo el comando local.
+
+En AWS se usa solo Claude Haiku 5.5, tanto para los usuarios sintéticos como para el juez (`BEDROCK_USER_MODEL` y
+`BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. En us-east-2, Haiku 5.5 solo se sirve por
+perfiles de inferencia que reparten entre regiones, así que se llama por el endpoint `bedrock-runtime` con el perfil de
+EE.UU., `us.anthropic.claude-haiku-5-5`, que usa us-east-1, us-east-2 y us-west-2
+([ficha del modelo en AWS](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-5-5.html)).
+Ese endpoint no acepta la caché automática, así que `ApiEngine` marca el punto de caché a mano. Ojo: Haiku puede errar
+más la puntería de los clics que Sonnet, y esos errores se cuentan como fricción del sitio; conviene comparar una misma
+tarea en local y en AWS antes de confiar en los resultados.
+
+Con `export AWS_PROFILE=<perfil de la cuenta de la hackatón>`, una prueba de concepto en tres pasos:
+
+```bash
+just local explore https://example.com "Encontrar el enlace More information" --profiles first_time \
+    --engine bedrock --browser agentcore   # 1. desde tu computador: ¿la cuenta deja usar Claude y el navegador?
+just aws deploy                            # 2. despliega (al mergear a main lo hace el workflow AgentCore)
+just aws explore wom-baja-fibra            # 3. la tanda corre en AgentCore; el reporte queda en agents/.runs/aws/
+```
+
+`just aws status` muestra lo desplegado y `just aws logs` los logs del runtime. La respuesta llega en stream: un
+aviso cada 20 s y, al final, el resultado de cada perfil y `report.md`. Las capturas de cada paso quedan en AWS y
+se pierden al cerrar la sesión.
+
+## Catálogo
+
+Con `--goals` corre, uno tras otro, los objetivos sin `exclusion` que tienen una ruta verificada del Mapeador para
+algún perfil, con la `instruction` que el Mapeador guardó. Cada tanda queda en `agents/.runs/<id del objetivo>/`. Si
+una falla, siguen las demás. Al final escribe `summary.md` y `summary.json` junto al catálogo: por objetivo, sus
+clasificaciones, los pasos mínimos del Mapeador y cuántas rutas exploró, el resultado y los pasos de cada perfil, la
+eficiencia y quién necesitó menos pasos; y los totales del sitio. Los objetivos sin tanda aparecen con el motivo.
+
+| Opción | Qué hace |
+|---|---|
+| `--goal <id>` | Solo ese objetivo; se puede repetir. |
+| `--limit N` | Como máximo N tandas nuevas. |
+| `--rerun` | Repite los objetivos que ya tienen tanda (por defecto se omiten). |
+| `--summary` | Solo reescribe el resumen desde los archivos, sin correr nada. |
 
 ## Tareas
 
@@ -54,6 +102,7 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 | Módulo | Qué hace |
 |---|---|
 | `main.py` | Punto de entrada: lee las opciones y lanza una tanda. |
+| `agentcore_app.py` | Punto de entrada en AgentCore Runtime: recibe la tarea por HTTP y responde en stream. |
 | `batch.py` | Una tanda: criterio de éxito, usuarios en paralelo, veredictos, árbol y reporte. |
 | `harness.py` | El ciclo de cada usuario: captura → modelo → acción → registro. |
 | `engines.py` | Cómo decide el modelo: `ClaudeCodeEngine` (`claude -p`) o `ApiEngine` (computer use). |
@@ -61,6 +110,9 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 | `browser.py`, `actions.py` | El navegador (Playwright y Chromium) y las acciones que puede pedir el agente. |
 | `recording.py` | Los pasos y el recorrido (`Step`, `Run`), y las señales que se leen del DOM solo para el registro. |
 | `route_tree.py`, `report.py` | El árbol de rutas, la ruta recomendada y `report.md`. |
+| `reference.py` | La comparación de cada intento con la ruta de referencia del [Mapeador](../web_mapper/README.md). |
+| `proposal.py` | La propuesta de ruta cuando un intento logra la tarea con menos pasos que la referencia. |
+| `goals_run.py`, `site_summary.py` | Las tandas de un catálogo y el resumen del sitio. |
 | `profiles.py`, `config.py` | Los perfiles de usuario, su prompt y los límites. |
 
 - **El agente solo ve la pantalla:** recibe capturas del viewport y nunca HTML ni DOM. Solo puede hacer clic por
@@ -82,27 +134,16 @@ agents/.runs/<tarea>/<fecha-hora>/
 ├── criteria.json
 ├── <perfil>/           step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
 ├── route_tree.json     nodos, ramas y ruta recomendada
+├── reference_comparison.json   solo si hay ruta de referencia
 └── report.md
 ```
 
 `agents/.runs/` queda fuera de git.
 
-### Trazabilidad de tiempos
-
-`run.json` guarda en `started_at` la hora local (ISO 8601, con zona) en que empieza el intento. Cada paso registra
-tres momentos, en segundos desde ese inicio (`*_s`) y como hora absoluta (`*_at`):
-
-| Campo | Momento |
-|---|---|
-| `decided_s`, `decided_at` | El modelo devolvió el turno que pidió la acción. Si un turno pide varias, comparten este valor. |
-| `executed_s`, `executed_at` | Justo antes de ejecutar el clic, la tecla o el scroll. |
-| `settled_s`, `settled_at` | La página terminó de reaccionar y se tomó la captura. Es el mismo valor que `seconds_since_start`. |
-
-`settled_s - executed_s` es lo que tardó la página en responder. Con `--record-video`, el segundo de la acción en el
-video es `video_offset_s + executed_s`, y es el que muestra el reporte en la columna Video.
-
-Con `--record-video`, cada pestaña que abre el usuario tiene su propio video (`video.webm`, `video-2.webm`...). Los
-minutos del reporte son del primero. Un intento de 3 minutos ocupa del orden de 15 a 30 MB.
+Si `agents/.runs/<tarea>/reference/` tiene una ruta verificada para el viewport del perfil, el reporte la compara con
+cada intento ([fórmulas](../../../docs/agents/niveles-de-tarea.md), sección 5). El avance se informa como llegada a la
+página final de la ruta. Si un intento logra la tarea con menos pasos, deja `reference/<viewport>/proposed.json` (sus
+pasos con el elemento clicado, sus nodos y la tanda) y el reporte lo dice; `adopt` del Mapeador la verifica.
 
 ## Pruebas
 
@@ -110,4 +151,5 @@ minutos del reporte son del primero. Un intento de 3 minutos ocupa del orden de 
 uv run pytest -q
 ```
 
-Las pruebas no llaman a Claude: cubren el árbol, los motores y las acciones del navegador sobre páginas locales.
+Las pruebas no llaman a Claude: cubren el árbol, los motores y las acciones del navegador sobre páginas locales, la
+propuesta de ruta, el plan de un catálogo y el resumen a partir de archivos.

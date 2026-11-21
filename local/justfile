@@ -7,6 +7,10 @@
 #   3. just local test                       before pushing
 #   4. just local explore <url> "<task>"     synthetic users (calls Claude)
 #   5. just local backoffice                 viewer of those runs, at http://localhost:4848
+#   6. just local route <task>               reference route of a task (calls Claude)
+#      just local goals <url>                goal catalog of a site (calls Claude)
+#   7. just local site <url> [goals]         catalog, routes, synthetic users and summary (calls Claude)
+#      just local summary <url>              rewrites that summary from the files on disk
 #
 # Recipes run from the repo root, so every path here is relative to it. What `up`
 # leaves behind (process ids and logs) goes to local/.state/, outside git.
@@ -53,13 +57,13 @@ setup:
     else
         fail "uv" "https://docs.astral.sh/uv/"
     fi
-    # Only step 4 needs Claude Code, so it warns instead of stopping the setup.
+    # Only steps 4, 6 and 7 need Claude Code, so it warns instead of stopping the setup.
     if ! command -v claude >/dev/null; then
-        echo "  ! Claude Code is missing (needed for step 4) → https://claude.com/claude-code"
+        echo "  ! Claude Code is missing (needed for steps 4, 6 and 7) → https://claude.com/claude-code"
     elif claude auth status 2>/dev/null | grep -q '"loggedIn": *true'; then
         ok "Claude Code, logged in"
     else
-        echo "  ! Claude Code is not logged in (needed for step 4) → claude auth login"
+        echo "  ! Claude Code is not logged in (needed for steps 4, 6 and 7) → claude auth login"
     fi
     if [ "$missing" -gt 0 ]; then
         echo "Fix the ✘ items and run \`just local setup\` again."
@@ -70,6 +74,9 @@ setup:
     echo "Installing dependencies"
     npm install    # the root postinstall also installs extension/ (web-ext)
     cd agents/app/web_evaluator
+    uv sync
+    uv run playwright install chromium
+    cd ../web_mapper
     uv sync
     uv run playwright install chromium
     echo "Done. Next: \`just local up\`"
@@ -178,11 +185,12 @@ logs:
 
 # ── 3. Test ───────────────────────────────────────────────────────────────
 
-# Backend, backoffice and extension tests, extension lint and web_evaluator tests; does not call Claude
+# Backend, backoffice and extension tests, extension lint, web_evaluator and web_mapper tests; does not call Claude
 [group('3. Test · before pushing')]
-test: _ready
+test: _ready _mapper_ready
     npm run check
     cd agents/app/web_evaluator && uv run pytest -q
+    cd agents/app/web_mapper && uv run pytest -q
 
 # ── 4. Synthetic users ────────────────────────────────────────────────────
 
@@ -238,3 +246,59 @@ _ready:
 backoffice:
     @echo "Backoffice at http://localhost:4848 · Ctrl+C to stop"
     npm --prefix backoffice start
+
+# ── 6. Mapper ─────────────────────────────────────────────────────────────
+
+# Finds and verifies the shortest route for a task in agents/tasks/. E.g. just local route wom-baja-fibra --viewports desktop,mobile
+[group('6. Mapper · calls Claude, uses your plan')]
+[working-directory('agents/app/web_mapper')]
+[positional-arguments]
+route task *options: _mapper_ready
+    #!/usr/bin/env bash
+    set -euo pipefail
+    task="$1"
+    shift
+    exec uv run main.py route --task "$task" ${1+"$@"}
+
+# Catalogs the goals a site offers and classifies them. E.g. just local goals https://www.wom.cl/ --routes 2
+[group('6. Mapper · calls Claude, uses your plan')]
+[working-directory('agents/app/web_mapper')]
+[positional-arguments]
+goals url *options: _mapper_ready
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$1"
+    shift
+    exec uv run main.py goals --url "$url" ${1+"$@"}
+
+# ── 7. Site ───────────────────────────────────────────────────────────────
+
+# Catalog, reference routes and synthetic users for up to N goals (or all), then the summary. E.g. just local site https://www.wom.cl/ 3
+[group('7. Site · `site` calls Claude, uses your plan')]
+[positional-arguments]
+site url goals="3": _ready _mapper_ready
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$1" goals="${2:-3}"
+    host="$(echo "$url" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\1#' | tr '[:upper:]' '[:lower:]')"
+    limit=(--limit "$goals")
+    [ "$goals" = all ] && limit=()
+    # Both steps skip what is already on disk, so re-running resumes.
+    (cd agents/app/web_mapper && uv run main.py goals --url "$url" --routes "$goals")
+    cd agents/app/web_evaluator
+    uv run main.py --goals "../../.runs/$host/goals/goals.json" ${limit[@]+"${limit[@]}"}
+
+# Rewrites the summary of a site from the files on disk, without calling Claude. E.g. just local summary https://www.wom.cl/
+[group('7. Site · `site` calls Claude, uses your plan')]
+[positional-arguments]
+summary url: _ready
+    #!/usr/bin/env bash
+    set -euo pipefail
+    host="$(echo "$1" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\1#' | tr '[:upper:]' '[:lower:]')"
+    cd agents/app/web_evaluator
+    exec uv run main.py --goals "../../.runs/$host/goals/goals.json" --summary
+
+[private]
+_mapper_ready:
+    @test -x agents/app/web_mapper/.venv/bin/python \
+        || { echo "The mapper's dependencies are missing: run \`just local setup\` first." >&2; exit 1; }
