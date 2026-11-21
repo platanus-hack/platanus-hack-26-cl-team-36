@@ -17,6 +17,7 @@ de una API: todo lo específico de un sitio debe poder expresarse como **datos**
 - `src/content/registro.js` → `src/features/*.js` → `src/content/motor.js`: content scripts, en ese orden.
 - `src/temas/<id>/tema.json` + `tema.css`, listados en `src/temas/index.json`.
 - `test/`: `node:test`. `temas-locales.test.js` valida cada tema de `src/temas/`.
+- `scripts/`: herramientas de desarrollo en Node, sin dependencias. `clonar-perfil.js` copia un perfil real de Firefox a `.perfil-dev/` quitando su asociación al grupo de perfiles (`scripts/lib/perfiles-firefox.js`).
 
 ## Reglas del proyecto
 
@@ -32,6 +33,7 @@ de una API: todo lo específico de un sitio debe poder expresarse como **datos**
 - **IDs y clases propias con prefijo `mt-`** para no chocar con el sitio.
 - **Sin recolectar datos:** `data_collection_permissions` está en `none`. Si se envía la URL/dominio a una API, hay que actualizarlo.
 - **No cambiar `browser_specific_settings.gecko.id`** (AMO lo trataría como otra extensión).
+- **Nunca correr web-ext con el perfil real del usuario** (`--firefox-profile=default-release`, una ruta a `~/Library/Application Support/Firefox/Profiles/...`, etc.), ni en modo copia. Con los grupos de perfiles de Firefox (versión 160 o superior), la copia se registra en el grupo y reescribe `profiles.ini`/`installs.ini` apuntando a una carpeta temporal. Para usar los datos del usuario: `npm run perfil:clonar`. Si se modifica ese script, mantener `sanitizarPrefs` (quita `toolkit.profiles.*`/`browser.profiles.*`) y los `--pref` de grupo de `dev:sesion`.
 
 ## Agregar un sitio
 
@@ -41,10 +43,11 @@ Nuevo tema en `src/temas/<id>/`, su id en `src/temas/index.json`, y el dominio e
 
 `src/features/<id>.js` con `MiTema.registrarFeature("<id>", { actualizar(opciones) {…} })`, listado en `content_scripts.js` entre `content/registro.js` y `content/motor.js`. Su CSS base (si tiene) en `src/features/<id>.css` y en `content_scripts.css`.
 
-## Comandos (desde `extension/`)
+## Comandos (desde `extension/`; `dev`, `dev:sesion`, `check` y `build` también desde la raíz del repo)
 
-- `npm run dev`: abre Firefox con la extensión cargada en youtube.com y la recarga al guardar.
-- `npm run dev:sesion`: igual, con perfil persistente en `.perfil-dev/`.
+- `npm run dev`: abre Firefox con la extensión cargada en youtube.com; al guardar recarga la extensión y refresca las pestañas del sitio (solo en modo desarrollo, vía `onInstalled` con `temporary`).
+- `npm run dev:sesion`: igual, con perfil persistente en `.perfil-dev/`. La ruta del perfil debe llevar `./`: sin barra, web-ext la trata como *nombre* de perfil (`-P`) y Firefox no arranca (`ECONNREFUSED`).
+- `npm run perfil:clonar`: clona un perfil real de Firefox a `.perfil-dev/` (interactivo; `-- --perfil "<nombre>"` para elegir directo).
 - `npm run check`: `npm test` + `npm run lint`. Correr antes de dar algo por terminado; debe quedar sin errores.
 - `npm run build`: genera el .zip en `web-ext-artifacts/`.
 - `npm run sign`: firma como "unlisted" en AMO (requiere `WEB_EXT_API_KEY` y `WEB_EXT_API_SECRET`).

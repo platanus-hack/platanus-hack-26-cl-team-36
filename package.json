@@ -1,0 +1,13 @@
+{
+  "name": "platanus-hack-26-cl-team-36",
+  "private": true,
+  "description": "Atajos para correr las partes del proyecto desde la raíz del repo.",
+  "scripts": {
+    "postinstall": "npm --prefix extension install",
+    "dev": "npm --prefix extension run dev",
+    "dev:sesion": "npm --prefix extension run dev:sesion",
+    "perfil:clonar": "npm --prefix extension run perfil:clonar --",
+    "check": "npm --prefix extension run check",
+    "build": "npm --prefix extension run build"
+  }
+}

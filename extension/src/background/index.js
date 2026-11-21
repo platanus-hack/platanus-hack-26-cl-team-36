@@ -27,8 +27,26 @@ browser.action.onClicked.addListener(async () => {
   await pintarBadge(activo);
 });
 
-browser.runtime.onInstalled.addListener(async () => pintarBadge(await leerActivo()));
 browser.runtime.onStartup.addListener(async () => pintarBadge(await leerActivo()));
+
+// onInstalled se dispara al instalar y cada vez que `npm run dev` recarga la extensión.
+// `temporary` solo es true si la extensión se cargó con web-ext o about:debugging.
+browser.runtime.onInstalled.addListener(async ({ temporary }) => {
+  await pintarBadge(await leerActivo());
+  if (temporary) await refrescarPestanasDelSitio();
+});
+
+// En desarrollo, al recargar la extensión las pestañas abiertas siguen con el
+// CSS/JS anterior. Las refrescamos para ver el cambio sin tocar nada.
+async function refrescarPestanasDelSitio() {
+  const patrones = browser.runtime.getManifest().content_scripts.flatMap((cs) => cs.matches);
+  const pestanas = await browser.tabs.query({ url: patrones });
+  // Sin permiso sobre una pestaña, `url` viene vacía: nunca refrescamos pestañas ajenas.
+  const delSitio = pestanas.filter((p) => p.url);
+  if (delSitio.length === 0) return;
+  console.info(`[mi-tema] Modo desarrollo: refrescando ${delSitio.length} pestaña(s).`);
+  await Promise.all(delSitio.map((p) => browser.tabs.reload(p.id)));
+}
 
 // ---------- 2. Temas ----------
 

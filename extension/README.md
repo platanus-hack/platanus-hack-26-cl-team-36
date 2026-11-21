@@ -28,6 +28,8 @@ extension/
 │   │       ├── tema.json     ← dominios, features y sus opciones
 │   │       └── tema.css
 │   └── icons/
+├── scripts/                  ← herramientas de desarrollo (no se empaquetan)
+│   └── clonar-perfil.js      ← `npm run perfil:clonar`
 ├── test/                     ← tests con node:test (sin dependencias)
 ├── .perfil-dev/              ← perfil de Firefox para `npm run dev:sesion` (ignorado por git)
 └── web-ext-artifacts/        ← builds (ignorado por git)
@@ -49,17 +51,30 @@ extension/
 
 ## Probarla localmente
 
+Desde la raíz del repo (o desde `extension/`, da lo mismo):
+
 ```bash
-cd extension
-npm install
+npm install   # la primera vez
 npm run dev
 ```
 
 Se abre un Firefox aparte con la extensión cargada en youtube.com. Cada vez que
-guardas un archivo de `src/`, la extensión se recarga sola.
+guardas un archivo de `src/`, la extensión se recarga sola y las pestañas del
+sitio se refrescan para mostrar el cambio. Ese refresco solo ocurre con la
+extensión cargada en modo desarrollo (web-ext o about:debugging), nunca instalada.
 
 Ese Firefox usa un perfil temporal (sin tu sesión de YouTube). Para quedar logueado
 entre pruebas usa `npm run dev:sesion`, que guarda el perfil en `.perfil-dev/`.
+
+**Con tus datos de siempre:** `npm run perfil:clonar` copia uno de tus perfiles de Firefox
+(sesiones, marcadores, extensiones) a `.perfil-dev/`, y desde ahí `npm run dev:sesion` lo usa.
+Se clona una sola vez; repítelo cuando quieras refrescar la copia. El clon queda sin tu
+cuenta de Firefox (Sync) y sin tus pestañas abiertas. Para elegir el perfil sin que te
+pregunte: `npm run perfil:clonar -- --perfil "<nombre>"`.
+
+> ⚠️ Nunca uses `--firefox-profile` de web-ext con tu perfil real (ni en modo copia).
+> Con los grupos de perfiles de Firefox, la copia se registra en tu grupo y deja tu perfil
+> apuntando a una carpeta temporal que se borra al cerrar. `perfil:clonar` evita eso.
 
 **Sin Node:** en Firefox abre `about:debugging` → "Este Firefox" →
 "Cargar complemento temporal…" y elige `src/manifest.json`.
@@ -71,6 +86,7 @@ que tenga acceso al sitio.
 | --- | --- |
 | `npm run dev` | Firefox con la extensión, recarga al guardar |
 | `npm run dev:sesion` | Igual, con perfil persistente |
+| `npm run perfil:clonar` | Copia tu perfil de Firefox a `.perfil-dev/` |
 | `npm test` | Tests de la lógica de temas y validación de `src/temas/` |
 | `npm run lint` | Valida la extensión con `web-ext lint` |
 | `npm run check` | `test` + `lint` |
