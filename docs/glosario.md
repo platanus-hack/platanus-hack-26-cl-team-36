@@ -68,7 +68,7 @@ Dos palabras se usan siempre con un solo sentido:
 
 | Término | Qué significa |
 |---|---|
-| **Prototipo** | Lo que ya funciona: la extensión de Firefox y el puente de la carpeta `prototipo/`. |
+| **Prototipo** | La primera extensión de Firefox y su puente, de la carpeta `prototipo/`. Se retiró en la PR #13; la extensión actual está en `extension/`. |
 | **Spike** | Una prueba corta para contestar una pregunta. Deja un script y un informe; no es código que se conserve. |
 | **Script** | Un programa de un solo archivo. |
 | **PR** | Un cambio de código que se revisa y se integra por separado. |

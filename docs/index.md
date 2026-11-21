@@ -27,10 +27,12 @@ cuál corresponde a cada término. En el texto solo se dejan en inglés *soul*, 
 
 ### Lo que ya funciona
 
-El [prototipo](../prototipo/README.md) es una extensión de Firefox. La persona escribe cómo quiere ver las páginas
-("modo oscuro, texto más grande"). La extensión envía la estructura de la página a Claude, Claude devuelve una hoja
-de estilo y la extensión la aplica. El panel muestra una explicación de lo que cambió y permite ver la página
-original.
+El prototipo es una extensión de Firefox. La persona escribe cómo quiere ver las páginas ("modo oscuro, texto más
+grande"). La extensión envía la estructura de la página a Claude, Claude devuelve una hoja de estilo y la extensión la
+aplica. El panel muestra una explicación de lo que cambió y permite ver la página original.
+
+El prototipo se retiró del repositorio en la PR #13 y queda en el historial de git. La extensión actual del proyecto
+es [Chameleon](../extension/README.md), que aplica temas por sitio con su servidor en `backend/`.
 
 "Claude" aquí es Claude Code, instalado en el computador de la persona y con su sesión iniciada. La extensión no
 puede hablar con él directamente; lo hace a través de un programa pequeño que llamamos **puente**.
