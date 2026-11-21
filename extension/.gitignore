@@ -1,0 +1,6 @@
+node_modules/
+web-ext-artifacts/
+.amo-upload-uuid
+.perfil-dev/
+.DS_Store
+.env

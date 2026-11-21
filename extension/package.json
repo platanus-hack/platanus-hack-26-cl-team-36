@@ -1,0 +1,23 @@
+{
+  "name": "chameleon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Extensión de Firefox que cambia el diseño de sitios web aplicando temas (CSS + features).",
+  "scripts": {
+    "dev": "web-ext run --start-url https://www.youtube.com",
+    "dev:sesion": "web-ext run --start-url https://www.youtube.com --firefox-profile=./.perfil-dev --profile-create-if-missing --keep-profile-changes --pref=browser.profiles.enabled=false --pref=toolkit.profiles.storeID=",
+    "perfil:clonar": "node scripts/clonar-perfil.js",
+    "test": "node --test test/*.test.js",
+    "lint": "web-ext lint",
+    "check": "npm test && npm run lint",
+    "build": "web-ext build --overwrite-dest",
+    "sign": "node --env-file-if-exists=.env node_modules/web-ext/bin/web-ext.js sign --channel=unlisted"
+  },
+  "webExt": {
+    "sourceDir": "src"
+  },
+  "devDependencies": {
+    "web-ext": "^10.8.0"
+  }
+}
