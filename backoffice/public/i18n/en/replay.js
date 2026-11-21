@@ -100,6 +100,7 @@ export default {
     reproducir: "Play",
     pausar: "Pause",
     velocidad: "Speed",
+    velocidadAyuda: "Playback speed (slower / faster)",
     velocidadValor: "{v}×",
     soloPasos: "Steps only",
     soloPasosAyuda: "Skip the parts of the video without actions",

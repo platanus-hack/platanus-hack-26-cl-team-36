@@ -5,7 +5,10 @@
 // `desfase` es `video_offset_s` del evaluador (lo que tardó en cargar la primera página antes del intento).
 
 /** Velocidades de reproducción, de la más lenta a la más rápida. */
-export const VELOCIDADES = [0.5, 1, 2, 4];
+export const VELOCIDADES = [0.25, 0.5, 0.75, 1, 1.5, 2, 4];
+
+/** Velocidad con la que parte el Replay si el visitante no eligió otra. */
+export const VELOCIDAD_POR_DEFECTO = 1;
 
 const numero = (valor) => (typeof valor === "number" && Number.isFinite(valor) ? valor : null);
 
@@ -145,12 +148,20 @@ export function saltoSoloPasos(segmentos, t) {
   return null;
 }
 
-/** Velocidad siguiente (direccion 1) o anterior (-1) en VELOCIDADES; se queda en los extremos. */
+/**
+ * Velocidad siguiente (direccion 1) o anterior (-1) en VELOCIDADES; se queda en los extremos. Si `actual` no está en
+ * la lista, va a la más cercana en esa dirección.
+ */
 export function cambiarVelocidad(actual, direccion) {
-  const indice = VELOCIDADES.indexOf(actual);
-  const desde = indice === -1 ? VELOCIDADES.indexOf(1) : indice;
-  const nuevo = Math.min(VELOCIDADES.length - 1, Math.max(0, desde + (direccion < 0 ? -1 : 1)));
-  return VELOCIDADES[nuevo];
+  const valor = numero(actual) ?? VELOCIDAD_POR_DEFECTO;
+  if (direccion < 0) return [...VELOCIDADES].reverse().find((v) => v < valor) ?? VELOCIDADES[0];
+  return VELOCIDADES.find((v) => v > valor) ?? VELOCIDADES[VELOCIDADES.length - 1];
+}
+
+/** Una velocidad guardada (texto o número) → la misma si está en VELOCIDADES; si no, VELOCIDAD_POR_DEFECTO. */
+export function velocidadValida(valor) {
+  const leido = typeof valor === "string" && valor.trim() !== "" ? Number(valor) : valor;
+  return VELOCIDADES.includes(leido) ? leido : VELOCIDAD_POR_DEFECTO;
 }
 
 /** "0:13", "1:05", "12:00" (minutos:segundos, sin depender del idioma). */

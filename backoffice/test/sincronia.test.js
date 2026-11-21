@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   VELOCIDADES,
+  VELOCIDAD_POR_DEFECTO,
   agruparRepetidos,
   cambiarVelocidad,
   duracionTotal,
@@ -12,6 +13,7 @@ import {
   saltoSoloPasos,
   segmentosSoloPasos,
   siguienteConProblema,
+  velocidadValida,
   ventanasDePasos,
 } from "../public/replay/sincronia.js";
 
@@ -155,11 +157,29 @@ test("un intento con video y marcas de tiempo: cada segundo del video cae en su 
 });
 
 test("velocidades, reloj y anillo del clic", () => {
-  assert.deepEqual(VELOCIDADES, [0.5, 1, 2, 4]);
-  assert.equal(cambiarVelocidad(1, 1), 2);
+  assert.deepEqual(VELOCIDADES, [0.25, 0.5, 0.75, 1, 1.5, 2, 4]);
+  assert.equal(VELOCIDAD_POR_DEFECTO, 1);
+  // Paso a paso por toda la lista, en las dos direcciones, y quieta en los extremos.
+  assert.equal(cambiarVelocidad(1, 1), 1.5);
+  assert.equal(cambiarVelocidad(1.5, 1), 2);
+  assert.equal(cambiarVelocidad(2, 1), 4);
   assert.equal(cambiarVelocidad(4, 1), 4);
-  assert.equal(cambiarVelocidad(0.5, -1), 0.5);
-  assert.equal(cambiarVelocidad(3, -1), 0.5);
+  assert.equal(cambiarVelocidad(1, -1), 0.75);
+  assert.equal(cambiarVelocidad(0.75, -1), 0.5);
+  assert.equal(cambiarVelocidad(0.5, -1), 0.25);
+  assert.equal(cambiarVelocidad(0.25, -1), 0.25);
+  // Fuera de la lista: la más cercana en esa dirección; sin número, desde la de por defecto.
+  assert.equal(cambiarVelocidad(3, -1), 2);
+  assert.equal(cambiarVelocidad(3, 1), 4);
+  assert.equal(cambiarVelocidad(0.1, -1), 0.25);
+  assert.equal(cambiarVelocidad(null, 1), 1.5);
+  // Lo guardado en localStorage llega como texto.
+  assert.equal(velocidadValida("0.25"), 0.25);
+  assert.equal(velocidadValida(1.5), 1.5);
+  assert.equal(velocidadValida("3"), 1);
+  assert.equal(velocidadValida(""), 1);
+  assert.equal(velocidadValida(null), 1);
+  assert.equal(velocidadValida("abc"), 1);
   assert.equal(formatoReloj(13.7), "0:13");
   assert.equal(formatoReloj(65), "1:05");
   assert.equal(formatoReloj(null), "0:00");

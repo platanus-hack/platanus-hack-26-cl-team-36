@@ -1,6 +1,7 @@
 // Línea de tiempo del Replay (diseño §10.6, §10.6.2): tira de capturas "después" (una por paso, la actual
-// enmarcada), carril de la ruta (■ en ruta / □ fuera) y el reproductor: reproducir/pausar, una barra con una marca
-// por paso (coloreada si tiene señal), el reloj, la velocidad y "solo pasos" (solo con video).
+// enmarcada), carril de la ruta (■ en ruta / □ fuera) y el reproductor: reproducir/pausar, la velocidad (un <select>
+// nativo junto a reproducir: teclado, lectores de pantalla y pantallas táctiles sin código propio), una barra con una
+// marca por paso (coloreada si tiene señal), el reloj y "solo pasos" (solo con video).
 //
 // La tira es un atajo para el puntero: el riel de pasos es su equivalente accesible, así que la tira no entra en el
 // orden de tabulación y está oculta para lectores de pantalla.
@@ -9,7 +10,7 @@ import { el, reemplazar } from "../nucleo/dom.js";
 import { kbd } from "../nucleo/atajos.js";
 import { conGlobo } from "../nucleo/globo.js";
 import { icono } from "../nucleo/iconos.js";
-import { formatoReloj, ventanasDePasos } from "./sincronia.js";
+import { VELOCIDADES, formatoReloj, ventanasDePasos } from "./sincronia.js";
 
 const TONO_DE_SENAL = { no_effect: "aviso", went_back: "aviso", visible_error: "peligro", security_block: "peligro" };
 
@@ -24,7 +25,7 @@ const globoConTecla = (texto, tecla) => () => el("span", { class: "globo-con-tec
 
 /**
  * @param {{ t: Function, fmt: object, urlDeArchivo: Function, senal: AbortSignal, elegir: (indice: number) => void,
- *           buscar: (t: number) => void, alternar: () => void, velocidad: (direccion: 1 | -1) => void,
+ *           buscar: (t: number) => void, alternar: () => void, velocidad: (valor: number) => void,
  *           soloPasos: () => void }} opciones
  */
 export function crearLineaDeTiempo({ t, fmt, urlDeArchivo, senal, elegir, buscar, alternar, velocidad, soloPasos }) {
@@ -67,16 +68,21 @@ export function crearLineaDeTiempo({ t, fmt, urlDeArchivo, senal, elegir, buscar
   const pista = el("div", { class: "replay-pista" }, marcas, barra);
 
   const reloj = el("span", { class: "replay-reloj num" });
-  const botonVelocidad = el("button", {
-    type: "button",
-    class: "boton boton-fantasma replay-velocidad num",
-    "data-foco": "replay:velocidad",
-    "aria-keyshortcuts": ", .",
-  });
-  botonVelocidad.addEventListener("click", (evento) => velocidad(evento.shiftKey ? -1 : 1), { signal: senal });
+  const textoVelocidad = (valor) => t("replay.linea.velocidadValor", { v: fmt.numero(valor) });
+  const selectorVelocidad = el(
+    "select",
+    {
+      class: "replay-velocidad num",
+      "aria-label": t("replay.linea.velocidad"),
+      "aria-keyshortcuts": ", .",
+      "data-foco": "replay:velocidad",
+    },
+    VELOCIDADES.map((valor) => el("option", { value: String(valor), texto: textoVelocidad(valor) })),
+  );
+  selectorVelocidad.addEventListener("change", () => velocidad(Number(selectorVelocidad.value)), { signal: senal });
   conGlobo(
-    botonVelocidad,
-    () => el("span", { class: "globo-con-tecla" }, el("span", { texto: t("replay.linea.velocidad") }), kbd(","), kbd(".")),
+    selectorVelocidad,
+    () => el("span", { class: "globo-con-tecla" }, el("span", { texto: t("replay.linea.velocidadAyuda") }), kbd(","), kbd(".")),
     { senal },
   );
 
@@ -92,7 +98,7 @@ export function crearLineaDeTiempo({ t, fmt, urlDeArchivo, senal, elegir, buscar
   botonSoloPasos.addEventListener("click", () => soloPasos(), { signal: senal });
   conGlobo(botonSoloPasos, globoConTecla(t("replay.linea.soloPasosAyuda"), "s"), { senal });
 
-  const controles = el("div", { class: "replay-controles" }, botonReproducir, pista, reloj, botonVelocidad, botonSoloPasos);
+  const controles = el("div", { class: "replay-controles" }, botonReproducir, selectorVelocidad, pista, reloj, botonSoloPasos);
   const nodo = el("section", { class: "replay-linea", "aria-label": t("replay.linea.etiqueta") }, tira, controles);
 
   function cuadro(intento, paso, indice) {
@@ -168,8 +174,7 @@ export function crearLineaDeTiempo({ t, fmt, urlDeArchivo, senal, elegir, buscar
   }
 
   function ponerVelocidad(valor) {
-    botonVelocidad.textContent = t("replay.linea.velocidadValor", { v: fmt.numero(valor) });
-    botonVelocidad.setAttribute("aria-label", `${t("replay.linea.velocidad")}: ${t("replay.linea.velocidadValor", { v: fmt.numero(valor) })}`);
+    selectorVelocidad.value = String(valor);
   }
 
   function ponerSoloPasos(activo, visible) {

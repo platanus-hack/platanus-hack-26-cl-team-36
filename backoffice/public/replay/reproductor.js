@@ -90,6 +90,7 @@ export function crearRelojVirtual({ fin, alAvanzar, alCambiarEstado }) {
 export function crearReproductorDeVideo(video, { desfase = 0, alAvanzar, alCambiarEstado, senal }) {
   let segmentos = null;
   let cuadro = 0;
+  let velocidad = 1;
   // Oyentes propios: se quitan al destruir este reproductor aunque el <video> siga en la página.
   const controlador = new AbortController();
   senal?.addEventListener("abort", () => controlador.abort(), { once: true });
@@ -118,6 +119,12 @@ export function crearReproductorDeVideo(video, { desfase = 0, alAvanzar, alCambi
     cancelar(cuadro);
     alCambiarEstado(false);
   }, opciones);
+  // Cargar un src nuevo vuelve playbackRate a defaultPlaybackRate: se ponen los dos y se repite al tener metadatos.
+  const aplicarVelocidad = () => {
+    video.defaultPlaybackRate = velocidad;
+    video.playbackRate = velocidad;
+  };
+  video.addEventListener("loadedmetadata", aplicarVelocidad, opciones);
   // Con el video detenido (al saltar con la línea de tiempo), timeupdate mantiene todo al día.
   video.addEventListener("timeupdate", () => video.paused && alAvanzar(tiempo()), opciones);
 
@@ -138,7 +145,8 @@ export function crearReproductorDeVideo(video, { desfase = 0, alAvanzar, alCambi
     tiempo,
     reproduciendo: () => !video.paused,
     ponerVelocidad(v) {
-      video.playbackRate = v;
+      velocidad = v;
+      aplicarVelocidad();
     },
     ponerSoloPasos(nuevos) {
       segmentos = nuevos;

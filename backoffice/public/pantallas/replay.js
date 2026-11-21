@@ -4,7 +4,8 @@
 // Estado en la URL: ?intento= &paso= &modo=despues|antes|deslizar|superponer &ver=video &senales=1. Los cambios de
 // paso se aplican primero en la pantalla (en el lugar, sin reconstruir: el foco nunca se cae) y después se escriben
 // en el hash con replaceState; actualizar(ctx) compara la URL con el estado y solo aplica lo distinto (atrás,
-// adelante, enlaces). Velocidad y "solo pasos" son locales.
+// adelante, enlaces). Velocidad y "solo pasos" son locales; la velocidad además queda guardada en este navegador
+// (localStorage), así sobrevive a recargas y a cambios de intento.
 
 import { el, reemplazar, conservarFoco } from "../nucleo/dom.js";
 import { kbd } from "../nucleo/atajos.js";
@@ -16,7 +17,7 @@ import { crearCabecera } from "../replay/cabecera.js";
 import { crearLineaDeTiempo } from "../replay/linea-de-tiempo.js";
 import { crearRail } from "../replay/rail.js";
 import { crearRelojVirtual, crearReproductorDeVideo } from "../replay/reproductor.js";
-import { cambiarVelocidad, duracionTotal, pasoEnSegundo, segmentosSoloPasos, siguienteConProblema, ventanasDePasos } from "../replay/sincronia.js";
+import { cambiarVelocidad, duracionTotal, pasoEnSegundo, segmentosSoloPasos, siguienteConProblema, velocidadValida, ventanasDePasos } from "../replay/sincronia.js";
 import { contenidoDeTarjeta } from "../replay/tarjeta.js";
 import { MODOS, crearVisor } from "../replay/visor.js";
 
@@ -24,6 +25,24 @@ let ctx = null;
 let partes = null;
 let estado = null;
 let reproductor = null;
+
+const CLAVE_VELOCIDAD = "backoffice:replay-velocidad";
+
+function leerVelocidadGuardada() {
+  try {
+    return velocidadValida(globalThis.localStorage?.getItem(CLAVE_VELOCIDAD));
+  } catch {
+    return velocidadValida(null);
+  }
+}
+
+function guardarVelocidad(valor) {
+  try {
+    globalThis.localStorage?.setItem(CLAVE_VELOCIDAD, String(valor));
+  } catch {
+    // Sin almacenamiento (modo privado, sitio bloqueado): la velocidad vale solo para esta visita.
+  }
+}
 
 const globoConTecla = (texto, ...teclas) => () => el("span", { class: "globo-con-tecla" }, el("span", { texto }), teclas.map((tecla) => kbd(tecla)));
 
@@ -234,7 +253,14 @@ function alternarSoloPasos() {
 }
 
 function cambiarVelocidadEn(direccion) {
-  estado.velocidad = cambiarVelocidad(estado.velocidad, direccion);
+  ponerVelocidad(cambiarVelocidad(estado.velocidad, direccion));
+}
+
+/** Aplica una velocidad de VELOCIDADES (desde el selector o los atajos), la guarda y la anuncia. */
+function ponerVelocidad(valor) {
+  // Aunque sea la misma no se corta: en los extremos "," o "." la vuelve a anunciar, así se nota el tope.
+  estado.velocidad = velocidadValida(valor);
+  guardarVelocidad(estado.velocidad);
   reproductor.ponerVelocidad(estado.velocidad);
   partes.linea.ponerVelocidad(estado.velocidad);
   ctx.anunciar(ctx.t("replay.linea.velocidadValor", { v: ctx.fmt.numero(estado.velocidad) }));
@@ -295,7 +321,7 @@ function armar(contenedor) {
     elegir: (indice) => irA(indice),
     buscar: (segundo) => buscarSegundo(segundo),
     alternar: () => reproductor.alternar(),
-    velocidad: (direccion) => cambiarVelocidadEn(direccion),
+    velocidad: (valor) => ponerVelocidad(valor),
     soloPasos: () => alternarSoloPasos(),
   });
   visor.video.addEventListener(
@@ -439,7 +465,7 @@ export default {
       partes = null;
       return;
     }
-    estado = { intento: null, indice: -1, modo: "despues", video: false, soloSenales: false, soloPasos: false, velocidad: 1, aviso: null, ventanas: [], duracion: 0 };
+    estado = { intento: null, indice: -1, modo: "despues", video: false, soloSenales: false, soloPasos: false, velocidad: leerVelocidadGuardada(), aviso: null, ventanas: [], duracion: 0 };
     armar(contenedor);
     partes.linea.ponerVelocidad(estado.velocidad);
     registrarAtajos();
