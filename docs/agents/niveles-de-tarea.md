@@ -44,16 +44,16 @@ o CAPTCHA; Online-Mind2Web quita los que tienen CAPTCHA; Mind2Web pide no escrib
 ejecutar las acciones que cambian estado (*Click (Fake)*); ST-WebAgentBench exige confirmar antes de operaciones
 irreversibles (borrar, comprar, enviar formularios).
 
-## 2. Qué se adopta y qué se descarta de la propuesta inicial
+## 2. Qué se adopta de cada eje
 
-| Campo propuesto | Decisión | Por qué |
+| Campo | Decisión | Por qué |
 |---|---|---|
-| `level` | Se mantiene, como **filtro** | Cockburn da una prueba aplicable. Solo `user_goal` se evalúa. |
-| `type` (Broder) | Pasa a `intent`, con valores de WebArena | Broder clasifica búsquedas; en un sitio todo sería navegacional. |
-| `priority` | Pasa a `prominence` | Ninguna fuente valida la prominencia como sustituto de Top Tasks. |
-| `complexity` | Se mantiene | Online-Mind2Web es la única fuente con umbrales por pasos de referencia. |
-| `gate` | Pasa a `gates` (lista) | Las barreras se combinan. Se agregan `personal_data` y `bot_check`. |
-| — | Se agregan `parent` y `reference_route` | Para agrupar bajo un `summary` y calcular las métricas. |
+| `level` | Niveles de Cockburn, como **filtro** | Cockburn da una prueba aplicable. Solo `user_goal` se evalúa. |
+| `intent` | Categorías de WebArena, no las de Broder | Broder clasifica búsquedas; en un sitio todo sería navegacional. |
+| `prominence` | Reemplaza a la importancia | Ninguna fuente valida la prominencia como sustituto de Top Tasks. |
+| `complexity` | Bandas por pasos | Online-Mind2Web es la única fuente con umbrales por pasos de referencia. |
+| `gates` | Lista, no un valor | Las barreras se combinan: `login`, `personal_data`, `side_effect`, `bot_check`. |
+| `parent`, `reference_route` | Se agregan | Para agrupar bajo un `summary` y calcular las métricas. |
 
 ## 3. El esquema de un objetivo
 
