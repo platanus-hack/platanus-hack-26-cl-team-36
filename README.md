@@ -26,7 +26,7 @@ just local up sesion                  #    same, with a copy of your Firefox pro
 just local down                       #    stops them (just local logs follows their logs)
 just local test                       # 3. before pushing: every test that does not call Claude
 just local catalog <url>              # 4. cataloger: goal catalog of a site (calls Claude)
-just local guide <task>               # 5. guide: reference route of a task in agents/tasks/ (calls Claude)
+just local guide <host>/<goal>        # 5. guide: reference route of a task in agents/tasks/ (calls Claude)
 just local visit <url> "<task>"       # 6. visitor: synthetic users try a task on a site (calls Claude)
 just local visit-tasks [wom|sii|dt]   #    visitor on the tasks in agents/tasks/ (calls Claude)
 just local backoffice                 # 7. viewer of the visitor runs
@@ -51,7 +51,7 @@ Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del rep
 [`local/justfile`](local/justfile).
 
 El Visitante también corre en AWS, en AgentCore Runtime, con Claude en Bedrock y la cuenta de la hackatón
-(`export AWS_PROFILE=<perfil>`): `just aws visit wom-baja-fibra` o `just aws visit <url> "<task>"`. Se despliega
+(`export AWS_PROFILE=<perfil>`): `just aws visit wom.cl/baja-fibra` o `just aws visit <url> "<task>"`. Se despliega
 solo al mergear a `main`; los detalles están en [el Visitante](agents/app/visitor/README.md#en-aws-agentcore) y
 en [la infraestructura](infra/README.md).
 

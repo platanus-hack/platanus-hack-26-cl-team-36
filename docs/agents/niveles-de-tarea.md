@@ -59,18 +59,18 @@ pedir confirmación antes de operaciones irreversibles (borrar, comprar) o de en
 
 ## 3. El esquema de un objetivo
 
-Ejemplo de un objetivo de `goals.json` sobre la tarea de WOM de [`agents/tasks/`](../../agents/tasks/). Se conservan
-los campos de [formas de datos](../formas-de-datos.md), sección 5.
+Ejemplo de un objetivo de `goals.json` sobre la tarea de WOM de [`agents/tasks/wom.cl/`](../../agents/tasks/wom.cl/). Se
+conservan los campos de [formas de datos](../formas-de-datos.md), sección 5.
 
 ```json
 {
-  "id": "wom-baja-fibra",
-  "host": "www.wom.cl",
+  "id": "baja-fibra",
+  "host": "wom.cl",
   "start_url": "https://www.wom.cl/",
   "description": "Encuentra cómo dar de baja tu servicio de Internet Fibra.",
   "expected_answer": null,
   "level": "user_goal",
-  "parent": "wom-gestionar-servicio",
+  "parent": "gestionar-servicio",
   "intent": "find_info",
   "evidence": ["https://www.wom.cl/ayuda/"],
   "entry": "https://www.wom.cl/ayuda/",
