@@ -24,7 +24,7 @@ runtime_arn := "aws bedrock-agentcore-control list-agent-runtimes --query \"agen
 help:
     @just --list aws --unsorted --list-heading '{{ list_heading }}'
 
-# Synthetic users on AgentCore: a task from agents/tasks/ as <host>/<goal>, or a URL and a task. Saves report.md in agents/.runs/aws/
+# Synthetic users on AgentCore: a task from agents/tasks/ as <host>/<goal>, or a URL and a task. Saves report.md in local/.state/aws/
 [group('Synthetic users on AgentCore · Claude on Bedrock, billed to the AWS account')]
 visit target task="" profiles="": _ready
     #!/usr/bin/env bash
@@ -41,7 +41,7 @@ visit target task="" profiles="": _ready
     fi
     runtime=$({{ runtime_arn }})
     [[ "$runtime" == arn:* ]] || { echo "error: {{ runtime_name }} is not deployed in this account" >&2; exit 1; }
-    out="agents/.runs/aws/$(date +%Y-%m-%d_%H-%M-%S)"
+    out="local/.state/aws/$(date +%Y-%m-%d_%H-%M-%S)"
     mkdir -p "../$out"
     # The runtime answers in a stream: a status line every 20 s, then the outcomes and the report.
     {{ agentcore }} invoke --runtime "$runtime" --payload "$payload" | node -e '

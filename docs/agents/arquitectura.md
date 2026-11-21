@@ -55,7 +55,8 @@ que tiene herramientas web, debe lograrlo al menos igual de bien.
 ## Flujo por sitio
 
 **Cada objetivo evaluable de un sitio pasa por la Guía y por el Visitante, y un resumen los compara.** Se comunican
-solo por corridas del [almacén](#almacén): cada uno lee la última corrida que terminó bien de lo que necesita. El
+solo por corridas del [almacén](#almacén): cada uno lee la corrida más nueva que terminó bien y es de la instrucción
+que necesita. El
 Catalogador decide en el catálogo qué objetivos se evalúan (`exclusion`) y con qué tarea (`instruction`); la Guía y
 el Visitante solo lo leen. `just local site <url> <N>` corre todo y, al repetirlo, salta lo que ya tiene corrida.
 
