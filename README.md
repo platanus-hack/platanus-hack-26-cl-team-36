@@ -16,7 +16,7 @@ team-36
 ## Desarrollo local
 
 Requisitos: [`just`](https://github.com/casey/just) (`brew install just`), Node.js 22 o más reciente con npm, Firefox
-y, para el paso 4, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
+y, para los pasos 4 y 6, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
 clon nuevo, en este orden:
 
 ```bash
@@ -27,6 +27,7 @@ just local down                       #    stops them (just local logs follows t
 just local test                       # 3. before pushing: every test that does not call Claude
 just local explore <url> "<task>"     # 4. synthetic users try a task on a site (calls Claude)
 just local validate [wom|sii|dt]      #    the reference tasks in agents/tasks/ (calls Claude)
+just local route <task>               # 6. reference route of a task in agents/tasks/ (calls Claude)
 ```
 
 Los despliegues y las versiones de la extensión corren como GitHub Actions en el repo personal
@@ -51,6 +52,7 @@ en [la infraestructura](infra/README.md).
 | [`extension/`](extension/README.md) | Extensión de Firefox que cambia el diseño de cada sitio aplicando un tema |
 | `backend/` | API que le dice a la extensión qué tema corresponde a cada página |
 | [`agents/app/web_evaluator/`](agents/app/web_evaluator/README.md) | Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos |
+| [`agents/app/web_mapper/`](agents/app/web_mapper/README.md) | Mapeador: lee el DOM para encontrar la ruta de referencia de una tarea |
 
 Before Submitting:
 
