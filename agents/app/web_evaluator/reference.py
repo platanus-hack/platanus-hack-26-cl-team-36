@@ -13,7 +13,10 @@ from route_tree import node_key
 def load_reference(output_dir: Path, url: str, instruction: str, profile: str) -> dict | None:
     """La ruta verificada de esta tarea para el viewport del perfil, si el Mapeador la dejó en `output_dir`."""
     for path in sorted(output_dir.glob("reference/*/route.json")):
-        route = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            route = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
         if (
             route.get("status") == "verified"
             and profile in route.get("evaluator_profiles", [])
@@ -52,12 +55,13 @@ def compare(run: dict, route: dict) -> dict:
     nodes = visited_nodes(run)
     distinct = len(set(nodes))
     revisits = distinct / len(nodes)                      # N/T: 1 si no volvió a ninguna página
-    detour = route["totals"]["distinct_pages"] / distinct  # R/N: 1 si visitó solo las páginas necesarias
+    # R/N, acotado a 1: un intento que se detuvo antes de recorrer la ruta no cuenta como desvío.
+    detour = min(1.0, route["totals"]["distinct_pages"] / distinct)
     return {
         "profile": run["profile"],
         "steps": steps,
         "min_steps": min_steps,
-        "efficiency": round(min_steps / max(steps, min_steps), 2) if success else 0.0,
+        "efficiency": round(min_steps / steps if steps > min_steps else 1.0, 2) if success else 0.0,
         "beat_reference": success and steps < min_steps,
         "lostness": round((revisits - 1) ** 2 + (detour - 1) ** 2, 2),
         "revisits": round(revisits, 2),

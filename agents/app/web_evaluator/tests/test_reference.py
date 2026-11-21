@@ -50,9 +50,20 @@ def test_detour_lowers_efficiency_and_raises_lostness():
     assert result["similarity"] == 0.6
 
 
-def test_failed_attempt_has_zero_efficiency_and_reports_progress():
+def test_failed_attempt_has_zero_efficiency_and_misses_the_final_node():
     result = compare(_run([HELP], outcome="abandoned"), ROUTE)
     assert result["efficiency"] == 0.0 and not result["reached_final_node"]
+
+
+def test_attempt_that_stops_early_is_not_lost():
+    assert compare(_run([], outcome="abandoned"), ROUTE)["lostness"] == 0.0
+
+
+def test_answer_on_the_start_page():
+    route = {**ROUTE, "totals": {"min_steps": 0, "distinct_pages": 1}, "nodes": ROUTE["nodes"][:1],
+             "final_node": ROUTE["nodes"][0]}
+    assert compare(_run([]), route)["efficiency"] == 1.0
+    assert compare(_run([HELP, HOME]), route)["efficiency"] == 0.0
 
 
 def test_attempt_shorter_than_reference_is_capped_and_flagged():
@@ -71,6 +82,12 @@ def test_load_reference_matches_task_and_profile(tmp_path):
     assert load_reference(tmp_path, URL, INSTRUCTION, "hurried") is not None
     assert load_reference(tmp_path, URL, INSTRUCTION, "mobile") is None
     assert load_reference(tmp_path, URL, "Otra tarea.", "hurried") is None
+
+
+def test_unreadable_route_is_ignored(tmp_path):
+    _write_route(tmp_path)
+    (tmp_path / "reference" / "desktop" / "route.json").write_text("{", encoding="utf-8")
+    assert load_reference(tmp_path, URL, INSTRUCTION, "hurried") is None
 
 
 def test_unverified_route_is_ignored(tmp_path):

@@ -175,9 +175,9 @@ async def run_batch(
         "judge_model": judge_model,
         "effort": effort,
     }
-    comparison = reference.compare_batch(output_dir, url, instruction, run_dicts)
     _write_json(batch_dir / "criteria.json", criteria)
     _write_json(batch_dir / "route_tree.json", {**meta, "criteria": criteria, **tree})
+    comparison = reference.compare_batch(output_dir, url, instruction, run_dicts)
     if comparison:
         _write_json(batch_dir / "reference_comparison.json", comparison)
     (batch_dir / "report.md").write_text(report.generate(meta, criteria, run_dicts, tree, comparison), encoding="utf-8")
