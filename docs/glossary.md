@@ -1,13 +1,13 @@
 # Glossary
 
-Única fuente de términos. Un nombre por concepto, sin sinónimos. La prosa de los specs va en español; los nombres
-técnicos (conceptos, campos, valores, operaciones, stacks, archivos) van en inglés y se escriben tal cual.
+Única fuente de términos. Un nombre por concepto, sin sinónimos. La prosa va en español; los nombres
+técnicos (conceptos, campos, valores, operaciones) van en inglés y se escriben tal cual.
 
 | Term | Definición | Precedente |
 |---|---|---|
 | **source page** | La página tal como la sirve su dueño. No se modifica. | — |
-| **target** | El sitio o página sobre el que se evalúa. Lo elige y documenta quien toma EVAL-1; ningún spec asume uno. | Evaluation target |
-| **target profile** | Documento que demuestra que un target es válido para evaluar (EVAL-1). | — |
+| **target** | El sitio o página sobre el que se evalúa. Lo elige y documenta quien construye el harness; la documentación no asume ninguno. | Evaluation target |
+| **target profile** | Documento que demuestra que un target es válido para evaluar. | — |
 | **host** | Host de la página, con puerto si no es el estándar. | URL |
 | **path pattern** | Primer segmento de la ruta más `/*` si hay más; `*` es todo el host. | — |
 | **locator** | Identificador estable de un elemento: `role`, `name` accesible y un `css` de respaldo. | Locators por rol y nombre en automatización de navegador |
@@ -42,7 +42,6 @@ técnicos (conceptos, campos, valores, operaciones, stacks, archivos) van en ing
 | **pairing token** | Secreto que autoriza a la extensión ante el bridge. | — |
 | **local store** | Archivos locales donde vive todo lo anterior. | Local-first software |
 | **site bundle** | Archivo exportable con task, optimization patches, variant y experiments de un host. | — |
-| **stack** | Serie de PRs apilados con un mismo propósito. | Stacked PRs |
 | **spike** | Prueba de usar y tirar para resolver una incógnita técnica. | XP |
 | **fixture** | Dato de prueba versionado en el repositorio. | Testing |
 
@@ -54,19 +53,6 @@ Los requisitos se escriben en EARS, con las palabras clave en inglés y el resto
 
 - `WHEN <evento> THE SYSTEM MUST <respuesta>`
 - `IF <condición> THEN THE SYSTEM MUST <respuesta>`
-
-Cada requisito tiene un id estable, `<STACK>-<n>.R<m>` (por ejemplo `ENG-3.R2`), para citarlo en PRs y pruebas.
-
-## Stacks
-
-| # | Stack | Prefijo | Archivo |
-|---|---|---|---|
-| 0 | Foundation | `FND` | [stacks/0-foundation.md](stacks/0-foundation.md) |
-| 1 | Engine | `ENG` | [stacks/1-engine.md](stacks/1-engine.md) |
-| 2 | Eval | `EVAL` | [stacks/2-eval.md](stacks/2-eval.md) |
-| 3 | Soul | `SOUL` | [stacks/3-soul.md](stacks/3-soul.md) |
-| 4 | Extension | `EXT` | [stacks/4-extension.md](stacks/4-extension.md) |
-| 5 | Optimizer | `OPT` | [stacks/5-optimizer.md](stacks/5-optimizer.md) |
 
 ## Nota sobre "soul"
 

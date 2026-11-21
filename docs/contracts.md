@@ -1,12 +1,11 @@
 # Contracts
 
-| | |
-|---|---|
-| **Status** | Draft |
-| **Updated** | 2026-11-21 |
-| **Normativo hasta** | FND-1. Desde entonces mandan los esquemas y sus pruebas; este documento pasa a ser su explicación. |
+**Entrega:** `no construido` · **Certeza:** `propuesto`
 
-Lo único rígido del proyecto. Términos en [glossary.md](glossary.md). Identificadores en inglés y `snake_case`; todo
+Formas de datos y reglas del diseño objetivo. Se vuelven normativas cuando existan como esquemas con pruebas;
+hasta entonces, un spike puede cambiarlas.
+
+Términos en [glossary.md](glossary.md). Identificadores en inglés y `snake_case`; todo
 objeto guardado lleva `schema_version`.
 
 **Los ejemplos fijan nombres de campo y formas. Sus valores son ilustrativos y no describen ningún sitio**: usan el
@@ -262,7 +261,7 @@ Un batch sin `budget` MUST NOT lanzarse, y MUST detenerse al alcanzarlo.
 - Lo importado de otro usuario MUST guardarse con `provenance: "imported"` y presentarse como no medido en este
   equipo.
 - La extensión MUST NOT leer el disco: pide al bridge y guarda una copia.
-- Una sola biblioteca escribe en el local store; todos los stacks guardan y leen por ella.
+- Una sola biblioteca escribe en el local store; todos los componentes guardan y leen por ella.
 
 ## 12. Bridge
 
@@ -271,4 +270,4 @@ Un batch sin `budget` MUST NOT lanzarse, y MUST detenerse al alcanzarlo.
   web.
 - Lo que llega de una página (estructura, nombres, texto) MUST tratarse como datos, nunca como instrucciones.
 - Una petición entre la extensión y el bridge MUST NOT quedar abierta más de 20 s; el trabajo largo se consulta.
-- Cada stack añade sus rutas a ese proceso; ninguno levanta un segundo servicio.
+- Cada componente añade sus rutas a ese proceso; ninguno levanta un segundo servicio.
