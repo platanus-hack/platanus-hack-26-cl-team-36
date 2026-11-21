@@ -31,9 +31,9 @@ Antes, el proyecto corría en una subcuenta de desarrollo de la organización de
 4. La URL de la API queda en el resumen de esa ejecución.
 5. Si el cambio toca `infra/agentcore/` o `agents/app/web_evaluator/`, el workflow `AgentCore` despliega el evaluador
    web con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol. La CLI
-   empaqueta el código para arm64 y aplica su propio stack de CDK; no pasa por Terraform. La primera vez también
-   prepara la cuenta para CDK (`CDKToolkit`). Desde un computador: `just aws` (ver
-   [el evaluador](../agents/app/web_evaluator/README.md#en-aws-agentcore)).
+   construye la imagen del evaluador (`agents/app/web_evaluator/Dockerfile`) en CodeBuild, para arm64, y aplica su
+   propio stack de CDK; no pasa por Terraform. La primera vez también prepara la cuenta para CDK (`CDKToolkit`). Desde
+   un computador: `just aws` (ver [el evaluador](../agents/app/web_evaluator/README.md#en-aws-agentcore)).
 
 Las PRs no muestran un plan. Antes de mergear un cambio de infraestructura, corre `terraform plan` en local (ver más
 abajo).
