@@ -10,6 +10,9 @@ export default {
     anuncio: "Profile: {nombre}",
     anuncioTodos: "All profiles",
   },
+  anillo: {
+    paso: "step {n}",
+  },
   lienzo: {
     etiqueta: "Route map",
     instrucciones: "Drag to move the map; ⌘ or Ctrl + wheel to zoom. With focus on the map, the arrow keys move it.",
@@ -32,6 +35,7 @@ export default {
     error: "Tool error",
     retroceso: "Went back",
     grosor: "Width = attempts",
+    anillo: "Each ring = one step from the start",
     atasco: "Someone got stuck here",
   },
   // Pages where someone got stuck: too many steps in a row, stumbles or the same action repeated.

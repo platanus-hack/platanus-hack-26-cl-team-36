@@ -10,6 +10,9 @@ export default {
     anuncio: "Perfil: {nombre}",
     anuncioTodos: "Todos los perfiles",
   },
+  anillo: {
+    paso: "paso {n}",
+  },
   lienzo: {
     etiqueta: "Mapa de la telaraña",
     instrucciones: "Arrastra para mover el mapa; ⌘ o Ctrl + rueda para acercar. Con el foco en el mapa, las flechas lo mueven.",
@@ -32,6 +35,7 @@ export default {
     error: "Error de la herramienta",
     retroceso: "Volvió atrás",
     grosor: "Grosor = intentos",
+    anillo: "Cada anillo = un paso desde el inicio",
     atasco: "Alguien se trabó aquí",
   },
   // Páginas donde alguien se trabó: pasos seguidos de más, tropiezos o la misma acción repetida.

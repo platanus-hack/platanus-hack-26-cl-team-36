@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { leerTanda } from "../lib/tandas.js";
-import { distribuir, geometria, idDeTerminal, idDeTramoFinal } from "../public/telarana/distribuir.js";
+import { LIMITE_ANGULAR, distribuir, geometria, geometriaRadial, idDeTerminal, idDeTramoFinal } from "../public/telarana/distribuir.js";
 import {
   activosDePerfil,
   duracionDePaso,
@@ -316,4 +316,68 @@ test("perfil vecino da la vuelta pasando por «todos»; duración de un paso aco
   assert.equal(duracionDePaso({ duracion: 3 }), 1500);
   assert.equal(duracionDePaso({ duracion: 60 }), 2500);
   assert.equal(duracionDePaso({}), 1000);
+});
+
+// ── Telaraña radial ─────────────────────────────────────────────────────
+
+test("radial dt: inicio al centro, un anillo por capa, la ruta sobre el eje y el error fuera del eje", () => {
+  const g = geometriaRadial(distribuir(DT), { paso: 190 });
+  assert.deepEqual(g.posiciones.get("n1"), { x: 0, y: 0 });
+  assert.deepEqual(g.posiciones.get("n2"), { x: 190, y: 0 });
+  assert.deepEqual(g.posiciones.get("n3"), { x: 380, y: 0 });
+  assert.deepEqual(g.anillos.map((a) => [a.capa, a.radio]), [[1, 190], [2, 380], [3, 570]]);
+  // Logrado sigue el eje un anillo más allá de n3; el error cae junto a n2, en el anillo siguiente y abajo del eje.
+  assert.deepEqual(g.posiciones.get("fin:logrado"), { x: 570, y: 0 });
+  const error = g.polares.get("fin:error");
+  assert.equal(error.anillo, 2);
+  assert.ok(error.angulo > 0 && g.posiciones.get("fin:error").y > 0);
+  for (const id of ["n1>n2", "n2>n3", "n3>fin:logrado"]) assert.match(g.caminos.get(id), /^M[\d.]+ 0 L[\d.]+ 0$/, "el eje es recto");
+  assert.equal(g.rayos.length, 16);
+  assert.ok(g.caja.x < -190 && g.caja.y < -190, "la caja incluye el primer anillo entero");
+  // Eje hacia abajo: x e y se intercambian.
+  const abajo = geometriaRadial(distribuir(DT), { eje: "abajo" });
+  assert.deepEqual(abajo.posiciones.get("n3"), { x: 0, y: 380 });
+});
+
+test("radial: desvíos repartidos por ángulo sin pisarse, arriba los que vuelven y abajo los que fallan", () => {
+  const d = distribuir({
+    paginas: [
+      pagina("a", { esInicio: true, visitas: 5 }),
+      pagina("b", { visitas: 4 }),
+      pagina("c", { visitas: 4, finales: { ...SIN_FINALES, logrado: 3 } }),
+      pagina("planes", { visitas: 2 }),
+      ...["r1", "r2", "r3", "r4", "r5", "r6"].map((id) => pagina(id, { finales: { ...SIN_FINALES, fallido: 1 } })),
+    ],
+    ramas: [rama("a", "b", 3), rama("b", "c", 3), rama("a", "planes", 2), rama("planes", "c", 1), ...["r1", "r2", "r3", "r4", "r5", "r6"].map((id) => rama("a", id))],
+    ruta: { paginas: ["a", "b", "c"] },
+  });
+  const espacio = 150;
+  const g = geometriaRadial(d, { espacio });
+  assert.ok(g.polares.get("planes").angulo < 0, "planes vuelve a la ruta: arriba");
+  for (const id of ["r1", "r2", "r3", "r4", "r5", "r6"]) assert.ok(g.polares.get(id).angulo > 0, `${id} solo falla: abajo`);
+  // Ningún par de nodos del mismo anillo queda a menos de `espacio` (medido sobre el arco).
+  const porAnillo = new Map();
+  for (const [id, p] of g.polares) if (p.anillo) porAnillo.set(p.anillo, [...(porAnillo.get(p.anillo) ?? []), { id, ...p }]);
+  for (const [anillo, nodos] of porAnillo) {
+    const radio = g.anillos.find((a) => a.capa === anillo).radio;
+    for (const n of nodos) assert.ok(Math.abs(n.angulo) <= LIMITE_ANGULAR + 1e-9);
+    for (let i = 0; i < nodos.length; i += 1)
+      for (let j = i + 1; j < nodos.length; j += 1) assert.ok(Math.abs(nodos[i].angulo - nodos[j].angulo) * radio >= espacio - 0.5, `${nodos[i].id} y ${nodos[j].id}`);
+  }
+  // El anillo 1 creció para que quepan los seis desvíos de un lado.
+  assert.ok(g.anillos[0].radio > 190);
+  assert.ok(g.anillos.every((a, i) => i === 0 || a.radio > g.anillos[i - 1].radio), "los radios crecen hacia afuera");
+});
+
+test("radial: vueltas atrás como arcos, ciclos sin romperse y determinista", async () => {
+  const tanda = await leerTanda(RAIZ, NUEVA);
+  const g = geometriaRadial(distribuir(tanda.telarana));
+  const vuelta = g.caminos.get("n6>n5");
+  assert.ok(vuelta && vuelta.split("L").length > 3, "el retroceso es una curva, no una recta");
+  for (const [, d] of g.caminos) assert.doesNotMatch(d, /NaN|Infinity/);
+  for (const [, p] of g.posiciones) assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y));
+  const ciclo = geometriaRadial(distribuir({ paginas: [pagina("i", { esInicio: true }), pagina("j"), pagina("k")], ramas: [rama("i", "j"), rama("j", "k"), rama("k", "i"), rama("k", "j")], ruta: null }));
+  assert.equal(ciclo.posiciones.size, 3);
+  assert.deepEqual([...geometriaRadial(distribuir(tanda.telarana)).caminos], [...g.caminos]);
+  assert.equal(geometriaRadial(distribuir({})).posiciones.size, 0);
 });

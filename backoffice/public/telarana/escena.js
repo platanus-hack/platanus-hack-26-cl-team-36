@@ -45,6 +45,20 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
     focusable: "false",
     estilo: { "--x": `${caja.x}px`, "--y": `${caja.y}px` },
   });
+  // Guías de la telaraña radial: los anillos (un paso desde el inicio cada uno) como hebras y los rayos.
+  let guias = null;
+  if (geo.anillos?.length) {
+    const e = geo.extension;
+    guias = svg(
+      "svg",
+      { class: "telarana-guias", viewBox: `${-e} ${-e} ${2 * e} ${2 * e}`, width: 2 * e, height: 2 * e, "aria-hidden": "true", focusable: "false", estilo: { "--x": `${-e}px`, "--y": `${-e}px` } },
+      geo.rayos.map((d) => svg("path", { class: "guia-rayo", d })),
+      geo.anillos.map((anillo) => svg("path", { class: "guia-anillo", d: anillo.d })),
+      geo.anillos
+        .filter((anillo) => anillo.etiqueta)
+        .map((anillo) => svg("text", { class: "guia-etiqueta", x: anillo.etiqueta.x + 6, y: anillo.etiqueta.y - 6, texto: textos.anillo?.(anillo.capa) ?? String(anillo.capa) })),
+    );
+  }
   const ordenados = [...distribucion.tramos].sort((a, b) => ORDEN_DE_CAPA[a.tipo] - ORDEN_DE_CAPA[b.tipo]);
   for (const tramo of ordenados) {
     const d = geo.caminos.get(tramo.id);
@@ -105,6 +119,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         "data-foco": `telarana:pagina:${estacion.id}`,
         "aria-pressed": "false",
         "aria-label": textos.ariaDeEstacion(pagina, estacion, 0),
+        "data-ancla": geo.anclas?.get(estacion.id) ?? null,
         estilo: { "--x": `${posicion.x}px`, "--y": `${posicion.y}px` },
       },
       el(
@@ -141,6 +156,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         "data-terminal": terminal.id,
         role: "img",
         "aria-label": textos.ariaDeTerminal(terminal.resultado, terminal.total),
+        "data-ancla": geo.anclas?.get(terminal.id) ?? null,
         estilo: { "--x": `${posicion.x}px`, "--y": `${posicion.y}px` },
       },
       el("span", { class: "terminal-punto", "aria-hidden": "true" }, icono(ICONO_DE_RESULTADO[terminal.resultado])),
@@ -151,7 +167,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
     nodos.push(nodo);
   }
 
-  escena.replaceChildren(lienzoSvg, ...nodos, cometa);
+  escena.replaceChildren(...(guias ? [guias] : []), lienzoSvg, ...nodos, cometa);
 
   return {
     svg: lienzoSvg,

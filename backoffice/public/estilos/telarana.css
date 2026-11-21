@@ -70,6 +70,19 @@
   box-shadow: var(--brillo-superior);
 }
 
+/* ── Guías de la telaraña: rayos y anillos (hebras), detrás de todo ─────── */
+.p-telarana .telarana-guias {
+  position: absolute; left: var(--x); top: var(--y); overflow: visible; pointer-events: none;
+  max-width: none; max-height: none;
+}
+.p-telarana .guia-rayo { fill: none; stroke: oklch(1 0 0 / 0.07); stroke-width: calc(1px / var(--k)); }
+.p-telarana .guia-anillo { fill: none; stroke: oklch(1 0 0 / 0.14); stroke-width: calc(1.2px / var(--k)); }
+.p-telarana .guia-etiqueta {
+  fill: var(--texto-3); font-family: var(--fuente-mono, ui-monospace, monospace);
+  font-size: max(11px, calc(10px / var(--k))); letter-spacing: 0.02em;
+}
+.p-telarana .lienzo[data-vista="3d"] .guia-anillo { stroke: oklch(1 0 0 / 0.22); }
+
 /* ── Tramos (SVG) ───────────────────────────────────────────────────── */
 .p-telarana .telarana-tramos {
   position: absolute; left: var(--x); top: var(--y); overflow: visible; pointer-events: none;
@@ -176,6 +189,15 @@
   justify-items: start; text-align: start; max-width: 240px; transform-origin: top left; margin-top: -1px;
 }
 .p-telarana .lienzo[data-orientacion="vertical"] .estacion-nombre { -webkit-line-clamp: 4; line-clamp: 4; }
+
+/* Eje hacia abajo (lienzos altos): la etiqueta va al costado del punto, hacia afuera del eje. */
+.p-telarana .estacion[data-ancla="derecha"] { flex-direction: row; align-items: flex-start; transform: translate(-9px, -9px); gap: var(--e-2); }
+.p-telarana .estacion[data-ancla="izquierda"] { flex-direction: row-reverse; align-items: flex-start; transform: translate(calc(-100% + 9px), -9px); gap: var(--e-2); }
+.p-telarana .estacion:is([data-ancla="derecha"], [data-ancla="izquierda"]) .estacion-etiqueta { max-width: 150px; margin-top: -1px; }
+.p-telarana .estacion[data-ancla="derecha"] .estacion-etiqueta { justify-items: start; text-align: start; transform-origin: top left; }
+.p-telarana .estacion[data-ancla="izquierda"] .estacion-etiqueta { justify-items: end; text-align: end; transform-origin: top right; }
+.p-telarana .terminal[data-ancla="izquierda"] { flex-direction: row-reverse; transform: translate(calc(-100% + 11px), -50%); }
+.p-telarana .terminal[data-ancla="izquierda"] .terminal-etiqueta { transform-origin: right center; }
 
 /* ── Terminales ─────────────────────────────────────────────────────── */
 .p-telarana .terminal {

@@ -1,6 +1,6 @@
-// Pestaña Telaraña (diseño §10.5): mapa de metro de izquierda a derecha con la ruta recomendada como tronco recto,
-// filtro por perfil que atenúa (nunca saca), panel de detalle, cámara (pan, zoom, ajuste) y modo historia ligado a
-// Replay. Bajo 720 px de ancho el metro se vuelve vertical y la página se desplaza con normalidad.
+// Pestaña Telaraña (diseño §10.5): una telaraña radial con el inicio al centro, un anillo por paso y la ruta
+// recomendada como eje recto (hacia la derecha; hacia abajo si el lienzo es más alto que ancho), filtro por perfil
+// que atenúa (nunca saca), panel de detalle, cámara (pan, zoom, ajuste) y modo historia ligado a Replay.
 //
 // El estado de la vista vive en el hash: perfil=, pagina=, historia=, paso=. Los clics escriben parámetros con
 // ctx.actualizarParametros y actualizar(ctx) los aplica: una sola fuente de verdad.
@@ -24,20 +24,19 @@ import {
   totalesDeTerminales,
   vecindario,
 } from "../telarana/cuentas.js";
-import { RESULTADOS, distribuir, geometria } from "../telarana/distribuir.js";
+import { RESULTADOS, distribuir, geometriaRadial } from "../telarana/distribuir.js";
 import { atascosPorPagina } from "../telarana/atascos.js";
 import { claseDeTramo, dibujarEscena } from "../telarana/escena.js";
 import { crearHistoria } from "../telarana/historia.js";
 
-const ANCHO_VERTICAL = 720;
 const PASO_DE_PAN = 60;
 const reducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 // Holgura para las etiquetas fuera de la caja de la geometría (debajo de las estaciones y a la derecha de las
-// terminales en horizontal; a la derecha de todo en vertical).
+// terminales con el eje a la derecha; a los lados con el eje hacia abajo).
 const HOLGURA = {
-  horizontal: { derecha: 120, abajo: 40 },
-  vertical: { derecha: 200, abajo: 20 },
+  derecha: { izquierda: 0, derecha: 150, abajo: 40 },
+  abajo: { izquierda: 60, derecha: 120, abajo: 20 },
 };
 
 function crearPantalla(contenedor, ctx) {
@@ -58,6 +57,7 @@ function crearPantalla(contenedor, ctx) {
     historiaId: null,
     historia: null,
     orientacion: null,
+    eje: "derecha",
     geo: null,
     dibujo: null,
     ancho: 0,
@@ -83,6 +83,7 @@ function crearPantalla(contenedor, ctx) {
     visitas: (n) => t("telarana.estacion.visitas", { n }),
     etiquetaDeResultado: (resultado) => t(`comun.resultado.${resultado}`),
     ariaDeTerminal: (resultado, n) => t("telarana.terminal.aria", { resultado: t(`comun.resultado.${resultado}`), n }),
+    anillo: (n) => t("telarana.anillo.paso", { n }),
   };
   const urlDeCaptura = (captura) => (captura?.archivo ? ctx.urlDeArchivo(captura.perfil, captura.archivo) : null);
 
@@ -222,6 +223,7 @@ function crearPantalla(contenedor, ctx) {
         "ul",
         { "aria-label": t("telarana.leyenda.titulo") },
         items.map(([clasesDeMuestra, clave]) => el("li", {}, muestra(clasesDeMuestra), el("span", { texto: t(`telarana.leyenda.${clave}`) }))),
+        el("li", { class: "leyenda-anillo", texto: t("telarana.leyenda.anillo") }),
         hayAtascos ? el("li", { class: "leyenda-atasco" }, icono("atasco"), el("span", { texto: t("telarana.leyenda.atasco") })) : null,
         el("li", { class: "leyenda-grosor", texto: t("telarana.leyenda.grosor") }),
       ),
@@ -287,15 +289,16 @@ function crearPantalla(contenedor, ctx) {
 
   function cajaVisible() {
     const { caja } = estado.geo;
-    const holgura = HOLGURA[estado.orientacion];
+    const holgura = HOLGURA[estado.eje] ?? HOLGURA.derecha;
     // En 3D las capturas se paran sobre las estaciones: más lugar arriba y a los lados.
     if (camara?.inclinado) return { x: caja.x - 60, y: caja.y - 160, ancho: caja.ancho + holgura.derecha + 120, alto: caja.alto + 160 };
-    return { x: caja.x, y: caja.y, ancho: caja.ancho + holgura.derecha, alto: caja.alto + holgura.abajo };
+    return { x: caja.x - holgura.izquierda, y: caja.y, ancho: caja.ancho + holgura.izquierda + holgura.derecha, alto: caja.alto + holgura.abajo };
   }
 
   function dibujar() {
-    estado.geo = geometria(distribucion, { orientacion: estado.orientacion, altoCapa: 100 });
+    estado.geo = geometriaRadial(distribucion, { eje: estado.eje });
     lienzo.dataset.orientacion = estado.orientacion;
+    lienzo.dataset.eje = estado.eje;
     estado.dibujo = dibujarEscena({
       escena,
       distribucion,
@@ -325,32 +328,14 @@ function crearPantalla(contenedor, ctx) {
 
   function ajustar() {
     if (!camara || !estado.geo) return;
-    const caja = cajaVisible();
-    if (estado.orientacion === "vertical") {
-      // Vertical: el lienzo crece con el contenido (sin desplazamiento interno); el zoom solo cambia la escala.
-      const ancho = lienzo.clientWidth;
-      const k = Math.min(1.25, Math.max(0.35, ancho / caja.ancho));
-      lienzo.style.setProperty("--alto-lienzo", `${Math.ceil(caja.alto * k)}px`);
-      camara.poner({ k, tx: (ancho - caja.ancho * k) / 2 - caja.x * k, ty: -caja.y * k });
-      return;
-    }
-    camara.ajustar(caja);
+    camara.ajustar(cajaVisible());
   }
 
   function acercar() {
     camara?.acercar();
-    ajustarAltoVertical();
   }
   function alejar() {
     camara?.alejar();
-    ajustarAltoVertical();
-  }
-  function ajustarAltoVertical() {
-    if (estado.orientacion !== "vertical" || !camara) return;
-    const { k } = camara.estado();
-    const caja = cajaVisible();
-    lienzo.style.setProperty("--alto-lienzo", `${Math.ceil(caja.alto * k)}px`);
-    camara.poner({ ty: -caja.y * k });
   }
 
   function introducir() {
@@ -379,13 +364,16 @@ function crearPantalla(contenedor, ctx) {
   function alCambiarTamano() {
     const ancho = contenedor.clientWidth;
     if (!ancho || !distribucion.estaciones.length) return;
-    const orientacion = ancho < ANCHO_VERTICAL ? "vertical" : "horizontal";
-    const cambio = orientacion !== estado.orientacion;
+    // Lienzo más alto que ancho (teléfonos): el eje baja, así la telaraña aprovecha el alto.
+    const orientacion = "radial";
+    const eje = lienzo.clientHeight > lienzo.clientWidth * 1.05 ? "abajo" : "derecha";
+    const cambio = orientacion !== estado.orientacion || eje !== estado.eje;
     if (!cambio && Math.abs(ancho - estado.ancho) < 2) return;
     estado.ancho = ancho;
     const primera = !estado.geo;
     if (cambio) {
       estado.orientacion = orientacion;
+      estado.eje = eje;
       dibujar();
       ponerVista3d(estado.ctx.parametros?.vista === "3d", { animar: false });
     }
@@ -453,7 +441,6 @@ function crearPantalla(contenedor, ctx) {
       const movimiento = flechas[evento.key];
       if (!movimiento || !camara) return;
       if (estado.historia && (evento.key === "ArrowLeft" || evento.key === "ArrowRight")) return; // la historia manda
-      if (estado.orientacion === "vertical" && movimiento[1] !== 0) return; // en vertical la página se desplaza
       evento.preventDefault();
       camara.mover(...movimiento);
     },
@@ -472,8 +459,10 @@ function crearPantalla(contenedor, ctx) {
   // ── Vista 3D (§10.5.4): el mismo mapa inclinado, con las capturas de pie sobre cada estación ─────────────
   let relojDeVista = 0;
   function ponerVista3d(pedida, { animar = true } = {}) {
-    const activa = pedida && estado.orientacion === "horizontal";
-    botonDe3d.hidden = estado.orientacion === "vertical";
+    // El plato inclinado solo con el eje a la derecha (en lienzos altos queda demasiado chico).
+    const permitida = estado.eje !== "abajo";
+    const activa = pedida && permitida;
+    botonDe3d.hidden = !permitida;
     botonDe3d.setAttribute("aria-pressed", String(activa));
     if (!camara || activa === camara.inclinado) return;
     if (animar && !reducido()) {
@@ -488,7 +477,7 @@ function crearPantalla(contenedor, ctx) {
     ajustar();
   }
   function alternar3d() {
-    if (estado.orientacion === "vertical") return;
+    if (estado.eje === "abajo") return;
     ctx.actualizarParametros({ vista: camara?.inclinado ? null : "3d" });
   }
 
@@ -899,7 +888,7 @@ function crearPantalla(contenedor, ctx) {
       camara = crearCamara(lienzo, escena, {
         senal,
         reducido,
-        puedeArrastrar: (evento) => !evento.target.closest?.(".estacion, button, a, select") && (estado.orientacion !== "vertical" || evento.pointerType === "mouse"),
+        puedeArrastrar: (evento) => !evento.target.closest?.(".estacion, button, a, select"),
         alTocarFondo: () => {
           if (estado.seleccion && !estado.historia) ctx.actualizarParametros({ pagina: null });
         },
