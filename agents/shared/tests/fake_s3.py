@@ -1,6 +1,7 @@
 """Doble en memoria de las llamadas de boto3 que usa S3Backend."""
 
 import io
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
@@ -17,11 +18,20 @@ class FakeS3:
     def __init__(self, page_size: int = 2) -> None:
         self.objects: dict[tuple[str, str], tuple[bytes, str]] = {}
         self.page_size = page_size
+        self.uploaded: list[str] = []
+        self.conflicts: set[str] = set()
+        """Claves cuya escritura condicional choca con otra en curso (409)."""
 
     def put_object(self, Bucket: str, Key: str, Body: bytes, ContentType: str, IfNoneMatch: str | None = None) -> None:
+        if IfNoneMatch == "*" and Key in self.conflicts:
+            raise ClientError("ConditionalRequestConflict")
         if IfNoneMatch == "*" and (Bucket, Key) in self.objects:
             raise ClientError("PreconditionFailed")
         self.objects[(Bucket, Key)] = (Body, ContentType)
+
+    def upload_file(self, Filename: str, Bucket: str, Key: str, ExtraArgs: dict[str, str]) -> None:
+        self.uploaded.append(Key)
+        self.objects[(Bucket, Key)] = (Path(Filename).read_bytes(), ExtraArgs["ContentType"])
 
     def get_object(self, Bucket: str, Key: str) -> dict[str, Any]:
         if (Bucket, Key) not in self.objects:

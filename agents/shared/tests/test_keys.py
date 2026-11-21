@@ -15,13 +15,26 @@ RUN = "2026-11-21T10-44-22Z"
         ("https://example.com:80", "example.com:80"),
         ("sii.cl", "sii.cl"),
         ("  www.sii.cl  ", "sii.cl"),
+        ("https://www.Ñandú.cl/", "xn--and-6ma2c.cl"),
+        ("https://wom.cl./baja", "wom.cl"),
     ],
 )
 def test_normalize_host(url: str, host: str) -> None:
     assert normalize_host(url) == host
 
 
-@pytest.mark.parametrize("url", ["", "https://", "https://[::1]:8000/", "https://ex_ample.com", "file:///etc/passwd"])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "",
+        "https://",
+        "https://[::1]:8000/",
+        "https://ex_ample.com",
+        "file:///etc/passwd",
+        "https://wom.cl:99999",
+        "a..b",
+    ],
+)
 def test_normalize_host_rejects(url: str) -> None:
     with pytest.raises(InvalidKey):
         normalize_host(url)
@@ -86,6 +99,11 @@ def test_parse_parts() -> None:
         f"wom.cl/visitor/baja-fibra/{RUN}/first.time/step_00.png",
         f"wom.cl/visitor/baja-fibra/{RUN}/a/b/step_00.png",
         f"wom.cl/visitor/baja-fibra/{RUN}/.hidden.png",
+        f"wom.cl\n/cataloger/{RUN}",
+        f"wom.cl/visitor/baja-fibra\n/{RUN}",
+        f"wom.cl/cataloger/{RUN}\n",
+        f"wom.cl/cataloger/{RUN}/goals.json\n",
+        f"wom.cl/visitor/baja-fibra/{RUN}/first_time\n/step_00.png",
     ],
 )
 def test_parse_rejects(key: str) -> None:
@@ -100,3 +118,16 @@ def test_prefix_rejects_wrong_shape() -> None:
         RunPrefix("wom.cl", "visitor", goal="baja-fibra", viewport="desktop")
     with pytest.raises(InvalidKey):
         cataloger("wom.cl").run(RUN).file("step_00.png", "first_time")
+
+
+def test_segments_reject_trailing_newline() -> None:
+    run = visitor("wom.cl", "baja-fibra").run(RUN)
+    for build in (
+        lambda: RunPrefix("wom.cl\n", "cataloger"),
+        lambda: RunPrefix("wom.cl", "visitor", goal="baja-fibra\n"),
+        lambda: cataloger("wom.cl").run(f"{RUN}\n"),
+        lambda: run.file("report.md\n"),
+        lambda: run.file("step_00.png", "first_time\n"),
+    ):
+        with pytest.raises(InvalidKey):
+            build()

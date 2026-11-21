@@ -51,7 +51,9 @@ class S3Backend(Backend):
     def publish(self, run: RunKey, workdir: Path) -> None:
         """Sube la carpeta de trabajo y la borra; es temporal, la corrida queda en S3."""
         for path, key in workdir_files(run, workdir):
-            self._put(key, path.read_bytes())
+            self.client.upload_file(
+                str(path), self.bucket, self.prefix + key, ExtraArgs={"ContentType": content_type(key)}
+            )
         shutil.rmtree(workdir)
         self._workdirs.pop(run, None)
 

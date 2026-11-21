@@ -16,7 +16,7 @@ from shared.store.keys import (
     visitor,
 )
 from shared.store.local import LocalBackend
-from shared.store.manifest import Manifest, Run, finish_run, read_manifest, start_run
+from shared.store.manifest import Manifest, Run, Status, finish_run, latest_run, read_manifest, start_run
 from shared.store.run_ids import Clock, format_run_id, parse_run_id, sort_run_ids, utc_now
 from shared.store.s3 import S3Backend
 from shared.store.selection import ENV_VAR, open_backend
@@ -34,11 +34,13 @@ __all__ = [
     "RunKey",
     "RunPrefix",
     "S3Backend",
+    "Status",
     "Viewport",
     "cataloger",
     "finish_run",
     "format_run_id",
     "guide",
+    "latest_run",
     "normalize_host",
     "open_backend",
     "parse_key",

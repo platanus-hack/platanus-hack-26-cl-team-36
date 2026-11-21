@@ -24,7 +24,6 @@ def test_run_end_to_end(tmp_path: Path) -> None:
     assert backend.exists(run.key.file("manifest.json"))
     assert not backend.exists(run.key.file("route.json"))
     assert backend.list_runs(prefix) == [run.key]
-    assert backend.latest_run(prefix) == run.key
 
 
 def test_same_second_never_overwrites(tmp_path: Path) -> None:
@@ -36,14 +35,13 @@ def test_same_second_never_overwrites(tmp_path: Path) -> None:
 
     assert (first.key.run_id, second.key.run_id) == ("2026-11-21T10-44-22Z", "2026-11-21T10-44-22Z_01")
     assert backend.read_json(first.key.file("goals.json")) == ["baja-fibra"]
-    assert backend.latest_run(prefix) == second.key
+    assert backend.list_runs(prefix) == [first.key, second.key]
 
 
 def test_list_ignores_foreign_folders(tmp_path: Path) -> None:
     backend = LocalBackend(tmp_path)
     prefix = cataloger("wom.cl")
     assert backend.list_runs(prefix) == []
-    assert backend.latest_run(prefix) is None
     (tmp_path / "wom.cl/cataloger/latest").mkdir(parents=True)
     assert backend.list_runs(prefix) == []
 

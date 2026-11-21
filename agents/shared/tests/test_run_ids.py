@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta, timezone
 import pytest
 
 from shared.store import format_run_id, parse_run_id, sort_run_ids
-from shared.store.run_ids import MAX_SEQUENCE, candidate_run_ids
+from shared.store.run_ids import MAX_SEQUENCE, candidate_run_ids, is_run_id
 
 MOMENT = datetime(2026, 11, 21, 10, 44, 22, 999_000, tzinfo=UTC)
 
@@ -47,3 +47,8 @@ def test_lexicographic_order_is_chronological() -> None:
 
 def test_sort_drops_foreign_names() -> None:
     assert sort_run_ids(["latest", "first_time", "2026-11-21T10-44-22Z"]) == ["2026-11-21T10-44-22Z"]
+
+
+def test_rejects_trailing_newline() -> None:
+    assert not is_run_id("2026-11-21T10-44-22Z\n")
+    assert not is_run_id("2026-11-21T10-44-22Z_01\n")

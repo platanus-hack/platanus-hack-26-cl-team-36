@@ -32,6 +32,7 @@ def test_publish_uploads_with_content_types_and_cleans_workdir() -> None:
         f"{base}/first_time/video.webm": "video/webm",
     }
     assert not run.workdir.exists()
+    assert sorted(client.uploaded) == sorted(key for (_, key) in client.objects if not key.endswith("manifest.json"))
 
 
 def test_latest_lists_with_delimiter_across_pages() -> None:
@@ -43,7 +44,6 @@ def test_latest_lists_with_delimiter_across_pages() -> None:
     start_run(backend, cataloger("sii.cl"), model=None, clock=lambda: MOMENT + timedelta(hours=1))
 
     assert backend.list_runs(prefix) == [run.key for run in runs]
-    assert backend.latest_run(prefix) == runs[-1].key
     assert not any("latest" in key for _, key in client.objects)
 
 
@@ -61,3 +61,11 @@ def test_exists_and_unexpected_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(client, "head_object", denied)
     with pytest.raises(ClientError):
         backend.exists(key)
+
+
+def test_conditional_write_conflict_takes_next_id() -> None:
+    client = FakeS3()
+    backend = S3Backend("bucket", "", client)
+    client.conflicts.add("wom.cl/cataloger/2026-11-21T10-44-22Z/manifest.json")
+    run = start_run(backend, cataloger("wom.cl"), model=None, clock=lambda: MOMENT)
+    assert run.key.run_id == "2026-11-21T10-44-22Z_01"

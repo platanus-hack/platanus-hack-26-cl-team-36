@@ -1,7 +1,7 @@
 """Manifiesto de cada corrida: qué es, de qué corridas viene y cómo terminó."""
 
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, fields, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -40,7 +40,9 @@ class Manifest:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Manifest":
-        return cls(**{**data, "inputs": tuple(data["inputs"])})
+        # Ignora campos desconocidos para leer manifiestos de versiones más nuevas.
+        known = {field.name for field in fields(cls)}
+        return cls(**{key: value for key, value in data.items() if key in known} | {"inputs": tuple(data["inputs"])})
 
 
 @dataclass(frozen=True)
@@ -91,6 +93,8 @@ def finish_run(
     clock: Clock = utc_now,
 ) -> Manifest:
     """Publica la carpeta de trabajo y, al final, el manifiesto con el estado y la hora de término."""
+    if read_manifest(backend, run.key).status != "running":
+        raise RuntimeError(f"la corrida {run.key} ya terminó")
     backend.publish(run.key, run.workdir)
     manifest = replace(run.manifest, status=status, finished_at=_timestamp(clock()))
     backend.write_json(run.key.file(MANIFEST), manifest.to_dict())
@@ -99,3 +103,11 @@ def finish_run(
 
 def read_manifest(backend: Backend, run: RunKey) -> Manifest:
     return Manifest.from_dict(backend.read_json(run.file(MANIFEST)))
+
+
+def latest_run(backend: Backend, prefix: RunPrefix, status: Status = "succeeded") -> RunKey | None:
+    """Última corrida de `prefix` cuyo manifiesto tiene `status`."""
+    for run in reversed(backend.list_runs(prefix)):
+        if read_manifest(backend, run).status == status:
+            return run
+    return None

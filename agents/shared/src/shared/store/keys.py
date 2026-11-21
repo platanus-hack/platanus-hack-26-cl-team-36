@@ -17,11 +17,11 @@ VIEWPORTS: tuple[Viewport, ...] = get_args(Viewport)
 _PREFIX_DEPTH: dict[str, int] = {"cataloger": 0, "summary": 0, "visitor": 1, "guide": 2}
 _DEFAULT_PORTS = {"http": 80, "https": 443}
 _LABEL = r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
-_HOST = re.compile(rf"^{_LABEL}(?:\.{_LABEL})*(?::[1-9]\d{{0,4}})?$")
-_GOAL = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-_PROFILE = re.compile(r"^[a-z0-9]+(?:[_-][a-z0-9]+)*$")
+_HOST = re.compile(rf"{_LABEL}(?:\.{_LABEL})*(?::[1-9]\d{{0,4}})?")
+_GOAL = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+_PROFILE = re.compile(r"[a-z0-9]+(?:[_-][a-z0-9]+)*")
 # Un archivo siempre lleva extensión y un perfil nunca: así no se confunden dentro de una corrida.
-_FILE = re.compile(r"^[a-z0-9][a-z0-9_-]*\.[a-z0-9]+$")
+_FILE = re.compile(r"[a-z0-9][a-z0-9_-]*\.[a-z0-9]+")
 
 
 class InvalidKey(ValueError):
@@ -29,7 +29,7 @@ class InvalidKey(ValueError):
 
 
 def _check(pattern: re.Pattern[str], value: str, what: str) -> str:
-    if not pattern.match(value):
+    if not pattern.fullmatch(value):
         raise InvalidKey(f"{what} inválido: {value!r}")
     return value
 
@@ -54,14 +54,16 @@ def validate_file_name(name: str) -> str:
 
 
 def normalize_host(url: str) -> str:
-    """Host de una URL como lo deja `normalize_url` del evaluador; un host suelto se toma como https."""
+    """Host de una URL como lo deja `normalize_url` del evaluador, en punycode; un host suelto se toma como https."""
     text = url.strip()
     parts = urlsplit(text if "://" in text else f"https://{text}")
-    host = (parts.hostname or "").lower()
-    if host.startswith("www."):
-        host = host[4:]
-    if parts.port and parts.port != _DEFAULT_PORTS.get(parts.scheme.lower()):
-        host = f"{host}:{parts.port}"
+    try:
+        host = (parts.hostname or "").lower().removesuffix(".").removeprefix("www.").encode("idna").decode()
+        port = parts.port
+    except (UnicodeError, ValueError) as error:
+        raise InvalidKey(f"URL inválida: {url!r}") from error
+    if port and port != _DEFAULT_PORTS.get(parts.scheme.lower()):
+        host = f"{host}:{port}"
     return validate_host(host)
 
 
