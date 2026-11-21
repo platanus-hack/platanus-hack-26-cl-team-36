@@ -168,6 +168,7 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 | `visitor/browsers.py`, `visitor/actions.py` | Qué navegador usa la tanda (local, CDP o AgentCore Browser) y las acciones que puede pedir el agente. |
 | `visitor/recording.py` | Los pasos y el recorrido (`Step`, `Run`), y las señales que se leen del DOM solo para el registro. |
 | `visitor/route_tree.py`, `visitor/report.py` | El árbol de rutas, la ruta recomendada y `report.md`. |
+| `visitor/hesitation.py` | Dónde dudó o se equivocó cada usuario, para el reporte. |
 | `visitor/comparison.py` | La comparación de cada intento con la ruta de referencia de la [Guía](../guide/README.md). |
 | `visitor/proposal.py` | La propuesta de ruta cuando un intento logra la tarea con menos pasos que la referencia. |
 | `visitor/catalog_run.py` | Las tandas de un catálogo. |
