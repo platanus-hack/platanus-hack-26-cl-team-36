@@ -90,11 +90,14 @@ html.mi-tema body :where(p, li, dt, dd, td, th, label, span, strong, em, b, i, h
 html.mi-tema body :where(small, time, figcaption) { color: var(--mt-texto-2) !important; }
 html.mi-tema a, html.mi-tema a :where(span, strong, b, em, i) { color: var(--mt-acento) !important; }
 html.mi-tema :is(input, select, textarea), html.mi-tema :is(main, article, aside, form) :is(button, [role='button'], a[class*='btn'], a[class*='button']) { background-color: var(--mt-superficie-2) !important; color: var(--mt-texto) !important; border: 1px solid var(--mt-texto-2) !important; }
+html.mi-tema :is(header, nav) :is(button, [role='button']) { background-color: transparent !important; color: var(--mt-texto) !important; }
+html.mi-tema body a:where(:has(div, p, h2, h3, h4, li)) { background-color: transparent !important; border-color: var(--mt-borde) !important; }
 ```
 
 El bloque no alcanza los fondos que el sitio pone con variables o clases de color. En la sección 5:
 - **Cabecera, navegación y pie del mapa** que quedan claros: `background-color: var(--mt-superficie) !important;
-  color: var(--mt-texto) !important`. Un modo oscuro con la cabecera blanca no es modo oscuro. Sus ítems de menú:
+  color: var(--mt-texto) !important`, con el `selector` del mapa completo (`header.HeaderMktg`, no solo `header`: el
+  sitio las pinta con una clase que le gana a la etiqueta). Un modo oscuro con la cabecera blanca no es modo oscuro. Sus ítems de menú:
   solo color de texto, sin caja ni borde.
 - **Enlaces y botones sobre color**: un botón o una franja que conserva su fondo de color (botón verde de registro,
   franja de marca) conserva también el color de su texto (`color: inherit`); nunca `--mt-acento` sobre un fondo claro
