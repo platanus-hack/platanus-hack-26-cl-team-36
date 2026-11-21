@@ -191,7 +191,9 @@ export function hallazgos(tanda) {
     );
   }
 
-  for (const intento of validos) {
+  // Exploradores: se quedan en una página a propósito (hacen inventario del inicio y vuelven a él), así que una
+  // demora no dice que el sitio les cueste (como el costo en pasos). Sus demoras siguen marcando la telaraña.
+  for (const intento of tanda.exploradores ? [] : validos) {
     for (const demora of intento.demoras) {
       lista.push(
         hallazgo(

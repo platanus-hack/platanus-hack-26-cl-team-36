@@ -561,3 +561,38 @@ test("rutaEnPaginas: acción y pasos de la ruta del evaluador, no de la rama uni
   assert.equal(ruta.segundos, 24.7);
   assert.equal(rutaEnPaginas({ start_node: "n1", steps: [] }, paginaDeNodo, ramaPorId), null, "sin tramos no hay ruta");
 });
+
+// ── C2-4: sin demoras para los exploradores; sin ids de nodo en los titulares de la lista ───────────────────────
+
+test("exploradores: sin hallazgos de demora ni titular «da N pasos seguidos»; sus demoras siguen marcando la telaraña", () => {
+  const carpeta = new URL(`./fixtures/corridas/${NUEVA}/`, import.meta.url);
+  const leer = (archivo) => JSON.parse(readFileSync(new URL(archivo, carpeta), "utf8"));
+  const intentos = ["first_time", "hurried", "mobile", "senior"].map((perfil) => ({ perfil, run: leer(`${perfil}/run.json`), video: false }));
+  const armar = (extra) => armarTanda({ id: NUEVA, arbol: { ...leer("route_tree.json"), ...extra }, criterio: leer("criteria.json"), intentos });
+  const comun = armar({});
+  assert.ok(comun.hallazgos.some((h) => h.id.startsWith("demora:")), "la tanda común sí tiene su demora");
+  const exploradores = armar({ conjunto_exploradores: "conocimiento" });
+  assert.equal(exploradores.hallazgos.filter((h) => h.id.startsWith("demora:")).length, 0);
+  assert.notEqual(exploradores.titulares.tanda.vars.caso, "demora");
+  assert.ok(exploradores.intentos.some((intento) => intento.demoras.length > 0), "las marcas de atasco de la telaraña siguen");
+});
+
+test("lista: el titular nombra la página (nunca «n4»), traducida en el navegador", async () => {
+  const { resumirTanda } = await import("../lib/derivar.js");
+  const { textoDeTitular } = await import("../public/datos/textos.js");
+  const tanda = await leerTanda(RAIZ, NUEVA);
+  // Un titular de demora (todos llegan, pero alguien da muchos pasos en una página).
+  tanda.titulares.tanda = { clave: "datos.titular.tanda", nivel: "dificultad", vars: { validos: 3, errores: 0, caso: "demora", intento: "hurried", pagina: "n2", pasos: 7 } };
+  const resumen = resumirTanda(tanda);
+  assert.equal(typeof resumen.titular.vars.pagina, "object");
+  assert.doesNotMatch(JSON.stringify(resumen.titular), /"n\d+"/);
+  assert.deepEqual(resumen.titular.vars.pagina, { tituloTipo: "sitio", tituloCorto: "Ayuda", titulo: resumen.titular.vars.pagina.titulo, url: "https://ejemplo.test/ayuda" });
+  const t = (clave, vars) => (clave === "datos.titular.tanda" ? `… da ${vars.pasos} pasos seguidos en «${vars.pagina}».` : clave);
+  assert.equal(textoDeTitular(resumen.titular, resumen, t), "… da 7 pasos seguidos en «Ayuda».");
+  // La página de inicio se nombra con el diccionario (Inicio / Home), también desde la lista.
+  tanda.titulares.tanda.vars.pagina = "n1";
+  const inicio = resumirTanda(tanda).titular;
+  assert.equal(inicio.vars.pagina.tituloTipo, "inicio");
+  const conInicio = (clave, vars) => (clave === "datos.pagina.inicio" ? "Inicio" : clave === "datos.titular.tanda" ? `«${vars.pagina}»` : clave);
+  assert.equal(textoDeTitular(inicio, resumirTanda(tanda), conInicio), "«Inicio»");
+});
