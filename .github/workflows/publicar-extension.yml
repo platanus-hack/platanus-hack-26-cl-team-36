@@ -1,0 +1,80 @@
+# Firma la extensión en Mozilla (no listada) y la publica como release, con el .xpi
+# adjunto. Se dispara con un tag vX.Y.Z (ver extension/README.md):
+#
+#   git tag v0.3.0 && git push origin v0.3.0
+#
+# La versión sale del tag: se escribe en el manifest solo dentro de esta ejecución.
+# Corre solo en el repo personal (privado), así que el release solo lo ven sus
+# colaboradores. En el repo de la organización el job se salta.
+#
+# Necesita en el repo personal los secretos WEB_EXT_API_KEY y WEB_EXT_API_SECRET:
+# las claves de la cuenta de addons.mozilla.org que firma la extensión.
+name: Publicar extensión
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # crear el release
+
+concurrency:
+  group: publicar-extension
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    if: github.repository == 'brayanmoreno/hackathon-grupo36'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Versión desde el tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! [[ "$version" =~ ^(0|[1-9][0-9]{0,8})(\.(0|[1-9][0-9]{0,8})){2}$ ]]; then
+            echo "::error::El tag debe ser vX.Y.Z, por ejemplo v0.3.0. Llegó: $GITHUB_REF_NAME"
+            exit 1
+          fi
+          node -e '
+            const fs = require("node:fs");
+            const manifest = JSON.parse(fs.readFileSync("src/manifest.json", "utf8"));
+            manifest.version = process.argv[1];
+            fs.writeFileSync("src/manifest.json", JSON.stringify(manifest, null, 2) + "\n");
+          ' "$version"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - run: npm ci
+
+      - name: Tests y lint
+        run: npm run check
+
+      - name: Firma en Mozilla
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
+          WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
+        run: |
+          if [ -z "$WEB_EXT_API_KEY" ] || [ -z "$WEB_EXT_API_SECRET" ]; then
+            echo "::error::Faltan los secretos WEB_EXT_API_KEY y WEB_EXT_API_SECRET en este repo."
+            exit 1
+          fi
+          npm run sign
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" web-ext-artifacts/*.xpi \
+            --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Extensión $VERSION" \
+            --notes "Versión $VERSION, firmada por Mozilla. Para instalarla, descarga el .xpi y arrástralo a una ventana de Firefox."
