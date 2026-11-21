@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>La Gaceta del Valle — página de prueba</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #ffffff; color: #202124; font: 16px/1.5 Georgia, serif; }
+      a { color: #0b57d0; }
+      .cabecera { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #f1f3f4; border-bottom: 1px solid #dadce0; position: sticky; top: 0; }
+      .cabecera h1 { margin: 0; font-size: 24px; }
+      .buscador input { padding: 6px 8px; }
+      .menu { display: flex; gap: 16px; padding: 8px 24px; background: #e8eaed; font-family: Arial, sans-serif; font-size: 14px; }
+      .contenedor { display: grid; grid-template-columns: 220px 1fr; gap: 24px; padding: 24px; }
+      .barra-lateral { padding: 12px; background: #f8f9fa; border: 1px solid #dadce0; font-family: Arial, sans-serif; font-size: 14px; }
+      .barra-lateral ul { margin: 0; padding-left: 18px; }
+      .rejilla { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+      .tarjeta { padding: 12px; border: 1px solid #dadce0; border-radius: 8px; background: #ffffff; }
+      .tarjeta h3 { margin: 0 0 4px; font-size: 18px; }
+      .tarjeta img { width: 100%; height: 80px; object-fit: cover; background: #dadce0; }
+      .nota h2 { font-size: 28px; }
+      .nota p { max-width: 70ch; }
+      .pie { padding: 16px 24px; background: #202124; color: #e8eaed; font-family: Arial, sans-serif; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <header id="cabecera" class="cabecera">
+      <h1>La Gaceta del Valle</h1>
+      <form class="buscador" role="search">
+        <input type="search" name="q" value="valor-secreto" aria-label="Buscar" />
+      </form>
+    </header>
+
+    <nav id="menu" class="menu">
+      <a href="/portada?ref=enlace-secreto">Portada</a>
+      <a href="/cultura">Cultura</a>
+      <a href="/deportes">Deportes</a>
+      <a href="/economia">Economía</a>
+      <a href="/opinion">Opinión</a>
+    </nav>
+
+    <div class="contenedor">
+      <aside id="barra-lateral" class="barra-lateral">
+        <h2>Lo más leído</h2>
+        <ul>
+          <li><a href="/cultura/feria">La feria del libro abre con récord de público</a></li>
+          <li><a href="/deportes/final">El club local jugará la final el sábado</a></li>
+          <li><a href="/economia/vendimia">La vendimia llega antes por el calor</a></li>
+          <li><a href="/opinion/plaza">Qué hacer con la plaza vieja</a></li>
+        </ul>
+      </aside>
+
+      <main id="contenido" class="contenido">
+        <section class="rejilla" aria-label="Titulares">
+          <article class="tarjeta">
+            <img src="" alt="alt-secreto de la cosecha" />
+            <h3>Cosecha de zarzamora</h3>
+            <p>Los productores esperan una temporada mejor que la anterior.</p>
+            <a href="/economia/zarzamora">Leer más</a>
+          </article>
+          <article class="tarjeta">
+            <h3>Nuevo puente peatonal</h3>
+            <p>La obra unirá los dos barrios del río a partir de marzo.</p>
+            <a href="/ciudad/puente">Leer más</a>
+          </article>
+          <article class="tarjeta">
+            <h3>Festival de teatro</h3>
+            <p>Doce compañías llegan al valle durante dos semanas.</p>
+            <a href="/cultura/teatro">Leer más</a>
+          </article>
+          <article class="tarjeta">
+            <h3>Biblioteca renovada</h3>
+            <p>Reabre con sala infantil y horario extendido.</p>
+            <a href="/cultura/biblioteca">Leer más</a>
+          </article>
+          <article class="tarjeta">
+            <h3>Ruta ciclista</h3>
+            <p>Treinta kilómetros señalizados entre viñas y cerros.</p>
+            <a href="/deportes/ruta">Leer más</a>
+          </article>
+          <article class="tarjeta">
+            <h3>Mercado nocturno</h3>
+            <p>Los viernes habrá puestos de comida hasta medianoche.</p>
+            <a href="/ciudad/mercado">Leer más</a>
+          </article>
+        </section>
+
+        <article id="nota" class="nota">
+          <h2>El valle recupera su río</h2>
+          <p class="bajada">Después de diez años de trabajos, el agua vuelve a correr limpia por el centro del pueblo.</p>
+          <p>Cuando empezaron las obras, pocos vecinos creían que el río volvería a ser un lugar de paseo. Hoy hay bancos, árboles nuevos y un sendero que lo acompaña de punta a punta.</p>
+          <p>El proyecto reunió a la municipalidad, a los regantes y a una escuela que se encargó de medir la calidad del agua todas las semanas.</p>
+          <p>Los comerciantes de la ribera dicen que las ventas subieron desde que se abrió el paseo, sobre todo los fines de semana.</p>
+          <p>Queda pendiente el tramo sur, donde todavía hay que retirar escombros y reforzar las orillas antes del invierno.</p>
+          <p>La inauguración oficial será en primavera, con una fiesta abierta a todo el valle.</p>
+        </article>
+      </main>
+    </div>
+
+    <footer id="pie" class="pie">
+      <p>La Gaceta del Valle · Página de prueba del prototipo · Sin contenido real</p>
+    </footer>
+  </body>
+</html>
