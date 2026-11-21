@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from shared.store.backend import Backend, workdir_files
-from shared.store.keys import RunKey, RunPrefix
+from shared.store.keys import RunKey
 
 
 class LocalBackend(Backend):
@@ -43,6 +43,6 @@ class LocalBackend(Backend):
     def _exists(self, key: str) -> bool:
         return (self.root / key).is_file()
 
-    def _children(self, prefix: RunPrefix) -> Iterable[str]:
-        folder = self.root / str(prefix)
-        return [path.name for path in folder.iterdir() if path.is_dir()] if folder.is_dir() else []
+    def _children(self, folder: str) -> Iterable[str]:
+        path = self.root / folder
+        return [child.name for child in path.iterdir() if child.is_dir()] if path.is_dir() else []

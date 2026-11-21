@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from shared.store.backend import Backend, workdir_files
-from shared.store.keys import RunKey, RunPrefix
+from shared.store.keys import RunKey
 
 CONTENT_TYPES = {
     ".json": "application/json",
@@ -84,8 +84,8 @@ class S3Backend(Backend):
             raise
         return True
 
-    def _children(self, prefix: RunPrefix) -> Iterable[str]:
-        base = f"{self.prefix}{prefix}/"
+    def _children(self, folder: str) -> Iterable[str]:
+        base = f"{self.prefix}{folder}/"
         request: dict[str, str] = {"Bucket": self.bucket, "Prefix": base, "Delimiter": "/"}
         names: list[str] = []
         while True:

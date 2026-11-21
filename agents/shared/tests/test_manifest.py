@@ -16,6 +16,7 @@ from shared.store import (
     guide,
     latest_run,
     read_manifest,
+    running,
     start_run,
 )
 from shared.store.run_ids import MAX_SEQUENCE
@@ -120,3 +121,13 @@ def test_manifest_ignores_unknown_fields() -> None:
         "cost_usd": 0.12,
     }
     assert Manifest.from_dict(data).schema_version == 2
+
+
+def test_running_finishes_succeeded_or_failed(tmp_path: Path) -> None:
+    backend = LocalBackend(tmp_path)
+    prefix = cataloger("wom.cl")
+    with running(backend, prefix, model=None) as done:
+        (done.workdir / "goals.json").write_text("[]")
+    with pytest.raises(RuntimeError), running(backend, prefix, model=None) as broken:
+        raise RuntimeError("falla")
+    assert [read_manifest(backend, run.key).status for run in (done, broken)] == ["succeeded", "failed"]

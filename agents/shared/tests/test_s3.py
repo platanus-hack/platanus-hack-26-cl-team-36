@@ -32,6 +32,7 @@ def test_publish_uploads_with_content_types_and_cleans_workdir() -> None:
         f"{base}/first_time/video.webm": "video/webm",
     }
     assert not run.workdir.exists()
+    assert backend.list_profiles(run.key) == ["first_time"]
     assert sorted(client.uploaded) == sorted(key for (_, key) in client.objects if not key.endswith("manifest.json"))
 
 

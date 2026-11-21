@@ -1,1 +1,1 @@
-"""Catálogo de objetivos de un sitio: el objetivo, el esquema, sus archivos y la prominencia."""
+"""Objetivos de un sitio: el objetivo, el esquema, las tareas, la lectura del catálogo y de sus rutas, y la prominencia."""

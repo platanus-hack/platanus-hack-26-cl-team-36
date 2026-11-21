@@ -1,6 +1,7 @@
 """Manifiesto de cada corrida: qué es, de qué corridas viene y cómo terminó."""
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, fields, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -99,6 +100,25 @@ def finish_run(
     manifest = replace(run.manifest, status=status, finished_at=_timestamp(clock()))
     backend.write_json(run.key.file(MANIFEST), manifest.to_dict())
     return manifest
+
+
+@contextmanager
+def running(
+    backend: Backend,
+    prefix: RunPrefix,
+    *,
+    model: str | None,
+    inputs: Sequence[RunKey] = (),
+    clock: Clock = utc_now,
+) -> Iterator[Run]:
+    """Una corrida entre `start_run` y `finish_run`: `succeeded` si el bloque termina, `failed` si lanza."""
+    run = start_run(backend, prefix, model=model, inputs=inputs, clock=clock)
+    try:
+        yield run
+    except BaseException:
+        finish_run(backend, run, "failed", clock)
+        raise
+    finish_run(backend, run, "succeeded", clock)
 
 
 def read_manifest(backend: Backend, run: RunKey) -> Manifest:

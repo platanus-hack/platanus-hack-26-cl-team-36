@@ -1,11 +1,14 @@
 """Un objetivo del catálogo, con el esquema de docs/agents/niveles-de-tarea.md (sección 3)."""
 
+import re
+import unicodedata
 from dataclasses import dataclass, field
 
 LEVELS = ("summary", "user_goal", "subfunction")
 INTENTS = ("find_info", "reach_page", "transact")
 PROMINENCE_ORDER = ("buried", "secondary", "primary")
 EXCLUDING_GATES = ("login", "personal_data", "bot_check")  # el Visitante no puede intentarlos
+_MAX_INSTRUCTION_ID = 60
 
 # La Guía no envía formularios: en un objetivo `transact` la ruta llega hasta el paso anterior al envío.
 _SUFFIXES = {
@@ -58,3 +61,19 @@ def routable(goals: list[Goal], limit: int | None) -> list[Goal]:
     candidates = [goal for goal in goals if exclusion(goal) is None]
     candidates.sort(key=lambda goal: (PROMINENCE_ORDER.index(goal.prominence), goal.id))
     return candidates[:limit]
+
+
+def slugify(text: str) -> str:
+    """Kebab-case ASCII: sin tildes, en minúsculas y con un guion entre palabras."""
+    plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", "-", plain).strip("-")
+
+
+def instruction_goal_id(instruction: str) -> str:
+    """El id de un objetivo que solo tiene instrucción: sus primeras palabras en kebab-case."""
+    kept: list[str] = []
+    for word in slugify(instruction).split("-"):
+        if kept and len("-".join([*kept, word])) > _MAX_INSTRUCTION_ID:
+            break
+        kept.append(word)
+    return "-".join(kept)
