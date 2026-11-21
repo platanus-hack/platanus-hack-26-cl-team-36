@@ -486,7 +486,7 @@ export function geometriaRadial(distribucion, { paso = 190, espacio = 150, marge
   const nodos = [...posiciones.values()];
   const anillos = [];
   for (let c = 1; c <= ultimo; c += 1) {
-    const muestras = cuantosRayos * 8;
+    const muestras = Math.max(96, cuantosRayos * 8); // sin rayos, el anillo sigue siendo un círculo bien muestreado
     const puntos = [];
     for (let i = 0; i < muestras; i += 1) {
       const theta = (i / muestras) * 2 * Math.PI;

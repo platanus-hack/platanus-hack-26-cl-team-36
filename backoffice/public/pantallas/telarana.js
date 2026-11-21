@@ -296,7 +296,8 @@ function crearPantalla(contenedor, ctx) {
   }
 
   function dibujar() {
-    estado.geo = geometriaRadial(distribucion, { eje: estado.eje });
+    // Anillos como círculos simples y sin rayos: la estructura de la telaraña, sin decorarla como tela de araña.
+    estado.geo = geometriaRadial(distribucion, { eje: estado.eje, rayos: 0, caida: 0 });
     lienzo.dataset.orientacion = estado.orientacion;
     lienzo.dataset.eje = estado.eje;
     estado.dibujo = dibujarEscena({
