@@ -111,7 +111,28 @@ Tres cosas que ninguna herramienta hace, y que el diseño pone al centro:
   JavaScript plano. Lo más simple es una página estática con un endpoint en Node que liste `agents/.runs/` y sirva sus
   archivos. Lo más importante es que la telaraña se pueda dibujar con SVG o con una librería de grafos.
 - **Estética.** El diseño toma como referencia [threejs.org](https://threejs.org/): fondo oscuro, grillas de
-  miniaturas, Inter y JetBrains Mono. No usa WebGL. Una telaraña 3D que se pueda girar sería una iteración posterior.
+  miniaturas, Inter y JetBrains Mono.
+
+### La telaraña y su movimiento: referencia three.js
+
+La telaraña y sus movimientos deben tomar como referencia [threejs.org](https://threejs.org/) y sus ejemplos. El
+Claude Design la muestra plana porque es una maqueta estática; la intención es que se vea y se mueva como una escena
+3D:
+
+- **Nodos como capturas en el espacio.** Cada página es un plano con su captura como textura. El inicio va al centro
+  y los anillos (un paso cada uno) son órbitas alrededor de él.
+- **Cámara libre.** Se puede orbitar, acercar y alejar. Al hacer clic en un nodo, la cámara viaja hasta él y abre el
+  replay de los intentos que pasaron por ahí.
+- **Flujo en las ramas.** Partículas que recorren cada rama de origen a destino: la cantidad indica los intentos y el
+  color cómo terminaron. El happy path (o la ruta recomendada) es la rama más visible.
+- **Transiciones.** Al filtrar por perfil, las ramas que no aplican se apagan con una animación en vez de
+  desaparecer de golpe. Al reproducir un intento, un punto lo recorre paso a paso por la telaraña.
+- **Librerías posibles:** [three.js](https://threejs.org/) directo, o
+  [3d-force-graph](https://github.com/vasturiano/3d-force-graph), que está construido sobre three.js y ya trae
+  nodos con objetos propios, partículas en las ramas y la cámara.
+
+La versión plana en SVG sirve como primer paso si el tiempo no alcanza. En ese caso, la vista 3D queda como siguiente
+iteración y los datos de la sección 4 no cambian.
 - **Comando.** Agregar uno a `justfile` para levantar el visor.
 
 ## 6. Referencias
