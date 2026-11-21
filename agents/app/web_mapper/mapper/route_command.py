@@ -15,6 +15,13 @@ def available_tasks() -> list[str]:
     return sorted(path.stem for path in config.TASKS_DIR.glob("*.json"))
 
 
+def add_shorter_option(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--shorter", type=int, default=config.EXTRA_ROUTES,
+        help=f"exploraciones más que buscan una ruta más corta que la primera verificada (por defecto: {config.EXTRA_ROUTES})",
+    )
+
+
 def add_parser(commands: argparse._SubParsersAction) -> None:
     route = commands.add_parser("route", help="encuentra y verifica la ruta de referencia de una tarea")
     target = route.add_argument_group("qué mapear: --task, o --url con --instruction")
@@ -24,6 +31,7 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
     route.add_argument(
         "--viewports", default="desktop", help=f"viewports separados por coma: {', '.join(config.VIEWPORTS)} (por defecto: desktop)"
     )
+    add_shorter_option(route)
     route.add_argument(
         "--output", type=Path, default=None,
         help="carpeta base (por defecto agents/.runs/<tarea>/, o agents/.runs/ con --url); la ruta queda en reference/<viewport>/",
@@ -57,7 +65,8 @@ def run(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     if unknown:
         parser.error(f"viewports desconocidos: {', '.join(unknown)}; disponibles: {', '.join(config.VIEWPORTS)}")
     mappings = [
-        Mapping(task_id, url, instruction, key, config.VIEWPORTS[key], args.model, args.effort, base_dir / "reference" / key)
+        Mapping(task_id, url, instruction, key, config.VIEWPORTS[key], args.model, args.effort,
+                base_dir / "reference" / key, args.shorter)
         for key in viewports
     ]
     started = time.monotonic()

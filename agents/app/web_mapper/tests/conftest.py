@@ -1,11 +1,13 @@
 """Sitio local de prueba: un desvío, un menú que se abre con un botón y un acordeón bajo el pliegue."""
 
 import asyncio
+from collections.abc import Callable
 
 import pytest
 from playwright.async_api import async_playwright
 
 from browser import BrowserSession, connect_browser, create_context
+from mapper.decider import Decision
 from profiles import Profile
 
 DESKTOP = Profile("test_desktop", "Prueba", 1024, 768, False, "")
@@ -41,6 +43,28 @@ PAGES = {
         <div style="display:none"><p>Horario de atención: 9 a 18 horas.</p></div>
         <div><p>Horario de atención: 9 a 18 horas.</p></div>""",
 }
+
+
+class ScriptedDecider:
+    """Cada paso del guion elige su acción por el nombre del elemento en la vista que recibe."""
+
+    def __init__(self, script: list[tuple[str, str | None, dict]], on_done: Callable[[], None] | None = None):
+        self.script = list(script)
+        self.on_done = on_done
+        self.prompts: list[str] = []
+        self.usage = {"input_tokens": 0}
+        self.cost_usd = 0.0
+
+    async def decide(self, text: str, screenshot: bytes) -> Decision:
+        self.prompts.append(text)
+        action, name, extra = self.script.pop(0)
+        if action == "done" and self.on_done:
+            self.on_done()
+        ref = None
+        if name:
+            line = next(line for line in text.splitlines() if f"«{name}»" in line and line.startswith("e"))
+            ref = line.split(" · ")[0]
+        return Decision(reason="guion", action=action, ref=ref, **extra)
 
 
 @pytest.fixture

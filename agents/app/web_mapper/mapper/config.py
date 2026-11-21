@@ -15,6 +15,7 @@ EFFORT = "high"
 MAX_STEPS = 40      # acciones ejecutadas en la página
 MAX_SECONDS = 900   # tiempo total, incluida la espera del modelo
 MAX_TURNS = 60      # llamadas al modelo
+EXTRA_ROUTES = 1    # exploraciones más que piden una ruta más corta que la primera verificada
 
 # Vista de la página que recibe el modelo.
 MAX_ELEMENTS = 400

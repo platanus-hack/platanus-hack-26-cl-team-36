@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from collections.abc import Callable
 from pathlib import Path
 
 from playwright.async_api import async_playwright
@@ -16,37 +15,15 @@ from mapper.page_view import read_page_view
 from mapper.reference import Mapping, map_reference
 from mapper.replay import Replay, Verification
 from mapper.route import Step
-from tests.conftest import DESKTOP
+from tests.conftest import DESKTOP, ScriptedDecider
 
 QUOTE = "Para dar de baja llama al 103."
 
 
-class ScriptedDecider:
-    """Cada paso del guion elige su acción por el nombre del elemento en la vista que recibe."""
-
-    def __init__(self, script: list[tuple[str, str | None, dict]], on_done: Callable[[], None] | None = None):
-        self.script = list(script)
-        self.on_done = on_done
-        self.prompts: list[str] = []
-        self.usage = {"input_tokens": 0}
-        self.cost_usd = 0.0
-
-    async def decide(self, text: str, screenshot: bytes) -> Decision:
-        self.prompts.append(text)
-        action, name, extra = self.script.pop(0)
-        if action == "done" and self.on_done:
-            self.on_done()
-        ref = None
-        if name:
-            line = next(line for line in text.splitlines() if f"«{name}»" in line and line.startswith("e"))
-            ref = line.split(" · ")[0]
-        return Decision(reason="guion", action=action, ref=ref, **extra)
-
-
-def _map(site, tmp_path, script, on_done=None, start_url=None):
+def _map(site, tmp_path, script, on_done=None, start_url=None, extra_routes=0):
     decider = ScriptedDecider(script, on_done)
     mapping = Mapping("prueba", start_url or (site / "index.html").as_uri(), "Encuentra cómo dar de baja", "desktop", DESKTOP,
-                      "guion", "low", tmp_path / "out")
+                      "guion", "low", tmp_path / "out", extra_routes)
 
     async def main():
         async with async_playwright() as playwright:

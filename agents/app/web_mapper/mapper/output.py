@@ -54,7 +54,9 @@ def route_document(
 
 
 def route_markdown(document: dict) -> str:
-    summary = document["totals"]
+    summary, search = document["totals"], document["search"]
+    tried = ", ".join(str(route["min_steps"] if route["min_steps"] is not None else route["status"])
+                      for route in search["routes"])
     lines = [
         f"# Ruta de referencia: {document['instruction']}",
         "",
@@ -66,6 +68,7 @@ def route_markdown(document: dict) -> str:
         f" {summary['distinct_pages']} páginas)",
         f"- Exploración: {document['exploration']['steps']} acciones, {document['exploration']['turns']} turnos,"
         f" US$ {document['exploration']['cost_usd']}",
+        f"- Rutas exploradas: {search['tried']} (pasos mínimos: {tried}; se eligió la {search['chosen']})",
         "",
         f"0. Inicio en «{document['start']['title']}» {document['start']['url']}",
     ]
