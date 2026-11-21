@@ -14,9 +14,9 @@ el tema completo: todo lo específico de un sitio debe poder expresarse como **d
 - `src/`: lo único que se empaqueta (`webExt.sourceDir`). Todo lo demás queda fuera del .xpi.
 - `src/background/index.js`: botón ON/OFF (`activo` en `storage.local`) y mensaje `tema:aplicar`: resuelve el tema e inyecta su CSS con `scripting.insertCSS`.
 - `src/background/temas.js`: lógica pura (`normalizarTema`, `resolverTema`). Sin `browser.*`: se testea con Node.
-- `src/background/api.js`: `consultarTema(url)`: `POST {API_URL}/temas/buscar` con `{ url: origen }`. `{success: true, tema}` → id; `{success: false}` → null; caído/timeout (2 s)/respuesta rara → lanza.
+- `src/background/api.js`: `consultarTema(url)`: `POST {urlDeLaApi()}/temas/buscar` con `{ url: origen }`. `{success: true, tema}` → id; `{success: false}` → null; caído/timeout (2 s)/respuesta rara → lanza.
 - `src/background/temas-locales.js`: `cargarTemaLocal(id)` lee `src/temas/<id>/`.
-- `src/background/config.js`: `API_URL`.
+- `src/background/config.js`: `urlDeLaApi()`. En modo desarrollo (extensión temporal) usa la API local (`API_URL_LOCAL`); instalada, la de AWS (`API_URL_AWS`).
 - Content scripts, en este orden: `src/content/registro.js` → `src/content/plantillas.js` → `src/componentes/*.js` → `src/features/*.js` → `src/content/motor.js`.
 - `src/content/plantillas.js`: `MiTema.plantillas.leerCampos` (lee datos de la página según reglas de una plantilla) y `MiTema.dom.crear` (crea elementos sin `innerHTML`; `href`/`src` pasan por `urlSegura`).
 - `src/features/vista.js`: reemplaza una sección por una vista dibujada con un componente del catálogo (`src/componentes/`), según una plantilla en el `tema.json`. La sección original queda oculta con `data-mt-oculto` y los clics se reenvían a sus elementos.
@@ -63,7 +63,7 @@ Para conocer el HTML actual de un sitio antes de escribir una plantilla, no adiv
 
 ## Comandos (desde `extension/`; `dev`, `dev:sesion`, `check` y `build` también desde la raíz del repo)
 
-- `npm run dev:backend` (desde la raíz): levanta el backend en `localhost:4747`. Sin él no se aplica ningún tema.
+- `npm run dev:backend` (desde la raíz): levanta el backend en `localhost:4747`. En modo desarrollo la extensión usa esta API: sin él no se aplica ningún tema.
 - `npm run dev`: abre Firefox con la extensión cargada en youtube.com; al guardar recarga la extensión y refresca las pestañas con tema (las que tienen `data-mt-tema` en `<html>`; solo en modo desarrollo, vía `onInstalled` con `temporary`).
 - `npm run dev:sesion`: igual, con perfil persistente en `.perfil-dev/`. La ruta del perfil debe llevar `./`: sin barra, web-ext la trata como *nombre* de perfil (`-P`) y Firefox no arranca (`ECONNREFUSED`).
 - `npm run perfil:clonar`: clona un perfil real de Firefox a `.perfil-dev/` (interactivo; `-- --perfil "<nombre>"` para elegir directo).
