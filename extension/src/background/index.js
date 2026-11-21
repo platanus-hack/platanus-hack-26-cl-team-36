@@ -18,7 +18,9 @@ async function leerActivo() {
 
 async function pintarBadge(activo) {
   await browser.action.setBadgeText({ text: activo ? "ON" : "" });
-  await browser.action.setBadgeBackgroundColor({ color: "#7c3aed" });
+  // Colores de marca: turquesa del espectro con texto tinta (ver docs/marca/).
+  await browser.action.setBadgeBackgroundColor({ color: "#2EE6C5" });
+  if (browser.action.setBadgeTextColor) await browser.action.setBadgeTextColor({ color: "#0B0B10" });
 }
 
 // Clic en el ícono: invierte el estado y lo guarda.

@@ -1,0 +1,315 @@
+/*
+  Transición "ola de adaptación" (content/transicion.js). Se carga en todas las páginas,
+  así que todo va bajo html[data-mt-transicion], que solo existe mientras dura la
+  transición: no toca la página ni las View Transitions propias del sitio.
+
+  Modos (valor de data-mt-transicion):
+    entrada  activar con View Transitions (~820 ms)
+    salida   desactivar con View Transitions (~500 ms): la ola vuelve al botón
+    ligera   activar sin View Transitions: frente encima de la página y destello por pieza
+    suave    prefers-reduced-motion: fundido de 150 ms
+
+  Línea de tiempo de la entrada:
+    0 → 600 ms   el frente (anillo con el espectro de la marca) crece desde la esquina
+                 superior derecha hasta la esquina opuesta; detrás de él aparece el fondo
+                 del tema (recorte circular de la captura nueva de la raíz).
+    retardo(k)   cada pieza [data-mt-ola="k"] cambia por su cuenta cuando el frente la
+                 alcanza: la captura vieja se satura y se desvanece, la nueva entra con un
+                 barrido diagonal desde la esquina del botón, de borroso a nítido, con un
+                 brillo del color del frente en ese punto. 360 ms por pieza.
+  El frente avanza con easeOutQuad (r = 1 - (1 - t)²), así que llega al balde k (centro
+  del balde: (k + 0.5) / 12 de la diagonal) en t = 1 - sqrt(1 - (k + 0.5) / 12).
+  La salida lo invierte: el frente se encoge hacia el botón con easeInQuad
+  (r = 1 - t²), llega al balde k en t = sqrt(1 - (k + 0.5) / 12), y cada pieza vuelve
+  al original con un barrido desde la esquina opuesta en 180 ms. Al desactivar, el balde
+  se mide al punto más lejano de la pieza (el que el frente toca primero al encogerse).
+*/
+
+@property --mt-radio {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* ---------- Nombres: solo nuestras piezas y el frente participan ---------- */
+
+html[data-mt-transicion] :not([data-mt-ola], #mt-frente) {
+  view-transition-name: none !important;
+}
+
+html[data-mt-transicion] [data-mt-ola] {
+  view-transition-name: match-element !important;
+}
+
+/* Balde (distancia al botón) → clase de transición, índice y tinte del espectro. */
+html[data-mt-transicion] [data-mt-ola="0"] { view-transition-class: mt-ola mt-b0; --mt-k: 0; --mt-tinte: #b8ff5c; }
+html[data-mt-transicion] [data-mt-ola="1"] { view-transition-class: mt-ola mt-b1; --mt-k: 1; --mt-tinte: #86f682; }
+html[data-mt-transicion] [data-mt-ola="2"] { view-transition-class: mt-ola mt-b2; --mt-k: 2; --mt-tinte: #54eda8; }
+html[data-mt-transicion] [data-mt-ola="3"] { view-transition-class: mt-ola mt-b3; --mt-k: 3; --mt-tinte: #31deca; }
+html[data-mt-transicion] [data-mt-ola="4"] { view-transition-class: mt-ola mt-b4; --mt-k: 4; --mt-tinte: #3cbedf; }
+html[data-mt-transicion] [data-mt-ola="5"] { view-transition-class: mt-ola mt-b5; --mt-k: 5; --mt-tinte: #479df4; }
+html[data-mt-transicion] [data-mt-ola="6"] { view-transition-class: mt-ola mt-b6; --mt-k: 6; --mt-tinte: #5784fd; }
+html[data-mt-transicion] [data-mt-ola="7"] { view-transition-class: mt-ola mt-b7; --mt-k: 7; --mt-tinte: #6e72fa; }
+html[data-mt-transicion] [data-mt-ola="8"] { view-transition-class: mt-ola mt-b8; --mt-k: 8; --mt-tinte: #8560f7; }
+html[data-mt-transicion] [data-mt-ola="9"] { view-transition-class: mt-ola mt-b9; --mt-k: 9; --mt-tinte: #a862e5; }
+html[data-mt-transicion] [data-mt-ola="10"] { view-transition-class: mt-ola mt-b10; --mt-k: 10; --mt-tinte: #ce6acd; }
+html[data-mt-transicion] [data-mt-ola="11"] { view-transition-class: mt-ola mt-b11; --mt-k: 11; --mt-tinte: #f472b6; }
+
+/* Los pseudoelementos de la transición no heredan del elemento: se repite por clase. */
+html[data-mt-transicion]::view-transition-group(*.mt-b0) { --mt-k: 0; --mt-tinte: #b8ff5c; }
+html[data-mt-transicion]::view-transition-group(*.mt-b1) { --mt-k: 1; --mt-tinte: #86f682; }
+html[data-mt-transicion]::view-transition-group(*.mt-b2) { --mt-k: 2; --mt-tinte: #54eda8; }
+html[data-mt-transicion]::view-transition-group(*.mt-b3) { --mt-k: 3; --mt-tinte: #31deca; }
+html[data-mt-transicion]::view-transition-group(*.mt-b4) { --mt-k: 4; --mt-tinte: #3cbedf; }
+html[data-mt-transicion]::view-transition-group(*.mt-b5) { --mt-k: 5; --mt-tinte: #479df4; }
+html[data-mt-transicion]::view-transition-group(*.mt-b6) { --mt-k: 6; --mt-tinte: #5784fd; }
+html[data-mt-transicion]::view-transition-group(*.mt-b7) { --mt-k: 7; --mt-tinte: #6e72fa; }
+html[data-mt-transicion]::view-transition-group(*.mt-b8) { --mt-k: 8; --mt-tinte: #8560f7; }
+html[data-mt-transicion]::view-transition-group(*.mt-b9) { --mt-k: 9; --mt-tinte: #a862e5; }
+html[data-mt-transicion]::view-transition-group(*.mt-b10) { --mt-k: 10; --mt-tinte: #ce6acd; }
+html[data-mt-transicion]::view-transition-group(*.mt-b11) { --mt-k: 11; --mt-tinte: #f472b6; }
+
+/* ---------- El frente de onda ---------- */
+
+/* Anillo del radio --mt-radio centrado en la esquina del botón. El color sale de un
+   degradado radial del espectro (lima junto al botón, magenta en la esquina opuesta): el
+   frente cambia de color mientras avanza, como el camaleón, y su estela muestra el
+   tramo del espectro que acaba de recorrer. */
+html[data-mt-transicion] #mt-frente {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  view-transition-name: mt-frente !important;
+  background: radial-gradient(
+    circle hypot(100vw, 100vh) at 100% 0,
+    #b8ff5c 0%,
+    #2ee6c5 25%,
+    #4c8dff 50%,
+    #8b5cf6 75%,
+    #f472b6 100%
+  );
+  mask-image: radial-gradient(
+    circle at 100% 0,
+    transparent calc(var(--mt-radio) - 140px),
+    rgb(0 0 0 / 0.12) calc(var(--mt-radio) - 70px),
+    rgb(0 0 0 / 0.45) calc(var(--mt-radio) - 14px),
+    #000 calc(var(--mt-radio) - 3px),
+    #fff var(--mt-radio),
+    rgb(0 0 0 / 0.35) calc(var(--mt-radio) + 5px),
+    transparent calc(var(--mt-radio) + 22px)
+  );
+}
+
+html[data-mt-transicion="entrada"] #mt-frente,
+html[data-mt-transicion="ligera"] #mt-frente {
+  animation:
+    mt-frente-crece 600ms cubic-bezier(0.5, 1, 0.89, 1) both,
+    mt-frente-apaga 640ms linear both;
+}
+
+html[data-mt-transicion="salida"] #mt-frente {
+  animation:
+    mt-frente-encoge 320ms cubic-bezier(0.11, 0, 0.5, 0) both,
+    mt-frente-apaga 280ms linear both;
+}
+
+@keyframes mt-frente-crece {
+  from { --mt-radio: 0px; }
+  to { --mt-radio: hypot(100vw, 100vh); }
+}
+
+@keyframes mt-frente-encoge {
+  from { --mt-radio: hypot(100vw, 100vh); }
+  to { --mt-radio: 0px; }
+}
+
+@keyframes mt-frente-apaga {
+  0%, 78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* El frente se ve en vivo (su propia animación); su captura no se anima aparte. */
+html[data-mt-transicion]::view-transition-group(mt-frente),
+html[data-mt-transicion]::view-transition-new(mt-frente),
+html[data-mt-transicion]::view-transition-old(mt-frente) {
+  animation: none;
+}
+
+/* ---------- Entrada (activar) ---------- */
+
+/* Fondo: el tema aparece detrás del frente con un recorte circular del mismo radio. */
+html[data-mt-transicion="entrada"]::view-transition-old(root) {
+  animation: none;
+}
+
+html[data-mt-transicion="entrada"]::view-transition-new(root) {
+  animation: mt-revela 600ms cubic-bezier(0.5, 1, 0.89, 1) both;
+}
+
+@keyframes mt-revela {
+  from { clip-path: circle(0 at 100% 0); }
+  to { clip-path: circle(hypot(100vw, 100vh) at 100% 0); }
+}
+
+/* Piezas: cada una cambia por su cuenta cuando el frente la alcanza. */
+html[data-mt-transicion="entrada"]::view-transition-group(*.mt-ola) {
+  --mt-retardo: calc(600ms * (1 - sqrt(1 - (var(--mt-k) + 0.5) / 12)));
+  animation-duration: 360ms;
+  animation-delay: var(--mt-retardo);
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html[data-mt-transicion="entrada"]::view-transition-image-pair(*.mt-ola) {
+  animation: mt-pieza-brillo 420ms ease-out var(--mt-retardo) both;
+}
+
+html[data-mt-transicion="entrada"]::view-transition-old(*.mt-ola) {
+  animation: mt-pieza-se-va 260ms cubic-bezier(0.4, 0, 1, 1) var(--mt-retardo) both;
+}
+
+/* Sin pareja (el tema la movió, la ocultó o la reemplazó): la ola se la "come" en su
+   lugar con un corte diagonal; debajo ya está su versión nueva, que llegó con el fondo. */
+html[data-mt-transicion="entrada"]::view-transition-old(*.mt-ola):only-child {
+  animation: mt-pieza-se-esfuma 220ms cubic-bezier(0.3, 0.6, 0.4, 1) var(--mt-retardo) both;
+}
+
+html[data-mt-transicion="entrada"]::view-transition-new(*.mt-ola) {
+  animation: mt-pieza-llega 360ms cubic-bezier(0.2, 0.7, 0.1, 1) var(--mt-retardo) both;
+}
+
+/* Barrido diagonal desde la esquina superior derecha de la pieza (hacia donde avanza
+   el frente), de borroso y saturado a nítido. */
+@keyframes mt-pieza-llega {
+  from {
+    clip-path: polygon(100% 0, 100% 0, 100% 0);
+    filter: blur(6px) saturate(1.8) brightness(1.25);
+  }
+  55% {
+    filter: blur(0) saturate(1.25) brightness(1.06);
+  }
+  to {
+    clip-path: polygon(100% 0, -110% 0, 100% 210%);
+    filter: none;
+  }
+}
+
+/* La captura vieja "cambia de piel" (se satura, gira apenas de tono) y se desvanece. */
+@keyframes mt-pieza-se-va {
+  from {
+    opacity: 1;
+    filter: none;
+  }
+  40% {
+    opacity: 1;
+    filter: saturate(1.6) hue-rotate(20deg) brightness(1.08);
+  }
+  to {
+    opacity: 0;
+    filter: saturate(1.8) hue-rotate(30deg) blur(3px);
+  }
+}
+
+@keyframes mt-pieza-se-esfuma {
+  from {
+    clip-path: polygon(0 100%, 210% 100%, 0 -110%);
+    filter: none;
+  }
+  to {
+    clip-path: polygon(0 100%, 0 100%, 0 100%);
+    filter: saturate(1.6) brightness(1.15);
+  }
+}
+
+/* Resplandor suave del color del frente en ese punto y un leve pulso. */
+@keyframes mt-pieza-brillo {
+  from {
+    box-shadow: 0 0 0 0 transparent;
+    transform: none;
+  }
+  35% {
+    box-shadow: 0 0 28px 0 color-mix(in srgb, var(--mt-tinte) 40%, transparent);
+    transform: scale(1.012);
+  }
+  to {
+    box-shadow: 0 0 0 0 transparent;
+    transform: none;
+  }
+}
+
+/* ---------- Salida (desactivar): la ola vuelve al botón ---------- */
+
+/* El tema (captura vieja) queda encima y se encoge hacia el botón; debajo, el original. */
+html[data-mt-transicion="salida"]::view-transition-old(root) {
+  z-index: 1;
+  animation: mt-recoge 320ms cubic-bezier(0.11, 0, 0.5, 0) both;
+}
+
+html[data-mt-transicion="salida"]::view-transition-new(root) {
+  animation: none;
+}
+
+@keyframes mt-recoge {
+  from { clip-path: circle(hypot(100vw, 100vh) at 100% 0); }
+  to { clip-path: circle(0 at 100% 0); }
+}
+
+html[data-mt-transicion="salida"]::view-transition-group(*.mt-ola) {
+  --mt-retardo: calc(320ms * sqrt(1 - (var(--mt-k) + 0.5) / 12));
+  animation-duration: 180ms;
+  animation-delay: var(--mt-retardo);
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-mt-transicion="salida"]::view-transition-image-pair(*.mt-ola) {
+  animation: mt-pieza-brillo 200ms ease-out var(--mt-retardo) both;
+}
+
+html[data-mt-transicion="salida"]::view-transition-old(*.mt-ola) {
+  animation: mt-pieza-se-va 170ms cubic-bezier(0.4, 0, 1, 1) var(--mt-retardo) both;
+}
+
+html[data-mt-transicion="salida"]::view-transition-old(*.mt-ola):only-child {
+  animation: mt-pieza-se-recoge 170ms cubic-bezier(0.3, 0.6, 0.4, 1) var(--mt-retardo) both;
+}
+
+html[data-mt-transicion="salida"]::view-transition-new(*.mt-ola) {
+  animation: mt-pieza-vuelve 180ms cubic-bezier(0.2, 0.7, 0.1, 1) var(--mt-retardo) both;
+}
+
+/* El corte diagonal avanza hacia la esquina del botón, junto con la ola. */
+@keyframes mt-pieza-se-recoge {
+  from { clip-path: polygon(100% 0, -110% 0, 100% 210%); }
+  to { clip-path: polygon(100% 0, 100% 0, 100% 0); }
+}
+
+/* Barrido desde la esquina inferior izquierda: la ola viaja hacia el botón. */
+@keyframes mt-pieza-vuelve {
+  from {
+    clip-path: polygon(0 100%, 0 100%, 0 100%);
+    filter: blur(4px);
+  }
+  to {
+    clip-path: polygon(0 100%, 210% 100%, 0 -110%);
+    filter: none;
+  }
+}
+
+/* ---------- Ligera (sin View Transitions): el tema ya está; destello por pieza ---------- */
+
+html[data-mt-transicion="ligera"] [data-mt-ola] {
+  animation: mt-destello 420ms ease-out both;
+  animation-delay: calc(600ms * (1 - sqrt(1 - (var(--mt-k) + 0.5) / 12)));
+}
+
+@keyframes mt-destello {
+  from { filter: none; }
+  30% { filter: saturate(1.8) brightness(1.12) drop-shadow(0 0 10px var(--mt-tinte)); }
+  to { filter: none; }
+}
+
+/* ---------- Suave (prefers-reduced-motion) ---------- */
+
+html[data-mt-transicion="suave"]::view-transition-group(root) {
+  animation-duration: 150ms;
+}

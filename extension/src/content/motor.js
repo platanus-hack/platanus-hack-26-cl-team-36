@@ -6,6 +6,8 @@
 //   2. Marca <html> con la clase `mi-tema` (según el botón de la extensión) y el
 //      atributo `data-mt-tema`, y los repone si el sitio los borra.
 //   3. Ejecuta las features que pide el tema en cada navegación y cambio del DOM.
+//   4. Cuando el usuario aprieta el botón, anima el cambio (content/transicion.js).
+//      Solo ahí: al cargar y al navegar la clase se pone sin animación.
 //
 // Ojo: algunos sitios reemplazan el <html> completo al cargar (Gmail usa
 // document.open/write) o pisan sus clases. Por eso nunca guardamos una referencia
@@ -76,10 +78,16 @@
     activo = estado.activo ?? true;
     console.info(`[mi-tema] Tema "${tema.id}" aplicado${activo ? "" : " (desactivado con el botón)"}.`);
 
+    // `activo` (lo que se ve) cambia recién dentro de la transición: si el sitio mueve el
+    // DOM antes, marcarHtml() no adelanta la clase y la captura de "antes" sale bien.
+    let pedido = activo;
     browser.storage.onChanged.addListener((cambios, area) => {
       if (area === "local" && "activo" in cambios) {
-        activo = cambios.activo.newValue;
-        marcarHtml();
+        pedido = cambios.activo.newValue ?? true;
+        MiTema.transicion.animar(pedido, () => {
+          activo = pedido;
+          marcarHtml();
+        });
       }
     });
 

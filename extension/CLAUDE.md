@@ -17,8 +17,9 @@ el tema completo: todo lo específico de un sitio debe poder expresarse como **d
 - `src/background/api.js`: `consultarTema(url)`: `POST {urlDeLaApi()}/temas/buscar` con `{ url: origen }`. `{success: true, tema}` → id; `{success: false}` → null; caído/timeout (2 s)/respuesta rara → lanza.
 - `src/background/temas-locales.js`: `cargarTemaLocal(id)` lee `src/temas/<id>/`.
 - `src/background/config.js`: `urlDeLaApi()`. En modo desarrollo (extensión temporal) usa la API local (`API_URL_LOCAL`); instalada, la de AWS (`API_URL_AWS`).
-- Content scripts, en este orden: `src/content/registro.js` → `src/content/plantillas.js` → `src/componentes/*.js` → `src/features/*.js` → `src/content/motor.js`.
+- Content scripts, en este orden: `src/content/registro.js` → `src/content/plantillas.js` → `src/content/transicion.js` → `src/componentes/*.js` → `src/features/*.js` → `src/content/motor.js`.
 - `src/content/plantillas.js`: `MiTema.plantillas.leerCampos` (lee datos de la página según reglas de una plantilla) y `MiTema.dom.crear` (crea elementos sin `innerHTML`; `href`/`src` pasan por `urlSegura`).
+- `src/content/transicion.js` + `.css`: `MiTema.transicion.animar(activar, aplicar)`, la "ola de adaptación" al apretar el botón (View Transitions; sin ellas, una versión liviana; con `prefers-reduced-motion`, un fundido). Solo la llama el cambio de `activo` en storage, nunca la carga ni la navegación. Todo su CSS va bajo `html[data-mt-transicion]`, que existe solo mientras dura.
 - `src/features/vista.js`: reemplaza una sección por una vista dibujada con un componente del catálogo (`src/componentes/`), según una plantilla en el `tema.json`. La sección original queda oculta con `data-mt-oculto` y los clics se reenvían a sus elementos.
 - `src/temas/<id>/tema.json` + `tema.css`. El id es el nombre de la carpeta y es lo que devuelve la API.
 - `test/`: `node:test`. `temas-locales.test.js` valida cada tema de `src/temas/`.
