@@ -30,7 +30,7 @@ uv run main.py --task wom-baja-fibra --css ../../.runs/diseno/www.wom.cl/<fecha-
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. Las corridas quedan en `agents/.runs/`. |
 | `--goals <goals.json>` | Un catálogo del [Mapeador](../web_mapper/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
 | `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--goals`, `first_time`) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido` (y los 8 [con nivel de conocimiento](#exploradores-con-nivel-de-conocimiento)), que solo corren si se piden. |
-| `--exploradores [CONJUNTO]` | Suma un conjunto de exploradores: `base` (los 4 de siempre) o `conocimiento` (los 8 con nivel de conocimiento). Sin nombre, el de `config.CONJUNTO_EXPLORADORES` (`base`). Sin `--profiles`, corren solo ellos. |
+| `--exploradores [CONJUNTO]` | Suma un conjunto de exploradores: `base` (los 4 de siempre) o `conocimiento` (los 8 con nivel de conocimiento). Sin nombre, el de `config.CONJUNTO_EXPLORADORES` (`conocimiento`, el estándar). Sin `--profiles`, corren solo ellos. |
 | `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
 | `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-haiku-5-5`). |
 | `--output` | Otra carpeta para las corridas. |

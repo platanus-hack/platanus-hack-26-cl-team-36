@@ -148,7 +148,7 @@ Tablas tal como las imprime el script (7 tareas, 2 tandas de A y 2 de B por tare
   `explorador_menu_conoce_tema` (2,5 páginas y 0,5 caminos únicos, sumando las tareas) y
   `explorador_contenido_conoce_tema` (3 y 1). Si hay que bajar costo o carga sobre los sitios, esos dos son los
   primeros candidatos a sacar (un conjunto de 6).
-- `config.CONJUNTO_EXPLORADORES` sigue en `base` (la opción por defecto de `--exploradores` sin nombre); el cambio de
-  lo que se muestra se hizo archivando las tandas viejas, no cambiando el código.
+- Decisión: `config.CONJUNTO_EXPLORADORES` pasa a `conocimiento` (los 8 son el estándar de `--exploradores` sin
+  nombre); las tandas viejas quedan en `agents/.runs/archivo/`.
 - Sin resolver: si la ventaja sobre A×2 es real (hace falta más repeticiones); cuánto aguantan los sitios 8 navegadores
   en paralelo (sernac.cl no los aguantó); repetir sernac cuando vuelva a responder.
