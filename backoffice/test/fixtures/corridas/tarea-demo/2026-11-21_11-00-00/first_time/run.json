@@ -1,0 +1,165 @@
+{
+ "profile": "first_time",
+ "profile_name": "Primera vez",
+ "viewport": "1024x768",
+ "model": "modelo",
+ "start_url": "https://www.ejemplo.test/",
+ "instruction": "Encontrar cómo dar de baja",
+ "engine": "claude-code",
+ "start": {
+  "url": "https://www.ejemplo.test/",
+  "title": "Inicio | Ejemplo",
+  "screenshot": "step_00.png"
+ },
+ "steps": [
+  {
+   "number": 1,
+   "action": "left_click",
+   "action_input": {
+    "coordinate": [
+     1000,
+     20
+    ]
+   },
+   "description": "clic en (1000, 20)",
+   "coordinates": [
+    1000,
+    20
+   ],
+   "expectation": "Cerrar el aviso.",
+   "element": {
+    "tag": "button",
+    "text": "Close",
+    "role": null,
+    "href": null,
+    "type": null,
+    "id": null
+   },
+   "url_before": "https://www.ejemplo.test/",
+   "title_before": "Inicio | Ejemplo",
+   "url": "https://www.ejemplo.test/",
+   "title": "Inicio | Ejemplo",
+   "screenshot_before": "step_00.png",
+   "screenshot": "step_01.png",
+   "seconds_since_start": 3.0,
+   "duration_s": 3.0,
+   "screen_change": 0.6,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 2,
+   "action": "type",
+   "action_input": {
+    "text": "baja"
+   },
+   "description": "escribir «baja»",
+   "coordinates": null,
+   "expectation": "Escribir lo que busco.",
+   "element": null,
+   "url_before": "https://www.ejemplo.test/",
+   "title_before": "Inicio | Ejemplo",
+   "url": "https://www.ejemplo.test/",
+   "title": "Inicio | Ejemplo",
+   "screenshot_before": "step_01.png",
+   "screenshot": "step_02.png",
+   "seconds_since_start": 5.0,
+   "duration_s": 2.0,
+   "screen_change": 0.02,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 3,
+   "action": "left_click",
+   "action_input": {
+    "coordinate": [
+     600,
+     40
+    ]
+   },
+   "description": "clic en (600, 40)",
+   "coordinates": [
+    600,
+    40
+   ],
+   "expectation": "Ver resultados.",
+   "element": {
+    "tag": "button",
+    "text": "Buscar",
+    "role": null,
+    "href": null,
+    "type": null,
+    "id": null
+   },
+   "url_before": "https://www.ejemplo.test/",
+   "title_before": "Inicio | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda?q=baja",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_02.png",
+   "screenshot": "step_03.png",
+   "seconds_since_start": 8.0,
+   "duration_s": 3.0,
+   "screen_change": 0.7,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 4,
+   "action": "left_click",
+   "action_input": {
+    "coordinate": [
+     300,
+     300
+    ]
+   },
+   "description": "clic en (300, 300)",
+   "coordinates": [
+    300,
+    300
+   ],
+   "expectation": "Llegar al trámite.",
+   "element": {
+    "tag": "a",
+    "text": "Dar de baja",
+    "role": null,
+    "href": "/ayuda/baja",
+    "type": null,
+    "id": null
+   },
+   "url_before": "https://www.ejemplo.test/ayuda?q=baja",
+   "title_before": "Ayuda | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda/baja",
+   "title": "Cómo dar de baja | Ejemplo",
+   "screenshot_before": "step_03.png",
+   "screenshot": "step_04.png",
+   "seconds_since_start": 11.0,
+   "duration_s": 3.0,
+   "screen_change": 0.8,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  }
+ ],
+ "end_reason": "done",
+ "final_message": "Para dar de baja, entra a Ayuda > Cómo dar de baja.",
+ "duration_s": 12.0,
+ "turns": 5,
+ "screenshots_requested": 0,
+ "incidents": [],
+ "token_usage": {
+  "input_tokens": 10,
+  "output_tokens": 100,
+  "cache_read_input_tokens": 0,
+  "cache_creation_input_tokens": 0,
+  "equivalent_cost_usd": 0.031
+ },
+ "final_screenshot": "step_04.png",
+ "verdict": {
+  "outcome": "success",
+  "justification": "La pantalla final muestra cómo dar de baja."
+ }
+}

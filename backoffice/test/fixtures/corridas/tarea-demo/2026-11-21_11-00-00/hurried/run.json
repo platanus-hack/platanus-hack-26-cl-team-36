@@ -1,0 +1,270 @@
+{
+ "profile": "hurried",
+ "profile_name": "Apurado",
+ "viewport": "1024x768",
+ "model": "modelo",
+ "start_url": "https://www.ejemplo.test/",
+ "instruction": "Encontrar cómo dar de baja",
+ "engine": "claude-code",
+ "start": {
+  "url": "https://www.ejemplo.test/",
+  "title": "Inicio | Ejemplo",
+  "screenshot": "step_00.png"
+ },
+ "steps": [
+  {
+   "number": 1,
+   "action": "left_click",
+   "action_input": {
+    "coordinate": [
+     900,
+     20
+    ]
+   },
+   "description": "clic en (900, 20)",
+   "coordinates": [
+    900,
+    20
+   ],
+   "expectation": "Ir a la ayuda.",
+   "element": {
+    "tag": "a",
+    "text": "Ayuda",
+    "role": null,
+    "href": "/ayuda",
+    "type": null,
+    "id": null
+   },
+   "url_before": "https://www.ejemplo.test/",
+   "title_before": "Inicio | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_00.png",
+   "screenshot": "step_01.png",
+   "seconds_since_start": 2.0,
+   "duration_s": 2.0,
+   "screen_change": 0.7,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 2,
+   "action": "scroll",
+   "action_input": {
+    "scroll_direction": "down",
+    "scroll_amount": 5
+   },
+   "description": "scroll down x5",
+   "coordinates": [
+    512,
+    384
+   ],
+   "expectation": "Ver más opciones de ayuda.",
+   "element": null,
+   "url_before": "https://www.ejemplo.test/ayuda",
+   "title_before": "Ayuda | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_01.png",
+   "screenshot": "step_02.png",
+   "seconds_since_start": 4.0,
+   "duration_s": 2.0,
+   "screen_change": 0.3,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 3,
+   "action": "scroll",
+   "action_input": {
+    "scroll_direction": "down",
+    "scroll_amount": 5
+   },
+   "description": "scroll down x5",
+   "coordinates": [
+    512,
+    384
+   ],
+   "expectation": "Ver más opciones de ayuda.",
+   "element": null,
+   "url_before": "https://www.ejemplo.test/ayuda",
+   "title_before": "Ayuda | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_02.png",
+   "screenshot": "step_03.png",
+   "seconds_since_start": 6.0,
+   "duration_s": 2.0,
+   "screen_change": 0.3,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 4,
+   "action": "scroll",
+   "action_input": {
+    "scroll_direction": "down",
+    "scroll_amount": 5
+   },
+   "description": "scroll down x5",
+   "coordinates": [
+    512,
+    384
+   ],
+   "expectation": "Ver más opciones de ayuda.",
+   "element": null,
+   "url_before": "https://www.ejemplo.test/ayuda",
+   "title_before": "Ayuda | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_03.png",
+   "screenshot": "step_04.png",
+   "seconds_since_start": 8.0,
+   "duration_s": 2.0,
+   "screen_change": 0.0,
+   "signals": [
+    "no_effect"
+   ],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 5,
+   "action": "scroll",
+   "action_input": {
+    "scroll_direction": "down",
+    "scroll_amount": 5
+   },
+   "description": "scroll down x5",
+   "coordinates": [
+    512,
+    384
+   ],
+   "expectation": "Ver más opciones de ayuda.",
+   "element": null,
+   "url_before": "https://www.ejemplo.test/ayuda",
+   "title_before": "Ayuda | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_04.png",
+   "screenshot": "step_05.png",
+   "seconds_since_start": 10.0,
+   "duration_s": 2.0,
+   "screen_change": 0.3,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 6,
+   "action": "scroll",
+   "action_input": {
+    "scroll_direction": "up",
+    "scroll_amount": 3
+   },
+   "description": "scroll up x3",
+   "coordinates": [
+    512,
+    384
+   ],
+   "expectation": "Ver más opciones de ayuda.",
+   "element": null,
+   "url_before": "https://www.ejemplo.test/ayuda",
+   "title_before": "Ayuda | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_05.png",
+   "screenshot": "step_06.png",
+   "seconds_since_start": 12.0,
+   "duration_s": 2.0,
+   "screen_change": 0.3,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 7,
+   "action": "scroll",
+   "action_input": {
+    "scroll_direction": "down",
+    "scroll_amount": 5
+   },
+   "description": "scroll down x5",
+   "coordinates": [
+    512,
+    384
+   ],
+   "expectation": "Ver más opciones de ayuda.",
+   "element": null,
+   "url_before": "https://www.ejemplo.test/ayuda",
+   "title_before": "Ayuda | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_06.png",
+   "screenshot": "step_07.png",
+   "seconds_since_start": 14.0,
+   "duration_s": 2.0,
+   "screen_change": 0.3,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 8,
+   "action": "left_click",
+   "action_input": {
+    "coordinate": [
+     300,
+     600
+    ]
+   },
+   "description": "clic en (300, 600)",
+   "coordinates": [
+    300,
+    600
+   ],
+   "expectation": "Llegar al trámite.",
+   "element": {
+    "tag": "a",
+    "text": "Dar de baja",
+    "role": null,
+    "href": "/ayuda/baja",
+    "type": null,
+    "id": null
+   },
+   "url_before": "https://www.ejemplo.test/ayuda",
+   "title_before": "Ayuda | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda/baja",
+   "title": "Cómo dar de baja | Ejemplo",
+   "screenshot_before": "step_07.png",
+   "screenshot": "step_08.png",
+   "seconds_since_start": 17.0,
+   "duration_s": 3.0,
+   "screen_change": 0.8,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  }
+ ],
+ "end_reason": "done",
+ "final_message": "Está en Ayuda > Cómo dar de baja.",
+ "duration_s": 18.0,
+ "turns": 9,
+ "screenshots_requested": 0,
+ "incidents": [],
+ "token_usage": {
+  "input_tokens": 10,
+  "output_tokens": 100,
+  "cache_read_input_tokens": 0,
+  "cache_creation_input_tokens": 0,
+  "equivalent_cost_usd": 0.042
+ },
+ "final_screenshot": "step_08.png",
+ "verdict": {
+  "outcome": "success",
+  "justification": "Se ve la página para dar de baja."
+ }
+}

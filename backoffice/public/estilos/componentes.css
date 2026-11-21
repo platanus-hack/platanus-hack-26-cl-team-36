@@ -1,0 +1,201 @@
+/* Componentes compartidos (diseño §5.12). Las pantallas no los reestilan de forma global. */
+
+/* ── Botones ─────────────────────────────────────────────────────────── */
+.boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--e-2);
+  min-height: 32px; padding: 0 var(--e-3);
+  border: 1px solid transparent; border-radius: var(--radio-2);
+  background: var(--acento); color: oklch(0.18 0.03 245);
+  font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: -0.006em;
+  text-decoration: none; white-space: nowrap;
+  transition: background-color var(--dur-1) var(--curva-salida), color var(--dur-1) var(--curva-salida),
+              border-color var(--dur-1) var(--curva-salida), transform var(--dur-1) var(--curva-salida);
+}
+.boton:hover { background: var(--acento-fuerte); color: oklch(0.18 0.03 245); text-decoration: none; }
+.boton:active:not(:disabled) { transform: scale(0.97); }
+.boton:disabled, .boton[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+.boton-secundario { background: var(--superficie-2); color: var(--texto-1); border-color: var(--borde); }
+.boton-secundario:hover { background: var(--superficie-3); color: var(--texto-1); border-color: var(--borde-fuerte); }
+.boton-fantasma { background: transparent; color: var(--texto-2); }
+.boton-fantasma:hover { background: var(--superficie-2); color: var(--texto-1); }
+.boton-icono { min-width: 32px; padding: 0; background: transparent; color: var(--texto-2); }
+.boton-icono:hover { background: var(--superficie-2); color: var(--texto-1); }
+.boton .icono { flex: none; }
+.boton kbd { margin-inline-start: var(--e-1); }
+
+/* ── Segmentado: grupo de botones con aria-pressed ───────────────────── */
+.segmentado {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: var(--superficie-1); border: 1px solid var(--borde-sutil); border-radius: var(--radio-2);
+}
+.segmentado > button {
+  min-height: 26px; padding: 0 var(--e-2); border: 0; border-radius: var(--radio-1);
+  background: transparent; color: var(--texto-3); font-size: 12px; font-weight: 500;
+  transition: background-color var(--dur-1), color var(--dur-1);
+}
+.segmentado > button:hover { color: var(--texto-1); }
+.segmentado > button[aria-pressed="true"] { background: var(--superficie-3); color: var(--texto-1); box-shadow: var(--brillo-superior); }
+
+/* ── Chip de filtro ──────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--e-1); min-height: 28px; padding: 0 var(--e-3);
+  border: 1px solid var(--borde); border-radius: var(--radio-pildora);
+  background: transparent; color: var(--texto-2); font-size: 12px; font-weight: 500; white-space: nowrap;
+  text-decoration: none;
+}
+.chip:hover { background: var(--superficie-2); color: var(--texto-1); text-decoration: none; }
+.chip[aria-pressed="true"], .chip[aria-current] { background: var(--acento-sutil); border-color: transparent; color: var(--acento-fuerte); }
+.chip-cuenta { color: var(--texto-3); font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] .chip-cuenta { color: inherit; }
+
+/* ── Insignias de estado: siempre ícono + texto (§5.8) ──────────────── */
+.insignia {
+  --tono: var(--neutro);
+  display: inline-flex; align-items: center; gap: 6px; min-height: 22px; padding: 0 var(--e-2);
+  border-radius: var(--radio-pildora); background: color-mix(in oklch, var(--tono) 14%, transparent);
+  color: var(--tono); font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap;
+  vertical-align: middle;
+}
+.insignia .icono { flex: none; }
+.insignia-compacta { padding: 0; min-height: 0; background: none; }
+.insignia-logrado, .insignia-exito { --tono: var(--exito); }
+.insignia-fallido, .insignia-peligro { --tono: var(--peligro-texto); }
+.insignia-abandonado, .insignia-neutro { --tono: var(--neutro); }
+.insignia-error { --tono: var(--neutro); background: var(--rayado), var(--neutro-fondo); color: var(--texto-2); }
+.insignia-error.insignia-compacta { background: none; }
+.insignia-aviso { --tono: var(--aviso); }
+.insignia-acento { --tono: var(--acento); }
+
+/* ── Medidor: un tramo por intento ──────────────────────────────────── */
+.medidor { display: inline-flex; gap: 2px; align-items: stretch; height: 8px; min-width: 24px; }
+.medidor-tramo { flex: 1 1 0; min-width: 6px; border-radius: 2px; background: var(--superficie-3); }
+.medidor-tramo.insignia-logrado, .medidor-tramo.medidor-logrado { background: var(--exito); }
+.medidor-tramo.insignia-fallido, .medidor-tramo.medidor-fallido { background: var(--peligro); }
+.medidor-tramo.insignia-abandonado, .medidor-tramo.medidor-abandonado { background: var(--neutro); }
+.medidor-tramo.insignia-error, .medidor-tramo.medidor-error { background: var(--rayado), var(--superficie-3); box-shadow: inset 0 0 0 1px var(--borde); }
+.medidor-tramo.medidor-aviso { background: var(--aviso); }
+.medidor-tramo.medidor-acento { background: var(--acento); }
+
+/* ── Superficies y ritmo ─────────────────────────────────────────────── */
+.tarjeta {
+  background: var(--superficie-1); border: 1px solid var(--borde-sutil); border-radius: var(--radio-3);
+  box-shadow: var(--brillo-superior); padding: var(--e-4);
+}
+.seccion { display: grid; gap: var(--e-3); margin-block-start: var(--e-5); }
+.seccion:first-child { margin-block-start: 0; }
+
+/* ── Cifras ──────────────────────────────────────────────────────────── */
+.fila-cifras { display: flex; flex-wrap: wrap; }
+.fila-cifras > .cifra { padding-inline: var(--e-5); border-inline-start: 1px solid var(--borde-sutil); }
+.fila-cifras > .cifra:first-child { padding-inline-start: 0; border-inline-start: 0; }
+.cifra { display: grid; gap: 2px; align-content: start; min-width: 0; }
+.cifra-etiqueta { font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--texto-3); }
+.cifra-valor { font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.022em; color: var(--texto-1); font-variant-numeric: tabular-nums; }
+.cifra-contexto { font-size: 12px; line-height: 16px; color: var(--texto-3); }
+
+/* ── Tabla ───────────────────────────────────────────────────────────── */
+.tabla { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tabla th {
+  padding: var(--e-2) var(--e-3); text-align: start; white-space: nowrap;
+  font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--texto-3); border-bottom: 1px solid var(--borde);
+}
+.tabla td { padding: var(--e-2) var(--e-3); border-bottom: 1px solid var(--borde-sutil); color: var(--texto-2); vertical-align: middle; }
+.tabla tbody tr:hover { background: var(--superficie-1); }
+.tabla .num { text-align: right; }
+.tabla th.num { text-align: right; }
+.tabla-orden {
+  display: inline-flex; align-items: center; gap: var(--e-1); padding: 0; border: 0; background: none;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+}
+.tabla-orden:hover { color: var(--texto-1); }
+.tabla th[aria-sort="ascending"] .tabla-orden, .tabla th[aria-sort="descending"] .tabla-orden { color: var(--texto-1); }
+
+/* ── Estados: vacío, aviso, esqueleto ───────────────────────────────── */
+.vacio {
+  display: grid; justify-items: start; gap: var(--e-3); max-width: 640px; padding: var(--e-7) 0;
+}
+.vacio > .icono { width: 32px; height: 32px; color: var(--texto-4); }
+.vacio-titulo { font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.014em; color: var(--texto-1); text-wrap: balance; }
+.vacio-texto { color: var(--texto-3); font-size: 14px; line-height: 22px; text-wrap: pretty; }
+.vacio-codigo {
+  display: flex; align-items: flex-start; gap: var(--e-2); max-width: 100%;
+  padding: var(--e-2) var(--e-2) var(--e-2) var(--e-3);
+  background: var(--superficie-1); border: 1px solid var(--borde-sutil); border-radius: var(--radio-2);
+}
+.vacio-codigo pre { flex: 1; overflow-x: auto; padding-block: 6px; color: var(--texto-1); white-space: pre; }
+.vacio-lista { display: grid; gap: var(--e-1); }
+.vacio-acciones { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.vacio-error .vacio-titulo { color: var(--texto-1); }
+
+.aviso-en-linea {
+  display: flex; align-items: flex-start; gap: var(--e-2); padding: var(--e-2) var(--e-3);
+  border-radius: var(--radio-2); background: var(--superficie-1); border: 1px solid var(--borde-sutil);
+  color: var(--texto-2); font-size: 13px; line-height: 20px;
+}
+.aviso-en-linea > .icono { margin-block-start: 2px; color: var(--acento); flex: none; }
+.aviso-en-linea.aviso-atencion { background: var(--aviso-fondo); border-color: transparent; color: var(--texto-1); }
+.aviso-en-linea.aviso-atencion > .icono { color: var(--aviso); }
+
+.esqueleto {
+  background: linear-gradient(90deg, var(--superficie-1) 0, var(--superficie-2) 40%, var(--superficie-1) 80%) 0 0 / 200% 100%;
+  border-radius: var(--radio-1);
+  animation: brillo-esqueleto 1.4s linear infinite;
+}
+@keyframes brillo-esqueleto { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .esqueleto { animation: none; } }
+.esqueleto-vista { display: grid; gap: var(--e-3); }
+.esqueleto-linea { height: 12px; }
+.esqueleto-titulo { height: 28px; width: min(320px, 70%); }
+.esqueleto-texto { height: 16px; width: min(560px, 90%); }
+.esqueleto-meta { height: 14px; width: min(480px, 80%); }
+.esqueleto-pestanas { height: 36px; width: min(420px, 100%); margin-block: var(--e-2); }
+.esqueleto-fila { display: grid; grid-template-columns: 72px 1fr; gap: var(--e-3); align-items: center; height: 56px; }
+.esqueleto-miniatura { width: 72px; height: 45px; }
+.esqueleto-bloque { height: 320px; }
+.esqueleto-lienzo { height: clamp(420px, 62vh, 760px); border-radius: var(--radio-3); }
+.esqueleto-replay { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--e-4); }
+.esqueleto-replay .esqueleto-bloque { height: 480px; }
+@media (max-width: 819px) { .esqueleto-replay { grid-template-columns: 1fr; } .esqueleto-replay > :first-child { height: 48px; } }
+
+/* ── Detalle técnico ─────────────────────────────────────────────────── */
+details.detalle-tecnico { border: 1px solid var(--borde-sutil); border-radius: var(--radio-2); background: var(--superficie-1); }
+details.detalle-tecnico > summary {
+  cursor: pointer; padding: var(--e-2) var(--e-3); color: var(--texto-3); font-size: 12px; font-weight: 500;
+  list-style-position: inside;
+}
+details.detalle-tecnico > summary:hover { color: var(--texto-1); }
+details.detalle-tecnico > pre {
+  margin: 0; padding: var(--e-3); border-top: 1px solid var(--borde-sutil); max-height: 320px; overflow: auto;
+  white-space: pre-wrap; overflow-wrap: anywhere; color: var(--texto-2);
+}
+
+/* ── Teclas ──────────────────────────────────────────────────────────── */
+kbd {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px;
+  font: 500 11px/1 var(--fuente); font-variant-numeric: tabular-nums; color: var(--texto-3);
+  border: 1px solid var(--borde); border-bottom-width: 2px; border-radius: var(--radio-1); background: var(--superficie-2);
+}
+.teclas { display: inline-flex; align-items: center; gap: 3px; }
+.teclas-separador { color: var(--texto-4); font-size: 11px; }
+
+/* ── Migas ───────────────────────────────────────────────────────────── */
+.migas ol { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) var(--e-2); }
+.migas li { display: inline-flex; align-items: center; gap: var(--e-2); color: var(--texto-3); min-width: 0; }
+.migas li + li::before { content: "/"; color: var(--texto-4); }
+.migas a { color: var(--texto-3); }
+.migas a:hover { color: var(--texto-1); }
+.migas [aria-current="page"] { color: var(--texto-2); }
+
+/* ── Globo (tooltip compartido) ─────────────────────────────────────── */
+.globo {
+  position: fixed; inset: auto; margin: 0; max-width: min(320px, calc(100vw - 16px));
+  padding: 6px var(--e-2); border: 0; border-radius: var(--radio-2);
+  background: var(--superficie-3); color: var(--texto-1); box-shadow: var(--sombra-flotante);
+  font-size: 12px; line-height: 16px; pointer-events: none; overflow-wrap: anywhere;
+}
+.globo:popover-open { display: block; }
+
+/* ── Íconos ──────────────────────────────────────────────────────────── */
+.icono { width: 16px; height: 16px; flex: none; }
+.globo-con-tecla { display: inline-flex; align-items: center; gap: var(--e-2); }

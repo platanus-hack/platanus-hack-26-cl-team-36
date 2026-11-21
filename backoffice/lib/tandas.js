@@ -1,89 +1,105 @@
-// Lectura de agents/.runs/: cada tanda es una carpeta <tarea>/<fecha-hora>/ (o <fecha-hora>/ sin tarea)
-// con route_tree.json, criteria.json y una carpeta por perfil con run.json y sus capturas.
+// Lectura de tandas a través de una fuente de corridas (lib/fuente.js). Aquí se valida todo lo que
+// llega desde afuera: un id solo vale si la fuente lo listó, y de un perfil solo se sirven capturas y video.
 
-import { existsSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
-import path from "node:path";
 import { armarTanda, resumirTanda } from "./derivar.js";
+import { crearFuenteDeArchivos } from "./fuentes/archivos.js";
 
 const NOMBRE_DE_TANDA = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
 const NOMBRE_SEGURO = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
 // Solo estos archivos de un perfil se sirven al navegador.
 export const ARCHIVO_DE_PERFIL = /^(step_\d{2,3}\.png|video\.webm)$/;
+// El orden de los perfiles en el evaluador: first_time, hurried, mobile; los demás, por nombre.
+const ORDEN_DE_PERFILES = ["first_time", "hurried", "mobile"];
 
-async function leerJson(ruta) {
-  try {
-    return JSON.parse(await readFile(ruta, "utf8"));
-  } catch {
-    return null;
-  }
+/** @typedef {import("./fuente.js").Fuente} Fuente */
+
+/** Acepta una fuente o, por comodidad, la ruta de una carpeta de corridas. */
+const comoFuente = (fuente) => (typeof fuente === "string" ? crearFuenteDeArchivos({ raiz: fuente }) : fuente);
+
+const esIdValido = (id) => {
+  const partes = String(id).split("/");
+  if (partes.length === 1) return NOMBRE_DE_TANDA.test(partes[0]);
+  return partes.length === 2 && NOMBRE_SEGURO.test(partes[0]) && NOMBRE_DE_TANDA.test(partes[1]);
+};
+
+const fechaDe = (id) => id.split("/").at(-1);
+const tareaDe = (id) => (id.includes("/") ? id.split("/")[0] : null);
+
+/**
+ * Ids de las tandas, de la más nueva a la más vieja: "wom-baja-fibra/2026-11-21_07-16-33".
+ * @param {Fuente | string} fuente
+ */
+export async function idsDeTandas(fuente) {
+  const ids = (await comoFuente(fuente).listarIds()).filter(esIdValido);
+  return [...new Set(ids)].sort((a, b) =>
+    fechaDe(a) < fechaDe(b) ? 1 : fechaDe(a) > fechaDe(b) ? -1 : a < b ? -1 : a > b ? 1 : 0,
+  );
 }
 
-async function subcarpetas(carpeta) {
-  try {
-    const entradas = await readdir(carpeta, { withFileTypes: true });
-    return entradas.filter((e) => e.isDirectory() && NOMBRE_SEGURO.test(e.name)).map((e) => e.name);
-  } catch {
-    return [];
-  }
+/** Tandas vecinas en la lista global (de la más nueva a la más vieja) y las otras de la misma tarea. */
+export function vecinasDe(id, ids) {
+  const posicion = ids.indexOf(id);
+  const tarea = tareaDe(id);
+  return {
+    anterior: posicion >= 0 ? (ids[posicion + 1] ?? null) : null,
+    siguiente: posicion > 0 ? ids[posicion - 1] : null,
+    mismaTarea: tarea
+      ? ids.filter((otro) => otro !== id && tareaDe(otro) === tarea).map((otro) => ({ id: otro, fecha: fechaDe(otro) }))
+      : [],
+  };
 }
 
-// Ids de las tandas, de la más nueva a la más vieja: "wom-baja-fibra/2026-11-21_07-16-33".
-export async function idsDeTandas(raiz) {
-  const ids = [];
-  for (const nombre of await subcarpetas(raiz)) {
-    if (NOMBRE_DE_TANDA.test(nombre)) {
-      if (existsSync(path.join(raiz, nombre, "route_tree.json"))) ids.push(nombre);
-      continue;
-    }
-    for (const fecha of await subcarpetas(path.join(raiz, nombre))) {
-      if (NOMBRE_DE_TANDA.test(fecha) && existsSync(path.join(raiz, nombre, fecha, "route_tree.json"))) {
-        ids.push(`${nombre}/${fecha}`);
-      }
-    }
-  }
-  const fechaDe = (id) => id.split("/").at(-1);
-  return ids.sort((a, b) => (fechaDe(a) < fechaDe(b) ? 1 : fechaDe(a) > fechaDe(b) ? -1 : a < b ? -1 : 1));
-}
-
-// Un id solo vale si es una tanda que existe: así ninguna ruta pedida sale de la raíz.
-export async function carpetaDeTanda(raiz, id) {
-  const ids = await idsDeTandas(raiz);
-  return ids.includes(id) ? path.join(raiz, ...id.split("/")) : null;
-}
-
-export async function leerTanda(raiz, id) {
-  const carpeta = await carpetaDeTanda(raiz, id);
-  if (!carpeta) return null;
-  const arbol = await leerJson(path.join(carpeta, "route_tree.json"));
-  const criterio = await leerJson(path.join(carpeta, "criteria.json"));
+async function leerSinVecinas(fuente, id) {
+  const [arbol, criterio] = await Promise.all([
+    fuente.leerJson(id, "route_tree.json"),
+    fuente.leerJson(id, "criteria.json"),
+  ]);
+  const perfiles = (await fuente.listarPerfiles(id)).filter((perfil) => NOMBRE_SEGURO.test(perfil));
   const intentos = [];
-  for (const perfil of await subcarpetas(carpeta)) {
-    const run = await leerJson(path.join(carpeta, perfil, "run.json"));
+  for (const perfil of perfiles) {
+    const run = await fuente.leerJson(id, `${perfil}/run.json`);
     if (!run) continue;
-    intentos.push({ perfil, run, video: existsSync(path.join(carpeta, perfil, "video.webm")) });
+    intentos.push({ perfil, run, video: await fuente.existe(id, `${perfil}/video.webm`) });
   }
-  // El orden de los perfiles en el evaluador: first_time, hurried, mobile; los demás, por nombre.
-  const orden = ["first_time", "hurried", "mobile"];
-  const posicion = (perfil) => (orden.includes(perfil) ? orden.indexOf(perfil) : orden.length);
+  const posicion = (perfil) =>
+    ORDEN_DE_PERFILES.includes(perfil) ? ORDEN_DE_PERFILES.indexOf(perfil) : ORDEN_DE_PERFILES.length;
   intentos.sort((a, b) => posicion(a.perfil) - posicion(b.perfil) || (a.perfil < b.perfil ? -1 : 1));
   return armarTanda({ id, arbol, criterio, intentos });
 }
 
-export async function listarTandas(raiz) {
-  const resumenes = [];
-  for (const id of await idsDeTandas(raiz)) {
-    const tanda = await leerTanda(raiz, id);
-    if (tanda) resumenes.push(resumirTanda(tanda));
-  }
-  return resumenes;
+/**
+ * La tanda completa, o null si el id no es una tanda que la fuente conoce.
+ * @param {Fuente | string} fuente
+ * @param {string} id
+ */
+export async function leerTanda(fuente, id) {
+  const origen = comoFuente(fuente);
+  const ids = await idsDeTandas(origen);
+  if (!ids.includes(id)) return null;
+  const tanda = await leerSinVecinas(origen, id);
+  return { ...tanda, vecinas: vecinasDe(id, ids) };
 }
 
-// Ruta en disco de un archivo de un perfil, o null si lo pedido no es una captura o un video de una tanda.
-export async function rutaDeArchivo(raiz, id, perfil, archivo) {
+/**
+ * Lo que devuelve GET /api/tandas.
+ * @param {Fuente | string} fuente
+ * @returns {Promise<{ carpeta: string, tandas: object[] }>}
+ */
+export async function listarTandas(fuente) {
+  const origen = comoFuente(fuente);
+  const tandas = [];
+  for (const id of await idsDeTandas(origen)) tandas.push(resumirTanda(await leerSinVecinas(origen, id)));
+  return { carpeta: origen.descripcion, tandas };
+}
+
+/**
+ * Abre una captura o el video de un perfil, o null si lo pedido no es un archivo servible de una tanda.
+ * @param {Fuente | string} fuente
+ * @param {{ id: string, perfil: string, archivo: string, rango?: import("./fuente.js").RangoPedido }} pedido
+ */
+export async function abrirArchivoDeIntento(fuente, { id, perfil, archivo, rango }) {
   if (!NOMBRE_SEGURO.test(perfil) || !ARCHIVO_DE_PERFIL.test(archivo)) return null;
-  const carpeta = await carpetaDeTanda(raiz, id);
-  if (!carpeta) return null;
-  const ruta = path.join(carpeta, perfil, archivo);
-  return existsSync(ruta) ? ruta : null;
+  const origen = comoFuente(fuente);
+  if (!(await idsDeTandas(origen)).includes(id)) return null;
+  return origen.abrirArchivo(id, `${perfil}/${archivo}`, rango);
 }

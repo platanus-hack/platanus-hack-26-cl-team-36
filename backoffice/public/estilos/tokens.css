@@ -1,0 +1,53 @@
+/* Tokens del sistema visual (diseño §6.1). Tema oscuro únicamente. */
+:root {
+  color-scheme: dark;
+  /* superficies: elevación por luminosidad */
+  --fondo:        oklch(0.145 0.004 275);   /* #0A0A0C */
+  --superficie-1: oklch(0.178 0.005 275);   /* #101113 tarjetas, cabecera de tabla */
+  --superficie-2: oklch(0.208 0.006 275);   /* #17181B hover, inputs */
+  --superficie-3: oklch(0.240 0.007 275);   /* #1E1F23 popover, diálogo, paleta */
+  --lienzo:       oklch(0.160 0.005 275);   /* fondo de la telaraña */
+  /* bordes alfa */
+  --borde-sutil:  oklch(1 0 0 / 0.06);
+  --borde:        oklch(1 0 0 / 0.10);
+  --borde-fuerte: oklch(1 0 0 / 0.16);
+  /* texto (APCA sobre --fondo) */
+  --texto-1: oklch(0.965 0.003 275);        /* Lc 100: títulos, cifras */
+  --texto-2: oklch(0.80 0.006 275);         /* Lc 67: cuerpo, celdas */
+  --texto-3: oklch(0.70 0.008 275);         /* Lc 50: meta, etiquetas */
+  --texto-4: oklch(0.53 0.008 275);         /* Lc 25: deshabilitado, decorativo */
+  /* un solo acento: lo interactivo y lo elegido */
+  --acento:        oklch(0.77 0.13 245);     /* ≈ #66BCFF */
+  --acento-fuerte: color-mix(in oklch, var(--acento) 85%, white);
+  --acento-sutil:  color-mix(in oklch, var(--acento) 16%, transparent);
+  --anillo-foco:   oklch(0.77 0.13 245 / 0.9);
+  /* estados (separados por luminosidad además de tono: seguros para daltonismo) */
+  --exito:         oklch(0.80 0.14 172);     /* menta */
+  --peligro:       oklch(0.68 0.19 35);      /* bermellón: puntos, rellenos, íconos */
+  --peligro-texto: oklch(0.76 0.15 35);
+  --aviso:         oklch(0.79 0.16 60);      /* naranja ≈ #FF9F43: advertencias y 2.ª serie, nunca adorno */
+  --neutro:        oklch(0.66 0.01 275);
+  --exito-fondo:   color-mix(in oklch, var(--exito) 14%, transparent);
+  --peligro-fondo: color-mix(in oklch, var(--peligro) 16%, transparent);
+  --aviso-fondo:   color-mix(in oklch, var(--aviso) 14%, transparent);
+  --neutro-fondo:  color-mix(in oklch, var(--neutro) 14%, transparent);
+  --rayado: repeating-linear-gradient(135deg, var(--neutro-fondo) 0 4px, transparent 4px 8px);
+  --serie-1: var(--acento);
+  --serie-2: var(--aviso);
+  /* sombras: solo capas flotantes */
+  --sombra-flotante: 0 0 0 1px var(--borde), 0 4px 8px -2px oklch(0 0 0 / 0.5), 0 16px 32px -8px oklch(0 0 0 / 0.6);
+  --brillo-superior: inset 0 1px 0 oklch(1 0 0 / 0.04);
+  /* radios concéntricos */
+  --radio-1: 4px; --radio-2: 6px; --radio-3: 10px; --radio-4: 14px; --radio-pildora: 999px;
+  /* espacio */
+  --e-1: 4px; --e-2: 8px; --e-3: 12px; --e-4: 16px; --e-5: 24px; --e-6: 32px; --e-7: 48px;
+  /* movimiento */
+  --curva-salida: cubic-bezier(0.22, 1, 0.36, 1);
+  --curva-entrada-salida: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-1: 120ms; --dur-2: 180ms; --dur-3: 260ms; --dur-4: 600ms;
+  /* tipografía */
+  --fuente: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fuente-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* armazón */
+  --ancho-lateral: 232px; --alto-barra: 48px; --ancho-max: 1440px;
+}
