@@ -79,13 +79,20 @@ async def _record_verdict(judge, instruction: str, criteria: dict, run: Run, run
     print(f"[{run.profile}] veredicto: {run.verdict['outcome']} — {run.verdict['justification']}", flush=True)
 
 
+def models_for(engine: str, user_model: str | None = None) -> tuple[str, str]:
+    """Los modelos (usuarios, juez). En AWS (bedrock) solo Haiku; en local, Sonnet y Opus (ver config.py)."""
+    if engine == "bedrock":
+        return user_model or config.BEDROCK_USER_MODEL, config.BEDROCK_JUDGE_MODEL
+    return user_model or config.USER_MODEL, config.JUDGE_MODEL
+
+
 async def run_batch(
     url: str,
     instruction: str,
     profile_keys: list[str],
     output_dir: Path,
     engine: str = "claude-code",
-    user_model: str = config.USER_MODEL,
+    user_model: str | None = None,
     effort: str = config.USER_EFFORT,
     cdp_url: str | None = None,
     task_id: str | None = None,
@@ -94,6 +101,8 @@ async def run_batch(
     """Corre una tanda y devuelve su carpeta, con report.md, route_tree.json y una carpeta por perfil."""
     batch_dir = output_dir / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     batch_dir.mkdir(parents=True, exist_ok=False)
+
+    user_model, judge_model = models_for(engine, user_model)
 
     # Claude Code corre en una carpeta vacía para no cargar CLAUDE.md ni memoria de ningún proyecto.
     claude_cwd = Path(tempfile.mkdtemp(prefix="web_evaluator-claude-"))
@@ -106,10 +115,10 @@ async def run_batch(
         else:
             client = anthropic.AsyncAnthropic()
             model_prefix = ""
-        judge = ApiJudge(client, model=model_prefix + config.JUDGE_MODEL, fallbacks=engine == "api")
+        judge = ApiJudge(client, model=model_prefix + judge_model, fallbacks=engine == "api")
         make_engine = functools.partial(ApiEngine, client, model_prefix + user_model, effort)
     else:
-        judge = ClaudeCodeJudge(claude_cwd)
+        judge = ClaudeCodeJudge(claude_cwd, model=judge_model)
         make_engine = functools.partial(ClaudeCodeEngine, user_model, effort, claude_cwd)
 
     try:
@@ -159,7 +168,7 @@ async def run_batch(
         "engine": engine,
         "browser": browser,
         "user_model": user_model,
-        "judge_model": config.JUDGE_MODEL,
+        "judge_model": judge_model,
         "effort": effort,
     }
     _write_json(batch_dir / "criteria.json", criteria)

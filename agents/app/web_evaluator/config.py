@@ -2,7 +2,8 @@
 
 import os
 
-# Modelos: los usuarios sintéticos navegan con Sonnet; el criterio y el veredicto los da Opus.
+# Modelos en local: los usuarios sintéticos navegan con Sonnet; el criterio y el veredicto los da Opus.
+# En AWS se usa solo Haiku (BEDROCK_*_MODEL, más abajo).
 USER_MODEL = "claude-sonnet-5-5"
 JUDGE_MODEL = "claude-opus-5-5"
 USER_EFFORT = "medium"
@@ -28,6 +29,9 @@ NO_EFFECT_THRESHOLD = 0.005  # fracción de píxeles que deben cambiar para que 
 # La cuenta de la hackatón solo permite us-east-2 (ver infra/README.md).
 AWS_REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-2"
 BEDROCK_MODEL_PREFIX = "anthropic."   # Claude en Amazon Bedrock (endpoint bedrock-mantle): anthropic.claude-...
+# En AWS (motor bedrock, incluido AgentCore Runtime) solo se usa Haiku, para los usuarios y para el juez.
+BEDROCK_USER_MODEL = "claude-haiku-5-5"
+BEDROCK_JUDGE_MODEL = "claude-haiku-5-5"
 AGENTCORE_RUNTIME_NAME = "web_evaluator"
 AGENTCORE_BROWSER_VIEWPORT = {"width": 1280, "height": 800}   # la ventana; cada perfil fija su propia vista
 AGENTCORE_BROWSER_TIMEOUT_SECONDS = 1800

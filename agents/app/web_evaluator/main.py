@@ -68,7 +68,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="claude-code: tu Claude Code local, sin clave de API (por defecto). api: API de Anthropic con computer use."
         " bedrock: Claude en Amazon Bedrock, con las credenciales de AWS del entorno.",
     )
-    parser.add_argument("--model", default=config.USER_MODEL, help="modelo de los usuarios sintéticos")
+    parser.add_argument(
+        "--model",
+        default=None,
+        help=f"modelo de los usuarios sintéticos (por defecto {config.USER_MODEL}; con --engine bedrock,"
+        f" {config.BEDROCK_USER_MODEL})",
+    )
     parser.add_argument("--effort", default=config.USER_EFFORT, choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument(
         "--browser",

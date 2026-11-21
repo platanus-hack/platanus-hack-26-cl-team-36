@@ -6,6 +6,7 @@ import pytest
 
 import agentcore_app
 from agentcore_app import InvalidRequest, parse_request
+from batch import models_for
 from judge import ApiJudge
 from profiles import PROFILES
 
@@ -15,7 +16,8 @@ def test_parse_request_fills_defaults():
     assert request["instruction"] == "Encontrar el horario"
     assert request["profiles"] == list(PROFILES)
     assert request["task_id"] is None
-    assert request["effort"] and request["model"]
+    assert request["effort"] == "medium"
+    assert "model" not in request  # en AWS el modelo no se elige por pedido: siempre Haiku
 
 
 @pytest.mark.parametrize("payload", [
@@ -31,6 +33,12 @@ def test_parse_request_rejects_bad_payloads(payload):
         parse_request(payload)
 
 
+def test_aws_uses_only_haiku():
+    assert models_for("bedrock") == ("claude-haiku-5-5", "claude-haiku-5-5")
+    assert models_for("api") == ("claude-sonnet-5-5", "claude-opus-5-5")
+    assert models_for("claude-code", "claude-haiku-5-5") == ("claude-haiku-5-5", "claude-opus-5-5")
+
+
 def _collect(payload) -> list[dict]:
     async def run():
         return [event async for event in agentcore_app.invoke(payload, None)]
@@ -43,6 +51,7 @@ def test_invoke_streams_an_error_for_a_bad_request():
 
 def test_invoke_streams_progress_and_report(tmp_path, monkeypatch):
     async def fake_batch(**kwargs):
+        assert kwargs.get("user_model") is None  # run_batch elige Haiku con el motor bedrock
         batch_dir = tmp_path / "tanda"
         (batch_dir / "mobile").mkdir(parents=True)
         (batch_dir / "mobile" / "run.json").write_text(json.dumps({"profile": "mobile", "verdict": {"outcome": "success"}}))
@@ -50,7 +59,7 @@ def test_invoke_streams_progress_and_report(tmp_path, monkeypatch):
         return batch_dir
 
     monkeypatch.setattr(agentcore_app, "run_batch", fake_batch)
-    events = _collect({"url": "https://ejemplo.cl", "instruction": "x", "profiles": ["mobile"]})
+    events = _collect({"url": "https://ejemplo.cl", "instruction": "x", "profiles": ["mobile"], "model": "claude-opus-5-5"})
     assert events[0]["status"] == "running"
     assert events[-1]["status"] == "done"
     assert events[-1]["outcomes"] == {"mobile": "success"}
@@ -79,7 +88,7 @@ class _FakeMessages:
 def test_judge_without_fallbacks_uses_plain_messages_api():
     messages, beta_messages = _FakeMessages(), _FakeMessages()
     client = SimpleNamespace(messages=messages, beta=SimpleNamespace(messages=beta_messages))
-    judge = ApiJudge(client, model="anthropic.claude-opus-5-5", fallbacks=False)
+    judge = ApiJudge(client, model="anthropic.claude-haiku-5-5", fallbacks=False)
     assert asyncio.run(judge.ask_json("sistema", "texto", b"png", {"type": "object"}))["outcome"] == "success"
     assert beta_messages.calls == []
-    assert "fallbacks" not in messages.calls[0] and messages.calls[0]["model"] == "anthropic.claude-opus-5-5"
+    assert "fallbacks" not in messages.calls[0] and messages.calls[0]["model"] == "anthropic.claude-haiku-5-5"

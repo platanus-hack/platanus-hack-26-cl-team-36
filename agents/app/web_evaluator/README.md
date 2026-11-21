@@ -28,7 +28,7 @@ uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de l
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. Las corridas quedan en `agents/.runs/`. |
 | `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres). |
 | `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
-| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`). |
+| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-haiku-5-5`). |
 | `--output` | Otra carpeta para las corridas. |
 | `--browser` | `local` (Chromium, por defecto) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
@@ -49,6 +49,11 @@ Bedrock y AgentCore Browser, y gasta de la cuenta de AWS de la hackatón en vez 
 de la [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agents/agentcore/agentcore.json` declara este
 runtime, y la CLI lo empaqueta para arm64 y lo despliega. La entrada en AWS es `agentcore_app.py`; `main.py` sigue
 siendo el comando local.
+
+En AWS se usa solo Claude Haiku 5.5, tanto para los usuarios sintéticos como para el juez (`BEDROCK_USER_MODEL` y
+`BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. En la cuenta basta con habilitar Haiku 5.5 en
+Bedrock (us-east-2). Ojo: Haiku puede errar más la puntería de los clics que Sonnet, y esos errores se cuentan como
+fricción del sitio; conviene comparar una misma tarea en local y en AWS antes de confiar en los resultados.
 
 Con `export AWS_PROFILE=<perfil de la cuenta de la hackatón>`, una prueba de concepto en tres pasos:
 

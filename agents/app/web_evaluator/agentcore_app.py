@@ -5,9 +5,10 @@ resultado de cada perfil y el reporte. Así `agentcore invoke` muestra el avance
 callada durante los minutos que dura una tanda.
 
     {"url": "https://...", "instruction": "...", "task_id": "wom-baja-fibra",
-     "profiles": ["first_time", "mobile"], "effort": "medium", "model": "claude-sonnet-5-5"}
+     "profiles": ["first_time", "mobile"], "effort": "medium"}
 
-Solo `url` e `instruction` son obligatorios. En AWS usa Claude en Bedrock y AgentCore Browser;
+Solo `url` e `instruction` son obligatorios. En AWS usa Claude en Bedrock, solo Haiku (usuarios y juez, ver
+config.BEDROCK_*_MODEL), y AgentCore Browser;
 EVALUATOR_ENGINE y EVALUATOR_BROWSER los cambian (por ejemplo, para `agentcore dev` sin AWS).
 """
 
@@ -54,7 +55,6 @@ def parse_request(payload) -> dict:
     effort = payload.get("effort") or config.USER_EFFORT
     if effort not in EFFORTS:
         raise InvalidRequest(f"`effort` debe ser uno de: {', '.join(EFFORTS)}")
-    model = payload.get("model") or config.USER_MODEL
     task_id = payload.get("task_id")
     return {
         "url": url,
@@ -62,7 +62,6 @@ def parse_request(payload) -> dict:
         "task_id": task_id if isinstance(task_id, str) else None,
         "profiles": profiles,
         "effort": effort,
-        "model": str(model),
     }
 
 
@@ -89,7 +88,6 @@ async def invoke(payload, context):
         profile_keys=request["profiles"],
         output_dir=Path(tempfile.mkdtemp(prefix="web_evaluator-")),
         engine=ENGINE,
-        user_model=request["model"],
         effort=request["effort"],
         task_id=request["task_id"],
         browser=BROWSER,
