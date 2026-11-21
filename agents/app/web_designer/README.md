@@ -81,7 +81,8 @@ Por cada caso:
 4. **Aplicación y métricas**, en escritorio (1280x800) y en móvil (390x844): carga la página, la captura y la mide,
    agrega la clase `mi-tema` y un `<style>` con el tema (con la CSP desactivada, como `scripting.insertCSS` de la
    extensión), espera, captura y mide otra vez en la misma página. Luego quita la clase y compara la captura con la
-   original.
+   original (la del inicio o la de la página sin el `<style>` en ese momento, la más parecida: así un widget que el
+   sitio carga tarde no cuenta como efecto del tema).
 5. **Juez**, con `--juez-model`: una llamada puntúa de 1 a 5, con una razón, `estetica`, `ajuste_a_gustos`,
    `legibilidad`, `jerarquia_y_foco_en_tarea` e `integridad` viendo antes y después en escritorio y después en
    móvil, y da `veredicto` (`mejor`, `igual`, `peor`) y `principal_problema`. Otras dos llamadas comparan de a pares

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "biobio",
+    "url": "https://www.biobiochile.cl/",
+    "gustos": "Letra más grande y mucho menos ruido: me abruman la publicidad y los recuadros por todos lados.",
+    "tarea": "Leer la noticia más importante del día."
+  },
+  {
+    "id": "python-docs",
+    "url": "https://docs.python.org/es/3/tutorial/controlflow.html",
+    "gustos": "Modo oscuro sobrio, tipo editor de código, con el código bien destacado.",
+    "tarea": "Encontrar cómo definir una función con argumentos por defecto."
+  }
+]

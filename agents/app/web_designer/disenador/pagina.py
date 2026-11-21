@@ -75,6 +75,15 @@ async def poner_clase(page: Page, activa: bool) -> None:
     await esperar(page, config.ESPERA_TEMA_S)
 
 
+async def quitar_tema(page: Page) -> None:
+    """Saca el <style> del tema y la clase: la página como si nunca se hubiera aplicado, en este momento."""
+    await page.evaluate(
+        "([id, clase]) => { document.getElementById(id)?.remove(); document.documentElement.classList.remove(clase); }",
+        [TEMA_ESTILO_ID, TEMA_CLASE],
+    )
+    await esperar(page, config.ESPERA_TEMA_S)
+
+
 async def capturar(page: Page) -> bytes:
     """El viewport, sin animaciones ni cursor, para comparar antes y después."""
     return await page.screenshot(type="png", full_page=False, animations="disabled", caret="hide", timeout=20_000)

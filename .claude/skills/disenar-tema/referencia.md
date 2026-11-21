@@ -69,3 +69,78 @@ las salidas de Haiku donde falla. Cambiar una cosa a la vez.
 - WCAG 2.2: https://www.w3.org/TR/WCAG22/ · pilas de fuentes: https://modernfontstacks.com
 - MDN cascada: https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Cascade/Introduction
 - MLLM as a UI Judge: https://arxiv.org/abs/2510.08783 · UICrit: https://arxiv.org/abs/2407.08850
+
+## Resultados de la iteración con Haiku (2026-11-21)
+
+Diseñador `agents/app/web_designer` con Haiku 5.5 (esfuerzo medium) y juez Sonnet 5.5, sobre
+`agents/app/web_designer/casos/iteracion.json`: cinco sitios y gustos distintos, todos con tarea (Wikipedia oscuro +
+letra grande; Hacker News claro suave + más aire; Metro alto contraste + letra grande, tarea horario y tarifa del
+sábado; SERNAC menos ruido, tarea retracto; MDN editorial y colorido). Tres generaciones por caso y versión (15 por
+fila). Las corridas quedan en `agents/.runs/diseno/iteracion/` (no versionadas).
+
+| Versión | Juez 1–5 (± desvío) | E/A/L/J/I | Veredicto «mejor» | Par prefiere el tema | Contraste AA falla, escritorio / móvil | Interactivos perdidos | Violaciones | Sin mi-tema idéntica |
+|---|---|---|---|---|---|---|---|---|
+| sin skill | 3,24 ± 0,55 | 3,1/3,9/3,5/2,8/3,0 | 60 % | 100 % | 22,3 % / 22,2 % | 19 | 0 | 73 % |
+| v1 | 2,84 ± 0,64 | 2,9/2,7/3,0/2,4/3,2 | 40 % | 93 % | 13,2 % / 18,6 % | 6 | 0 | 60 % |
+| v2 | 3,19 ± 0,76 (3,56 sin los 4 temas vacíos) | 2,9/2,9/3,5/2,7/3,9 | 47 % | 73 % | 3,7 % / 4,0 % | 6 | 0 | 60 % |
+| v3 | 3,37 ± 0,51 | 3,2/3,5/3,9/2,8/3,5 | 80 % | 93 % | 1,5 % / 1,7 % | 11 | 0 | 60 % |
+| v4 | 3,40 ± 0,63 | 3,3/3,7/3,7/2,8/3,5 | 73 % | 93 % | 1,7 % / 1,9 % | 6 | 0 | 73 % |
+| v5 | 3,36 ± 0,51 | 3,2/3,3/3,7/2,9/3,7 | 60 % | 100 % | 1,7 % / 1,9 % | 6 | 0 | 67 % |
+| v6 (final; solo Metro y Wikipedia, 6 generaciones) | 3,07 en esos dos casos (v5: 3,03) | — | 33 % | 100 % | 4,4 % / 4,9 % | 1 | 0 | 50 % |
+
+E/A/L/J/I: estética, ajuste a gustos, legibilidad, jerarquía y foco en la tarea, integridad. Contraste de la página
+original: 18,3 % de textos bajo AA (Hacker News trae gris sobre crema). «Sin mi-tema idéntica» sale baja por ruido
+de medición, no por el tema: Metro tiene un video de portada que cambia entre capturas y SERNAC carga widgets tarde
+(las violaciones de ámbito fueron 0 en todas las versiones). Una diferencia de juez menor que ~0,15 entre versiones
+es ruido (desvío ~0,5 con n = 15). Entre la ronda 0 y v2 cambiaron dos cosas del diseñador: el mapa ahora prioriza
+las variables CSS de fondo (en Wikipedia las 40 primeras eran solo de texto) y la prueba "sin mi-tema" compara
+también con la página sin el `<style>` en ese momento (widgets que cargan tarde); la línea base no se volvió a correr.
+
+**Qué cambió y por qué**
+
+- **v1 → v2.** v1 quedó *bajo* la línea base: era tímida (ajuste a gustos 2,7 contra 3,9) y su modo oscuro dejaba
+  paneles blancos con texto claro (Wikipedia en móvil: 44 % de textos bajo AA; la versión móvil tiene otro HTML que el
+  mapa de escritorio no muestra). v2: tabla de gustos con **intensidad mínima** (letra grande = 20 px, menos ruido =
+  2–5 ocultos, claro suave = cabecera suavizada); receta **Repintar** que vacía los fondos de todos los contenedores
+  genéricos con `:where()` (especificidad baja) y luego pinta pocas superficies; receta de tarea con tres casos
+  (acción, camino desde la portada, sección del artículo); lista de qué se puede ocultar; nada de `word-break`.
+  Resultado: contraste 13 % → 4 %, Wikipedia completa en oscuro. Pero 4 de 15 temas salieron **vacíos**: Haiku copió
+  el ejemplo, que mostraba el CSS como string JSON con `\n`, y escribió la barra invertida literal; el filtro borró
+  todas las declaraciones.
+- **v2 → v3.** Ejemplo como CSS crudo y regla explícita "ninguna barra invertida, tampoco un `\n` escrito" (0 temas
+  vacíos desde entonces). Repintar solo cuando el fondo cambia de claro a oscuro (o al revés); receta **Reforzar** para
+  alto contraste sobre un sitio claro (en Metro, Repintar con paleta clara dejó un hueco blanco sobre el video). El
+  primer elemento del camino de la tarea lleva el estilo de acción principal. "Colorido" admite tres acentos.
+- **v3 → v4.** El camino de la tarea se marca sin mover nada (`box-shadow: inset 0 -3px 0`, peso y color): en SERNAC
+  el relleno nuevo hizo saltar de línea el menú de la cabecera fija y tapó la página. En la cabecera, la navegación y
+  lo `fixed`/`sticky`, solo color y peso. Un enlace que se repite en cada ítem de una lista ("comentarios") va solo con
+  color: con fondo y barra llenaba Hacker News de ruido (HN 4,0 → 4,47).
+- **v4 → v5.** Fondos nuevos solo en contenedores del mapa de ≤ 600×400 px, nunca en columnas, rejillas ni el
+  contenedor de una foto (Metro: hero partido). Enlaces sobre barras o botones de color conservan su color (SERNAC:
+  "Contacto" azul sobre azul). Nunca achicar textos; `font-size` de `body` solo con "letra grande"; no agrandar letra
+  en botones de ancho fijo ni widgets flotantes ("Centro de Ayu" cortado). SERNAC 2,6 → 3,07.
+- **v5 → v6.** "Letra grande" también sobre `p, li, td, th, dd, dt, label, figcaption, blockquote`: en Metro el
+  `font-size` de `body` no llegaba a ningún texto porque Bootstrap fija la letra en cada elemento.
+- **Meseta.** Desde v3 el promedio del juez se mueve dentro del ruido (3,36–3,40); lo que sí siguió mejorando fueron
+  los fallos concretos que se ven en las capturas. Lo que la skill no logra: hacer visible la tarea cuando la
+  respuesta no está en la página (Metro, SERNAC: el juez siempre pide más) y ocultar widgets que cargan después del
+  mapa (SERNAC "Evalúa", "Centro de Ayuda").
+
+**Sitios reservados** (no usados al iterar; `casos/reservados.json`, 2 generaciones cada uno):
+
+| Corrida | Juez | Veredicto «mejor» | Par prefiere el tema | Contraste AA falla, escritorio / móvil | Interactivos perdidos | Elementos ocultados |
+|---|---|---|---|---|---|---|
+| biobiochile.cl, sin skill | 3,70 | 2/2 | 2/2 | 10,0 % / 10,5 % | 192 | 599 |
+| biobiochile.cl, v6 | 3,40 | 1/2 | 1/2 (1 cambia con el orden) | 12,0 % / 8,0 % | 8 | 87 |
+| docs.python.org, sin skill | 3,70 | 2/2 | 2/2 | 6,9 % / 6,5 % | 0 | 33 |
+| docs.python.org, v6 | 3,90 | 2/2 | 2/2 | 0 % / 0 % | 0 | 13 |
+
+En total: juez 3,65 con la skill contra 3,70 sin ella (empate), con menos contraste fallido (6,0 % / 4,0 % contra
+8,4 % / 8,5 %) y casi sin pérdida de contenido (4 interactivos perdidos contra 96: sin skill, Haiku oculta columnas
+enteras de BioBio). Fallo que queda: en BioBio la letra mediana siguió en 16 px (casi todo son titulares enlazados) y
+un titular quedó más chico que el original, porque el mapa no trae su tamaño.
+
+**Tarea con usuarios sintéticos.** El mejor tema de Metro de v6 (`r5-v6-letra/metro/rep-03/tema.css`) en el
+evaluador, `metro-tarifa-sabado`, perfiles `first_time` y `hurried`, Haiku medium: sin tema 2/2 éxitos en 3 pasos y
+2 clics cada uno; con tema, lo mismo (2/2, 3 pasos, 2 clics). n = 2 por condición y la tarea es fácil (el menú
+"MetroServicio → Horarios y Tarifas" es directo), así que no distingue: solo muestra que el tema no estorba.

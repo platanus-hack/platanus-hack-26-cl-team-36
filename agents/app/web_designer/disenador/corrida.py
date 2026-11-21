@@ -101,9 +101,13 @@ async def evaluar(browser: Browser, url: str, css: str, carpeta: Path) -> tuple[
             medida_despues = await metricas.medir(page, "despues")
             await pagina.poner_clase(page, False)
             apagada = await pagina.capturar(page)
+            # La original en este mismo momento, sin el <style>: los widgets que el sitio carga tarde (chats,
+            # encuestas) aparecen también aquí y no cuentan como efecto del tema apagado.
+            await pagina.quitar_tema(page)
+            original_ahora = await pagina.capturar(page)
         finally:
             await contexto.close()
-        diferencia = screen_change_ratio(antes, apagada)
+        diferencia = min(screen_change_ratio(antes, apagada), screen_change_ratio(original_ahora, apagada))
         ruido = screen_change_ratio(antes, referencia)
         identica = diferencia <= ruido + config.UMBRAL_IDENTICA
         sin_clase[viewport] = {"diferencia": round(diferencia, 4), "ruido_base": round(ruido, 4), "identica": identica}

@@ -3,7 +3,7 @@
 Solo lleva lo que sirve para diseñar: landmarks, encabezados, contenedores grandes (etiqueta, id, clases estables,
 rol, tamaño y posición en el documento), colores y tamaños de letra calculados de los nodos clave, los botones con
 fondo propio y los colores de los enlaces (el color de marca), las variables CSS del sitio declaradas en
-`:root`/`html`/`body` (hasta 40, primero las de color), conteos de enlaces y botones, y el esquema de color. Los ids y clases que parecen generados (hashes, números largos) o que
+`:root`/`html`/`body` (hasta 40: primero las de color, y entre ellas las de fondo), conteos de enlaces y botones, y el esquema de color. Los ids y clases que parecen generados (hashes, números largos) o que
 necesitarían escaparse en CSS no se incluyen: el tema no puede usar barras invertidas.
 """
 
@@ -131,7 +131,13 @@ _MAPA_JS = r"""() => {
     const calculado = getComputedStyle(document.body || document.documentElement);
     const esColor = (v) => /^(#|rgb|hsl|hwb|oklch|oklab|lab|lch|color\()/i.test(v);
     const lista = [...nombres].map((n) => [n, calculado.getPropertyValue(n).trim()]).filter(([, v]) => v && v.length <= 80);
-    lista.sort((a, b) => esColor(b[1]) - esColor(a[1]));
+    // Primero los colores; entre ellos, fondos y superficies, después texto, borde y marca; al final los estados
+    // (hover, active, focus...), que sobran para un tema. Sin esto, en sitios con cientos de variables (Codex de
+    // Wikipedia) las 40 primeras eran solo de texto y el modelo no veía ninguna de fondo.
+    const puntaje = ([n, v]) => esColor(v) * 8 + /background|-bg|surface|fondo/i.test(n) * 4
+      + /text|-fg|foreground|color-base|border|link|primary|accent|brand/i.test(n) * 2
+      - /hover|active|focus|visited|disabled|placeholder|pressed/i.test(n) * 6;
+    lista.sort((a, b) => puntaje(b) - puntaje(a));
     return { total: lista.length, valores: Object.fromEntries(lista.slice(0, 40)) };
   })();
 
