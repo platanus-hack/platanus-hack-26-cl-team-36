@@ -229,19 +229,20 @@ Lo que hay que tener en cuenta:
 Firefox solo instala de forma permanente extensiones firmadas por Mozilla. La firmamos
 como **no listada**: no aparece en la tienda y se distribuye como `.xpi` descargable.
 
-### Con un tag (lo normal)
+### Con `just publish` (lo normal)
 
-Desde `main` actualizado, con un número de versión mayor que el último publicado:
+Con un número de versión mayor que el último publicado:
 
 ```bash
-git tag v0.3.0 && git push origin v0.3.0
+just publish v0.3.0
 ```
 
-El workflow `Publicar extensión` del repo personal ([infra/README.md](../infra/README.md))
-toma la versión del tag, corre los tests, firma en Mozilla y crea un release con el `.xpi`
-en [brayanmoreno/hackathon-grupo36/releases](https://github.com/brayanmoreno/hackathon-grupo36/releases).
-Ese repo es privado: solo el equipo puede descargarlo. Tarda unos minutos, más lo que tarde
-la sincronización en copiar el tag si tu `origin` no sube a los dos repos.
+Crea el tag `v0.3.0` sobre `main` tal como está en GitHub y lo sube a este repo y al repo
+personal ([infra/README.md](../infra/README.md)). Ahí el workflow `Publicar extensión` toma la
+versión del tag, corre los tests, firma en Mozilla y crea un release con el `.xpi` en
+[brayanmoreno/hackathon-grupo36/releases](https://github.com/brayanmoreno/hackathon-grupo36/releases).
+El comando espera a que termine (unos minutos) y muestra el link. Ese repo es privado: solo el
+equipo puede descargarlo.
 
 - No hace falta cambiar `version` en `manifest.json`: manda el tag.
 - Mozilla no firma dos veces la misma versión. Si la firma falla después de subirla, usa el

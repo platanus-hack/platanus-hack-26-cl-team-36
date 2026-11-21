@@ -29,6 +29,15 @@ just local explore <url> "<task>"     # 4. synthetic users try a task on a site 
 just local validate [wom|sii|dt]      #    the reference tasks in agents/tasks/ (calls Claude)
 ```
 
+Los despliegues y las versiones de la extensión corren como GitHub Actions en el repo personal
+[brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36), una copia de `main` de este
+(ver [infra/README.md](infra/README.md)). Necesitan [`gh`](https://cli.github.com) con la sesión iniciada:
+
+```bash
+just sync                             # copies main to the personal repo now and follows the deploy, if any
+just publish v0.3.0                   # signs that version of the extension and publishes it as a release
+```
+
 Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del repo; los comandos están en
 [`local/justfile`](local/justfile).
 

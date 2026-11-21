@@ -78,8 +78,8 @@ Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resume
 
 ## Día a día
 
-- Para no esperar la copia automática: Actions → `Sincroniza desde la organización` → *Run workflow*, en el repo
-  personal.
+- Para no esperar la copia automática, o si GitHub no la está lanzando: `just sync`. Copia `main` al repo personal
+  y, si hay algo que desplegar, sigue el deploy hasta que termine.
 - Nunca hagas commits directo en `main` del repo personal: la copia siguiente los borra.
 - Terraform en local, para revisar un cambio antes de mergearlo:
 
