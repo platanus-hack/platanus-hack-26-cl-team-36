@@ -7,7 +7,7 @@ import pytest
 from playwright.async_api import async_playwright
 
 import report
-from batch import describir_tema
+from batch import TemaInvalido, describir_tema
 from browser import TEMA_ESTILO_ID, BrowserSession, NavegadorConTema, connect_browser, create_context
 from profiles import Profile
 from recording import blocked_form_count
@@ -56,12 +56,12 @@ async def _estado(page):
     )
 
 
-def _con_tema(site, page_name: str, body):
+def _con_tema(site, page_name: str, body, css: str = CSS):
     async def main():
         async with async_playwright() as playwright:
             browser = await connect_browser(playwright)
             try:
-                context = await create_context(NavegadorConTema(browser, CSS), DESKTOP)
+                context = await create_context(NavegadorConTema(browser, css), DESKTOP)
                 session = BrowserSession(context, DESKTOP)
                 await session.open((site / page_name).as_uri())
                 await body(session)
@@ -132,3 +132,57 @@ def test_describir_tema_y_reporte(tmp_path):
     }
     assert "`oscuro.css`" in report._tema_label(tema)
     assert report._tema_label(None).startswith("ninguno")
+
+
+def test_un_css_con_los_marcadores_del_script_igual_se_aplica(site):
+    """El CSS entra al script como un solo argumento JSON: lo que traiga adentro no puede romper el JavaScript."""
+    css = '/* __ID__ __CLASE__ __CONFIG__ " ` ${x} </script> \u2028 */ ' + CSS
+
+    async def body(session):
+        assert await _estado(session.page) == {"clase": True, "estilos": 1, "fondo": "rgb(1, 2, 3)"}
+        assert await session.page.evaluate(f"document.getElementById('{TEMA_ESTILO_ID}').textContent") == css
+
+    _con_tema(site, "uno.html", body, css)
+
+
+@pytest.mark.parametrize("css", [
+    "html.mi-tema body { background: url(https://x.cl/a.png) !important; }",
+    "@import 'https://x.cl/b.css'; html.mi-tema body { color: red; }",
+    'html.mi-tema p::before { content: "\\201C" !important; }',
+    "html.mi-tema body { width: expression(alert(1)); }",
+])
+def test_un_tema_con_lo_que_filtra_la_extension_se_rechaza(tmp_path, css):
+    archivo = tmp_path / "malo.css"
+    archivo.write_text(css, encoding="utf-8")
+    with pytest.raises(TemaInvalido, match="que la extensión filtra"):
+        describir_tema(archivo)
+
+
+def test_main_rechaza_el_tema_antes_de_correr(tmp_path, capsys, monkeypatch):
+    import main
+
+    archivo = tmp_path / "malo.css"
+    archivo.write_text("@import 'x.css';", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["main.py", "--url", "https://ejemplo.cl", "--instruction", "x", "--css", str(archivo)])
+    with pytest.raises(SystemExit):
+        main.main()
+    assert "@import" in capsys.readouterr().err
+
+
+def test_la_csp_se_ignora_con_y_sin_tema():
+    """Con y sin tema los contextos se crean igual: la única diferencia entre las tandas es el tema."""
+    pedidos = []
+
+    class Navegador:
+        async def new_context(self, **options):
+            pedidos.append(options)
+
+            class Contexto:
+                async def add_init_script(self, script):
+                    pass
+
+            return Contexto()
+
+    asyncio.run(create_context(Navegador(), DESKTOP))
+    asyncio.run(create_context(NavegadorConTema(Navegador(), CSS), DESKTOP))
+    assert pedidos[0] == pedidos[1] and pedidos[0]["bypass_csp"] is True

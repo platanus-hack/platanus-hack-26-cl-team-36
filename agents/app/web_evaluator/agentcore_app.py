@@ -23,7 +23,7 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
 import config
 from batch import run_batch
-from profiles import PROFILES
+from profiles import PERFILES_POR_DEFECTO, PROFILES
 
 ENGINE = os.environ.get("EVALUATOR_ENGINE", "bedrock")
 BROWSER = os.environ.get("EVALUATOR_BROWSER", "agentcore")
@@ -46,12 +46,16 @@ def parse_request(payload) -> dict:
         raise InvalidRequest("falta `url`, con http:// o https://")
     if not isinstance(instruction, str) or not instruction.strip():
         raise InvalidRequest("falta `instruction`")
-    profiles = payload.get("profiles") or list(PROFILES)
+    profiles = payload.get("profiles") or list(PERFILES_POR_DEFECTO)
     if not isinstance(profiles, list):
         raise InvalidRequest("`profiles` debe ser una lista")
-    unknown = [key for key in profiles if key not in PROFILES]
+    # Los perfiles con skill (los exploradores) leen .claude/skills/, que no se despliega: en AWS no corren.
+    disponibles = [key for key, profile in PROFILES.items() if not profile.skill]
+    unknown = [key for key in profiles if key not in disponibles]
     if unknown:
-        raise InvalidRequest(f"perfiles desconocidos: {', '.join(map(str, unknown))}; disponibles: {', '.join(PROFILES)}")
+        raise InvalidRequest(
+            f"perfiles desconocidos o solo locales: {', '.join(map(str, unknown))}; disponibles: {', '.join(disponibles)}"
+        )
     effort = payload.get("effort") or config.USER_EFFORT
     if effort not in EFFORTS:
         raise InvalidRequest(f"`effort` debe ser uno de: {', '.join(EFFORTS)}")

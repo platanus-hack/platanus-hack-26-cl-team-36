@@ -295,6 +295,32 @@ PR 6 necesita para aceptar un parche.
 **Está terminado cuando** una tanda de 20 intentos sobre la página de prueba deja un grafo que muestra en qué etapa se
 abandona más, con ejemplos, y la tasa de éxito de cada salvaguarda.
 
+#### Exploradores: un grafo con ramas
+
+Los perfiles de la tanda intentan la tarea en línea recta, así que el grafo sale como una cadena y no muestra por
+dónde más se puede llegar. Los cuatro perfiles **exploradores** (`explorador`, `explorador_buscador`, `explorador_pie`
+y `explorador_contenido`) buscan varias formas de llegar a propósito. Se piden por nombre con `--profiles`; no son
+parte de la tanda por defecto.
+
+- Siguen la skill [`explorar-caminos`](../../.claude/skills/explorar-caminos/SKILL.md), que va en su prompt: elegir
+  candidatas por su «olor», abrir ramas de máximo 3 clics, volver y abrir otra, y al final quedarse en la página que
+  responde. Por eso solo corren en local: `.claude/skills/` no se despliega en AgentCore.
+- Cada uno abre su primera rama por un lugar distinto de la página inicial (menú, buscador, pie de página o enlaces
+  del contenido). Pedirle variedad a un solo agente no basta: repartir las primeras ramas sí abre el grafo.
+- Tienen 30 acciones y 7 minutos, y el harness les dice tras cada acción cuánto les queda y qué páginas vieron (`p1`,
+  `p2`...). Si quieren terminar con más del 40 % del presupuesto por delante, el harness se los rechaza y les pide
+  otra rama: Haiku termina apenas ve la respuesta aunque la skill le diga que siga, y contar el presupuesto es
+  trabajo del código, no del modelo.
+- `volver_a_nodo` lleva directo a una página ya vista, en 1 acción, a la URL que el harness guardó. Es más confiable que
+  el botón Atrás, que pierde el estado de la página y que en los sitios de una sola página no siempre vuelve.
+- Solo se puede volver a páginas http(s) del mismo sitio que la URL inicial.
+- En el árbol, cada vuelta es un **salto** (`"salto": true` en `branches`): se dibuja, pero la ruta recomendada no lo
+  usa. En un intento con éxito, solo cuentan como éxito los tramos desde los que el usuario siguió hacia adelante
+  hasta la página final; lo explorado y abandonado cuenta como fallo, así la exploración no infla la ruta.
+
+El backoffice dibuja este grafo en la pestaña «Telaraña». Cómo correrlos y las tareas pensadas para ellos están en el
+[README del evaluador](../../agents/app/web_evaluator/README.md#exploradores).
+
 ### Avance 5 · AgentCore
 
 **Qué entra**

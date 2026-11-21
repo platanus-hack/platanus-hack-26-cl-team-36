@@ -15,7 +15,7 @@ import config
 import proposal
 import reference
 import report
-from browser import BrowserSession, NavegadorConTema, create_context, open_browsers
+from browser import BrowserSession, NavegadorConTema, create_context, open_browsers, prohibido_en_tema
 from engines import ApiEngine, ClaudeCodeEngine
 from harness import SyntheticUser
 from judge import ApiJudge, ClaudeCodeJudge, judge_run, propose_criteria
@@ -82,9 +82,22 @@ async def _record_verdict(judge, instruction: str, criteria: dict, run: Run, run
     print(f"[{run.profile}] veredicto: {run.verdict['outcome']} — {run.verdict['justification']}", flush=True)
 
 
+class TemaInvalido(ValueError):
+    pass
+
+
 def describir_tema(css_path: Path) -> tuple[str, dict]:
-    """El CSS de un tema y cómo se registra en la tanda: archivo, sha256 corto y tamaño."""
+    """El CSS de un tema y cómo se registra en la tanda: archivo, sha256 corto y tamaño.
+
+    Lanza TemaInvalido si el CSS trae algo que el filtro de la extensión borraría (`url(`, `@import`, barra
+    invertida...): la tanda no mediría el tema que vería una persona.
+    """
     contenido = css_path.read_bytes()
+    prohibido = prohibido_en_tema(contenido.decode("utf-8"))
+    if prohibido:
+        raise TemaInvalido(
+            f"el tema {css_path.name} trae {', '.join(prohibido)}, que la extensión filtra; quítalo antes de evaluarlo"
+        )
     datos = {
         "archivo": css_path.name,
         "sha256": hashlib.sha256(contenido).hexdigest()[:12],

@@ -16,9 +16,9 @@ import shutil
 from pathlib import Path
 
 import config
-from batch import run_batch
+from batch import TemaInvalido, describir_tema, run_batch
 from goals_run import run_catalog
-from profiles import PROFILES
+from profiles import PERFILES_POR_DEFECTO, PROFILES
 from site_summary import write_summary
 
 AGENTS_DIR = Path(__file__).resolve().parents[2]
@@ -73,7 +73,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--profiles",
         default=None,
-        help=f"perfiles separados por coma (por defecto: {','.join(PROFILES)}; con --goals, first_time)",
+        help=f"perfiles separados por coma, de: {', '.join(PROFILES)} (por defecto: {','.join(PERFILES_POR_DEFECTO)};"
+        " con --goals, first_time). Los explorador* siguen la skill explorar-caminos y solo corren en local",
     )
     parser.add_argument(
         "--output",
@@ -121,12 +122,21 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.css is not None:
+        if not args.css.is_file():
+            parser.error(f"no existe el archivo de tema {args.css}")
+        try:
+            describir_tema(args.css)
+        except (TemaInvalido, UnicodeDecodeError) as error:
+            parser.error(str(error))
+
     if args.goals:
         if args.task or args.url or args.instruction:
             parser.error("usa --goals sin --task ni --url")
         catalog = load_catalog(parser, args.goals)
-        if args.summary:
-            print(f"Resumen: {display_path(write_summary(args.goals, RUNS_DIR))}")
+        if args.summary:  # con --css, el resumen de las tandas con ese tema
+            tema = describir_tema(args.css)[1]["sha256"] if args.css else None
+            print(f"Resumen: {display_path(write_summary(args.goals, RUNS_DIR, tema))}")
             return
     elif args.task:
         if args.url or args.instruction:
@@ -148,9 +158,7 @@ def main() -> None:
         parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión, o usa --engine api")
     if args.cdp_url and args.browser != "local":
         parser.error("--cdp-url solo sirve con --browser local")
-    if args.css is not None and not args.css.is_file():
-        parser.error(f"no existe el archivo de tema {args.css}")
-    profiles = args.profiles or ("first_time" if args.goals else ",".join(PROFILES))
+    profiles = args.profiles or ("first_time" if args.goals else ",".join(PERFILES_POR_DEFECTO))
     profile_keys = [key.strip() for key in profiles.split(",") if key.strip()]
     unknown = [key for key in profile_keys if key not in PROFILES]
     if unknown:

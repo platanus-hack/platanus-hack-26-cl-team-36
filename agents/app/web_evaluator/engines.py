@@ -112,7 +112,16 @@ class ClaudeCodeProcess:
         self.process.stdin.write((json.dumps(message) + "\n").encode())
         await self.process.stdin.drain()
 
-    async def wait_for_result(self) -> dict:
+    async def wait_for_result(self, timeout_s: float | None = None) -> dict:
+        """El próximo evento `result`. Si `claude` no responde en `timeout_s` (por defecto
+        `config.CLAUDE_CODE_TIMEOUT_S`), lanza ClaudeCodeError en vez de esperar para siempre."""
+        timeout_s = config.CLAUDE_CODE_TIMEOUT_S if timeout_s is None else timeout_s
+        try:
+            return await asyncio.wait_for(self._leer_resultado(), timeout=timeout_s)
+        except TimeoutError:
+            raise ClaudeCodeError(f"claude no respondió en {timeout_s:.0f} s") from None
+
+    async def _leer_resultado(self) -> dict:
         while True:
             line = await self.process.stdout.readline()
             if not line:

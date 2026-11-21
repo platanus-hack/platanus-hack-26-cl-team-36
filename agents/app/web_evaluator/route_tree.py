@@ -4,6 +4,13 @@
 - Rama  = acción que lleva de un nodo a otro. Se identifica por el texto del
           elemento clicado (no por coordenadas), así escritorio y móvil se unen.
 - Costo = -ln((éxitos + 1) / (éxitos + fallos + 2)) por rama.
+- Salto = `volver_a_nodo` de un explorador: lo lleva directo a una página ya vista. Queda en `branches` con
+          `"salto": true` para que se vea la vuelta, pero no es un camino que una persona pueda seguir, así que la
+          ruta recomendada nunca lo usa.
+
+En un intento con éxito, un tramo cuenta como éxito solo si desde su destino el usuario llegó, por tramos hacia
+adelante (ni saltos, ni retrocesos, ni vueltas a una página ya vista), a la página donde terminó. Las ramas que exploró y abandonó, y las vueltas a una página
+ya vista (salvo a la final), cuentan como fallo aunque el intento haya tenido éxito.
 """
 
 import heapq
@@ -13,6 +20,7 @@ import statistics
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 ERROR_SIGNALS = {"no_effect", "visible_error", "went_back"}
+SALTO = "volver_a_nodo"
 _TRACKING_PARAMS = re.compile(r"^(utm_.*|gclid|gbraid|wbraid|fbclid|msclkid|mc_cid|mc_eid|_ga|_gl|yclid)$", re.I)
 _DEFAULT_PORTS = {"http": 80, "https": 443}
 _CLICK_LABELS = {"left_click": "clic", "double_click": "doble clic", "triple_click": "triple clic"}
@@ -35,6 +43,25 @@ def normalize_url(url: str) -> str:
     # Se descarta el fragmento, salvo rutas de SPA (#/ruta o #!/ruta).
     fragment = parts.fragment if parts.fragment.startswith(("/", "!/")) else ""
     return urlunsplit((scheme, host, path, query, fragment))
+
+
+# Segundos niveles bajo un dominio de país que se registran como si fueran el dominio de primer nivel (gob.cl, com.ar,
+# co.uk). Aproxima la Public Suffix List sin depender de ella; alcanza para decidir si dos páginas son del mismo sitio.
+_SEGUNDOS_NIVELES = {"ac", "co", "com", "edu", "gob", "gov", "mil", "net", "nom", "org"}
+
+
+def registrable_domain(url: str) -> str | None:
+    """El dominio registrable de una URL http(s) (bibliotecanacional.gob.cl, metro.cl); None si no es http(s)."""
+    parts = urlsplit(url.strip())
+    if parts.scheme.lower() not in ("http", "https") or not parts.hostname:
+        return None
+    host = parts.hostname.lower().rstrip(".")
+    if host.replace(".", "").isdigit() or ":" in host:  # una IP: el sitio es la IP misma
+        return host
+    labels = host.split(".")
+    if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in _SEGUNDOS_NIVELES:
+        return ".".join(labels[-3:])
+    return ".".join(labels[-2:])
 
 
 def node_key(url: str, title: str) -> str:
@@ -84,9 +111,7 @@ def build_route_tree(runs: list[dict]) -> dict:
         current = node_key(start["url"], start["title"])
         visit(current, start["url"], start["title"], profile)["is_start"] = True
         last = run["steps"][-1] if run["steps"] else start
-        # Si el intento tuvo éxito, la página donde terminó sirvió aunque el usuario haya salido de ella antes para
-        # explorar otra rama (los perfiles exploradores lo hacen): esa salida no convierte en callejón la rama de entrada.
-        final_node = node_key(last["url"], last["title"]) if outcome == "success" else None
+        final_node = node_key(last["url"], last["title"])
 
         # Un tramo es lo que pasa entre llegar a un nodo y salir de él hacia otro.
         legs: list[dict] = []
@@ -99,8 +124,6 @@ def build_route_tree(runs: list[dict]) -> dict:
                 in_page_actions.append(action_signature(step))
                 continue  # acción dentro de la misma página: se suma al tramo
             visit(target, step["url"], step["title"], profile)
-            if "went_back" in step.get("signals", []) and legs and legs[-1]["target"] != final_node:
-                legs[-1]["dead_end"] = True  # la rama que llevó a esta página no servía
             legs.append({
                 "source": current,
                 "target": target,
@@ -108,15 +131,21 @@ def build_route_tree(runs: list[dict]) -> dict:
                 "seconds": step["seconds_since_start"] - arrived_at_s,
                 "steps": steps_in_leg,
                 "signals": signals_in_leg,
-                "dead_end": False,
+                "salto": step["action"] == SALTO,
                 "preceding_actions": in_page_actions,
             })
             current = target
             arrived_at_s, steps_in_leg, signals_in_leg, in_page_actions = step["seconds_since_start"], 0, set(), []
 
         nodes[current]["endings"][outcome] += 1
+        useful = _leads_to(final_node, legs) if outcome == "success" else set()
         for leg in legs:
-            failed = outcome != "success" or leg["dead_end"] or bool(leg["signals"] & ERROR_SIGNALS)
+            failed = (
+                leg["salto"]
+                or leg["target"] not in useful
+                or ("revisit" in leg["signals"] and leg["target"] != final_node)  # volver con un clic: exploración
+                or bool(leg["signals"] & ERROR_SIGNALS)
+            )
             key = (leg["source"], leg["target"], leg["signature"].casefold())
             branch = branches.setdefault(key, {
                 "source": nodes[leg["source"]]["id"],
@@ -129,6 +158,8 @@ def build_route_tree(runs: list[dict]) -> dict:
                 "profiles": [],
                 "preceding_actions": [],
             })
+            if leg["salto"]:
+                branch["salto"] = True
             branch["failures" if failed else "successes"] += 1
             branch["times_s"].append(round(leg["seconds"], 1))
             branch["steps"].append(leg["steps"])
@@ -151,6 +182,28 @@ def build_route_tree(runs: list[dict]) -> dict:
     }
 
 
+def _leads_to(final_node: str, legs: list[dict]) -> set[str]:
+    """Los nodos desde los que el usuario llegó a `final_node` siguiendo tramos hacia adelante.
+
+    No cuentan los saltos, los retrocesos ni los clics que vuelven a una página ya vista (`revisit`, por ejemplo el
+    logo para volver al inicio), salvo que esa página sea la final: si no, una rama abandonada parecería llevar a la
+    respuesta solo porque desde ella se volvió al inicio.
+    """
+    incoming: dict[str, set[str]] = {}
+    for leg in legs:
+        backwards = leg["salto"] or "went_back" in leg["signals"]
+        if backwards or ("revisit" in leg["signals"] and leg["target"] != final_node):
+            continue
+        incoming.setdefault(leg["target"], set()).add(leg["source"])
+    useful, pending = {final_node}, [final_node]
+    while pending:
+        for source in incoming.get(pending.pop(), ()):
+            if source not in useful:
+                useful.add(source)
+                pending.append(source)
+    return useful
+
+
 def _representative_preceding_actions(branch: dict) -> list[str]:
     """Acciones dentro de la página antes de la rama: las del recorrido exitoso más corto."""
     options = sorted(branch["preceding_actions"], key=lambda option: (not option["success"], len(option["actions"])))
@@ -166,7 +219,7 @@ def recommended_route(nodes: list[dict], branches: list[dict]) -> dict | None:
     nodes_by_id = {node["id"]: node for node in nodes}
     outgoing: dict[str, list[dict]] = {}
     for branch in branches:
-        if branch["source"] != branch["target"]:
+        if branch["source"] != branch["target"] and not branch.get("salto"):
             outgoing.setdefault(branch["source"], []).append(branch)
 
     goal = "__goal__"
