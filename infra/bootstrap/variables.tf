@@ -4,10 +4,14 @@ variable "region" {
   default     = "us-east-2"
 }
 
-variable "github_repo" {
-  description = "Repo (dueño/nombre) cuyos workflows en main pueden asumir el rol."
+variable "github_sub_prefix" {
+  description = <<-EOT
+    Inicio del claim sub que GitHub pone en el token OIDC del repo personal. Ese repo usa el formato
+    con ids (dueño@id/repo@id), que no se puede suplantar recreando un repo con el mismo nombre.
+    Se consulta con: gh api repos/brayanmoreno/hackathon-grupo36/actions/oidc/customization/sub
+  EOT
   type        = string
-  default     = "brayanmoreno/hackathon-grupo36"
+  default     = "repo:brayanmoreno@37162737/hackathon-grupo36@1466120956"
 }
 
 variable "email_alertas" {
