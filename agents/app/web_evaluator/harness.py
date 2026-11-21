@@ -22,6 +22,11 @@ NOT_EXECUTED_MESSAGE = "Not executed: an earlier computer action in this turn fa
 # esta fracción de sus acciones y de su tiempo. Haiku tiende a terminar apenas ve la respuesta aunque la skill le diga
 # que siga, y el grafo queda en 2 o 3 ramas; contar el presupuesto es trabajo del harness, no del modelo.
 FRACCION_ABANICO = 0.4
+# Y no puede rendirse (`give_up`) antes de la reserva de la skill: mientras le quede más de esta fracción de sus
+# acciones y al menos RESERVA_S segundos, quedan ramas por abrir. Haiku se rendía con 4 o 5 de 30 acciones por delante
+# y eso salía como «no llega» en el backoffice. `done` y `blocked` no cambian.
+FRACCION_RESERVA = 0.1
+RESERVA_S = 45
 MAX_FINES_RECHAZADOS = 3  # después de esto se acepta el fin igual, para no forzar un bucle
 MARGEN_ACCION_S = 60  # cuánto puede pasarse del límite de tiempo una acción en curso antes de cortarla
 
@@ -255,36 +260,48 @@ class SyntheticUser:
         )
 
     def _rechazo_de_fin_temprano(self, turn: Turn) -> ActionResult | None:
-        """Si un explorador quiere terminar en la fase de abanico, el error que se le responde; si no, None.
+        """Si un explorador quiere terminar antes de tiempo, el error que se le responde; si no, None.
 
+        Antes de tiempo: cualquier fin en la fase de abanico (más del 40 % de las acciones y del tiempo por delante), o
+        rendirse (`give_up`) antes de la reserva (más del 10 % de las acciones y al menos 45 s por delante).
         Solo con Claude Code: en la API un fin es texto sin herramienta, y no hay a qué responder con un error.
         """
         if not self.profile.explora or self.engine.name != "claude-code":
             return None
         if self.fines_rechazados >= MAX_FINES_RECHAZADOS:
             return None
+        motivo, _ = turn.final
         quedan = self.profile.limite_acciones - len(self.run.steps)
         segundos = int(self.profile.limite_segundos - (time.monotonic() - self.started_at))
         en_abanico = (
             quedan > FRACCION_ABANICO * self.profile.limite_acciones
             and segundos > FRACCION_ABANICO * self.profile.limite_segundos
         )
-        if not en_abanico:
+        se_rinde_antes_de_la_reserva = (
+            motivo == "gave_up" and quedan > FRACCION_RESERVA * self.profile.limite_acciones and segundos >= RESERVA_S
+        )
+        if not en_abanico and not se_rinde_antes_de_la_reserva:
             return None
         self.fines_rechazados += 1
-        motivo, _ = turn.final
         self.run.incidents.append(
             f"quiso terminar ({motivo}) con {quedan} acciones y {segundos} s por delante; se le pidió seguir explorando"
         )
         ramas = len(self.ramas_desde_inicio)
         inicial = self.paginas[self.nodo_inicial][0]
+        if en_abanico:
+            inicio = f"Todavía no puedes terminar: estás en la fase 2 (abanico) y te quedan {quedan} acciones y {segundos} s. "
+            cierre = "Al final, en la fase 3, vuelve a la página de la respuesta y termina ahí. "
+        else:
+            inicio = (
+                f"Todavía no puedes rendirte: te quedan {quedan} acciones y {segundos} s, y solo te rindes en la reserva "
+                "(el 10 % de tus acciones o menos de 45 s). "
+            )
+            cierre = "Si ya viste la respuesta, vuelve a esa página y termina con done. "
         texto = (
-            f"Todavía no puedes terminar: estás en la fase 2 (abanico) y te quedan {quedan} acciones y {segundos} s. "
-            f"Desde la página inicial ({inicial}) abriste {ramas} rama(s). Anota lo que encontraste y abre una rama "
-            f"nueva: vuelve con volver_a_nodo a {inicial}, o a una página con candidatas sin probar, y elige un lugar "
-            "que aún no probaste (menú, buscador, pie de página o contenido), mejor si lleva a una página que no has "
-            "visto. Al final, en la fase 3, vuelve a la página de la respuesta y termina ahí. "
-            f"{self._paginas_vistas()}"
+            f"{inicio}Desde la página inicial ({inicial}) abriste {ramas} rama(s). Anota lo que encontraste y abre una "
+            f"rama nueva: vuelve con volver_a_nodo a {inicial}, o a una página con candidatas sin probar, y elige un "
+            "lugar que aún no probaste (menú, buscador, pie de página o contenido), mejor si lleva a una página que no "
+            f"has visto. {cierre}{self._paginas_vistas()}"
         )
         self._log(f"fin rechazado ({motivo}): quedan {quedan} acciones y {segundos} s")
         return ActionResult(ActionRequest(f"fin{self.run.turns}", "fin", {}, False), texto, is_error=True)
