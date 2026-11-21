@@ -26,8 +26,15 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "css": ["features/modo-foco.css"],
-      "js": ["content/registro.js", "features/modo-foco.js", "content/motor.js"],
+      "css": ["features/modo-foco.css", "features/vista.css", "componentes/cartelera.css"],
+      "js": [
+        "content/registro.js",
+        "content/plantillas.js",
+        "componentes/cartelera.js",
+        "features/modo-foco.js",
+        "features/vista.js",
+        "content/motor.js"
+      ],
       "run_at": "document_start"
     }
   ],

@@ -3,8 +3,8 @@
 **Qué es este documento.** Una investigación, no una decisión. Responde cuán agresivo puede ser un cambio a una
 página ajena: desde cambiar colores hasta poner piezas nuevas que se acoplan con la página original, o reemplazar su
 interfaz entera. Para cada nivel dice qué existe en el estado del arte, qué tan factible es y qué tendríamos que
-ajustar en nuestras piezas. Es para el equipo. Conviene haber leído [la propuesta](index.md) y
-[formas de datos](formas-de-datos.md); los términos están en el [glosario](glosario.md).
+ajustar en nuestras piezas. Es para el equipo. Conviene haber leído [la propuesta](../index.md) y
+[formas de datos](../formas-de-datos.md); los términos están en el [glosario](../glosario.md).
 
 **No se limita al alcance de la hackatón.** Se evalúan todos los niveles, también los que hoy no caben, para tenerlos
 en cuenta al diseñar el formato de parche y el motor. Fecha: 2026-11-21. Lo que viene de fuentes leídas solo en parte
@@ -55,7 +55,7 @@ Hay además dos ejes que cruzan la escala:
 ### Nivel 0 · Estilo
 
 **Cómo funciona.** Una hoja CSS inyectada con origen de usuario. Ya funciona en el prototipo
-(`scripting.insertCSS`, [fondo.js](../prototipo/extension/fondo.js)).
+(`scripting.insertCSS`, [fondo.js](../../prototipo/extension/fondo.js)).
 
 **Factibilidad.** Alta. Instantáneo al volver a un sitio. Con CSS también se puede ocultar y reordenar dentro de un
 mismo contenedor (`order`, rejilla), pero no crear elementos ni moverlos a otro contenedor.
@@ -65,7 +65,7 @@ pasar a parches.
 
 ### Nivel 1 · Parche de datos
 
-**Cómo funciona.** Lo que describe [formas de datos](formas-de-datos.md): `set_style`, `hide` y `relabel` sobre
+**Cómo funciona.** Lo que describe [formas de datos](../formas-de-datos.md): `set_style`, `hide` y `relabel` sobre
 elementos señalados por un localizador.
 
 **Factibilidad.** Alta. Es el plan actual. Se valida, se deshace y se mide.
@@ -75,7 +75,7 @@ elementos señalados por un localizador.
 ### Nivel 2 · Reordenar y resaltar
 
 **Cómo funciona.** Cambios nuevos: `move` (llevar un elemento a otro lugar), `emphasize` (darle peso visual) y
-`scroll_to` (llevar la vista). [Formas de datos](formas-de-datos.md) ya los deja "para después".
+`scroll_to` (llevar la vista). [Formas de datos](../formas-de-datos.md) ya los deja "para después".
 
 **Factibilidad.** Media, por un problema técnico concreto: **mover nodos que controla el framework del sitio puede
 romper la página.** React, Vue y parecidos llevan su propio registro de qué nodo está dónde; si un nodo cambia de
@@ -89,7 +89,7 @@ segura:
 
 **Lo que dice la investigación.** Mover cosas de lugar es lo que peor resultó en la historia de las interfaces
 adaptativas: los menús personalizados de Office 2000 se retiraron en 2007 por impredecibles. Funciona si el cambio
-ocurre pocas veces, se anuncia y la persona lo controla. Está en [la investigación previa](investigacion-ui-adaptativa.md).
+ocurre pocas veces, se anuncia y la persona lo controla. Está en [la investigación previa](../investigacion-ui-adaptativa.md).
 
 ### Nivel 3 · Componentes acoplados
 
@@ -290,7 +290,7 @@ Un cambio nuevo, `add_component`, que sigue siendo datos y no código:
 - `replaces` son los elementos originales que se ocultan mientras el componente está activo.
 - `reads` y `actions` solo usan localizadores; `do` admite `click`, `type`, `select` y `check`, las mismas acciones
   que ya tienen los agentes.
-- Las reglas de [formas de datos](formas-de-datos.md) siguen valiendo: primero se localiza todo y después se aplica;
+- Las reglas de [formas de datos](../formas-de-datos.md) siguen valiendo: primero se localiza todo y después se aplica;
   un parche de optimización se aplica entero o no se aplica; el `id` sale de los cambios.
 - Para el nivel 4, un cambio `replace_view` con la misma forma, cuyo `replaces` es el contenido principal entero.
 
@@ -322,7 +322,7 @@ Un cambio nuevo, `add_component`, que sigue siendo datos y no código:
 
 ## 8. Lo que no sabemos y cómo averiguarlo
 
-Tres spikes posibles, en el formato de [spikes/README.md](../spikes/README.md):
+Tres spikes posibles, en el formato de [spikes/README.md](../../spikes/README.md):
 
 1. **Reenvío de acciones en sitios reales.** ¿Un componente puede rellenar y enviar los formularios de las tareas
    de la PR #6, incluido alguno hecho con React? Se decide de antemano: sirve si en las tres tareas el sitio acepta
@@ -362,5 +362,5 @@ Solo por resultados de búsqueda:
 - Calò y otros. Fallas de accesibilidad semántica en interfaces generadas por modelos de lenguaje. CHI EA 2026.
 - *Generative UI: LLMs are Effective UI Generators.* 2026. <https://arxiv.org/abs/2604.09577>
 
-Ver también [la investigación previa](investigacion-ui-adaptativa.md), con la historia de las interfaces
+Ver también [la investigación previa](../investigacion-ui-adaptativa.md), con la historia de las interfaces
 adaptativas y los protocolos de UI generativa (MCP Apps, A2UI).

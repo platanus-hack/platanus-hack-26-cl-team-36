@@ -57,7 +57,7 @@ Dos palabras se usan siempre con un solo sentido:
 | **Puente** | Programa local que conecta la extensión con Claude Code. | `bridge` |
 | **Extensión** | Lo que la persona instala en el navegador. | `extension` |
 | **Motor de parches** | Aplica, deshace y comprueba parches. Lo usan la extensión y el evaluador. | `patch engine` |
-| **Evaluador** | Lanza agentes que intentan una tarea y guarda sus recorridos. Su diseño está en [evaluador](evaluador.md). | `evaluator` (se propone `web_evaluator`) |
+| **Evaluador** | Lanza agentes que intentan una tarea y guarda sus recorridos. Su diseño está en [evaluador](agents/evaluador.md). | `evaluator` (se propone `web_evaluator`) |
 | **Optimizador** | Propone parches a partir de lo que deja el evaluador y decide cuál se acepta. | `optimizer` (se propone `web_optimizer`) |
 | **Harness** | El programa que controla el ciclo de un agente: le entrega la captura, recibe su acción y la hace ejecutar. Es parte del evaluador. | `harness` |
 | **Ejecutor** | La parte del harness que realiza en el navegador la acción que pidió el agente y toma la captura siguiente. | `executor` |
