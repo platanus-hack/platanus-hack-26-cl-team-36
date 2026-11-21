@@ -1,0 +1,7 @@
+{
+  "id": "ine-fecha-ipc-noviembre",
+  "host": "www.ine.gob.cl",
+  "start_url": "https://www.ine.gob.cl/",
+  "description": "Necesitas saber cuándo sale el IPC de noviembre de 2026: averigua qué día y a qué hora lo publica el INE.",
+  "expected_answer": "El lunes 7 de diciembre de 2026 a las 08:00 (Agenda Estadística 2026)."
+}
