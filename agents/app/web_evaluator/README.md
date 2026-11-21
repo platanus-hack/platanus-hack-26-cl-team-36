@@ -93,6 +93,7 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 | `browser.py`, `actions.py` | El navegador (Playwright y Chromium) y las acciones que puede pedir el agente. |
 | `recording.py` | Los pasos y el recorrido (`Step`, `Run`), y las señales que se leen del DOM solo para el registro. |
 | `route_tree.py`, `report.py` | El árbol de rutas, la ruta recomendada y `report.md`. |
+| `reference.py` | La comparación de cada intento con la ruta de referencia del [Mapeador](../web_mapper/README.md). |
 | `profiles.py`, `config.py` | Los perfiles de usuario, su prompt y los límites. |
 
 - **El agente solo ve la pantalla:** recibe capturas del viewport y nunca HTML ni DOM. Solo puede hacer clic por
@@ -114,27 +115,15 @@ agents/.runs/<tarea>/<fecha-hora>/
 ├── criteria.json
 ├── <perfil>/           step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
 ├── route_tree.json     nodos, ramas y ruta recomendada
+├── reference_comparison.json   solo si hay ruta de referencia
 └── report.md
 ```
 
 `agents/.runs/` queda fuera de git.
 
-### Trazabilidad de tiempos
-
-`run.json` guarda en `started_at` la hora local (ISO 8601, con zona) en que empieza el intento. Cada paso registra
-tres momentos, en segundos desde ese inicio (`*_s`) y como hora absoluta (`*_at`):
-
-| Campo | Momento |
-|---|---|
-| `decided_s`, `decided_at` | El modelo devolvió el turno que pidió la acción. Si un turno pide varias, comparten este valor. |
-| `executed_s`, `executed_at` | Justo antes de ejecutar el clic, la tecla o el scroll. |
-| `settled_s`, `settled_at` | La página terminó de reaccionar y se tomó la captura. Es el mismo valor que `seconds_since_start`. |
-
-`settled_s - executed_s` es lo que tardó la página en responder. Con `--record-video`, el segundo de la acción en el
-video es `video_offset_s + executed_s`, y es el que muestra el reporte en la columna Video.
-
-Con `--record-video`, cada pestaña que abre el usuario tiene su propio video (`video.webm`, `video-2.webm`...). Los
-minutos del reporte son del primero. Un intento de 3 minutos ocupa del orden de 15 a 30 MB.
+Si `agents/.runs/<tarea>/reference/` tiene una ruta verificada para el viewport del perfil, el reporte la compara con
+cada intento ([fórmulas](../../../docs/agents/niveles-de-tarea.md), sección 5). El avance se informa como llegada a la
+página final de la ruta.
 
 ## Pruebas
 
