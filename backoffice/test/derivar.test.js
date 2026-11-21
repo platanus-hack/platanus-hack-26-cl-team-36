@@ -12,6 +12,7 @@ import {
   fechaIsoDe,
   firmaDelPaso,
   loQuePaso,
+  recorreLaRuta,
   resultadoDeRama,
   resumenDeError,
   textoDeElemento,
@@ -179,7 +180,9 @@ test("intentos de la tanda vieja: quién sigue la ruta, dónde se separa y si vu
   assert.deepEqual(apurado.seSepara, { tramo: 1, paso: 1, pagina: "n4", seDetuvo: false });
   assert.equal(apurado.vuelveALaRuta, true);
   assert.equal(apurado.vuelveEnPaso, 4);
-  assert.equal(apurado.logro, "indirecto");
+  // Abre otra rama primero (n1 → n4 → n1) y después recorre los dos tramos de la ruta: la sigue, y llega directo.
+  assert.equal(apurado.sigueLaRuta, true);
+  assert.equal(apurado.logro, "directo");
   // Vuelve a la ruta y sigue: alcanza todos los hitos aunque no siga el prefijo estricto.
   assert.equal(apurado.hitosAlcanzados, 3);
   assert.deepEqual(apurado.pasos.map((p) => p.estado), ["sin_evaluar", "sin_efecto", "no_cumplida", "sin_evaluar", "sin_evaluar"]);
@@ -192,14 +195,14 @@ test("intentos de la tanda vieja: quién sigue la ruta, dónde se separa y si vu
 test("KPIs y métricas por perfil: pares {n, de} y null cuando no aplica", async () => {
   const tanda = await leerTanda(RAIZ, VIEJA);
   assert.deepEqual(tanda.kpis, {
-    intentos: 3, validos: 3, errores: 0, logrados: 2, directos: 1, siguenLaRuta: 1,
+    intentos: 3, validos: 3, errores: 0, logrados: 2, directos: 2, siguenLaRuta: 2,
     pasosMediana: 2, segundosMediana: 10, pasosIdeales: 2, tramos: 2, hitos: 3, sinEfecto: 1, noCumplidas: 2,
   });
   const porPerfil = Object.fromEntries(tanda.perfiles.map((p) => [p.perfil, p]));
   assert.deepEqual(porPerfil.first_time.metricas.exito, { n: 1, de: 1 });
   assert.equal(porPerfil.first_time.metricas.recuperacion, null);
   assert.equal(porPerfil.first_time.metricas.eficiencia, 1);
-  assert.deepEqual(porPerfil.hurried.metricas.adherencia, { n: 0, de: 1 });
+  assert.deepEqual(porPerfil.hurried.metricas.adherencia, { n: 1, de: 1 });
   assert.deepEqual(porPerfil.hurried.metricas.recuperacion, { n: 1, de: 1 });
   assert.equal(porPerfil.hurried.metricas.eficiencia, 0.4);
   assert.deepEqual(porPerfil.hurried.hitos.map((h) => h.alcanzados), [1, 1, 1]);
@@ -418,4 +421,73 @@ test("el texto de un elemento cortado por el evaluador termina en palabra entera
   assert.equal(textoDeElemento("  Buscar tema "), "Buscar tema");
   assert.equal(textoDeElemento("x".repeat(80)), `${"x".repeat(80)}…`, "sin espacios cerca del final, se corta donde venía");
   assert.equal(firmaDelPaso({ action: "left_click", element: { text: cortado } }).objetivo.endsWith("o…"), true);
+});
+
+// ── Seguir la ruta: recorrer sus tramos en orden, aunque antes o entre medio se abran otras ramas ──────────────
+
+/** La tanda vieja armada a mano desde sus archivos, con lo que cambie `ajustar(arbol)`. */
+function tandaViejaCon(ajustar) {
+  const carpeta = new URL(`./fixtures/corridas/${VIEJA}/`, import.meta.url);
+  const leer = (archivo) => JSON.parse(readFileSync(new URL(archivo, carpeta), "utf8"));
+  const arbol = leer("route_tree.json");
+  ajustar(arbol);
+  const intentos = ["first_time", "hurried", "mobile"].map((perfil) => ({ perfil, run: leer(`${perfil}/run.json`), video: false }));
+  return armarTanda({ id: VIEJA, arbol, criterio: leer("criteria.json"), intentos });
+}
+
+test("recorreLaRuta: cada tramo seguido y en orden; otras ramas antes o entre medio no importan", () => {
+  const ruta = ["a", "b", "c"];
+  assert.equal(recorreLaRuta(["a", "b", "c"], ruta), true);
+  assert.equal(recorreLaRuta(["a", "x", "a", "y", "a", "b", "z", "b", "c"], ruta), true, "ramifica primero y después recorre la ruta");
+  assert.equal(recorreLaRuta(["a", "x", "c"], ruta), false, "llega a la meta por otro tramo");
+  assert.equal(recorreLaRuta(["a", "b", "x", "c"], ruta), false, "b → c nunca seguidos");
+  assert.equal(recorreLaRuta(["b", "c", "a", "b"], ruta), false, "los tramos al revés del orden");
+  assert.equal(recorreLaRuta(["a"], ["a"]), false, "una ruta de una sola página no se sigue");
+  assert.equal(recorreLaRuta([], ruta), false);
+});
+
+test("quien llega por otro tramo no sigue la ruta, aunque pase por todos sus hitos", () => {
+  // Ruta n1 → n4 → n3: hurried pasa por n4 y por n3, pero nunca n4 → n3 seguidos.
+  const tanda = tandaViejaCon((arbol) => {
+    arbol.recommended_route = { start_node: "n1", end_node: "n3", steps: [{ source: "n1", target: "n4" }, { source: "n4", target: "n3" }] };
+  });
+  const apurado = tanda.intentos.find((intento) => intento.id === "hurried");
+  assert.equal(apurado.resultado, "logrado");
+  assert.equal(apurado.sigueLaRuta, false);
+  assert.equal(apurado.logro, "indirecto");
+});
+
+test("una ruta recomendada vacía (0 pasos) es «sin ruta»: las cifras de la ruta son null", () => {
+  const tanda = tandaViejaCon((arbol) => {
+    arbol.recommended_route = { start_node: "n1", end_node: "n1", steps: [] };
+  });
+  assert.equal(tanda.telarana.ruta, null);
+  assert.equal(tanda.kpis.siguenLaRuta, null);
+  assert.equal(tanda.kpis.directos, null);
+  assert.equal(tanda.kpis.pasosIdeales, null);
+  for (const perfil of tanda.perfiles) {
+    assert.equal(perfil.metricas.adherencia, null);
+    assert.equal(perfil.directos, null);
+  }
+  for (const intento of tanda.intentos) assert.equal(intento.logro, null);
+  // El titular no dice que nadie llegó (2 llegaron) ni cuenta quiénes siguen una ruta que no hay.
+  assert.deepEqual(tanda.titulares.telarana.vars, { hayRuta: false, tramos: 0, pasosIdeales: null, siguen: null, validos: 3, logrados: 2 });
+  assert.equal(tanda.hallazgos[0].vars.directos, null);
+});
+
+test("tanda de exploradores: sin hallazgos ni titulares de costo en pasos (dan pasos de más a propósito)", async () => {
+  const comun = await leerTanda(RAIZ, NUEVA);
+  assert.ok(comun.hallazgos.some((h) => h.id === "costo"), "la tanda común sí tiene el hallazgo de costo");
+  const tanda = (() => {
+    const carpeta = new URL(`./fixtures/corridas/${NUEVA}/`, import.meta.url);
+    const leer = (archivo) => JSON.parse(readFileSync(new URL(archivo, carpeta), "utf8"));
+    const arbol = { ...leer("route_tree.json"), conjunto_exploradores: "conocimiento" };
+    const intentos = ["first_time", "hurried", "mobile", "senior"].map((perfil) => ({ perfil, run: leer(`${perfil}/run.json`), video: false }));
+    return armarTanda({ id: NUEVA, arbol, criterio: leer("criteria.json"), intentos });
+  })();
+  assert.equal(tanda.exploradores, true);
+  assert.equal(comun.exploradores, false);
+  assert.ok(!tanda.hallazgos.some((h) => h.id === "costo"));
+  assert.notEqual(tanda.titulares.perfiles.vars.caso, "masPasos");
+  assert.notEqual(tanda.titulares.tanda.vars.caso, "masPasos");
 });

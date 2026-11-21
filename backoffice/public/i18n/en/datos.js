@@ -81,7 +81,8 @@ export default {
           ? (e > 0 ? "The only valid attempt reaches" : "The only attempt reaches")
           : (e > 0 ? `The ${v} valid attempts reach` : `All ${v} reach`);
         let como = " by the recommended route.";
-        if (d === 0) como = v === 1 ? ", but not by the recommended route." : ", none by the recommended route.";
+        if (directos === null || directos === undefined) como = "."; // no recommended route
+        else if (d === 0) como = v === 1 ? ", but not by the recommended route." : ", none by the recommended route.";
         else if (d < l) como = `; ${l - d} by another way.`;
         return `${sujeto} the answer${como}`;
       }
@@ -128,7 +129,8 @@ export default {
       if (caso === "demora") return `${sujeto} the answer, but ${intento ?? ""} takes ${n(cuenta)} steps in a row on «${pagina ?? ""}».`;
       return `${sujeto} the answer, but ${pasos(n(cuenta))} ${segun(n(cuenta), "has", "have")} stumbles.`;
     },
-    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos }) => {
+    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos, logrados }) => {
+      if (!hayRuta && n(logrados) > 0) return "There is no recommended route to follow: the axis is the busiest path.";
       if (!hayRuta) return "Nobody reached the answer: the axis is the busiest path.";
       const [s, v] = [n(siguen), n(validos)];
       let quienes;
@@ -148,6 +150,7 @@ export default {
       }
       const total = n(perfiles);
       const sujeto = total === 1 ? "The only profile reaches" : `All ${total} profiles reach`;
+      if (caso === "llegan") return conNota(`${sujeto} the answer.`, nota);
       return conNota(`${sujeto} the answer at a cost similar to the route's.`, nota);
     },
   },

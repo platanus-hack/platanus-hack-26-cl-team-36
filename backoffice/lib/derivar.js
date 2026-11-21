@@ -319,11 +319,33 @@ export function coincidenciaDelPaso({ senales, paginaAntes, pagina, cambio }) {
   return "incierto";
 }
 
-// Cuánto de la ruta recomendada sigue un camino: el largo del prefijo común.
+// Cuánto de la ruta recomendada sigue un camino desde el inicio, sin salirse: el largo del prefijo común.
 function prefijoComun(camino, paginasDeRuta) {
   let i = 0;
   while (i < camino.length && i < paginasDeRuta.length && camino[i] === paginasDeRuta[i]) i += 1;
   return i;
+}
+
+/**
+ * ¿Recorrió el camino cada tramo de la ruta, en orden? Cada tramo (origen → destino) tiene que aparecer seguido en
+ * el camino, después del anterior; antes, entre medio y después puede haber otras páginas (un explorador abre otras
+ * ramas antes de tomar la ruta).
+ */
+export function recorreLaRuta(camino, paginasDeRuta) {
+  if (paginasDeRuta.length < 2) return false;
+  let desde = 0;
+  for (let k = 0; k + 1 < paginasDeRuta.length; k += 1) {
+    let encontrado = -1;
+    for (let i = desde; i + 1 < camino.length; i += 1) {
+      if (camino[i] === paginasDeRuta[k] && camino[i + 1] === paginasDeRuta[k + 1]) {
+        encontrado = i;
+        break;
+      }
+    }
+    if (encontrado < 0) return false;
+    desde = encontrado + 1;
+  }
+  return true;
 }
 
 // Recorre un intento como build_route_tree: cada paso cae en un nodo crudo (clave URL + título, o
@@ -439,7 +461,8 @@ function rutaEnPaginas(rutaCruda, paginaDeNodo, ramaPorId) {
     const pagina = paginaDeNodo.get(nodo);
     if (pagina && pagina !== paginas.at(-1)) paginas.push(pagina);
   }
-  if (!paginas.length) return null;
+  // Una ruta sin tramos (la respuesta en la página inicial, o un sitio que no cargó) no es una ruta que seguir.
+  if (paginas.length < 2) return null;
   const tramos = paginas.slice(1).map((destino, k) => {
     const rama = ramaPorId.get(`${paginas[k]}>${destino}`);
     return {
@@ -511,6 +534,8 @@ function separacion(camino, llegadas, ruta, ultimoPaso) {
   if (comun === ruta.paginas.length) {
     return { sigueLaRuta: true, seSepara: null, vuelveALaRuta: false, vuelveEnPaso: null };
   }
+  // Se salió de la ruta (o empezó por otra rama) y aun así puede haber recorrido todos sus tramos después.
+  const sigueLaRuta = recorreLaRuta(camino, ruta.paginas);
   const seDetuvo = comun === camino.length;
   const seSepara = {
     tramo: comun,
@@ -527,7 +552,7 @@ function separacion(camino, llegadas, ruta, ultimoPaso) {
       }
     }
   }
-  return { sigueLaRuta: false, seSepara, vuelveALaRuta: vuelveEnPaso !== null, vuelveEnPaso };
+  return { sigueLaRuta, seSepara, vuelveALaRuta: vuelveEnPaso !== null, vuelveEnPaso };
 }
 
 function rutaDesde(paginaAntes, pagina, salePagina, ruta) {
@@ -615,7 +640,8 @@ function armarIntento({ perfil, run, video }, ubicacion, ruta, inicios) {
     motor: run.engine ?? null,
     resultado,
     resultadoJuez,
-    logro: resultado === "logrado" ? (sigueLaRuta ? "directo" : "indirecto") : null,
+    // Sin ruta no hay "directo" ni "indirecto".
+    logro: resultado === "logrado" && ruta ? (sigueLaRuta ? "directo" : "indirecto") : null,
     justificacion: run.verdict?.justification ?? "",
     error,
     motivoDeFin: run.end_reason ?? null,
@@ -763,10 +789,10 @@ function armarPerfiles(intentos, ruta) {
       validos: validos.length,
       errores: suyos.length - validos.length,
       logrados: logrados.length,
-      directos: logrados.filter((intento) => intento.logro === "directo").length,
+      directos: ruta ? logrados.filter((intento) => intento.logro === "directo").length : null,
       metricas: {
         exito: conteo(logrados.length, validos.length),
-        adherencia: conteo(validos.filter((intento) => intento.sigueLaRuta).length, validos.length),
+        adherencia: ruta ? conteo(validos.filter((intento) => intento.sigueLaRuta).length, validos.length) : null,
         recuperacion: conteo(desviados.filter((intento) => intento.vuelveALaRuta).length, desviados.length),
         pasos: { valores: validos.map((intento) => intento.pasos.length), ruta: ruta?.pasosIdeales ?? null },
         segundos: { valores: validos.map((intento) => intento.duracion), ruta: ruta?.segundos ?? null },
@@ -802,8 +828,9 @@ function armarKpis(intentos, ruta) {
     validos: validos.length,
     errores: intentos.length - validos.length,
     logrados: validos.filter((intento) => intento.resultado === "logrado").length,
-    directos: validos.filter((intento) => intento.logro === "directo").length,
-    siguenLaRuta: validos.filter((intento) => intento.sigueLaRuta).length,
+    // Sin ruta, las cifras de la ruta no existen (null), no son 0.
+    directos: ruta ? validos.filter((intento) => intento.logro === "directo").length : null,
+    siguenLaRuta: ruta ? validos.filter((intento) => intento.sigueLaRuta).length : null,
     pasosMediana: mediana(validos.map((intento) => intento.pasos.length)),
     segundosMediana: mediana(validos.map((intento) => intento.duracion)),
     pasosIdeales: ruta?.pasosIdeales ?? null,
@@ -872,6 +899,9 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
     modeloUsuarios: arbol?.user_model ?? null,
     modeloJuez: arbol?.judge_model ?? null,
     criterio: textoDelCriterio ? { texto: textoDelCriterio, evidencias: [...evidencias] } : null,
+    // Tanda de exploradores: abren ramas a propósito (no pueden terminar antes del 40 % de las acciones), así que
+    // sus pasos no dicen cuánto le cuesta el sitio a alguien.
+    exploradores: Boolean(arbol?.conjunto_exploradores) || (intentos.length > 0 && intentos.every((intento) => intento.perfil.startsWith("explorador"))),
     intentos,
     telarana: { paginas, ramas, ruta, alias },
     kpis: armarKpis(intentos, ruta),

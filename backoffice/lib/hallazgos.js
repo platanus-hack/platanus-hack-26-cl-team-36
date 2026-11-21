@@ -232,7 +232,7 @@ export function hallazgos(tanda) {
     );
   }
 
-  if (ruta && kpis.pasosMediana !== null && kpis.pasosIdeales && kpis.pasosMediana >= FACTOR_DE_COSTO * kpis.pasosIdeales) {
+  if (!tanda.exploradores && ruta && kpis.pasosMediana !== null && kpis.pasosIdeales && kpis.pasosMediana >= FACTOR_DE_COSTO * kpis.pasosIdeales) {
     lista.push(
       hallazgo("costo", "info", "costo", { pasosMediana: kpis.pasosMediana, pasosIdeales: kpis.pasosIdeales }),
     );
@@ -265,7 +265,7 @@ function dificultad(tanda, lista) {
   const ruta = tanda.telarana.ruta;
   const logrados = tanda.intentos.filter((intento) => intento.resultado === "logrado");
   let peor = null;
-  for (const intento of logrados) {
+  for (const intento of tanda.exploradores ? [] : logrados) {
     if (!ruta?.pasosIdeales || intento.pasos.length <= ruta.pasosIdeales) continue;
     if (!peor || intento.pasos.length > peor.pasos.length) peor = intento;
   }
@@ -298,6 +298,7 @@ export function titulares(tanda, lista) {
       pasosIdeales: ruta?.pasosIdeales ?? null,
       siguen: kpis.siguenLaRuta,
       validos: kpis.validos,
+      logrados: kpis.logrados,
     },
   };
 
@@ -321,6 +322,9 @@ export function titulares(tanda, lista) {
       }),
     );
     vars = { ...base, caso: "noLlegan", intentos };
+  } else if (tanda.exploradores || !ruta?.pasosIdeales) {
+    // Sin ruta no hay costo con qué comparar; los exploradores dan pasos de más a propósito.
+    vars = { ...base, caso: "llegan" };
   } else {
     let peor = null;
     for (const perfil of conValidos) {
