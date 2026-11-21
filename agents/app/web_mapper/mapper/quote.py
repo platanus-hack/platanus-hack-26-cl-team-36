@@ -5,24 +5,28 @@ import unicodedata
 
 from playwright.async_api import Page
 
+from mapper.page_view import HELPERS_JS
+
 _WRAPPING_QUOTES = "\"'«»“”‘’ "
 
-# El elemento visible más profundo cuyo texto contiene la cita, y si su caja toca el viewport.
-_QUOTE_ON_SCREEN_JS = r"""
-(needle) => {
+# El elemento que se puede mostrar más profundo cuyo texto contiene la cita, y si su caja toca el viewport.
+_QUOTE_ON_SCREEN_JS = "(needle) => {" + HELPERS_JS + r"""
   const norm = (s) => (s || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
-  if (!document.body || !norm(document.body.innerText).includes(needle)) return false;
+  if (!document.body || !norm(visibleText(document.body)).includes(needle)) return false;
   let holder = document.body;
   for (let deeper = true; deeper;) {
     deeper = false;
     for (const child of holder.children) {
-      if (child.checkVisibility() && norm(child.innerText).includes(needle)) { holder = child; deeper = true; break; }
+      if (norm(child.innerText).includes(needle) && displayable(child) && norm(visibleText(child)).includes(needle)) {
+        holder = child;
+        deeper = true;
+        break;
+      }
     }
   }
   const box = holder.getBoundingClientRect();
   return box.bottom > 0 && box.top < innerHeight && box.right > 0 && box.left < innerWidth;
-}
-"""
+}"""
 
 
 def _normalize(text: str) -> str:

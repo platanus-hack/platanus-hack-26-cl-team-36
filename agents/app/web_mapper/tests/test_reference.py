@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from collections.abc import Callable
 from pathlib import Path
 
 from playwright.async_api import async_playwright
@@ -16,37 +15,15 @@ from mapper.page_view import read_page_view
 from mapper.reference import Mapping, map_reference
 from mapper.replay import Replay, Verification
 from mapper.route import Step
-from tests.conftest import DESKTOP
+from tests.conftest import DESKTOP, ScriptedDecider
 
 QUOTE = "Para dar de baja llama al 103."
 
 
-class ScriptedDecider:
-    """Cada paso del guion elige su acción por el nombre del elemento en la vista que recibe."""
-
-    def __init__(self, script: list[tuple[str, str | None, dict]], on_done: Callable[[], None] | None = None):
-        self.script = list(script)
-        self.on_done = on_done
-        self.prompts: list[str] = []
-        self.usage = {"input_tokens": 0}
-        self.cost_usd = 0.0
-
-    async def decide(self, text: str, screenshot: bytes) -> Decision:
-        self.prompts.append(text)
-        action, name, extra = self.script.pop(0)
-        if action == "done" and self.on_done:
-            self.on_done()
-        ref = None
-        if name:
-            line = next(line for line in text.splitlines() if f"«{name}»" in line and line.startswith("e"))
-            ref = line.split(" · ")[0]
-        return Decision(reason="guion", action=action, ref=ref, **extra)
-
-
-def _map(site, tmp_path, script, on_done=None, start_url=None):
+def _map(site, tmp_path, script, on_done=None, start_url=None, extra_routes=0):
     decider = ScriptedDecider(script, on_done)
     mapping = Mapping("prueba", start_url or (site / "index.html").as_uri(), "Encuentra cómo dar de baja", "desktop", DESKTOP,
-                      "guion", "low", tmp_path / "out")
+                      "guion", "low", tmp_path / "out", extra_routes)
 
     async def main():
         async with async_playwright() as playwright:
@@ -169,3 +146,22 @@ def test_press_with_a_ref_does_not_record_an_element(with_session):
         assert step.target is None and step.in_viewport is None
 
     with_session("index.html", body)
+
+
+def test_answer_inside_a_collapsed_accordion_needs_the_click_that_opens_it(site, tmp_path):
+    answer = {"answer": "42", "quote": "La respuesta es 42."}
+    document, decider, _ = _map(site, tmp_path, [
+        ("done", None, answer),
+        ("click", "Ver respuesta", {}),
+        ("done", None, answer),
+    ], start_url=(site / "acordeon.html").as_uri())
+    assert "La respuesta es 42." not in decider.prompts[0] and "la cita no está" in decider.prompts[1]
+    assert document["status"] == "verified" and [step["label"] for step in document["steps"]] == ["click «Ver respuesta»"]
+
+
+def test_link_to_another_site_is_rejected(site, tmp_path):
+    document, decider, _ = _map(site, tmp_path, [
+        ("click", "Otro sitio", {}),
+        ("give_up", None, {"text": "No está."}),
+    ], start_url=(site / "acordeon.html").as_uri())
+    assert "otro sitio" in decider.prompts[1] and document["exploration"]["steps"] == 0

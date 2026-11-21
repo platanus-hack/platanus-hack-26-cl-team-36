@@ -1,19 +1,23 @@
 """Verificación de la ruta repitiéndola en un contexto nuevo, y minimización sin llamar al modelo."""
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from playwright.async_api import Browser
+from playwright.async_api import Browser, ElementHandle, Page
 from playwright.async_api import Error as PlaywrightError
 
 from browser import BrowserSession, create_context
 from profiles import Profile
 from route_tree import node_key
 
+from mapper import config
 from mapper.locators import resolve_locators
 from mapper.operate import ActionRejected, Log, perform_step
 from mapper.page_view import page_text
 from mapper.quote import quote_in_text, quote_on_screen
 from mapper.route import Step
+
+Resolver = Callable[[Page, list[dict]], Awaitable[ElementHandle | None]]
 
 
 @dataclass
@@ -47,18 +51,25 @@ class Verification:
     error: str | None           # por qué no verificó la candidata
 
 
-async def _run_steps(session: BrowserSession, route: list[Step], replay: Replay) -> None:
+async def _run_steps(session: BrowserSession, route: list[Step], replay: Replay, resolve: Resolver,
+                     reappear_s: float) -> None:
     for number, step in enumerate(route, 1):
         try:
-            handle = await resolve_locators(session.page, step.target.locators) if step.target else None
-            replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target))
+            handle = await resolve(session.page, step.target.locators) if step.target else None
+            replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target, reappear_s))
         except (ActionRejected, PlaywrightError) as error:
             replay.error = f"paso {number} ({step.label}): {error}"
             return
 
 
-async def replay_route(browser: Browser, profile: Profile, url: str, route: list[Step], quote: str) -> Replay:
-    """Repite la ruta desde la URL inicial y comprueba si la cita está en la página final."""
+async def replay_route(
+    browser: Browser, profile: Profile, url: str, route: list[Step], quote: str, resolve: Resolver = resolve_locators,
+    reappear_s: float | None = None,
+) -> Replay:
+    """Repite la ruta desde la URL inicial y comprueba si la cita está en la página final.
+
+    `reappear_s`: cuánto esperar a un elemento oculto; cada paso registrado estaba a la vista al hacerse.
+    """
     context = await create_context(browser, profile)
     replay = Replay()
     try:
@@ -66,7 +77,7 @@ async def replay_route(browser: Browser, profile: Profile, url: str, route: list
         await session.open(url)
         replay.start_url, replay.start_title = await session.url_and_title()
         replay.start_screenshot = await session.screenshot()
-        await _run_steps(session, route, replay)
+        await _run_steps(session, route, replay, resolve, config.REAPPEAR_S if reappear_s is None else reappear_s)
         if replay.error is None:
             replay.final_url, replay.final_title = await session.url_and_title()
             replay.quote_found = quote_in_text(quote, await page_text(session.page))
@@ -95,7 +106,7 @@ async def verify_and_minimise(
         if route[index].changes_node or best.steps[index].changes_node:
             continue
         trial_route = route[:index] + route[index + 1:]
-        trial = await replay_route(browser, profile, url, trial_route, quote)
+        trial = await replay_route(browser, profile, url, trial_route, quote, reappear_s=config.TRIAL_REAPPEAR_S)
         replays += 1
         if trial.failure(final_node) is None:
             log(f"se quitó el paso {index + 1}: {route[index].label}")

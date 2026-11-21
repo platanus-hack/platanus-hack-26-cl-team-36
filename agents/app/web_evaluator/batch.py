@@ -11,6 +11,7 @@ from pathlib import Path
 from playwright.async_api import Browser, async_playwright
 
 import config
+import proposal
 import reference
 import report
 from browser import BrowserSession, create_context, open_browsers
@@ -179,6 +180,7 @@ async def run_batch(
     _write_json(batch_dir / "route_tree.json", {**meta, "criteria": criteria, **tree})
     comparison = reference.compare_batch(output_dir, url, instruction, run_dicts)
     if comparison:
+        comparison["proposals"] = proposal.write_proposals(output_dir, batch_dir, run_dicts, comparison)
         _write_json(batch_dir / "reference_comparison.json", comparison)
     (batch_dir / "report.md").write_text(report.generate(meta, criteria, run_dicts, tree, comparison), encoding="utf-8")
     return batch_dir

@@ -8,7 +8,7 @@ import json
 
 from playwright.async_api import ElementHandle, Locator, Page
 
-from mapper.page_view import Element
+from mapper.page_view import Element, display_state
 
 _MAX_MATCHES = 20
 
@@ -69,4 +69,16 @@ async def resolve_locators(page: Page, locators: list[dict]) -> ElementHandle | 
         locator = _locator(page, candidate)
         if await locator.count() > candidate["nth"]:
             return await locator.nth(candidate["nth"]).element_handle()
+    return None
+
+
+async def resolve_visible(page: Page, locators: list[dict]) -> ElementHandle | None:
+    """El primer elemento a la vista entre las coincidencias; fija su `nth` para que `resolve_locators` lo repita."""
+    for candidate in locators:
+        locator = _locator(page, candidate)
+        for index in range(min(await locator.count(), _MAX_MATCHES)):
+            handle = await locator.nth(index).element_handle()
+            if handle and (await display_state(handle))[0]:
+                candidate["nth"] = index
+                return handle
     return None

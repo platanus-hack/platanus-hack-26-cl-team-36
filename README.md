@@ -16,7 +16,7 @@ team-36
 ## Desarrollo local
 
 Requisitos: [`just`](https://github.com/casey/just) (`brew install just`), Node.js 22 o más reciente con npm, Firefox
-y, para los pasos 4 y 6, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
+y, para los pasos 4, 6 y 7, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
 clon nuevo, en este orden:
 
 ```bash
@@ -29,6 +29,8 @@ just local explore <url> "<task>"     # 4. synthetic users try a task on a site 
 just local validate [wom|sii|dt]      #    the reference tasks in agents/tasks/ (calls Claude)
 just local route <task>               # 6. reference route of a task in agents/tasks/ (calls Claude)
 just local goals <url>                #    goal catalog of a site and, with --routes, their routes (calls Claude)
+just local site <url> [goals]         # 7. catalog, routes, synthetic users and a summary per site (calls Claude)
+just local summary <url>              #    rewrites that summary from the files on disk
 ```
 
 Los despliegues y las versiones de la extensión corren como GitHub Actions en el repo personal

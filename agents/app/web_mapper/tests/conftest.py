@@ -1,11 +1,14 @@
 """Sitio local de prueba: un desvío, un menú que se abre con un botón y un acordeón bajo el pliegue."""
 
 import asyncio
+from collections.abc import Callable
 
 import pytest
 from playwright.async_api import async_playwright
 
 from browser import BrowserSession, connect_browser, create_context
+from mapper import config
+from mapper.decider import Decision
 from profiles import Profile
 
 DESKTOP = Profile("test_desktop", "Prueba", 1024, 768, False, "")
@@ -40,7 +43,44 @@ PAGES = {
     "duplicado.html": """<title>Duplicado</title>
         <div style="display:none"><p>Horario de atención: 9 a 18 horas.</p></div>
         <div><p>Horario de atención: 9 a 18 horas.</p></div>""",
+    "acordeon.html": """<title>Acordeón</title>
+        <button onclick="document.getElementById('respuesta').style.maxHeight = 'none'">Ver respuesta</button>
+        <div id="respuesta" style="max-height:0;overflow:hidden"><p>La respuesta es 42.</p></div>
+        <a href="https://otro.example/">Otro sitio</a>""",
+    "app.html": """<title>Aplicación</title>
+        <div style="height:100vh;overflow:hidden"><div style="height:100%;overflow:auto">
+          <div style="height:2000px"></div><a href="productos.html">Al fondo del panel</a>
+        </div></div>""",
 }
+
+
+class ScriptedDecider:
+    """Cada paso del guion elige su acción por el nombre del elemento en la vista que recibe."""
+
+    def __init__(self, script: list[tuple[str, str | None, dict]], on_done: Callable[[], None] | None = None):
+        self.script = list(script)
+        self.on_done = on_done
+        self.prompts: list[str] = []
+        self.usage = {"input_tokens": 0}
+        self.cost_usd = 0.0
+
+    async def decide(self, text: str, screenshot: bytes) -> Decision:
+        self.prompts.append(text)
+        action, name, extra = self.script.pop(0)
+        if action == "done" and self.on_done:
+            self.on_done()
+        ref = None
+        if name:
+            line = next(line for line in text.splitlines() if f"«{name}»" in line and line.startswith("e"))
+            ref = line.split(" · ")[0]
+        return Decision(reason="guion", action=action, ref=ref, **extra)
+
+
+@pytest.fixture(autouse=True)
+def short_reappear_wait(monkeypatch):
+    """Las páginas de prueba no tienen carruseles: un elemento oculto no vuelve."""
+    monkeypatch.setattr(config, "REAPPEAR_S", 1.0)
+    monkeypatch.setattr(config, "TRIAL_REAPPEAR_S", 0.5)
 
 
 @pytest.fixture

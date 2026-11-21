@@ -46,8 +46,15 @@ def test_detour_lowers_efficiency_and_raises_lostness():
     result = compare(_run([OTHER, HOME, HELP, HOURS]), ROUTE)
     assert result["efficiency"] == 0.5
     assert result["revisits"] == 0.8 and result["detour"] == 0.75
-    assert result["lostness"] == pytest.approx((0.8 - 1) ** 2 + (0.75 - 1) ** 2, abs=0.01)
+    assert result["lostness"] == pytest.approx(((0.8 - 1) ** 2 + (0.75 - 1) ** 2) ** 0.5, abs=0.01)
     assert result["similarity"] == 0.6
+
+
+def test_lostness_matches_the_uxtweak_example():
+    # T = 8 páginas visitadas, N = 5 distintas, R = 3 en la ruta: √((5/8 − 1)² + (3/5 − 1)²) ≈ 0,55.
+    pages = [(f"https://s.cl/{name}", name) for name in "BCDEDCB"]
+    route = {**ROUTE, "totals": {"min_steps": 2, "distinct_pages": 3}}
+    assert compare(_run(pages), route)["lostness"] == 0.55
 
 
 def test_failed_attempt_has_zero_efficiency_and_misses_the_final_node():

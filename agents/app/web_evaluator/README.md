@@ -20,13 +20,15 @@ uv run playwright install chromium
 uv run main.py --task wom-baja-fibra
 uv run main.py --task sii-exencion-contribuciones --profiles mobile --effort low
 uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
+uv run main.py --goals ../../.runs/www.wom.cl/goals/goals.json --limit 3
 ```
 
 | Opción | Qué hace |
 |---|---|
 | `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). Las corridas quedan en `agents/.runs/<id>/`. |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. Las corridas quedan en `agents/.runs/`. |
-| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres). |
+| `--goals <goals.json>` | Un catálogo del [Mapeador](../web_mapper/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
+| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--goals`, `first_time`). |
 | `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
 | `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-haiku-5-5`). |
 | `--output` | Otra carpeta para las corridas. |
@@ -73,6 +75,21 @@ just aws explore wom-baja-fibra            # 3. la tanda corre en AgentCore; el 
 aviso cada 20 s y, al final, el resultado de cada perfil y `report.md`. Las capturas de cada paso quedan en AWS y
 se pierden al cerrar la sesión.
 
+## Catálogo
+
+Con `--goals` corre, uno tras otro, los objetivos sin `exclusion` que tienen una ruta verificada del Mapeador para
+algún perfil, con la `instruction` que el Mapeador guardó. Cada tanda queda en `agents/.runs/<id del objetivo>/`. Si
+una falla, siguen las demás. Al final escribe `summary.md` y `summary.json` junto al catálogo: por objetivo, sus
+clasificaciones, los pasos mínimos del Mapeador y cuántas rutas exploró, el resultado y los pasos de cada perfil, la
+eficiencia y quién necesitó menos pasos; y los totales del sitio. Los objetivos sin tanda aparecen con el motivo.
+
+| Opción | Qué hace |
+|---|---|
+| `--goal <id>` | Solo ese objetivo; se puede repetir. |
+| `--limit N` | Como máximo N tandas nuevas. |
+| `--rerun` | Repite los objetivos que ya tienen tanda (por defecto se omiten). |
+| `--summary` | Solo reescribe el resumen desde los archivos, sin correr nada. |
+
 ## Tareas
 
 Cada archivo de [`agents/tasks/`](../../tasks/) es una tarea con la forma de
@@ -94,6 +111,8 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 | `recording.py` | Los pasos y el recorrido (`Step`, `Run`), y las señales que se leen del DOM solo para el registro. |
 | `route_tree.py`, `report.py` | El árbol de rutas, la ruta recomendada y `report.md`. |
 | `reference.py` | La comparación de cada intento con la ruta de referencia del [Mapeador](../web_mapper/README.md). |
+| `proposal.py` | La propuesta de ruta cuando un intento logra la tarea con menos pasos que la referencia. |
+| `goals_run.py`, `site_summary.py` | Las tandas de un catálogo y el resumen del sitio. |
 | `profiles.py`, `config.py` | Los perfiles de usuario, su prompt y los límites. |
 
 - **El agente solo ve la pantalla:** recibe capturas del viewport y nunca HTML ni DOM. Solo puede hacer clic por
@@ -123,7 +142,8 @@ agents/.runs/<tarea>/<fecha-hora>/
 
 Si `agents/.runs/<tarea>/reference/` tiene una ruta verificada para el viewport del perfil, el reporte la compara con
 cada intento ([fórmulas](../../../docs/agents/niveles-de-tarea.md), sección 5). El avance se informa como llegada a la
-página final de la ruta.
+página final de la ruta. Si un intento logra la tarea con menos pasos, deja `reference/<viewport>/proposed.json` (sus
+pasos con el elemento clicado, sus nodos y la tanda) y el reporte lo dice; `adopt` del Mapeador la verifica.
 
 ## Pruebas
 
@@ -131,4 +151,5 @@ página final de la ruta.
 uv run pytest -q
 ```
 
-Las pruebas no llaman a Claude: cubren el árbol, los motores y las acciones del navegador sobre páginas locales.
+Las pruebas no llaman a Claude: cubren el árbol, los motores y las acciones del navegador sobre páginas locales, la
+propuesta de ruta, el plan de un catálogo y el resumen a partir de archivos.

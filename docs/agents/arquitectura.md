@@ -46,7 +46,7 @@ platanus-hack-26-cl-team-36/
 |---|---|---|---|
 | **Qué hace** | Intenta una tarea N veces y mide cuántas veces se logra. | Cataloga los objetivos de un sitio y encuentra la ruta de referencia de cada uno, con sus pasos mínimos. | Lee dónde se pierden los agentes y propone un parche. |
 | **Qué ve** | Solo capturas de lo visible. | El DOM de la página y capturas. | Recorridos, grafo y el DOM de la página. |
-| **Qué puede hacer** | Las nueve acciones de la sección 3 del [evaluador](evaluador.md). | Clic, escribir, elegir, teclas y atrás sobre elementos a la vista; no puede ir a una URL. | Leer archivos de `.runs/` y escribir un parche. |
+| **Qué puede hacer** | Las nueve acciones de la sección 3 del [evaluador](evaluador.md). | Clic, escribir, elegir, teclas, atrás y scroll sobre elementos a la vista; no puede ir a una URL ni seguir un enlace a otro host. | Leer archivos de `.runs/` y escribir un parche. |
 | **Qué entrega** | Recorridos, grafo y resumen de la tanda. | `goals.json`: los objetivos clasificados. `route.json`: la ruta verificada y la cita que la respalda. | Una variante nueva para que el evaluador la mida. |
 | **Quién decide** | El juez, no el agente. | La repetición: la ruta vale si llega a la misma página y la cita está en ella. | La regla del experimento (PR 6) y una persona. |
 
@@ -67,6 +67,24 @@ la URL o el DOM puede estar ahí.
 
 En el glosario siguen siendo "Evaluador" y "Optimizador"; en el código se proponen `web_evaluator` y `web_optimizer`.
 Se decide junto con la pregunta "¿Qué nombres se usan?" del plan (sección 6).
+
+## Flujo por sitio
+
+**Cada objetivo evaluable de un sitio pasa por el Mapeador y por el evaluador, y un resumen los compara.** Se
+comunican por archivos en `agents/.runs/`. El Mapeador decide en el catálogo qué objetivos se evalúan (`exclusion`) y
+con qué tarea (`instruction`); el evaluador solo lo lee. `just local site <url> <N>` corre todo.
+
+```mermaid
+flowchart LR
+  C["web_mapper goals<br/>catálogo"] -->|"goals.json"| R["web_mapper goals --routes<br/>ruta por objetivo"]
+  R -->|"reference/desktop/route.json"| E["web_evaluator --goals<br/>una tanda por objetivo"]
+  E -->|"report.md, reference_comparison.json"| S["summary.md<br/>Mapeador contra evaluador"]
+  E -.->|"proposed.json, si usó menos pasos"| A["web_mapper adopt<br/>verifica y adopta"]
+  A -.-> R
+```
+
+La ruta de referencia es la más corta verificada entre las exploradas. Por eso el Mapeador busca una más corta después
+de la primera, y un intento que usa menos pasos queda propuesto hasta que `adopt` lo verifica repitiéndolo.
 
 ## Del evaluador al optimizador
 

@@ -47,7 +47,7 @@ Dos palabras se usan siempre con un solo sentido:
 | **Recorrido** | El registro paso a paso de un intento. Solo de agentes. | archivo en `runs/` (se propone `agents/.runs/`) |
 | **Objetivo** | Algo que un sitio ofrece a un visitante, escrito como tarea cerrada y clasificado según [niveles de tarea](agents/niveles-de-tarea.md). Un objetivo se promueve a tarea copiándolo. | `goal` |
 | **Catálogo de objetivos** | Todos los objetivos que el Mapeador descubre en un sitio. | `goals.json` |
-| **Ruta de referencia** | El camino más corto que cumple una tarea, verificado por el Mapeador. Con ella se comparan los recorridos. | `reference route` |
+| **Ruta de referencia** | El camino más corto que cumple una tarea entre los que el Mapeador exploró y verificó. Con ella se comparan los recorridos. | `reference route` |
 | **Tanda** | Varios intentos lanzados juntos, con un tope de gasto. | `batch` |
 | **Grafo de navegación** | El resumen de muchos recorridos: etapas, por dónde se sigue y dónde se abandona. | `navigation graph` |
 | **Experimento** | La comparación de una variante contra el control para una tarea. Termina en aceptada, rechazada o no concluyente. | `experiment` |

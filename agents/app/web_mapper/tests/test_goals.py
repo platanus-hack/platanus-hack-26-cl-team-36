@@ -9,12 +9,12 @@ import pytest
 
 from mapper import config, goal_routes, goals_command, reference
 from mapper.catalog import propose_goals, render_outline, system_prompt
-from mapper.goal_routes import instruction, route_summary
+from mapper.goal_routes import resume_routes, route_path, route_summary
 from mapper.goal_rules import (
     complexity, gates, id_prefix, link_prominence, page_gates, prominence, route_prominence, validate,
 )
-from mapper.goals import Goal, routable
-from mapper.goals_output import goals_markdown
+from mapper.goals import Goal, exclusion, instruction, routable
+from mapper.goals_output import goals_markdown, read_catalog, write_catalog
 from mapper.outline import Field, Form, Link, PageOutline, SiteOutline
 
 START = "https://www.sitio.cl/"
@@ -106,6 +106,7 @@ def test_personal_data_signal_ignores_search_boxes_selects_and_names_of_things()
     assert signals(Field("Correo", "email", "")) == ["personal_data"]
     assert signals(Field("Nombre de la empresa", "text", "")) == []
     assert signals(Field("Buscar por nombre del trámite", "text", "")) == []
+    assert signals(Field("Clave", "text", "new-password")) == ["login"]
     assert signals(Field("Nombre", "search", "")) == []
     assert signals(Field("Dirección regional", "select", "")) == []
     assert page_gates(PageOutline(START, "x", 0, [], [], [Form("post", "footer", [Field("RUT", "text", "")])], [], True)) \
@@ -174,6 +175,8 @@ def test_routable_order_buried_first_then_id_without_blocking_gates():
     ]
     assert [goal.id for goal in routable(goals, 10)] == ["sitio-b", "sitio-z", "sitio-m", "sitio-a"]
     assert [goal.id for goal in routable(goals, 2)] == ["sitio-b", "sitio-z"]
+    assert len(routable(goals, None)) == 4
+    assert [exclusion(goal) for goal in goals[3:6]] == [None, "barrera login", "nivel summary"]
 
 
 def test_outline_text_lists_each_link_once_and_the_page_gates():
@@ -206,14 +209,14 @@ def test_transact_routes_stop_before_submitting_and_route_summary_shape():
     assert instruction(_goal("sitio-a")) == "x"
     assert "sin hacerlo" in instruction(_goal("sitio-b", intent="transact"))
     assert instruction(_goal("sitio-c", intent="reach_page")).endswith("cita su título o encabezado principal.")
-    document = {"status": "verified", "totals": {"min_steps": 6, "distinct_pages": 3},
+    document = {"status": "verified", "totals": {"min_steps": 6, "actions": 4, "distinct_pages": 3},
                 "nodes": ["a", "b", "c"], "final_node": "c"}
     assert route_summary(document, config.RUNS_DIR / "x" / "route.json") == {
-        "status": "verified", "steps": 6, "pages": 3, "nodes": ["a", "b", "c"], "key_nodes": ["c"],
+        "status": "verified", "steps": 6, "actions": 4, "pages": 3, "nodes": ["a", "b", "c"], "key_nodes": ["c"],
         "route": ".runs/x/route.json",
     }
     assert route_summary({**document, "status": "not_found"}, config.RUNS_DIR / "x" / "route.json") == {
-        "status": "not_found", "steps": None, "pages": None, "nodes": None, "key_nodes": None,
+        "status": "not_found", "steps": None, "actions": None, "pages": None, "nodes": None, "key_nodes": None,
         "route": ".runs/x/route.json",
     }
 
@@ -225,14 +228,16 @@ def test_a_failed_goal_route_does_not_stop_the_others(tmp_path, monkeypatch):
     async def fake_map_reference(browser, mapping, decider):
         if mapping.task_id == "sitio-roto":
             raise RuntimeError("se cayó")
-        return {"status": "verified", "answer": "Llama al 103", "totals": {"min_steps": 3, "distinct_pages": 2},
+        return {"status": "verified", "answer": "Llama al 103",
+                "totals": {"min_steps": 7, "actions": 5, "distinct_pages": 2},
                 "nodes": ["a", "b"], "final_node": "b"}
 
     monkeypatch.setattr(reference, "map_reference", fake_map_reference)
     goals = [_goal("sitio-info"), _goal("sitio-roto"), _goal("sitio-pagina", intent="reach_page")]
-    asyncio.run(goal_routes.map_goal_routes(None, goals, "m", "low", tmp_path))
+    asyncio.run(goal_routes.map_goal_routes(None, goals, "m", "low", tmp_path, 0))
     info, broken, page = goals
-    assert info.reference_route["steps"] == 3 and info.expected_answer == "Llama al 103" and info.complexity == "easy"
+    assert info.reference_route["steps"] == 7 and info.expected_answer == "Llama al 103"
+    assert info.complexity == "easy"  # por las 5 acciones, sin los scrolls de min_steps
     assert broken.reference_route is None and broken.complexity is None
     assert page.reference_route["route"] == ".runs/sitio-pagina/reference/desktop/route.json"
     assert page.expected_answer is None
@@ -266,7 +271,7 @@ def test_start_page_that_fails_stops_before_the_model_and_keeps_other_files(tmp_
     (out_dir / "goals.json").write_text("{}", encoding="utf-8")
     failed = SiteOutline(START, "www.sitio.cl", "1024x768", [], [f"{START}: HTTP 503"])
     with pytest.raises(SystemExit, match="HTTP 503"):
-        _run_goals(monkeypatch, tmp_path, failed, "--output", str(out_dir))
+        _run_goals(monkeypatch, tmp_path, failed, "--output", str(out_dir), "--rerun")
     assert sorted(path.name for path in out_dir.iterdir()) == ["notas.txt", "outline.json"]
 
 
@@ -275,3 +280,39 @@ def test_negative_routes_are_rejected(tmp_path, monkeypatch, capsys):
         _run_goals(monkeypatch, tmp_path, OUTLINE, "--routes", "-1", "--output", str(tmp_path / "salida"))
     assert exit_info.value.code == 2 and "--routes" in capsys.readouterr().err
     assert not (tmp_path / "salida").exists()
+
+
+def test_catalog_round_trip_fills_the_evaluation_fields(tmp_path):
+    goal = _goal("sitio-baja", intent="transact", gates=["side_effect"])
+    write_catalog(tmp_path, {"host": "www.sitio.cl", "pages": 1, "model": "m", "catalog_cost_usd": 0}, [goal], ["x"])
+    meta, goals, issues = read_catalog(tmp_path / "goals.json")
+    assert meta["host"] == "www.sitio.cl" and issues == ["x"]
+    assert goals[0].instruction == instruction(goal) and goals[0].exclusion is None
+
+
+def test_resume_takes_verified_routes_for_the_same_instruction(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "AGENTS_DIR", tmp_path)
+    monkeypatch.setattr(config, "RUNS_DIR", tmp_path / ".runs")
+    done, changed, unverified, missing = (_goal(f"sitio-{name}", instruction="x") for name in ("a", "b", "c", "d"))
+    route = {"status": "verified", "instruction": "x", "answer": "Sí.",
+             "totals": {"min_steps": 3, "actions": 2, "distinct_pages": 2},
+             "nodes": ["a", "b"], "final_node": "b"}
+    for goal, changes in ((done, {}), (changed, {"instruction": "otra"}), (unverified, {"status": "unverified"})):
+        route_path(goal).parent.mkdir(parents=True)
+        route_path(goal).write_text(json.dumps({**route, **changes}), encoding="utf-8")
+    assert resume_routes([done, changed, unverified, missing]) == [changed, unverified, missing]
+    assert done.reference_route["steps"] == 3 and done.complexity == "easy" and done.expected_answer == "Sí."
+
+
+def test_verified_routes_count_toward_the_route_limit(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "AGENTS_DIR", tmp_path)
+    monkeypatch.setattr(config, "RUNS_DIR", tmp_path / ".runs")
+    goals = [_goal(f"sitio-{name}", instruction="x", prominence=prominence) for name, prominence in
+             (("a", "buried"), ("b", "buried"), ("c", "primary"), ("d", "primary"))]
+    route_path(goals[2]).parent.mkdir(parents=True)
+    route_path(goals[2]).write_text(json.dumps({
+        "status": "verified", "instruction": "x", "answer": "", "totals": {"min_steps": 1, "actions": 1, "distinct_pages": 1},
+        "nodes": ["a"], "final_node": "a"}), encoding="utf-8")
+    assert [goal.id for goal in goals_command._pending_routes(goals, 2, False)] == ["sitio-a"]
+    assert [goal.id for goal in goals_command._pending_routes(goals, None, False)] == ["sitio-a", "sitio-b", "sitio-d"]
+    assert [goal.id for goal in goals_command._pending_routes(goals, 2, True)] == ["sitio-a", "sitio-b"]
