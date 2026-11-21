@@ -398,7 +398,10 @@ function trazoOrtogonal(puntos, radio) {
  * → { posiciones: Map<id, {x, y}>, caminos: Map<tramoId, string>, recorridos: Map<tramoId, {x, y}[]> (los puntos
  *     por los que pasa cada camino: paradas o esquinas), caja: { x, y, ancho, alto } }
  */
-export function geometria(distribucion, { anchoCapa = 220, altoFila = 96, margen = 60 } = {}) {
+/** Alto de una fila de la telaraña, en px de escena (el ajuste a la vista lo usa para no alejar de más). */
+export const ALTO_FILA = 96;
+
+export function geometria(distribucion, { anchoCapa = 220, altoFila = ALTO_FILA, margen = 60 } = {}) {
   const posiciones = new Map();
   const caminos = new Map();
   const recorridos = new Map();

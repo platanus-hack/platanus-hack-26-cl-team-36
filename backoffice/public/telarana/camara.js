@@ -10,8 +10,49 @@ const DURACION_DE_VUELO = 600;
 const acotar = (valor, minimo, maximo) => Math.min(maximo, Math.max(minimo, valor));
 const curva = (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2); // ease-in-out (cúbica)
 
-/** Nivel de detalle de las etiquetas según el zoom. */
-export const detalleDeZoom = (k) => (k < 0.6 ? "bajo" : k > 1.3 ? "alto" : "medio");
+/** Nivel de detalle de las etiquetas según el zoom: bajo, el nombre en 2 líneas; medio, en 3; alto, con detalles. */
+export const detalleDeZoom = (k) => (k < 0.8 ? "bajo" : k > 1.3 ? "alto" : "medio");
+const LINEAS_DE_NOMBRE = { bajo: 2, medio: 3 };
+
+// Medidas de telarana.css que deciden cuánto alto pide una estación en pantalla (si cambian allá, cambian acá):
+// el botón sube 9 px (translate), el punto mide 18 px y se agranda a 0.8/k; la etiqueta va 6 px debajo del punto,
+// con 2 px de relleno arriba y abajo, líneas de 16 px y se agranda a 0.9/k; la marca de atasco asoma 8 px sobre el
+// punto (y queda a su derecha, encima del nombre de la estación de arriba si no hay lugar).
+const ESTACION = { subida: 9, punto: 18, separacion: 6, relleno: 4, linea: 16, atascoSobreElPunto: 8, puntoMinimo: 0.8, etiquetaMinima: 0.9 };
+
+/**
+ * ¿Cabe, con el zoom k, el nombre de una estación (con las líneas de su nivel de detalle) entre su punto y la marca
+ * de atasco o el punto de la estación de la fila de abajo? Todo en px de pantalla; filas de `altoFila` px de escena.
+ */
+export function cabeLaEtiqueta(k, altoFila) {
+  const detalle = detalleDeZoom(k);
+  if (!(detalle in LINEAS_DE_NOMBRE)) return true; // de cerca, el detalle alto se lee estación por estación
+  const { subida, punto, separacion, relleno, linea, atascoSobreElPunto, puntoMinimo, etiquetaMinima } = ESTACION;
+  const arribaDeLaEtiqueta = (punto - subida + separacion) * k;
+  const etiqueta = (LINEAS_DE_NOMBRE[detalle] * linea + relleno) * Math.max(k, etiquetaMinima);
+  const deLaVecina = (subida + atascoSobreElPunto) * Math.max(k, puntoMinimo);
+  return arribaDeLaEtiqueta + etiqueta + 1 <= altoFila * k - deLaVecina;
+}
+
+/** El menor zoom (de a 0.01) desde el que los nombres caben en su fila: el ajuste a la vista no aleja más que esto. */
+export function zoomLegible(altoFila) {
+  for (let k = ZOOM_MINIMO; k <= ZOOM_MAXIMO; k = Math.round((k + 0.01) * 100) / 100) {
+    if (cabeLaEtiqueta(k, altoFila)) return k;
+  }
+  return ZOOM_MAXIMO;
+}
+
+/**
+ * El alto de fila (px de escena, de a 4, al menos `minimo`) con el que los nombres caben en su fila viendo el mapa con
+ * el zoom k: un mapa ancho, que se ve de lejos para que quepan el inicio y la meta, se estira hacia abajo en vez de
+ * montar los nombres.
+ */
+export function altoDeFilaPara(k, minimo) {
+  const zoom = acotar(k, ZOOM_MINIMO, ZOOM_MAXIMO);
+  let alto = Math.ceil(minimo / 4) * 4;
+  while (!cabeLaEtiqueta(zoom, alto) && alto < 1000) alto += 4;
+  return alto;
+}
 
 /**
  * @param {HTMLElement} lienzo  el recuadro visible (overflow hidden)
@@ -64,10 +105,13 @@ export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () =>
     poner({ tx: px - (px - estado.tx) * real, ty: py - (py - estado.ty) * real, k });
   }
 
-  /** Encuadre que deja `caja` (coordenadas de la escena) entera y centrada. */
-  function encuadre(caja, { ancho = lienzo.clientWidth, alto = lienzo.clientHeight, maximo = AJUSTE_MAXIMO } = {}) {
+  /**
+   * Encuadre que deja `caja` (coordenadas de la escena) entera y centrada; con `minimo`, nunca más lejos que eso
+   * (entonces la caja puede no caber entera).
+   */
+  function encuadre(caja, { ancho = lienzo.clientWidth, alto = lienzo.clientHeight, maximo = AJUSTE_MAXIMO, minimo = ZOOM_MINIMO } = {}) {
     if (!caja || !caja.ancho || !caja.alto || !ancho || !alto) return { tx: 0, ty: 0, k: 1 };
-    const k = acotar(Math.min(ancho / caja.ancho, alto / caja.alto), ZOOM_MINIMO, maximo);
+    const k = acotar(Math.min(ancho / caja.ancho, alto / caja.alto), Math.max(ZOOM_MINIMO, minimo), Math.max(maximo, minimo));
     return { k, tx: (ancho - caja.ancho * k) / 2 - caja.x * k, ty: (alto - caja.alto * k) / 2 - caja.y * k };
   }
 
