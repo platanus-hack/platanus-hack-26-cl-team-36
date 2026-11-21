@@ -1,6 +1,7 @@
-// Pestaña Telaraña (diseño §10.5): una telaraña radial con el inicio al centro, un anillo por paso y la ruta
-// recomendada como eje recto (hacia la derecha; hacia abajo si el lienzo es más alto que ancho), filtro por perfil
-// que atenúa (nunca saca), panel de detalle, cámara (pan, zoom, ajuste) y modo historia ligado a Replay.
+// Pestaña Telaraña (diseño §10.5): un grafo dirigido de izquierda a derecha, con el inicio a la izquierda, la meta a
+// la derecha y las demás páginas en columnas según los pasos desde el inicio; la ruta recomendada es una fila recta.
+// Filtro por perfil que atenúa (nunca saca), panel de detalle, cámara (pan, zoom, ajuste) y modo historia ligado a
+// Replay.
 //
 // El estado de la vista vive en el hash: perfil=, pagina=, historia=, paso=. Los clics escriben parámetros con
 // ctx.actualizarParametros y actualizar(ctx) los aplica: una sola fuente de verdad.
@@ -24,7 +25,7 @@ import {
   totalesDeTerminales,
   vecindario,
 } from "../telarana/cuentas.js";
-import { RESULTADOS, distribuir, geometriaRadial } from "../telarana/distribuir.js";
+import { RESULTADOS, distribuir, geometria } from "../telarana/distribuir.js";
 import { atascosPorPagina } from "../telarana/atascos.js";
 import { claseDeTramo, dibujarEscena } from "../telarana/escena.js";
 import { crearHistoria } from "../telarana/historia.js";
@@ -33,11 +34,8 @@ const PASO_DE_PAN = 60;
 const reducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 // Holgura para las etiquetas fuera de la caja de la geometría (debajo de las estaciones y a la derecha de las
-// terminales con el eje a la derecha; a los lados con el eje hacia abajo).
-const HOLGURA = {
-  derecha: { izquierda: 0, derecha: 150, abajo: 40 },
-  abajo: { izquierda: 60, derecha: 120, abajo: 20 },
-};
+// terminales).
+const HOLGURA = { derecha: 150, abajo: 40 };
 
 function crearPantalla(contenedor, ctx) {
   const { tanda, t, fmt, senal } = ctx;
@@ -56,8 +54,6 @@ function crearPantalla(contenedor, ctx) {
     resaltado: null, // Set de ids resaltados por puntero o foco
     historiaId: null,
     historia: null,
-    orientacion: null,
-    eje: "derecha",
     geo: null,
     dibujo: null,
     ancho: 0,
@@ -83,7 +79,6 @@ function crearPantalla(contenedor, ctx) {
     visitas: (n) => t("telarana.estacion.visitas", { n }),
     etiquetaDeResultado: (resultado) => t(`comun.resultado.${resultado}`),
     ariaDeTerminal: (resultado, n) => t("telarana.terminal.aria", { resultado: t(`comun.resultado.${resultado}`), n }),
-    anillo: (n) => t("telarana.anillo.paso", { n }),
   };
   const urlDeCaptura = (captura) => (captura?.archivo ? ctx.urlDeArchivo(captura.perfil, captura.archivo) : null);
 
@@ -213,6 +208,7 @@ function crearPantalla(contenedor, ctx) {
         .filter(([clase]) => clases.has(clase))
         .map(([clase, clave]) => [`tramo-${clase}`, clave]),
       fuera.some((tramo) => tramo.tipo === "retroceso") ? ["tramo-retroceso tramo-exito", "retroceso"] : null,
+      fuera.some((tramo) => tramo.tipo === "lateral") ? ["tramo-lateral tramo-exito", "lateral"] : null,
     ].filter(Boolean);
     const hayAtascos = atascosPorPagina(tanda).size > 0;
     return el(
@@ -223,7 +219,7 @@ function crearPantalla(contenedor, ctx) {
         "ul",
         { "aria-label": t("telarana.leyenda.titulo") },
         items.map(([clasesDeMuestra, clave]) => el("li", {}, muestra(clasesDeMuestra), el("span", { texto: t(`telarana.leyenda.${clave}`) }))),
-        el("li", { class: "leyenda-anillo", texto: t("telarana.leyenda.anillo") }),
+        el("li", { class: "leyenda-columnas", texto: t("telarana.leyenda.columnas") }),
         hayAtascos ? el("li", { class: "leyenda-atasco" }, icono("atasco"), el("span", { texto: t("telarana.leyenda.atasco") })) : null,
         el("li", { class: "leyenda-grosor", texto: t("telarana.leyenda.grosor") }),
       ),
@@ -289,17 +285,13 @@ function crearPantalla(contenedor, ctx) {
 
   function cajaVisible() {
     const { caja } = estado.geo;
-    const holgura = HOLGURA[estado.eje] ?? HOLGURA.derecha;
     // En 3D las capturas se paran sobre las estaciones: más lugar arriba y a los lados.
-    if (camara?.inclinado) return { x: caja.x - 60, y: caja.y - 160, ancho: caja.ancho + holgura.derecha + 120, alto: caja.alto + 160 };
-    return { x: caja.x - holgura.izquierda, y: caja.y, ancho: caja.ancho + holgura.izquierda + holgura.derecha, alto: caja.alto + holgura.abajo };
+    if (camara?.inclinado) return { x: caja.x - 60, y: caja.y - 160, ancho: caja.ancho + HOLGURA.derecha + 120, alto: caja.alto + 160 };
+    return { x: caja.x, y: caja.y, ancho: caja.ancho + HOLGURA.derecha, alto: caja.alto + HOLGURA.abajo };
   }
 
   function dibujar() {
-    // Anillos como círculos simples y sin rayos: la estructura de la telaraña, sin decorarla como tela de araña.
-    estado.geo = geometriaRadial(distribucion, { eje: estado.eje, rayos: 0, caida: 0 });
-    lienzo.dataset.orientacion = estado.orientacion;
-    lienzo.dataset.eje = estado.eje;
+    estado.geo = geometria(distribucion);
     estado.dibujo = dibujarEscena({
       escena,
       distribucion,
@@ -329,7 +321,15 @@ function crearPantalla(contenedor, ctx) {
 
   function ajustar() {
     if (!camara || !estado.geo) return;
-    camara.ajustar(cajaVisible());
+    const caja = cajaVisible();
+    const encuadre = camara.encuadre(caja);
+    // Si el mapa no cabe ni con el zoom mínimo (teléfonos, tandas grandes): se ve desde el inicio (a la izquierda) y
+    // a la altura de la ruta, en vez de su centro.
+    if (!camara.inclinado) {
+      if (caja.ancho * encuadre.k > lienzo.clientWidth) encuadre.tx = -caja.x * encuadre.k;
+      if (caja.alto * encuadre.k > lienzo.clientHeight) encuadre.ty = lienzo.clientHeight / 2;
+    }
+    camara.poner(encuadre);
   }
 
   function acercar() {
@@ -365,16 +365,10 @@ function crearPantalla(contenedor, ctx) {
   function alCambiarTamano() {
     const ancho = contenedor.clientWidth;
     if (!ancho || !distribucion.estaciones.length) return;
-    // Lienzo más alto que ancho (teléfonos): el eje baja, así la telaraña aprovecha el alto.
-    const orientacion = "radial";
-    const eje = lienzo.clientHeight > lienzo.clientWidth * 1.05 ? "abajo" : "derecha";
-    const cambio = orientacion !== estado.orientacion || eje !== estado.eje;
-    if (!cambio && Math.abs(ancho - estado.ancho) < 2) return;
-    estado.ancho = ancho;
     const primera = !estado.geo;
-    if (cambio) {
-      estado.orientacion = orientacion;
-      estado.eje = eje;
+    if (!primera && Math.abs(ancho - estado.ancho) < 2) return;
+    estado.ancho = ancho;
+    if (primera) {
       dibujar();
       ponerVista3d(estado.ctx.parametros?.vista === "3d", { animar: false });
     }
@@ -460,10 +454,7 @@ function crearPantalla(contenedor, ctx) {
   // ── Vista 3D (§10.5.4): el mismo mapa inclinado, con las capturas de pie sobre cada estación ─────────────
   let relojDeVista = 0;
   function ponerVista3d(pedida, { animar = true } = {}) {
-    // El plato inclinado solo con el eje a la derecha (en lienzos altos queda demasiado chico).
-    const permitida = estado.eje !== "abajo";
-    const activa = pedida && permitida;
-    botonDe3d.hidden = !permitida;
+    const activa = !!pedida;
     botonDe3d.setAttribute("aria-pressed", String(activa));
     if (!camara || activa === camara.inclinado) return;
     if (animar && !reducido()) {
@@ -478,7 +469,6 @@ function crearPantalla(contenedor, ctx) {
     ajustar();
   }
   function alternar3d() {
-    if (estado.eje === "abajo") return;
     ctx.actualizarParametros({ vista: camara?.inclinado ? null : "3d" });
   }
 

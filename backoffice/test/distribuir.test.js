@@ -1,12 +1,14 @@
 // Distribución de la telaraña (diseño §10.5.1 y §9.3) y cuentas por perfil. Las formas "reales" son copias
 // reducidas de las tandas de agents/.runs/ (que no se versionan): wom 07-28 (páginas fusionadas, todo en la
-// ruta), dt (intento con error de la herramienta) y sii (títulos inferidos de la URL).
+// ruta), dt (intento con error de la herramienta) y sii (títulos inferidos de la URL). fixtures/telarana-sii.json es
+// la telaraña derivada de una tanda real y densa (sii 16-24-12: 27 páginas, 54 ramas).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { leerTanda } from "../lib/tandas.js";
-import { LIMITE_ANGULAR, distribuir, geometria, geometriaRadial, idDeTerminal, idDeTramoFinal } from "../public/telarana/distribuir.js";
+import { acomodar, contarCruces, distribuir, geometria, idDeTerminal, idDeTramoFinal } from "../public/telarana/distribuir.js";
 import {
   activosDePerfil,
   duracionDePaso,
@@ -54,6 +56,46 @@ const DT = {
 
 const enCelda = (d) => d.estaciones.map((e) => `${e.capa}:${e.fila}`);
 const porId = (lista) => new Map(lista.map((x) => [x.id, x]));
+const SII = JSON.parse(readFileSync(new URL("./fixtures/telarana-sii.json", import.meta.url), "utf8"));
+
+// Caja de una estación en la pantalla con detalle medio: el punto (18 px) y debajo la etiqueta de hasta 180 px de
+// ancho y 3 líneas (de y − 9 a y + 67).
+const ANCHO_DE_ETIQUETA = 180;
+const cajaDeEstacion = ({ x, y }) => ({ x0: x - ANCHO_DE_ETIQUETA / 2, x1: x + ANCHO_DE_ETIQUETA / 2, y0: y - 9, y1: y + 67 });
+const sePisan = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+/** ¿El segmento horizontal o vertical (p, q) entra en la caja? */
+const segmentoEnCaja = (p, q, c) => Math.max(p.x, q.x) > c.x0 && Math.min(p.x, q.x) < c.x1 && Math.max(p.y, q.y) > c.y0 && Math.min(p.y, q.y) < c.y1;
+
+/** Las propiedades del grafo por columnas que pide el diseño, sobre cualquier distribución. */
+function comprobarColumnas(d, g, nombre) {
+  const xDe = (id) => g.posiciones.get(id).x;
+  const inicio = d.estaciones.find((e) => e.tipo === "inicio");
+  const otras = d.estaciones.filter((e) => e !== inicio);
+  for (const e of otras) assert.ok(xDe(inicio.id) < xDe(e.id), `${nombre}: el inicio queda solo a la izquierda (${e.id})`);
+  const xMaxPaginas = Math.max(...d.estaciones.map((e) => xDe(e.id)));
+  if (d.troncoEsRuta) assert.equal(xDe(d.tronco.at(-1)), xMaxPaginas, `${nombre}: la meta va en la columna de más a la derecha`);
+  for (const terminal of d.terminales) assert.ok(xDe(terminal.id) > xMaxPaginas, `${nombre}: ${terminal.id} a la derecha de todas las páginas`);
+  for (const tramo of d.tramos) {
+    const [a, b] = [g.posiciones.get(tramo.origen), g.posiciones.get(tramo.destino)];
+    if (tramo.tipo === "tronco" || tramo.tipo === "avance" || tramo.tipo === "final") assert.ok(a.x < b.x, `${nombre}: ${tramo.id} (${tramo.tipo}) va de izquierda a derecha`);
+    if (tramo.tipo === "lateral") assert.equal(a.x, b.x, `${nombre}: ${tramo.id} lateral en la misma columna`);
+    if (tramo.tipo === "retroceso") assert.ok(a.x > b.x, `${nombre}: ${tramo.id} vuelve hacia la izquierda`);
+  }
+  // El tronco es una fila recta.
+  for (const id of d.tronco) assert.equal(g.posiciones.get(id).y, 0, `${nombre}: ${id} del tronco en y = 0`);
+  // Ninguna etiqueta pisa a otra.
+  const cajas = d.estaciones.map((e) => [e.id, cajaDeEstacion(g.posiciones.get(e.id))]);
+  for (let i = 0; i < cajas.length; i += 1)
+    for (let j = i + 1; j < cajas.length; j += 1) assert.ok(!sePisan(cajas[i][1], cajas[j][1]), `${nombre}: ${cajas[i][0]} y ${cajas[j][0]} se pisan`);
+  // Las vueltas atrás y los pasos laterales no atraviesan la etiqueta de ninguna otra estación.
+  for (const tramo of d.tramos.filter((t) => t.tipo === "retroceso" || t.tipo === "lateral")) {
+    const puntos = g.recorridos.get(tramo.id);
+    for (const [id, caja] of cajas) {
+      if (id === tramo.origen || id === tramo.destino) continue;
+      for (let i = 1; i < puntos.length; i += 1) assert.ok(!segmentoEnCaja(puntos[i - 1], puntos[i], caja), `${nombre}: ${tramo.id} cruza ${id}`);
+    }
+  }
+}
 
 test("entrada vacía → salida vacía", () => {
   for (const entrada of [undefined, null, {}, { paginas: [], ramas: [], ruta: null }]) {
@@ -63,6 +105,7 @@ test("entrada vacía → salida vacía", () => {
     assert.equal(g.posiciones.size, 0);
     assert.equal(g.caminos.size, 0);
     assert.deepEqual(g.caja, { x: 0, y: 0, ancho: 0, alto: 0 });
+    assert.equal(contarCruces(d, g), 0);
   }
 });
 
@@ -87,60 +130,60 @@ test("wom 07-28: un tronco recto con las 4 páginas y una sola terminal «Lograd
   assert.equal(d.filaMin, 0);
   assert.equal(d.filaMax, 0);
   const g = geometria(d);
-  for (const id of ["n1>n2", "n2>n3", "n3>n4"]) assert.match(g.caminos.get(id), /^M[-\d.]+ 0 L[-\d.]+ 0$/, "el tronco es una recta en y = 0");
+  for (const id of ["n1>n2", "n2>n3", "n3>n4", "n4>fin:logrado"]) assert.match(g.caminos.get(id), /^M[-\d.]+ 0 L[-\d.]+ 0$/, "el tronco es una recta en y = 0");
+  comprobarColumnas(d, g, "wom");
 });
 
 test("dt: el error de la herramienta es una terminal propia (no «Abandonado») con su tramo final", () => {
   const d = distribuir(DT);
-  assert.deepEqual(d.terminales.map((t) => [t.id, t.fila, t.total]), [
-    ["fin:logrado", 0, 2],
-    ["fin:error", 1, 1],
+  assert.deepEqual(d.terminales.map((t) => [t.id, t.capa, t.total]), [
+    ["fin:logrado", 3, 2],
+    ["fin:error", 3, 1],
   ]);
+  assert.equal(d.terminales[0].fila, 0, "Logrado sigue la fila de la ruta");
+  assert.ok(d.terminales[1].fila >= 0.5, "Error, separado de Logrado");
   const final = d.tramos.find((t) => t.id === idDeTramoFinal("n2", "error"));
-  assert.deepEqual(final, { id: "n2>fin:error", origen: "n2", destino: "fin:error", tipo: "final", intentos: 1, resultado: "error" });
+  assert.deepEqual({ ...final, escalas: final.escalas.map((e) => e.capa) }, { id: "n2>fin:error", origen: "n2", destino: "fin:error", tipo: "final", intentos: 1, resultado: "error", escalas: [2] });
   assert.ok(!d.terminales.some((t) => t.resultado === "abandonado"));
+  comprobarColumnas(d, geometria(d), "dt");
 });
 
-test("fixture con vuelta atrás: desvío que vuelve arriba, retroceso tipado y arco sobre la fila más alta", async () => {
+test("fixture con vuelta atrás: la vuelta va por el pasillo entre las dos columnas, fuera de las etiquetas", async () => {
   const tanda = await leerTanda(RAIZ, VIEJA);
   const d = distribuir(tanda.telarana);
   const estaciones = porId(d.estaciones);
   assert.deepEqual(d.tronco, ["n1", "n2", "n3"]);
-  // n4 («Planes») vuelve al inicio: va arriba aunque Móvil falle ahí.
   assert.equal(estaciones.get("n4").capa, 1);
-  assert.equal(estaciones.get("n4").fila, -1);
+  assert.notEqual(estaciones.get("n4").fila, 0, "n4 no pisa el tronco");
   const tramos = porId(d.tramos);
   assert.equal(tramos.get("n1>n4").tipo, "avance");
   assert.equal(tramos.get("n4>n1").tipo, "retroceso");
-  assert.deepEqual(d.terminales.map((t) => [t.resultado, t.fila]), [["logrado", 0], ["fallido", 1]]);
   const g = geometria(d);
-  // Arco: los dos puntos de control a (filaMin − 0.8)·altoFila = −1.8·96.
-  assert.equal(g.caminos.get("n4>n1"), "M220 -96 C220 -172.8, 0 -172.8, 0 0");
-  assert.ok(g.caja.y <= -172.8 - 60, "la caja incluye el arco y el margen");
+  // Sale de n4 hacia la izquierda, baja (o sube) por el pasillo x = 220 − 110 − 6 y entra a n1 por su derecha.
+  const puntos = g.recorridos.get("n4>n1");
+  assert.deepEqual(puntos.map((p) => p.x), [220, 104, 104, 0]);
+  assert.deepEqual([puntos[1].y, puntos[2].y], [g.posiciones.get("n4").y, 0]);
+  assert.match(g.caminos.get("n4>n1"), /^M220 -?[\d.]+ L.* Q104 .* L0 0$/);
+  comprobarColumnas(d, g, "vieja");
 });
 
-test("fixture con ciclo y páginas fusionadas: rama que solo falla abajo, ciclo como retroceso por debajo", async () => {
+test("fixture con ciclo y páginas fusionadas: ciclo como retroceso y terminales a la derecha", async () => {
   const tanda = await leerTanda(RAIZ, NUEVA);
   const d = distribuir(tanda.telarana);
   const estaciones = porId(d.estaciones);
   // n4 se fusionó en n2 (alias): no hay estación n4.
   assert.ok(!estaciones.has("n4"));
-  assert.equal(estaciones.get("n5").fila, 1);
-  assert.equal(estaciones.get("n6").fila, 1);
   assert.equal(estaciones.get("n5").capa, 1);
   assert.equal(estaciones.get("n6").capa, 2);
   const tramos = porId(d.tramos);
   assert.equal(tramos.get("n5>n6").tipo, "avance");
   assert.equal(tramos.get("n6>n5").tipo, "retroceso");
   // Error de la herramienta (Móvil en n2) y el fallo de Senior en n5.
-  assert.deepEqual(d.terminales.map((t) => [t.resultado, t.fila, t.total]), [["logrado", 0, 2], ["fallido", 1, 1], ["error", 2, 1]]);
-  const g = geometria(d);
-  // Los dos extremos están bajo el tronco: el arco va por debajo de la fila más baja (filaMax + 0.8).
-  const yA = (d.filaMax + 0.8) * 96;
-  assert.equal(g.caminos.get("n6>n5"), `M440 96 C440 ${Math.round(yA * 10) / 10}, 220 ${Math.round(yA * 10) / 10}, 220 96`);
+  assert.deepEqual(d.terminales.map((t) => [t.resultado, t.total]), [["logrado", 2], ["fallido", 1], ["error", 1]]);
+  comprobarColumnas(d, geometria(d), "nueva");
 });
 
-test("rama que vuelve al tronco va arriba, rama que solo falla va abajo, y no se pisan", () => {
+test("callejones sin salida junto a la página de la que salieron, sin compartir lugar", () => {
   const d = distribuir({
     paginas: [
       pagina("a", { esInicio: true, visitas: 5 }),
@@ -149,26 +192,26 @@ test("rama que vuelve al tronco va arriba, rama que solo falla va abajo, y no se
       pagina("planes", { visitas: 2 }),
       pagina("roto", { visitas: 1, finales: { ...SIN_FINALES, fallido: 1 } }),
       pagina("roto2", { visitas: 1, finales: { ...SIN_FINALES, abandonado: 1 } }),
+      pagina("hoja", { visitas: 1 }),
     ],
-    ramas: [rama("a", "b", 3), rama("b", "c", 3), rama("a", "planes", 2), rama("planes", "c", 1), rama("a", "roto", 1), rama("a", "roto2", 1)],
+    ramas: [rama("a", "b", 3), rama("b", "c", 3), rama("a", "planes", 2), rama("planes", "c", 1), rama("a", "roto", 1), rama("a", "roto2", 1), rama("planes", "hoja", 1)],
     ruta: { paginas: ["a", "b", "c"] },
   });
   const estaciones = porId(d.estaciones);
-  assert.equal(estaciones.get("planes").fila, -1);
-  assert.ok(estaciones.get("roto").fila > 0);
-  assert.ok(estaciones.get("roto2").fila > 0);
   const celdas = enCelda(d);
   assert.equal(new Set(celdas).size, celdas.length, "dos estaciones no comparten (capa, fila)");
-  // Mismo número de visitas y baricentro: desempata el id.
-  assert.equal(estaciones.get("roto").fila, 1);
-  assert.equal(estaciones.get("roto2").fila, 2);
-  assert.deepEqual(d.terminales.map((t) => [t.resultado, t.fila]), [["logrado", 0], ["fallido", 1], ["abandonado", 2]]);
-  // planes (capa 1) → c (capa 2): avance; el tronco no se mueve.
+  // hoja (callejón) sale de planes: queda una columna a la derecha y a menos de una fila de su altura (la parada de
+  // planes → c, que pasa por la misma columna, puede empujarla un poco).
+  assert.equal(estaciones.get("hoja").capa, estaciones.get("planes").capa + 1);
+  assert.ok(Math.abs(estaciones.get("hoja").fila - estaciones.get("planes").fila) < 1);
+  // Dos páginas de la misma columna quedan al menos a una fila.
+  for (const x of d.estaciones) for (const y of d.estaciones) if (x !== y && x.capa === y.capa) assert.ok(Math.abs(x.fila - y.fila) >= 1, `${x.id} y ${y.id}`);
   assert.equal(porId(d.tramos).get("planes>c").tipo, "avance");
   assert.deepEqual(d.tronco, ["a", "b", "c"]);
+  comprobarColumnas(d, geometria(d), "callejones");
 });
 
-test("rama lateral a la misma capa que el tronco se dibuja como avance, no como vuelta atrás", () => {
+test("paso lateral a la misma columna: tipo «lateral», rodea por el pasillo de la derecha", () => {
   const d = distribuir({
     paginas: [pagina("a", { esInicio: true }), pagina("b"), pagina("c"), pagina("x")],
     ramas: [rama("a", "b"), rama("b", "c"), rama("a", "x"), rama("x", "b")],
@@ -176,9 +219,10 @@ test("rama lateral a la misma capa que el tronco se dibuja como avance, no como 
   });
   const tramos = porId(d.tramos);
   assert.equal(porId(d.estaciones).get("x").capa, 1);
-  assert.equal(tramos.get("x>b").tipo, "avance");
+  assert.equal(tramos.get("x>b").tipo, "lateral");
   const g = geometria(d);
-  assert.match(g.caminos.get("x>b"), /^M220 -96 C308 -96, 308 0, 220 0$/);
+  assert.deepEqual(g.recorridos.get("x>b").map((p) => p.x), [220, 336, 336, 220]);
+  comprobarColumnas(d, g, "lateral");
 });
 
 test("sin ruta: el tronco es el camino más transitado y troncoEsRuta es false", () => {
@@ -194,6 +238,18 @@ test("sin ruta: el tronco es el camino más transitado y troncoEsRuta es false",
   assert.equal(estaciones.get("q").tipo, "pagina");
   assert.equal(estaciones.get("q").hito, null);
   assert.equal(porId(d.tramos).get("q>i").tipo, "retroceso");
+  comprobarColumnas(d, geometria(d), "sin ruta");
+});
+
+test("sin ruta: la página donde más lo lograron va a la columna de la meta", () => {
+  const d = distribuir({
+    paginas: [pagina("i", { esInicio: true }), pagina("p", { finales: { ...SIN_FINALES, logrado: 2 } }), pagina("q"), pagina("r")],
+    ramas: [rama("i", "p", 1), rama("i", "q", 4), rama("q", "r", 2)],
+    ruta: null,
+  });
+  const estaciones = porId(d.estaciones);
+  assert.equal(estaciones.get("p").capa, 3, "p (capa 1 por pasos) queda a la derecha de r (capa 2)");
+  assert.equal(d.capas, 4);
 });
 
 test("empate en el camino más transitado: decide el id", () => {
@@ -205,44 +261,67 @@ test("empate en el camino más transitado: decide el id", () => {
   assert.deepEqual(d.tronco, ["i", "a"]);
 });
 
-test("páginas sin camino desde el inicio van a una capa nueva; ramas a páginas desconocidas se ignoran", () => {
+test("páginas sin camino desde el inicio van a una columna nueva; ramas a páginas desconocidas se ignoran", () => {
   const d = distribuir({
     paginas: [pagina("i", { esInicio: true }), pagina("j"), pagina("suelta")],
     ramas: [rama("i", "j"), rama("j", "fantasma"), rama("j", "j")],
     ruta: { paginas: ["i", "j"] },
   });
   assert.equal(porId(d.estaciones).get("suelta").capa, 2);
+  assert.equal(porId(d.estaciones).get("j").capa, 3, "la meta, a la derecha de la página suelta");
   assert.deepEqual(d.tramos.map((t) => t.id), ["i>j"]);
 });
 
 test("determinista con la entrada en otro orden", async () => {
   const tanda = await leerTanda(RAIZ, NUEVA);
-  const base = distribuir(tanda.telarana);
-  const revuelta = {
-    paginas: [...tanda.telarana.paginas].reverse(),
-    ramas: [...tanda.telarana.ramas].sort(() => 0.5 - Math.random()).reverse(),
-    ruta: tanda.telarana.ruta,
-  };
-  assert.deepEqual(distribuir(revuelta), base);
-  assert.deepEqual([...geometria(distribuir(revuelta)).caminos], [...geometria(base).caminos]);
+  for (const entrada of [tanda.telarana, SII]) {
+    const base = distribuir(entrada);
+    const revuelta = {
+      paginas: [...entrada.paginas].reverse(),
+      ramas: [...entrada.ramas].sort(() => 0.5 - Math.random()).reverse(),
+      ruta: entrada.ruta,
+    };
+    assert.deepEqual(distribuir(revuelta), base);
+    assert.deepEqual([...geometria(distribuir(revuelta)).caminos], [...geometria(base).caminos]);
+  }
 });
 
-test("geometría: horizontal x = capa·220, y = fila·96; vertical intercambia los ejes", async () => {
+test("geometría: x = capa·220, y = fila·96; los avances son curvas horizontales por sus paradas", async () => {
   const tanda = await leerTanda(RAIZ, VIEJA);
   const d = distribuir(tanda.telarana);
-  const h = geometria(d);
-  const v = geometria(d, { orientacion: "vertical" });
-  assert.deepEqual(h.posiciones.get("n4"), { x: 220, y: -96 });
-  assert.deepEqual(v.posiciones.get("n4"), { x: -150, y: 120 });
-  assert.deepEqual(h.posiciones.get(idDeTerminal("logrado")), { x: 3 * 220, y: 0 });
-  assert.deepEqual(v.posiciones.get(idDeTerminal("logrado")), { x: 0, y: 3 * 120 });
-  // En vertical el tronco baja recto y el arco de vuelta va a la izquierda.
-  assert.match(v.caminos.get("n1>n2"), /^M0 0 L0 120$/);
-  assert.match(v.caminos.get("n4>n1"), /^M-150 120 C-270 120, -270 0, 0 0$/);
-  // Avance: cúbica horizontal con los controles en el punto medio.
-  assert.equal(h.caminos.get("n1>n4"), "M0 0 C110 0, 110 -96, 220 -96");
-  assert.equal(v.caminos.get("n1>n4"), "M0 0 C0 60, -150 60, -150 120");
-  for (const caja of [h.caja, v.caja]) for (const valor of Object.values(caja)) assert.equal(valor, Math.round(valor * 10) / 10);
+  const g = geometria(d);
+  for (const e of d.estaciones) assert.deepEqual(g.posiciones.get(e.id), { x: e.capa * 220, y: Math.round(e.fila * 96 * 10) / 10 });
+  assert.deepEqual(g.posiciones.get(idDeTerminal("logrado")), { x: 3 * 220, y: 0 });
+  const n4 = g.posiciones.get("n4");
+  assert.equal(g.caminos.get("n1>n4"), `M0 0 C110 0, 110 ${n4.y}, 220 ${n4.y}`);
+  for (const valor of Object.values(g.caja)) assert.equal(valor, Math.round(valor * 10) / 10);
+  for (const [, camino] of g.caminos) assert.doesNotMatch(camino, /NaN|Infinity/);
+});
+
+test("acomodar: respeta el orden y la separación, y se acerca a lo deseado", () => {
+  assert.deepEqual(acomodar([0, 0, 0], [1, 1, 1], [1, 1]), [-1, 0, 1]);
+  assert.deepEqual(acomodar([-5, 0, 5], [1, 1, 1], [1, 1]), [-5, 0, 5]);
+  // Con un peso enorme, el del medio se queda donde quiere y los otros se apartan.
+  const [a, b, c] = acomodar([2, 0, -2], [1, 1e6, 1], [1, 1]);
+  assert.ok(Math.abs(b) < 1e-5 && Math.abs(a + 1) < 1e-5 && Math.abs(c - 1) < 1e-5);
+});
+
+test("sii 16-24-12 (tanda real, 27 páginas): inicio a la izquierda, meta a la derecha, sin etiquetas pisadas y menos cruces", () => {
+  const d = distribuir(SII);
+  const g = geometria(d);
+  comprobarColumnas(d, g, "sii");
+  assert.deepEqual(d.tronco, ["n1", "n12"]);
+  assert.equal(porId(d.estaciones).get("n12").capa, d.capas - 1);
+  // La ruta n1 → n12 salta columnas: pasa recta (y = 0) por sus paradas.
+  const tronco = d.tramos.find((t) => t.tipo === "tronco");
+  assert.ok(tronco.escalas.length > 0 && tronco.escalas.every((e) => e.fila === 0));
+  assert.match(g.caminos.get(tronco.id), /^M0 0 L[\d.]+ 0$/);
+  // Los barridos de baricentro dejan menos cruces que el orden inicial (un solo barrido).
+  const unBarrido = distribuir(SII, { barridos: 1 });
+  const cruces = contarCruces(d, g);
+  const crucesConUnBarrido = contarCruces(unBarrido, geometria(unBarrido));
+  assert.ok(cruces < crucesConUnBarrido, `${cruces} cruces con barridos, ${crucesConUnBarrido} con uno solo`);
+  assert.ok(cruces <= 2, `medido al escribir la prueba: 2 (hay ${cruces})`);
 });
 
 test("cuentas por perfil: finales, terminales, activos y hitos de la ruta", async () => {
@@ -316,68 +395,4 @@ test("perfil vecino da la vuelta pasando por «todos»; duración de un paso aco
   assert.equal(duracionDePaso({ duracion: 3 }), 1500);
   assert.equal(duracionDePaso({ duracion: 60 }), 2500);
   assert.equal(duracionDePaso({}), 1000);
-});
-
-// ── Telaraña radial ─────────────────────────────────────────────────────
-
-test("radial dt: inicio al centro, un anillo por capa, la ruta sobre el eje y el error fuera del eje", () => {
-  const g = geometriaRadial(distribuir(DT), { paso: 190 });
-  assert.deepEqual(g.posiciones.get("n1"), { x: 0, y: 0 });
-  assert.deepEqual(g.posiciones.get("n2"), { x: 190, y: 0 });
-  assert.deepEqual(g.posiciones.get("n3"), { x: 380, y: 0 });
-  assert.deepEqual(g.anillos.map((a) => [a.capa, a.radio]), [[1, 190], [2, 380], [3, 570]]);
-  // Logrado sigue el eje un anillo más allá de n3; el error cae junto a n2, en el anillo siguiente y abajo del eje.
-  assert.deepEqual(g.posiciones.get("fin:logrado"), { x: 570, y: 0 });
-  const error = g.polares.get("fin:error");
-  assert.equal(error.anillo, 2);
-  assert.ok(error.angulo > 0 && g.posiciones.get("fin:error").y > 0);
-  for (const id of ["n1>n2", "n2>n3", "n3>fin:logrado"]) assert.match(g.caminos.get(id), /^M[\d.]+ 0 L[\d.]+ 0$/, "el eje es recto");
-  assert.equal(g.rayos.length, 16);
-  assert.ok(g.caja.x < -190 && g.caja.y < -190, "la caja incluye el primer anillo entero");
-  // Eje hacia abajo: x e y se intercambian.
-  const abajo = geometriaRadial(distribuir(DT), { eje: "abajo" });
-  assert.deepEqual(abajo.posiciones.get("n3"), { x: 0, y: 380 });
-});
-
-test("radial: desvíos repartidos por ángulo sin pisarse, arriba los que vuelven y abajo los que fallan", () => {
-  const d = distribuir({
-    paginas: [
-      pagina("a", { esInicio: true, visitas: 5 }),
-      pagina("b", { visitas: 4 }),
-      pagina("c", { visitas: 4, finales: { ...SIN_FINALES, logrado: 3 } }),
-      pagina("planes", { visitas: 2 }),
-      ...["r1", "r2", "r3", "r4", "r5", "r6"].map((id) => pagina(id, { finales: { ...SIN_FINALES, fallido: 1 } })),
-    ],
-    ramas: [rama("a", "b", 3), rama("b", "c", 3), rama("a", "planes", 2), rama("planes", "c", 1), ...["r1", "r2", "r3", "r4", "r5", "r6"].map((id) => rama("a", id))],
-    ruta: { paginas: ["a", "b", "c"] },
-  });
-  const espacio = 150;
-  const g = geometriaRadial(d, { espacio });
-  assert.ok(g.polares.get("planes").angulo < 0, "planes vuelve a la ruta: arriba");
-  for (const id of ["r1", "r2", "r3", "r4", "r5", "r6"]) assert.ok(g.polares.get(id).angulo > 0, `${id} solo falla: abajo`);
-  // Ningún par de nodos del mismo anillo queda a menos de `espacio` (medido sobre el arco).
-  const porAnillo = new Map();
-  for (const [id, p] of g.polares) if (p.anillo) porAnillo.set(p.anillo, [...(porAnillo.get(p.anillo) ?? []), { id, ...p }]);
-  for (const [anillo, nodos] of porAnillo) {
-    const radio = g.anillos.find((a) => a.capa === anillo).radio;
-    for (const n of nodos) assert.ok(Math.abs(n.angulo) <= LIMITE_ANGULAR + 1e-9);
-    for (let i = 0; i < nodos.length; i += 1)
-      for (let j = i + 1; j < nodos.length; j += 1) assert.ok(Math.abs(nodos[i].angulo - nodos[j].angulo) * radio >= espacio - 0.5, `${nodos[i].id} y ${nodos[j].id}`);
-  }
-  // El anillo 1 creció para que quepan los seis desvíos de un lado.
-  assert.ok(g.anillos[0].radio > 190);
-  assert.ok(g.anillos.every((a, i) => i === 0 || a.radio > g.anillos[i - 1].radio), "los radios crecen hacia afuera");
-});
-
-test("radial: vueltas atrás como arcos, ciclos sin romperse y determinista", async () => {
-  const tanda = await leerTanda(RAIZ, NUEVA);
-  const g = geometriaRadial(distribuir(tanda.telarana));
-  const vuelta = g.caminos.get("n6>n5");
-  assert.ok(vuelta && vuelta.split("L").length > 3, "el retroceso es una curva, no una recta");
-  for (const [, d] of g.caminos) assert.doesNotMatch(d, /NaN|Infinity/);
-  for (const [, p] of g.posiciones) assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y));
-  const ciclo = geometriaRadial(distribuir({ paginas: [pagina("i", { esInicio: true }), pagina("j"), pagina("k")], ramas: [rama("i", "j"), rama("j", "k"), rama("k", "i"), rama("k", "j")], ruta: null }));
-  assert.equal(ciclo.posiciones.size, 3);
-  assert.deepEqual([...geometriaRadial(distribuir(tanda.telarana)).caminos], [...g.caminos]);
-  assert.equal(geometriaRadial(distribuir({})).posiciones.size, 0);
 });

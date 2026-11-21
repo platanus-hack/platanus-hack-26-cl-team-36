@@ -59,9 +59,6 @@
 }
 .p-telarana .lienzo.arrastrando { cursor: grabbing; }
 .p-telarana .lienzo:focus-visible { outline-offset: -2px; }
-.p-telarana .lienzo[data-orientacion="vertical"] {
-  height: var(--alto-lienzo, auto); min-height: 240px; touch-action: pan-x pan-y; cursor: default;
-}
 .p-telarana .escena { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; --k: 1; }
 
 .p-telarana .telarana-zoom {
@@ -69,19 +66,6 @@
   background: var(--superficie-1); border: 1px solid var(--borde-sutil); border-radius: var(--radio-2);
   box-shadow: var(--brillo-superior);
 }
-
-/* ── Guías de la telaraña: rayos y anillos (hebras), detrás de todo ─────── */
-.p-telarana .telarana-guias {
-  position: absolute; left: var(--x); top: var(--y); overflow: visible; pointer-events: none;
-  max-width: none; max-height: none;
-}
-.p-telarana .guia-rayo { fill: none; stroke: oklch(1 0 0 / 0.07); stroke-width: calc(1px / var(--k)); }
-.p-telarana .guia-anillo { fill: none; stroke: oklch(1 0 0 / 0.14); stroke-width: calc(1.2px / var(--k)); }
-.p-telarana .guia-etiqueta {
-  fill: var(--texto-3); font-family: var(--fuente-mono, ui-monospace, monospace);
-  font-size: max(11px, calc(10px / var(--k))); letter-spacing: 0.02em;
-}
-.p-telarana .lienzo[data-vista="3d"] .guia-anillo { stroke: oklch(1 0 0 / 0.22); }
 
 /* ── Tramos (SVG) ───────────────────────────────────────────────────── */
 .p-telarana .telarana-tramos {
@@ -98,7 +82,10 @@
 .p-telarana .tramo-abandono .tramo-trazo { stroke-dasharray: 6 4; }
 .p-telarana .tramo-error { --tono: var(--neutro); }
 .p-telarana .tramo-error .tramo-trazo { stroke-dasharray: 2 3 8 3; }
-.p-telarana .tramo-retroceso .tramo-trazo { stroke-dasharray: 4 4; opacity: 0.85; }
+/* Vueltas atrás y pasos laterales: tenues hasta que se aíslan (al pasar el puntero, elegir una página o la historia). */
+.p-telarana :is(.tramo-retroceso, .tramo-lateral) .tramo-trazo { stroke-dasharray: 4 4; opacity: 0.35; transition: opacity var(--dur-3) var(--curva-salida); }
+.p-telarana .aislando :is(.tramo-retroceso, .tramo-lateral).activo .tramo-trazo { opacity: 0.95; }
+.p-telarana .leyenda-muestra :is(.tramo-retroceso, .tramo-lateral) .tramo-trazo { opacity: 0.8; }
 .p-telarana .tramo-tronco { --tono: var(--acento); }
 .p-telarana .tramo-tronco .tramo-trazo { filter: drop-shadow(0 0 6px var(--acento-sutil)); }
 
@@ -167,7 +154,7 @@
   background: color-mix(in oklch, var(--lienzo) 82%, transparent);
 }
 .p-telarana .estacion-nombre {
-  font-size: 13px; line-height: 16px; font-weight: 500; color: var(--texto-1); overflow-wrap: break-word;
+  font-size: 13px; line-height: 16px; font-weight: 500; color: var(--texto-1); overflow-wrap: anywhere; max-width: 100%;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
 }
 .p-telarana .estacion-detalle { font-size: 11px; line-height: 14px; color: var(--texto-3); }
@@ -182,22 +169,6 @@
 .p-telarana .lienzo[data-detalle="bajo"] .estacion-detalle { display: none; }
 .p-telarana .lienzo[data-detalle="alto"] :is(.estacion-url, .estacion-visitas) { display: block; }
 .p-telarana .lienzo[data-detalle="alto"] .estacion-miniatura { display: block; }
-
-/* Vertical: las etiquetas van a la derecha del punto y no se recortan. */
-.p-telarana .lienzo[data-orientacion="vertical"] .estacion { flex-direction: row; align-items: flex-start; transform: translate(-9px, -9px); gap: var(--e-2); }
-.p-telarana .lienzo[data-orientacion="vertical"] .estacion-etiqueta {
-  justify-items: start; text-align: start; max-width: 240px; transform-origin: top left; margin-top: -1px;
-}
-.p-telarana .lienzo[data-orientacion="vertical"] .estacion-nombre { -webkit-line-clamp: 4; line-clamp: 4; }
-
-/* Eje hacia abajo (lienzos altos): la etiqueta va al costado del punto, hacia afuera del eje. */
-.p-telarana .estacion[data-ancla="derecha"] { flex-direction: row; align-items: flex-start; transform: translate(-9px, -9px); gap: var(--e-2); }
-.p-telarana .estacion[data-ancla="izquierda"] { flex-direction: row-reverse; align-items: flex-start; transform: translate(calc(-100% + 9px), -9px); gap: var(--e-2); }
-.p-telarana .estacion:is([data-ancla="derecha"], [data-ancla="izquierda"]) .estacion-etiqueta { max-width: 150px; margin-top: -1px; }
-.p-telarana .estacion[data-ancla="derecha"] .estacion-etiqueta { justify-items: start; text-align: start; transform-origin: top left; }
-.p-telarana .estacion[data-ancla="izquierda"] .estacion-etiqueta { justify-items: end; text-align: end; transform-origin: top right; }
-.p-telarana .terminal[data-ancla="izquierda"] { flex-direction: row-reverse; transform: translate(calc(-100% + 11px), -50%); }
-.p-telarana .terminal[data-ancla="izquierda"] .terminal-etiqueta { transform-origin: right center; }
 
 /* ── Terminales ─────────────────────────────────────────────────────── */
 .p-telarana .terminal {
@@ -303,7 +274,6 @@
   .p-telarana .estacion { min-height: 0; }
   .p-telarana .estacion-punto { width: 24px; height: 24px; }
   .p-telarana .estacion { transform: translate(-50%, -12px); }
-  .p-telarana .lienzo[data-orientacion="vertical"] .estacion { transform: translate(-12px, -12px); }
 }
 @media (max-width: 640px) {
   .p-telarana .telarana-pista { display: none; }
