@@ -20,13 +20,24 @@
   padding-block: 2px; padding-inline: 2px;
 }
 .p-telarana .telarana-perfiles::-webkit-scrollbar { display: none; }
-.p-telarana .telarana-historia-control { display: flex; align-items: center; gap: var(--e-2); min-width: 0; }
+.p-telarana .telarana-historia-control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); min-width: 0; }
 .p-telarana .telarana-boton-historia[aria-pressed="true"] { background: var(--acento-sutil); color: var(--acento-fuerte); border-color: transparent; }
 .p-telarana .telarana-pista { display: inline-flex; }
+/* Sin flecha nativa: con `appearance: auto` la flecha de Android se dibuja sobre el relleno y tapa el final del texto
+   ("Primera vez · Lograd…"). La flecha va dibujada en el relleno derecho, así el ancho propio incluye todo el texto;
+   si no cabe en la fila, el control pasa a la línea siguiente en vez de recortarse. */
 .p-telarana .telarana-intento {
-  min-height: 32px; max-width: 220px; padding: 0 var(--e-2); border: 1px solid var(--borde); border-radius: var(--radio-2);
-  background: var(--superficie-2); color: var(--texto-1); font: inherit; font-size: 13px;
+  min-height: 32px; max-width: 100%; padding: 0 28px 0 var(--e-3);
+  border: 1px solid var(--borde); border-radius: var(--radio-2);
+  background: var(--superficie-2) no-repeat;
+  background-image: linear-gradient(45deg, transparent 50%, var(--texto-3) 50%), linear-gradient(135deg, var(--texto-3) 50%, transparent 50%);
+  background-size: 5px 5px, 5px 5px;
+  background-position: right 14px center, right 9px center;
+  color: var(--texto-1); font: inherit; font-size: 13px;
+  appearance: none; cursor: pointer;
 }
+.p-telarana .telarana-intento:hover { border-color: var(--borde-fuerte); }
+.p-telarana .telarana-intento option { background: var(--superficie-3); color: var(--texto-1); }
 
 /* ── Cuerpo: mapa + panel (panel al lado desde 1100 px de pestaña) ──── */
 .p-telarana .telarana-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-4); align-items: start; }

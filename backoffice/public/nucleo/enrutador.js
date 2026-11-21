@@ -436,7 +436,7 @@ async function procesar({ origen = "historial" } = {}) {
 
   try {
     if (remontarTodo) await montar();
-    else await conTransicion(montar, { direccion: soloPestana ? "lado" : direccionEntre(anterior, nueva) });
+    else await conTransicion(montar, { direccion: soloPestana ? "pestana" : direccionEntre(anterior, nueva) });
   } catch (error) {
     // montarPantalla ya atrapa los errores de la pantalla; esto es el marco u otra falla a medio armar.
     if (miTurno !== turno) return;

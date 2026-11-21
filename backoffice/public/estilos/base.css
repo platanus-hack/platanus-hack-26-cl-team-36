@@ -86,20 +86,31 @@ code { color: var(--texto-1); }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 
-/* Transiciones de vista (§6.3). Firefox no tiene tipos: la dirección va en <html data-nav>. */
+/* Transiciones de vista (§6.3). Nunca se funden dos textos: lo viejo se apaga en 60 ms y recién al final entra lo
+   nuevo (un fundido cruzado deja dos títulos encimados a mitad de camino). Total 180 ms. Firefox no tiene tipos:
+   la dirección va en <html data-nav> (adelante | atras | lado | pestana). */
 #contenido { view-transition-name: contenido; }
-.panel-tanda { view-transition-name: panel; }
-::view-transition-old(contenido), ::view-transition-new(contenido) {
-  animation-duration: 160ms;
-  animation-timing-function: var(--curva-salida);
+/* El panel se captura aparte solo al cambiar de pestaña; en una navegación completa va dentro de `contenido`. */
+html[data-nav="pestana"] .panel-tanda { view-transition-name: panel; }
+
+/* El armazón (lateral, barra) cambia sin animación; sus grupos no se mueven ni se estiran. */
+::view-transition-old(root) { animation: none; opacity: 0; }
+::view-transition-new(root) { animation: none; }
+::view-transition-group(root), ::view-transition-group(contenido), ::view-transition-group(panel) { animation: none; }
+
+::view-transition-old(contenido), ::view-transition-old(panel) {
+  animation: vt-salir 60ms ease-out both;
 }
-html[data-nav="adelante"]::view-transition-new(contenido) { animation-name: entrar-adelante; }
-html[data-nav="atras"]::view-transition-new(contenido) { animation-name: entrar-atras; }
-html[data-nav="lado"]::view-transition-old(contenido),
-html[data-nav="lado"]::view-transition-new(contenido) { animation: none; }
-::view-transition-old(panel), ::view-transition-new(panel) {
-  animation-duration: 120ms;
-  animation-timing-function: var(--curva-salida);
+::view-transition-new(contenido), ::view-transition-new(panel) {
+  animation: vt-entrar 130ms var(--curva-salida) 50ms both;
 }
-@keyframes entrar-adelante { from { opacity: 0; transform: translateX(12px); } }
-@keyframes entrar-atras { from { opacity: 0; transform: translateX(-12px); } }
+html[data-nav="adelante"]::view-transition-new(contenido) { animation-name: vt-entrar-adelante; }
+html[data-nav="atras"]::view-transition-new(contenido) { animation-name: vt-entrar-atras; }
+/* Cambio de pestaña: el marco no cambia (solo la pestaña marcada), así que se cambia de golpe; anima el panel. */
+html[data-nav="pestana"]::view-transition-old(contenido) { animation: none; opacity: 0; }
+html[data-nav="pestana"]::view-transition-new(contenido) { animation: none; }
+
+@keyframes vt-salir { to { opacity: 0; } }
+@keyframes vt-entrar { from { opacity: 0; } }
+@keyframes vt-entrar-adelante { from { opacity: 0; transform: translateX(12px); } }
+@keyframes vt-entrar-atras { from { opacity: 0; transform: translateX(-12px); } }

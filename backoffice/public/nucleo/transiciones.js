@@ -1,5 +1,6 @@
 // Transiciones de vista (diseño §5.10, §6.3). Los datos se cargan ANTES de llamar: durante la transición la página
-// está congelada. Firefox no tiene tipos de transición: la dirección va en <html data-nav="…">.
+// está congelada. Firefox no tiene tipos de transición: la dirección va en <html data-nav="…">, y estilos/base.css
+// decide qué se captura y cómo anima según ella ("pestana" solo anima el panel de la tanda).
 
 const movimientoReducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
@@ -16,7 +17,7 @@ const ESPERA_DE_TRANSICION = 250;
  * Resuelve cuando el DOM nuevo ya está puesto (no espera a que termine la animación). `actualizarDom` corre
  * una sola vez siempre, aunque la transición no llegue a empezar; si lanza, el error sale de aquí.
  * @param {() => void | Promise<void>} actualizarDom
- * @param {{ direccion?: "adelante" | "atras" | "lado" }} opciones
+ * @param {{ direccion?: "adelante" | "atras" | "lado" | "pestana" }} opciones
  */
 export async function conTransicion(actualizarDom, { direccion = "lado" } = {}) {
   if (!puedeAnimar() || document.visibilityState !== "visible") {
