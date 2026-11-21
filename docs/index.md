@@ -1,7 +1,7 @@
 # Páginas web que se adaptan a cada persona, con cambios que se prueban antes de aplicarse
 
 **Qué es este documento.** El punto de entrada del proyecto, para cualquiera del equipo o del jurado. No hace falta
-haber leído nada antes. Es una **propuesta en revisión**: cambia el rumbo respecto de [specs/MVP.md](../specs/MVP.md),
+haber leído nada antes. Es una **propuesta en revisión**: cambia el rumbo respecto de [.specs/MVP.md](../.specs/MVP.md),
 y la sección 1 dice en qué.
 
 **En un párrafo.** Una extensión de navegador mejora cualquier página web sin tocar el sitio original. Hace dos
@@ -44,7 +44,7 @@ sale de la caché.
   unas tarjetas demasiado estrechas.
 - **No sabemos si un cambio ayuda o estorba.** Solo sabemos si a la persona le gusta.
 
-### Qué cambia respecto de `specs/MVP.md`
+### Qué cambia respecto de `.specs/MVP.md`
 
 Ese documento propone más que el prototipo: un servidor central donde las personas comparten y valoran sus
 adaptaciones, un recomendador, el registro de cómo navega cada persona, y una validación con agentes de IA.

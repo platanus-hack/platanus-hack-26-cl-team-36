@@ -1,6 +1,6 @@
 # Tareas en sitios chilenos para la validación con agentes
 
-Propuesta para la pregunta abierta 6 de [specs/MVP.md](../specs/MVP.md): *¿qué tareas se usan en la validación con
+Propuesta para la pregunta abierta 6 de [.specs/MVP.md](../.specs/MVP.md): *¿qué tareas se usan en la validación con
 agentes, y en qué sitio?* Son tres tareas en sitios reales donde una persona se pierde. Las tres se completan **sin
 sesión iniciada** y se comprobaron con clics el 21-nov-2026. Nada de esto es código todavía.
 

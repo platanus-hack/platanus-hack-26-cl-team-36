@@ -16,7 +16,7 @@ Así se ubica en el repositorio:
 ```
 platanus-hack-26-cl-team-36/
   backend/  extension/  prototipo/        ← lo que ya existe: la extensión y su servidor
-  docs/  specs/  spikes/                  ← documentación y pruebas cortas
+  docs/  .specs/  .spikes/                ← documentación y pruebas cortas
   agents/                                 ← NUEVO: el proyecto de AgentCore
     agentcore/                            ← configuración de despliegue (se crea en el avance 5)
     app/

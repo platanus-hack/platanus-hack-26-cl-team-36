@@ -22,8 +22,8 @@ el **optimizador** para proponer parches.
    del spike 2 trabajan solo con texto. Este documento propone solo capturas, por las razones de la sección 1, y
    reemplaza esa regla por la del avance 1: si con capturas el agente no logra la tarea en la página sin el defecto,
    se vuelve al texto.
-2. **El código del avance 1 se conserva.** Un spike no deja código que se conserve ([spikes](../../spikes/README.md)). El
-   spike 2 se haría con el código del avance 1, y su informe va igual en `spikes/`.
+2. **El código del avance 1 se conserva.** Un spike no deja código que se conserve ([spikes](../../.spikes/README.md)). El
+   spike 2 se haría con el código del avance 1, y su informe va igual en `.spikes/`.
 3. **El avance 5 corre en AWS.** El plan dice que todo corre en el computador de la persona, sin servidor, y gasta de
    su propio plan de Claude. El avance 5 rompe eso: es opcional y sirve para escalar, no para medir.
 
@@ -248,7 +248,7 @@ resultado se mide en el 4 reducido.
 ### Avance 4 reducido · Tanda mínima
 
 Diez intentos con el defecto y diez sin él, uno tras otro, con el código del avance 1 y sin grafo. Deja la tasa de
-éxito de cada versión, la de errores de puntería, el costo y el tiempo por paso. El informe va en `spikes/` como el
+éxito de cada versión, la de errores de puntería, el costo y el tiempo por paso. El informe va en `.spikes/` como el
 del spike 2.
 
 **Control de torpeza.** Si más del 20 % de los pasos son errores de puntería, el resultado mide al modelo, no la
