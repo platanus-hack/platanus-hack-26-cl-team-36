@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chameleon</title>
+    <link rel="stylesheet" href="popup.css" />
+    <script type="module" src="popup.js"></script>
+  </head>
+  <body data-activo="cargando">
+    <main class="mt-panel">
+      <header class="mt-cabecera">
+        <p class="mt-marca">Chameleon</p>
+        <p class="mt-chip" id="mt-chip" aria-hidden="true">…</p>
+      </header>
+
+      <!-- Opinión sobre la página (arriba, a pedido del usuario). data-modo lo pone popup.js:
+           "completa" | "solo-comentario" | "no-disponible" | "cargando" (ver estado.js). -->
+      <section class="mt-opinion" id="mt-opinion" data-modo="cargando" aria-labelledby="mt-opinion-titulo">
+        <h1 class="mt-opinion-titulo" id="mt-opinion-titulo">Ayúdanos a mejorar tu experiencia</h1>
+        <p class="mt-pregunta" id="mt-pregunta">¿Esta página es mejor para ti que la original?</p>
+        <p class="mt-aviso" id="mt-aviso"></p>
+
+        <form class="mt-formulario" id="mt-formulario" novalidate>
+          <div class="mt-opciones" role="group" aria-labelledby="mt-pregunta">
+            <button type="button" class="mt-opcion mt-opcion-tema" data-voto="mejor" aria-pressed="false">
+              <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+              <span>Mejor</span>
+            </button>
+            <button type="button" class="mt-opcion mt-opcion-tema" data-voto="peor" aria-pressed="false">
+              <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5v14M5 12l7 7 7-7" />
+              </svg>
+              <span>Peor</span>
+            </button>
+            <button type="button" class="mt-opcion" data-voto="comentario" aria-pressed="false">
+              <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 5h16v11H9l-5 4z" />
+              </svg>
+              <span>Solo quiero comentar</span>
+            </button>
+          </div>
+
+          <label class="mt-oculto-visual" for="mt-comentario">Comentario</label>
+          <textarea
+            class="mt-comentario"
+            id="mt-comentario"
+            rows="2"
+            maxlength="2000"
+            placeholder="Cuéntanos qué cambiarías (opcional)"
+          ></textarea>
+
+          <div class="mt-envio">
+            <p class="mt-mensaje" id="mt-mensaje" role="status" aria-live="polite"></p>
+            <p class="mt-pista" id="mt-pista"></p>
+            <button type="submit" class="mt-enviar" id="mt-enviar" disabled>Enviar</button>
+          </div>
+        </form>
+
+        <footer class="mt-pie">
+          <p class="mt-pendientes" id="mt-pendientes"></p>
+          <p class="mt-privacidad">
+            Al enviar se guarda una copia de esta página (antes y después del tema) solo en tu equipo.
+          </p>
+        </footer>
+      </section>
+
+      <!-- Interruptor ON/OFF: guarda `activo` en storage.local y content/motor.js anima el cambio. -->
+      <section class="mt-control" aria-label="Encender o apagar Chameleon">
+        <button type="button" class="mt-interruptor" id="mt-interruptor" aria-pressed="false" aria-describedby="mt-estado-ayuda" disabled>
+          <span class="mt-anillo" aria-hidden="true"></span>
+          <span class="mt-disco" aria-hidden="true">
+            <img class="mt-logo mt-logo-color" src="../icons/icon.svg" alt="" />
+            <img class="mt-logo mt-logo-mono" src="../icons/logo-mono-blanco.svg" alt="" />
+          </span>
+          <span class="mt-oculto-visual">Chameleon</span>
+        </button>
+        <p class="mt-estado" id="mt-estado" aria-hidden="true">Cargando…</p>
+        <p class="mt-estado-ayuda" id="mt-estado-ayuda"></p>
+      </section>
+    </main>
+  </body>
+</html>

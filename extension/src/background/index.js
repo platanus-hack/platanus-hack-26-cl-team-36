@@ -2,14 +2,21 @@
 // En Firefox MV3 corre como "event page" (background.scripts), NO como service worker.
 //
 // Responsabilidades:
-//   1. Botón de la barra: activa/desactiva el tema (guarda `activo` en storage).
+//   1. Badge ON/OFF del ícono, sincronizado con `activo` en storage (el interruptor está en el popup).
 //   2. Preguntarle a la API qué tema corresponde a cada página e inyectar su CSS.
+//   3. Guardar en el equipo los votos del usuario sobre la página con tema (ver votos.js).
 
+import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
 import { consultarTema } from "./api.js";
 import { cargarTemaLocal } from "./temas-locales.js";
 import { resolverTema } from "./temas.js";
+import { crearAlmacenVotos, crearRegistroVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
 
-// ---------- 1. Botón de la barra de herramientas ----------
+// ---------- 1. Estado ON/OFF y badge ----------
+
+// El ON/OFF vive en el popup (popup/popup.js), que guarda `activo` en storage.local;
+// content/motor.js escucha ese cambio y anima la página. Acá solo se pinta el badge,
+// escuchando storage: así queda al día venga de donde venga el cambio.
 
 async function leerActivo() {
   const { activo = true } = await browser.storage.local.get("activo");
@@ -23,21 +30,9 @@ async function pintarBadge(activo) {
   if (browser.action.setBadgeTextColor) await browser.action.setBadgeTextColor({ color: "#0B0B10" });
 }
 
-// Clic en el ícono: invierte el estado y lo guarda.
-// content/motor.js escucha el cambio en storage y aplica/quita el tema al instante.
-// Los clics se encolan: leer y guardar son asíncronos, y dos clics seguidos que leyeran
-// el mismo valor viejo contarían como uno solo.
-let clicsPendientes = Promise.resolve();
-
-async function alternar() {
-  const activo = !(await leerActivo());
-  await browser.storage.local.set({ activo });
-  await pintarBadge(activo);
-}
-
-browser.action.onClicked.addListener(() => {
-  clicsPendientes = clicsPendientes.then(alternar, alternar);
-  return clicsPendientes;
+browser.storage.onChanged.addListener((cambios, area) => {
+  if (area !== "local" || !("activo" in cambios)) return;
+  pintarBadge(cambios.activo.newValue ?? true).catch((error) => console.error("[mi-tema] No se pudo pintar el badge:", error));
 });
 
 browser.runtime.onStartup.addListener(async () => pintarBadge(await leerActivo()));
@@ -87,12 +82,135 @@ async function aplicarTema(sender) {
     target: { tabId: sender.tab.id, frameIds: [sender.frameId] },
     css: tema.css,
   });
+  if (sender.frameId === 0) cssPorPestana.set(sender.tab.id, { temaId: tema.id, css: tema.css });
 
   const { css, ...resto } = tema;
   return resto;
 }
 
+// ---------- 3. Votos ----------
+
+// Los votos (con el HTML de la página) se guardan solo en el equipo, en IndexedDB.
+// La subida al servidor todavía no existe: ver sincronizarVotos en votos.js.
+const almacenVotos = crearAlmacenVotos(crearAdaptadorIndexedDB());
+
+// CSS que aplicarTema inyectó en cada pestaña, para incrustarlo en el HTML "editado".
+// Firefox descarga el background tras un rato sin uso y esto se pierde: por eso, si no
+// está (o es de otro tema), se vuelve a cargar el tema por su id.
+const cssPorPestana = new Map(); // tabId → { temaId, css }
+browser.tabs.onRemoved.addListener((tabId) => cssPorPestana.delete(tabId));
+
+// CSS base de las features y componentes (los `css` de content_scripts). Sin él, el
+// editado mostraría la vista sin estilo y la sección original sin ocultar. Se omite
+// transicion.css: todo va bajo html[data-mt-transicion], que la captura quita.
+let cssFeatures = null;
+function leerCssFeatures() {
+  cssFeatures ??= (async () => {
+    // Firefox devuelve URLs completas (moz-extension://<uuid>/…): se pasan a rutas relativas,
+    // que el uuid es propio de cada instalación y no debe quedar en el HTML guardado.
+    const raiz = browser.runtime.getURL("/");
+    const archivos = browser.runtime
+      .getManifest()
+      .content_scripts.flatMap((cs) => cs.css ?? [])
+      .map((archivo) => new URL(archivo, raiz).pathname.replace(/^\//, ""))
+      .filter((archivo) => archivo !== "content/transicion.css");
+    const textos = await Promise.all(
+      archivos.map(async (archivo) => {
+        const respuesta = await fetch(browser.runtime.getURL(archivo));
+        if (!respuesta.ok) throw new Error(`No se pudo leer ${archivo} (${respuesta.status})`);
+        return `/* ${archivo} */\n${await respuesta.text()}`;
+      }),
+    );
+    return textos.join("\n");
+  })();
+  cssFeatures.catch(() => (cssFeatures = null)); // reintentar en la próxima llamada
+  return cssFeatures;
+}
+
+async function cssParaEditado(tabId, temaId) {
+  if (!temaId) return "";
+  const inyectado = cssPorPestana.get(tabId);
+  let cssTema = inyectado?.temaId === temaId ? inyectado.css : null;
+  if (cssTema === null) {
+    try {
+      cssTema = (await cargarTemaLocal(temaId)).css;
+    } catch (error) {
+      console.warn(`[mi-tema] No se pudo cargar el CSS del tema "${temaId}" para el voto:`, error);
+      cssTema = "";
+    }
+  }
+  const features = await leerCssFeatures().catch((error) => {
+    console.warn("[mi-tema] No se pudo leer el CSS de las features para el voto:", error);
+    return "";
+  });
+  return `${features}\n/* tema ${temaId} */\n${cssTema}`;
+}
+
+// `voto:guardar` { tabId?, voto, comentario } → { ok: true, id, pendientes } | { ok: false, error }
+// `tabId` hace falta si el mensaje no viene de un content script (p. ej. un popup).
+async function guardarVoto(mensaje, sender) {
+  const validacion = validarVoto(mensaje);
+  if (!validacion.ok) return { ok: false, error: validacion.error };
+
+  const tabId = mensaje.tabId ?? sender.tab?.id;
+  if (!Number.isInteger(tabId)) return { ok: false, error: "No se sabe de qué pestaña es tu opinión." };
+
+  let captura;
+  try {
+    captura = await browser.tabs.sendMessage(tabId, { tipo: "voto:capturar" }, { frameId: 0 });
+  } catch (error) {
+    console.warn("[mi-tema] No se pudo capturar la página para el voto:", error);
+    captura = null;
+  }
+  if (!captura) return { ok: false, error: "No se pudo leer esta página. Recárgala e inténtalo de nuevo." };
+  if (!captura.temaId && validacion.voto !== "comentario") {
+    return { ok: false, error: "Esta página no tiene un tema de Chameleon: no hay con qué comparar." };
+  }
+
+  try {
+    const [cssTema, idUsuario] = await Promise.all([
+      cssParaEditado(tabId, captura.temaId),
+      obtenerIdUsuario(browser.storage.local),
+    ]);
+    const registro = await crearRegistroVoto({
+      idUsuario,
+      voto: validacion.voto,
+      comentario: validacion.comentario,
+      captura,
+      cssTema,
+      versionExtension: browser.runtime.getManifest().version,
+    });
+    await almacenVotos.guardar(registro);
+    if (registro.originalOmitido || registro.editadoOmitido) {
+      console.info("[mi-tema] Voto guardado sin parte del HTML por tamaño:", registro.bytes);
+    }
+    return { ok: true, id: registro.id, pendientes: await almacenVotos.contar() };
+  } catch (error) {
+    console.error("[mi-tema] No se pudo guardar el voto:", error);
+    return { ok: false, error: "No se pudo guardar tu opinión. Inténtalo de nuevo." };
+  }
+}
+
+// `votos:estado` → { pendientes } (votos guardados en el equipo, aún sin subir).
+async function estadoVotos() {
+  try {
+    return { pendientes: await almacenVotos.contar() };
+  } catch (error) {
+    console.error("[mi-tema] No se pudieron contar los votos:", error);
+    return { pendientes: 0, error: "No se pudieron leer las opiniones guardadas." };
+  }
+}
+
+// Cada listener devuelve una promesa con la respuesta, o undefined si el mensaje no es suyo.
 browser.runtime.onMessage.addListener((mensaje, sender) => {
-  if (mensaje?.tipo === "tema:aplicar") return aplicarTema(sender);
-  return undefined; // no es para nosotros
+  switch (mensaje?.tipo) {
+    case "tema:aplicar":
+      return aplicarTema(sender);
+    case "voto:guardar":
+      return guardarVoto(mensaje, sender);
+    case "votos:estado":
+      return estadoVotos();
+    default:
+      return undefined; // no es para nosotros
+  }
 });
