@@ -83,6 +83,7 @@ async def run_batch(
     effort: str = config.USER_EFFORT,
     cdp_url: str | None = None,
     task_id: str | None = None,
+    record_video: bool = False,
 ) -> Path:
     """Corre una tanda y devuelve su carpeta, con report.md, route_tree.json y una carpeta por perfil."""
     batch_dir = output_dir / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -106,7 +107,7 @@ async def run_batch(
             try:
                 criteria_task = asyncio.create_task(_criteria_for(judge, browser, url, instruction))
                 users = [
-                    SyntheticUser(make_engine(), browser, PROFILES[key], url, instruction, batch_dir / key)
+                    SyntheticUser(make_engine(), browser, PROFILES[key], url, instruction, batch_dir / key, record_video)
                     for key in profile_keys
                 ]
                 attempts = await asyncio.gather(*(user.attempt() for user in users), return_exceptions=True)

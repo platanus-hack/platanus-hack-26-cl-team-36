@@ -1,17 +1,21 @@
-# Copia main del repo de la organización al repo personal, que es donde corren
-# los despliegues (ver infra/README.md). El repo de la organización manda: lo que
-# esté solo en main del repo personal se pierde. En el repo de la organización
-# el job se salta.
+# Copia main y los tags del repo de la organización al repo personal, que es donde
+# corren los despliegues (ver infra/README.md). El repo de la organización manda: lo
+# que esté solo en main del repo personal se pierde. Los tags v* disparan el workflow
+# "Publicar extensión". En el repo de la organización el job se salta.
 #
 # Necesita el secreto SYNC_TOKEN en el repo personal: un token fine-grained con
 # Contents y Workflows en lectura y escritura sobre ese repo. Con GITHUB_TOKEN no
-# sirve: no puede subir cambios a .github/workflows/ y sus pushes no disparan el
-# workflow de Terraform.
+# sirve: no puede subir cambios a .github/workflows/ y sus pushes no disparan los
+# workflows de Terraform ni de publicación.
 name: Sincroniza desde la organización
 
 on:
+  # GitHub no garantiza los horarios: los atrasa o salta cuando tiene carga, sobre
+  # todo en el minuto 0. Por eso corre en los minutos 2, 7, 12... Si no hay corridas
+  # programadas en la pestaña Actions, desactivar y reactivar el workflow suele
+  # destrabarlo. Mientras tanto, se puede correr a mano con "Run workflow".
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "2-59/5 * * * *"
   workflow_dispatch:
 
 concurrency:
@@ -25,10 +29,14 @@ jobs:
     if: github.repository == 'brayanmoreno/hackathon-grupo36'
     runs-on: ubuntu-latest
     steps:
-      - name: Copia main
+      - name: Copia main y los tags
         env:
           SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
         run: |
           git init -q espejo && cd espejo
-          git fetch -q https://github.com/platanus-hack/platanus-hack-26-cl-team-36.git main
-          git push --force "https://x-access-token:${SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" FETCH_HEAD:refs/heads/main
+          git fetch -q https://github.com/platanus-hack/platanus-hack-26-cl-team-36.git \
+            "refs/heads/main:refs/remotes/org/main" "refs/tags/*:refs/tags/*"
+          destino="https://x-access-token:${SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force "$destino" refs/remotes/org/main:refs/heads/main
+          # Sin --force: un tag ya publicado nunca se mueve.
+          git push "$destino" --tags

@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from playwright.async_api import Browser
@@ -17,14 +18,29 @@ from route_tree import node_key
 NOT_EXECUTED_MESSAGE = "Not executed: an earlier computer action in this turn failed."
 
 
+def _iso(moment: datetime) -> str:
+    return moment.isoformat(timespec="milliseconds")
+
+
 class SyntheticUser:
-    def __init__(self, engine, browser: Browser, profile: Profile, url: str, instruction: str, run_dir: Path):
+    def __init__(
+        self,
+        engine,
+        browser: Browser,
+        profile: Profile,
+        url: str,
+        instruction: str,
+        run_dir: Path,
+        record_video: bool = False,
+    ):
         self.engine = engine
         self.browser = browser
         self.profile = profile
         self.url = url
         self.instruction = instruction
         self.run_dir = run_dir
+        self.record_video = record_video
+        self.session: BrowserSession | None = None
         self.run = Run(
             profile=profile.key,
             profile_name=profile.name,
@@ -40,17 +56,25 @@ class SyntheticUser:
 
     async def attempt(self) -> Run:
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        context = await create_context(self.browser, self.profile)
+        context = await create_context(self.browser, self.profile, self.run_dir if self.record_video else None)
         try:
             self.session = BrowserSession(context, self.profile)
             self.executor = Executor(self.session)
             await self.session.open(self.url)
             await self._loop()
         finally:
-            await self.engine.close()
-            self.run.token_usage = self.engine.usage
-            self.run.save(self.run_dir)
-            await context.close()
+            try:
+                await self.engine.close()
+            finally:
+                self.run.token_usage = self.engine.usage
+                self.run.save(self.run_dir)  # antes de cerrar el navegador: si eso falla, el resultado ya quedó
+                try:
+                    await context.close()  # recién aquí Playwright termina de escribir los videos
+                    if self.record_video and self.session:
+                        self.run.videos = await self.session.save_videos(self.run_dir, self.run.incidents)
+                except Exception as error:  # el intento ya terminó: un fallo al cerrar no debe cambiar su resultado
+                    self.run.incidents.append(f"al cerrar el navegador: {type(error).__name__}: {error}"[:300])
+                self.run.save(self.run_dir)
         return self.run
 
     async def _loop(self) -> None:
@@ -61,6 +85,11 @@ class SyntheticUser:
         run.final_screenshot = run.start["screenshot"]
         self.visited_nodes = {node_key(url, title)}
         self.started_at = time.monotonic()
+        self.started_wall = datetime.now().astimezone()
+        run.start["at"] = run.started_at = _iso(self.started_wall)
+        self.decided_s: float | None = None
+        if self.session.opened_at is not None:
+            run.video_offset_s = round(self.started_at - self.session.opened_at, 2)
         self.last_step_end_s = 0.0
         self._log(f"inicio en {url} — {title!r}")
 
@@ -82,6 +111,7 @@ class SyntheticUser:
                     turn = await asyncio.wait_for(self.engine.decide(), timeout=remaining_s)
                 except TimeoutError:
                     raise AttemptEnded("time_limit")
+                self.decided_s = self._elapsed()
                 if turn.final:
                     raise AttemptEnded(*turn.final)
                 results = await self._process_requests(turn.requests)
@@ -158,10 +188,12 @@ class SyntheticUser:
         self.session.http_status = None
         self.session.events.clear()
 
+        executed_s = self._elapsed()
         executed = await self.executor.execute(name, action_input)
         await self.session.wait_until_settled()
 
         self.current_screenshot = await self.session.screenshot()
+        settled_s = self._elapsed()
         screenshot_file = self._save_screenshot(number, self.current_screenshot)
         url, title = await self.session.url_and_title()
         change_ratio = screen_change_ratio(screenshot_before, self.current_screenshot)
@@ -183,7 +215,7 @@ class SyntheticUser:
             signals.append("security_block")
         self.visited_nodes.add(node_after)
 
-        elapsed_s = round(time.monotonic() - self.started_at, 2)
+        elapsed_s = settled_s
         run.steps.append(Step(
             number=number,
             action=name,
@@ -204,11 +236,23 @@ class SyntheticUser:
             signals=signals,
             error_detail=error_detail,
             events=list(self.session.events),
+            decided_s=self.decided_s,
+            executed_s=executed_s,
+            settled_s=settled_s,
+            decided_at=self._wall(self.decided_s),
+            executed_at=self._wall(executed_s),
+            settled_at=self._wall(settled_s),
         ))
         run.final_screenshot = screenshot_file
         self.last_step_end_s = elapsed_s
         target = f" sobre «{element.get('text')}»" if element and element.get("text") else ""
         self._log(f"paso {number}: {executed.description}{target} -> {title!r} {signals or ''}")
+
+    def _elapsed(self) -> float:
+        return round(time.monotonic() - self.started_at, 2)
+
+    def _wall(self, seconds: float | None) -> str:
+        return "" if seconds is None else _iso(self.started_wall + timedelta(seconds=seconds))
 
     def _save_screenshot(self, number: int, png: bytes) -> str:
         filename = f"step_{number:02d}.png"

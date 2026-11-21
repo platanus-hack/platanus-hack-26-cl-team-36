@@ -70,6 +70,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", default=config.USER_MODEL, help="modelo de los usuarios sintéticos")
     parser.add_argument("--effort", default=config.USER_EFFORT, choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument("--cdp-url", default=None, help="navegador remoto vía CDP (por defecto, Chromium local)")
+    parser.add_argument(
+        "--record-video",
+        action="store_true",
+        help="graba un video .webm de cada intento, además de las capturas de cada paso",
+    )
     return parser
 
 
@@ -110,6 +115,7 @@ def main() -> None:
         effort=args.effort,
         cdp_url=args.cdp_url,
         task_id=args.task,
+        record_video=args.record_video,
     ))
     print(f"\nListo. Reporte: {display_path(batch_dir / 'report.md')}")
 

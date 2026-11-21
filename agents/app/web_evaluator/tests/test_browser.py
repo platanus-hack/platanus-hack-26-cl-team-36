@@ -117,3 +117,51 @@ def test_mobile_taps_and_scrolls(site):
         assert (await session.url_and_title())[1] == "Dos"
 
     asyncio.run(_with_session(site, MOBILE, body))
+
+
+def test_record_video_saves_one_webm_per_tab(site, tmp_path):
+    video_dir = tmp_path / "run"
+    video_dir.mkdir()
+    (site / "opener.html").write_text(
+        """<title>Abre</title>
+        <a href="two.html" target="_blank" style="position:absolute;left:20px;top:20px;font-size:30px">Nueva</a>""",
+        encoding="utf-8",
+    )
+
+    async def scenario():
+        async with async_playwright() as playwright:
+            browser = await connect_browser(playwright)
+            try:
+                context = await create_context(browser, DESKTOP, video_dir)
+                session = BrowserSession(context, DESKTOP)
+                await session.open((site / "opener.html").as_uri())
+                await Executor(session).execute("left_click", {"coordinate": [40, 35]})
+                await session.wait_until_settled()
+                assert (await session.url_and_title())[1] == "Dos"
+                await context.close()
+                return await session.save_videos(video_dir, [])
+            finally:
+                await browser.close()
+
+    names = asyncio.run(scenario())
+    assert names == ["video.webm", "video-2.webm"]
+    for name in names:
+        data = (video_dir / name).read_bytes()
+        assert data[:4] == b"\x1a\x45\xdf\xa3"  # cabecera EBML de WebM
+    assert sorted(p.name for p in video_dir.iterdir()) == sorted(names)  # no quedan archivos con nombre aleatorio
+
+
+def test_without_video_dir_nothing_is_recorded(site, tmp_path):
+    async def scenario():
+        async with async_playwright() as playwright:
+            browser = await connect_browser(playwright)
+            try:
+                context = await create_context(browser, DESKTOP)
+                session = BrowserSession(context, DESKTOP)
+                await session.open((site / "one.html").as_uri())
+                await context.close()
+                return await session.save_videos(tmp_path, [])
+            finally:
+                await browser.close()
+
+    assert asyncio.run(scenario()) == []
