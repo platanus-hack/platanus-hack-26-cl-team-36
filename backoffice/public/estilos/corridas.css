@@ -1,0 +1,188 @@
+/* Corridas (diseño §10.2). Todo selector va bajo .p-corridas; los componentes compartidos no se reestilan. */
+
+.p-corridas { display: grid; gap: var(--e-4); min-width: 0; }
+
+/* ── Cabecera y controles ────────────────────────────────────────────── */
+.p-corridas .corridas-cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: var(--e-3); }
+.p-corridas .corridas-cuenta { color: var(--texto-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.p-corridas .corridas-controles { display: grid; gap: var(--e-3); }
+.p-corridas .corridas-buscador {
+  position: relative; display: flex; align-items: center; max-width: 520px;
+}
+.p-corridas .corridas-buscar-icono { position: absolute; inset-inline-start: 10px; color: var(--texto-3); pointer-events: none; }
+.p-corridas .corridas-buscar-entrada {
+  width: 100%; height: 36px; padding: 0 40px 0 34px;
+  border: 1px solid var(--borde); border-radius: var(--radio-2); background: var(--superficie-1); color: var(--texto-1);
+  font-size: 14px;
+  transition: border-color var(--dur-1), background-color var(--dur-1);
+}
+.p-corridas .corridas-buscar-entrada::placeholder { color: var(--texto-3); }
+.p-corridas .corridas-buscar-entrada:hover { border-color: var(--borde-fuerte); }
+.p-corridas .corridas-buscar-entrada:focus-visible { outline-offset: 0; border-color: transparent; background: var(--superficie-2); }
+.p-corridas .corridas-buscar-entrada::-webkit-search-cancel-button { filter: invert(0.7); }
+.p-corridas .corridas-buscar-tecla { position: absolute; inset-inline-end: 10px; pointer-events: none; }
+.p-corridas .corridas-buscar-entrada:focus ~ .corridas-buscar-tecla,
+.p-corridas .corridas-buscar-entrada:not(:placeholder-shown) ~ .corridas-buscar-tecla { display: none; }
+
+.p-corridas .corridas-filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-3); }
+.p-corridas .corridas-chips { display: flex; gap: var(--e-2); min-width: 0; }
+.p-corridas .corridas-chip .icono { width: 14px; height: 14px; }
+.p-corridas .corridas-chip-problemas .icono { color: var(--peligro-texto); }
+.p-corridas .corridas-chip[aria-pressed="true"] .icono { color: inherit; }
+.p-corridas .corridas-menus { display: flex; align-items: center; gap: var(--e-2); }
+.p-corridas .corridas-menu { display: inline-flex; }
+.p-corridas .corridas-select {
+  height: 30px; max-width: 220px; padding: 0 28px 0 var(--e-3);
+  border: 1px solid var(--borde); border-radius: var(--radio-2);
+  background: var(--superficie-1) no-repeat right 10px center / 10px 6px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--texto-3) 50%), linear-gradient(135deg, var(--texto-3) 50%, transparent 50%);
+  background-size: 5px 5px, 5px 5px;
+  background-position: right 14px center, right 9px center;
+  color: var(--texto-2); font-size: 12px; font-weight: 500;
+  appearance: none; cursor: pointer;
+}
+.p-corridas .corridas-select:hover { border-color: var(--borde-fuerte); color: var(--texto-1); }
+.p-corridas .corridas-select option { background: var(--superficie-3); color: var(--texto-1); }
+.p-corridas .corridas-vistas > button { display: inline-grid; place-items: center; min-width: 30px; }
+
+/* ── Grupos por día ──────────────────────────────────────────────────── */
+.p-corridas .corridas-resultados { display: grid; gap: var(--e-4); min-width: 0; }
+.p-corridas .corridas-grupo { display: grid; min-width: 0; }
+.p-corridas .corridas-dia {
+  position: sticky; top: 0; z-index: 2;
+  padding: var(--e-2) 0 6px; background: var(--fondo); border-bottom: 1px solid var(--borde-sutil);
+}
+@media (max-width: 819px) {
+  .p-corridas .corridas-dia { top: var(--alto-barra); }
+}
+
+/* ── Fila (lista) ────────────────────────────────────────────────────── */
+.p-corridas .corridas-lista { display: grid; }
+.p-corridas .corridas-lista > li { border-bottom: 1px solid var(--borde-sutil); }
+.p-corridas .corridas-fila {
+  position: relative;
+  display: grid; align-items: center; column-gap: var(--e-4);
+  grid-template-columns: 72px minmax(0, 3fr) minmax(0, 1fr) 64px 132px 128px 96px;
+  min-height: 64px; padding: var(--e-2) var(--e-3);
+  color: var(--texto-2); text-decoration: none; border-radius: var(--radio-2);
+  transition: background-color var(--dur-1) var(--curva-salida);
+}
+.p-corridas .corridas-fila:hover { background: var(--superficie-2); color: var(--texto-2); text-decoration: none; }
+.p-corridas .corridas-fila:focus-visible { outline-offset: -2px; background: var(--superficie-1); }
+.p-corridas .corridas-fila.con-problemas { box-shadow: inset 2px 0 0 var(--peligro); }
+
+.p-corridas .corridas-miniatura {
+  position: relative; display: block; width: 72px; height: 45px; overflow: hidden;
+  border-radius: var(--radio-1); background: var(--superficie-2); box-shadow: inset 0 0 0 1px var(--borde-sutil);
+}
+.p-corridas .corridas-miniatura img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.p-corridas .corridas-miniatura-respaldo {
+  display: grid; place-items: center; width: 100%; height: 100%;
+  color: var(--texto-3); font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+}
+
+.p-corridas .corridas-principal { display: grid; gap: 2px; min-width: 0; }
+.p-corridas .corridas-linea { display: flex; align-items: center; gap: var(--e-2); min-width: 0; }
+.p-corridas .corridas-tarea { color: var(--texto-1); font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: -0.006em; }
+.p-corridas .corridas-errores { flex: none; }
+.p-corridas .corridas-titular { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--texto-2); }
+.p-corridas .corridas-titular-icono { color: var(--peligro-texto); width: 14px; height: 14px; }
+.p-corridas .corridas-meta-corta { display: none; }
+
+.p-corridas .corridas-host { color: var(--texto-3); font-size: 12px; }
+.p-corridas .corridas-puntos { display: inline-flex; gap: 2px; }
+.p-corridas .corridas-llegan { display: grid; grid-template-columns: 48px auto; align-items: center; gap: var(--e-2); }
+.p-corridas .corridas-medidor { width: 48px; }
+.p-corridas .corridas-llegan-texto { color: var(--texto-2); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p-corridas .corridas-pasos { color: var(--texto-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p-corridas .corridas-tiempo { color: var(--texto-3); font-size: 12px; text-align: right; white-space: nowrap; }
+
+/* ── Grilla ──────────────────────────────────────────────────────────── */
+.p-corridas .corridas-grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--e-4); padding-block-start: var(--e-3); }
+.p-corridas .corridas-tarjeta {
+  --x: 50%; --y: 0%;
+  position: relative; display: grid; height: 100%; overflow: hidden;
+  border: 1px solid var(--borde-sutil); border-radius: var(--radio-3); background: var(--superficie-1);
+  box-shadow: var(--brillo-superior); color: var(--texto-2); text-decoration: none;
+  transition: border-color var(--dur-1) var(--curva-salida), background-color var(--dur-1) var(--curva-salida);
+}
+.p-corridas .corridas-tarjeta:hover { border-color: var(--borde); color: var(--texto-2); text-decoration: none; }
+/* P3: brillo que sigue al puntero (las coordenadas llegan por CSSOM). */
+.p-corridas .corridas-tarjeta::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(240px circle at var(--x) var(--y), oklch(1 0 0 / 0.06), transparent 70%);
+  transition: opacity var(--dur-2) var(--curva-salida);
+}
+.p-corridas .corridas-tarjeta:hover::after { opacity: 1; }
+.p-corridas .corridas-tarjeta:focus-visible { outline-offset: 2px; }
+.p-corridas .corridas-tarjeta.con-problemas { box-shadow: inset 0 2px 0 var(--peligro), var(--brillo-superior); }
+.p-corridas .corridas-tarjeta-imagen { position: relative; display: block; aspect-ratio: 16 / 10; }
+.p-corridas .corridas-tarjeta .corridas-miniatura { width: 100%; height: 100%; border-radius: 0; }
+.p-corridas .corridas-tarjeta-medidor {
+  position: absolute; inset: auto var(--e-2) var(--e-2) var(--e-2);
+  display: flex; align-items: center; gap: var(--e-2); padding: 4px var(--e-2);
+  border-radius: var(--radio-2); background: oklch(0.145 0.004 275 / 0.82); backdrop-filter: blur(6px);
+}
+.p-corridas .corridas-tarjeta-medidor .corridas-medidor { flex: 1; width: auto; }
+.p-corridas .corridas-tarjeta-cuerpo { display: grid; gap: var(--e-1); align-content: start; padding: var(--e-3); min-width: 0; }
+.p-corridas .corridas-instruccion,
+.p-corridas .corridas-tarjeta .corridas-titular .truncar {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  white-space: normal; text-overflow: clip;
+}
+.p-corridas .corridas-instruccion { color: var(--texto-3); font-size: 12px; line-height: 16px; }
+.p-corridas .corridas-tarjeta .corridas-titular { align-items: flex-start; }
+.p-corridas .corridas-tarjeta .corridas-titular-icono { margin-block-start: 3px; }
+.p-corridas .corridas-tarjeta-meta { display: flex; flex-wrap: wrap; gap: 0 var(--e-2); color: var(--texto-3); font-size: 12px; margin-block-start: var(--e-1); }
+.p-corridas .corridas-tarjeta-meta > * + *::before { content: "·"; margin-inline-end: var(--e-2); color: var(--texto-4); }
+.p-corridas .corridas-errores-corta .corridas-errores-texto { display: none; }
+.p-corridas .corridas-errores-corta { padding: 0 6px; }
+
+/* ── Vacíos ──────────────────────────────────────────────────────────── */
+.p-corridas .corridas-sin-coincidencias:focus { outline: none; }
+
+/* ── Mediano: sin la columna del sitio ───────────────────────────────── */
+@container contenido (width < 1000px) {
+  .p-corridas .corridas-fila { grid-template-columns: 72px minmax(0, 1fr) 56px 120px 112px 84px; }
+  .p-corridas .corridas-host { display: none; }
+}
+
+/* ── Angosto (375 px): miniatura, tarea y llegan; titular; sitio y tiempo (≤ 3 líneas) ── */
+@container contenido (width < 640px) {
+  .p-corridas .corridas-cabecera h1 { font-size: 20px; line-height: 28px; }
+  .p-corridas .corridas-buscador { max-width: none; }
+  .p-corridas .corridas-buscar-tecla { display: none; }
+  .p-corridas .corridas-filtros { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .p-corridas .corridas-chips {
+    overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--e-4)); padding-inline: var(--e-4);
+    padding-block: 2px;
+  }
+  .p-corridas .corridas-chips::-webkit-scrollbar { display: none; }
+  .p-corridas .corridas-menus { justify-content: space-between; flex-wrap: wrap; }
+  .p-corridas .corridas-menu { flex: 1 1 0; min-width: 0; }
+  .p-corridas .corridas-select { width: 100%; max-width: none; }
+
+  .p-corridas .corridas-fila {
+    grid-template-columns: 56px minmax(0, 1fr) auto; column-gap: var(--e-3); align-items: start;
+    padding-inline: var(--e-2);
+  }
+  .p-corridas .corridas-miniatura { width: 56px; height: 35px; margin-block-start: 2px; }
+  .p-corridas .corridas-fila .corridas-host,
+  .p-corridas .corridas-fila .corridas-puntos,
+  .p-corridas .corridas-fila .corridas-pasos,
+  .p-corridas .corridas-fila > .corridas-tiempo { display: none; }
+  .p-corridas .corridas-fila .corridas-errores-texto { display: none; }
+  .p-corridas .corridas-fila .corridas-errores { padding: 0 6px; }
+  .p-corridas .corridas-fila .corridas-meta-corta { display: flex; gap: var(--e-2); color: var(--texto-3); font-size: 12px; line-height: 16px; }
+  .p-corridas .corridas-meta-corta > * + *::before { content: "·"; margin-inline-end: var(--e-2); color: var(--texto-4); }
+  .p-corridas .corridas-meta-corta .corridas-tiempo { text-align: start; }
+  .p-corridas .corridas-fila .corridas-llegan { grid-template-columns: auto; justify-items: end; gap: 4px; }
+  .p-corridas .corridas-fila .corridas-medidor { width: 36px; }
+  .p-corridas .corridas-grilla { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (pointer: coarse) {
+  .p-corridas .corridas-buscar-tecla { display: none; }
+  .p-corridas .corridas-select { height: 40px; }
+}
