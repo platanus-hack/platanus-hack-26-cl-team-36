@@ -1,0 +1,7 @@
+{
+  "id": "metro-tarifa-sabado",
+  "host": "www.metro.cl",
+  "start_url": "https://www.metro.cl/",
+  "description": "Vas a viajar en Metro este sábado: averigua desde qué hora funciona y cuánto cuesta el pasaje con tarjeta bip! ese día.",
+  "expected_answer": "Los sábados funciona de 6:30 a 23:00 horas y el pasaje cuesta $815 (tarifa única de sábado)."
+}
