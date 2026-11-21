@@ -7,7 +7,7 @@ from playwright.async_api import ElementHandle, Page
 
 from mapper import config
 
-_HELPERS_JS = r"""
+HELPERS_JS = r"""
 const clean = (s, n = 80) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
 const clippedByAncestor = (el, box) => {
   if (getComputedStyle(el).position === 'fixed') return false;
@@ -36,7 +36,7 @@ const centerInViewport = (el) => {
 };
 """
 
-_SNAPSHOT_JS = "(maxElements) => {" + _HELPERS_JS + r"""
+_SNAPSHOT_JS = "(maxElements) => {" + HELPERS_JS + r"""
   const SELECTOR = 'a[href], button, input:not([type=hidden]), select, textarea, summary, [onclick], '
     + '[aria-expanded], [aria-haspopup], [role=button], [role=link], [role=menuitem], [role=tab], [role=option], '
     + '[role=checkbox], [role=radio], [role=switch], [role=combobox], [role=textbox], [role=searchbox], [role=treeitem]';
@@ -210,7 +210,7 @@ async def element_for_ref(page: Page, ref: str) -> ElementHandle | None:
 async def display_state(handle: ElementHandle) -> tuple[bool, bool]:
     """Si el elemento se puede mostrar y si su centro está en el viewport."""
     visible, in_viewport = await handle.evaluate(
-        f"(el) => {{ {_HELPERS_JS} const visible = displayable(el); return [visible, visible && centerInViewport(el)]; }}"
+        f"(el) => {{ {HELPERS_JS} const visible = displayable(el); return [visible, visible && centerInViewport(el)]; }}"
     )
     return visible, in_viewport
 
