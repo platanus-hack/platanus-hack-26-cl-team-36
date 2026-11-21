@@ -12,8 +12,10 @@ de una API: todo lo específico de un sitio debe poder expresarse como **datos**
 
 - `src/`: lo único que se empaqueta (`webExt.sourceDir`). Todo lo demás queda fuera del .xpi.
 - `src/background/index.js`: botón ON/OFF (`activo` en `storage.local`) y mensaje `tema:aplicar`: busca el tema en los proveedores e inyecta su CSS con `scripting.insertCSS`.
-- `src/background/temas.js`: lógica pura (`normalizarTema`, `temaParaUrl`). Sin `browser.*`: se testea con Node.
-- `src/background/proveedor-local.js`: lee `src/temas/`. Un proveedor = `{ buscar(url) → tema | null }`.
+- `src/background/temas.js`: lógica pura (`normalizarTema`, `temaParaUrl`, `buscarEnProveedores`). Sin `browser.*`: se testea con Node.
+- `src/background/proveedor-api.js`: `POST {API_URL}/temas/buscar` con `{ url: origen }` (backend en `../backend/`). Vacío/204 = sin tema; error o timeout (2 s) = se sigue con el siguiente proveedor.
+- `src/background/proveedor-local.js`: lee `src/temas/` (respaldo). Un proveedor = `{ nombre, buscar(url) → tema | null }`; el orden está en `proveedores` de `background/index.js`.
+- `src/background/config.js`: `API_URL`.
 - `src/content/registro.js` → `src/features/*.js` → `src/content/motor.js`: content scripts, en ese orden.
 - `src/temas/<id>/tema.json` + `tema.css`, listados en `src/temas/index.json`.
 - `test/`: `node:test`. `temas-locales.test.js` valida cada tema de `src/temas/`.
@@ -31,7 +33,8 @@ de una API: todo lo específico de un sitio debe poder expresarse como **datos**
 - **Content scripts comparten global:** envolver cada archivo en una IIFE y exponer solo vía `globalThis.MiTema`.
 - **Selectores:** preferir etiquetas propias del sitio (`ytd-*`) e `id`s sobre clases generadas. Si no se conoce la estructura actual del sitio, pedir al usuario que copie el HTML del elemento desde el inspector en lugar de adivinar.
 - **IDs y clases propias con prefijo `mt-`** para no chocar con el sitio.
-- **Sin recolectar datos:** `data_collection_permissions` está en `none`. Si se envía la URL/dominio a una API, hay que actualizarlo.
+- **Privacidad:** a la API se le envía solo el origen (`new URL(url).origin`), nunca ruta ni parámetros. Por eso `data_collection_permissions` declara `browsingActivity`; si se envía algo más, actualizarlo.
+- **`host_permissions` sin puerto:** Firefox no acepta puertos en los patrones (`http://localhost:3000/*` no da permiso y la request sale como CORS con preflight). Usar `http://localhost/*`.
 - **No cambiar `browser_specific_settings.gecko.id`** (AMO lo trataría como otra extensión).
 - **Nunca correr web-ext con el perfil real del usuario** (`--firefox-profile=default-release`, una ruta a `~/Library/Application Support/Firefox/Profiles/...`, etc.), ni en modo copia. Con los grupos de perfiles de Firefox (versión 160 o superior), la copia se registra en el grupo y reescribe `profiles.ini`/`installs.ini` apuntando a una carpeta temporal. Para usar los datos del usuario: `npm run perfil:clonar`. Si se modifica ese script, mantener `sanitizarPrefs` (quita `toolkit.profiles.*`/`browser.profiles.*`) y los `--pref` de grupo de `dev:sesion`.
 
@@ -45,6 +48,7 @@ Nuevo tema en `src/temas/<id>/`, su id en `src/temas/index.json`, y el dominio e
 
 ## Comandos (desde `extension/`; `dev`, `dev:sesion`, `check` y `build` también desde la raíz del repo)
 
+- `npm run dev:backend` (desde la raíz): levanta el backend en `localhost:3000`. Sin él la extensión funciona igual (usa los temas locales).
 - `npm run dev`: abre Firefox con la extensión cargada en youtube.com; al guardar recarga la extensión y refresca las pestañas del sitio (solo en modo desarrollo, vía `onInstalled` con `temporary`).
 - `npm run dev:sesion`: igual, con perfil persistente en `.perfil-dev/`. La ruta del perfil debe llevar `./`: sin barra, web-ext la trata como *nombre* de perfil (`-P`) y Firefox no arranca (`ECONNREFUSED`).
 - `npm run perfil:clonar`: clona un perfil real de Firefox a `.perfil-dev/` (interactivo; `-- --perfil "<nombre>"` para elegir directo).

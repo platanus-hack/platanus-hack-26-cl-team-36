@@ -3,8 +3,9 @@
 Extensión de Firefox que cambia el diseño de sitios web aplicando **temas**.
 Un tema es CSS + la lista de features (comportamientos JS) que se activan en ese sitio.
 
-Hoy los temas vienen empaquetados en la extensión y solo existe el de YouTube (PoC).
-La idea es que a futuro los temas vengan de una API (ver [Hacia la API](#hacia-la-api)).
+Al entrar a un sitio, la extensión le pide el tema al backend (`backend/`). Si el backend
+no tiene tema o no responde, usa los temas empaquetados en la extensión. Hoy el backend
+siempre responde vacío y el único tema local es el de YouTube (PoC). Ver [La API](#la-api).
 
 ## Estructura
 
@@ -14,15 +15,17 @@ extension/
 │   ├── manifest.json
 │   ├── background/
 │   │   ├── index.js          ← botón ON/OFF + resuelve el tema de cada página e inyecta su CSS
-│   │   ├── temas.js          ← lógica pura (validar temas, elegir tema por URL); testeable con Node
-│   │   └── proveedor-local.js← lee los temas de src/temas/
+│   │   ├── config.js         ← URL del backend
+│   │   ├── temas.js          ← lógica pura (validar temas, elegir tema, cadena de proveedores)
+│   │   ├── proveedor-api.js  ← pregunta al backend: POST /temas/buscar
+│   │   └── proveedor-local.js← lee los temas de src/temas/ (respaldo)
 │   ├── content/
 │   │   ├── registro.js       ← registro de features (globalThis.MiTema)
 │   │   └── motor.js          ← genérico: pide el tema, pone la clase mi-tema, corre features
 │   ├── features/             ← comportamientos JS reutilizables, configurables por el tema
 │   │   ├── modo-foco.js
 │   │   └── modo-foco.css
-│   ├── temas/                ← temas locales (hoy hacen el papel de la API)
+│   ├── temas/                ← temas locales (respaldo de la API)
 │   │   ├── index.json        ← lista de ids
 │   │   └── youtube/
 │   │       ├── tema.json     ← dominios, features y sus opciones
@@ -38,8 +41,9 @@ extension/
 ## Cómo funciona
 
 1. En cada página, `content/motor.js` le pide al background el tema para esa URL.
-2. El background busca el tema en sus **proveedores** (hoy solo `proveedor-local.js`),
-   inyecta el CSS con `scripting.insertCSS` y le devuelve al motor las features y opciones.
+2. El background busca el tema en sus **proveedores**, en orden: primero la API
+   (`proveedor-api.js`) y, si no hay tema o falla, los locales (`proveedor-local.js`).
+   Inyecta el CSS con `scripting.insertCSS` y le devuelve al motor las features y opciones.
 3. El motor pone la clase `mi-tema` en `<html>` (todo el CSS del tema cuelga de ella) y
    ejecuta las features en cada navegación y cambio del DOM.
 4. El botón de la extensión guarda `activo` en `storage`; el motor quita/pone la clase al instante.
@@ -121,13 +125,30 @@ cuando navega sin recargar (SPA); además el motor siempre reacciona a cambios d
 2. Agrégala a `content_scripts.js` en `manifest.json`, **después** de `content/registro.js` y antes de `content/motor.js`.
 3. Lo específico de cada sitio (selectores, rutas) va en las opciones del tema, no en la feature.
 
-## Hacia la API
+## La API
 
-La idea es agregar `src/background/proveedor-api.js` con la misma forma que el
-proveedor local (`buscar(url) → tema | null`) y ponerlo primero en la lista
-`proveedores` de `background/index.js`. El local queda como respaldo. La API
-debería devolver lo mismo que `tema.json` más `id` y `css` (el contenido de
-`tema.css`); `normalizarTema` en `background/temas.js` es el contrato.
+Para probar la conexión, levanta el backend en otra terminal (desde la raíz del repo):
+
+```bash
+npm run dev:backend   # http://localhost:3000
+```
+
+En cada página, la extensión hace:
+
+```
+POST http://localhost:3000/temas/buscar
+{ "url": "https://www.youtube.com" }      ← solo el origen, nunca la ruta ni parámetros
+```
+
+- **204 o cuerpo vacío** (`null`, `{}`): no hay tema → se usan los temas locales. Es lo que responde hoy.
+- **200 + tema**: se usa ese tema. Misma forma que `tema.json` más `id` y `css` (el contenido
+  CSS); `normalizarTema` en `background/temas.js` es el contrato.
+- **Error, backend caído o más de 2 s sin responder**: aviso en la consola del background y
+  se usan los temas locales. La extensión funciona igual sin backend.
+
+La URL del backend está en `src/background/config.js`. Si cambia el dominio, actualiza
+`host_permissions` en el manifest **sin puerto** (`http://localhost/*`): Firefox no acepta
+puertos en esos patrones, y con puerto la request sale como CORS y falla.
 
 Lo que hay que tener en cuenta:
 
@@ -135,10 +156,8 @@ Lo que hay que tener en cuenta:
   ejecutar código remoto. Los comportamientos tienen que existir como features en la extensión.
 - **Permisos de sitios:** para aplicar temas en cualquier sitio, `matches` y `host_permissions`
   pasarían a `<all_urls>` (o pedir permisos por sitio con `permissions.request`).
-  La URL de la API también va en `host_permissions`.
-- **Privacidad:** si se le manda a la API la URL o el dominio que visita el usuario, hay que
-  declararlo en `data_collection_permissions` del manifest. Alternativa que evita eso: descargar
-  el catálogo completo de temas y elegir localmente con `temaParaUrl`.
+- **Privacidad:** como se envía el sitio que visita el usuario, el manifest declara
+  `browsingActivity` en `data_collection_permissions`; Firefox lo muestra al instalar.
 
 ## Instalarla de forma permanente
 

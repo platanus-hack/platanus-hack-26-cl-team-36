@@ -44,6 +44,20 @@ export function coincideDominio(hostname, dominio) {
   return hostname === dominio || hostname.endsWith(`.${dominio}`);
 }
 
+// Prueba los proveedores en orden y devuelve el primer tema que encuentre.
+// Si un proveedor falla (ej. el backend está caído), avisa y sigue con el siguiente.
+export async function buscarEnProveedores(proveedores, url, avisar = console.warn) {
+  for (const proveedor of proveedores) {
+    try {
+      const tema = await proveedor.buscar(url);
+      if (tema) return tema;
+    } catch (error) {
+      avisar(`[mi-tema] Falló el proveedor "${proveedor.nombre}", sigo con el siguiente:`, error);
+    }
+  }
+  return null;
+}
+
 export function temaParaUrl(temas, url) {
   let hostname;
   try {

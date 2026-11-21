@@ -5,7 +5,9 @@
 //   1. Botón de la barra: activa/desactiva el tema (guarda `activo` en storage).
 //   2. Resolver qué tema corresponde a cada página e inyectar su CSS.
 
+import { proveedorApi } from "./proveedor-api.js";
 import { proveedorLocal } from "./proveedor-local.js";
+import { buscarEnProveedores } from "./temas.js";
 
 // ---------- 1. Botón de la barra de herramientas ----------
 
@@ -50,27 +52,16 @@ async function refrescarPestanasDelSitio() {
 
 // ---------- 2. Temas ----------
 
-// Orden de prioridad. Futuro: [proveedorApi, proveedorLocal].
-const proveedores = [proveedorLocal];
-
-async function buscarTema(url) {
-  for (const proveedor of proveedores) {
-    try {
-      const tema = await proveedor.buscar(url);
-      if (tema) return tema;
-    } catch (error) {
-      console.error("[mi-tema] Error en proveedor de temas:", error);
-    }
-  }
-  return null;
-}
+// Orden de prioridad: primero el backend; si no tiene tema o no responde, los locales.
+const proveedores = [proveedorApi, proveedorLocal];
 
 // El content script pide su tema al cargar. Inyectamos el CSS desde aquí con
 // scripting.insertCSS (no le afecta la CSP de la página) y le devolvemos al
 // content script solo lo que necesita para las features.
 async function aplicarTema(sender) {
-  const tema = await buscarTema(sender.url);
+  const tema = await buscarEnProveedores(proveedores, sender.url);
   if (!tema) return null;
+  console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${new URL(sender.url).origin}`);
 
   await browser.scripting.insertCSS({
     target: { tabId: sender.tab.id, frameIds: [sender.frameId] },

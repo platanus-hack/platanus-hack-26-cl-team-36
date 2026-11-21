@@ -11,7 +11,7 @@
 
   "permissions": ["storage", "scripting"],
 
-  "host_permissions": ["*://*.youtube.com/*"],
+  "host_permissions": ["*://*.youtube.com/*", "http://localhost/*"],
 
   "background": {
     "scripts": ["background/index.js"],
@@ -37,7 +37,7 @@
       "id": "yt-tema-grupo36@hackathon.local",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": ["none"]
+        "required": ["browsingActivity"]
       }
     },
     "gecko_android": {

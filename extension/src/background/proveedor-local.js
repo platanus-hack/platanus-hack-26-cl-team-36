@@ -1,8 +1,8 @@
 // Proveedor de temas que lee los temas empaquetados en src/temas/.
 //
-// Un proveedor es cualquier objeto con `buscar(url) → Promise<tema | null>`.
-// Cuando exista la API, se agrega un `proveedor-api.js` con la misma forma y se
-// pone primero en la lista de background/index.js; este queda como respaldo.
+// Un proveedor es cualquier objeto con `nombre` y `buscar(url) → Promise<tema | null>`.
+// Va después de proveedor-api.js en background/index.js: es el respaldo cuando
+// la API no tiene tema o no responde.
 
 import { normalizarTema, temaParaUrl } from "./temas.js";
 
@@ -32,6 +32,8 @@ async function cargarTemas() {
 let cache = null;
 
 export const proveedorLocal = {
+  nombre: "local",
+
   async buscar(url) {
     cache ??= cargarTemas().catch((error) => {
       cache = null; // reintentar en la próxima llamada
