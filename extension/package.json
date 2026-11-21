@@ -12,7 +12,7 @@
     "lint": "web-ext lint",
     "check": "npm test && npm run lint",
     "build": "web-ext build --overwrite-dest",
-    "sign": "web-ext sign --channel=unlisted"
+    "sign": "node --env-file-if-exists=.env node_modules/web-ext/bin/web-ext.js sign --channel=unlisted"
   },
   "webExt": {
     "sourceDir": "src"

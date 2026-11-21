@@ -173,20 +173,31 @@ Lo que hay que tener en cuenta:
 - **Latencia:** el tema se aplica cuando la API responde. Con la API desplegada, una
   respuesta lenta muestra un instante el diseño original; ahí conviene guardar respuestas en caché.
 
-## Instalarla de forma permanente
+## Instalarla de forma permanente (.xpi no listado)
 
-Firefox solo instala de forma permanente extensiones firmadas por Mozilla. Puedes
-firmarla sin publicarla:
+Firefox solo instala de forma permanente extensiones firmadas por Mozilla. La firmamos
+como **no listada**: no aparece en la tienda y se distribuye como `.xpi` descargable.
 
-1. Crea una cuenta en addons.mozilla.org.
-2. Genera tus credenciales en https://addons.mozilla.org/developers/addon/api/key/
-3. Ejecuta:
+1. Crea una cuenta en addons.mozilla.org y genera tus credenciales en
+   https://addons.mozilla.org/developers/addon/api/key/ (si te pide aceptar el acuerdo
+   de distribución, acéptalo).
+2. Copia `extension/.env.example` como `extension/.env` y completa tus claves
+   (`.env` está en `.gitignore`; nunca subas las claves al repo). Luego, desde la raíz:
    ```bash
-   export WEB_EXT_API_KEY="user:xxxx:xxx"
-   export WEB_EXT_API_SECRET="xxxxxxxx"
    npm run sign
    ```
-4. Queda un `.xpi` firmado en `web-ext-artifacts/`. Arrástralo a Firefox para instalarlo.
+   También funciona sin `.env` si exportas `WEB_EXT_API_KEY` y `WEB_EXT_API_SECRET` en la
+   terminal; si existen ambas, mandan las variables exportadas.
+3. En unos minutos queda el `.xpi` firmado en `extension/web-ext-artifacts/`.
+4. Súbelo a un release de GitHub (o cualquier link https). Quien abra ese link en Firefox
+   puede instalarla.
 
-Cada versión nueva que firmes necesita un número de `version` mayor en `manifest.json`.
-No cambies `browser_specific_settings.gecko.id`: AMO lo trataría como otra extensión.
+Mientras la API esté en `localhost:3000`, la extensión instalada solo aplica temas en un
+computador que tenga el backend corriendo (`npm run dev:backend`).
+
+- Cada versión nueva que firmes necesita un número de `version` mayor en `manifest.json`.
+- El id (`browser_specific_settings.gecko.id`) queda asociado a la cuenta de AMO que firma
+  primero: para firmar versiones siguientes desde otra cuenta, agréguenla como autora en AMO.
+  No cambies el id: AMO lo trataría como otra extensión.
+- Instálala en tu Firefox normal, no en el de `npm run dev:sesion`: ahí web-ext carga la
+  versión de desarrollo con el mismo id.

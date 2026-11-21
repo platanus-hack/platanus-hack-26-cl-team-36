@@ -58,4 +58,4 @@ el tema completo: todo lo específico de un sitio debe poder expresarse como **d
 - `npm run perfil:clonar`: clona un perfil real de Firefox a `.perfil-dev/` (interactivo; `-- --perfil "<nombre>"` para elegir directo).
 - `npm run check`: `npm test` + `npm run lint` (desde la raíz, también los tests del backend). Correr antes de dar algo por terminado; debe quedar sin errores.
 - `npm run build`: genera el .zip en `web-ext-artifacts/`.
-- `npm run sign`: firma como "unlisted" en AMO (requiere `WEB_EXT_API_KEY` y `WEB_EXT_API_SECRET`).
+- `npm run sign`: firma como "unlisted" en AMO. Lee `WEB_EXT_API_KEY` y `WEB_EXT_API_SECRET` de `extension/.env` (ver `.env.example`, ignorado por git) o del entorno. Nunca leer, mostrar ni commitear `.env`.

@@ -10,6 +10,7 @@
     "check": "npm --prefix backend test && npm --prefix extension run check",
     "build": "npm --prefix extension run build",
     "dev:backend": "npm --prefix backend run dev",
-    "start:backend": "npm --prefix backend start"
+    "start:backend": "npm --prefix backend start",
+    "sign": "npm --prefix extension run sign"
   }
 }
