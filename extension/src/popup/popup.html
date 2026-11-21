@@ -13,6 +13,12 @@
     <main class="mt-panel">
       <header class="mt-cabecera">
         <p class="mt-marca">Chameleon</p>
+        <!-- Interruptor «Efectos» (centrado): marcado, el encendido y apagado son llamativos (la metamorfosis);
+             sin marcar, sutiles (un fundido). popup.js guarda `efectos` en storage.local (comun/efectos.js). -->
+        <button type="button" class="mt-efectos" id="mt-efectos" role="switch" aria-checked="true" data-mt-texto-title="efectos.ayuda" title="Encendido: transición llamativa al encender y apagar. Apagado: un fundido sutil.">
+          <span class="mt-efectos-texto" data-mt-texto="efectos.etiqueta">Efectos</span>
+          <span class="mt-efectos-riel" aria-hidden="true"><span class="mt-efectos-perilla"></span></span>
+        </button>
         <div class="mt-cabecera-controles">
           <!-- Selector de idioma: botón + lista (patrón listbox). popup/idioma.js lo maneja; los
                textos de todo el popup salen de comun/idioma.js (data-mt-texto*). -->

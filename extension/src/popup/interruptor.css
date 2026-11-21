@@ -948,6 +948,12 @@ body[data-activo="no"] .mt-estado {
   }
 }
 
+/* ---------- Efectos «sutiles»: en vez de despertar o dormirse, el camaleón se funde de un estado al otro ---------- */
+
+.mt-control.mt-cambio-sutil :is(.mt-cuerpo, .mt-sello) {
+  animation: mt-fundido 320ms ease-out both;
+}
+
 /* ---------- Movimiento reducido: estados quietos y un fundido corto al cambiar ---------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -978,7 +984,7 @@ body[data-activo="no"] .mt-estado {
     transform: translate(1.04px, 1.41px);
   }
 
-  .mt-control:is(.mt-despertando, .mt-durmiendo) :is(.mt-cuerpo, .mt-sello) {
+  .mt-control:is(.mt-despertando, .mt-durmiendo, .mt-cambio-sutil) :is(.mt-cuerpo, .mt-sello) {
     animation: mt-fundido 320ms ease-out both !important;
   }
 }

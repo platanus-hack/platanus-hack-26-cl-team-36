@@ -3,7 +3,8 @@
 // popup.js pone `body[data-activo]` = "cargando" | "si" | "no". Este módulo:
 // - Observa ese atributo y, cuando pasa de "no" a "si" o al revés, pone en `.mt-control` una clase
 //   temporal (`mt-despertando` / `mt-durmiendo`) que interruptor.css anima. La primera pintura
-//   ("cargando" → estado leído) no anima la transformación: solo muestra el estado.
+//   ("cargando" → estado leído) no anima la transformación: solo muestra el estado. Con los efectos
+//   «sutiles» (`body[data-efectos]`, lo pone popup.js) la clase es `mt-cambio-sutil`: un fundido corto.
 // - Hace que el ojo siga al puntero: pasa la dirección como propiedades personalizadas
 //   (`--mt-mirar-x`, `--mt-mirar-y`, entre -1 y 1) y la clase `mt-mirando` mientras se mueve.
 // - Le da a cada escama, brillo y runa su índice (`--mt-i`) para escalonar las animaciones.
@@ -11,6 +12,19 @@
 
 /** Cuánto dura cada transformación (ms); igual que las animaciones más largas de interruptor.css. */
 export const DURACION = { despertando: 1700, durmiendo: 1400 };
+
+/** Con los efectos «sutiles» (body[data-efectos], comun/efectos.js) el camaleón solo se funde de un estado al otro. */
+export const DURACION_SUTIL = 320;
+
+/**
+ * Clase temporal que anima el cambio: la transformación (despertar o dormirse) o, con efectos sutiles, el fundido.
+ * @returns {"despertando" | "durmiendo" | "cambio-sutil" | null}
+ */
+export function claseDeCambio(anterior, nuevo, efectos) {
+  const transicion = decidirTransicion(anterior, nuevo);
+  if (!transicion) return null;
+  return efectos === "sutiles" ? "cambio-sutil" : transicion;
+}
 
 /** Tras cuánto rato sin mover el puntero el ojo vuelve a mirar por su cuenta (ms). */
 export const PAUSA_MIRADA = 1800;
@@ -55,18 +69,18 @@ function iniciar() {
   // ---------- Transformaciones ----------
   let temporizador = null;
   const terminar = () => {
-    control.classList.remove("mt-despertando", "mt-durmiendo");
+    control.classList.remove("mt-despertando", "mt-durmiendo", "mt-cambio-sutil");
     temporizador = null;
   };
   new MutationObserver((registros) => {
     for (const { oldValue } of registros) {
-      const clase = decidirTransicion(oldValue, document.body.dataset.activo);
+      const clase = claseDeCambio(oldValue, document.body.dataset.activo, document.body.dataset.efectos);
       if (!clase) continue;
       clearTimeout(temporizador);
       terminar();
       void control.offsetWidth; // reinicia las animaciones si llega otro cambio a mitad de una
       control.classList.add(`mt-${clase}`);
-      temporizador = setTimeout(terminar, DURACION[clase]);
+      temporizador = setTimeout(terminar, DURACION[clase] ?? DURACION_SUTIL);
     }
   }).observe(document.body, { attributes: true, attributeFilter: ["data-activo"], attributeOldValue: true });
 

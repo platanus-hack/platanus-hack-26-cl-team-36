@@ -7,7 +7,8 @@
     entrada  activar con View Transitions (~1,5 s)
     salida   desactivar con View Transitions (~1 s): todo vuelve hacia el botón
     ligera   activar sin View Transitions: frente encima de la página y destello por pieza
-    suave    prefers-reduced-motion: fundido de 150 ms
+    sutil    efectos «sutiles» (interruptor «Efectos» del popup): fundido de 220 ms
+    suave    prefers-reduced-motion: fundido de 150 ms (manda sobre los efectos)
 
   Capas de la entrada (de atrás hacia adelante):
     cámara   la página entera (el pseudoelemento ::view-transition) se sacude en 3D: se
@@ -607,7 +608,11 @@ html[data-mt-transicion="ligera"] [data-mt-pieza] {
   to { filter: none; }
 }
 
-/* ---------- Suave (prefers-reduced-motion) ---------- */
+/* ---------- Sutil (efectos «sutiles») y suave (prefers-reduced-motion): un fundido de la página entera ---------- */
+
+html[data-mt-transicion="sutil"]::view-transition-group(root) {
+  animation-duration: 220ms;
+}
 
 html[data-mt-transicion="suave"]::view-transition-group(root) {
   animation-duration: 150ms;
