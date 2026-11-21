@@ -217,3 +217,27 @@ test("cada punto de una métrica abre el paso que la explica, no el último", ()
     intento: "mobile", paso: 12,
   });
 });
+
+// ── Nombres cortos: el nivel nunca es lo que se corta ──────────────────────────────────────────────────────────
+
+test("etiquetas de perfiles: el nivel va aparte y se quitan las palabras que comparten todos", async () => {
+  const { etiquetasDePerfiles, partirNombre } = await import("../public/perfiles/nombres.js");
+  assert.deepEqual(partirNombre("Explorador del pie (conoce el tema)"), { base: "Explorador del pie", nivel: "conoce el tema" });
+  assert.deepEqual(partirNombre("Apurado"), { base: "Apurado", nivel: null });
+  const nombres = ["buscador", "contenido", "menu", "pie"].flatMap((lugar) => {
+    const base = { buscador: "Explorador buscador", contenido: "Explorador del contenido", menu: "Explorador del menú", pie: "Explorador del pie" }[lugar];
+    return [`${base} (conoce el tema)`, `${base} (sin contexto)`];
+  });
+  const etiquetas = etiquetasDePerfiles(nombres);
+  assert.deepEqual(etiquetas.get("Explorador del contenido (sin contexto)"), { completo: "Explorador del contenido (sin contexto)", base: "Contenido", nivel: "sin contexto" });
+  assert.equal(etiquetas.get("Explorador buscador (conoce el tema)").base, "Buscador");
+  // Ningún par de perfiles queda con la misma etiqueta visible.
+  const visibles = nombres.map((nombre) => `${etiquetas.get(nombre).base} · ${etiquetas.get(nombre).nivel}`);
+  assert.equal(new Set(visibles).size, nombres.length);
+  // Sin nada en común (los perfiles de siempre), los nombres quedan como están.
+  const comunes = etiquetasDePerfiles(["Primera vez", "Apurado", "Móvil"]);
+  assert.deepEqual([...comunes.values()].map((e) => e.base), ["Primera vez", "Apurado", "Móvil"]);
+  // Un solo perfil, o uno que quedaría vacío: tampoco se recorta.
+  assert.equal(etiquetasDePerfiles(["Explorador del pie (sin contexto)"]).get("Explorador del pie (sin contexto)").base, "Explorador del pie");
+  assert.equal(etiquetasDePerfiles(["Explorador", "Explorador del pie"]).get("Explorador").base, "Explorador");
+});

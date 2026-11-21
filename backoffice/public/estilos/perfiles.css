@@ -28,6 +28,9 @@
   display: grid; grid-template-columns: minmax(96px, 160px) auto minmax(0, 1fr); align-items: center; gap: var(--e-3);
   min-height: 32px;
 }
+/* Nombre de un perfil: la base arriba (se corta si no cabe) y el nivel debajo, siempre visible. */
+.p-perfiles .perfil-etiqueta { display: grid; min-width: 0; line-height: 15px; }
+.p-perfiles .perfil-etiqueta-nivel { color: var(--texto-3); font-size: 11px; line-height: 13px; font-weight: 400; }
 .p-perfiles .unidades-nombre { color: var(--texto-1); font-weight: 500; }
 .p-perfiles .unidades-marcas { display: flex; flex-wrap: wrap; gap: var(--e-1); }
 .p-perfiles a.unidad, .p-perfiles .unidad-muestra {
@@ -103,7 +106,7 @@
 .p-perfiles .metrica:first-child .metrica-cuerpo { grid-template-columns: minmax(80px, 140px) minmax(0, 1fr); }
 .p-perfiles .metrica-nombres { display: none; }
 .p-perfiles .metrica:first-child .metrica-nombres { display: grid; padding-block-end: 18px; }
-.p-perfiles .metrica-nombres > li { height: var(--alto-fila); line-height: var(--alto-fila); color: var(--texto-1); }
+.p-perfiles .metrica-nombres > li { display: grid; align-items: center; height: var(--alto-fila); min-width: 0; color: var(--texto-1); }
 .p-perfiles .metrica-lienzo { display: grid; gap: 2px; padding-inline: 10px; min-width: 0; }
 .p-perfiles .metrica-regla { position: relative; height: 16px; }
 .p-perfiles .metrica-ruta {

@@ -7,6 +7,24 @@ import { conGlobo } from "../nucleo/globo.js";
 import { icono, marcaDeSenal, textoDeResultado } from "../nucleo/iconos.js";
 import { nombreDePagina } from "../datos/textos.js";
 import { destinoDeCelda, destinoDeIntento, escalaLineal, fraccionDeCelda, puntosDeMetrica } from "./escalas.js";
+import { etiquetasDePerfiles } from "./nombres.js";
+
+/** Etiquetas cortas de los perfiles de la tanda (nombre completo → { completo, base, nivel }). */
+const etiquetasDe = (tanda) => etiquetasDePerfiles((tanda.perfiles ?? []).map((perfil) => perfil.nombre ?? perfil.perfil));
+
+/**
+ * El nombre de un perfil en un gráfico: la base (que se corta si no cabe) y debajo el nivel, que nunca se corta en su
+ * lugar. El nombre completo va en el title y, para los lectores de pantalla, como texto oculto.
+ */
+function etiquetaDePerfil(etiqueta, clase = "") {
+  return el(
+    "span",
+    { class: `perfil-etiqueta ${clase}`.trim(), title: etiqueta.completo },
+    el("span", { class: "visualmente-oculto", texto: etiqueta.completo }),
+    el("span", { class: "perfil-etiqueta-base truncar", "aria-hidden": "true", texto: etiqueta.base }),
+    etiqueta.nivel ? el("span", { class: "perfil-etiqueta-nivel truncar", "aria-hidden": "true", texto: etiqueta.nivel }) : null,
+  );
+}
 
 /** Ícono y clase de una marca según el resultado del intento. */
 export function formaDeResultado(resultado, logro) {
@@ -47,6 +65,7 @@ function leyendaDeResultados(ctx) {
 export function graficoDeUnidades(tanda, ctx) {
   const { t, fmt } = ctx;
   const intentos = new Map((tanda.intentos ?? []).map((intento) => [intento.id, intento]));
+  const etiquetas = etiquetasDe(tanda);
   const filas = (tanda.perfiles ?? []).map((perfil) => {
     const nombre = perfil.nombre ?? perfil.perfil;
     const propios = (perfil.intentos ?? []).map((id) => intentos.get(id)).filter(Boolean);
@@ -69,7 +88,7 @@ export function graficoDeUnidades(tanda, ctx) {
     return el(
       "li",
       { class: "unidades-fila" },
-      el("span", { class: "unidades-nombre truncar", texto: nombre, title: nombre }),
+      etiquetaDePerfil(etiquetas.get(nombre), "unidades-nombre"),
       el("ul", { class: "unidades-marcas", "aria-label": t("perfiles.unidades.lista", { nombre }) }, marcas),
       el(
         "span",
@@ -142,6 +161,7 @@ function celdaDeHito(perfil, k, pagina, tanda, ctx) {
 
 /** Tabla perfiles × hitos de la ruta. null si la tanda no tiene ruta recomendada. */
 export function mapaDeHitos(tanda, ctx) {
+  const etiquetas = etiquetasDe(tanda);
   const { t } = ctx;
   const ruta = tanda.telarana?.ruta;
   if (!ruta?.paginas?.length) return null;
@@ -159,7 +179,7 @@ export function mapaDeHitos(tanda, ctx) {
         el(
           "tr",
           {},
-          el("th", { scope: "row", class: "calor-perfil truncar", texto: perfil.nombre ?? perfil.perfil }),
+          el("th", { scope: "row", class: "calor-perfil" }, etiquetaDePerfil(etiquetas.get(perfil.nombre ?? perfil.perfil))),
           hitos.map((pagina, k) => celdaDeHito(perfil, k, pagina, tanda, ctx)),
         ),
       ),
@@ -225,6 +245,7 @@ function puntoDe(metrica, fila, punto, x, y, referencia, ctx) {
 /** Una columna (figura) del gráfico de puntos. null si la métrica no tiene escala (ningún valor ni ruta). */
 function columnaDeMetrica(tanda, metrica, ctx) {
   const { t } = ctx;
+  const etiquetas = etiquetasDe(tanda);
   const { dominio, referencia, filas } = puntosDeMetrica(tanda, metrica);
   if (!dominio) return null;
   const escala = escalaLineal(dominio);
@@ -283,7 +304,7 @@ function columnaDeMetrica(tanda, metrica, ctx) {
     el(
       "div",
       { class: "metrica-cuerpo" },
-      el("ul", { class: "metrica-nombres", "aria-hidden": "true" }, filas.map((fila) => el("li", { class: "truncar", texto: fila.nombre }))),
+      el("ul", { class: "metrica-nombres", "aria-hidden": "true" }, filas.map((fila) => el("li", {}, etiquetaDePerfil(etiquetas.get(fila.nombre) ?? { completo: fila.nombre, base: fila.nombre, nivel: null })))),
       el("div", { class: "metrica-lienzo" }, el("div", { class: "metrica-regla" }, marcaRuta), grafico, eje),
     ),
   );
