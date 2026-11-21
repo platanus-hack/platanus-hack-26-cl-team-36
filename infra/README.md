@@ -6,6 +6,12 @@ Actions, en el repo personal [brayanmoreno/hackathon-grupo36](https://github.com
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
 Actions, con el plan de Terraform, quedarían a la vista. El repo personal es privado y es una copia de `main` de este.
 
+**Por qué `us-east-2`.** La cuenta de AWS se creó con el registro nuevo de AWS (*Sign up for AWS (new)*). Con ese
+registro, la cuenta es un "proyecto" dentro de una organización que administra AWS. Las políticas de esa organización
+solo dejan crear recursos regionales, como S3 o Lambda, en la región asignada al proyecto, y a Chile le corresponde
+`us-east-2` (Ohio). Cualquier otra región responde *explicit deny in a service control policy*. La región del
+proyecto se ve en [settings.aws.com](https://settings.aws.com) → Project → Additional info.
+
 ## Cómo llega un cambio a AWS
 
 1. Se mergea una PR en este repo.

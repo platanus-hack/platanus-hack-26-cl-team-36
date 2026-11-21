@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: us-east-2
   TF_IN_AUTOMATION: "true"
   ACCION: ${{ inputs.accion || 'apply' }}
 
