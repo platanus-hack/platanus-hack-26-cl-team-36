@@ -31,6 +31,7 @@ uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de l
 | `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`). |
 | `--output` | Otra carpeta para las corridas. |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
+| `--record-video` | Graba un video `.webm` de cada intento (al tamaño del viewport), además de las capturas de cada paso. El reporte enlaza el video y marca en qué minuto ocurre cada paso. |
 
 Por defecto usa tu **Claude Code local** (`--engine claude-code`): no necesita clave de API, solo tener `claude`
 instalado y con sesión iniciada, y consume los límites de tu plan. Con una clave de API puedes usar la herramienta
@@ -79,12 +80,29 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 ```
 agents/.runs/<tarea>/<fecha-hora>/
 ├── criteria.json
-├── <perfil>/           step_NN.png, run.json, claude_code.log
+├── <perfil>/           step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
 ├── route_tree.json     nodos, ramas y ruta recomendada
 └── report.md
 ```
 
 `agents/.runs/` queda fuera de git.
+
+### Trazabilidad de tiempos
+
+`run.json` guarda en `started_at` la hora local (ISO 8601, con zona) en que empieza el intento. Cada paso registra
+tres momentos, en segundos desde ese inicio (`*_s`) y como hora absoluta (`*_at`):
+
+| Campo | Momento |
+|---|---|
+| `decided_s`, `decided_at` | El modelo devolvió el turno que pidió la acción. Si un turno pide varias, comparten este valor. |
+| `executed_s`, `executed_at` | Justo antes de ejecutar el clic, la tecla o el scroll. |
+| `settled_s`, `settled_at` | La página terminó de reaccionar y se tomó la captura. Es el mismo valor que `seconds_since_start`. |
+
+`settled_s - executed_s` es lo que tardó la página en responder. Con `--record-video`, el segundo de la acción en el
+video es `video_offset_s + executed_s`, y es el que muestra el reporte en la columna Video.
+
+Con `--record-video`, cada pestaña que abre el usuario tiene su propio video (`video.webm`, `video-2.webm`...). Los
+minutos del reporte son del primero. Un intento de 3 minutos ocupa del orden de 15 a 30 MB.
 
 ## Pruebas
 
