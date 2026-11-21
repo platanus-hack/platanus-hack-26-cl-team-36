@@ -92,14 +92,14 @@ async def capturar(page: Page) -> bytes:
 # Lee el CSS con el parser de Chromium, en un documento inerte (sin red: `@import` y `url()` no se cargan), y recorre
 # sus reglas. Cada regla de estilo de primer nivel debe empezar por `html.mi-tema` en cada selector de la lista; una
 # anidada, por `&` (Chromium escribe `& .b` para la relativa `.b`). Solo se aceptan los tipos de regla del
-# saneamiento, y ningún texto puede cargar recursos.
+# saneamiento (sin `@layer`, y `@keyframes` solo con nombre `mt-*`), y ningún texto puede cargar recursos.
 _VERIFICAR = r"""(css) => {
   const doc = document.implementation.createHTMLDocument("");
   const estilo = doc.createElement("style");
   estilo.textContent = css;
   doc.head.appendChild(estilo);
-  const TIPOS = new Set(["CSSStyleRule", "CSSMediaRule", "CSSSupportsRule", "CSSLayerBlockRule", "CSSLayerStatementRule",
-    "CSSContainerRule", "CSSKeyframesRule", "CSSKeyframeRule", "CSSNestedDeclarations"]);
+  const TIPOS = new Set(["CSSStyleRule", "CSSMediaRule", "CSSSupportsRule", "CSSContainerRule", "CSSKeyframesRule",
+    "CSSKeyframeRule", "CSSNestedDeclarations"]);
   const PELIGROSO = /url\s*\(|(?<![\w-])src\s*\(|(?<![\w-])(?:-webkit-)?image(?:-set)?\s*\(|@import|expression\s*\(|javascript\s*:|-moz-binding|(?<![\w-])behavior\s*:/i;
   const AMBITO = /^html\.mi-tema(?![\w-])/;
   const partes = (lista) => {
@@ -122,6 +122,10 @@ _VERIFICAR = r"""(css) => {
     for (const regla of reglas) {
       const tipo = regla.constructor.name;
       if (!TIPOS.has(tipo)) { agregar(`regla ${tipo} no permitida`, regla); continue; }
+      if (tipo === "CSSKeyframesRule" && !/^mt-[\w-]+$/.test(regla.name)) {
+        agregar(`@keyframes sin el prefijo mt-: ${regla.name}`, regla);
+        continue;
+      }
       if (tipo === "CSSStyleRule") {
         const fuera = partes(regla.selectorText).filter((p) => (anidada ? !p.startsWith("&") : !AMBITO.test(p)));
         if (fuera.length) agregar(`selector fuera de html.mi-tema: ${fuera.join(", ")}`, regla);

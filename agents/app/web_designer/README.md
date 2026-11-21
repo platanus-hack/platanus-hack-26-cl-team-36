@@ -78,8 +78,9 @@ Por cada caso:
    `url(`, `src(`, `image(`/`image-set(`, `expression(`, `javascript:`, `behavior:`, `-moz-binding`, `@import`, una
    barra invertida, una cadena rota o de más de 200 caracteres (el texto de `content:`), una llave o un comentario
    fuera de una cadena, o paréntesis o corchetes desbalanceados: una declaración sola, una regla entera si es el
-   selector. Solo pasan las at-reglas `@media`, `@supports`, `@layer`, `@container` y `@keyframes`; `@font-face`,
-   `@import`, `@namespace`, `@page`, `@property`, `@scope` y las demás se descartan. Un selector que no empieza por
+   selector. Solo pasan las at-reglas `@media`, `@supports`, `@container` y `@keyframes` con nombre `mt-*`;
+   `@layer`, `@font-face`, `@import`, `@namespace`, `@page`, `@property`, `@scope` y las demás se descartan
+   (`@layer` y los nombres de `@keyframes` son globales: seguirían actuando con el tema apagado). Un selector que no empieza por
    `html.mi-tema` se corrige anteponiéndolo (`body` → `html.mi-tema body`, `:root`/`html` → `html.mi-tema`) y cuenta
    como violación; una regla anidada debe empezar por `&` o no usarlo (`:not(&) b` saldría del ámbito y se descarta).
    Nada más se reescribe: `!important` se conserva, porque el tema se inyecta como hoja de autor, igual que hoy en la
@@ -88,8 +89,8 @@ Por cada caso:
    Después, **el navegador tiene la última palabra**: Chromium lee el CSS saneado en un documento inerte (sin red) y
    se recorren sus reglas, entrando en las agrupadoras y anidadas. Si alguna es de un tipo no permitido, tiene un
    selector de primer nivel que no empieza por `html.mi-tema` (o uno anidado que no empieza por `&`) o carga recursos,
-   el tema **no se aplica**: la generación queda con error `TemaRechazado` y `metricas.json` lleva las
-   `violaciones` que vio el navegador.
+   el tema **no se aplica**: la generación queda con error `TemaRechazado`, `metricas.json` lleva las
+   `violaciones` que vio el navegador y el CSS queda en `tema-rechazado.css`, nunca en `tema.css`.
 4. **Aplicación y métricas**, en escritorio (1280x800) y en móvil (390x844): carga la página, la captura y la mide,
    espera lo mismo que esperará con el tema y la mide otra vez sin tocarla (el ruido: lo que la página pierde sola),
    agrega la clase `mi-tema` y un `<style>` con el tema (con la CSP desactivada, como `scripting.insertCSS` de la
@@ -138,7 +139,7 @@ agents/.runs/diseno/<id o host>/<fecha-hora>/
 │   ├── sin-mi-tema.png / sin-mi-tema-movil.png   solo si al quitar la clase la página no vuelve a ser la original
 │   ├── mapa.json       lo que recibió el modelo
 │   ├── respuesta.json  la respuesta tal cual (css sin sanear, resumen, decisiones), tokens, costo y segundos
-│   ├── tema.css        el CSS saneado, el que se aplicó
+│   ├── tema.css        el CSS saneado, el que se aplicó (tema-rechazado.css si el navegador lo rechazó)
 │   ├── metricas.json   por viewport, del CSS y la fila para el resumen
 │   ├── juicio.json     puntajes, veredicto, problema y la comparación de a pares
 │   └── claude_code.log
@@ -149,7 +150,7 @@ agents/.runs/diseno/<id o host>/<fecha-hora>/
 Una generación que falla queda en el resumen con `error` y no detiene las demás; si falla solo el juez, con
 `error_juez`. Una llamada a `claude` que no responde en `TIMEOUT_MODELO_S` (240 s, en `disenador/config.py`) se
 mata y cuenta como error (el juez la reintenta una vez). Un tema que el navegador rechaza queda con
-`error: TemaRechazado ...`, sin capturas y con sus `violaciones` en `metricas.json`. El backoffice no lee estas
+`error: TemaRechazado ...`, sin capturas, con sus `violaciones` en `metricas.json` y el CSS en `tema-rechazado.css`. El backoffice no lee estas
 carpetas: no tienen `route_tree.json`.
 
 ## Iterar un skill

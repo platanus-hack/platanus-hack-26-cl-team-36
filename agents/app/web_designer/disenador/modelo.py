@@ -8,6 +8,7 @@ en el prompt de sistema, igual que lo usaría la extensión.
 import asyncio
 import hashlib
 import json
+import math
 import re
 import time
 from dataclasses import dataclass
@@ -38,8 +39,8 @@ Respondes solo el JSON pedido, con:
   `html.mi-tema body` o `html.mi-tema nav a:hover`): la extensión agrega la clase `mi-tema` a `<html>` y la quita al
   apagar el tema. La hoja se inyecta como hoja de autor después de las del sitio. Está prohibido `url(`,
   `image-set(`, `@import`, la barra invertida, `expression(`, `javascript:` y los saltos de línea dentro de una
-  cadena; lo que los contenga se descarta. Solo se aceptan las at-reglas `@media`, `@supports`, `@layer`,
-  `@container` y `@keyframes` (nada de `@font-face`).
+  cadena; lo que los contenga se descarta. Solo se aceptan las at-reglas `@media`, `@supports`, `@container` y
+  `@keyframes` con un nombre que empiece por `mt-` (nada de `@layer` ni `@font-face`).
 - `resumen`: una o dos frases con la idea del tema.
 - `decisiones`: una lista corta, una frase por decisión de diseño.
 """
@@ -138,7 +139,9 @@ class ClaudeCode:
         async def conversar() -> dict:
             proceso.process.stdin.write((json.dumps(mensaje) + "\n").encode())
             await proceso.process.stdin.drain()
-            return await proceso.wait_for_result()
+            # El tope es el `asyncio.wait_for` de abajo (`self.timeout_s`), que además mata el proceso. Sin el
+            # `math.inf`, `wait_for_result` cortaría antes con el tope del evaluador (`CLAUDE_CODE_TIMEOUT_S`).
+            return await proceso.wait_for_result(timeout_s=math.inf)
 
         try:
             evento = await asyncio.wait_for(conversar(), timeout=self.timeout_s)

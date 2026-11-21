@@ -31,7 +31,9 @@ def test_verificar_css_detecta_lo_que_el_saneamiento_no_debio_dejar():
     html.mi-tema a { color: red; :not(&) b { color: red } &:hover, .c { color: blue } }
     html.mi-tema d { background: image-set("https://evil.example/d.png" 1x); }
     @media (min-width: 1px) { p { color: red } html.mi-tema q { color: blue } }
-    @keyframes k { from { opacity: 0 } to { opacity: 1 } }"""
+    @keyframes mt-k { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 0 } }
+    @layer base, tema;"""
 
     async def cuerpo(browser):
         return (
@@ -49,6 +51,8 @@ def test_verificar_css_detecta_lo_que_el_saneamiento_no_debio_dejar():
         "selector fuera de html.mi-tema: :not(&) b",
         "carga recursos o ejecuta código",
         "selector fuera de html.mi-tema: p",
+        "@keyframes sin el prefijo mt-: fadeIn",
+        "regla CSSLayerStatementRule no permitida",
     ]
     assert all(crudas), "sin sanear, Chromium ve reglas fuera de ámbito o que cargan recursos"
     assert saneadas == [[], [], []]

@@ -36,7 +36,7 @@ def test_rechaza_lo_peligroso_y_conserva_important():
 
 def test_ambito_en_media_y_no_en_keyframes_ni_anidadas():
     css = """@media (max-width: 600px) { nav { display: none } }
-    @keyframes aparecer { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes mt-aparecer { from { opacity: 0 } to { opacity: 1 } }
     html.mi-tema .tarjeta { color: red; &:hover { color: blue } }
     /* un comentario { con llaves } */
     body, html.mi-tema p { margin: 0 }"""
@@ -129,16 +129,23 @@ def test_solo_at_reglas_permitidas():
     @layer tema { html.mi-tema c { color: red } }
     @layer base, tema;
     @container (min-width: 1px) { html.mi-tema d { color: red } }
-    @keyframes k { from { opacity: 0 } @media (x) { a { b: c } } to { opacity: 1 } }
-    html.mi-tema e { color: red; @media (x) { color: blue } @font-face { font-family: b } }"""
+    @keyframes mt-k { from { opacity: 0 } @media (x) { a { b: c } } to { opacity: 1 } }
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 0 } }
+    @-webkit-keyframes spin { to { opacity: 0 } }
+    html.mi-tema e { color: red; @media (x) { color: blue } @font-face { font-family: b } @layer x { color: red } }"""
     saneado = sanear(css)
     motivos = [r["motivo"] for r in saneado.rechazos]
+    # @layer y los nombres de @keyframes son globales: con el tema apagado seguirían cambiando el sitio.
     assert motivos == ["@font-face no permitida", "@page no permitida", "@namespace no permitida",
                        "@property no permitida", "@scope no permitida", "@starting-style no permitida",
-                       "@media no permitida en @keyframes", "@font-face no permitida en el selector"]
-    for permitida in ("@media (min-width: 600px)", "@supports (display: grid)", "@layer tema", "@layer base, tema;",
-                      "@container (min-width: 1px)", "@keyframes k", "@media (x)"):
+                       "@layer no permitida", "@layer no permitida", "@media no permitida en @keyframes",
+                       "@keyframes sin el prefijo mt-", "@-webkit-keyframes sin el prefijo mt-",
+                       "@font-face no permitida en el selector", "@layer no permitida en el selector"]
+    for permitida in ("@media (min-width: 600px)", "@supports (display: grid)", "@container (min-width: 1px)",
+                      "@keyframes mt-k", "@media (x)"):
         assert permitida in saneado.css, permitida
+    for global_ in ("@layer", "fadeIn", "spin"):
+        assert global_ not in saneado.css, global_
 
 
 def test_estructura_y_recursos():

@@ -149,10 +149,11 @@ async def generacion(browser, caso: Caso, preparado: Preparado, rep: int, carpet
         fila["costo_usd"] = respuesta.get("costo_usd", 0.0)
         fila["segundos_modelo"] = respuesta.get("segundos")
         saneado = sanear(respuesta["css"])
-        (carpeta / "tema.css").write_text(saneado.css, encoding="utf-8")
         analisis = analizar(saneado)
         # Última palabra del navegador: si su parser ve algo fuera de ámbito o que carga recursos, no se aplica.
+        # `tema.css` se escribe solo si pasa: es el que se aplicó y el que se le puede pasar al evaluador (--css).
         analisis["violaciones_navegador"] = violaciones = await pagina.verificar_css(browser, saneado.css)
+        (carpeta / ("tema-rechazado.css" if violaciones else "tema.css")).write_text(saneado.css, encoding="utf-8")
         if violaciones:
             fila["violaciones_navegador"] = len(violaciones)
             _escribir_json(carpeta / "metricas.json", {"css": analisis, "violaciones": violaciones,

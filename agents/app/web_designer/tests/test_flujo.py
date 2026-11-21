@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import math
 
 from conftest import CSS_GUION, ClaudeGuion
 from disenador import resumen
@@ -133,6 +134,8 @@ def test_tema_rechazado_por_el_navegador(sitio, tmp_path, monkeypatch):
     metricas = json.loads((carpeta / "metricas.json").read_text(encoding="utf-8"))
     assert metricas["violaciones"][0]["motivo"] == "selector fuera de html.mi-tema: body"
     assert not (carpeta / "despues.png").exists()   # no se aplicó
+    # El CSS rechazado queda para revisarlo, pero nunca como tema.css (el que se le pasa al evaluador con --css).
+    assert not (carpeta / "tema.css").exists() and (carpeta / "tema-rechazado.css").is_file()
 
 
 def test_modelo_colgado_falla_sin_detener_la_corrida(sitio, tmp_path, monkeypatch):
@@ -161,7 +164,8 @@ def test_modelo_colgado_falla_sin_detener_la_corrida(sitio, tmp_path, monkeypatc
             procesos.append(cls())
             return procesos[-1]
 
-        async def wait_for_result(self):
+        async def wait_for_result(self, timeout_s=None):
+            self.timeout_pedido = timeout_s
             await asyncio.sleep(3600)
 
         async def close(self):
@@ -175,3 +179,5 @@ def test_modelo_colgado_falla_sin_detener_la_corrida(sitio, tmp_path, monkeypatc
     assert [f["rep"] for f in filas] == [1, 2]
     assert all("ErrorDeModelo" in f["error"] and "no respondió en 0.2 s" in f["error"] for f in filas)
     assert len(procesos) == 2 and all(p.matado and p.cerrado for p in procesos)
+    # El único tope es el del diseñador: `wait_for_result` no corta antes con el del evaluador (180 s).
+    assert all(p.timeout_pedido == math.inf for p in procesos)
