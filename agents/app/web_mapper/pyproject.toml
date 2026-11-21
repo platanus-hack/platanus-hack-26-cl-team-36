@@ -1,0 +1,19 @@
+[project]
+name = "web_mapper"
+version = "0.1.0"
+description = "Mapeador: lee el DOM para encontrar la ruta de referencia de una tarea en un sitio web."
+requires-python = ">=3.12"
+dependencies = [
+    "playwright>=1.48",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.uv]
+# Se corre con `uv run main.py`, como el evaluador: no se empaqueta.
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = [".", "../web_evaluator"]
+testpaths = ["tests"]
