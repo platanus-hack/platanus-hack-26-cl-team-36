@@ -8,11 +8,13 @@ El evaluador web (`agents/app/web_evaluator/`) corre en AgentCore Runtime; lo de
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
 Actions, con el plan de Terraform, quedarían a la vista. El repo personal es privado y es una copia de `main` de este.
 
-**Por qué `us-east-2`.** La cuenta de AWS se creó con el registro nuevo de AWS (*Sign up for AWS (new)*). Con ese
-registro, la cuenta es un "proyecto" dentro de una organización que administra AWS. Las políticas de esa organización
-solo dejan crear recursos regionales, como S3 o Lambda, en la región asignada al proyecto, y a Chile le corresponde
-`us-east-2` (Ohio). Cualquier otra región responde *explicit deny in a service control policy*. La región del
-proyecto se ve en [settings.aws.com](https://settings.aws.com) → Project → Additional info.
+**La cuenta de AWS.** Todo corre en una subcuenta de desarrollo de la organización de AWS de Unholster. Antes
+usábamos una cuenta creada para la hackatón con el registro nuevo de AWS, pero esa cuenta no deja crear runtimes de
+AgentCore (*maxAgents limit exceeded*, y subir la cuota requiere un caso a AWS Support).
+
+**Por qué `us-east-2`.** Es la región donde partió el proyecto (la cuenta anterior solo permitía esa). AgentCore y el
+perfil de inferencia de EE.UU. de Claude Haiku 5.5 (`us.anthropic.claude-haiku-5-5`) están disponibles ahí, así que
+la mantenemos.
 
 ## Cómo llega un cambio a AWS
 
@@ -48,15 +50,16 @@ abajo).
 ## Puesta en marcha (una vez)
 
 Necesitas Terraform 1.11 o más nuevo (`brew install hashicorp/tap/terraform`) y la AWS CLI con un perfil de la cuenta
-de la hackatón, con permisos de administrador.
+del proyecto, con permisos de administrador.
 
 **1. Bootstrap**, quien tenga la cuenta de AWS:
 
 ```bash
-export AWS_PROFILE=<perfil de la cuenta de la hackatón>
+export AWS_PROFILE=<perfil de la cuenta del proyecto>
 aws sts get-caller-identity          # confirma que es la cuenta correcta antes de seguir
 cd infra/bootstrap
 terraform init
+# Si Terraform no logra renovar la sesión SSO: eval "$(aws configure export-credentials --format env)"
 terraform apply -var="email_alertas=<correo para las alertas>"
 ```
 
