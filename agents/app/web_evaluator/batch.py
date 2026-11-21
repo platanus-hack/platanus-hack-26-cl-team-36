@@ -111,7 +111,7 @@ async def run_batch(
         import anthropic
 
         if engine == "bedrock":
-            client = anthropic.AsyncAnthropicBedrockMantle(aws_region=config.AWS_REGION)
+            client = anthropic.AsyncAnthropicBedrock(aws_region=config.AWS_REGION)  # bedrock-runtime; ver config.py
             model_prefix = config.BEDROCK_MODEL_PREFIX
         else:
             client = anthropic.AsyncAnthropic()

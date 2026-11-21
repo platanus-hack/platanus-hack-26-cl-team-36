@@ -11,9 +11,6 @@
       "codeLocation": "../agents/app/web_evaluator",
       "runtimeVersion": "PYTHON_3_12",
       "protocol": "HTTP",
-      "additionalPolicies": [
-        "arn:aws:iam::aws:policy/AmazonBedrockMantleInferenceAccess"
-      ],
       "lifecycleConfiguration": {
         "idleRuntimeSessionTimeout": 900,
         "maxLifetime": 3600

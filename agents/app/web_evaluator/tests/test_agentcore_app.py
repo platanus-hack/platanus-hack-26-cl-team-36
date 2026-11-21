@@ -88,7 +88,7 @@ class _FakeMessages:
 def test_judge_without_fallbacks_uses_plain_messages_api():
     messages, beta_messages = _FakeMessages(), _FakeMessages()
     client = SimpleNamespace(messages=messages, beta=SimpleNamespace(messages=beta_messages))
-    judge = ApiJudge(client, model="anthropic.claude-haiku-5-5", fallbacks=False)
+    judge = ApiJudge(client, model="us.anthropic.claude-haiku-5-5", fallbacks=False)
     assert asyncio.run(judge.ask_json("sistema", "texto", b"png", {"type": "object"}))["outcome"] == "success"
     assert beta_messages.calls == []
-    assert "fallbacks" not in messages.calls[0] and messages.calls[0]["model"] == "anthropic.claude-haiku-5-5"
+    assert "fallbacks" not in messages.calls[0] and messages.calls[0]["model"] == "us.anthropic.claude-haiku-5-5"

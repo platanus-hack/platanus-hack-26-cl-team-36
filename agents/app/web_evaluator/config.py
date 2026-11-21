@@ -28,7 +28,11 @@ NO_EFFECT_THRESHOLD = 0.005  # fracción de píxeles que deben cambiar para que 
 # AWS: el motor `bedrock`, el navegador `agentcore` y el evaluador desplegado en AgentCore Runtime.
 # La cuenta de la hackatón solo permite us-east-2 (ver infra/README.md).
 AWS_REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-2"
-BEDROCK_MODEL_PREFIX = "anthropic."   # Claude en Amazon Bedrock (endpoint bedrock-mantle): anthropic.claude-...
+# Claude en Amazon Bedrock por el endpoint bedrock-runtime, con el perfil de inferencia de EE.UU. (us.anthropic.claude-...).
+# En us-east-2, Haiku 5.5 no está en bedrock-mantle ni se sirve solo en la región: AWS lo ofrece por perfiles que
+# reparten entre regiones, y el de EE.UU. usa us-east-1, us-east-2 y us-west-2, las que la cuenta permite. Ver
+# https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-5-5.html
+BEDROCK_MODEL_PREFIX = "us.anthropic."
 # En AWS (motor bedrock, incluido AgentCore Runtime) solo se usa Haiku, para los usuarios y para el juez.
 BEDROCK_USER_MODEL = "claude-haiku-5-5"
 BEDROCK_JUDGE_MODEL = "claude-haiku-5-5"

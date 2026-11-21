@@ -22,3 +22,33 @@ def test_final_actions():
     assert decision_to_turn({"expectation": "x", "action": "done", "text": "Listo."}, 4).final == ("done", "Listo.")
     assert decision_to_turn({"expectation": "Pide login.", "action": "blocked"}, 5).final == ("blocked", "Pide login.")
     assert decision_to_turn({"expectation": "x", "action": "give_up", "text": "No está."}, 6).final == ("gave_up", "No está.")
+
+
+def test_api_engine_marks_only_the_last_block_for_caching(tmp_path):
+    import asyncio
+    from types import SimpleNamespace
+
+    import config
+    from engines import ApiEngine
+
+    calls = []
+
+    class FakeMessages:
+        async def create(self, **kwargs):
+            calls.append(kwargs)
+            usage = SimpleNamespace(input_tokens=1, output_tokens=1, cache_read_input_tokens=0, cache_creation_input_tokens=0)
+            text = SimpleNamespace(type="text", text="TERMINADO: listo")
+            return SimpleNamespace(stop_reason="end_turn", content=[text], usage=usage)
+
+    model = config.BEDROCK_MODEL_PREFIX + config.BEDROCK_USER_MODEL
+    engine = ApiEngine(SimpleNamespace(messages=FakeMessages()), model, "medium")
+    asyncio.run(engine.start("sistema", "primer mensaje", b"png", tmp_path))
+    turn = asyncio.run(engine.decide())
+
+    assert turn.final == ("done", "listo")
+    request = calls[0]
+    # Bedrock (bedrock-runtime) no acepta la caché automática: el punto va a mano, solo en el último bloque.
+    assert "cache_control" not in request and request["model"] == "us.anthropic.claude-haiku-5-5"
+    blocks = request["messages"][-1]["content"]
+    assert [block.get("cache_control") for block in blocks] == [None, {"type": "ephemeral"}]
+    assert all("cache_control" not in block for block in engine.messages[0]["content"])  # el historial queda igual
