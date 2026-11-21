@@ -5,6 +5,7 @@ salida estructurada validada contra un esquema JSON. El skill no se carga como s
 en el prompt de sistema, igual que lo usaría la extensión.
 """
 
+import asyncio
 import hashlib
 import json
 import re
@@ -12,6 +13,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from disenador import config
 from engines import ClaudeCodeError, ClaudeCodeProcess, png_image_block
 
 ESQUEMA_TEMA = {
@@ -35,7 +37,9 @@ Respondes solo el JSON pedido, con:
 - `css`: la hoja de estilos completa del tema. Cada selector empieza con `html.mi-tema` (por ejemplo
   `html.mi-tema body` o `html.mi-tema nav a:hover`): la extensión agrega la clase `mi-tema` a `<html>` y la quita al
   apagar el tema. La hoja se inyecta como hoja de autor después de las del sitio. Está prohibido `url(`,
-  `image-set(`, `@import`, la barra invertida, `expression(` y `javascript:`; lo que los contenga se descarta.
+  `image-set(`, `@import`, la barra invertida, `expression(`, `javascript:` y los saltos de línea dentro de una
+  cadena; lo que los contenga se descarta. Solo se aceptan las at-reglas `@media`, `@supports`, `@layer`,
+  `@container` y `@keyframes` (nada de `@font-face`).
 - `resumen`: una o dos frases con la idea del tema.
 - `decisiones`: una lista corta, una frase por decisión de diseño.
 """
@@ -110,25 +114,37 @@ class Respuesta:
 
 
 class ClaudeCode:
-    """Una llamada a `claude -p` con texto, varias imágenes y salida JSON."""
+    """Una llamada a `claude -p` con texto, varias imágenes y salida JSON.
 
-    def __init__(self, model: str, effort: str, cwd: Path):
+    Si `claude` no entrega el resultado en `timeout_s` segundos, se mata el proceso y la llamada falla con
+    `ErrorDeModelo`: una generación colgada queda como error en el resumen y no detiene la corrida.
+    """
+
+    def __init__(self, model: str, effort: str, cwd: Path, timeout_s: float = config.TIMEOUT_MODELO_S):
         self.model = model
         self.effort = effort
         self.cwd = cwd
+        self.timeout_s = timeout_s
 
     async def pedir(self, sistema: str, esquema: dict, partes: list[str | bytes], log: Path) -> Respuesta:
         """`partes` alterna texto e imágenes PNG, en el orden en que el modelo las ve."""
         inicio = time.monotonic()
         proceso = await ClaudeCodeProcess.open(sistema, self.model, self.effort, esquema, self.cwd, log)
-        try:
-            contenido = [
-                {"type": "text", "text": parte} if isinstance(parte, str) else png_image_block(parte) for parte in partes
-            ]
-            mensaje = {"type": "user", "message": {"role": "user", "content": contenido}}
+        contenido = [
+            {"type": "text", "text": parte} if isinstance(parte, str) else png_image_block(parte) for parte in partes
+        ]
+        mensaje = {"type": "user", "message": {"role": "user", "content": contenido}}
+
+        async def conversar() -> dict:
             proceso.process.stdin.write((json.dumps(mensaje) + "\n").encode())
             await proceso.process.stdin.drain()
-            evento = await proceso.wait_for_result()
+            return await proceso.wait_for_result()
+
+        try:
+            evento = await asyncio.wait_for(conversar(), timeout=self.timeout_s)
+        except TimeoutError as error:
+            _matar(proceso)
+            raise ErrorDeModelo(f"claude no respondió en {self.timeout_s:g} s; se detuvo el proceso") from error
         except ClaudeCodeError as error:
             raise ErrorDeModelo(str(error)) from error
         finally:
@@ -142,3 +158,10 @@ class ClaudeCode:
         uso = {k: (evento.get("usage") or {}).get(k) or 0 for k in ("input_tokens", "output_tokens",
                                                                     "cache_read_input_tokens")}
         return Respuesta(salida, uso, evento.get("total_cost_usd") or 0.0, round(time.monotonic() - inicio, 1))
+
+
+def _matar(proceso) -> None:
+    try:
+        proceso.process.kill()
+    except ProcessLookupError:
+        pass

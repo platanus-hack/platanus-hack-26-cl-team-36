@@ -1,4 +1,4 @@
-"""La página en Playwright: abrirla en escritorio o móvil, aplicar o apagar el tema y capturarla."""
+"""La página en Playwright: abrirla en escritorio o móvil, aplicar o apagar el tema, capturarla y verificar el CSS."""
 
 import asyncio
 
@@ -87,3 +87,62 @@ async def quitar_tema(page: Page) -> None:
 async def capturar(page: Page) -> bytes:
     """El viewport, sin animaciones ni cursor, para comparar antes y después."""
     return await page.screenshot(type="png", full_page=False, animations="disabled", caret="hide", timeout=20_000)
+
+
+# Lee el CSS con el parser de Chromium, en un documento inerte (sin red: `@import` y `url()` no se cargan), y recorre
+# sus reglas. Cada regla de estilo de primer nivel debe empezar por `html.mi-tema` en cada selector de la lista; una
+# anidada, por `&` (Chromium escribe `& .b` para la relativa `.b`). Solo se aceptan los tipos de regla del
+# saneamiento, y ningún texto puede cargar recursos.
+_VERIFICAR = r"""(css) => {
+  const doc = document.implementation.createHTMLDocument("");
+  const estilo = doc.createElement("style");
+  estilo.textContent = css;
+  doc.head.appendChild(estilo);
+  const TIPOS = new Set(["CSSStyleRule", "CSSMediaRule", "CSSSupportsRule", "CSSLayerBlockRule", "CSSLayerStatementRule",
+    "CSSContainerRule", "CSSKeyframesRule", "CSSKeyframeRule", "CSSNestedDeclarations"]);
+  const PELIGROSO = /url\s*\(|(?<![\w-])src\s*\(|(?<![\w-])(?:-webkit-)?image(?:-set)?\s*\(|@import|expression\s*\(|javascript\s*:|-moz-binding|(?<![\w-])behavior\s*:/i;
+  const AMBITO = /^html\.mi-tema(?![\w-])/;
+  const partes = (lista) => {
+    const salida = [];
+    let profundidad = 0, comilla = null, actual = "";
+    for (const c of lista) {
+      if (comilla) { if (c === comilla) comilla = null; }
+      else if (c === '"' || c === "'") comilla = c;
+      else if (c === "(" || c === "[") profundidad++;
+      else if (c === ")" || c === "]") profundidad--;
+      else if (c === "," && profundidad === 0) { salida.push(actual.trim()); actual = ""; continue; }
+      actual += c;
+    }
+    salida.push(actual.trim());
+    return salida.filter(Boolean);
+  };
+  const violaciones = [];
+  const agregar = (motivo, regla) => violaciones.push({ motivo, texto: regla.cssText.replace(/\s+/g, " ").slice(0, 160) });
+  const recorrer = (reglas, anidada) => {
+    for (const regla of reglas) {
+      const tipo = regla.constructor.name;
+      if (!TIPOS.has(tipo)) { agregar(`regla ${tipo} no permitida`, regla); continue; }
+      if (tipo === "CSSStyleRule") {
+        const fuera = partes(regla.selectorText).filter((p) => (anidada ? !p.startsWith("&") : !AMBITO.test(p)));
+        if (fuera.length) agregar(`selector fuera de html.mi-tema: ${fuera.join(", ")}`, regla);
+      }
+      // El texto propio: declaraciones y selector, o el preludio de una at-regla.
+      const propio = regla.style ? `${regla.selectorText || regla.keyText || ""} { ${regla.style.cssText} }`
+        : regla.cssText.split("{")[0];
+      if (PELIGROSO.test(propio)) agregar("carga recursos o ejecuta código", regla);
+      if (regla.cssRules) recorrer(regla.cssRules, anidada || tipo === "CSSStyleRule");
+    }
+  };
+  recorrer(estilo.sheet.cssRules, false);
+  return violaciones;
+}"""
+
+
+async def verificar_css(browser: Browser, css: str) -> list[dict]:
+    """Lo que el parser de Chromium ve en el CSS y el saneamiento no debió dejar pasar: [{motivo, texto}]."""
+    contexto = await browser.new_context()
+    try:
+        page = await contexto.new_page()
+        return await page.evaluate(_VERIFICAR, css)
+    finally:
+        await contexto.close()

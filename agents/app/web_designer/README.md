@@ -72,13 +72,26 @@ Por cada caso:
 2. **Generación.** `claude -p` sin herramientas, sin MCP, sin skills ni configuración del usuario, en una carpeta
    vacía, con salida estructurada `{css, resumen, decisiones}`. El prompt de sistema es el cuerpo del `SKILL.md` (sin
    el frontmatter) más el contrato de salida de `modelo.py`; el mensaje lleva gustos, tarea, URL, mapa y captura.
-3. **Saneamiento**, sobre el texto ya decodificado del JSON. Se descarta toda declaración con `url(`, `image-set(`,
-   `expression(`, `javascript:`, `behavior:`, `-moz-binding` o una barra invertida; una regla con alguno de ellos en
-   el selector; `@import` y las at-reglas sueltas que no son `@layer`. Un selector que no empieza por `html.mi-tema`
-   se corrige anteponiéndolo (`body` → `html.mi-tema body`, `:root`/`html` → `html.mi-tema`) y cuenta como violación.
+3. **Saneamiento**, sobre el texto ya decodificado del JSON. Las cadenas se leen como en CSS: un salto de línea
+   (o CR o FF) sin escapar la termina rota, así que las reglas se cortan donde las cortaría el navegador. Se revisa
+   cada texto que se vuelve a escribir (selectores, declaraciones y preludios de at-reglas) y se descarta el que tenga
+   `url(`, `src(`, `image(`/`image-set(`, `expression(`, `javascript:`, `behavior:`, `-moz-binding`, `@import`, una
+   barra invertida, una cadena rota o de más de 200 caracteres (el texto de `content:`), una llave o un comentario
+   fuera de una cadena, o paréntesis o corchetes desbalanceados: una declaración sola, una regla entera si es el
+   selector. Solo pasan las at-reglas `@media`, `@supports`, `@layer`, `@container` y `@keyframes`; `@font-face`,
+   `@import`, `@namespace`, `@page`, `@property`, `@scope` y las demás se descartan. Un selector que no empieza por
+   `html.mi-tema` se corrige anteponiéndolo (`body` → `html.mi-tema body`, `:root`/`html` → `html.mi-tema`) y cuenta
+   como violación; una regla anidada debe empezar por `&` o no usarlo (`:not(&) b` saldría del ámbito y se descarta).
    Nada más se reescribe: `!important` se conserva, porque el tema se inyecta como hoja de autor, igual que hoy en la
    extensión, y lo necesita para ganarle al sitio. `tema.css` es el CSS saneado.
+
+   Después, **el navegador tiene la última palabra**: Chromium lee el CSS saneado en un documento inerte (sin red) y
+   se recorren sus reglas, entrando en las agrupadoras y anidadas. Si alguna es de un tipo no permitido, tiene un
+   selector de primer nivel que no empieza por `html.mi-tema` (o uno anidado que no empieza por `&`) o carga recursos,
+   el tema **no se aplica**: la generación queda con error `TemaRechazado` y `metricas.json` lleva las
+   `violaciones` que vio el navegador.
 4. **Aplicación y métricas**, en escritorio (1280x800) y en móvil (390x844): carga la página, la captura y la mide,
+   espera lo mismo que esperará con el tema y la mide otra vez sin tocarla (el ruido: lo que la página pierde sola),
    agrega la clase `mi-tema` y un `<style>` con el tema (con la CSP desactivada, como `scripting.insertCSS` de la
    extensión), espera, captura y mide otra vez en la misma página. Luego quita la clase y compara la captura con la
    original (la del inicio o la de la página sin el `<style>` en ese momento, la más parecida: así un widget que el
@@ -93,8 +106,12 @@ Por cada caso:
 
 ### Métricas (`metricas.json`)
 
-Por viewport, antes y después: enlaces, botones y campos visibles; **perdidos** (interactivos visibles antes que
-después no lo están, con su texto); **ocultos** (de los primeros 4000 elementos visibles, cuántos dejan de estarlo);
+Por viewport, antes, ruido y después: enlaces, botones y campos visibles; **perdidos** (interactivos visibles antes
+que después no lo están, con su texto: salieron del DOM sin un reemplazo igual, dejaron de ser visibles, su texto
+quedó transparente, o su centro, si está en el viewport, quedó bajo otro elemento que antes no lo tapaba);
+**ocultos** (de los primeros 4000 elementos visibles, cuántos dejan de estarlo o quedan con su texto transparente).
+Lo que se pierde ya en la medida de ruido (carruseles, re-renders, banners) no se le cuenta al tema y se informa
+aparte (`perdidos_ruido`, `ocultos_ruido`);
 **contraste** (proporción de textos bajo WCAG AA, inciertos y los seis peores); letra mínima y mediana; desborde
 horizontal; elementos `fixed`/`sticky`; y **sin mi-tema**: diferencia de píxeles entre la página con la clase quitada
 y la original, comparada con lo que la página cambia sola entre dos capturas (`identica` si no pasa de ese ruido más
@@ -107,8 +124,10 @@ calcula subiendo por los ancestros y componiendo sus `background-color` con alfa
 blanco). Los colores pasan a sRGB con un canvas, así que sirve `oklch()`. Se aplican `invert`, `brightness` y
 `contrast` de los ancestros; una muestra queda **incierta** si un ancestro tiene imagen de fondo o degradado, u otro
 filtro. No se considera la `opacity` de los ancestros ni las sombras de texto. "Visible" es caja de más de 1x1 px,
-`checkVisibility` con opacidad y visibilidad, y no estar fuera del documento: un elemento recortado por un ancestro
-con `overflow: hidden` cuenta como visible.
+`checkVisibility` con opacidad y visibilidad, opacidad efectiva (con la de los ancestros) mayor que 0,05, sin un
+`clip-path` (`inset`, `circle`, `ellipse`) o un `clip` que lo recorte entero, y no estar fuera del documento: un
+elemento recortado por un ancestro con `overflow: hidden` cuenta como visible. La prueba de "tapado" usa
+`elementFromPoint` en el centro, así que solo vale para lo que está en el viewport.
 
 ## Salida
 
@@ -128,7 +147,10 @@ agents/.runs/diseno/<id o host>/<fecha-hora>/
 ```
 
 Una generación que falla queda en el resumen con `error` y no detiene las demás; si falla solo el juez, con
-`error_juez`. El backoffice no lee estas carpetas: no tienen `route_tree.json`.
+`error_juez`. Una llamada a `claude` que no responde en `TIMEOUT_MODELO_S` (240 s, en `disenador/config.py`) se
+mata y cuenta como error (el juez la reintenta una vez). Un tema que el navegador rechaza queda con
+`error: TemaRechazado ...`, sin capturas y con sus `violaciones` en `metricas.json`. El backoffice no lee estas
+carpetas: no tienen `route_tree.json`.
 
 ## Iterar un skill
 

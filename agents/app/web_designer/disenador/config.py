@@ -14,6 +14,7 @@ MODELO = "claude-haiku-5-5"
 ESFUERZO = "medium"  # en low, Haiku 5.5 corta antes y se salta revisiones
 MODELO_JUEZ = "claude-sonnet-5-5"
 ESFUERZO_JUEZ = "medium"
+TIMEOUT_MODELO_S = 240      # una llamada a `claude -p` (diseño o juez) que tarda más se mata y cuenta como error
 
 # Viewports: el modelo y el juez ven el de escritorio; el móvil se mide y se captura después.
 ESCRITORIO = {"width": 1280, "height": 800}
