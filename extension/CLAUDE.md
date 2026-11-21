@@ -33,6 +33,7 @@ el tema completo: todo lo específico de un sitio debe poder expresarse como **d
 - **JS maneja estado y clases; CSS maneja lo visual.** Evitar estilos inline desde JS.
 - **Los sitios suelen ser SPA.** Cada feature expone `actualizar(opciones)` idempotente; el motor la llama en cada evento de `eventosNavegacion` y cuando el DOM cambia. Nunca insertar algo sin revisar antes si ya existe.
 - **Content scripts comparten global:** envolver cada archivo en una IIFE y exponer solo vía `globalThis.MiTema`.
+- **Nunca guardar una referencia fija a `document.documentElement` ni observar `document.body`.** Gmail reemplaza el `<html>` completo al cargar (`document.open`/`write`) y otros sitios pisan sus clases. Leer `document.documentElement` cada vez y observar `document` (que sobrevive). El motor repone `mi-tema` y `data-mt-tema` en `marcarHtml()`.
 - **Selectores:** preferir etiquetas propias del sitio (`ytd-*`) e `id`s sobre clases generadas. Si no se conoce la estructura actual del sitio, pedir al usuario que copie el HTML del elemento desde el inspector en lugar de adivinar.
 - **IDs y clases propias con prefijo `mt-`** para no chocar con el sitio.
 - **Privacidad:** a la API se le envía solo el origen (`new URL(url).origin`), nunca ruta ni parámetros. Por eso `data_collection_permissions` declara `browsingActivity`; si se envía algo más, actualizarlo.

@@ -3,17 +3,37 @@
 //
 //   1. Pide al background el tema para esta URL (el background le pregunta a la
 //      API e inyecta el CSS). Si no hay tema, no toca la página.
-//   2. Pone/quita la clase `mi-tema` en <html> según el botón de la extensión.
+//   2. Marca <html> con la clase `mi-tema` (según el botón de la extensión) y el
+//      atributo `data-mt-tema`, y los repone si el sitio los borra.
 //   3. Ejecuta las features que pide el tema en cada navegación y cambio del DOM.
+//
+// Ojo: algunos sitios reemplazan el <html> completo al cargar (Gmail usa
+// document.open/write) o pisan sus clases. Por eso nunca guardamos una referencia
+// fija a document.documentElement y observamos `document`, que sí sobrevive.
 
 (() => {
-  const html = document.documentElement;
+  let tema = null;
+  let activo = true;
 
-  function aplicarActivo(activo) {
-    html.classList.toggle("mi-tema", activo);
+  // Repone la clase al instante si el sitio la pisa (ej. html.className = "...").
+  let htmlObservado = null;
+  const observadorHtml = new MutationObserver(() => marcarHtml());
+
+  // Idempotente: solo escribe si algo cambió, así no entra en bucle con observadorHtml.
+  function marcarHtml() {
+    const html = document.documentElement;
+    if (!tema || !html) return;
+
+    if (html !== htmlObservado) {
+      observadorHtml.disconnect();
+      observadorHtml.observe(html, { attributes: true, attributeFilter: ["class"] });
+      htmlObservado = html;
+    }
+    if (html.dataset.mtTema !== tema.id) html.dataset.mtTema = tema.id; // lo usa el refresco en modo desarrollo
+    html.classList.toggle("mi-tema", activo); // toggle con segundo argumento no escribe si no cambia
   }
 
-  function prepararFeatures(tema) {
+  function prepararFeatures() {
     return Object.entries(tema.features).flatMap(([id, opciones]) => {
       const feature = MiTema.features.get(id);
       if (!feature) {
@@ -24,13 +44,13 @@
     });
   }
 
-  function vigilarCambios(tema, actualizarUI) {
+  function vigilarCambios(actualizarUI) {
     // Eventos propios del sitio al navegar sin recargar (SPA), ej. yt-navigate-finish.
     for (const evento of tema.eventosNavegacion) {
       document.addEventListener(evento, actualizarUI);
     }
 
-    // Respaldo: si el sitio re-renderiza y borra lo que insertamos, lo reponemos.
+    // Si el sitio re-renderiza (o reemplaza el <html>) y borra lo que pusimos, lo reponemos.
     // requestAnimationFrame agrupa muchos cambios seguidos en una sola llamada.
     let pendiente = false;
     const observador = new MutationObserver(() => {
@@ -41,31 +61,31 @@
         actualizarUI();
       });
     });
-
-    const iniciar = () => {
-      observador.observe(document.body, { childList: true, subtree: true });
-      actualizarUI();
-    };
-    if (document.body) iniciar();
-    else document.addEventListener("DOMContentLoaded", iniciar, { once: true });
+    observador.observe(document, { childList: true, subtree: true });
+    actualizarUI();
   }
 
   async function iniciar() {
-    const [{ activo = true }, tema] = await Promise.all([
+    const [estado, respuesta] = await Promise.all([
       browser.storage.local.get("activo"),
       browser.runtime.sendMessage({ tipo: "tema:aplicar" }),
     ]);
+    if (!respuesta) return; // sin tema para este sitio (o la API no respondió)
 
-    if (!tema) return; // sin tema para este sitio (o la API no respondió)
+    tema = respuesta;
+    activo = estado.activo ?? true;
+    console.info(`[mi-tema] Tema "${tema.id}" aplicado${activo ? "" : " (desactivado con el botón)"}.`);
 
-    html.dataset.mtTema = tema.id; // data-mt-tema: lo usa el refresco en modo desarrollo
-    aplicarActivo(activo);
     browser.storage.onChanged.addListener((cambios, area) => {
-      if (area === "local" && "activo" in cambios) aplicarActivo(cambios.activo.newValue);
+      if (area === "local" && "activo" in cambios) {
+        activo = cambios.activo.newValue;
+        marcarHtml();
+      }
     });
 
-    const features = prepararFeatures(tema);
-    const actualizarUI = () => {
+    const features = prepararFeatures();
+    vigilarCambios(() => {
+      marcarHtml();
       for (const { id, feature, opciones } of features) {
         try {
           feature.actualizar(opciones);
@@ -73,8 +93,7 @@
           console.error(`[mi-tema] Error en la feature "${id}":`, error);
         }
       }
-    };
-    vigilarCambios(tema, actualizarUI);
+    });
   }
 
   iniciar().catch((error) => console.error("[mi-tema] No se pudo iniciar:", error));

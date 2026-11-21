@@ -9,10 +9,11 @@
 (() => {
   const ID_BOTON = "mt-foco";
   const CLASE_FOCO = "mi-tema-foco";
-  const html = document.documentElement;
+  // Sin referencia fija: algunos sitios reemplazan el <html> (ver content/motor.js).
+  const html = () => document.documentElement;
 
   function textoBoton() {
-    return html.classList.contains(CLASE_FOCO) ? "🎯 Salir de modo foco" : "🎯 Modo foco";
+    return html().classList.contains(CLASE_FOCO) ? "🎯 Salir de modo foco" : "🎯 Modo foco";
   }
 
   function crearBoton() {
@@ -21,7 +22,7 @@
     btn.type = "button";
     btn.textContent = textoBoton();
     btn.addEventListener("click", () => {
-      html.classList.toggle(CLASE_FOCO);
+      html().classList.toggle(CLASE_FOCO);
       btn.textContent = textoBoton();
     });
     return btn;
@@ -33,7 +34,7 @@
 
     if (!enRuta) {
       btn?.remove();
-      html.classList.remove(CLASE_FOCO);
+      html().classList.remove(CLASE_FOCO);
       return;
     }
 
