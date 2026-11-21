@@ -202,4 +202,5 @@ La soul se guarda aparte y nunca se exporta.
 
 Material de apoyo: [investigación previa](investigacion-ui-adaptativa.md) sobre interfaces adaptativas y
 [referencias](referencias.md) de herramientas que podrían sumarse; y los [niveles de cambio a una
-página](niveles-de-cambio-a-una-pagina.md), del estilo a una interfaz nueva, con su factibilidad.
+página](niveles-de-cambio-a-una-pagina.md), del estilo a una interfaz nueva, con su factibilidad. El diseño del
+[evaluador](evaluador.md) detalla cómo un agente usa una página solo a partir de capturas, en avances.
