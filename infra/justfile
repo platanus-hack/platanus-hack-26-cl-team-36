@@ -15,7 +15,7 @@ agentcore := "../node_modules/.bin/agentcore"
 list_heading := "Run as `just aws <command>`, with AWS_PROFILE set to the project account:\n"
 # The deployed runtime: <project>_<target>_<runtime>. The CLI only finds it by its name in agentcore.json on the
 # computer that deployed it, and CI deploys, so explore, status and logs look it up in AWS instead.
-runtime_name := "ChameleonAgents_default_web_evaluator"
+runtime_name := "ChameleonAgents_default_web_evaluator_image"
 runtime_arn := "aws bedrock-agentcore-control list-agent-runtimes --query \"agentRuntimes[?agentRuntimeName=='" + runtime_name + "'].agentRuntimeArn | [0]\" --output text"
 
 # What `just aws` alone runs.
