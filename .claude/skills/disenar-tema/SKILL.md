@@ -119,13 +119,16 @@ contenedor de una foto o video (tapa la imagen). Imágenes, videos, íconos de c
 
 **Tarea** (sección 6; la persona tiene que ver por dónde seguir en 2 segundos). Busca el objetivo en este orden:
 1. Un botón, enlace o campo cuyo texto coincide con la tarea → **acción principal**.
-2. Si la respuesta no está en esta página (portada, menú): los 1–3 enlaces, ítems de menú o tarjetas que llevan a ella
-   por su nombre o un sinónimo (tarifa → "Tarifas", "Pasajes"; devolver → "Derechos", "Garantía", "Retracto").
+2. Si la respuesta no está en esta página (portada, menú): elige 1–3 de `enlaces_de_navegacion` (o de
+   `botones_destacados`) del mapa que llevan a ella por su nombre o un sinónimo (tarifa → "Tarifas", "Pasajes";
+   devolver → "Derechos", "Garantía", "Retracto") y usa **su `selector`** tal cual. Nunca inventes un `href*=` con
+   palabras que no están en el mapa: no encuentra nada y el resaltado no se ve.
 3. Si es un artículo: el título de la sección que responde y su entrada en el índice ("fundación" → "Historia").
 Estilo de la acción principal (y del primer elemento del camino del punto 2, el más probable): `background-color: var(--mt-acento)`, `color: var(--mt-acento-texto)`, `font-weight:
 700`, `padding: 12px 24px`, `min-height: 44px`, radio de tu escala, y `html.mi-tema <selector> * { color: inherit
 !important; }`. Estilo de los otros enlaces, títulos o entradas de índice del camino (no mueve nada): `font-weight: 700`, `color:
-var(--mt-acento)`, `box-shadow: inset 0 -3px 0 var(--mt-acento)`. Lo resaltado tiene que verse en la captura sin
+var(--mt-acento)`, `box-shadow: inset 0 -3px 0 var(--mt-acento)`. `--mt-acento-texto` va solo sobre un fondo
+`--mt-acento`, nunca solo. Lo resaltado tiene que verse en la captura sin
 buscarlo. Excepciones: (a) en la cabecera y la navegación de arriba, y en todo lo que tiene `posicion` `fixed` o
 `sticky` en el mapa, solo color, peso y `box-shadow`: nada de `padding`, borde ni tamaño de letra (el menú salta de
 línea y tapa la página); (b) un enlace que se repite en cada ítem de una lista ("comentarios", "ver más"): solo color
@@ -163,7 +166,7 @@ En este orden de preferencia: (1) variables CSS del sitio: `html.mi-tema { --col
 
 ## Orden fijo de secciones del CSS
 
-Escribe `/* N. nombre */` al inicio de cada sección que uses.
+Escribe `/* N. nombre */` al inicio de cada sección que uses: **obligatorio** (así se revisa el tema por partes).
 1. **Tokens**: `html.mi-tema { --mt-*: …; }` (+ `color-scheme: dark` si el tema es oscuro).
 2. **Variables del sitio**: las de fondo/superficie (`background`, `bg`, `surface`) a `--mt-fondo` o
    `--mt-superficie`; texto (`text`, `color-base`, `fg`) a `--mt-texto`; borde a `--mt-borde`; marca o enlace

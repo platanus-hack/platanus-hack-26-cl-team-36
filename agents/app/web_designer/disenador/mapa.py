@@ -2,7 +2,8 @@
 
 Solo lleva lo que sirve para diseñar: landmarks, encabezados, contenedores grandes (etiqueta, id, clases estables,
 rol, tamaño y posición en el documento), colores y tamaños de letra calculados de los nodos clave, los botones con
-fondo propio y los colores de los enlaces (el color de marca), las variables CSS del sitio declaradas en
+fondo propio, los enlaces de la navegación (texto, href y un selector que los encuentra: la receta Tarea resalta los
+que llevan a la tarea sin inventar selectores) y los colores de los enlaces (el color de marca), las variables CSS del sitio declaradas en
 `:root`/`html`/`body` (hasta 40: primero las de color, y entre ellas las de fondo), conteos de enlaces y botones, y el esquema de color. Los ids y clases que parecen generados (hashes, números largos) o que
 necesitarían escaparse en CSS no se incluyen: el tema no puede usar barras invertidas.
 """
@@ -100,6 +101,33 @@ _MAPA_JS = r"""() => {
     .filter((el) => { const f = getComputedStyle(el).backgroundColor; return !transparente(f) && f !== fondoBody; })
     .slice(0, 6)
     .map((el) => ({ ...nodo(el), texto: texto(el, 40) }));
+  // Enlaces de la cabecera y la navegación (hasta 15, sin repetir): texto visible, href sin consulta y un selector
+  // que encuentra ese enlace. No se filtran por la tarea: el modelo elige.
+  const enlacesDeNavegacion = (() => {
+    const lista = [];
+    const vistos = new Set();
+    const zonas = unicos([...document.querySelectorAll("header, nav, [role=banner], [role=navigation]")]).filter(visible);
+    for (const zona of zonas) {
+      for (const a of zona.querySelectorAll("a[href]")) {
+        if (lista.length >= 15) return lista;
+        const rotulo = texto(a, 40);
+        if (!rotulo || !visible(a)) continue;
+        const crudo = a.getAttribute("href").trim();
+        let href = crudo.replace(/[?].*$/, "");
+        try {
+          const url = new URL(crudo, location.href);
+          if (/^[a-z]+:/i.test(crudo) && url.origin === location.origin) href = url.pathname + url.hash;
+        } catch { /* href raro: queda como está */ }
+        const clave = rotulo + "|" + href;
+        if (vistos.has(clave)) continue;
+        vistos.add(clave);
+        const citable = crudo.length <= 80 && !/['\\]/.test(crudo);
+        const sel = a.id && estable(a.id) ? "a#" + a.id : citable ? "a[href='" + crudo + "']" : selector(a);
+        lista.push({ texto: rotulo, href: href.slice(0, 80), selector: sel });
+      }
+    }
+    return lista;
+  })();
   const enlaces = [...principal.querySelectorAll("a[href]")].filter(visible).slice(0, 40);
   const coloresDeEnlace = {};
   for (const el of enlaces) {
@@ -160,6 +188,7 @@ _MAPA_JS = r"""() => {
     },
     claves,
     botones_destacados: destacados,
+    enlaces_de_navegacion: enlacesDeNavegacion,
     colores_de_enlace: Object.entries(coloresDeEnlace).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([color, n]) => ({ color, enlaces: n })),
     variables_css: variables,
     landmarks,
@@ -174,9 +203,10 @@ async def construir_mapa(page: Page) -> dict:
 
 
 def como_texto(mapa: dict, max_caracteres: int = config.MAPA_MAX_CARACTERES) -> str:
-    """JSON compacto para el prompt; si no cabe, recorta primero los contenedores y luego los encabezados."""
+    """JSON compacto para el prompt; si no cabe, recorta los contenedores, los encabezados, los enlaces de la
+    navegación y al final los landmarks."""
     recortado = dict(mapa)
-    for clave in ("contenedores", "encabezados", "landmarks"):
-        while len(json.dumps(recortado, ensure_ascii=False, separators=(",", ":"))) > max_caracteres and recortado[clave]:
+    for clave in ("contenedores", "encabezados", "enlaces_de_navegacion", "landmarks"):
+        while len(json.dumps(recortado, ensure_ascii=False, separators=(",", ":"))) > max_caracteres and recortado.get(clave):
             recortado[clave] = recortado[clave][: len(recortado[clave]) * 3 // 4]
     return json.dumps(recortado, ensure_ascii=False, separators=(",", ":"))
