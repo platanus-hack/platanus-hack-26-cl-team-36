@@ -9,34 +9,35 @@ from mapper.goal_rules import complexity
 from mapper.goals import Goal
 from mapper.reference import Mapping, map_references
 
-# El Mapeador no envía formularios: en un objetivo `transact` la ruta llega hasta el paso anterior al envío.
-_TRANSACT_SUFFIX = (
-    " Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa"
-    " pantalla."
-)
+_SUFFIXES = {
+    "transact": " Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto"
+                " de esa pantalla.",
+    "reach_page": " Termina en esa página y cita su título o encabezado principal.",
+}
 
 
 def instruction(goal: Goal) -> str:
-    return goal.description + (_TRANSACT_SUFFIX if goal.intent == "transact" else "")
+    return goal.description + _SUFFIXES.get(goal.intent, "")
 
 
 def route_summary(document: dict, route_path: Path) -> dict:
     """Los datos de la ruta que necesita la comparación con un intento (niveles-de-tarea.md, sección 4).
 
-    `route` queda relativa a agents/.
+    `route` queda relativa a agents/; los totales y nodos, solo si la ruta verificó.
     """
+    verified = document["status"] == "verified"
     return {
         "status": document["status"],
-        "steps": document["totals"]["min_steps"],
-        "pages": document["totals"]["distinct_pages"],
-        "nodes": document["nodes"],
-        "key_nodes": [document["final_node"]],
+        "steps": document["totals"]["min_steps"] if verified else None,
+        "pages": document["totals"]["distinct_pages"] if verified else None,
+        "nodes": document["nodes"] if verified else None,
+        "key_nodes": [document["final_node"]] if verified else None,
         "route": str(route_path.relative_to(config.AGENTS_DIR)),
     }
 
 
 async def map_goal_routes(browser: Browser, goals: list[Goal], model: str, effort: str, claude_cwd: Path) -> None:
-    """Mapea la ruta de cada objetivo y completa `reference_route`, `complexity` y, si verificó, `expected_answer`."""
+    """Mapea la ruta de cada objetivo y completa `reference_route`; si verificó, `complexity` y la respuesta de un `find_info`."""
     mappings = [
         Mapping(goal.id, goal.start_url, instruction(goal), "desktop", config.VIEWPORTS["desktop"], model, effort,
                 config.RUNS_DIR / goal.id / "reference" / "desktop")
@@ -50,4 +51,5 @@ async def map_goal_routes(browser: Browser, goals: list[Goal], model: str, effor
         goal.reference_route = route_summary(document, mapping.out_dir / "route.json")
         if document["status"] == "verified":
             goal.complexity = complexity(document["totals"]["min_steps"])
-            goal.expected_answer = document["answer"] or None
+            if goal.intent == "find_info":
+                goal.expected_answer = document["answer"] or None

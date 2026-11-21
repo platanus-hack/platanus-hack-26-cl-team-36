@@ -83,7 +83,13 @@ _SNAPSHOT_JS = "(maxElements) => {" + HELPERS_JS + r"""
   const headings = [...document.querySelectorAll('h1, h2, h3, [role=heading]')]
     .filter(displayable).map((h) => (h.tagName.match(/^H\d$/) ? h.tagName.toLowerCase() : 'h') + ' ' + clean(h.innerText, 100))
     .filter((h) => h.length > 3).slice(0, 40);
-  // Posición en innerText del primer texto que se ve desde el borde superior del viewport.
+  const pinned = (el) => {
+    for (let node = el; node && node !== document.body; node = node.parentElement) {
+      if (/fixed|sticky/.test(getComputedStyle(node).position)) return true;
+    }
+    return false;
+  };
+  // Posición en innerText del primer texto que se ve desde el borde superior del viewport, sin lo que queda fijo.
   const textOffset = (text) => {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     const rendered = {};
@@ -95,7 +101,7 @@ _SNAPSHOT_JS = "(maxElements) => {" + HELPERS_JS + r"""
       const box = range.getBoundingClientRect();
       if (box.height <= 0) continue;
       rendered[snippet] = (rendered[snippet] || 0) + 1;
-      if (box.bottom <= 0) continue;
+      if (box.bottom <= 0 || pinned(node.parentElement)) continue;
       let index = -1;
       for (let seen = 0; seen < rendered[snippet]; seen++) {
         index = text.indexOf(snippet, index + 1);

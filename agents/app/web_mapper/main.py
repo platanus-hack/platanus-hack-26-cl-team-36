@@ -16,7 +16,7 @@ COMMANDS = {"route": route_command, "goals": goals_command}
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="web_mapper", description="Mapeador: lee el DOM para encontrar rutas de referencia.")
+    parser = argparse.ArgumentParser(prog="web_mapper", description="Mapeador: cataloga los objetivos de un sitio y encuentra sus rutas de referencia.")
     commands = parser.add_subparsers(dest="command", required=True)
     for command in COMMANDS.values():
         command.add_parser(commands)

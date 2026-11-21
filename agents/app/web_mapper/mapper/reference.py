@@ -101,8 +101,10 @@ async def _verify(browser: Browser, mapping: Mapping, exploration: Exploration, 
 
 async def map_reference(browser: Browser, mapping: Mapping, decider: Decider) -> dict:
     """Mapea la ruta, la escribe en `mapping.out_dir` y devuelve el documento de route.json."""
+    prefix = f"{mapping.task_id} {mapping.viewport}" if mapping.task_id else mapping.viewport
+
     def log(text: str) -> None:
-        print(f"[{mapping.viewport}] {text}", flush=True)
+        print(f"[{prefix}] {text}", flush=True)
 
     shutil.rmtree(mapping.out_dir, ignore_errors=True)
     mapping.out_dir.mkdir(parents=True)

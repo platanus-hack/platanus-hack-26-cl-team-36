@@ -1,7 +1,6 @@
 """Esquema de un sitio local servido por HTTP: zonas, barreras, topes y filtro de sitio."""
 
 import asyncio
-import functools
 import http.server
 import threading
 
@@ -20,7 +19,11 @@ SITE = {
           <a href="/manual.pdf">Manual</a></main>
         <footer><a href="/login.html">Ingresar</a>
           <form method="post"><input type="email" autocomplete="email" aria-label="Correo"></form></footer>""",
-    "a.html": """<title>A</title><main><a href="/profunda.html">Más adentro</a></main>""",
+    "a.html": """<title>A</title><main><a href="/profunda.html">Más adentro</a>
+        <div style="display:none"><form method="post"><input type="password" aria-label="Clave"></form></div>
+        <input type="email" autocomplete="email" aria-label="Correo" hidden>
+        <form><label for="s">Buscar por nombre del trámite</label><input id="s">
+          <select aria-label="Dirección regional"><option>Norte</option></select></form></main>""",
     "b.html": """<title>B</title><main><form><input name="telefono_contacto"></form></main>""",
     "c.html": """<title>C</title><main><form><label for="r">RUT</label><input id="r"></form></main>""",
     "login.html": """<title>Ingreso</title><main><form method="post">
@@ -30,16 +33,57 @@ SITE = {
 }
 
 
-@pytest.fixture
-def server(tmp_path, monkeypatch):
-    for name, html in SITE.items():
-        (tmp_path / name).write_text(f'<meta charset="utf-8">{html}', encoding="utf-8")
-    monkeypatch.setattr(config, "CRAWL_DELAY_S", 0)
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(tmp_path))
-    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+REDIRECT_SITE = {
+    "index.html": """<title>Inicio</title><main><a href="/a.html">A</a><a href="/viejo.html">Viejo</a>
+        <a href="/afuera.html">Afuera</a><a href="/nuevo.html">Nuevo</a></main>""",
+    "a.html": """<title>A</title><main><a href="/b.html">B</a></main>""",
+    "b.html": """<title>B</title>""",
+}
+# Destinos de redirección; {port} es el del servidor, en otro host (localhost en vez de 127.0.0.1).
+REDIRECTS = {"/viejo.html": "/a.html", "/afuera.html": "http://localhost:{port}/b.html", "/nuevo.html": "/b.html"}
+
+
+def _serve(directory, site: dict[str, str], redirects: dict[str, str]):
+    for name, html in site.items():
+        (directory / name).write_text(f'<meta charset="utf-8">{html}', encoding="utf-8")
+
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(directory), **kwargs)
+
+        def do_GET(self):
+            if self.path in redirects:
+                self.send_response(302)
+                self.send_header("Location", redirects[self.path].format(port=self.server.server_port))
+                self.end_headers()
+                return
+            super().do_GET()
+
+        def log_message(self, *args):
+            pass
+
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{httpd.server_port}"
-    httpd.shutdown()
+    return httpd
+
+
+@pytest.fixture
+def serve(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "CRAWL_DELAY_S", 0)
+    servers = []
+
+    def start(site, redirects=None):
+        servers.append(_serve(tmp_path, site, redirects or {}))
+        return f"http://127.0.0.1:{servers[-1].server_port}"
+
+    yield start
+    for httpd in servers:
+        httpd.shutdown()
+
+
+@pytest.fixture
+def server(serve):
+    return serve(SITE)
 
 
 def _crawl(base: str, max_pages: int, max_depth: int):
@@ -72,3 +116,9 @@ def test_gate_signals_come_from_content_forms(server):
 
 def test_page_cap(server):
     assert [page.title for page in _crawl(server, 2, 2).pages] == ["Inicio", "A"]
+
+
+def test_redirects_to_a_seen_page_or_another_host_are_dropped(serve):
+    outline = _crawl(serve(REDIRECT_SITE, REDIRECTS), 20, 2)
+    assert [page.title for page in outline.pages] == ["Inicio", "A", "B"]
+    assert len(outline.failures) == 1 and "otro sitio" in outline.failures[0]

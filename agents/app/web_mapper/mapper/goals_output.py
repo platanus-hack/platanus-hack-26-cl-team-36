@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from mapper.crawl import Outline
+from mapper.outline import SiteOutline
 from mapper.goals import Goal
 
 
@@ -12,7 +12,7 @@ def _write_json(path: Path, data) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def write_outline(out_dir: Path, outline: Outline) -> None:
+def write_outline(out_dir: Path, outline: SiteOutline) -> None:
     _write_json(out_dir / "outline.json", asdict(outline))
 
 

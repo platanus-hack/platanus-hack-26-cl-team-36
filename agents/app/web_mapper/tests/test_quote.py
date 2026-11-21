@@ -23,3 +23,12 @@ def test_quote_on_screen_only_when_inside_the_viewport(with_session):
         assert await quote_on_screen(session.page, "Para dar de baja llama al 103.")
 
     with_session("ayuda.html", body)
+
+
+def test_quote_on_screen_skips_a_hidden_duplicate(with_session):
+    from mapper.quote import quote_on_screen
+
+    async def body(session):
+        assert await quote_on_screen(session.page, "Horario de atención: 9 a 18 horas.")
+
+    with_session("duplicado.html", body)

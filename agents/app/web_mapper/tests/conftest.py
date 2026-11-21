@@ -34,6 +34,12 @@ PAGES = {
         <div style="max-height:0;overflow:hidden"><a href="x.html">En acordeón cerrado</a></div>
         <a href="uno.html">Repetido</a> <a href="dos.html">Repetido</a>
         <p>""" + "Texto de relleno. " * 1500 + """</p><p>Respuesta al fondo de la página.</p>""",
+    "sticky.html": """<title>Fijo</title>
+        <header style="position:sticky;top:0;background:#fff">Encabezado que siempre se ve</header>
+        <p>""" + "Texto largo de relleno. " * 1500 + """</p><p>Respuesta bajo el encabezado fijo.</p>""",
+    "duplicado.html": """<title>Duplicado</title>
+        <div style="display:none"><p>Horario de atención: 9 a 18 horas.</p></div>
+        <div><p>Horario de atención: 9 a 18 horas.</p></div>""",
 }
 
 

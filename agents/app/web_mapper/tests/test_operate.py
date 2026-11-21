@@ -82,7 +82,7 @@ def test_scroll_moves_the_page_and_is_an_in_page_step(with_session):
         step = await perform_step(session, "scroll", "down", None, None)
         assert await session.page.evaluate("scrollY") > 500
         assert not step.changes_node and step.ui_actions == 1 and step.in_viewport is None
-        with pytest.raises(ActionRejected):
+        with pytest.raises(ActionRejected, match="dirección del scroll"):
             await perform_step(session, "scroll", "sideways", None, None)
 
     with_session("clip.html", body)

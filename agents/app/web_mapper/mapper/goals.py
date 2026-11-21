@@ -21,6 +21,7 @@ class Goal:
     intent: str
     evidence: list[str]       # URLs del esquema donde aparece
     entry: str | None         # href de la página inicial que lleva hacia él
+    submits_form: bool = False  # no se cumple sin llenar y enviar un formulario
     prominence: str = "buried"
     gates: list[str] = field(default_factory=list)
     complexity: str | None = None

@@ -23,7 +23,7 @@ MAX_TEXT_CHARS = 12_000
 # Esquema del sitio para descubrir objetivos.
 MAX_PAGES = 30
 MAX_DEPTH = 2
-CRAWL_DELAY_S = 2.0         # entre páginas: algunos sitios responden 404 a pedidos seguidos
+CRAWL_DELAY_S = 2.0         # pausa entre páginas
 CRAWL_RETRY_DELAY_S = 8.0
 ROUTE_CONCURRENCY = 2       # rutas del catálogo mapeadas a la vez
 
