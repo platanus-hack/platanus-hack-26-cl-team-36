@@ -339,6 +339,32 @@ Preguntas que ningún spike contesta:
   agente no se confunde por una interfaz que no reconoce, y una persona sí.
 - Cuánto dura un parche antes de que el sitio cambie. No hay estudios; habría que medirlo en el tiempo.
 
+## 9. Lo que mostró el spike de alcance en wom.cl (2026-11-21)
+
+Un [spike](../../.spikes/2026-11-21-alcance-cambios-wom.md) aplicó parches de los niveles 1 a 5 sobre wom.cl para la
+tarea de dar de baja Internet Fibra. Los escribió Claude a mano, haciendo de optimizador. Las rutas son guiones fijos,
+una ejecución por nivel; no hay intentos de agentes.
+
+**Lo que confirma.** Se llegó al nivel 5 sin romper la página. Una ruta escrita a mano pasó de 7 acciones en el sitio
+original a 4 con los niveles 1 y 2, a 1 con el nivel 3 y a 0 con el nivel 5. El nivel 4 no ahorró acciones respecto
+del 3 y escondió 45 enlaces. Coincide con la sección 7: el nivel 3 es el mejor equilibrio.
+
+**Lo que corrige o agrega a este documento:**
+
+| Sección | Qué dice | Qué mostró el spike |
+|---|---|---|
+| 2, nivel 1 | `hide` oculta un elemento | Con una regla CSS, dos elementos siguieron visibles: las clases de Bootstrap del sitio llevan `!important` y ganan. El programa los dio por ocultos. |
+| 2, nivel 1 | — | Ocultar un popup deja la página sin scroll. Hay que pulsar su cierre: hace falta un cambio `press`, que no se puede deshacer. |
+| 3 y 6 | `reads` lee un elemento | Hizo falta leer una lista. Mal acotada, trajo 11 elementos en vez de 3 y nada lo detectó. El parche debe declarar cuántos espera. |
+| 3 | Un parche se aplica entero o no se aplica | El popup sale una vez por sesión y «Ayuda» aparece dos veces en celular. Hace falta marcar cambios opcionales y aplicar «entero o nada» por grupo. |
+| 2 y 5 | El localizador usa rol y nombre | Alcanzó para 8 de 9 controles y textos. Los 11 contenedores solo se encontraron por `css`. |
+| 3 | La pieza nunca envía una petición | El nivel 5 leyó otra página del mismo sitio, sin credenciales, y funcionó. Es lo que más ahorra. Queda como decisión del equipo. |
+| 5 y 6 | Inventario de antes y después | Sirvió: detectó canales de contacto y controles de accesibilidad escondidos. Comparando por texto, contó un renombre como pérdida. |
+
+**Lo que el spike no cubre.** wom.cl usa jQuery y Bootstrap, sin React: no prueba los riesgos de la sección 2 sobre
+frameworks ni el reenvío a formularios. Corrió en Chromium y en la página, no en Firefox ni como script de contenido.
+Los spikes 1 y 2 de la sección 8 siguen pendientes.
+
 ## Fuentes
 
 Leídas (al menos en parte):
