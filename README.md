@@ -20,14 +20,16 @@ y, para el paso 4, [Claude Code](https://claude.com/claude-code) con la sesión 
 clon nuevo, en este orden:
 
 ```bash
-just setup                        # 1. once, after cloning: checks requirements, installs dependencies
-just dev                          # 2. backend + a separate Firefox with the extension (Ctrl+C stops both)
-just test                         # 3. before pushing: every test that does not call Claude
-just explore <url> "<task>"       # 4. synthetic users try a task on a site (calls Claude)
-just validate [wom|sii|dt]        #    the reference tasks in agents/tasks/ (calls Claude)
+just local setup                      # 1. once, after cloning: checks requirements, installs dependencies
+just local up                         # 2. backend + a separate Firefox with the extension, in the background
+just local down                       #    stops them (just local logs follows their logs)
+just local test                       # 3. before pushing: every test that does not call Claude
+just local explore <url> "<task>"     # 4. synthetic users try a task on a site (calls Claude)
+just local validate [wom|sii|dt]      #    the reference tasks in agents/tasks/ (calls Claude)
 ```
 
-Corre `just` para ver esta lista.
+Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del repo; los comandos están en
+[`local/justfile`](local/justfile).
 
 | Pieza | Qué es |
 |---|---|
