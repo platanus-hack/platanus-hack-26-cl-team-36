@@ -89,8 +89,16 @@ html.mi-tema body :where(div, section, article, main, aside, nav, header, footer
 html.mi-tema body :where(p, li, dt, dd, td, th, label, span, strong, em, b, i, h1, h2, h3, h4, h5, h6, blockquote, caption, figcaption, summary, legend, div) { color: var(--mt-texto) !important; }
 html.mi-tema body :where(small, time, figcaption) { color: var(--mt-texto-2) !important; }
 html.mi-tema a, html.mi-tema a :where(span, strong, b, em, i) { color: var(--mt-acento) !important; }
-html.mi-tema :is(input, select, textarea, button, [role='button'], a[class*='btn'], a[class*='button']) { background-color: var(--mt-superficie-2) !important; color: var(--mt-texto) !important; border: 1px solid var(--mt-texto-2) !important; }
+html.mi-tema :is(input, select, textarea), html.mi-tema :is(main, article, aside, form) :is(button, [role='button'], a[class*='btn'], a[class*='button']) { background-color: var(--mt-superficie-2) !important; color: var(--mt-texto) !important; border: 1px solid var(--mt-texto-2) !important; }
 ```
+
+El bloque no alcanza los fondos que el sitio pone con variables o clases de color. En la sección 5:
+- **Cabecera, navegación y pie del mapa** que quedan claros: `background-color: var(--mt-superficie) !important;
+  color: var(--mt-texto) !important`. Un modo oscuro con la cabecera blanca no es modo oscuro. Sus ítems de menú:
+  solo color de texto, sin caja ni borde.
+- **Enlaces y botones sobre color**: un botón o una franja que conserva su fondo de color (botón verde de registro,
+  franja de marca) conserva también el color de su texto (`color: inherit`); nunca `--mt-acento` sobre un fondo claro
+  o saturado.
 
 Después, en la sección 5, da `background-color: var(--mt-superficie)` a 2–6 contenedores del mapa que son tarjetas o
 paneles (infobox, tarjetas, menú lateral) para que haya capas. **Fondos nuevos solo en contenedores del mapa cuya
@@ -125,9 +133,9 @@ Nunca ocultes las alternativas; solo resalta el camino. Si nada del mapa coincid
 
 **Ocultar** (sección 7; solo con "menos ruido" o "foco"; 2–5 reglas `display: none !important`). Sí se ocultan:
 avisos y franjas de campaña o mantención que no tienen que ver con la tarea, carruseles y banners promocionales,
-widgets flotantes (encuestas "evalúa", chat, "te llamamos", "volver arriba"), bloques de redes sociales, publicidad,
-decoraciones grandes sin texto útil. **Nunca:** contenido principal, menú principal, buscador, formularios, secciones
-de enlaces del sitio, el pie, ni nada cuyo texto coincide con la tarea. Si dudas, no lo ocultes: quítale el color.
+widgets flotantes (encuestas "evalúa", chat, "te llamamos", "volver arriba"), publicidad, decoraciones grandes sin
+texto útil. **Nunca:** contenido principal, menú principal, buscador, formularios, secciones de enlaces del sitio
+(también los de redes sociales: quítales el color), el pie, ni nada cuyo texto coincide con la tarea. Si dudas, no lo ocultes: quítale el color.
 
 **Foco y movimiento** (sección 8, siempre):
 `html.mi-tema :focus-visible { outline: 3px solid var(--mt-foco) !important; outline-offset: 2px !important; }` y
