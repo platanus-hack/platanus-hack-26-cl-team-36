@@ -152,3 +152,14 @@ Tablas tal como las imprime el script (7 tareas, 2 tandas de A y 2 de B por tare
   nombre); las tandas viejas quedan en `agents/.runs/archivo/`.
 - Sin resolver: si la ventaja sobre A×2 es real (hace falta más repeticiones); cuánto aguantan los sitios 8 navegadores
   en paralelo (sernac.cl no los aguantó); repetir sernac cuando vuelva a responder.
+
+## Nota posterior: las cifras de wom tienen una pista (2026-11-21, tarde)
+
+Los ejemplos de la skill `explorar-caminos`, que va entera en el prompt de cada explorador, eran sobre «dar de baja
+la fibra» (secciones «Ayuda» → «Bajas», búsqueda «baja fibra») desde que se creó la skill: una pista de dónde está la
+respuesta de wom-baja-fibra para los dos niveles, y una palabra que `sin_contexto` no debía conocer. Por eso las
+cifras de wom de este spike, y sobre todo las de `sin_contexto` y la diferencia entre niveles en wom, son anteriores
+al arreglo y están sesgadas hacia esa ruta. A y B tenían la misma pista, así que la decisión A contra B no cambia (wom
+es 1 de 7 tareas). El arreglo cambió los ejemplos por otros de un tema ajeno a las 8 tareas y agregó una prueba
+(`test_los_ejemplos_de_explorar_caminos_no_traen_palabras_de_ninguna_tarea`) que falla si un ejemplo usa términos
+oficiales, palabras del tema o rótulos de las rutas de alguna tarea.

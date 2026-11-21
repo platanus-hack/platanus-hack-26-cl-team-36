@@ -35,6 +35,7 @@ from profiles import (
     LUGARES,
     PERFILES_POR_DEFECTO,
     PROFILES,
+    cuerpo_de_skill,
     exploradores_del_conjunto,
     system_prompt,
 )
@@ -169,6 +170,26 @@ def test_el_prompt_de_un_nivel_no_trae_nada_de_una_tarea():
         prompt = system_prompt(PROFILES[key])
         seccion = prompt[prompt.index("LO QUE SABES DEL TEMA"):prompt.index("CÓMO EXPLORAR")]
         assert terminos_en(seccion, terminos) == []
+
+
+# Palabras del tema de cada tarea, además de sus términos oficiales, y rótulos de las rutas de sus sitios: los ejemplos
+# de explorar-caminos van en cada prompt de explorador, así que no pueden usar ninguno (serían una pista de dónde está
+# la respuesta).
+_PALABRAS_DE_LAS_TAREAS = [
+    "fibra", "baja", "IPC", "arancel", "matrícula", "contribuciones", "avalúo", "despido", "retracto", "tarifa",
+    "horario", "socio", "préstamo",
+]
+_ROTULOS_DE_LAS_RUTAS = ["Ayuda", "Centro de ayuda", "Preguntas frecuentes", "Agenda estadística", "Mapa del sitio"]
+
+
+@pytest.mark.parametrize("ruta", TAREAS, ids=lambda ruta: ruta.stem)
+def test_los_ejemplos_de_explorar_caminos_no_traen_palabras_de_ninguna_tarea(ruta):
+    cuerpo = cuerpo_de_skill("explorar-caminos")
+    terminos = json.loads(ruta.read_text(encoding="utf-8"))["terminos_oficiales"]
+    assert terminos_en(cuerpo, terminos) == [], f"{ruta.stem}: la skill usa sus términos oficiales"
+    assert terminos_en(cuerpo, _PALABRAS_DE_LAS_TAREAS) == []
+    for rotulo in _ROTULOS_DE_LAS_RUTAS:
+        assert f"«{normalizar(rotulo)}»" not in normalizar(cuerpo), f"la skill nombra la sección «{rotulo}»"
 
 
 # --- El harness: tarea por nivel y términos vetados ---------------------------------------------------------------
