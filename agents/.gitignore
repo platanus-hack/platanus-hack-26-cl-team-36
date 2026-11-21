@@ -1,0 +1,20 @@
+# Recorridos, capturas y reportes de las corridas: datos locales, pesan y pueden
+# mostrar páginas con información de quien corrió la prueba.
+.runs/
+
+# Credenciales locales (por ejemplo ANTHROPIC_API_KEY para --engine api).
+.env
+.env.*
+!.env.example
+
+# Entorno y cachés de Python.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Sistema operativo.
+.DS_Store
