@@ -22,7 +22,7 @@ clon nuevo, en este orden:
 ```bash
 just local setup                      # 1. once, after cloning: checks requirements, installs dependencies
 just local up                         # 2. backend + a separate Firefox with the extension, in the background
-just local up sesion                  #    same, with a copy of your Firefox profile (npm run perfil:clonar first)
+just local up sesion                  #    same, with a copy of your Firefox profile (made the first time)
 just local down                       #    stops them (just local logs follows their logs)
 just local test                       # 3. before pushing: every test that does not call Claude
 just local explore <url> "<task>"     # 4. synthetic users try a task on a site (calls Claude)

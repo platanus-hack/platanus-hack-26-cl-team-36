@@ -2,7 +2,7 @@
 #
 #   1. just local setup                      once, after cloning
 #   2. just local up                         backend + Firefox with the extension, in the background
-#      just local up sesion                  same, with the copy of your Firefox profile
+#      just local up sesion                  same, with a copy of your Firefox profile
 #      just local down                       stops them
 #   3. just local test                       before pushing
 #   4. just local explore <url> "<task>"     synthetic users (calls Claude)
@@ -75,7 +75,7 @@ setup:
 
 # ── 2. Run ────────────────────────────────────────────────────────────────
 
-# `sesion` uses the copy of your Firefox profile in extension/.perfil-dev/ (make it with `npm run perfil:clonar`).
+# `sesion` uses a copy of your Firefox profile in extension/.perfil-dev/, made the first time you use it.
 # Starts the backend (localhost:4747) and a separate Firefox with the extension, in the background
 [group('2. Run')]
 up profile="temporary": _ready
@@ -85,9 +85,10 @@ up profile="temporary": _ready
         temporary) firefox=(npm run dev) ;;
         sesion)
             firefox=(npm run dev:sesion)
+            # The first time, copy one of your Firefox profiles. To refresh the copy later: npm run perfil:clonar
             if [ ! -d extension/.perfil-dev ]; then
-                echo "  ! extension/.perfil-dev/ doesn't exist: Firefox starts with an empty profile that is kept." >&2
-                echo "    To use a copy of your own profile, run \`npm run perfil:clonar\` first." >&2
+                echo "First time with \`sesion\`: copying one of your Firefox profiles to extension/.perfil-dev/"
+                npm --prefix extension run --silent perfil:clonar
             fi
             ;;
         *)
