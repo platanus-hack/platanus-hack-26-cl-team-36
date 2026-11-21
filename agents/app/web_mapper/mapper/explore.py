@@ -10,7 +10,8 @@ from browser import BrowserSession
 from route_tree import node_key
 
 from mapper import config
-from mapper.decider import Decider, Decision, DeciderError
+from mapper.claude import ClaudeCallError
+from mapper.decider import Decider, Decision
 from mapper.locators import record_locators
 from mapper.operate import ELEMENT_ACTIONS, ActionRejected, Log, perform_step
 from mapper.page_view import PageView, element_for_ref, read_page_view
@@ -37,6 +38,7 @@ class Exploration:
     final_node: str = ""    # nodo de la página donde se dio la respuesta
     turns: int = 0
     duration_s: float = 0.0
+    step_limit_warned: bool = False
 
 
 def _describe(decision: Decision, view: PageView) -> str:
@@ -78,9 +80,10 @@ async def _apply(session: BrowserSession, decision: Decision, view: PageView, ex
         return None
     if len(exploration.steps) >= config.MAX_STEPS:
         # Con el límite alcanzado, solo una acción final; si ya se le avisó y vuelve a pedir otra, termina.
-        if exploration.history and exploration.history[-1].outcome == _STEP_LIMIT_OUTCOME:
+        if exploration.step_limit_warned:
             exploration.end_reason = "step_limit"
             return None
+        exploration.step_limit_warned = True
         return _STEP_LIMIT_OUTCOME
     try:
         step = await _act(session, decision, view)
@@ -111,7 +114,7 @@ async def _turn(session: BrowserSession, decider: Decider, instruction: str, exp
     except TimeoutError:
         exploration.end_reason = "time_limit"
         return
-    except DeciderError as error:
+    except ClaudeCallError as error:
         exploration.end_reason, exploration.message = "model_error", str(error)
         return
     outcome = await _apply(session, decision, view, exploration)

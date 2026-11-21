@@ -3,15 +3,19 @@
 import asyncio
 import json
 from collections.abc import Callable
+from pathlib import Path
 
 from playwright.async_api import async_playwright
 
 from browser import connect_browser
 from mapper import config
 from mapper.decider import Decision
-from mapper.explore import _act
+from mapper import reference
+from mapper.explore import Exploration, _act
 from mapper.page_view import read_page_view
 from mapper.reference import Mapping, map_reference
+from mapper.replay import Replay, Verification
+from mapper.route import Step
 from tests.conftest import DESKTOP
 
 QUOTE = "Para dar de baja llama al 103."
@@ -118,6 +122,38 @@ def test_step_limit_still_lets_the_model_answer(site, tmp_path, monkeypatch):
     ])
     assert "máximo de acciones" in decider.prompts[2]
     assert document["status"] == "verified" and document["exploration"]["steps"] == 1
+
+
+def test_step_limit_ends_after_one_warning_even_if_a_done_was_rejected(site, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "MAX_STEPS", 1)
+    document, decider, _ = _map(site, tmp_path, [
+        ("click", "Productos", {}),
+        ("click", "Volver al inicio", {}),
+        ("done", None, {"answer": "x", "quote": "No está en la página"}),
+        ("click", "Volver al inicio", {}),
+        ("click", "Volver al inicio", {}),
+    ])
+    assert document["exploration"]["end_reason"] == "step_limit" and document["exploration"]["turns"] == 4
+    assert len(decider.script) == 1 and document["status"] == "not_found"
+
+
+def test_verify_falls_back_to_the_cut_where_the_page_was_left(monkeypatch):
+    def step(name, before, after, action="click"):
+        return Step(action, name, None, f"https://s.cl/{before}", before, f"https://s.cl/{after}", after, True)
+
+    steps = [step("menú", "a", "a"), step("productos", "a", "p"), step("atrás", "p", "a", "back"), step("ayuda", "a", "h")]
+    tried = []
+
+    async def fake_verify(browser, profile, url, candidate, final_node, quote, log):
+        tried.append([item.value for item in candidate])
+        verified = len(candidate) == 2
+        return Verification(verified, candidate, Replay(), 1, 0, None if verified else "terminó en otra página")
+
+    monkeypatch.setattr(reference, "verify_and_minimise", fake_verify)
+    mapping = Mapping("prueba", "https://s.cl/a", "x", "desktop", DESKTOP, "m", "low", Path("."))
+    exploration = Exploration(steps=steps, final_node=steps[-1].node_after, quote="q")
+    verification = asyncio.run(reference._verify(None, mapping, exploration, lambda text: None))
+    assert tried == [["ayuda"], ["menú", "ayuda"]] and verification.verified
 
 
 def test_browser_error_ends_the_exploration_and_still_writes_the_route(site, tmp_path):

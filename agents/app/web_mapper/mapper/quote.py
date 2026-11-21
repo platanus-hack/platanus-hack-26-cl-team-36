@@ -7,7 +7,7 @@ from playwright.async_api import Page
 
 _WRAPPING_QUOTES = "\"'«»“”‘’ "
 
-# El elemento más profundo cuyo texto contiene la cita, y si su caja toca el viewport.
+# El elemento visible más profundo cuyo texto contiene la cita, y si su caja toca el viewport.
 _QUOTE_ON_SCREEN_JS = r"""
 (needle) => {
   const norm = (s) => (s || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -16,7 +16,7 @@ _QUOTE_ON_SCREEN_JS = r"""
   for (let deeper = true; deeper;) {
     deeper = false;
     for (const child of holder.children) {
-      if (norm(child.innerText).includes(needle)) { holder = child; deeper = true; break; }
+      if (child.checkVisibility() && norm(child.innerText).includes(needle)) { holder = child; deeper = true; break; }
     }
   }
   const box = holder.getBoundingClientRect();

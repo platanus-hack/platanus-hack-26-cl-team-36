@@ -61,3 +61,12 @@ def test_text_sent_to_the_model_follows_the_scroll(with_session):
         assert "Respuesta al fondo de la página." in bottom and "scroll up para verlo" in bottom
 
     with_session("clip.html", body)
+
+
+def test_text_follows_the_scroll_past_a_sticky_header(with_session):
+    async def body(session):
+        await session.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        bottom = render_view(await read_page_view(session.page))
+        assert "Respuesta bajo el encabezado fijo." in bottom and "scroll up para verlo" in bottom
+
+    with_session("sticky.html", body)

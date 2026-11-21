@@ -38,7 +38,9 @@ async def _execute(session: BrowserSession, action: str, value: str | None, hand
         await page.keyboard.press(translate_key(value or ""))
     elif action == "back":
         await page.go_back(wait_until="domcontentloaded", timeout=10_000)
-    elif action == "scroll" and value in ("down", "up"):
+    elif action == "scroll":
+        if value not in ("down", "up"):
+            raise ActionRejected("La dirección del scroll debe ser 'down' o 'up'.")
         profile = session.profile
         await page.mouse.move(profile.width // 2, profile.height // 2)
         await page.mouse.wheel(0, (1 if value == "down" else -1) * profile.height * _SCROLL_FRACTION)

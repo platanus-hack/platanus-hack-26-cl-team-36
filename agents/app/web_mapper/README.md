@@ -1,7 +1,8 @@
 # web_mapper
 
-El **Mapeador**: dada una URL y una tarea, lee el DOM para encontrar la **ruta de referencia**, el camino más corto
-que cumple la tarea, y la verifica repitiéndola. Es la contraparte del [evaluador](../web_evaluator/README.md), que
+El **Mapeador** lee el DOM de un sitio. Con `goals` cataloga los **objetivos** que el sitio ofrece a un visitante,
+clasificados según [niveles de tarea](../../../docs/agents/niveles-de-tarea.md). Con `route` encuentra la **ruta de
+referencia** de una tarea, el camino más corto que la cumple, y la verifica repitiéndola. Es la contraparte del [evaluador](../web_evaluator/README.md), que
 solo ve capturas: sus intentos se comparan con esta ruta. Dónde va cada pieza está en
 [arquitectura](../../../docs/agents/arquitectura.md).
 
@@ -22,16 +23,28 @@ Usa módulos del evaluador (navegador, Claude Code local, nodos y perfiles) desd
 uv run main.py route --task wom-baja-fibra
 uv run main.py route --task sii-exencion-contribuciones --viewports desktop,mobile
 uv run main.py route --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
+uv run main.py goals --url https://www.wom.cl/ --routes 2
 ```
+
+`route`:
 
 | Opción | Qué hace |
 |---|---|
 | `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). La ruta queda en `agents/.runs/<id>/reference/<viewport>/`. |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. La ruta queda en `agents/.runs/reference/<viewport>/`. |
 | `--viewports` | Viewports separados por coma: `desktop` (1024x768, el de `first_time` y `hurried`) y `mobile` (390x844). Por defecto, `desktop`. |
-| `--model`, `--effort` | Modelo y nivel de esfuerzo (por defecto `claude-opus-5-5`, `high`). |
 | `--output` | Otra carpeta base en vez de `agents/.runs/<id>/`. |
-| `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
+
+`goals`:
+
+| Opción | Qué hace |
+|---|---|
+| `--url` | Página inicial del sitio. El catálogo queda en `agents/.runs/<host>/goals/`. |
+| `--pages`, `--depth` | Topes del esquema (por defecto 30 páginas y profundidad 2). |
+| `--routes N` | Mapea la ruta de hasta N objetivos (por defecto 0). Cada ruta queda en `agents/.runs/<id>/reference/desktop/`. |
+| `--output` | Otra carpeta en vez de `agents/.runs/<host>/goals/`. |
+
+En los dos: `--model` y `--effort` (por defecto `claude-opus-5-5`, `high`) y `--cdp-url` para un navegador remoto.
 
 Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume los límites de tu plan.
 
@@ -39,22 +52,27 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 
 | Módulo | Qué hace |
 |---|---|
-| `main.py` | Punto de entrada: lee las opciones y mapea cada viewport. |
-| `mapper/reference.py` | Un viewport: explorar, destilar, verificar, minimizar y escribir. |
+| `main.py`, `mapper/route_command.py`, `mapper/goals_command.py` | Punto de entrada y cada subcomando. |
+| `mapper/reference.py` | Una ruta: explorar, destilar, verificar, minimizar y escribir. |
 | `mapper/explore.py` | El ciclo: vista del DOM → modelo → acción → historial. |
 | `mapper/page_view.py` | La vista: encabezados, elementos interactivos con ref y estado, y texto visible. |
 | `mapper/operate.py` | Ejecuta una acción sobre un elemento y registra el paso. |
 | `mapper/locators.py` | Localizadores estables de cada elemento: rol y nombre, texto, href, ruta CSS. |
-| `mapper/prompts.py`, `mapper/decider.py` | Prompt, esquema de la decisión y llamada a Claude Code. |
+| `mapper/prompts.py`, `mapper/decider.py`, `mapper/claude.py` | Prompt, esquema de la decisión y llamadas a Claude Code. |
 | `mapper/route.py` | Pasos, destilación y totales. |
 | `mapper/replay.py` | Verificación por repetición y minimización. |
 | `mapper/quote.py`, `mapper/output.py` | Comprobación de la cita y escritura de la ruta. |
+| `mapper/outline.py`, `mapper/crawl.py` | Esquema de cada página y recorrido del sitio. |
+| `mapper/catalog.py`, `mapper/goal_rules.py` | Objetivos propuestos por el modelo; validación y campos sin modelo. |
+| `mapper/goals.py`, `mapper/goal_routes.py`, `mapper/goals_output.py` | El objetivo, sus rutas y la escritura del catálogo. |
+
+### Ruta (`route`)
 
 1. **Explorar.** En cada turno el modelo recibe la vista del DOM y una captura, y responde una acción: `click`,
    `fill` o `select` sobre una ref, `press`, `back`, `scroll`, o el final `done`, `blocked` o `give_up`. El texto de la
    página llega desde la pantalla actual. `done` lleva la respuesta y una cita textual de la página; si la cita no está
-   en el texto visible, se rechaza. No puede ir a una URL
-   ni usar un elemento oculto: primero debe abrir lo que lo muestra.
+   en el texto visible, se rechaza. No puede ir a una URL ni usar un elemento oculto: primero debe abrir lo que lo
+   muestra.
 2. **Destilar.** Se corta cada vuelta que regresa a un nodo ya visitado (URL normalizada más título, como en el
    evaluador), desde donde se llegó a él. Las acciones dentro de una página se conservan. Si esa candidata no verifica,
    se prueba cortar desde donde se salió del nodo, porque volver atrás puede conservar el estado de la página.
@@ -66,6 +84,21 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 - **Pasos mínimos** (`min_steps`) en la unidad del evaluador: un clic o una tecla es 1, escribir o elegir en una lista
   es 2 (clic y tecleo), cada elemento que estaba fuera de pantalla suma un scroll, y suma otro si al final la cita no
   está en pantalla (`quote_scrolls`), porque el juez decide con la captura final.
+
+### Objetivos (`goals`)
+
+1. **Esquema, sin modelo.** Recorre en anchura las páginas del mismo sitio, primero los enlaces del encabezado, una
+   página a la vez y sin enviar formularios. De cada una guarda título, encabezados, enlaces por zona (navegación,
+   contenido, pie), formularios, botones y señales de barrera.
+2. **Catálogo, con el modelo.** El modelo lee el esquema y propone objetivos con `description`, `level`, `parent`,
+   `intent`, `submits_form`, `evidence` y `entry`, aplicando las reglas de niveles de tarea.
+3. **Campos sin modelo.** Se valida lo que propuso el modelo; lo que se descarta o corrige queda en `issues`.
+   `prominence` sale del primer elemento de la ruta verificada en la página inicial o, sin ruta, de dónde está `entry`;
+   `gates` de las señales de sus páginas de evidencia (solo campos visibles de formularios del contenido, no del
+   encabezado ni del pie) y `complexity` de la ruta, si verificó.
+4. **Rutas.** Con `--routes N`, se mapean los `user_goal` sin `login`, `personal_data` ni `bot_check`, primero los
+   menos prominentes. Como el Mapeador no envía formularios, en un objetivo `transact` la instrucción le pide llegar
+   hasta el paso anterior al envío; la ruta no prueba el envío.
 
 ## Salida
 
@@ -80,10 +113,18 @@ agents/.runs/<tarea>/reference/<viewport>/
 `status` es `verified`, `unverified` (la repetición no llegó o no encontró la cita) o `not_found` (la exploración
 terminó sin respuesta).
 
+```
+agents/.runs/<host>/goals/
+├── outline.json      el esquema del sitio
+├── goals.json        los objetivos: cada uno tiene la forma de una tarea de agents/tasks/ y se promueve copiándolo
+├── goals.md          tabla agrupada por summary
+└── claude_code.log
+```
+
 ## Pruebas
 
 ```bash
 uv run pytest -q
 ```
 
-No llaman a Claude: el recorrido completo usa un modelo guionizado sobre un sitio local.
+No llaman a Claude: el recorrido completo y el catálogo usan un modelo guionizado sobre sitios locales.

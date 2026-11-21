@@ -28,6 +28,7 @@ just local test                       # 3. before pushing: every test that does 
 just local explore <url> "<task>"     # 4. synthetic users try a task on a site (calls Claude)
 just local validate [wom|sii|dt]      #    the reference tasks in agents/tasks/ (calls Claude)
 just local route <task>               # 6. reference route of a task in agents/tasks/ (calls Claude)
+just local goals <url>                #    goal catalog of a site and, with --routes, their routes (calls Claude)
 ```
 
 Los despliegues y las versiones de la extensión corren como GitHub Actions en el repo personal
@@ -52,7 +53,7 @@ en [la infraestructura](infra/README.md).
 | [`extension/`](extension/README.md) | Extensión de Firefox que cambia el diseño de cada sitio aplicando un tema |
 | `backend/` | API que le dice a la extensión qué tema corresponde a cada página |
 | [`agents/app/web_evaluator/`](agents/app/web_evaluator/README.md) | Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos |
-| [`agents/app/web_mapper/`](agents/app/web_mapper/README.md) | Mapeador: lee el DOM para encontrar la ruta de referencia de una tarea |
+| [`agents/app/web_mapper/`](agents/app/web_mapper/README.md) | Mapeador: lee el DOM para catalogar los objetivos de un sitio y encontrar la ruta de referencia de cada uno |
 
 Before Submitting:
 

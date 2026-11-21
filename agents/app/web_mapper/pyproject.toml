@@ -1,7 +1,7 @@
 [project]
 name = "web_mapper"
 version = "0.1.0"
-description = "Mapeador: lee el DOM para encontrar la ruta de referencia de una tarea en un sitio web."
+description = "Mapeador: cataloga los objetivos de un sitio y encuentra sus rutas de referencia."
 requires-python = ">=3.12"
 dependencies = [
     "playwright>=1.48",
