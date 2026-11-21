@@ -7,6 +7,7 @@
 #   3. just local test                       before pushing
 #   4. just local explore <url> "<task>"     synthetic users (calls Claude)
 #   5. just local backoffice                 viewer of those runs, at http://localhost:4848
+#   6. just local route <task>               reference route of a task (calls Claude)
 #
 # Recipes run from the repo root, so every path here is relative to it. What `up`
 # leaves behind (process ids and logs) goes to local/.state/, outside git.
@@ -53,13 +54,13 @@ setup:
     else
         fail "uv" "https://docs.astral.sh/uv/"
     fi
-    # Only step 4 needs Claude Code, so it warns instead of stopping the setup.
+    # Only steps 4 and 6 need Claude Code, so it warns instead of stopping the setup.
     if ! command -v claude >/dev/null; then
-        echo "  ! Claude Code is missing (needed for step 4) → https://claude.com/claude-code"
+        echo "  ! Claude Code is missing (needed for steps 4 and 6) → https://claude.com/claude-code"
     elif claude auth status 2>/dev/null | grep -q '"loggedIn": *true'; then
         ok "Claude Code, logged in"
     else
-        echo "  ! Claude Code is not logged in (needed for step 4) → claude auth login"
+        echo "  ! Claude Code is not logged in (needed for steps 4 and 6) → claude auth login"
     fi
     if [ "$missing" -gt 0 ]; then
         echo "Fix the ✘ items and run \`just local setup\` again."
@@ -72,6 +73,8 @@ setup:
     cd agents/app/web_evaluator
     uv sync
     uv run playwright install chromium
+    cd ../web_mapper
+    uv sync
     echo "Done. Next: \`just local up\`"
 
 # ── 2. Run ────────────────────────────────────────────────────────────────
@@ -178,11 +181,12 @@ logs:
 
 # ── 3. Test ───────────────────────────────────────────────────────────────
 
-# Backend, backoffice and extension tests, extension lint and web_evaluator tests; does not call Claude
+# Backend, backoffice and extension tests, extension lint, web_evaluator and web_mapper tests; does not call Claude
 [group('3. Test · before pushing')]
-test: _ready
+test: _ready _mapper_ready
     npm run check
     cd agents/app/web_evaluator && uv run pytest -q
+    cd agents/app/web_mapper && uv run pytest -q
 
 # ── 4. Synthetic users ────────────────────────────────────────────────────
 
@@ -238,3 +242,21 @@ _ready:
 backoffice:
     @echo "Backoffice at http://localhost:4848 · Ctrl+C to stop"
     npm --prefix backoffice start
+
+# ── 6. Reference routes ───────────────────────────────────────────────────
+
+# Finds and verifies the shortest route for a task in agents/tasks/. E.g. just local route wom-baja-fibra --profiles desktop,mobile
+[group('6. Reference routes · calls Claude, uses your plan')]
+[working-directory('agents/app/web_mapper')]
+[positional-arguments]
+route task *options: _mapper_ready
+    #!/usr/bin/env bash
+    set -euo pipefail
+    task="$1"
+    shift
+    exec uv run main.py route --task "$task" ${1+"$@"}
+
+[private]
+_mapper_ready:
+    @test -x agents/app/web_mapper/.venv/bin/python \
+        || { echo "The mapper's dependencies are missing: run \`just local setup\` first." >&2; exit 1; }
