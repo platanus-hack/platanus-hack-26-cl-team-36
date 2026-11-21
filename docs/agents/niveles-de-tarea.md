@@ -69,6 +69,7 @@ campos de [formas de datos](../formas-de-datos.md), sección 5.
   "level": "user_goal",
   "parent": "wom-gestionar-servicio",
   "intent": "find_info",
+  "submits_form": false,
   "prominence": "buried",
   "complexity": "easy",
   "gates": [],
@@ -93,14 +94,15 @@ campos de [formas de datos](../formas-de-datos.md), sección 5.
 |---|---|---|
 | `level` | `summary`, `user_goal`, `subfunction` | `subfunction` si su final no vale solo (iniciar sesión, buscar, abrir un menú) o si su ruta es tramo de dos o más objetivos. `summary` si exige dos o más `user_goal` o algo fuera de una sesión (esperar un correo). Si no, `user_goal`; el modelo aplica la prueba de Cockburn: "¿puede irse satisfecho después de esto?". |
 | `parent` | `id` de un `summary`, o `null` | El `summary` que lo contiene, si existe. |
-| `intent` | `find_info`, `reach_page`, `transact` | Por el final de la ruta. `transact` si el último paso envía un formulario o cambia estado (pagar, enviar, contratar, dar de baja). `find_info` si el éxito es una respuesta que se lee (hay `expected_answer`). Si no, `reach_page`: llegar a una página o recurso. |
-| `prominence` | `primary`, `secondary`, `buried` | Por el primer elemento de la ruta en `start_url`, viewport de escritorio. `primary`: visible en la primera pantalla sin interactuar. `secondary`: exige abrir un menú del encabezado o desplazarse hasta tres pantallas. Si no, `buried`. |
+| `intent` | `find_info`, `reach_page`, `transact` | Por el final de la ruta. `transact` si el último paso cambia algo en el sitio o en la cuenta (pagar, contratar, recargar, enviar una solicitud o reclamo, dar de baja en línea); enviar una consulta para leer un resultado (buscar, consultar un estado o una deuda, simular, calcular) es `find_info`. `find_info` si el éxito es una respuesta que se lee (hay `expected_answer`). Si no, `reach_page`: llegar a una página o recurso. |
+| `submits_form` | `true`, `false` | `true` si no se cumple sin llenar y enviar un formulario, consultas incluidas. |
+| `prominence` | `primary`, `secondary`, `buried` | Por el primer elemento de la ruta en `start_url`, viewport de escritorio. `primary`: visible en la primera pantalla sin interactuar. `secondary`: está en las tres primeras pantallas o en un menú del encabezado. Si no, `buried`. |
 | `complexity` | `easy`, `medium`, `hard` | Por `reference_route.steps`: ≤5, 6–10, ≥11. |
-| `gates` | Lista de `login`, `personal_data`, `side_effect`, `bot_check`; vacía = abierto | `login`: un `input type=password` o `autocomplete` `username`, `current-password` u `one-time-code`. `personal_data`, solo si es `transact`: `autocomplete` de nombre, `email`, `tel`, dirección, `bday` o `cc-*`, o una etiqueta o `name` de RUT, nombre, teléfono, correo o dirección (muchos formularios no declaran `autocomplete`). `side_effect`: el último paso es un `POST` o cambia estado. `bot_check`: iframe de reCAPTCHA, hCaptcha o Turnstile. |
-| `reference_route.steps` | entero | Pasos de la ruta más corta, contados con las acciones del evaluador: clic, campo escrito, tecla o desplazamiento. |
+| `gates` | Lista de `login`, `personal_data`, `side_effect`, `bot_check`; vacía = abierto | `login`: un `input type=password` o `autocomplete` `username`, `current-password` u `one-time-code`. `personal_data`, solo si `submits_form` o `transact`, en un campo visible que no sea búsqueda ni lista: `autocomplete` de nombre, `email`, `tel`, dirección, `bday` o `cc-*`, o una etiqueta o `name` de RUT, nombre de la persona, teléfono, correo o dirección (muchos formularios no declaran `autocomplete`). `side_effect`: es `transact`. `bot_check`: iframe de reCAPTCHA, hCaptcha o Turnstile. |
+| `reference_route.steps` | entero | Pasos de la ruta más corta, contados con las acciones del evaluador: clic, campo escrito, tecla o desplazamiento. Es una cota inferior para quien solo ve la pantalla: un desplazamiento por cada elemento fuera de ella y a lo más uno para leer la respuesta. |
 | `reference_route.pages` | entero | Páginas distintas de la ruta, incluida `start_url`. |
 | `reference_route.nodes` | lista | Nodos con la identidad del árbol de rutas del evaluador: URL normalizada más título. |
-| `reference_route.key_nodes` | lista | Nodos por los que pasa toda ruta que logra el objetivo; con varias rutas, su intersección. |
+| `reference_route.key_nodes` | lista | Nodos por los que pasa toda ruta que logra el objetivo. Con una ruta, su nodo final; con varias, los nodos comunes a todas. |
 
 Los cortes de `prominence` siguen a NN/g: el 57 % del tiempo de lectura ocurre en la primera pantalla y el 81 % en
 las tres primeras (2018).

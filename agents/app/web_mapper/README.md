@@ -71,8 +71,8 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 1. **Explorar.** En cada turno el modelo recibe la vista del DOM y una captura, y responde una acción: `click`,
    `fill` o `select` sobre una ref, `press`, `back`, `scroll`, o el final `done`, `blocked` o `give_up`. El texto de la
    página llega desde la pantalla actual. `done` lleva la respuesta y una cita textual de la página; si la cita no está
-   en el texto visible, se rechaza. No puede ir a una URL
-   ni usar un elemento oculto: primero debe abrir lo que lo muestra.
+   en el texto visible, se rechaza. No puede ir a una URL ni usar un elemento oculto: primero debe abrir lo que lo
+   muestra.
 2. **Destilar.** Se corta cada vuelta que regresa a un nodo ya visitado (URL normalizada más título, como en el
    evaluador), desde donde se llegó a él. Las acciones dentro de una página se conservan. Si esa candidata no verifica,
    se prueba cortar desde donde se salió del nodo, porque volver atrás puede conservar el estado de la página.
@@ -90,11 +90,12 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 1. **Esquema, sin modelo.** Recorre en anchura las páginas del mismo sitio, primero los enlaces del encabezado, una
    página a la vez y sin enviar formularios. De cada una guarda título, encabezados, enlaces por zona (navegación,
    contenido, pie), formularios, botones y señales de barrera.
-2. **Catálogo, con el modelo.** Opus lee el esquema y propone objetivos con `description`, `level`, `parent`, `intent`,
-   `evidence` y `entry`, aplicando las reglas de niveles de tarea.
+2. **Catálogo, con el modelo.** El modelo lee el esquema y propone objetivos con `description`, `level`, `parent`,
+   `intent`, `submits_form`, `evidence` y `entry`, aplicando las reglas de niveles de tarea.
 3. **Campos sin modelo.** Se valida lo que propuso el modelo; lo que se descarta o corrige queda en `issues`.
-   `prominence` sale de dónde está `entry` en la página inicial, `gates` de las señales de sus páginas de evidencia
-   (solo formularios del contenido, no del encabezado ni del pie) y `complexity` de la ruta, si se mapeó.
+   `prominence` sale del primer elemento de la ruta verificada en la página inicial o, sin ruta, de dónde está `entry`;
+   `gates` de las señales de sus páginas de evidencia (solo campos visibles de formularios del contenido, no del
+   encabezado ni del pie) y `complexity` de la ruta, si verificó.
 4. **Rutas.** Con `--routes N`, se mapean los `user_goal` sin `login`, `personal_data` ni `bot_check`, primero los
    menos prominentes. Como el Mapeador no envía formularios, en un objetivo `transact` la instrucción le pide llegar
    hasta el paso anterior al envío; la ruta no prueba el envío.
