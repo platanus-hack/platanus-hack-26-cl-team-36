@@ -1,4 +1,5 @@
-from mapper.page_view import element_for_ref, read_page_view
+from mapper.operate import perform_step
+from mapper.page_view import element_for_ref, page_text, read_page_view
 from mapper.prompts import render_view
 
 
@@ -24,7 +25,7 @@ def test_view_flags_hidden_offscreen_and_revealer(with_session):
     with_session("index.html", body)
 
 
-def test_view_of_form_fields_and_closed_details(with_session):
+def test_view_of_form_fields_and_element_off_the_left_edge(with_session):
     async def body(session):
         view = await read_page_view(session.page)
         assert _by_name(view, "Buscar").role == "searchbox"
@@ -70,3 +71,25 @@ def test_text_follows_the_scroll_past_a_sticky_header(with_session):
         assert "Respuesta bajo el encabezado fijo." in bottom and "scroll up para verlo" in bottom
 
     with_session("sticky.html", body)
+
+
+def test_text_clipped_by_a_collapsed_accordion_is_not_in_the_view(with_session):
+    async def body(session):
+        assert "La respuesta es 42." not in (await read_page_view(session.page)).text
+        assert "La respuesta es 42." not in await page_text(session.page)
+        await session.page.click("button")
+        assert "La respuesta es 42." in (await read_page_view(session.page)).text
+        assert "La respuesta es 42." in await page_text(session.page)
+
+    with_session("acordeon.html", body)
+
+
+def test_element_below_the_fold_of_an_inner_scroll_panel_is_usable(with_session):
+    async def body(session):
+        view = await read_page_view(session.page)
+        link = _by_name(view, "Al fondo del panel")
+        assert link.visible and not link.in_viewport
+        step = await perform_step(session, "click", None, await element_for_ref(session.page, link.ref), None)
+        assert step.title_after == "Productos" and step.in_viewport is False
+
+    with_session("app.html", body)

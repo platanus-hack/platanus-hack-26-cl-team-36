@@ -43,6 +43,14 @@ PAGES = {
     "duplicado.html": """<title>Duplicado</title>
         <div style="display:none"><p>Horario de atención: 9 a 18 horas.</p></div>
         <div><p>Horario de atención: 9 a 18 horas.</p></div>""",
+    "acordeon.html": """<title>Acordeón</title>
+        <button onclick="document.getElementById('respuesta').style.maxHeight = 'none'">Ver respuesta</button>
+        <div id="respuesta" style="max-height:0;overflow:hidden"><p>La respuesta es 42.</p></div>
+        <a href="https://otro.example/">Otro sitio</a>""",
+    "app.html": """<title>Aplicación</title>
+        <div style="height:100vh;overflow:hidden"><div style="height:100%;overflow:auto">
+          <div style="height:2000px"></div><a href="productos.html">Al fondo del panel</a>
+        </div></div>""",
 }
 
 
@@ -72,6 +80,7 @@ class ScriptedDecider:
 def short_reappear_wait(monkeypatch):
     """Las páginas de prueba no tienen carruseles: un elemento oculto no vuelve."""
     monkeypatch.setattr(config, "REAPPEAR_S", 1.0)
+    monkeypatch.setattr(config, "TRIAL_REAPPEAR_S", 0.5)
 
 
 @pytest.fixture

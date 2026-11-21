@@ -5,14 +5,26 @@ from urllib.parse import urlsplit
 
 from playwright.async_api import ElementHandle, Page
 
+from route_tree import normalize_url
+
 from mapper import config
+
+def site_host(url: str) -> str:
+    """El host normalizado como en los nodos (sin www, con el puerto si no es el de siempre)."""
+    return normalize_url(url).split("/")[2]
+
 
 HELPERS_JS = r"""
 const clean = (s, n = 80) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
+// Un contenedor con scroll no oculta lo que tiene: desde él se sigue con su propia caja.
 const clippedByAncestor = (el, box) => {
   if (getComputedStyle(el).position === 'fixed') return false;
   for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
     const style = getComputedStyle(node);
+    if (/auto|scroll/.test(style.overflowX + style.overflowY)) {
+      box = node.getBoundingClientRect();
+      continue;
+    }
     const clipsX = /hidden|clip/.test(style.overflowX), clipsY = /hidden|clip/.test(style.overflowY);
     if (!clipsX && !clipsY) continue;
     const clip = node.getBoundingClientRect();
@@ -28,6 +40,30 @@ const displayable = (el) => {
   const left = box.left + scrollX, width = document.documentElement.scrollWidth;
   if (left + box.width <= 0 || left >= width || box.bottom + scrollY <= 0) return false;
   return !clippedByAncestor(el, box);
+};
+// Como innerText, pero sin el texto que no se puede mostrar: oculto, sin tamaño o recortado por un ancestro.
+const visibleText = (root) => {
+  const shown = new Map(), blocks = new Map();
+  const isShown = (el) => { if (!shown.has(el)) shown.set(el, displayable(el)); return shown.get(el); };
+  const blockOf = (el) => {
+    if (!blocks.has(el)) {
+      let node = el;
+      while (node !== root && node.parentElement && /^inline/.test(getComputedStyle(node).display)) node = node.parentElement;
+      blocks.set(el, node);
+    }
+    return blocks.get(el);
+  };
+  const parts = [];
+  let previous = null;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const el = node.parentElement, text = node.textContent.replace(/\s+/g, ' ');
+    if (!el || !text.trim() || /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE)$/.test(el.tagName) || !isShown(el)) continue;
+    const block = blockOf(el);
+    parts.push((previous && block !== previous ? '\n' : '') + text);
+    previous = block;
+  }
+  return parts.join('').replace(/ *\n */g, '\n').trim();
 };
 const centerInViewport = (el) => {
   const box = el.getBoundingClientRect();
@@ -112,7 +148,7 @@ _SNAPSHOT_JS = "(maxElements) => {" + HELPERS_JS + r"""
     }
     return 0;
   };
-  const text = document.body ? document.body.innerText : '';
+  const text = document.body ? visibleText(document.body) : '';
   return {
     url: location.href,
     title: document.title,
@@ -156,7 +192,7 @@ class Element:
     value: str | None
     expanded: bool | None
     disabled: bool
-    visible: bool           # se puede mostrar ahora: tiene tamaño y no está oculto por CSS
+    visible: bool           # tiene tamaño, no lo oculta el CSS ni lo recorta un ancestro
     in_viewport: bool       # su centro está dentro del viewport
     revealed_by: str | None  # ref del control que lo muestra, si está oculto y se sabe cuál es
 
@@ -164,7 +200,12 @@ class Element:
         """El href si apunta al mismo sitio; los enlaces externos no se le muestran al modelo."""
         if not self.href:
             return None
-        return self.href if urlsplit(self.href).hostname == urlsplit(page_url).hostname else None
+        return self.href if site_host(self.href) == site_host(page_url) else None
+
+    def leaves_site(self, start_url: str) -> bool:
+        """Si es un enlace web a otro host que el de la página inicial."""
+        return bool(self.href) and urlsplit(self.href).scheme in ("http", "https") and \
+            site_host(self.href) != site_host(start_url)
 
 
 @dataclass
@@ -176,7 +217,7 @@ class PageView:
     headings: list[str]
     elements: list[Element]
     total_elements: int     # antes del tope de config.MAX_ELEMENTS
-    text: str               # texto visible completo (innerText del body)
+    text: str               # texto que se puede mostrar, sin lo oculto ni lo recortado
     text_offset: int        # dónde empieza en `text` lo que está en pantalla
 
     def element(self, ref: str) -> Element | None:
@@ -222,4 +263,5 @@ async def display_state(handle: ElementHandle) -> tuple[bool, bool]:
 
 
 async def page_text(page: Page) -> str:
-    return await page.evaluate("() => document.body ? document.body.innerText : ''")
+    """El texto que se puede mostrar, como `PageView.text`."""
+    return await page.evaluate(f"() => {{ {HELPERS_JS} return document.body ? visibleText(document.body) : ''; }}")

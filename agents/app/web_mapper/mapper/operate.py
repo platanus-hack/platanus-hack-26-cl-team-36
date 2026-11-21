@@ -4,7 +4,7 @@ import asyncio
 import time
 from collections.abc import Callable
 
-from playwright.async_api import ElementHandle
+from playwright.async_api import ElementHandle, Request
 from playwright.async_api import Error as PlaywrightError
 
 from actions import InvalidActionError, translate_key
@@ -16,6 +16,8 @@ ELEMENT_ACTIONS = {"click", "fill", "select"}
 _ACTION_TIMEOUT_MS = 5_000
 _SCROLL_FRACTION = 0.8   # de la altura del viewport por scroll
 _REAPPEAR_POLL_S = 0.5
+_NAVIGATION_START_S = 0.4    # lo que tarda en partir la navegación que inicia una acción
+_NAVIGATION_TIMEOUT_S = 30
 
 Log = Callable[[str], None]
 
@@ -27,10 +29,11 @@ class ActionRejected(Exception):
 async def _execute(session: BrowserSession, action: str, value: str | None, handle: ElementHandle | None) -> None:
     page = session.page
     if action == "click":
+        # Sin esperar la navegación que inicia: la espera `_settle`, sin el tope de la acción.
         if session.profile.mobile:
-            await handle.tap(timeout=_ACTION_TIMEOUT_MS)
+            await handle.tap(timeout=_ACTION_TIMEOUT_MS, no_wait_after=True)
         else:
-            await handle.click(timeout=_ACTION_TIMEOUT_MS)
+            await handle.click(timeout=_ACTION_TIMEOUT_MS, no_wait_after=True)
     elif action == "fill":
         if await handle.get_attribute("type") == "password":
             raise ActionRejected("No se escribe en campos de contraseña.")
@@ -61,6 +64,17 @@ async def _display_state(handle: ElementHandle, reappear_s: float) -> tuple[bool
     return visible, in_viewport
 
 
+async def _settle(session: BrowserSession, navigations: list[Request]) -> None:
+    """Espera la respuesta de la navegación que inició la acción, si hubo, y que la página se asiente."""
+    await asyncio.sleep(_NAVIGATION_START_S)
+    if navigations:
+        try:
+            await asyncio.wait_for(navigations[-1].response(), timeout=_NAVIGATION_TIMEOUT_S)
+        except (TimeoutError, PlaywrightError):
+            pass
+    await session.wait_until_settled()
+
+
 async def perform_step(
     session: BrowserSession, action: str, value: str | None, handle: ElementHandle | None, target: Target | None,
     reappear_s: float = 0.0,
@@ -73,17 +87,28 @@ async def perform_step(
         raise ActionRejected(f"La acción '{action}' necesita un elemento que exista en la página.")
     url_before, title_before = await session.url_and_title()
     in_viewport = None
+    page = session.page
+    navigations: list[Request] = []
+
+    def on_request(request: Request) -> None:
+        if request.is_navigation_request() and request.frame == page.main_frame:
+            navigations.append(request)
+
+    page.on("request", on_request)
     try:
-        if handle is not None:
-            visible, in_viewport = await _display_state(handle, reappear_s)
-            if not visible:
-                raise ActionRejected("Ese elemento no está a la vista: primero abre el menú o control que lo muestra.")
-        await _execute(session, action, value, handle)
-    except InvalidActionError as error:
-        raise ActionRejected(str(error))
-    except PlaywrightError as error:
-        raise ActionRejected(f"El navegador no pudo hacer la acción: {error.message.splitlines()[0]}")
-    await session.wait_until_settled()
+        try:
+            if handle is not None:
+                visible, in_viewport = await _display_state(handle, reappear_s)
+                if not visible:
+                    raise ActionRejected("Ese elemento no está a la vista: primero abre el menú o control que lo muestra.")
+            await _execute(session, action, value, handle)
+        except InvalidActionError as error:
+            raise ActionRejected(str(error))
+        except PlaywrightError as error:
+            raise ActionRejected(f"El navegador no pudo hacer la acción: {error.message.splitlines()[0]}")
+        await _settle(session, navigations)
+    finally:
+        page.remove_listener("request", on_request)
     url_after, title_after = await session.url_and_title()
     try:
         screenshot = await session.screenshot()

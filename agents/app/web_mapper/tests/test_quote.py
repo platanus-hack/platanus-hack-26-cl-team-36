@@ -32,3 +32,14 @@ def test_quote_on_screen_skips_a_hidden_duplicate(with_session):
         assert await quote_on_screen(session.page, "Horario de atención: 9 a 18 horas.")
 
     with_session("duplicado.html", body)
+
+
+def test_quote_inside_a_collapsed_accordion_is_not_on_screen(with_session):
+    from mapper.quote import quote_on_screen
+
+    async def body(session):
+        assert not await quote_on_screen(session.page, "La respuesta es 42.")
+        await session.page.click("button")
+        assert await quote_on_screen(session.page, "La respuesta es 42.")
+
+    with_session("acordeon.html", body)

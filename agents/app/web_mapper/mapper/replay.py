@@ -51,21 +51,25 @@ class Verification:
     error: str | None           # por qué no verificó la candidata
 
 
-async def _run_steps(session: BrowserSession, route: list[Step], replay: Replay, resolve: Resolver) -> None:
+async def _run_steps(session: BrowserSession, route: list[Step], replay: Replay, resolve: Resolver,
+                     reappear_s: float) -> None:
     for number, step in enumerate(route, 1):
         try:
             handle = await resolve(session.page, step.target.locators) if step.target else None
-            # Cada paso registrado estaba a la vista al hacerse.
-            replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target, config.REAPPEAR_S))
+            replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target, reappear_s))
         except (ActionRejected, PlaywrightError) as error:
             replay.error = f"paso {number} ({step.label}): {error}"
             return
 
 
 async def replay_route(
-    browser: Browser, profile: Profile, url: str, route: list[Step], quote: str, resolve: Resolver = resolve_locators
+    browser: Browser, profile: Profile, url: str, route: list[Step], quote: str, resolve: Resolver = resolve_locators,
+    reappear_s: float | None = None,
 ) -> Replay:
-    """Repite la ruta desde la URL inicial y comprueba si la cita está en la página final."""
+    """Repite la ruta desde la URL inicial y comprueba si la cita está en la página final.
+
+    `reappear_s`: cuánto esperar a un elemento oculto; cada paso registrado estaba a la vista al hacerse.
+    """
     context = await create_context(browser, profile)
     replay = Replay()
     try:
@@ -73,7 +77,7 @@ async def replay_route(
         await session.open(url)
         replay.start_url, replay.start_title = await session.url_and_title()
         replay.start_screenshot = await session.screenshot()
-        await _run_steps(session, route, replay, resolve)
+        await _run_steps(session, route, replay, resolve, config.REAPPEAR_S if reappear_s is None else reappear_s)
         if replay.error is None:
             replay.final_url, replay.final_title = await session.url_and_title()
             replay.quote_found = quote_in_text(quote, await page_text(session.page))
@@ -102,7 +106,7 @@ async def verify_and_minimise(
         if route[index].changes_node or best.steps[index].changes_node:
             continue
         trial_route = route[:index] + route[index + 1:]
-        trial = await replay_route(browser, profile, url, trial_route, quote)
+        trial = await replay_route(browser, profile, url, trial_route, quote, reappear_s=config.TRIAL_REAPPEAR_S)
         replays += 1
         if trial.failure(final_node) is None:
             log(f"se quitó el paso {index + 1}: {route[index].label}")

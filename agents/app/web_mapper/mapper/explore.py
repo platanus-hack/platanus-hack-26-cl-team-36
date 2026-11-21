@@ -86,6 +86,9 @@ async def _apply(session: BrowserSession, decision: Decision, view: PageView, ex
             return None
         exploration.step_limit_warned = True
         return _STEP_LIMIT_OUTCOME
+    element = view.element(decision.ref or "")
+    if decision.action == "click" and element and element.leaves_site(exploration.start_url):
+        return "rechazada: ese enlace lleva a otro sitio; usa solo lo que ofrece este"
     try:
         step = await _act(session, decision, view)
     except ActionRejected as error:

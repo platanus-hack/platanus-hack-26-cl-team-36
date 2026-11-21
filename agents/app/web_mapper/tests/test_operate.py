@@ -1,8 +1,18 @@
+import asyncio
+import http.server
+import threading
+import time
+
 import pytest
+from playwright.async_api import async_playwright
+
+from browser import BrowserSession, connect_browser, create_context
+from mapper import operate
 
 from mapper.locators import record_locators, resolve_locators
 from mapper.operate import ActionRejected, perform_step
 from mapper.page_view import element_for_ref, read_page_view
+from tests.conftest import DESKTOP
 
 
 async def _handle(session, name):
@@ -100,3 +110,42 @@ def test_scroll_moves_the_page_and_is_an_in_page_step(with_session):
             await perform_step(session, "scroll", "sideways", None, None)
 
     with_session("clip.html", body)
+
+
+def test_click_that_starts_a_slow_navigation_is_recorded(monkeypatch):
+    monkeypatch.setattr(operate, "_ACTION_TIMEOUT_MS", 1000)
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            slow = self.path == "/lenta.html"
+            if slow:
+                time.sleep(2.5)
+            body = ("<title>Lenta</title>" if slow else '<title>Inicio</title><a href="/lenta.html">Ir</a>').encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+
+    async def main():
+        async with async_playwright() as playwright:
+            browser = await connect_browser(playwright)
+            try:
+                session = BrowserSession(await create_context(browser, DESKTOP), DESKTOP)
+                await session.open(f"http://127.0.0.1:{httpd.server_port}/")
+                _, link = await _handle(session, "Ir")
+                return await perform_step(session, "click", None, link, None)
+            finally:
+                await browser.close()
+
+    try:
+        step = asyncio.run(main())
+    finally:
+        httpd.shutdown()
+    assert step.title_after == "Lenta" and step.changes_node

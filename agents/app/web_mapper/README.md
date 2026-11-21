@@ -43,7 +43,7 @@ uv run main.py adopt --id wom-baja-fibra
 |---|---|
 | `--url` | Página inicial del sitio. El catálogo queda en `agents/.runs/<host>/goals/`. |
 | `--pages`, `--depth` | Topes del esquema (por defecto 30 páginas y profundidad 2). |
-| `--routes N` | Mapea la ruta de hasta N objetivos, o de todos con `all` (por defecto 0). Cada ruta queda en `agents/.runs/<id>/reference/desktop/`. |
+| `--routes N` | Deja hasta N objetivos con ruta verificada, o todos con `all` (por defecto 0); las ya verificadas cuentan. Cada ruta queda en `agents/.runs/<id>/reference/desktop/`. |
 | `--shorter N` | Como en `route`. |
 | `--rerun` | Rehace el catálogo y las rutas. Sin esta opción se reutiliza `goals.json` y no se vuelve a mapear una ruta ya verificada. |
 | `--output` | Otra carpeta en vez de `agents/.runs/<host>/goals/`. |
@@ -83,9 +83,10 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 1. **Explorar.** En cada turno el modelo recibe la vista del DOM y una captura, y responde una acción: `click`,
    `fill` o `select` sobre una ref, `press`, `back`, `scroll`, o el final `done`, `blocked` o `give_up`. El texto de la
    página llega desde la pantalla actual. `done` lleva la respuesta y una cita textual de la página; si la cita no está
-   en el texto visible, se rechaza. No puede ir a una URL ni usar un elemento oculto: primero debe abrir lo que lo
-   muestra. Si un elemento que estaba a la vista se oculta al actuar, como la diapositiva de un carrusel, se espera
-   hasta 30 s a que vuelva; lo mismo al repetir la ruta.
+   en el texto que se puede mostrar (sin lo oculto ni lo recortado, como un acordeón cerrado), se rechaza. No puede ir
+   a una URL, seguir un enlace a otro host ni usar un elemento oculto: primero debe abrir lo que lo muestra. Si un
+   elemento que estaba a la vista se oculta al actuar, como la diapositiva de un carrusel, se espera a que vuelva; al
+   repetir la ruta también, y menos al probar quitar un paso.
 2. **Destilar.** Se corta cada vuelta que regresa a un nodo ya visitado (URL normalizada más título, como en el
    evaluador), desde donde se llegó a él. Las acciones dentro de una página se conservan. Si esa candidata no verifica,
    se prueba cortar desde donde se salió del nodo, porque volver atrás puede conservar el estado de la página.
@@ -96,8 +97,8 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
    la ruta conocida en la instrucción, pidiendo una estrictamente más corta y atendiendo a lo que destaca en la
    captura. Cada candidata pasa por los pasos 2 y 3 con su propia cita. Queda la verificada con menos `min_steps` (a
    igualdad, menos acciones); `search` en route.json registra cada intento.
-- **Límites:** 40 acciones, 60 turnos y 15 minutos de exploración. Los envíos de formularios POST o con contraseña se
-  cancelan, como en el evaluador.
+- **Límites:** los de `mapper/config.py`. Los envíos nativos de formularios POST o con contraseña se cancelan, como en
+  el evaluador.
 - **Pasos mínimos** (`min_steps`) en la unidad del evaluador: un clic o una tecla es 1, escribir o elegir en una lista
   es 2 (clic y tecleo), cada elemento que estaba fuera de pantalla suma un scroll, y suma otro si al final la cita no
   está en pantalla (`quote_scrolls`), porque el juez decide con la captura final.

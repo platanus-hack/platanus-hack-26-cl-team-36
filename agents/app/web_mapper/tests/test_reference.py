@@ -146,3 +146,22 @@ def test_press_with_a_ref_does_not_record_an_element(with_session):
         assert step.target is None and step.in_viewport is None
 
     with_session("index.html", body)
+
+
+def test_answer_inside_a_collapsed_accordion_needs_the_click_that_opens_it(site, tmp_path):
+    answer = {"answer": "42", "quote": "La respuesta es 42."}
+    document, decider, _ = _map(site, tmp_path, [
+        ("done", None, answer),
+        ("click", "Ver respuesta", {}),
+        ("done", None, answer),
+    ], start_url=(site / "acordeon.html").as_uri())
+    assert "La respuesta es 42." not in decider.prompts[0] and "la cita no está" in decider.prompts[1]
+    assert document["status"] == "verified" and [step["label"] for step in document["steps"]] == ["click «Ver respuesta»"]
+
+
+def test_link_to_another_site_is_rejected(site, tmp_path):
+    document, decider, _ = _map(site, tmp_path, [
+        ("click", "Otro sitio", {}),
+        ("give_up", None, {"text": "No está."}),
+    ], start_url=(site / "acordeon.html").as_uri())
+    assert "otro sitio" in decider.prompts[1] and document["exploration"]["steps"] == 0

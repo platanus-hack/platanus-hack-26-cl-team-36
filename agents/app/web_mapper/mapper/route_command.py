@@ -60,7 +60,7 @@ async def _map(mappings: list[Mapping], cdp_url: str | None) -> list[dict | Base
 
 def run(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     task_id, url, instruction, base_dir = _target(parser, args)
-    viewports = [key.strip() for key in args.viewports.split(",") if key.strip()]
+    viewports = list(dict.fromkeys(key.strip() for key in args.viewports.split(",") if key.strip()))
     unknown = [key for key in viewports if key not in config.VIEWPORTS]
     if unknown:
         parser.error(f"viewports desconocidos: {', '.join(unknown)}; disponibles: {', '.join(config.VIEWPORTS)}")
