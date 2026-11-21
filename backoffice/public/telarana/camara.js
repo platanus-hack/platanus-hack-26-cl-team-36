@@ -43,6 +43,17 @@ export function cabeLaEtiqueta(k, altoFila) {
   return arribaDeLaEtiqueta + etiqueta + 1 <= altoFila * k - deLaVecina;
 }
 
+/** Alto mínimo del lienzo de la telaraña (px): por debajo, se desplaza la página en vez de achicarlo más. */
+export const ALTO_MINIMO_DEL_LIENZO = 320;
+
+/**
+ * Alto del lienzo (px) para que quepa en la ventana: lo que queda bajo su borde de arriba (`arriba`, medido con la
+ * página sin desplazar) menos un margen, nunca menos que ALTO_MINIMO_DEL_LIENZO.
+ */
+export function altoDelLienzo(ventana, arriba, margen = 16) {
+  return Math.max(ALTO_MINIMO_DEL_LIENZO, Math.floor(ventana - arriba - margen));
+}
+
 /** El menor zoom (de a 0.01) desde el que los nombres caben en su fila: el ajuste a la vista no aleja más que esto. */
 export function zoomLegible(altoFila) {
   for (let k = ZOOM_MINIMO; k <= ZOOM_MAXIMO; k = Math.round((k + 0.01) * 100) / 100) {

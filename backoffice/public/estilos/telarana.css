@@ -1,10 +1,10 @@
 /* Telaraña (diseño §10.5). Todo selector va bajo .p-telarana. Las posiciones dinámicas llegan por CSSOM
-   (--x, --y, --k, --alto-lienzo). */
+   (--x, --y, --k, --alto-del-lienzo). */
 
-.p-telarana { container-type: inline-size; display: grid; gap: var(--e-4); min-width: 0; }
+.p-telarana { container-type: inline-size; display: grid; gap: var(--e-3); min-width: 0; }
 
 /* ── Cabecera y herramientas ─────────────────────────────────────────── */
-.p-telarana .telarana-cabecera { display: grid; gap: var(--e-3); min-width: 0; }
+.p-telarana .telarana-cabecera { display: grid; gap: var(--e-2); min-width: 0; }
 .p-telarana .telarana-titular {
   font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.014em; color: var(--texto-1);
   text-wrap: balance;
@@ -15,8 +15,9 @@
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-4);
   min-width: 0;
 }
+/* Perfiles y controles de la historia en una sola fila mientras quepan (los perfiles se desplazan de lado). */
 .p-telarana .telarana-perfiles {
-  display: flex; gap: var(--e-2); min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none;
+  display: flex; gap: var(--e-2); flex: 1 1 0; min-width: min(100%, 280px); max-width: 100%; overflow-x: auto; scrollbar-width: none;
   padding-block: 2px; padding-inline: 2px;
 }
 .p-telarana .telarana-perfiles::-webkit-scrollbar { display: none; }
@@ -44,14 +45,14 @@
 .p-telarana .telarana-columna { display: grid; gap: var(--e-2); min-width: 0; }
 @container (min-width: 1100px) {
   .p-telarana .telarana-cuerpo { grid-template-columns: minmax(0, 1fr) 320px; }
-  .p-telarana .panel-telarana { max-height: clamp(420px, 62vh, 760px); overflow: auto; }
+  .p-telarana .panel-telarana { max-height: var(--alto-del-lienzo, clamp(420px, 62vh, 760px)); overflow: auto; }
 }
 
 /* ── Lienzo ─────────────────────────────────────────────────────────── */
 .p-telarana .telarana-mapa { position: relative; min-width: 0; }
 .p-telarana .lienzo {
-  /* Un mapa alto pide más lienzo (--alto-lienzo, lo que mide con el zoom legible), hasta el 80 % de la ventana. */
-  position: relative; overflow: hidden; height: clamp(420px, max(62vh, min(var(--alto-lienzo, 0px), 80vh)), 760px);
+  /* El alto que queda de la ventana bajo el lienzo (--alto-del-lienzo, camara.js altoDelLienzo), con un mínimo. */
+  position: relative; overflow: hidden; height: var(--alto-del-lienzo, clamp(420px, 62vh, 760px));
   background-color: var(--lienzo);
   background-image: radial-gradient(circle, oklch(1 0 0 / 0.07) 1px, transparent 1.5px);
   background-size: 16px 16px;

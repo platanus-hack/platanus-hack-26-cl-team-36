@@ -13,7 +13,7 @@ import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
 import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
 import { nombreDePagina, textoDeFirma, textoDeTitular } from "../datos/textos.js";
-import { altoDeFilaPara, crearCamara, zoomLegible } from "../telarana/camara.js";
+import { altoDeFilaPara, altoDelLienzo, crearCamara, zoomLegible } from "../telarana/camara.js";
 import {
   activosDePerfil,
   finalesPorPagina,
@@ -63,6 +63,7 @@ function crearPantalla(contenedor, ctx) {
     historia: null,
     geo: null,
     altoFila: null, // alto de fila con que se dibujó (depende del ancho del lienzo)
+    altoDelLienzo: null, // px: lo que queda de la ventana bajo el lienzo
     zoomDelAncho: null, // zoom con que el mapa entra a lo ancho del lienzo
     dibujo: null,
     ancho: 0,
@@ -345,7 +346,6 @@ function crearPantalla(contenedor, ctx) {
       return;
     }
     const legible = zoomLegible(estado.altoFila ?? ALTO_FILA);
-    lienzo.style.setProperty("--alto-lienzo", `${Math.ceil(caja.alto * Math.max(legible, Math.min(1.25, lienzo.clientWidth / caja.ancho)))}px`);
     const encuadre = camara.encuadre(caja, { minimo: legible });
     // Si aun así no cabe (teléfonos, tandas grandes): se ve desde el inicio (a la izquierda) y a la altura de la ruta,
     // sin dejar vacío arriba ni abajo del mapa.
@@ -389,11 +389,25 @@ function crearPantalla(contenedor, ctx) {
     });
   }
 
+  /** El lienzo llena lo que queda de la ventana bajo su borde de arriba (con la página sin desplazar). */
+  function dimensionarLienzo() {
+    const arriba = lienzo.getBoundingClientRect().top + window.scrollY;
+    const alto = altoDelLienzo(window.innerHeight, arriba);
+    if (alto === estado.altoDelLienzo) return false;
+    estado.altoDelLienzo = alto;
+    contenedor.style.setProperty("--alto-del-lienzo", `${alto}px`);
+    return true;
+  }
+
   function alCambiarTamano() {
+    const cambioElAlto = dimensionarLienzo();
     const ancho = contenedor.clientWidth;
     if (!ancho || !distribucion.estaciones.length) return;
     const primera = !estado.geo;
-    if (!primera && Math.abs(ancho - estado.ancho) < 2) return;
+    if (!primera && Math.abs(ancho - estado.ancho) < 2) {
+      if (cambioElAlto) ajustar();
+      return;
+    }
     estado.ancho = ancho;
     // Alto de fila para que los nombres quepan viendo el mapa entero a lo ancho.
     const zoom = zoomDelAncho();
@@ -919,6 +933,8 @@ function crearPantalla(contenedor, ctx) {
       alCambiarTamano();
       const observador = new ResizeObserver(() => alCambiarTamano());
       observador.observe(contenedor);
+      // El alto de la ventana (y lo que ocupa la cabecera, p. ej. al abrir la instrucción) cambia el alto del lienzo.
+      window.addEventListener("resize", () => alCambiarTamano(), { signal: senal });
       senal.addEventListener("abort", () => observador.disconnect(), { once: true });
       aplicar(ctx.parametros);
       estado.montado = true;
