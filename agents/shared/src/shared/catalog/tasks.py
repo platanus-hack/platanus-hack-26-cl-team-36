@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from shared.catalog.goal import is_free_goal_id
 from shared.store.keys import InvalidKey, validate_goal, validate_host
 
 TASKS_DIR = Path(__file__).resolve().parents[4] / "tasks"
@@ -24,16 +25,18 @@ class Task:
 
 def available_tasks() -> list[str]:
     """Las tareas como `<host>/<goal>`."""
-    return sorted(f"{path.parent.name}/{path.stem}" for path in TASKS_DIR.glob("*/*.json"))
+    return sorted(f"{path.parent.name}/{path.stem}" for path in TASKS_DIR.glob("*/*.json") if not is_free_goal_id(path.stem))
 
 
 def task_ids(host: str) -> set[str]:
-    return {path.stem for path in (TASKS_DIR / host).glob("*.json")}
+    return {path.stem for path in (TASKS_DIR / host).glob("*.json") if not is_free_goal_id(path.stem)}
 
 
 def load_task(ref: str) -> Task | None:
     """La tarea `<host>/<goal>`, o None si no existe."""
     host, _, goal = ref.partition("/")
+    if is_free_goal_id(goal):
+        return None
     try:
         validate_host(host)
         validate_goal(goal)

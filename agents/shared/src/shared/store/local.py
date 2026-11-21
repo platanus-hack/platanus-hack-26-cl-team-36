@@ -1,5 +1,7 @@
 """Backend de disco: la clave es la ruta relativa a la raíz."""
 
+import os
+import tempfile
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -23,19 +25,28 @@ class LocalBackend(Backend):
         workdir_files(run, workdir)
 
     def _put(self, key: str, data: bytes) -> None:
-        path = self.root / key
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
+        temporary = self._temporary(key, data)
+        os.replace(temporary, self.root / key)
 
     def _create(self, key: str, data: bytes) -> bool:
-        path = self.root / key
-        path.parent.mkdir(parents=True, exist_ok=True)
+        # Un enlace duro falla si la clave ya existe: el archivo aparece completo o no aparece.
+        temporary = self._temporary(key, data)
         try:
-            with path.open("xb") as file:
-                file.write(data)
+            os.link(temporary, self.root / key)
         except FileExistsError:
             return False
+        finally:
+            temporary.unlink()
         return True
+
+    def _temporary(self, key: str, data: bytes) -> Path:
+        """`data` en un archivo oculto junto a la clave, para reemplazarla de una vez."""
+        path = self.root / key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        with os.fdopen(descriptor, "wb") as file:
+            file.write(data)
+        return Path(name)
 
     def _get(self, key: str) -> bytes:
         return (self.root / key).read_bytes()

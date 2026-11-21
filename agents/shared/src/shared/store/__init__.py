@@ -24,6 +24,7 @@ from shared.store.manifest import (
     latest_run,
     read_manifest,
     running,
+    runs_with_status,
     start_run,
 )
 from shared.store.run_ids import Clock, format_run_id, parse_run_id, sort_run_ids, utc_now
@@ -56,6 +57,7 @@ __all__ = [
     "parse_run_id",
     "read_manifest",
     "running",
+    "runs_with_status",
     "sort_run_ids",
     "start_run",
     "summary",

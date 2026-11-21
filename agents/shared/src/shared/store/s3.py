@@ -19,6 +19,10 @@ _TAKEN = {"PreconditionFailed", "ConditionalRequestConflict"}
 _MISSING = {"404", "NoSuchKey", "NotFound"}
 
 
+class MissingBoto3(RuntimeError):
+    """El extra `s3` de shared no está instalado."""
+
+
 def content_type(key: str) -> str:
     return CONTENT_TYPES.get(Path(key).suffix, "application/octet-stream")
 
@@ -38,8 +42,10 @@ class S3Backend(Backend):
     def client(self) -> Any:
         # Se crea al primer uso: credenciales y región salen de la cadena estándar de AWS.
         if self._client is None:
-            import boto3  # extra opcional: shared[s3]
-
+            try:
+                import boto3
+            except ModuleNotFoundError:
+                raise MissingBoto3("un almacén s3:// necesita boto3: instala el extra shared[s3]") from None
             self._client = boto3.client("s3")
         return self._client
 

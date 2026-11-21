@@ -45,8 +45,14 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
   guide, la del catálogo de donde vino su objetivo; una de visitor, las de guide con que se comparó y la del catálogo;
   una de guide adoptada, la ruta anterior y la corrida de visitor que la propuso; una de summary, todas las que leyó.
 - `comparison.json` existe si alguna ruta de guide sirvió de referencia, y `proposals.json` si un intento la superó.
-- Una tarea de `agents/tasks/<host>/<goal>.json` es un objetivo de su host con su propio id; un objetivo libre, que
-  solo tiene instrucción, toma su id de las primeras palabras de la instrucción.
+- Una corrida de guide con `adoption.json` es la revisión de una propuesta: `succeeded` si la adoptó, `failed` si no.
+- Una corrida de visitor cuyos intentos se interrumpieron todos termina `failed`.
+- Una tarea de `agents/tasks/<host>/<goal>.json` es un objetivo de su host con su propio id. Un objetivo libre, que
+  solo tiene instrucción, se llama `libre-<primeras palabras>-<8 hex del sha256 de la instrucción>`; el catálogo y las
+  tareas no aceptan ese prefijo.
+- Un mismo `<goal>` puede tener corridas de instrucciones distintas: la vigente para una instrucción es la más nueva que
+  terminó bien y es de esa instrucción (`shared.catalog.routes`). `runs_with_status` las recorre de la más nueva a la
+  más vieja y salta las de manifiesto ilegible.
 
 ### Uso
 
@@ -97,5 +103,6 @@ dependencies = ["shared[browser]"]
 shared = { path = "../../shared", editable = true }
 ```
 
-`playwright` solo se instala con el extra `browser`, `pillow` con `pixels` y `boto3` con `s3`. Las pruebas corren sin red:
+`playwright` solo se instala con el extra `browser`, `pillow` con `pixels` y `boto3` con `s3`; sin `boto3`, un
+almacén `s3://` falla con un mensaje que lo nombra. Las pruebas corren sin red:
 `uv run pytest -q`.

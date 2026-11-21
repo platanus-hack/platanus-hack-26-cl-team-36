@@ -70,3 +70,10 @@ def test_publish_checks_layout(tmp_path: Path) -> None:
         finish_run(backend, run, "failed")
     with pytest.raises(ValueError):
         backend.publish(run.key, tmp_path)
+
+
+def test_writes_leave_no_temporary_files(tmp_path: Path) -> None:
+    backend = LocalBackend(tmp_path)
+    run = start_run(backend, cataloger("wom.cl"), model=None, clock=lambda: MOMENT)
+    backend.write_json(run.key.file("goals.json"), [])
+    assert sorted(path.name for path in run.workdir.iterdir()) == ["goals.json", "manifest.json"]

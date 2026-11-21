@@ -1,12 +1,15 @@
 """Contrato del catálogo: selección de objetivos, prominencia, complejidad y lectura de sus archivos."""
 
 import json
+import re
 from dataclasses import asdict
+
+import pytest
 
 from shared import store
 from shared.catalog import tasks
 from shared.catalog.files import read_catalog, read_outline
-from shared.catalog.goal import Goal, exclusion, instruction, instruction_goal_id, routable, slugify
+from shared.catalog.goal import Goal, exclusion, instruction, instruction_goal_id, is_free_goal_id, routable, slugify
 from shared.catalog.outline import Link, PageOutline, SiteOutline
 from shared.catalog.prominence import complexity, link_prominence, prominence, route_prominence
 
@@ -105,7 +108,20 @@ def test_a_task_is_a_goal_of_its_host(tmp_path, monkeypatch):
     assert tasks.load_task("sitio.cl/otra") is None and tasks.load_task("../sitio.cl/baja") is None
 
 
-def test_ids_are_ascii_kebab_case_and_an_instruction_gives_a_short_id():
+def test_free_goal_ids_are_reserved_stable_bounded_and_never_empty():
     assert slugify("  Exención de Contribuciones!") == "exencion-de-contribuciones"
-    goal_id = instruction_goal_id("Tienes 67 años: encuentra hasta cuándo puedes pedir la exención de contribuciones")
-    assert goal_id == "tienes-67-anos-encuentra-hasta-cuando-puedes-pedir-la"
+    long = "Tienes 67 años: encuentra hasta cuándo puedes pedir la exención de contribuciones"
+    goal_id = instruction_goal_id(long)
+    assert goal_id.startswith("libre-tienes-67-anos-encuentra-") and len(goal_id) <= 55 and is_free_goal_id(goal_id)
+    assert instruction_goal_id(f"  {long} ") == goal_id != instruction_goal_id(long + " Otra.")
+    assert re.fullmatch(r"libre-[0-9a-f]{8}", instruction_goal_id("Найдите часы работы"))
+    store.visitor("sitio.cl", goal_id)
+    with pytest.raises(ValueError):
+        instruction_goal_id("   ")
+
+
+def test_tasks_with_the_free_prefix_are_ignored(tmp_path, monkeypatch):
+    (tmp_path / "sitio.cl").mkdir()
+    (tmp_path / "sitio.cl" / "libre-baja-0a1b2c3d.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(tasks, "TASKS_DIR", tmp_path)
+    assert tasks.available_tasks() == [] and tasks.load_task("sitio.cl/libre-baja-0a1b2c3d") is None

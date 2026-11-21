@@ -1,5 +1,6 @@
 """Un objetivo del catálogo, con el esquema de docs/agents/niveles-de-tarea.md (sección 3)."""
 
+import hashlib
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -8,7 +9,10 @@ LEVELS = ("summary", "user_goal", "subfunction")
 INTENTS = ("find_info", "reach_page", "transact")
 PROMINENCE_ORDER = ("buried", "secondary", "primary")
 EXCLUDING_GATES = ("login", "personal_data", "bot_check")  # el Visitante no puede intentarlos
-_MAX_INSTRUCTION_ID = 60
+# Un objetivo libre, que solo tiene instrucción, lleva este prefijo; el catálogo y las tareas no lo aceptan.
+FREE_GOAL_PREFIX = "libre-"
+_FREE_GOAL_WORDS = 40   # caracteres de palabras antes del hash
+_FREE_GOAL_HASH = 8
 
 # La Guía no envía formularios: en un objetivo `transact` la ruta llega hasta el paso anterior al envío.
 _SUFFIXES = {
@@ -69,11 +73,19 @@ def slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", plain).strip("-")
 
 
+def is_free_goal_id(goal_id: str) -> bool:
+    return goal_id.startswith(FREE_GOAL_PREFIX)
+
+
 def instruction_goal_id(instruction: str) -> str:
-    """El id de un objetivo que solo tiene instrucción: sus primeras palabras en kebab-case."""
+    """`libre-<primeras palabras>-<hash de la instrucción>`: estable para la misma instrucción y distinto entre dos."""
+    text = " ".join(instruction.split())
+    if not text:
+        raise ValueError("la instrucción está vacía")
+    digest = hashlib.sha256(text.encode()).hexdigest()[:_FREE_GOAL_HASH]
     kept: list[str] = []
-    for word in slugify(instruction).split("-"):
-        if kept and len("-".join([*kept, word])) > _MAX_INSTRUCTION_ID:
+    for word in filter(None, slugify(text).split("-")):
+        if len("-".join([*kept, word])) > _FREE_GOAL_WORDS:
             break
         kept.append(word)
-    return "-".join(kept)
+    return "-".join([FREE_GOAL_PREFIX.rstrip("-"), *kept, digest])
