@@ -10,8 +10,8 @@ from pathlib import Path
 from route_tree import node_key
 
 
-def load_reference(output_dir: Path, url: str, instruction: str, profile: str) -> dict | None:
-    """La ruta verificada de esta tarea para el viewport del perfil, si el Mapeador la dejó en `output_dir`."""
+def find_reference(output_dir: Path, url: str, instruction: str, profile: str) -> tuple[Path, dict] | None:
+    """El route.json verificado de esta tarea para el viewport del perfil, si el Mapeador lo dejó en `output_dir`."""
     for path in sorted(output_dir.glob("reference/*/route.json")):
         try:
             route = json.loads(path.read_text(encoding="utf-8"))
@@ -22,8 +22,13 @@ def load_reference(output_dir: Path, url: str, instruction: str, profile: str) -
             and profile in route.get("evaluator_profiles", [])
             and (route.get("start_url"), route.get("instruction")) == (url, instruction)
         ):
-            return route
+            return path, route
     return None
+
+
+def load_reference(output_dir: Path, url: str, instruction: str, profile: str) -> dict | None:
+    found = find_reference(output_dir, url, instruction, profile)
+    return found[1] if found else None
 
 
 def visited_nodes(run: dict) -> list[str]:
@@ -101,4 +106,6 @@ def report_section(comparison: dict, profile_names: dict[str, str]) -> list[str]
             f"{row['efficiency']:.2f} | {row['lostness']:.2f} | {'sí' if row['reached_final_node'] else 'no'} | "
             f"{row['similarity']:.2f} |"
         )
+    for path in comparison.get("proposals", []):
+        lines += ["", f"Un intento logró la tarea con menos pasos que la referencia: queda propuesto en `{path}`."]
     return lines
