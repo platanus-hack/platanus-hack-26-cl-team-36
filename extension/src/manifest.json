@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Mi Tema",
+  "name": "Chameleon",
   "version": "0.2.0",
   "description": "Cambia el diseño de sitios web aplicando el tema que indica la API (CSS + features).",
 
@@ -19,7 +19,7 @@
   },
 
   "action": {
-    "default_title": "Activar / desactivar mi tema",
+    "default_title": "Activar / desactivar Chameleon",
     "default_icon": "icons/icon.svg"
   },
 
@@ -34,7 +34,7 @@
 
   "browser_specific_settings": {
     "gecko": {
-      "id": "yt-tema-grupo36@hackathon.local",
+      "id": "chameleon@grupo36.hackathon",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": ["browsingActivity"]

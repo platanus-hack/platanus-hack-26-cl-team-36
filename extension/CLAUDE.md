@@ -1,4 +1,4 @@
-# Mi Tema — extensión de Firefox
+# Chameleon — extensión de Firefox
 
 Extensión de Firefox (Manifest V3) que cambia el diseño de sitios web aplicando
 temas (CSS + features JS) sobre la página original. No reemplaza el HTML/JS del
@@ -38,7 +38,7 @@ el tema completo: todo lo específico de un sitio debe poder expresarse como **d
 - **IDs y clases propias con prefijo `mt-`** para no chocar con el sitio.
 - **Privacidad:** a la API se le envía solo el origen (`new URL(url).origin`), nunca ruta ni parámetros. Por eso `data_collection_permissions` declara `browsingActivity`; si se envía algo más, actualizarlo.
 - **El content script corre en todos los sitios http(s)** (`matches`/`host_permissions` = `http://*/*`, `https://*/*`), solo en el frame principal. Lo que se carga en todas las páginas debe ser liviano y no tocar la página hasta saber que hay tema.
-- **`host_permissions` sin puerto:** Firefox no acepta puertos en los patrones (`http://localhost:3000/*` no da permiso y la request sale como CORS con preflight).
+- **`host_permissions` sin puerto:** Firefox no acepta puertos en los patrones (`http://localhost:4747/*` no da permiso y la request sale como CORS con preflight).
 - **No cambiar `browser_specific_settings.gecko.id`** (AMO lo trataría como otra extensión).
 - **Nunca correr web-ext con el perfil real del usuario** (`--firefox-profile=default-release`, una ruta a `~/Library/Application Support/Firefox/Profiles/...`, etc.), ni en modo copia. Con los grupos de perfiles de Firefox (versión 160 o superior), la copia se registra en el grupo y reescribe `profiles.ini`/`installs.ini` apuntando a una carpeta temporal. Para usar los datos del usuario: `npm run perfil:clonar`. Si se modifica ese script, mantener `sanitizarPrefs` (quita `toolkit.profiles.*`/`browser.profiles.*`) y los `--pref` de grupo de `dev:sesion`.
 
@@ -52,7 +52,7 @@ el tema completo: todo lo específico de un sitio debe poder expresarse como **d
 
 ## Comandos (desde `extension/`; `dev`, `dev:sesion`, `check` y `build` también desde la raíz del repo)
 
-- `npm run dev:backend` (desde la raíz): levanta el backend en `localhost:3000`. Sin él no se aplica ningún tema.
+- `npm run dev:backend` (desde la raíz): levanta el backend en `localhost:4747`. Sin él no se aplica ningún tema.
 - `npm run dev`: abre Firefox con la extensión cargada en youtube.com; al guardar recarga la extensión y refresca las pestañas con tema (las que tienen `data-mt-tema` en `<html>`; solo en modo desarrollo, vía `onInstalled` con `temporary`).
 - `npm run dev:sesion`: igual, con perfil persistente en `.perfil-dev/`. La ruta del perfil debe llevar `./`: sin barra, web-ext la trata como *nombre* de perfil (`-P`) y Firefox no arranca (`ECONNREFUSED`).
 - `npm run perfil:clonar`: clona un perfil real de Firefox a `.perfil-dev/` (interactivo; `-- --perfil "<nombre>"` para elegir directo).

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { temaParaUrl } from "./temas.js";
 
-const PUERTO = Number(process.env.PORT) || 3000;
+const PUERTO = Number(process.env.PORT) || 4747;
 
 function responderJson(res, estado, datos) {
   res.writeHead(estado, { "Content-Type": "application/json" });

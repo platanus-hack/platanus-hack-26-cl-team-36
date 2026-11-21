@@ -1,4 +1,4 @@
-# Mi Tema — extensión de Firefox
+# Chameleon — extensión de Firefox
 
 Extensión de Firefox que cambia el diseño de sitios web aplicando **temas**.
 Un tema es CSS + la lista de features (comportamientos JS) que se activan en ese sitio.
@@ -94,7 +94,7 @@ la extensión → "Permisos" que tenga acceso a los sitios.
 | `npm run dev` | Firefox con la extensión, recarga al guardar |
 | `npm run dev:sesion` | Igual, con perfil persistente |
 | `npm run perfil:clonar` | Copia tu perfil de Firefox a `.perfil-dev/` |
-| `npm run dev:backend` | La API en `localhost:3000` (desde la raíz) |
+| `npm run dev:backend` | La API en `localhost:4747` (desde la raíz) |
 | `npm test` | Tests de la lógica de temas y validación de `src/temas/` |
 | `npm run lint` | Valida la extensión con `web-ext lint` |
 | `npm run check` | `test` + `lint` |
@@ -137,13 +137,13 @@ además el motor siempre reacciona a cambios del DOM.
 Para probar la conexión, levanta el backend en otra terminal (desde la raíz del repo):
 
 ```bash
-npm run dev:backend   # http://localhost:3000
+npm run dev:backend   # http://localhost:4747
 ```
 
 En cada página, la extensión hace:
 
 ```
-POST http://localhost:3000/temas/buscar
+POST http://localhost:4747/temas/buscar
 { "url": "https://www.youtube.com" }      ← solo el origen, nunca la ruta ni parámetros
 ```
 
@@ -192,7 +192,7 @@ como **no listada**: no aparece en la tienda y se distribuye como `.xpi` descarg
 4. Súbelo a un release de GitHub (o cualquier link https). Quien abra ese link en Firefox
    puede instalarla.
 
-Mientras la API esté en `localhost:3000`, la extensión instalada solo aplica temas en un
+Mientras la API esté en `localhost:4747`, la extensión instalada solo aplica temas en un
 computador que tenga el backend corriendo (`npm run dev:backend`).
 
 - Cada versión nueva que firmes necesita un número de `version` mayor en `manifest.json`.
