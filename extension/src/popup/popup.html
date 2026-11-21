@@ -56,31 +56,36 @@
            "completa" | "solo-comentario" | "no-disponible" | "cargando" (ver estado.js). -->
       <section class="mt-opinion" id="mt-opinion" data-modo="cargando" aria-labelledby="mt-opinion-titulo">
         <h1 class="mt-opinion-titulo" id="mt-opinion-titulo" data-mt-texto="opinion.titulo">Ayúdanos a mejorar tu experiencia</h1>
-        <p class="mt-pregunta" id="mt-pregunta" data-mt-texto="opinion.pregunta">¿Esta página es mejor para ti que la original?</p>
-        <p class="mt-aviso" id="mt-aviso"></p>
+        <!-- La pregunta con sus opciones y el aviso comparten un mismo lugar (popup.css): al pasar de "completa" a
+             "solo-comentario" la tarjeta no cambia de alto y el interruptor de abajo no se mueve. -->
+        <div class="mt-eleccion">
+          <div class="mt-votar">
+            <p class="mt-pregunta" id="mt-pregunta" data-mt-texto="opinion.pregunta">¿Esta página es mejor para ti que la original?</p>
+            <div class="mt-opciones" role="group" aria-labelledby="mt-pregunta">
+              <button type="button" class="mt-opcion mt-opcion-tema" data-voto="mejor" aria-pressed="false">
+                <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 19V5M5 12l7-7 7 7" />
+                </svg>
+                <span class="mt-opcion-texto" data-mt-texto="opinion.mejor">Mejor</span>
+              </button>
+              <button type="button" class="mt-opcion mt-opcion-tema" data-voto="peor" aria-pressed="false">
+                <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12l7 7 7-7" />
+                </svg>
+                <span class="mt-opcion-texto" data-mt-texto="opinion.peor">Peor</span>
+              </button>
+              <button type="button" class="mt-opcion" data-voto="comentario" aria-pressed="false">
+                <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 5h16v11H9l-5 4z" />
+                </svg>
+                <span class="mt-opcion-texto" data-mt-texto="opinion.soloComentar">Solo quiero comentar</span>
+              </button>
+            </div>
+          </div>
+          <p class="mt-aviso" id="mt-aviso"></p>
+        </div>
 
         <form class="mt-formulario" id="mt-formulario" novalidate>
-          <div class="mt-opciones" role="group" aria-labelledby="mt-pregunta">
-            <button type="button" class="mt-opcion mt-opcion-tema" data-voto="mejor" aria-pressed="false">
-              <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 19V5M5 12l7-7 7 7" />
-              </svg>
-              <span class="mt-opcion-texto" data-mt-texto="opinion.mejor">Mejor</span>
-            </button>
-            <button type="button" class="mt-opcion mt-opcion-tema" data-voto="peor" aria-pressed="false">
-              <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5v14M5 12l7 7 7-7" />
-              </svg>
-              <span class="mt-opcion-texto" data-mt-texto="opinion.peor">Peor</span>
-            </button>
-            <button type="button" class="mt-opcion" data-voto="comentario" aria-pressed="false">
-              <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 5h16v11H9l-5 4z" />
-              </svg>
-              <span class="mt-opcion-texto" data-mt-texto="opinion.soloComentar">Solo quiero comentar</span>
-            </button>
-          </div>
-
           <label class="mt-oculto-visual" for="mt-comentario" data-mt-texto="opinion.comentario">Comentario</label>
           <textarea
             class="mt-comentario"

@@ -79,8 +79,10 @@
       "interruptor.cargando": "Cargando…",
       "interruptor.encendido": "Encendido",
       "interruptor.apagado": "Apagado",
-      "interruptor.ayudaEncendido": "Toca para volver a la página original",
-      "interruptor.ayudaApagado": "Toca para aplicar el diseño de Chameleon",
+      "interruptor.ayudaEncendido": "Haz clic para volver a la página original",
+      "interruptor.ayudaApagado": "Haz clic para aplicar el diseño de Chameleon",
+      "interruptor.ayudaEncendidoSinTema": "Haz clic para apagar Chameleon",
+      "interruptor.ayudaApagadoSinTema": "Haz clic para encender Chameleon",
 
       // Content scripts: feature modo-foco
       "foco.entrar": "🎯 Modo foco",
@@ -141,8 +143,10 @@
       "interruptor.cargando": "Loading…",
       "interruptor.encendido": "On",
       "interruptor.apagado": "Off",
-      "interruptor.ayudaEncendido": "Tap to go back to the original page",
-      "interruptor.ayudaApagado": "Tap to apply Chameleon's design",
+      "interruptor.ayudaEncendido": "Click to go back to the original page",
+      "interruptor.ayudaApagado": "Click to apply Chameleon's design",
+      "interruptor.ayudaEncendidoSinTema": "Click to turn Chameleon off",
+      "interruptor.ayudaApagadoSinTema": "Click to turn Chameleon on",
 
       "foco.entrar": "🎯 Focus mode",
       "foco.salir": "🎯 Exit focus mode",
