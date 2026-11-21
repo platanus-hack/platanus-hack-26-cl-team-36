@@ -49,7 +49,7 @@ test("contar acciones por tipo", () => {
 test("hallazgos de la tanda nueva, en orden y solo con claves y variables", async () => {
   const tanda = await leerTanda(RAIZ, "tarea-demo/2026-11-21_11-00-00");
   assert.deepEqual(tanda.hallazgos.map((h) => h.id), [
-    "resultado", "errores", "desvio:senior", "detenido:senior", "demora:hurried:2", "tropiezos", "costo",
+    "resultado", "errores", "desvio:senior", "detenido:senior", "demora:hurried:2", "tropiezos",
   ]);
   const porId = Object.fromEntries(tanda.hallazgos.map((h) => [h.id, h]));
   assert.deepEqual(porId.resultado, {
@@ -70,7 +70,8 @@ test("hallazgos de la tanda nueva, en orden y solo con claves y variables", asyn
     pasos: 2,
     casos: [{ intento: "hurried", paso: 4, senal: "no_effect" }, { intento: "senior", paso: 3, senal: "went_back" }],
   });
-  assert.deepEqual(porId.costo.vars, { pasosMediana: 4, pasosIdeales: 2 });
+  // La ruta del evaluador tiene 4 pasos (3 + 1, con sus acciones previas), como la mediana: sin hallazgo de costo.
+  assert.equal(porId.costo, undefined);
   for (const hallazgo of tanda.hallazgos) assert.match(hallazgo.clave, /^datos\.hallazgo\.[a-z]+$/);
 });
 
@@ -78,10 +79,10 @@ test("titulares de las dos tandas", async () => {
   const nueva = await leerTanda(RAIZ, "tarea-demo/2026-11-21_11-00-00");
   assert.deepEqual(nueva.titulares.tanda, { clave: nueva.hallazgos[0].clave, nivel: "atencion", vars: nueva.hallazgos[0].vars });
   assert.deepEqual(nueva.titulares.telarana, {
-    clave: "datos.titular.telarana", vars: { hayRuta: true, tramos: 2, pasosIdeales: 2, siguen: 2, validos: 3, logrados: 2 },
+    clave: "datos.titular.telarana", vars: { hayRuta: true, tramos: 2, pasosIdeales: 4, siguen: 2, validos: 3, logrados: 2 },
   });
   assert.deepEqual(nueva.titulares.perfiles.vars, {
-    caso: "noLlegan", intentos: ["senior"], pasos: null, pasosIdeales: 2, perfiles: 3, unoPorPerfil: true,
+    caso: "noLlegan", intentos: ["senior"], pasos: null, pasosIdeales: 4, perfiles: 3, unoPorPerfil: true,
   });
   const vieja = await leerTanda(RAIZ, "tarea-demo/2026-11-21_10-00-00");
   assert.deepEqual(vieja.hallazgos.map((h) => h.id), ["resultado", "desvio:hurried", "desvio:mobile", "detenido:mobile", "tropiezos"]);

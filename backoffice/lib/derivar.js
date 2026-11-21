@@ -455,25 +455,45 @@ export function distancias(paginas, ramas) {
   return new Map(paginas.map((pagina) => [pagina.id, distancia.get(pagina.id) ?? maximo + 1]));
 }
 
-// La ruta recomendada del evaluador, pasada a páginas: consecutivas iguales se juntan y cada tramo es
-// la rama unida entre dos hitos.
-function rutaEnPaginas(rutaCruda, paginaDeNodo, ramaPorId) {
+const esVolver = (accion) => /^volver a\b/i.test(String(accion ?? "").trim());
+
+/**
+ * La ruta recomendada del evaluador, pasada a páginas: los nodos de una misma página se juntan y cada tramo va de un
+ * hito al siguiente. Las acciones y los pasos son los de la ruta del evaluador (como en su report.md), no los de la
+ * rama unida entre esas páginas: la acción del tramo es la del paso que cambia de página (nunca un «volver a…», que
+ * un usuario que no vio la página no puede hacer) y sus pasos son ese clic más cada acción previa que lista
+ * (`preceding_actions`; «scroll down x10» cuenta 1), sumados si el tramo junta varios pasos. Los segundos, la mediana
+ * de cada paso (`median_time_s`); si falta, la de la rama.
+ * @returns {Ruta | null}
+ */
+export function rutaEnPaginas(rutaCruda, paginaDeNodo, ramaPorId) {
   if (!rutaCruda) return null;
   const paginas = [];
-  for (const nodo of [rutaCruda.start_node, ...(rutaCruda.steps ?? []).map((paso) => paso.target)]) {
-    const pagina = paginaDeNodo.get(nodo);
-    if (pagina && pagina !== paginas.at(-1)) paginas.push(pagina);
+  const grupos = []; // por tramo, los pasos de la ruta que lo forman
+  let pendientes = [];
+  const inicio = paginaDeNodo.get(rutaCruda.start_node);
+  if (inicio) paginas.push(inicio);
+  for (const paso of rutaCruda.steps ?? []) {
+    const destino = paginaDeNodo.get(paso.target);
+    pendientes.push(paso);
+    if (!destino || destino === paginas.at(-1)) continue; // sigue en la misma página
+    if (paginas.length) grupos.push({ origen: paginas.at(-1), destino, pasos: pendientes });
+    paginas.push(destino);
+    pendientes = [];
   }
   // Una ruta sin tramos (la respuesta en la página inicial, o un sitio que no cargó) no es una ruta que seguir.
   if (paginas.length < 2) return null;
-  const tramos = paginas.slice(1).map((destino, k) => {
-    const rama = ramaPorId.get(`${paginas[k]}>${destino}`);
+  const tramos = grupos.map(({ origen, destino, pasos }) => {
+    const rama = ramaPorId.get(`${origen}>${destino}`);
+    const ultima = String(pasos.at(-1)?.action ?? "");
+    const deLaRama = rama?.acciones?.find((accion) => !esVolver(accion.accion))?.accion ?? "";
+    const tiempos = pasos.map((paso) => paso.median_time_s);
     return {
-      origen: paginas[k],
+      origen,
       destino,
-      accion: rama?.accion ?? "",
-      pasos: rama?.pasosMinimos ?? 1,
-      segundos: rama?.medianaSegundos ?? null,
+      accion: ultima && !esVolver(ultima) ? ultima : deLaRama || ultima,
+      pasos: pasos.reduce((total, paso) => total + 1 + (paso.preceding_actions?.length ?? 0), 0),
+      segundos: tiempos.every(Number.isFinite) ? redondear(tiempos.reduce((a, b) => a + b, 0), 1) : (rama?.medianaSegundos ?? null),
     };
   });
   const segundos = tramos.every((tramo) => tramo.segundos !== null)

@@ -87,7 +87,6 @@ test("tanda nueva: titular y hallazgos en español e inglés", async () => {
     "Adulto mayor termina en «Sin titulo · ?x=1» tras 3 pasos: se rindió.",
     "Apurado da 7 pasos seguidos en «Ayuda» (la ruta: 1): 6 desplazamientos, 1 clic.",
     "2 pasos con tropiezos: Apurado, paso 4 (sin efecto); Adulto mayor, paso 3 (volvió atrás).",
-    "La mediana es de 4 pasos; la ruta recomendada usa 2.",
   ]);
   assert.deepEqual(tanda.hallazgos.map((h) => textoDeHallazgo(h, tanda, en)), [
     "2 of 3 reach the answer. Did not reach it: Adulto mayor.",
@@ -96,9 +95,12 @@ test("tanda nueva: titular y hallazgos en español e inglés", async () => {
     "Adulto mayor ends at «Sin titulo · ?x=1» after 3 steps: gave up.",
     "Apurado takes 7 steps in a row on «Ayuda» (the route: 1): 6 scrolls, 1 click.",
     "2 steps with stumbles: Apurado, step 4 (no effect); Adulto mayor, step 3 (went back).",
-    "The median is 4 steps; the recommended route takes 2.",
   ]);
-  assert.equal(textoDeTitular(tanda.titulares.telarana, tanda, es), "La ruta recomendada tiene 2 tramos y 2 pasos; 2 de 3 la siguen.");
+  // La ruta del evaluador de esta tanda tiene 4 pasos, como la mediana: no hay hallazgo de costo. Su texto:
+  const costo = { id: "costo", nivel: "info", clave: "datos.hallazgo.costo", vars: { pasosMediana: 4, pasosIdeales: 2 }, intento: null, paso: null, pagina: null };
+  assert.equal(textoDeHallazgo(costo, tanda, es), "La mediana es de 4 pasos; la ruta recomendada usa 2.");
+  assert.equal(textoDeHallazgo(costo, tanda, en), "The median is 4 steps; the recommended route takes 2.");
+  assert.equal(textoDeTitular(tanda.titulares.telarana, tanda, es), "La ruta recomendada tiene 2 tramos y 4 pasos; 2 de 3 la siguen.");
   assert.equal(textoDeTitular(tanda.titulares.perfiles, tanda, es), "Adulto mayor no llega a la respuesta (1 intento por perfil).");
   assert.equal(textoDeTitular(tanda.titulares.perfiles, tanda, en), "Adulto mayor does not reach the answer (1 attempt per profile).");
 });

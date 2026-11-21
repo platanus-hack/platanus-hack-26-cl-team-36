@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   armarTanda,
+  rutaEnPaginas,
   caminoSegunRuta,
   coincidenciaDelPaso,
   distancias,
@@ -139,7 +140,8 @@ test("lista las tandas del fixture, de la más nueva a la más vieja, con su res
   assert.deepEqual([vieja.intentos, vieja.validos, vieja.errores, vieja.logrados], [3, 3, 0, 2]);
   assert.deepEqual(vieja.captura, { perfil: "first_time", archivo: "step_00.png" });
   assert.deepEqual([nueva.intentos, nueva.validos, nueva.errores, nueva.logrados, nueva.siguenLaRuta], [4, 3, 1, 2, 2]);
-  assert.deepEqual([nueva.pasosMediana, nueva.pasosIdeales, nueva.paginas], [4, 2, 5]);
+  // La ruta del evaluador: «clic «Close»», «escribir «baja»», «clic «Buscar»» (3 pasos) y «clic «Dar de baja»» (1).
+  assert.deepEqual([nueva.pasosMediana, nueva.pasosIdeales, nueva.paginas], [4, 4, 5]);
   // El primer clic que se queda en el inicio y cambia la pantalla: cerrar el aviso.
   assert.deepEqual(nueva.captura, { perfil: "first_time", archivo: "step_01.png" });
   assert.deepEqual(nueva.perfiles.map((p) => [p.intento, p.nombre, p.resultado]), [
@@ -232,7 +234,11 @@ test("tanda nueva: variantes de URL unidas en una página; las sin título queda
   assert.equal(ayuda.visitas, 3);
   assert.deepEqual(ayuda.perfiles, ["first_time", "hurried", "mobile"]);
   assert.deepEqual(ruta.paginas, ["n1", "n2", "n3"]);
-  assert.deepEqual(ruta.tramos.map((t) => [t.origen, t.destino, t.pasos]), [["n1", "n2", 1], ["n2", "n3", 1]]);
+  // Acción y pasos de la ruta del evaluador (no los de la rama unida n1 → n2, donde lo más hecho fue «clic «Ayuda»»).
+  assert.deepEqual(ruta.tramos.map((t) => [t.origen, t.destino, t.accion, t.pasos, t.segundos]), [
+    ["n1", "n2", "clic «Buscar»", 3, 8],
+    ["n2", "n3", "clic «Dar de baja»", 1, 3],
+  ]);
 });
 
 test("tanda nueva: el error de la herramienta se marca y no cuenta", async () => {
@@ -278,7 +284,7 @@ test("tanda nueva: campos de cada paso", async () => {
   assert.equal(escribir.coincide, "incierto");
   assert.deepEqual(escribir.firma.tipo, "escribir");
   assert.deepEqual(cerrar.rutaAqui, {
-    enRuta: true, hito: 0, total: 2, termina: false, accion: "clic «Ayuda»", destino: "n2", coincideConUsuario: null,
+    enRuta: true, hito: 0, total: 2, termina: false, accion: "clic «Buscar»", destino: "n2", coincideConUsuario: null,
   });
   assert.equal(buscar.rutaAqui.coincideConUsuario, true);
   assert.equal(buscar.carril, "en-ruta");
@@ -476,15 +482,19 @@ test("una ruta recomendada vacía (0 pasos) es «sin ruta»: las cifras de la ru
 });
 
 test("tanda de exploradores: sin hallazgos ni titulares de costo en pasos (dan pasos de más a propósito)", async () => {
-  const comun = await leerTanda(RAIZ, NUEVA);
-  assert.ok(comun.hallazgos.some((h) => h.id === "costo"), "la tanda común sí tiene el hallazgo de costo");
-  const tanda = (() => {
+  // La tanda nueva con una ruta de 2 pasos (un clic por tramo): la mediana (4) dobla la ruta.
+  const armar = (extra) => {
     const carpeta = new URL(`./fixtures/corridas/${NUEVA}/`, import.meta.url);
     const leer = (archivo) => JSON.parse(readFileSync(new URL(archivo, carpeta), "utf8"));
-    const arbol = { ...leer("route_tree.json"), conjunto_exploradores: "conocimiento" };
+    const original = leer("route_tree.json");
+    const pasos = original.recommended_route.steps.map((paso) => ({ ...paso, preceding_actions: [] }));
+    const arbol = { ...original, recommended_route: { ...original.recommended_route, steps: pasos }, ...extra };
     const intentos = ["first_time", "hurried", "mobile", "senior"].map((perfil) => ({ perfil, run: leer(`${perfil}/run.json`), video: false }));
     return armarTanda({ id: NUEVA, arbol, criterio: leer("criteria.json"), intentos });
-  })();
+  };
+  const comun = armar({});
+  assert.ok(comun.hallazgos.some((h) => h.id === "costo"), "la tanda común sí tiene el hallazgo de costo");
+  const tanda = armar({ conjunto_exploradores: "conocimiento" });
   assert.equal(tanda.exploradores, true);
   assert.equal(comun.exploradores, false);
   assert.ok(!tanda.hallazgos.some((h) => h.id === "costo"));
@@ -515,4 +525,39 @@ test("cada intento lleva su nivel de conocimiento, la tarea que leyó y los tér
   assert.deepEqual(comun.terminosRechazados, []);
   assert.equal(tanda.instruccionSinContexto, coloquial);
   assert.equal((tandaViejaCon(() => {})).instruccionSinContexto, null);
+});
+
+// ── C2-3: la ruta recomendada es la del evaluador ───────────────────────────────────────────────────────────────
+
+test("rutaEnPaginas: acción y pasos de la ruta del evaluador, no de la rama unida; nunca un «volver a…»", () => {
+  const paginaDeNodo = new Map([["n1", "p1"], ["n2", "p2"], ["n3", "p2"], ["n4", "p3"]]);
+  const ramaPorId = new Map([
+    ["p1>p2", { acciones: [{ accion: "volver a «Horarios y Tarifas»" }, { accion: "clic «Horarios»" }], accion: "volver a «Horarios y Tarifas»", pasosMinimos: 1, medianaSegundos: 4 }],
+    ["p2>p3", { acciones: [{ accion: "clic «Otra cosa»" }], accion: "clic «Otra cosa»", pasosMinimos: 1, medianaSegundos: 6 }],
+  ]);
+  const ruta = rutaEnPaginas(
+    {
+      start_node: "n1",
+      steps: [
+        // metro 16-10-13: «scroll down x10» y luego «clic «Horarios»» = 2 pasos (la rama unida decía «volver a…», 1).
+        { source: "n1", target: "n2", action: "clic «Horarios»", preceding_actions: ["scroll down x10"], median_time_s: 18.7 },
+        // n3 es la misma página que n2: el tramo p2 → p3 junta los dos pasos.
+        { source: "n2", target: "n3", action: "clic «Ver más»", preceding_actions: [], median_time_s: 2 },
+        { source: "n3", target: "n4", action: "volver a «Tarifas»", preceding_actions: ["scroll down x5", "scroll down x5"] },
+      ],
+      estimated_probability: 0.5,
+    },
+    paginaDeNodo,
+    ramaPorId,
+  );
+  assert.deepEqual(ruta.paginas, ["p1", "p2", "p3"]);
+  assert.deepEqual(ruta.tramos, [
+    { origen: "p1", destino: "p2", accion: "clic «Horarios»", pasos: 2, segundos: 18.7 },
+    // Un «volver a…» del evaluador no se muestra como la acción: la de la rama que no es volver. Sin la mediana de
+    // cada paso, la de la rama.
+    { origen: "p2", destino: "p3", accion: "clic «Otra cosa»", pasos: 4, segundos: 6 },
+  ]);
+  assert.equal(ruta.pasosIdeales, 6);
+  assert.equal(ruta.segundos, 24.7);
+  assert.equal(rutaEnPaginas({ start_node: "n1", steps: [] }, paginaDeNodo, ramaPorId), null, "sin tramos no hay ruta");
 });
