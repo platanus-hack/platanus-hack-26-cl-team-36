@@ -3,6 +3,7 @@
 import statistics
 
 import config
+import reference
 
 _CLICK_ACTIONS = {"left_click", "double_click", "triple_click"}
 _OUTCOME_LABELS = {"success": "éxito", "failed": "fallo", "abandoned": "abandono", "interrupted": "interrumpido"}
@@ -109,7 +110,9 @@ def _node_label(nodes_by_id: dict, node_id: str) -> str:
     return f"**{_cell(node['title']) or '(sin título)'}** (`{node['url']}`)"
 
 
-def generate(meta: dict, criteria: dict, runs: list[dict], tree: dict) -> str:
+def generate(
+    meta: dict, criteria: dict, runs: list[dict], tree: dict, comparison: dict | None = None
+) -> str:
     nodes_by_id = {node["id"]: node for node in tree["nodes"]}
     engine_label = "Claude Code local" if meta.get("engine") == "claude-code" else "API de Anthropic (computer use)"
     task_label = f" (`{meta['task_id']}`)" if meta.get("task_id") else ""
@@ -142,6 +145,9 @@ def generate(meta: dict, criteria: dict, runs: list[dict], tree: dict) -> str:
             f"{len(run['steps'])} | {_count_clicks(run['steps'])} | {run['duration_s']:.0f} s | "
             f"{_count_signals(run['steps'])} |"
         )
+
+    if comparison:
+        lines += reference.report_section(comparison, {run["profile"]: run["profile_name"] for run in runs})
 
     lines += ["", "## Ruta recomendada", ""]
     route = tree.get("recommended_route")

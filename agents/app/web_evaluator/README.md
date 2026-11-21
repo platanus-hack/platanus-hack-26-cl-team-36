@@ -93,6 +93,7 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 | `browser.py`, `actions.py` | El navegador (Playwright y Chromium) y las acciones que puede pedir el agente. |
 | `recording.py` | Los pasos y el recorrido (`Step`, `Run`), y las señales que se leen del DOM solo para el registro. |
 | `route_tree.py`, `report.py` | El árbol de rutas, la ruta recomendada y `report.md`. |
+| `reference.py` | La comparación de cada intento con la ruta de referencia del [Mapeador](../web_mapper/README.md). |
 | `profiles.py`, `config.py` | Los perfiles de usuario, su prompt y los límites. |
 
 - **El agente solo ve la pantalla:** recibe capturas del viewport y nunca HTML ni DOM. Solo puede hacer clic por
@@ -114,6 +115,7 @@ agents/.runs/<tarea>/<fecha-hora>/
 ├── criteria.json
 ├── <perfil>/           step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
 ├── route_tree.json     nodos, ramas y ruta recomendada
+├── reference_comparison.json   solo si hay ruta de referencia
 └── report.md
 ```
 
@@ -135,6 +137,10 @@ video es `video_offset_s + executed_s`, y es el que muestra el reporte en la col
 
 Con `--record-video`, cada pestaña que abre el usuario tiene su propio video (`video.webm`, `video-2.webm`...). Los
 minutos del reporte son del primero. Un intento de 3 minutos ocupa del orden de 15 a 30 MB.
+
+Si `agents/.runs/<tarea>/reference/` tiene una ruta verificada para el viewport del perfil, el reporte agrega la
+comparación: eficiencia (pasos mínimos sobre pasos dados, 0 sin éxito), desorientación, si llegó a la página final y
+similitud con la ruta. Las fórmulas están en [niveles de tarea](../../../docs/agents/niveles-de-tarea.md), sección 5.
 
 ## Pruebas
 
