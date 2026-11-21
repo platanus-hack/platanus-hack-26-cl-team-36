@@ -101,7 +101,7 @@ function proximamente() {
     el(
       "ul",
       {},
-      el("li", {}, el("span", { texto: t("comun.proximamente.gatillar") }), " ", el("code", { texto: 'just local explore <url> "<tarea>"' })),
+      el("li", {}, el("span", { texto: t("comun.proximamente.gatillar") }), " ", el("code", { texto: 'just local visit <url> "<tarea>"' })),
       el("li", { texto: t("comun.proximamente.inventario") }),
       el("li", { texto: t("comun.proximamente.happyPath") }),
       el("li", { texto: t("comun.proximamente.propuestas") }),
