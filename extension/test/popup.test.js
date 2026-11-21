@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { AVISOS, MAX_COMENTARIO, crearCola, decidirVista, textoPendientes, validarEnvio } from "../src/popup/estado.js";
 
+const { TEXTOS } = globalThis.MiTema.idioma; // lo carga estado.js
+
 const src = new URL("../src/", import.meta.url);
 const leer = (ruta) => readFileSync(new URL(ruta, src), "utf8");
 
@@ -37,7 +39,7 @@ test("decidirVista: si no se puede hablar con la pestaña no hay formulario", ()
 
 test("validarEnvio: en modo completa hay que elegir una opción", () => {
   assert.equal(validarEnvio({ modo: "completa", opcion: null }).ok, false);
-  assert.match(validarEnvio({ modo: "completa", opcion: null }).motivo, /Elige/);
+  assert.equal(validarEnvio({ modo: "completa", opcion: null }).motivo, "motivo.elegir");
   assert.deepEqual(validarEnvio({ modo: "completa", opcion: "mejor" }), { ok: true, voto: "mejor", comentario: "" });
   assert.deepEqual(validarEnvio({ modo: "completa", opcion: "peor", comentario: "  muy oscuro " }), {
     ok: true,
@@ -48,7 +50,7 @@ test("validarEnvio: en modo completa hay que elegir una opción", () => {
 
 test("validarEnvio: 'Solo quiero comentar' exige texto", () => {
   assert.equal(validarEnvio({ modo: "completa", opcion: "comentario", comentario: "   " }).ok, false);
-  assert.match(validarEnvio({ modo: "completa", opcion: "comentario" }).motivo, /comentario/);
+  assert.equal(validarEnvio({ modo: "completa", opcion: "comentario" }).motivo, "motivo.escribir");
   assert.deepEqual(validarEnvio({ modo: "completa", opcion: "comentario", comentario: "hola" }), {
     ok: true,
     voto: "comentario",
@@ -69,8 +71,7 @@ test("validarEnvio: nada se envía si la pestaña no está disponible o el comen
   assert.equal(validarEnvio({ modo: "no-disponible", opcion: "mejor" }).ok, false);
   assert.equal(validarEnvio({ modo: "completa", opcion: "mejor", comentario: "x".repeat(MAX_COMENTARIO) }).ok, true);
   const largo = validarEnvio({ modo: "completa", opcion: "mejor", comentario: "x".repeat(MAX_COMENTARIO + 1) });
-  assert.equal(largo.ok, false);
-  assert.match(largo.motivo, /largo/);
+  assert.deepEqual(largo, { ok: false, motivo: "motivo.largo", parametros: { max: MAX_COMENTARIO } });
 });
 
 test("validarEnvio: rechaza opciones desconocidas", () => {
@@ -79,11 +80,25 @@ test("validarEnvio: rechaza opciones desconocidas", () => {
 
 // ---------- textoPendientes ----------
 
-test("textoPendientes: singular, plural y vacío", () => {
+test("textoPendientes: singular, plural y vacío, en español por defecto", () => {
   assert.equal(textoPendientes(0), "Aún no hay opiniones guardadas en tu equipo.");
   assert.equal(textoPendientes(null), "Aún no hay opiniones guardadas en tu equipo.");
   assert.equal(textoPendientes(1), "1 opinión guardada en tu equipo.");
   assert.equal(textoPendientes(7), "7 opiniones guardadas en tu equipo.");
+  assert.equal(textoPendientes(1500, "es"), "1.500 opiniones guardadas en tu equipo.");
+});
+
+test("textoPendientes: en inglés", () => {
+  assert.equal(textoPendientes(0, "en"), "No feedback saved on this device yet.");
+  assert.equal(textoPendientes(1, "en"), "1 response saved on this device.");
+  assert.equal(textoPendientes(1500, "en"), "1,500 responses saved on this device.");
+});
+
+test("avisos y motivos son claves del diccionario en ambos idiomas", () => {
+  const claves = [...Object.values(AVISOS), "motivo.noDisponible", "motivo.elegir", "motivo.escribir", "motivo.largo"];
+  for (const idioma of ["es", "en"]) {
+    for (const clave of claves) assert.ok(TEXTOS[idioma][clave], `falta "${clave}" en ${idioma}`);
+  }
 });
 
 // ---------- crearCola ----------
@@ -157,4 +172,30 @@ test("popup.js: los ids que busca existen en el HTML, sin innerHTML ni estilos i
   const js = leer("popup/popup.js");
   for (const [, id] of js.matchAll(/\$\("([^"]+)"\)/g)) assert.match(html, new RegExp(`id="${id}"`), `falta #${id} en popup.html`);
   assert.doesNotMatch(js, /innerHTML|insertAdjacentHTML|\.style\b/);
+});
+
+test("popup.html: cada data-mt-texto* existe en el diccionario y el HTML trae el texto en español", () => {
+  const html = leer("popup/popup.html");
+  const usados = [...html.matchAll(/data-mt-texto(?:-[a-z-]+)?="([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(usados.length >= 8);
+  for (const clave of usados) assert.ok(TEXTOS.es[clave] && TEXTOS.en[clave], `falta "${clave}" en el diccionario`);
+  // El texto del HTML es el de español (lo que se ve si el JS no alcanzara a correr).
+  for (const [, clave, texto] of html.matchAll(/data-mt-texto="([^"]+)"[^>]*>([^<]+)</g)) {
+    assert.equal(texto.trim().replace(/\s+/g, " "), TEXTOS.es[clave], `el HTML de "${clave}" no coincide con el diccionario`);
+  }
+});
+
+test("selector de idioma: listbox accesible con una opción por idioma", () => {
+  const html = leer("popup/popup.html");
+  assert.match(html, /id="mt-idioma-boton"[^>]*aria-haspopup="listbox"/);
+  assert.match(html, /aria-expanded="false"/);
+  assert.match(html, /role="listbox"/);
+  const opciones = [...html.matchAll(/role="option" data-idioma="([a-z]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(opciones.sort(), Object.keys(TEXTOS).sort());
+});
+
+test("popup y textos visibles: ningún texto suelto en español en popup.js", () => {
+  const js = leer("popup/popup.js");
+  // Los textos van por el diccionario: popup.js no asigna cadenas con letras a textContent/placeholder.
+  assert.doesNotMatch(js, /(?:textContent|placeholder)\s*=\s*["'`][^"'`]*[a-zA-Záéíóúñ]{3}/);
 });

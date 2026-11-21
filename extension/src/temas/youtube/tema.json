@@ -46,13 +46,24 @@
         "opciones": {
           "fila": 8,
           "textos": {
-            "titulo": "Para ti",
-            "destacado": "Destacado",
-            "boton": "Reproducir",
-            "fila": "Sigue explorando",
-            "lista": "Más videos",
-            "original": "Ver YouTube original",
-            "volver": "Volver a la cartelera"
+            "es": {
+              "titulo": "Para ti",
+              "destacado": "Destacado",
+              "boton": "Reproducir",
+              "fila": "Sigue explorando",
+              "lista": "Más videos",
+              "original": "Ver YouTube original",
+              "volver": "Volver a la cartelera"
+            },
+            "en": {
+              "titulo": "For you",
+              "destacado": "Featured",
+              "boton": "Play",
+              "fila": "Keep exploring",
+              "lista": "More videos",
+              "original": "View original YouTube",
+              "volver": "Back to the lineup"
+            }
           }
         }
       }

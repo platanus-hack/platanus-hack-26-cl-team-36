@@ -34,6 +34,7 @@
       "css": ["features/modo-foco.css", "features/vista.css", "componentes/cartelera.css", "content/transicion.css"],
       "js": [
         "content/registro.js",
+        "comun/idioma.js",
         "content/captura.js",
         "content/plantillas.js",
         "content/transicion.js",

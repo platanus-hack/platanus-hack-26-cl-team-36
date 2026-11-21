@@ -1,0 +1,984 @@
+/* Interruptor ON/OFF: el camaleón vivo y místico.
+ *
+ * Estados (los pone popup.js en body[data-activo]):
+ * - "cargando": gris y quieto.
+ * - "no": dormido. Piel gris, ojo cerrado, respira muy lento; el sello de runas apenas se ve.
+ * - "si": despierto. Piel del espectro con un brillo que la recorre de la cabeza a la cola, parpadea,
+ *   mira alrededor (o sigue al puntero: --mt-mirar-x/y y .mt-mirando, de interruptor.js), respira,
+ *   aura y anillo del espectro girando, sello de runas encendido.
+ * Transformaciones (clases temporales en .mt-control que pone interruptor.js; nunca al abrir):
+ * - .mt-despertando: se encoge, destello, onda del espectro, chispas que salen, la piel se tiñe de
+ *   la cabeza a la cola, el ojo se abre (y parpadea de asombro), el anillo se dibuja, aparece el sello.
+ * - .mt-durmiendo: el ojo se cierra con sueño, la piel se apaga de la cola a la cabeza, las chispas
+ *   vuelven hacia adentro, el anillo se borra, el aura se apaga.
+ * El logo nunca lleva filtros ni rotación (regla de marca): el brillo y el aura son capas aparte.
+ * Duraciones de las transformaciones: ver DURACION en interruptor.js. */
+
+@property --mt-barrido {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.mt-control {
+  --mt-piel-dormida: #5f5f73;
+  --mt-tinta-runa: #3b3b4d;
+  --mt-ciclo: 3.2s; /* respiración, pulso del aura y del punto de estado, juntos */
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* ---------- Botón ---------- */
+
+.mt-interruptor {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 116px;
+  height: 116px;
+  margin: 4px 0 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  transition: transform 220ms cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.mt-interruptor:hover:not(:disabled) {
+  transform: scale(1.04);
+}
+
+.mt-interruptor:active:not(:disabled) {
+  transform: scale(0.95);
+  transition-duration: 90ms;
+}
+
+.mt-interruptor:disabled {
+  cursor: progress;
+}
+
+.mt-interruptor:focus-visible {
+  outline: 3px solid var(--mt-turquesa);
+  outline-offset: 6px;
+}
+
+.mt-aura,
+.mt-onda,
+.mt-anillo,
+.mt-disco,
+.mt-chispas {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* ---------- Aura: el espectro difuso detrás del anillo (la única capa con filter) ---------- */
+
+.mt-aura {
+  inset: 4px;
+  opacity: 0;
+  transition:
+    opacity 300ms ease,
+    transform 300ms ease;
+}
+
+.mt-aura::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--mt-espectro-circular);
+  filter: blur(16px);
+  opacity: 0.6;
+  animation:
+    mt-girar 10s linear infinite,
+    mt-pulso var(--mt-ciclo) ease-in-out infinite;
+  animation-play-state: paused;
+}
+
+body[data-activo="si"] .mt-aura {
+  opacity: 1;
+}
+
+body[data-activo="si"] .mt-aura::before {
+  animation-play-state: running;
+}
+
+body[data-activo="si"] .mt-interruptor:is(:hover, :focus-visible) .mt-aura {
+  transform: scale(1.1);
+}
+
+/* Apagado, al pasar encima se asoma un poco de espectro. */
+body[data-activo="no"] .mt-interruptor:is(:hover, :focus-visible) .mt-aura {
+  opacity: 0.22;
+}
+
+/* ---------- Anillo: el espectro se dibuja y gira ---------- */
+
+.mt-anillo {
+  background: var(--mt-borde);
+}
+
+.mt-anillo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--mt-espectro-circular);
+  mask-image: conic-gradient(#000 var(--mt-barrido), transparent var(--mt-barrido));
+  animation: mt-girar 6s linear infinite paused;
+}
+
+body[data-activo="si"] .mt-anillo::before {
+  --mt-barrido: 360deg;
+  animation-play-state: running;
+}
+
+/* ---------- Onda del espectro (solo en las transformaciones) ---------- */
+
+.mt-onda::before,
+.mt-onda::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--mt-espectro-circular);
+  mask-image: radial-gradient(closest-side, transparent 87%, #000 90%, #000 95%, transparent 100%);
+  opacity: 0;
+}
+
+/* ---------- Disco: hace de baldosa oscura del logo ---------- */
+
+.mt-disco {
+  inset: 5px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, var(--mt-superficie-alta), var(--mt-tinta));
+}
+
+body[data-activo="si"] .mt-disco {
+  background:
+    radial-gradient(circle at 50% 50%, rgb(46 230 197 / 0.13), transparent 62%),
+    radial-gradient(circle at 50% 35%, var(--mt-superficie-alta), var(--mt-tinta));
+}
+
+.mt-sello,
+.mt-destello,
+.mt-cuerpo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* ---------- Sello de runas ---------- */
+
+.mt-sello {
+  opacity: 0.55;
+  transition: opacity 500ms ease;
+}
+
+.mt-sello-giro {
+  width: 100%;
+  height: 100%;
+  animation: mt-girar 48s linear infinite reverse paused;
+}
+
+.mt-sello-aro {
+  stroke: var(--mt-borde);
+  stroke-width: 0.6;
+}
+
+.mt-sello-aro-interior {
+  stroke-dasharray: 0.8 3.2;
+  stroke-linecap: round;
+}
+
+.mt-runas {
+  opacity: 0.8;
+  transition: opacity 300ms ease;
+}
+
+.mt-runa {
+  stroke: var(--mt-tinta-runa);
+  stroke-width: 0.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mt-runa-punto {
+  fill: var(--mt-tinta-runa);
+}
+
+body[data-activo="no"] .mt-interruptor:is(:hover, :focus-visible) .mt-sello {
+  opacity: 0.85;
+}
+
+body[data-activo="si"] .mt-sello {
+  opacity: 1;
+}
+
+body[data-activo="si"] .mt-sello-giro {
+  animation-play-state: running;
+}
+
+body[data-activo="si"] .mt-sello-aro {
+  stroke: url(#mt-sello-tinta);
+  opacity: 0.45;
+}
+
+body[data-activo="si"] .mt-runa {
+  stroke: url(#mt-sello-tinta);
+}
+
+body[data-activo="si"] .mt-runa-punto {
+  fill: url(#mt-sello-tinta);
+}
+
+body[data-activo="si"] .mt-interruptor:is(:hover, :focus-visible) .mt-runas {
+  opacity: 1;
+}
+
+/* ---------- Destello del despertar ---------- */
+
+.mt-destello {
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(255 255 255 / 0.95) 0,
+    rgb(184 255 92 / 0.6) 20%,
+    rgb(46 230 197 / 0.28) 42%,
+    transparent 66%
+  );
+  opacity: 0;
+}
+
+/* ---------- El camaleón ---------- */
+
+.mt-camaleon {
+  width: 86px;
+  height: 86px;
+  overflow: visible;
+}
+
+body[data-activo="no"] .mt-camaleon {
+  animation: mt-respirar-dormido 6s ease-in-out infinite;
+}
+
+body[data-activo="si"] .mt-camaleon {
+  animation: mt-respirar var(--mt-ciclo) ease-in-out infinite;
+}
+
+/* Piel: gris debajo, escamas del espectro encima (opacidad), brillo blanco encima de todo. */
+.mt-escama {
+  opacity: 0;
+}
+
+body[data-activo="si"] .mt-escama {
+  opacity: 1;
+}
+
+.mt-brillo {
+  opacity: 0;
+}
+
+/* Una ola de luz recorre la piel de la cabeza a la cola, cada tanto. */
+body[data-activo="si"] .mt-brillo {
+  animation: mt-brillar 5.6s ease-in-out calc(1.8s + var(--mt-i, 0) * 30ms) infinite;
+}
+
+/* Ojo: el párpado tapa el globo (cerrado = translateY 0) y sube para abrirse. */
+.mt-parpado-piel {
+  fill: var(--mt-piel-dormida);
+}
+
+body[data-activo="si"] .mt-parpado-piel {
+  fill: var(--mt-lima);
+}
+
+body[data-activo="no"] .mt-parpado {
+  transition: transform 350ms cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+/* Apagado, al pasar encima entreabre el ojo. */
+body[data-activo="no"] .mt-interruptor:is(:hover, :focus-visible) .mt-parpado {
+  transform: translateY(-3.5px);
+}
+
+body[data-activo="si"] .mt-parpado {
+  transform: translateY(-12px);
+  animation: mt-parpadear 6.5s ease-in-out 2.4s infinite;
+}
+
+/* Pupila: en reposo mira hacia adelante (como en el logo); mira alrededor o sigue al puntero. */
+.mt-mirada {
+  transform: translate(1.04px, 1.41px);
+  transition: transform 160ms ease-out;
+}
+
+.mt-camaleon.mt-mirando .mt-mirada {
+  transform: translate(calc(var(--mt-mirar-x, 0) * 2.5px), calc(var(--mt-mirar-y, 0) * 2.5px));
+}
+
+.mt-pupila {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+body[data-activo="si"] .mt-pupila {
+  animation: mt-mirar-alrededor 9s ease-in-out 3s infinite;
+}
+
+body[data-activo="si"] .mt-control:not(.mt-despertando) .mt-camaleon.mt-mirando .mt-pupila {
+  animation: none;
+}
+
+/* ---------- Chispas (solo en las transformaciones) ---------- */
+
+.mt-chispa {
+  --mt-c: var(--mt-lima);
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 22%, var(--mt-c) 42%, transparent 70%);
+  opacity: 0;
+}
+
+.mt-chispa:nth-child(even) {
+  width: 3px;
+  height: 15px;
+  margin: -7.5px -1.5px;
+  border-radius: 2px;
+  background: linear-gradient(#fff, var(--mt-c) 35%, transparent);
+}
+
+/* Ángulo, distancia, color y retraso de cada chispa. */
+.mt-chispa:nth-child(1) { --mt-a: 0deg; --mt-d: 92px; --mt-r: 0ms; }
+.mt-chispa:nth-child(2) { --mt-a: 26deg; --mt-d: 78px; --mt-r: 40ms; --mt-c: var(--mt-turquesa); }
+.mt-chispa:nth-child(3) { --mt-a: 51deg; --mt-d: 98px; --mt-r: 15ms; --mt-c: var(--mt-azul); }
+.mt-chispa:nth-child(4) { --mt-a: 77deg; --mt-d: 84px; --mt-r: 60ms; --mt-c: var(--mt-violeta); }
+.mt-chispa:nth-child(5) { --mt-a: 103deg; --mt-d: 94px; --mt-r: 25ms; --mt-c: var(--mt-magenta); }
+.mt-chispa:nth-child(6) { --mt-a: 128deg; --mt-d: 76px; --mt-r: 70ms; }
+.mt-chispa:nth-child(7) { --mt-a: 154deg; --mt-d: 90px; --mt-r: 10ms; --mt-c: var(--mt-turquesa); }
+.mt-chispa:nth-child(8) { --mt-a: 180deg; --mt-d: 80px; --mt-r: 50ms; --mt-c: var(--mt-azul); }
+.mt-chispa:nth-child(9) { --mt-a: 206deg; --mt-d: 96px; --mt-r: 30ms; --mt-c: var(--mt-violeta); }
+.mt-chispa:nth-child(10) { --mt-a: 231deg; --mt-d: 82px; --mt-r: 80ms; --mt-c: var(--mt-magenta); }
+.mt-chispa:nth-child(11) { --mt-a: 257deg; --mt-d: 100px; --mt-r: 5ms; }
+.mt-chispa:nth-child(12) { --mt-a: 283deg; --mt-d: 78px; --mt-r: 55ms; --mt-c: var(--mt-turquesa); }
+.mt-chispa:nth-child(13) { --mt-a: 308deg; --mt-d: 92px; --mt-r: 20ms; --mt-c: var(--mt-azul); }
+.mt-chispa:nth-child(14) { --mt-a: 334deg; --mt-d: 84px; --mt-r: 65ms; --mt-c: var(--mt-magenta); }
+
+/* ---------- Texto de estado ---------- */
+
+.mt-estado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.mt-estado::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--mt-texto-tenue);
+}
+
+body[data-activo="si"] .mt-estado::before {
+  background: var(--mt-turquesa);
+  box-shadow: 0 0 10px var(--mt-turquesa);
+  animation: mt-latir var(--mt-ciclo) ease-in-out infinite;
+}
+
+body[data-activo="no"] .mt-estado {
+  color: var(--mt-texto-suave);
+}
+
+.mt-estado-ayuda {
+  min-height: 1.4em;
+  color: var(--mt-texto-tenue);
+  font-size: 12px;
+}
+
+/* ---------- Despertar (OFF → ON) ---------- */
+
+.mt-control.mt-despertando .mt-cuerpo {
+  animation: mt-despertar-cuerpo 900ms cubic-bezier(0.3, 0, 0.3, 1) both;
+}
+
+.mt-control.mt-despertando .mt-destello {
+  animation: mt-destellar 780ms ease-out 160ms both;
+}
+
+.mt-control.mt-despertando .mt-onda::before {
+  animation: mt-onda 900ms cubic-bezier(0.1, 0.7, 0.3, 1) 170ms both;
+}
+
+.mt-control.mt-despertando .mt-onda::after {
+  animation: mt-onda 1000ms cubic-bezier(0.1, 0.7, 0.3, 1) 330ms both;
+}
+
+.mt-control.mt-despertando .mt-chispa {
+  animation: mt-estallar 950ms cubic-bezier(0.15, 0.8, 0.3, 1) calc(180ms + var(--mt-r)) both;
+}
+
+.mt-control.mt-despertando .mt-escama {
+  animation: mt-tenir 320ms ease-out calc(220ms + var(--mt-i, 0) * 14ms) both;
+}
+
+.mt-control.mt-despertando .mt-brillo {
+  animation: mt-frente-de-luz 420ms ease-out calc(200ms + var(--mt-i, 0) * 14ms) both;
+}
+
+.mt-control.mt-despertando .mt-parpado {
+  animation: mt-abrir-ojo 760ms ease-in-out 300ms both;
+}
+
+.mt-control.mt-despertando .mt-parpado-piel {
+  animation: mt-parpado-lima 260ms ease-out 220ms both;
+}
+
+.mt-control.mt-despertando .mt-pupila {
+  animation: mt-mirar-asombro 1150ms ease-in-out 420ms both;
+}
+
+.mt-control.mt-despertando .mt-anillo::before {
+  animation:
+    mt-girar 6s linear infinite,
+    mt-barrer 850ms cubic-bezier(0.6, 0, 0.2, 1) 200ms both;
+}
+
+.mt-control.mt-despertando .mt-aura {
+  animation: mt-aura-encender 1300ms ease-out 150ms both;
+}
+
+.mt-control.mt-despertando .mt-sello {
+  animation: mt-sello-aparecer 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) 200ms both;
+}
+
+.mt-control.mt-despertando .mt-runa {
+  animation: mt-runa-arder 650ms ease-out calc(380ms + var(--mt-i, 0) * 45ms) both;
+}
+
+.mt-control.mt-despertando .mt-estado,
+.mt-control.mt-durmiendo .mt-estado {
+  animation: mt-texto-entrar 500ms ease-out 150ms both;
+}
+
+/* ---------- Dormir (ON → OFF) ---------- */
+
+.mt-control.mt-durmiendo .mt-cuerpo {
+  animation: mt-dormir-cuerpo 1300ms ease-in-out both;
+}
+
+.mt-control.mt-durmiendo .mt-parpado {
+  animation: mt-cerrar-ojo 1050ms ease-in-out both;
+}
+
+.mt-control.mt-durmiendo .mt-parpado-piel {
+  animation: mt-parpado-gris 360ms ease-in 780ms both;
+}
+
+.mt-control.mt-durmiendo .mt-pupila {
+  animation: mt-mirar-abajo 1100ms ease-in-out both;
+}
+
+.mt-control.mt-durmiendo .mt-escama {
+  animation: mt-destenir 380ms ease-in calc(250ms + (43 - var(--mt-i, 0)) * 12ms) both;
+}
+
+.mt-control.mt-durmiendo .mt-chispa {
+  animation: mt-implotar 750ms ease-in var(--mt-r) both;
+}
+
+.mt-control.mt-durmiendo .mt-onda::before {
+  animation: mt-onda-adentro 750ms ease-in both;
+}
+
+.mt-control.mt-durmiendo .mt-anillo::before {
+  animation:
+    mt-girar 6s linear infinite,
+    mt-barrer 800ms cubic-bezier(0.6, 0, 0.4, 1) 150ms reverse both;
+}
+
+.mt-control.mt-durmiendo .mt-aura {
+  animation: mt-aura-apagar 800ms ease-in both;
+}
+
+.mt-control.mt-durmiendo .mt-sello-giro {
+  animation-play-state: running;
+}
+
+/* Las runas siguen encendidas mientras el sello se apaga; el gris dormido aparece después. */
+@media (prefers-reduced-motion: no-preference) {
+  .mt-control.mt-durmiendo .mt-runa,
+  .mt-control.mt-durmiendo .mt-sello-aro {
+    stroke: url(#mt-sello-tinta);
+  }
+
+  .mt-control.mt-durmiendo .mt-runa-punto {
+    fill: url(#mt-sello-tinta);
+  }
+}
+
+.mt-control.mt-durmiendo .mt-sello {
+  animation: mt-sello-apagar 1000ms ease-in-out both;
+}
+
+/* ---------- Keyframes ---------- */
+
+@keyframes mt-girar {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes mt-pulso {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.78;
+  }
+}
+
+@keyframes mt-latir {
+  0%,
+  100% {
+    box-shadow: 0 0 6px var(--mt-turquesa);
+  }
+  50% {
+    box-shadow: 0 0 14px var(--mt-turquesa);
+  }
+}
+
+@keyframes mt-respirar {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+@keyframes mt-respirar-dormido {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.018) translateY(0.6px);
+  }
+}
+
+@keyframes mt-brillar {
+  0%,
+  8%,
+  100% {
+    opacity: 0;
+  }
+  3% {
+    opacity: 0.42;
+  }
+}
+
+@keyframes mt-parpadear {
+  0%,
+  44%,
+  50%,
+  86%,
+  89.4%,
+  93%,
+  100% {
+    transform: translateY(-12px);
+  }
+  47% {
+    transform: translateY(0);
+  }
+  87.7% {
+    transform: translateY(0);
+  }
+  91.2% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes mt-mirar-alrededor {
+  0%,
+  28%,
+  86%,
+  100% {
+    transform: translate(0, 0);
+  }
+  33%,
+  44% {
+    transform: translate(-2.4px, -1.5px);
+  }
+  50%,
+  62% {
+    transform: translate(0.4px, 0.6px);
+  }
+  68%,
+  80% {
+    transform: translate(-1.3px, 0.5px);
+  }
+}
+
+@keyframes mt-despertar-cuerpo {
+  0% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(0.86);
+  }
+  34% {
+    transform: scale(1.12);
+  }
+  52% {
+    transform: scale(0.96);
+  }
+  72% {
+    transform: scale(1.025);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes mt-destellar {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@keyframes mt-onda {
+  0% {
+    opacity: 1;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+@keyframes mt-onda-adentro {
+  0% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  40% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes mt-estallar {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--mt-a)) translateY(-30px) scale(0.4);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--mt-a)) translateY(calc(var(--mt-d) * -1)) scale(1);
+  }
+}
+
+@keyframes mt-implotar {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--mt-a)) translateY(calc(var(--mt-d) * -1)) scale(0.7);
+  }
+  30% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--mt-a)) translateY(-26px) scale(0.2);
+  }
+}
+
+@keyframes mt-tenir {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mt-destenir {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes mt-frente-de-luz {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes mt-abrir-ojo {
+  0% {
+    transform: translateY(0);
+  }
+  28%,
+  44% {
+    transform: translateY(-12px);
+  }
+  52% {
+    transform: translateY(0);
+  }
+  64%,
+  100% {
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes mt-cerrar-ojo {
+  0% {
+    transform: translateY(-12px);
+  }
+  22% {
+    transform: translateY(-5.5px);
+  }
+  38% {
+    transform: translateY(-8.5px);
+  }
+  62% {
+    transform: translateY(-3.5px);
+  }
+  74% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes mt-parpado-lima {
+  from {
+    fill: var(--mt-piel-dormida);
+  }
+  to {
+    fill: var(--mt-lima);
+  }
+}
+
+@keyframes mt-parpado-gris {
+  from {
+    fill: var(--mt-lima);
+  }
+  to {
+    fill: var(--mt-piel-dormida);
+  }
+}
+
+@keyframes mt-mirar-asombro {
+  0% {
+    transform: translate(0, 0) scale(1.35);
+  }
+  22%,
+  36% {
+    transform: translate(-2.3px, -1px) scale(1.2);
+  }
+  52%,
+  66% {
+    transform: translate(0.6px, -1.6px) scale(1.1);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes mt-mirar-abajo {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(-0.6px, 1px);
+  }
+}
+
+@keyframes mt-barrer {
+  from {
+    --mt-barrido: 0deg;
+  }
+  to {
+    --mt-barrido: 360deg;
+  }
+}
+
+@keyframes mt-aura-encender {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes mt-aura-apagar {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes mt-sello-aparecer {
+  0% {
+    opacity: 0;
+    transform: scale(1.35) rotate(-120deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.97) rotate(6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes mt-sello-apagar {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  55%,
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes mt-runa-arder {
+  0% {
+    opacity: 0;
+    stroke-width: 0.75;
+  }
+  35% {
+    opacity: 1;
+    stroke-width: 1.4;
+  }
+  100% {
+    opacity: 1;
+    stroke-width: 0.75;
+  }
+}
+
+@keyframes mt-dormir-cuerpo {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.04);
+  }
+  70% {
+    transform: scale(0.94);
+  }
+}
+
+@keyframes mt-texto-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mt-fundido {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- Movimiento reducido: estados quietos y un fundido corto al cambiar ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .mt-control *,
+  .mt-control *::before,
+  .mt-control *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .mt-onda,
+  .mt-destello,
+  .mt-chispas {
+    display: none;
+  }
+
+  .mt-interruptor:hover:not(:disabled),
+  .mt-interruptor:active:not(:disabled),
+  body .mt-interruptor:is(:hover, :focus-visible) .mt-aura {
+    transform: none;
+  }
+
+  body[data-activo="no"] .mt-interruptor:is(:hover, :focus-visible) .mt-parpado {
+    transform: none;
+  }
+
+  .mt-camaleon.mt-mirando .mt-mirada {
+    transform: translate(1.04px, 1.41px);
+  }
+
+  .mt-control:is(.mt-despertando, .mt-durmiendo) :is(.mt-cuerpo, .mt-sello) {
+    animation: mt-fundido 320ms ease-out both !important;
+  }
+}

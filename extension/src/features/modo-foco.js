@@ -12,8 +12,9 @@
   // Sin referencia fija: algunos sitios reemplazan el <html> (ver content/motor.js).
   const html = () => document.documentElement;
 
+  // En el idioma elegido en el popup (comun/idioma.js; content/motor.js lo mantiene al día).
   function textoBoton() {
-    return html().classList.contains(CLASE_FOCO) ? "🎯 Salir de modo foco" : "🎯 Modo foco";
+    return MiTema.idioma.texto(html().classList.contains(CLASE_FOCO) ? "foco.salir" : "foco.entrar");
   }
 
   function crearBoton() {
@@ -39,6 +40,7 @@
     }
 
     if (!btn) btn = crearBoton();
+    else if (btn.textContent !== textoBoton()) btn.textContent = textoBoton(); // cambió el idioma
 
     const elAncla = ancla ? document.querySelector(ancla) : null;
     if (elAncla) {

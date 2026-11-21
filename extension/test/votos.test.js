@@ -11,6 +11,7 @@ import {
   crearAlmacenVotos,
   crearRegistroVoto,
   descomprimir,
+  falloVoto,
   incrustarCss,
   limpiarUrl,
   obtenerIdUsuario,
@@ -36,6 +37,37 @@ test("validarVoto: rechaza votos desconocidos, comentarios vacíos o muy largos"
   const largo = validarVoto({ voto: "mejor", comentario: "x".repeat(MAX_COMENTARIO + 1) });
   assert.equal(largo.ok, false);
   assert.match(largo.error, /largo/);
+});
+
+test("validarVoto: cada error trae un código que el popup traduce", () => {
+  const { TEXTOS } = globalThis.MiTema.idioma;
+  const casos = [
+    [{ voto: "genial" }, "voto-invalido"],
+    [{ voto: "mejor", comentario: 42 }, "comentario-no-texto"],
+    [{ voto: "comentario", comentario: " " }, "comentario-vacio"],
+    [{ voto: "mejor", comentario: "x".repeat(MAX_COMENTARIO + 1) }, "comentario-largo"],
+  ];
+  for (const [mensaje, codigo] of casos) {
+    const respuesta = validarVoto(mensaje);
+    assert.equal(respuesta.codigo, codigo);
+    assert.equal(respuesta.error, TEXTOS.es[`error.${codigo}`].replace("{max}", "2.000"));
+  }
+  assert.deepEqual(validarVoto({ voto: "mejor", comentario: "x".repeat(MAX_COMENTARIO + 1) }).parametros, { max: MAX_COMENTARIO });
+});
+
+test("falloVoto: los códigos que usa el background existen en ambos idiomas", () => {
+  const { TEXTOS } = globalThis.MiTema.idioma;
+  const background = readFileSync(new URL("../src/background/index.js", import.meta.url), "utf8");
+  const codigos = [...background.matchAll(/falloVoto\("([a-z-]+)"/g)].map((m) => m[1]);
+  assert.ok(codigos.length >= 4);
+  for (const codigo of codigos) {
+    for (const idioma of ["es", "en"]) assert.ok(TEXTOS[idioma][`error.${codigo}`], `falta error.${codigo} en ${idioma}`);
+  }
+  assert.deepEqual(falloVoto("sin-tema"), {
+    ok: false,
+    codigo: "sin-tema",
+    error: "Esta página no tiene un tema de Chameleon: no hay con qué comparar.",
+  });
 });
 
 test("comprimir y descomprimir: ida y vuelta, con tildes y emojis", async () => {
