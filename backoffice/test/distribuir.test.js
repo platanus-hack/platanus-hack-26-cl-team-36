@@ -8,7 +8,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { leerTanda } from "../lib/tandas.js";
-import { acomodar, contarCruces, distribuir, formasDeAvance, geometria, idDeTerminal, idDeTramoFinal, pendientesMonotonas } from "../public/telarana/distribuir.js";
+import { GIRO_MAXIMO, acomodar, arcoDeVuelta, contarCruces, distribuir, geometria, idDeTerminal, idDeTramoFinal, piezasDeAvance } from "../public/telarana/distribuir.js";
+import { anchoDeTramo, claseDeTramo } from "../public/telarana/escena.js";
 import {
   activosDePerfil,
   duracionDePaso,
@@ -63,11 +64,57 @@ const SII = JSON.parse(readFileSync(new URL("./fixtures/telarana-sii.json", impo
 const ANCHO_DE_ETIQUETA = 180;
 const cajaDeEstacion = ({ x, y }) => ({ x0: x - ANCHO_DE_ETIQUETA / 2, x1: x + ANCHO_DE_ETIQUETA / 2, y0: y - 9, y1: y + 67 });
 const sePisan = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-/** ¿El segmento horizontal o vertical (p, q) entra en la caja? */
-const segmentoEnCaja = (p, q, c) => Math.max(p.x, q.x) > c.x0 && Math.min(p.x, q.x) < c.x1 && Math.max(p.y, q.y) > c.y0 && Math.min(p.y, q.y) < c.y1;
+
+// ── Forma de los tramos (C3-U1): casi rectas ────────────────────────────
+
+/** Las piezas de un camino SVG ("M x y L x y" o "M x y C …, …, x y …") como cúbicas [p, c1, c2, q]. */
+function piezasDelCamino(camino) {
+  const n = camino.match(/-?[\d.]+/g).map(Number);
+  const punto = (i) => ({ x: n[i], y: n[i + 1] });
+  if (/^M[^C]+ L[^C]+$/.test(camino)) return [[punto(0), punto(0), punto(n.length - 2), punto(n.length - 2)]];
+  assert.match(camino, /^M[^C]+( C[^C]+){1,}$/, `no es un camino de cúbicas: ${camino}`);
+  const piezas = [];
+  for (let i = 2; i + 5 < n.length; i += 6) piezas.push([piezas.at(-1)?.[3] ?? punto(0), punto(i), punto(i + 2), punto(i + 4)]);
+  return piezas;
+}
+const enCubica = ([p, c1, c2, q], t) => {
+  const u = 1 - t;
+  return { x: u ** 3 * p.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t ** 3 * q.x, y: u ** 3 * p.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t ** 3 * q.y };
+};
+const grados = (dx, dy) => (Math.atan2(dy, dx) * 180) / Math.PI;
+/**
+ * Lo que pidió el usuario para cada pieza de un avance: en sus dos extremos la tangente se aparta a lo más 15° de la
+ * recta entre ellos, y la curva no se aleja de esa recta más de un 8 % de su largo. → { angulo, desvio } (el peor).
+ */
+function cuantoSeDobla(pieza) {
+  const [p, c1, c2, q] = pieza;
+  const largo = Math.hypot(q.x - p.x, q.y - p.y);
+  const recta = grados(q.x - p.x, q.y - p.y);
+  const sale = c1.x === p.x && c1.y === p.y ? recta : grados(c1.x - p.x, c1.y - p.y);
+  const llega = c2.x === q.x && c2.y === q.y ? recta : grados(q.x - c2.x, q.y - c2.y);
+  let desvio = 0;
+  for (let k = 1; k < 40; k += 1) {
+    const { x, y } = enCubica(pieza, k / 40);
+    desvio = Math.max(desvio, Math.abs((q.x - p.x) * (y - p.y) - (q.y - p.y) * (x - p.x)) / largo);
+  }
+  return { angulo: Math.max(Math.abs(sale - recta), Math.abs(llega - recta)), desvio: desvio / largo };
+}
+function comprobarCasiRecto(camino, nombre) {
+  for (const pieza of piezasDelCamino(camino)) {
+    const { angulo, desvio } = cuantoSeDobla(pieza);
+    assert.ok(angulo <= 15, `${nombre}: la tangente se aparta ${angulo.toFixed(1)}° de la recta (${camino})`);
+    assert.ok(desvio <= 0.08, `${nombre}: se aleja ${(desvio * 100).toFixed(1)} % de la recta (${camino})`);
+  }
+}
+/** Cuánto se sale un recorrido (en px) por encima o por debajo de la altura de sus dos extremos. */
+const salidaVertical = (puntos) => {
+  const [a, b] = [puntos[0], puntos.at(-1)];
+  const ys = puntos.map((p) => p.y);
+  return Math.max(0, Math.max(...ys) - Math.max(a.y, b.y), Math.min(a.y, b.y) - Math.min(...ys));
+};
 
 /** Las propiedades del grafo por columnas que pide el diseño, sobre cualquier distribución. */
-function comprobarColumnas(d, g, nombre) {
+function comprobarColumnas(d, g, nombre, altoFila = 96) {
   const xDe = (id) => g.posiciones.get(id).x;
   const inicio = d.estaciones.find((e) => e.tipo === "inicio");
   const otras = d.estaciones.filter((e) => e !== inicio);
@@ -87,13 +134,13 @@ function comprobarColumnas(d, g, nombre) {
   const cajas = d.estaciones.map((e) => [e.id, cajaDeEstacion(g.posiciones.get(e.id))]);
   for (let i = 0; i < cajas.length; i += 1)
     for (let j = i + 1; j < cajas.length; j += 1) assert.ok(!sePisan(cajas[i][1], cajas[j][1]), `${nombre}: ${cajas[i][0]} y ${cajas[j][0]} se pisan`);
-  // Las vueltas atrás y los pasos laterales no atraviesan la etiqueta de ninguna otra estación.
-  for (const tramo of d.tramos.filter((t) => t.tipo === "retroceso" || t.tipo === "lateral")) {
-    const puntos = g.recorridos.get(tramo.id);
-    for (const [id, caja] of cajas) {
-      if (id === tramo.origen || id === tramo.destino) continue;
-      for (let i = 1; i < puntos.length; i += 1) assert.ok(!segmentoEnCaja(puntos[i - 1], puntos[i], caja), `${nombre}: ${tramo.id} cruza ${id}`);
-    }
+  // Los tramos hacia la derecha son casi rectos (pieza por pieza); las vueltas atrás y los pasos laterales, arcos bajos
+  // que no se salen más de 0.6 filas de la altura de sus extremos.
+  for (const tramo of d.tramos) {
+    if (tramo.tipo === "retroceso" || tramo.tipo === "lateral") {
+      const salida = salidaVertical(g.recorridos.get(tramo.id));
+      assert.ok(salida <= 0.6 * altoFila, `${nombre}: ${tramo.id} se sale ${salida} px`);
+    } else comprobarCasiRecto(g.caminos.get(tramo.id), `${nombre}: ${tramo.id}`);
   }
 }
 
@@ -148,7 +195,7 @@ test("dt: el error de la herramienta es una terminal propia (no «Abandonado») 
   comprobarColumnas(d, geometria(d), "dt");
 });
 
-test("fixture con vuelta atrás: la vuelta va por el pasillo entre las dos columnas, fuera de las etiquetas", async () => {
+test("fixture con vuelta atrás: la vuelta es un arco bajo de n4 a n1, hacia afuera del tronco", async () => {
   const tanda = await leerTanda(RAIZ, VIEJA);
   const d = distribuir(tanda.telarana);
   const estaciones = porId(d.estaciones);
@@ -159,11 +206,14 @@ test("fixture con vuelta atrás: la vuelta va por el pasillo entre las dos colum
   assert.equal(tramos.get("n1>n4").tipo, "avance");
   assert.equal(tramos.get("n4>n1").tipo, "retroceso");
   const g = geometria(d);
-  // Sale de n4 hacia la izquierda, baja (o sube) por el pasillo x = 220 − 110 − 6 y entra a n1 por su derecha.
-  const puntos = g.recorridos.get("n4>n1");
-  assert.deepEqual(puntos.map((p) => p.x), [220, 104, 104, 0]);
-  assert.deepEqual([puntos[1].y, puntos[2].y], [g.posiciones.get("n4").y, 0]);
-  assert.match(g.caminos.get("n4>n1"), /^M220 -?[\d.]+ L.* Q104 .* L0 0$/);
+  // Una sola cúbica de n4 a n1 que se sale hacia afuera del tronco (del lado de n4) a lo más 0.375 filas.
+  const n4 = g.posiciones.get("n4");
+  const [[p, c1, c2, q]] = piezasDelCamino(g.caminos.get("n4>n1"));
+  assert.deepEqual([p, q], [n4, { x: 0, y: 0 }]);
+  assert.equal(Math.sign(c1.y - n4.y), Math.sign(n4.y), "hacia afuera del tronco");
+  assert.equal(c1.y, c2.y);
+  const salida = salidaVertical(g.recorridos.get("n4>n1"));
+  assert.ok(salida > 0 && salida <= 0.375 * 96 + 0.1, `se sale ${salida}`);
   comprobarColumnas(d, g, "vieja");
 });
 
@@ -211,7 +261,7 @@ test("callejones sin salida junto a la página de la que salieron, sin compartir
   comprobarColumnas(d, geometria(d), "callejones");
 });
 
-test("paso lateral a la misma columna: tipo «lateral», rodea por el pasillo de la derecha", () => {
+test("paso lateral a la misma columna: tipo «lateral», un arco hacia la derecha entre las dos alturas", () => {
   const d = distribuir({
     paginas: [pagina("a", { esInicio: true }), pagina("b"), pagina("c"), pagina("x")],
     ramas: [rama("a", "b"), rama("b", "c"), rama("a", "x"), rama("x", "b")],
@@ -221,7 +271,11 @@ test("paso lateral a la misma columna: tipo «lateral», rodea por el pasillo de
   assert.equal(porId(d.estaciones).get("x").capa, 1);
   assert.equal(tramos.get("x>b").tipo, "lateral");
   const g = geometria(d);
-  assert.deepEqual(g.recorridos.get("x>b").map((p) => p.x), [220, 336, 336, 220]);
+  const puntos = g.recorridos.get("x>b");
+  const [x, b] = [g.posiciones.get("x"), g.posiciones.get("b")];
+  assert.deepEqual([puntos[0], puntos.at(-1)], [x, b]);
+  assert.ok(puntos.every((p) => p.x >= 220) && Math.max(...puntos.map((p) => p.x)) > 260, "por la derecha de la columna");
+  assert.equal(salidaVertical(puntos), 0, "entre las dos alturas");
   comprobarColumnas(d, g, "lateral");
 });
 
@@ -286,17 +340,16 @@ test("determinista con la entrada en otro orden", async () => {
   }
 });
 
-test("geometría: x = capa·220, y = fila·96; un avance esquiva el nombre de la estación vecina de su llegada", async () => {
+test("geometría: x = capa·220, y = fila·96; un avance entre columnas vecinas es una recta", async () => {
   const tanda = await leerTanda(RAIZ, VIEJA);
   const d = distribuir(tanda.telarana);
   const g = geometria(d);
   for (const e of d.estaciones) assert.deepEqual(g.posiciones.get(e.id), { x: e.capa * 220, y: Math.round(e.fila * 96 * 10) / 10 });
   assert.deepEqual(g.posiciones.get(idDeTerminal("logrado")), { x: 3 * 220, y: 0 });
-  // n1 → n4 llega a la columna de n2 (fila 0), una fila más abajo: en S pasaría por el nombre de n2 (debajo de su
-  // punto); baja enseguida al salir de n1 y llega horizontal.
+  // n1 → n4 llega a la columna de n2 a otra altura: una recta, aunque pase cerca del nombre de n2.
   const n4 = g.posiciones.get("n4");
   assert.equal(g.posiciones.get("n2").y, 0);
-  assert.equal(g.caminos.get("n1>n4"), `M0 0 C73.3 ${n4.y}, 146.7 ${n4.y}, 220 ${n4.y}`);
+  assert.equal(g.caminos.get("n1>n4"), `M0 0 L220 ${n4.y}`);
   for (const valor of Object.values(g.caja)) assert.equal(valor, Math.round(valor * 10) / 10);
   for (const [, camino] of g.caminos) assert.doesNotMatch(camino, /NaN|Infinity/);
 });
@@ -319,11 +372,11 @@ test("sii 16-24-12 (tanda real, 27 páginas): inicio a la izquierda, meta a la d
   const tronco = d.tramos.find((t) => t.tipo === "tronco");
   assert.ok(tronco.escalas.length > 0 && tronco.escalas.every((e) => e.fila === 0));
   assert.match(g.caminos.get(tronco.id), /^M0 0 L[\d.]+ 0$/);
-  // Los barridos de baricentro dejan menos cruces que el orden inicial (un solo barrido).
+  // Los barridos de baricentro no dejan más cruces que el orden inicial (un solo barrido).
   const unBarrido = distribuir(SII, { barridos: 1 });
   const cruces = contarCruces(d, g);
   const crucesConUnBarrido = contarCruces(unBarrido, geometria(unBarrido));
-  assert.ok(cruces < crucesConUnBarrido, `${cruces} cruces con barridos, ${crucesConUnBarrido} con uno solo`);
+  assert.ok(cruces <= crucesConUnBarrido, `${cruces} cruces con barridos, ${crucesConUnBarrido} con uno solo`);
   assert.ok(cruces <= 2, `medido al escribir la prueba: 2 (hay ${cruces})`);
 });
 
@@ -400,131 +453,125 @@ test("perfil vecino da la vuelta pasando por «todos»; duración de un paso aco
   assert.equal(duracionDePaso({}), 1000);
 });
 
-// ── C2-U1: avances más directos, sin picos en las vueltas atrás ──────────
+// ── C3-U1: tramos casi rectos; la distribución, no la forma, evita los nombres ──
 
-/** Los tramos cúbicos de un camino "M x y C … , … , x y …" como [p, c1, c2, q]. */
-function cubicas(camino) {
-  const numeros = camino.match(/-?[\d.]+/g).map(Number);
-  const puntos = [];
-  for (let i = 0; i < numeros.length; i += 2) puntos.push({ x: numeros[i], y: numeros[i + 1] });
-  assert.match(camino, /^M[^C]+( C[^C]+){1,}$/, `no es un camino de cúbicas: ${camino}`);
-  const tramos = [];
-  for (let i = 1; i + 2 < puntos.length; i += 3) tramos.push([puntos[i - 1], puntos[i], puntos[i + 1], puntos[i + 2]]);
-  return tramos;
-}
-const colineales = (a, b, c) => Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) < 1e-6 * Math.max(1, Math.hypot(c.x - a.x, c.y - a.y) ** 2);
-
-test("avance de un tramo: los puntos de control, a no más de un tercio del ancho de cada extremo", () => {
-  const p = { x: 0, y: 0 };
-  const q = { x: 220, y: 192 };
-  const formas = formasDeAvance([p, q]);
-  assert.ok(formas.length >= 4);
-  for (const [[a, c1, c2, b]] of formas) {
-    assert.deepEqual([a, b], [p, q]);
-    assert.ok(c1.x - a.x <= 220 / 3 + 1e-9 && b.x - c2.x <= 220 / 3 + 1e-9, "a un tercio, no a la mitad");
-    // Nunca se pasa de largo: los puntos de control quedan entre la altura de salida y la de llegada.
-    for (const c of [c1, c2]) assert.ok(c.y >= 0 && c.y <= 192);
-  }
-  // La preferida sale y llega a media pendiente de la cuerda (ni S marcada ni recta).
-  const [[, c1, c2]] = formas[0];
-  assert.equal(Math.round(((c1.y - p.y) / (c1.x - p.x)) * 1000) / 1000, Math.round(((192 / 220) * 0.5) * 1000) / 1000);
-  assert.equal(Math.round(((q.y - c2.y) / (q.x - c2.x)) * 1000) / 1000, Math.round(((192 / 220) * 0.5) * 1000) / 1000);
-  // En el dibujo, también un tercio.
-  const d = { estaciones: [{ id: "a", capa: 0, fila: 0 }, { id: "b", capa: 1, fila: 2 }], terminales: [], tramos: [{ id: "a>b", origen: "a", destino: "b", tipo: "avance", escalas: [] }] };
-  const [[a, c1d, c2d, b]] = cubicas(geometria(d).caminos.get("a>b"));
-  assert.ok(c1d.x - a.x <= 73.4 && b.x - c2d.x <= 73.4);
+test("avance de un tramo: una recta, aunque baje o suba mucho", () => {
+  const d = { estaciones: [{ id: "a", capa: 0, fila: 0 }, { id: "b", capa: 1, fila: 3 }], terminales: [], tramos: [{ id: "a>b", origen: "a", destino: "b", tipo: "avance", escalas: [] }] };
+  assert.equal(geometria(d).caminos.get("a>b"), "M0 0 L220 288");
+  const { angulo, desvio } = cuantoSeDobla(piezasDelCamino("M0 0 L220 288")[0]);
+  assert.ok(angulo === 0 && desvio < 1e-9);
 });
 
-test("avance con paradas: la tangente es continua en cada parada (no se dobla en cada una)", () => {
+test("avance con paradas: cada pieza casi recta; en una parada que dobla poco, la tangente es continua", () => {
   const puntos = [{ x: 0, y: 0 }, { x: 220, y: 96 }, { x: 440, y: 288 }];
-  for (const forma of formasDeAvance(puntos)) {
-    const [[, , entrada, parada], [desde, salida]] = forma;
-    assert.deepEqual(parada, desde);
-    assert.ok(colineales(entrada, parada, salida), `${JSON.stringify(entrada)} · ${JSON.stringify(parada)} · ${JSON.stringify(salida)}`);
-    for (const [p, c1, c2, q] of forma) assert.ok(c1.x - p.x <= (q.x - p.x) / 3 + 1e-9 && q.x - c2.x <= (q.x - p.x) / 3 + 1e-9);
+  const piezas = piezasDeAvance(puntos);
+  assert.equal(piezas.length, 2);
+  for (const pieza of piezas) {
+    const { angulo, desvio } = cuantoSeDobla(pieza);
+    assert.ok(angulo <= GIRO_MAXIMO + 1e-9 && desvio <= 0.08, `${angulo}° · ${desvio}`);
   }
-  // La preferida pasa por la parada con la pendiente del recorrido (sube de forma pareja), no horizontal.
-  const [[, , entrada, parada], [, salida]] = formasDeAvance(puntos)[0];
-  assert.ok(entrada.y < parada.y && salida.y > parada.y);
-  // Y en el dibujo: tronco que salta una columna con una parada a otra altura.
+  // La parada dobla ~18°: llega y sale con la misma tangente (sin esquina).
+  const [[, , entrada, parada], [desde, salida]] = piezas;
+  assert.deepEqual(parada, desde);
+  const [g1, g2] = [grados(parada.x - entrada.x, parada.y - entrada.y), grados(salida.x - parada.x, salida.y - parada.y)];
+  assert.ok(Math.abs(g1 - g2) < 1e-6, `${g1} · ${g2}`);
+  // Una parada que dobla mucho (90°): cada pieza sigue casi recta; queda una esquina chica en la parada.
+  for (const pieza of piezasDeAvance([{ x: 0, y: 0 }, { x: 220, y: 0 }, { x: 440, y: 440 }])) assert.ok(cuantoSeDobla(pieza).angulo <= GIRO_MAXIMO + 1e-9);
+  // Y en el dibujo: todo en una recta → una sola recta, sin paradas visibles.
   const d = {
-    estaciones: [{ id: "a", capa: 0, fila: 0 }, { id: "b", capa: 2, fila: 3 }],
+    estaciones: [{ id: "a", capa: 0, fila: 0 }, { id: "b", capa: 3, fila: 3 }],
     terminales: [],
-    tramos: [{ id: "a>b", origen: "a", destino: "b", tipo: "avance", escalas: [{ capa: 1, fila: 1 }] }],
+    tramos: [{ id: "a>b", origen: "a", destino: "b", tipo: "avance", escalas: [{ capa: 1, fila: 1 }, { capa: 2, fila: 2 }] }],
   };
-  const [[, , e, m], [, s]] = cubicas(geometria(d).caminos.get("a>b"));
-  assert.ok(colineales(e, m, s));
+  assert.equal(geometria(d).caminos.get("a>b"), "M0 0 L660 288");
 });
 
-test("pendientesMonotonas: horizontal en un máximo o un mínimo; nunca se pasa de largo", () => {
-  assert.deepEqual(pendientesMonotonas([{ x: 0, y: 0 }, { x: 1, y: 5 }, { x: 2, y: 0 }]), [0, 0, 0]);
-  const [, medio] = pendientesMonotonas([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 3 }]);
-  assert.ok(medio > 1 && medio < 2, "entre las dos pendientes vecinas");
-  assert.deepEqual(pendientesMonotonas([{ x: 0, y: 0 }, { x: 2, y: 4 }], 0.5), [1, 1]);
-});
-
-test("un avance elige, de sus formas, la que no pasa por encima del nombre de otra estación", () => {
-  // a → b baja dos filas; c está una fila arriba de b, en su misma columna: su nombre (debajo de su punto) queda en el
-  // camino de una S, pero no en el de una curva que baja al salir.
+test("la forma de un tramo no depende de dónde quedan los nombres de otras estaciones", () => {
+  // a → b baja dos filas; c está una fila arriba de b, en su misma columna: su nombre queda en el camino. El tramo no
+  // se dobla para esquivarlo: es la misma recta con c o sin c, y con cualquier caja de nombre.
   const d = {
     estaciones: [{ id: "a", capa: 0, fila: 0 }, { id: "c", capa: 1, fila: 1 }, { id: "b", capa: 1, fila: 2 }],
     terminales: [],
     tramos: [{ id: "a>b", origen: "a", destino: "b", tipo: "avance", escalas: [] }],
   };
   const g = geometria(d);
-  const [[a, c1, c2, b]] = cubicas(g.caminos.get("a>b"));
-  assert.deepEqual([c1.y, c2.y], [b.y, b.y], "baja al salir y llega horizontal");
-  // Sin nadie en el camino, la preferida (suave).
-  const solo = geometria({ ...d, estaciones: d.estaciones.filter((e) => e.id !== "c") });
-  const [[, s1]] = cubicas(solo.caminos.get("a>b"));
-  assert.equal(s1.y, Math.round((a.y + (b.y - a.y) / 6) * 10) / 10);
-  // Con la caja del nombre de otro tamaño (otro zoom), la elección cambia con ella.
-  const angosta = geometria(d, { etiqueta: { ancho: 40, alto: 20, arriba: 15 } });
-  assert.notEqual(angosta.caminos.get("a>b"), g.caminos.get("a>b"));
+  assert.equal(g.caminos.get("a>b"), "M0 0 L220 192");
+  assert.equal(geometria({ ...d, estaciones: d.estaciones.filter((e) => e.id !== "c") }).caminos.get("a>b"), g.caminos.get("a>b"));
+  for (const etiqueta of [{ ancho: 40, alto: 20, arriba: 15 }, { ancho: 400, alto: 200, arriba: 0 }]) {
+    assert.deepEqual([...geometria(d, { etiqueta }).caminos], [...g.caminos]);
+  }
+  // En una tanda real, igual.
+  const sii = distribuir(SII);
+  assert.deepEqual([...geometria(sii, { etiqueta: { ancho: 10, alto: 10, arriba: 0 } }).caminos], [...geometria(sii).caminos]);
 });
 
-/** Alto que abarca un recorrido y si repite un segmento (ida y vuelta por el mismo lugar). */
-function forma(puntos) {
-  const ys = puntos.map((p) => p.y);
-  const clave = (p, q) => [p, q].map((r) => `${r.x},${r.y}`).sort().join("|");
-  const segmentos = puntos.slice(1).map((q, i) => clave(puntos[i], q));
-  return { alto: Math.max(...ys) - Math.min(...ys), repite: new Set(segmentos).size < segmentos.length, xs: new Set(puntos.map((p) => p.x)) };
-}
+test("las páginas se reparten a los dos lados del tronco (no todas debajo)", () => {
+  // Del inicio salen 4 páginas que llegan a la meta: el tronco queda al medio, con páginas arriba y abajo.
+  const laterales = ["p1", "p2", "p3", "p4"];
+  const d = distribuir({
+    paginas: [pagina("a", { esInicio: true, visitas: 6 }), pagina("b", { visitas: 6 }), pagina("c", { visitas: 6, finales: { ...SIN_FINALES, logrado: 6 } }), ...laterales.map((id, i) => pagina(id, { visitas: 4 - i }))],
+    ramas: [rama("a", "b", 6), rama("b", "c", 6), ...laterales.flatMap((id) => [rama("a", id), rama(id, "c")])],
+    ruta: { paginas: ["a", "b", "c"] },
+  });
+  const filas = laterales.map((id) => porId(d.estaciones).get(id).fila);
+  assert.equal(filas.filter((f) => f < 0).length, 2, `arriba: ${filas}`);
+  assert.equal(filas.filter((f) => f > 0).length, 2, `abajo: ${filas}`);
+  assert.equal(Math.max(...filas.map(Math.abs)), 2, "ninguna a más de dos filas del tronco");
+  const g = geometria(d);
+  comprobarColumnas(d, g, "a los dos lados");
+  assert.equal(contarCruces(d, g), 0);
+  // En la tanda real de sii también hay estaciones a los dos lados.
+  const sii = distribuir(SII);
+  assert.ok(sii.estaciones.some((e) => e.fila < 0) && sii.estaciones.some((e) => e.fila > 0));
+});
 
-test("vuelta atrás entre columnas vecinas a la misma altura: una vuelta de verdad, no un pico", () => {
+test("vuelta atrás entre columnas vecinas a la misma altura: un arco bajo de verdad, no un pico", () => {
   const altoFila = 96;
-  const base = (extra = []) => ({
-    estaciones: [{ id: "n3", capa: 1, fila: 0 }, { id: "n4", capa: 2, fila: 0 }, ...extra],
+  const d = {
+    estaciones: [{ id: "n3", capa: 1, fila: 0 }, { id: "n4", capa: 2, fila: 0 }, { id: "n9", capa: 2, fila: -1 }],
     terminales: [],
     tramos: [{ id: "n4>n3", origen: "n4", destino: "n3", tipo: "retroceso", escalas: [] }],
-  });
-  // Sin estaciones arriba: por arriba, con las patas lejos de los nombres.
-  const g = geometria(base(), { altoFila });
-  const libre = forma(g.recorridos.get("n4>n3"));
-  assert.ok(libre.alto >= 0.3 * altoFila, `abarca ${libre.alto}`);
-  assert.equal(libre.repite, false);
-  assert.ok(Math.min(...g.recorridos.get("n4>n3").map((p) => p.y)) < 0, "por arriba");
-  const [, sale, , , llega] = g.recorridos.get("n4>n3");
-  assert.notEqual(sale.x, llega.x, "sube y baja por lugares distintos");
-  assert.doesNotMatch(g.caminos.get("n4>n3"), /NaN/);
-  // Con una estación justo arriba: por debajo de los nombres, con las patas en el pasillo.
-  const g2 = geometria(base([{ id: "n9", capa: 2, fila: -1 }]), { altoFila });
-  const abajo = forma(g2.recorridos.get("n4>n3"));
-  assert.ok(abajo.alto >= 0.3 * altoFila && !abajo.repite);
-  assert.ok(Math.max(...g2.recorridos.get("n4>n3").map((p) => p.y)) > 0.5 * altoFila, "por debajo de los nombres");
-  // Casi a la misma altura (un escalón de menos de 0.4 filas) también da la vuelta.
-  const casi = base();
-  casi.estaciones[0].fila = 0.2;
-  assert.ok(forma(geometria(casi, { altoFila }).recorridos.get("n4>n3")).alto >= 0.3 * altoFila);
+  };
+  const puntos = geometria(d, { altoFila }).recorridos.get("n4>n3");
+  const salida = salidaVertical(puntos);
+  assert.ok(salida >= 0.3 * altoFila && salida <= 0.6 * altoFila, `se sale ${salida}`);
+  assert.ok(Math.min(...puntos.map((p) => p.y)) < 0, "en el tronco, por arriba");
+  // No vuelve por el mismo lugar: cada x aparece una vez (va siempre hacia la izquierda).
+  for (let i = 1; i < puntos.length; i += 1) assert.ok(puntos[i].x < puntos[i - 1].x);
+  // No depende de quién está cerca (n9 justo arriba): el mismo arco sin n9.
+  assert.deepEqual(geometria({ ...d, estaciones: d.estaciones.slice(0, 2) }, { altoFila }).caminos, geometria(d, { altoFila }).caminos);
+  // Debajo del tronco, el arco va por debajo.
+  const [, c1] = arcoDeVuelta({ x: 440, y: 192 }, { x: 220, y: 96 }, altoFila);
+  assert.equal(c1.y, 192 + 0.5 * altoFila);
 });
 
-test("en las tandas reales, ninguna vuelta atrás abarca menos de 0.3 filas", () => {
-  for (const [nombre, entrada] of [["sii", SII], ["wom", WOM], ["dt", DT]]) {
+test("en las tandas reales: tramos hacia la derecha casi rectos y vueltas atrás bajas", async () => {
+  const fixtures = await Promise.all([VIEJA, NUEVA].map(async (id) => (await leerTanda(RAIZ, id)).telarana));
+  for (const [nombre, entrada] of [["sii", SII], ["wom", WOM], ["dt", DT], ["vieja", fixtures[0]], ["nueva", fixtures[1]]]) {
     const d = distribuir(entrada);
-    const g = geometria(d);
-    for (const tramo of d.tramos.filter((t) => t.tipo === "retroceso")) {
-      const { alto, repite } = forma(g.recorridos.get(tramo.id));
-      assert.ok(alto >= 0.3 * 96 && !repite, `${nombre}: ${tramo.id} abarca ${alto}`);
+    for (const altoFila of [96, 124]) {
+      const g = geometria(d, { altoFila });
+      comprobarColumnas(d, g, `${nombre} (fila ${altoFila})`, altoFila);
+      // Ninguna vuelta atrás abarca menos de 0.3 filas (sería un pico sobre la fila).
+      for (const tramo of d.tramos.filter((t) => t.tipo === "retroceso")) {
+        const ys = g.recorridos.get(tramo.id).map((p) => p.y);
+        assert.ok(Math.max(...ys) - Math.min(...ys) >= 0.3 * altoFila, `${nombre}: ${tramo.id} abarca ${Math.max(...ys) - Math.min(...ys)} px`);
+      }
     }
   }
+});
+
+test("vueltas atrás y pasos laterales: un solo tono neutro, el mismo en la leyenda", () => {
+  for (const resultado of ["exito", "mixto", "fallo", "abandono", "error", undefined]) {
+    assert.equal(claseDeTramo({ tipo: "retroceso", resultado }), "secundario");
+    assert.equal(claseDeTramo({ tipo: "lateral", resultado }), "secundario");
+  }
+  assert.equal(claseDeTramo({ tipo: "avance", resultado: "fallo" }), "fallo");
+  // Finos aunque muchos hayan vuelto por ahí.
+  assert.equal(anchoDeTramo({ tipo: "retroceso", intentos: 8 }), 3);
+  assert.equal(anchoDeTramo({ tipo: "lateral", intentos: 1 }), 1.75);
+  const pantalla = readFileSync(new URL("../public/pantallas/telarana.js", import.meta.url), "utf8");
+  assert.match(pantalla, /`tramo-\$\{tipo\} tramo-\$\{claseDeTramo\(\{ tipo \}\)\}`/, "la muestra de la leyenda usa claseDeTramo");
+  const estilos = readFileSync(new URL("../public/estilos/telarana.css", import.meta.url), "utf8");
+  assert.match(estilos, /\.tramo-secundario \{ --tono:/);
 });

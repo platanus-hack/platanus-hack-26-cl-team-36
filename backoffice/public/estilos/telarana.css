@@ -83,6 +83,7 @@
 .p-telarana .tramo-abandono .tramo-trazo { stroke-dasharray: 6 4; }
 .p-telarana .tramo-error { --tono: var(--neutro); }
 .p-telarana .tramo-error .tramo-trazo { stroke-dasharray: 2 3 8 3; }
+.p-telarana .tramo-secundario { --tono: var(--texto-3); }
 /* Vueltas atrás y pasos laterales: tenues hasta que se aíslan (al pasar el puntero, elegir una página o la historia). */
 .p-telarana :is(.tramo-retroceso, .tramo-lateral) .tramo-trazo { stroke-dasharray: 4 4; opacity: 0.35; transition: opacity var(--dur-3) var(--curva-salida); }
 .p-telarana .aislando :is(.tramo-retroceso, .tramo-lateral).activo .tramo-trazo { opacity: 0.95; }

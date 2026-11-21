@@ -13,7 +13,7 @@ import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
 import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
 import { nombreDePagina, textoDeFirma, textoDeTitular } from "../datos/textos.js";
-import { altoDeFilaPara, cajaDeEtiqueta, crearCamara, zoomLegible } from "../telarana/camara.js";
+import { altoDeFilaPara, crearCamara, zoomLegible } from "../telarana/camara.js";
 import {
   activosDePerfil,
   finalesPorPagina,
@@ -217,8 +217,10 @@ function crearPantalla(contenedor, ctx) {
       ...[["exito", "exito"], ["mixto", "mixto"], ["fallo", "fallo"], ["abandono", "abandono"], ["error", "error"]]
         .filter(([clase]) => clases.has(clase))
         .map(([clase, clave]) => [`tramo-${clase}`, clave]),
-      fuera.some((tramo) => tramo.tipo === "retroceso") ? ["tramo-retroceso tramo-exito", "retroceso"] : null,
-      fuera.some((tramo) => tramo.tipo === "lateral") ? ["tramo-lateral tramo-exito", "lateral"] : null,
+      // Las vueltas atrás y los pasos laterales, con las mismas clases que los tramos dibujados.
+      ...["retroceso", "lateral"]
+        .filter((tipo) => fuera.some((tramo) => tramo.tipo === tipo))
+        .map((tipo) => [`tramo-${tipo} tramo-${claseDeTramo({ tipo })}`, tipo]),
     ].filter(Boolean);
     const hayAtascos = atascosPorPagina(tanda).size > 0;
     return el(
@@ -302,14 +304,12 @@ function crearPantalla(contenedor, ctx) {
 
   /** Zoom con que se ve el mapa entero a lo ancho del lienzo. */
   function zoomDelAncho() {
-    const { caja } = geometria(distribucion, { elegirFormas: false }); // la caja no depende de la forma de los avances
+    const { caja } = geometria(distribucion);
     return lienzo.clientWidth / (caja.ancho + HOLGURA.izquierda + HOLGURA.derecha);
   }
 
   function dibujar() {
-    // Los avances esquivan los nombres del tamaño con que se verán al ajustar la vista.
-    const etiqueta = cajaDeEtiqueta(Math.max(estado.zoomDelAncho ?? 1, zoomLegible(estado.altoFila ?? ALTO_FILA)));
-    estado.geo = geometria(distribucion, { altoFila: estado.altoFila ?? ALTO_FILA, etiqueta });
+    estado.geo = geometria(distribucion, { altoFila: estado.altoFila ?? ALTO_FILA });
     estado.dibujo = dibujarEscena({
       escena,
       distribucion,
