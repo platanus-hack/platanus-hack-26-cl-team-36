@@ -1,7 +1,8 @@
-// Motor genérico: corre en cada página donde la extensión tiene content script.
-// No sabe nada de ningún sitio en particular; todo lo específico viene del tema.
+// Motor genérico: corre en todas las páginas http(s). No sabe nada de ningún
+// sitio en particular; todo lo específico viene del tema.
 //
-//   1. Pide al background el tema para esta URL (el background inyecta su CSS).
+//   1. Pide al background el tema para esta URL (el background le pregunta a la
+//      API e inyecta el CSS). Si no hay tema, no toca la página.
 //   2. Pone/quita la clase `mi-tema` en <html> según el botón de la extensión.
 //   3. Ejecuta las features que pide el tema en cada navegación y cambio del DOM.
 
@@ -11,10 +12,6 @@
   function aplicarActivo(activo) {
     html.classList.toggle("mi-tema", activo);
   }
-
-  // Activo por defecto apenas carga (evita un "flash" del diseño original);
-  // luego se corrige según lo guardado y según si hay tema para el sitio.
-  aplicarActivo(true);
 
   function prepararFeatures(tema) {
     return Object.entries(tema.features).flatMap(([id, opciones]) => {
@@ -59,11 +56,9 @@
       browser.runtime.sendMessage({ tipo: "tema:aplicar" }),
     ]);
 
-    if (!tema) {
-      aplicarActivo(false); // no hay tema para este sitio
-      return;
-    }
+    if (!tema) return; // sin tema para este sitio (o la API no respondió)
 
+    html.dataset.mtTema = tema.id; // data-mt-tema: lo usa el refresco en modo desarrollo
     aplicarActivo(activo);
     browser.storage.onChanged.addListener((cambios, area) => {
       if (area === "local" && "activo" in cambios) aplicarActivo(cambios.activo.newValue);

@@ -1,8 +1,8 @@
-// Valida los temas empaquetados en src/temas/ tal como los cargaría la extensión.
+// Valida los temas empaquetados en src/temas/<id>/ tal como los cargaría la extensión.
 // Si alguien agrega un tema o una feature y se le olvida algo, falla aquí.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { normalizarTema } from "../src/background/temas.js";
 
 const src = new URL("../src/", import.meta.url);
@@ -10,14 +10,19 @@ const leer = (ruta) => readFileSync(new URL(ruta, src), "utf8");
 
 const manifest = JSON.parse(leer("manifest.json"));
 const scriptsCargados = manifest.content_scripts.flatMap((cs) => cs.js ?? []);
-const ids = JSON.parse(leer("temas/index.json"));
+const ids = readdirSync(new URL("temas/", src), { withFileTypes: true })
+  .filter((e) => e.isDirectory())
+  .map((e) => e.name);
 
-test("temas/index.json lista al menos un tema", () => {
-  assert.ok(Array.isArray(ids) && ids.length > 0);
+test("hay al menos un tema", () => {
+  assert.ok(ids.length > 0);
 });
 
 for (const id of ids) {
   test(`tema "${id}"`, () => {
+    assert.ok(existsSync(new URL(`temas/${id}/tema.json`, src)), "falta tema.json");
+    assert.ok(existsSync(new URL(`temas/${id}/tema.css`, src)), "falta tema.css");
+
     const datos = JSON.parse(leer(`temas/${id}/tema.json`));
     const css = leer(`temas/${id}/tema.css`);
     const tema = normalizarTema({ ...datos, id, css });

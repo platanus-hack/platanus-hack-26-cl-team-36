@@ -3,11 +3,11 @@
 //
 // Responsabilidades:
 //   1. Botón de la barra: activa/desactiva el tema (guarda `activo` en storage).
-//   2. Resolver qué tema corresponde a cada página e inyectar su CSS.
+//   2. Preguntarle a la API qué tema corresponde a cada página e inyectar su CSS.
 
-import { proveedorApi } from "./proveedor-api.js";
-import { proveedorLocal } from "./proveedor-local.js";
-import { buscarEnProveedores } from "./temas.js";
+import { consultarTema } from "./api.js";
+import { cargarTemaLocal } from "./temas-locales.js";
+import { resolverTema } from "./temas.js";
 
 // ---------- 1. Botón de la barra de herramientas ----------
 
@@ -35,31 +35,40 @@ browser.runtime.onStartup.addListener(async () => pintarBadge(await leerActivo()
 // `temporary` solo es true si la extensión se cargó con web-ext o about:debugging.
 browser.runtime.onInstalled.addListener(async ({ temporary }) => {
   await pintarBadge(await leerActivo());
-  if (temporary) await refrescarPestanasDelSitio();
+  if (temporary) await refrescarPestanasConTema();
 });
 
 // En desarrollo, al recargar la extensión las pestañas abiertas siguen con el
-// CSS/JS anterior. Las refrescamos para ver el cambio sin tocar nada.
-async function refrescarPestanasDelSitio() {
-  const patrones = browser.runtime.getManifest().content_scripts.flatMap((cs) => cs.matches);
-  const pestanas = await browser.tabs.query({ url: patrones });
-  // Sin permiso sobre una pestaña, `url` viene vacía: nunca refrescamos pestañas ajenas.
-  const delSitio = pestanas.filter((p) => p.url);
-  if (delSitio.length === 0) return;
-  console.info(`[mi-tema] Modo desarrollo: refrescando ${delSitio.length} pestaña(s).`);
-  await Promise.all(delSitio.map((p) => browser.tabs.reload(p.id)));
+// CSS/JS anterior. Refrescamos las que tenían un tema aplicado (content/motor.js
+// les deja el atributo data-mt-tema en <html>) para ver el cambio sin tocar nada.
+async function refrescarPestanasConTema() {
+  const pestanas = await browser.tabs.query({ url: ["http://*/*", "https://*/*"] });
+  const conTema = await Promise.all(
+    pestanas.map(async (pestana) => {
+      try {
+        const [{ result }] = await browser.scripting.executeScript({
+          target: { tabId: pestana.id },
+          func: () => document.documentElement.hasAttribute("data-mt-tema"),
+        });
+        return result ? pestana : null;
+      } catch {
+        return null; // páginas donde Firefox no deja inyectar (ej. addons.mozilla.org)
+      }
+    }),
+  );
+  const aRefrescar = conTema.filter(Boolean);
+  if (aRefrescar.length === 0) return;
+  console.info(`[mi-tema] Modo desarrollo: refrescando ${aRefrescar.length} pestaña(s) con tema.`);
+  await Promise.all(aRefrescar.map((p) => browser.tabs.reload(p.id)));
 }
 
 // ---------- 2. Temas ----------
-
-// Orden de prioridad: primero el backend; si no tiene tema o no responde, los locales.
-const proveedores = [proveedorApi, proveedorLocal];
 
 // El content script pide su tema al cargar. Inyectamos el CSS desde aquí con
 // scripting.insertCSS (no le afecta la CSP de la página) y le devolvemos al
 // content script solo lo que necesita para las features.
 async function aplicarTema(sender) {
-  const tema = await buscarEnProveedores(proveedores, sender.url);
+  const tema = await resolverTema(sender.url, { consultarApi: consultarTema, cargarTema: cargarTemaLocal });
   if (!tema) return null;
   console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${new URL(sender.url).origin}`);
 

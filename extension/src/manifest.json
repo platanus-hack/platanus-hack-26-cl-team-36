@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Mi Tema",
   "version": "0.2.0",
-  "description": "Cambia el diseño de sitios web aplicando temas (CSS + features). PoC: YouTube.",
+  "description": "Cambia el diseño de sitios web aplicando el tema que indica la API (CSS + features).",
 
   "icons": {
     "48": "icons/icon.svg",
@@ -11,7 +11,7 @@
 
   "permissions": ["storage", "scripting"],
 
-  "host_permissions": ["*://*.youtube.com/*", "http://localhost/*"],
+  "host_permissions": ["http://*/*", "https://*/*"],
 
   "background": {
     "scripts": ["background/index.js"],
@@ -25,7 +25,7 @@
 
   "content_scripts": [
     {
-      "matches": ["*://*.youtube.com/*"],
+      "matches": ["http://*/*", "https://*/*"],
       "css": ["features/modo-foco.css"],
       "js": ["content/registro.js", "features/modo-foco.js", "content/motor.js"],
       "run_at": "document_start"

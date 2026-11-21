@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { temaParaUrl } from "./temas.js";
 
 const PUERTO = Number(process.env.PORT) || 3000;
 
@@ -14,22 +15,25 @@ async function leerJson(req) {
 }
 
 // POST /temas/buscar  { "url": "https://www.youtube.com" }
-// La extensión lo llama al entrar a un sitio para pedir su tema.
-//   - 204 (sin cuerpo): no hay tema; la extensión usa sus temas locales.
-//   - 200 + tema (ver extension/src/background/temas.js): la extensión usa ese tema.
+// La extensión lo llama en cada página para saber si debe aplicar un tema.
+//   200 { success: true,  tema: "youtube" }  → la extensión aplica ese tema
+//   404 { success: false, error: "..." }     → el sitio no tiene tema
+//   400 { success: false, error: "..." }     → request inválida
 async function buscarTema(req, res) {
   let url;
   try {
     ({ url } = await leerJson(req));
+    if (typeof url !== "string") throw new Error();
+    new URL(url); // valida
   } catch {
-    return responderJson(res, 400, { error: "El cuerpo debe ser JSON" });
-  }
-  if (typeof url !== "string") {
-    return responderJson(res, 400, { error: "Falta `url`" });
+    return responderJson(res, 400, { success: false, error: 'Se espera { "url": "<url válida>" }' });
   }
 
-  console.log(`Tema pedido para ${url}`);
-  res.writeHead(204).end(); // de momento nunca hay tema
+  const tema = temaParaUrl(url);
+  console.log(`${tema ? "✔" : "✖"} ${url}${tema ? ` → tema "${tema}"` : ""}`);
+
+  if (!tema) return responderJson(res, 404, { success: false, error: `Sin tema para ${url}` });
+  responderJson(res, 200, { success: true, tema });
 }
 
 const servidor = createServer(async (req, res) => {
