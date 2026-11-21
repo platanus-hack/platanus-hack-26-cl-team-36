@@ -29,6 +29,7 @@ import { ALTO_FILA, RESULTADOS, distribuir, geometria } from "../telarana/distri
 import { atascosPorPagina } from "../telarana/atascos.js";
 import { claseDeTramo, dibujarEscena } from "../telarana/escena.js";
 import { crearHistoria } from "../telarana/historia.js";
+import { etiquetasDeEstaciones } from "../telarana/nombres.js";
 
 const PASO_DE_PAN = 60;
 const reducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -49,6 +50,8 @@ function crearPantalla(contenedor, ctx) {
   const perfiles = (tanda.perfiles ?? []).map((perfil) => ({ id: perfil.perfil, nombre: perfil.nombre ?? perfil.perfil }));
   const nombreDePerfil = (id) => perfiles.find((perfil) => perfil.id === id)?.nombre ?? intentos.get(id)?.nombrePerfil ?? id;
   const nombre = (pagina) => nombreDePagina(pagina, t);
+  // Lo que se ve en cada estación: si varias empiezan igual, lo que las distingue va adelante (telarana/nombres.js).
+  const etiquetas = etiquetasDeEstaciones(tanda.telarana?.paginas ?? [], nombre, { primeras: tanda.telarana?.ruta?.paginas ?? [] });
   const distribucion = distribuir(tanda.telarana ?? {});
   const tramosExistentes = new Set(distribucion.tramos.map((tramo) => tramo.id));
 
@@ -72,6 +75,7 @@ function crearPantalla(contenedor, ctx) {
   // ── Textos que la escena necesita ─────────────────────────────────────
   const textos = {
     nombre,
+    etiqueta: (pagina) => etiquetas.get(pagina.id) ?? nombre(pagina),
     ariaDeEstacion(pagina, estacion, atascos = 0) {
       const partes = [nombre(pagina)];
       if (estacion.tipo === "inicio") partes.push(t("telarana.estacion.inicio"));

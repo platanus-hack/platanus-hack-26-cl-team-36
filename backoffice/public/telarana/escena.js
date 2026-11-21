@@ -29,7 +29,8 @@ export function claseDeTramo(tramo) {
 
 /**
  * @param {{ escena: HTMLElement, distribucion, geo, paginas: Map<string, object>, ramas: Map<string, object>,
- *   textos: { nombre(pagina), ariaDeEstacion(pagina, estacion, atascos), detalleDeVariantes(n), visitas(n),
+ *   textos: { nombre(pagina), etiqueta?(pagina) (lo que se ve: lo que distingue a la página, adelante),
+ *             ariaDeEstacion(pagina, estacion, atascos), detalleDeVariantes(n), visitas(n),
  *             etiquetaDeResultado(r), ariaDeTerminal(r, n) },
  *   urlDeCaptura: (captura) => string | null, intentos: Map<string, object>, particulas: boolean }} opciones
  */
@@ -123,7 +124,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         "span",
         { class: "estacion-etiqueta", "aria-hidden": "true" },
         captura ? el("img", { class: "estacion-miniatura", src: captura, alt: "", loading: "lazy", decoding: "async", width: 120, height: 75 }) : null,
-        el("span", { class: "estacion-nombre", texto: textos.nombre(pagina) }),
+        el("span", { class: "estacion-nombre", texto: textos.etiqueta?.(pagina) ?? textos.nombre(pagina) }),
         variantes > 1 ? el("span", { class: "estacion-detalle", texto: textos.detalleDeVariantes(variantes) }) : null,
         pagina.url ? el("span", { class: "estacion-url mono", texto: recortarAlMedio(pagina.url.replace(/^https?:\/\//, ""), 36) }) : null,
         el("span", { class: "estacion-visitas", texto: textos.visitas(pagina.visitas ?? 0) }),
