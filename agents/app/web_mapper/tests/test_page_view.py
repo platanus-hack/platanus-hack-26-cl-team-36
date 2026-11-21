@@ -41,3 +41,23 @@ def test_closed_details_content_is_hidden(with_session):
         assert summary.expanded is False and "llama al 103" not in view.text
 
     with_session("ayuda.html", body)
+
+
+def test_elements_above_the_page_or_clipped_by_an_ancestor_are_hidden(with_session):
+    async def body(session):
+        view = await read_page_view(session.page)
+        assert not _by_name(view, "Saltar al contenido").visible
+        assert not _by_name(view, "En acordeón cerrado").visible
+
+    with_session("clip.html", body)
+
+
+def test_text_sent_to_the_model_follows_the_scroll(with_session):
+    async def body(session):
+        top = render_view(await read_page_view(session.page))
+        assert "Respuesta al fondo" not in top and "scroll down para leer más" in top
+        await session.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        bottom = render_view(await read_page_view(session.page))
+        assert "Respuesta al fondo de la página." in bottom and "scroll up para verlo" in bottom
+
+    with_session("clip.html", body)

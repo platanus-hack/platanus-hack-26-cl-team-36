@@ -29,6 +29,11 @@ PAGES = {
         <select aria-label="Región"><option>Norte</option><option>Sur</option></select>
         <input type="password" aria-label="Clave">
         <div style="position:absolute;left:-500px;width:200px"><a href="x.html">Fuera</a></div>""",
+    "clip.html": """<title>Recortes</title>
+        <a href="#contenido" style="position:absolute;top:-40px">Saltar al contenido</a>
+        <div style="max-height:0;overflow:hidden"><a href="x.html">En acordeón cerrado</a></div>
+        <a href="uno.html">Repetido</a> <a href="dos.html">Repetido</a>
+        <p>""" + "Texto de relleno. " * 1500 + """</p><p>Respuesta al fondo de la página.</p>""",
 }
 
 

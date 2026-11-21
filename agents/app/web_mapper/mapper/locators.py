@@ -37,7 +37,7 @@ def _locator(page: Page, candidate: dict) -> Locator:
 
 
 async def _position_of(locator: Locator, handle: ElementHandle) -> int | None:
-    """Posición del elemento entre las coincidencias del localizador (o de un descendiente suyo)."""
+    """Índice de la primera coincidencia que es el elemento o está dentro de él."""
     for index in range(min(await locator.count(), _MAX_MATCHES)):
         if await locator.nth(index).evaluate("(el, target) => target === el || target.contains(el)", handle):
             return index

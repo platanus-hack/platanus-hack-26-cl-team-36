@@ -63,3 +63,26 @@ def test_locators_resolve_the_same_element_after_reload(with_session):
         assert await resolve_locators(session.page, [{"by": "text", "value": "No existe", "nth": 0}]) is None
 
     with_session("index.html", body)
+
+
+def test_locator_with_nth_resolves_the_second_match(with_session):
+    async def body(session):
+        view = await read_page_view(session.page)
+        second = [element for element in view.elements if element.name == "Repetido"][1]
+        locators = await record_locators(session.page, await element_for_ref(session.page, second.ref), second)
+        assert locators[0] == {"by": "role", "role": "link", "value": "Repetido", "nth": 1}
+        resolved = await resolve_locators(session.page, locators[:1])
+        assert await resolved.get_attribute("href") == "dos.html"
+
+    with_session("clip.html", body)
+
+
+def test_scroll_moves_the_page_and_is_an_in_page_step(with_session):
+    async def body(session):
+        step = await perform_step(session, "scroll", "down", None, None)
+        assert await session.page.evaluate("scrollY") > 500
+        assert not step.changes_node and step.ui_actions == 1 and step.in_viewport is None
+        with pytest.raises(ActionRejected):
+            await perform_step(session, "scroll", "sideways", None, None)
+
+    with_session("clip.html", body)

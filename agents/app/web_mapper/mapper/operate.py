@@ -1,15 +1,20 @@
 """Ejecución de una acción sobre un elemento, solo como la haría una persona, y registro del paso."""
 
+from collections.abc import Callable
+
 from playwright.async_api import ElementHandle
 from playwright.async_api import Error as PlaywrightError
 
 from actions import InvalidActionError, translate_key
 from browser import BrowserSession
-from mapper.page_view import is_displayable, is_in_viewport
+from mapper.page_view import display_state
 from mapper.route import Step, Target
 
 ELEMENT_ACTIONS = {"click", "fill", "select"}
 _ACTION_TIMEOUT_MS = 5_000
+_SCROLL_FRACTION = 0.8   # de la altura del viewport por scroll
+
+Log = Callable[[str], None]
 
 
 class ActionRejected(Exception):
@@ -33,6 +38,10 @@ async def _execute(session: BrowserSession, action: str, value: str | None, hand
         await page.keyboard.press(translate_key(value or ""))
     elif action == "back":
         await page.go_back(wait_until="domcontentloaded", timeout=10_000)
+    elif action == "scroll" and value in ("down", "up"):
+        profile = session.profile
+        await page.mouse.move(profile.width // 2, profile.height // 2)
+        await page.mouse.wheel(0, (1 if value == "down" else -1) * profile.height * _SCROLL_FRACTION)
     else:
         raise ActionRejected(f"La acción '{action}' no existe.")
 
@@ -47,9 +56,9 @@ async def perform_step(
     in_viewport = None
     try:
         if handle is not None:
-            if not await is_displayable(handle):
+            visible, in_viewport = await display_state(handle)
+            if not visible:
                 raise ActionRejected("Ese elemento no está a la vista: primero abre el menú o control que lo muestra.")
-            in_viewport = await is_in_viewport(handle)
         await _execute(session, action, value, handle)
     except InvalidActionError as error:
         raise ActionRejected(str(error))
@@ -57,6 +66,10 @@ async def perform_step(
         raise ActionRejected(f"El navegador no pudo hacer la acción: {error.message.splitlines()[0]}")
     await session.wait_until_settled()
     url_after, title_after = await session.url_and_title()
+    try:
+        screenshot = await session.screenshot()
+    except PlaywrightError:
+        screenshot = b""  # la acción ya ocurrió: el paso se conserva aunque no haya captura
     return Step(
         action=action,
         value=value,
@@ -66,5 +79,5 @@ async def perform_step(
         url_after=url_after,
         title_after=title_after,
         in_viewport=in_viewport,
-        screenshot=await session.screenshot(),
+        screenshot=screenshot,
     )

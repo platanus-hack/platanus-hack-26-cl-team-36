@@ -2,7 +2,6 @@
 
 import asyncio
 import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from playwright.async_api import Error as PlaywrightError
@@ -13,25 +12,24 @@ from route_tree import node_key
 from mapper import config
 from mapper.decider import Decider, Decision, DeciderError
 from mapper.locators import record_locators
-from mapper.operate import ActionRejected, perform_step
+from mapper.operate import ELEMENT_ACTIONS, ActionRejected, Log, perform_step
 from mapper.page_view import PageView, element_for_ref, read_page_view
 from mapper.prompts import HistoryEntry, render_turn
 from mapper.quote import quote_in_text
 from mapper.route import Step, Target
 
 _FINAL_REASONS = {"blocked": "blocked", "give_up": "gave_up"}
-
-Log = Callable[[str], None]
+_STEP_LIMIT_OUTCOME = "rechazada: se alcanzó el máximo de acciones; solo puedes terminar con done, blocked o give_up"
 
 
 @dataclass
 class Exploration:
-    start_url: str
-    start_title: str
-    start_screenshot: bytes = field(repr=False)
+    start_url: str = ""
+    start_title: str = ""
+    start_screenshot: bytes = field(default=b"", repr=False)
     steps: list[Step] = field(default_factory=list)
     history: list[HistoryEntry] = field(default_factory=list)
-    # done | blocked | gave_up | step_limit | time_limit | turn_limit | model_error
+    # done | blocked | gave_up | step_limit | time_limit | turn_limit | model_error | browser_error
     end_reason: str = ""
     message: str = ""
     answer: str = ""
@@ -52,7 +50,7 @@ def _describe(decision: Decision, view: PageView) -> str:
 
 
 async def _act(session: BrowserSession, decision: Decision, view: PageView) -> Step:
-    element = view.element(decision.ref) if decision.ref else None
+    element = view.element(decision.ref) if decision.action in ELEMENT_ACTIONS and decision.ref else None
     handle = await element_for_ref(session.page, decision.ref) if element else None
     target = None
     if handle is not None:
@@ -64,8 +62,6 @@ async def _act(session: BrowserSession, decision: Decision, view: PageView) -> S
 def _exhausted_limit(exploration: Exploration, remaining_s: float) -> str | None:
     if exploration.turns >= config.MAX_TURNS:
         return "turn_limit"
-    if len(exploration.steps) >= config.MAX_STEPS:
-        return "step_limit"
     return "time_limit" if remaining_s <= 0 else None
 
 
@@ -80,6 +76,12 @@ async def _apply(session: BrowserSession, decision: Decision, view: PageView, ex
         exploration.end_reason, exploration.answer, exploration.quote = "done", decision.answer or "", decision.quote
         exploration.final_node = node_key(view.url, view.title)
         return None
+    if len(exploration.steps) >= config.MAX_STEPS:
+        # Con el límite alcanzado, solo una acción final; si ya se le avisó y vuelve a pedir otra, termina.
+        if exploration.history and exploration.history[-1].outcome == _STEP_LIMIT_OUTCOME:
+            exploration.end_reason = "step_limit"
+            return None
+        return _STEP_LIMIT_OUTCOME
     try:
         step = await _act(session, decision, view)
     except ActionRejected as error:
@@ -91,7 +93,7 @@ async def _apply(session: BrowserSession, decision: Decision, view: PageView, ex
 
 
 async def _read_view(session: BrowserSession) -> PageView:
-    """Si la página todavía estaba navegando, espera a que se asiente y vuelve a leerla."""
+    """Si la página todavía estaba navegando, espera a que se asiente y vuelve a leerla una vez."""
     try:
         return await read_page_view(session.page)
     except PlaywrightError:
@@ -99,31 +101,40 @@ async def _read_view(session: BrowserSession) -> PageView:
         return await read_page_view(session.page)
 
 
-async def explore(session: BrowserSession, decider: Decider, instruction: str, log: Log = print) -> Exploration:
-    """Explora desde la página abierta en `session` hasta que el modelo termina o se agota un límite."""
-    url, title = await session.url_and_title()
-    exploration = Exploration(url, title, await session.screenshot())
+async def _turn(session: BrowserSession, decider: Decider, instruction: str, exploration: Exploration,
+                remaining_s: float, log: Log) -> None:
+    view = await _read_view(session)
+    exploration.turns += 1
+    prompt = render_turn(instruction, exploration.history, view)
+    try:
+        decision = await asyncio.wait_for(decider.decide(prompt, await session.screenshot()), timeout=remaining_s)
+    except TimeoutError:
+        exploration.end_reason = "time_limit"
+        return
+    except DeciderError as error:
+        exploration.end_reason, exploration.message = "model_error", str(error)
+        return
+    outcome = await _apply(session, decision, view, exploration)
+    if outcome is not None:
+        exploration.history.append(HistoryEntry(decision.reason or "", _describe(decision, view), outcome))
+        log(f"turno {exploration.turns}: {_describe(decision, view)} -> {outcome}")
+
+
+async def explore(session: BrowserSession, url: str, decider: Decider, instruction: str, log: Log = print) -> Exploration:
+    """Abre `url` y explora hasta que el modelo termina, se agota un límite o falla el navegador."""
+    exploration = Exploration()
     started = time.monotonic()
-    while not exploration.end_reason:
-        remaining_s = config.MAX_SECONDS - (time.monotonic() - started)
-        exploration.end_reason = _exhausted_limit(exploration, remaining_s) or ""
-        if exploration.end_reason:
-            break
-        view = await _read_view(session)
-        exploration.turns += 1
-        prompt = render_turn(instruction, exploration.history, view)
-        try:
-            decision = await asyncio.wait_for(decider.decide(prompt, await session.screenshot()), timeout=remaining_s)
-        except TimeoutError:
-            exploration.end_reason = "time_limit"
-            break
-        except DeciderError as error:
-            exploration.end_reason, exploration.message = "model_error", str(error)
-            break
-        outcome = await _apply(session, decision, view, exploration)
-        if outcome is not None:
-            exploration.history.append(HistoryEntry(decision.reason or "", _describe(decision, view), outcome))
-            log(f"turno {exploration.turns}: {_describe(decision, view)} -> {outcome}")
+    try:
+        await session.open(url)
+        exploration.start_url, exploration.start_title = await session.url_and_title()
+        exploration.start_screenshot = await session.screenshot()
+        while not exploration.end_reason:
+            remaining_s = config.MAX_SECONDS - (time.monotonic() - started)
+            exploration.end_reason = _exhausted_limit(exploration, remaining_s) or ""
+            if not exploration.end_reason:
+                await _turn(session, decider, instruction, exploration, remaining_s, log)
+    except PlaywrightError as error:
+        exploration.end_reason, exploration.message = "browser_error", error.message.splitlines()[0]
     exploration.duration_s = round(time.monotonic() - started, 1)
     log(f"fin de la exploración: {exploration.end_reason} — {exploration.answer or exploration.message}")
     return exploration

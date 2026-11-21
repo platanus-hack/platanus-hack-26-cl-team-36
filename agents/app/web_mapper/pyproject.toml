@@ -11,7 +11,7 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [tool.uv]
-# Se corre con `uv run main.py`, como el evaluador: no se empaqueta.
+# Se corre con `uv run main.py`; no se empaqueta.
 package = false
 
 [tool.pytest.ini_options]

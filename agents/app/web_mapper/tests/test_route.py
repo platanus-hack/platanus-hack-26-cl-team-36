@@ -14,7 +14,19 @@ def test_distill_cuts_a_detour_back_to_a_visited_page():
     assert _values(distill(steps)) == ["ayuda"]
 
 
-def test_distill_keeps_in_page_steps_done_before_leaving():
+def test_distill_cuts_to_where_a_revisited_page_was_entered():
+    steps = [
+        _step("menú", "a", "a"),
+        _step("productos", "a", "p"),
+        _step("volver", "p", "a"),
+        _step("menú otra vez", "a", "a"),
+        _step("ayuda", "a", "h"),
+    ]
+    assert _values(distill(steps)) == ["menú otra vez", "ayuda"]
+    assert _values(distill(steps, keep_steps_before_leaving=True)) == ["menú", "menú otra vez", "ayuda"]
+
+
+def test_distill_can_keep_what_was_done_before_going_back():
     steps = [
         _step("menú", "a", "a"),
         _step("ayuda", "a", "h"),
@@ -23,6 +35,10 @@ def test_distill_keeps_in_page_steps_done_before_leaving():
         _step("acordeón", "h", "h"),
     ]
     assert _values(distill(steps)) == ["menú", "ayuda", "acordeón"]
+    steps = [_step("menú", "a", "a"), _step("productos", "a", "p"), _step("atrás", "p", "a", None, "back"),
+             _step("ayuda", "a", "h")]
+    assert _values(distill(steps)) == ["ayuda"]
+    assert _values(distill(steps, keep_steps_before_leaving=True)) == ["menú", "ayuda"]
 
 
 def test_distill_cuts_nested_loops_and_a_return_to_the_start():

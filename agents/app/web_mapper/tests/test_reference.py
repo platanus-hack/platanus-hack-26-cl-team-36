@@ -2,11 +2,15 @@
 
 import asyncio
 import json
+from collections.abc import Callable
 
 from playwright.async_api import async_playwright
 
 from browser import connect_browser
+from mapper import config
 from mapper.decider import Decision
+from mapper.explore import _act
+from mapper.page_view import read_page_view
 from mapper.reference import Mapping, map_reference
 from tests.conftest import DESKTOP
 
@@ -16,8 +20,9 @@ QUOTE = "Para dar de baja llama al 103."
 class ScriptedDecider:
     """Cada paso del guion elige su acción por el nombre del elemento en la vista que recibe."""
 
-    def __init__(self, script: list[tuple[str, str | None, dict]]):
+    def __init__(self, script: list[tuple[str, str | None, dict]], on_done: Callable[[], None] | None = None):
         self.script = list(script)
+        self.on_done = on_done
         self.prompts: list[str] = []
         self.usage = {"input_tokens": 0}
         self.cost_usd = 0.0
@@ -25,6 +30,8 @@ class ScriptedDecider:
     async def decide(self, text: str, screenshot: bytes) -> Decision:
         self.prompts.append(text)
         action, name, extra = self.script.pop(0)
+        if action == "done" and self.on_done:
+            self.on_done()
         ref = None
         if name:
             line = next(line for line in text.splitlines() if f"«{name}»" in line and line.startswith("e"))
@@ -32,9 +39,9 @@ class ScriptedDecider:
         return Decision(reason="guion", action=action, ref=ref, **extra)
 
 
-def _map(site, tmp_path, script):
-    decider = ScriptedDecider(script)
-    mapping = Mapping("prueba", (site / "index.html").as_uri(), "Encuentra cómo dar de baja", "desktop", DESKTOP,
+def _map(site, tmp_path, script, on_done=None, start_url=None):
+    decider = ScriptedDecider(script, on_done)
+    mapping = Mapping("prueba", start_url or (site / "index.html").as_uri(), "Encuentra cómo dar de baja", "desktop", DESKTOP,
                       "guion", "low", tmp_path / "out")
 
     async def main():
@@ -51,6 +58,7 @@ def _map(site, tmp_path, script):
 def test_detour_and_useless_step_are_removed_and_route_verifies(site, tmp_path):
     document, decider, out_dir = _map(site, tmp_path, [
         ("click", "Ayuda", {}),                     # oculto: se rechaza
+        ("click", "Menú", {}),                      # se repite al volver: la destilación corta el primero
         ("click", "Productos", {}),                 # desvío
         ("click", "Volver al inicio", {}),
         ("click", "Menú", {}),
@@ -71,7 +79,7 @@ def test_detour_and_useless_step_are_removed_and_route_verifies(site, tmp_path):
     assert [node.split(" | ")[1] for node in document["nodes"]] == ["Inicio", "Ayuda"]
     assert document["final_node"] == document["nodes"][-1]
     assert document["verification"] == {"replays": 4, "removed_steps": 1, "error": None}
-    assert document["exploration"]["steps"] == 6 and document["exploration"]["turns"] == 9
+    assert document["exploration"]["steps"] == 7 and document["exploration"]["turns"] == 10
     assert document["evaluator_profiles"] == ["first_time", "hurried"]
     saved = json.loads((out_dir / "route.json").read_text(encoding="utf-8"))
     assert saved["steps"][2]["node_after"].endswith("ayuda.html | Ayuda")
@@ -84,3 +92,44 @@ def test_unanswered_exploration_is_not_found(site, tmp_path):
     assert document["status"] == "not_found" and document["steps"] == []
     assert document["exploration"]["end_reason"] == "gave_up" and document["verification"] is None
     assert (out_dir / "step_00.png").is_file()
+
+
+def test_route_that_no_longer_replays_is_unverified(site, tmp_path):
+    def remove_link():
+        index = site / "index.html"
+        index.write_text(index.read_text(encoding="utf-8").replace(">Productos</a>", "></a>"), encoding="utf-8")
+
+    document, _, out_dir = _map(site, tmp_path, [
+        ("click", "Productos", {}),
+        ("done", None, {"answer": "Se vuelve con el enlace.", "quote": "Volver al inicio"}),
+    ], on_done=remove_link)
+    assert document["status"] == "unverified" and not document["quote_found"]
+    assert "paso 1 (click «Productos»)" in document["verification"]["error"]
+    assert [step["label"] for step in document["steps"]] == ["click «Productos»"]
+    assert "**unverified**" in (out_dir / "route.md").read_text(encoding="utf-8")
+
+
+def test_step_limit_still_lets_the_model_answer(site, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "MAX_STEPS", 1)
+    document, decider, _ = _map(site, tmp_path, [
+        ("click", "Productos", {}),
+        ("click", "Volver al inicio", {}),
+        ("done", None, {"answer": "Está en Productos.", "quote": "Volver al inicio"}),
+    ])
+    assert "máximo de acciones" in decider.prompts[2]
+    assert document["status"] == "verified" and document["exploration"]["steps"] == 1
+
+
+def test_browser_error_ends_the_exploration_and_still_writes_the_route(site, tmp_path):
+    document, _, out_dir = _map(site, tmp_path, [], start_url="http://127.0.0.1:9/")
+    assert document["status"] == "not_found" and document["exploration"]["end_reason"] == "browser_error"
+    assert (out_dir / "route.json").is_file() and not (out_dir / "step_00.png").exists()
+
+
+def test_press_with_a_ref_does_not_record_an_element(with_session):
+    async def body(session):
+        view = await read_page_view(session.page)
+        step = await _act(session, Decision(reason="", action="press", ref=view.elements[0].ref, text="Tab"), view)
+        assert step.target is None and step.in_viewport is None
+
+    with_session("index.html", body)

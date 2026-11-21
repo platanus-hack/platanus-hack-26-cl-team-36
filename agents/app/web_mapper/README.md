@@ -14,21 +14,21 @@ uv sync
 uv run playwright install chromium
 ```
 
-Usa módulos del evaluador (navegador, Claude Code local, nodos y perfiles) desde `../web_evaluator`, sin copiarlos.
+Usa módulos del evaluador (navegador, Claude Code local, nodos y perfiles) desde `../web_evaluator`.
 
 ## Uso
 
 ```bash
 uv run main.py route --task wom-baja-fibra
-uv run main.py route --task sii-exencion-contribuciones --profiles desktop,mobile
+uv run main.py route --task sii-exencion-contribuciones --viewports desktop,mobile
 uv run main.py route --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
 ```
 
 | Opción | Qué hace |
 |---|---|
-| `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). La ruta queda en `agents/.runs/<id>/reference/<perfil>/`. |
-| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. La ruta queda en `agents/.runs/reference/<perfil>/`. |
-| `--profiles` | Viewports separados por coma: `desktop` (1024x768, el de `first_time` y `hurried`) y `mobile` (390x844). Por defecto, `desktop`. |
+| `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). La ruta queda en `agents/.runs/<id>/reference/<viewport>/`. |
+| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. La ruta queda en `agents/.runs/reference/<viewport>/`. |
+| `--viewports` | Viewports separados por coma: `desktop` (1024x768, el de `first_time` y `hurried`) y `mobile` (390x844). Por defecto, `desktop`. |
 | `--model`, `--effort` | Modelo y nivel de esfuerzo (por defecto `claude-opus-5-5`, `high`). |
 | `--output` | Otra carpeta base en vez de `agents/.runs/<id>/`. |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
@@ -51,11 +51,13 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 | `mapper/quote.py`, `mapper/output.py` | Comprobación de la cita y escritura de la ruta. |
 
 1. **Explorar.** En cada turno el modelo recibe la vista del DOM y una captura, y responde una acción: `click`,
-   `fill` o `select` sobre una ref, `press`, `back`, o el final `done`, `blocked` o `give_up`. `done` lleva la
-   respuesta y una cita textual de la página; si la cita no está en el texto visible, se rechaza. No puede ir a una URL
+   `fill` o `select` sobre una ref, `press`, `back`, `scroll`, o el final `done`, `blocked` o `give_up`. El texto de la
+   página llega desde la pantalla actual. `done` lleva la respuesta y una cita textual de la página; si la cita no está
+   en el texto visible, se rechaza. No puede ir a una URL
    ni usar un elemento oculto: primero debe abrir lo que lo muestra.
 2. **Destilar.** Se corta cada vuelta que regresa a un nodo ya visitado (URL normalizada más título, como en el
-   evaluador). Las acciones dentro de una página se conservan.
+   evaluador), desde donde se llegó a él. Las acciones dentro de una página se conservan. Si esa candidata no verifica,
+   se prueba cortar desde donde se salió del nodo, porque volver atrás puede conservar el estado de la página.
 3. **Verificar y minimizar.** La ruta se repite en un contexto nuevo con los localizadores registrados. Si llega al
    mismo nodo final y la cita está en la página, queda `verified`. Después se prueba quitar cada acción que no cambia
    de página y se conserva la ruta más corta que sigue verificando. Esta fase no llama al modelo.
@@ -68,7 +70,7 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 ## Salida
 
 ```
-agents/.runs/<tarea>/reference/<perfil>/
+agents/.runs/<tarea>/reference/<viewport>/
 ├── route.json        estado, respuesta, cita, totales, pasos, exploración y verificación
 ├── route.md
 ├── step_NN.png       la pantalla después de cada paso (step_00 es el inicio)
@@ -84,5 +86,4 @@ terminó sin respuesta).
 uv run pytest -q
 ```
 
-No llaman a Claude: cubren la vista, las acciones, la destilación, la cita y el recorrido completo con un modelo
-guionizado sobre un sitio local.
+No llaman a Claude: el recorrido completo usa un modelo guionizado sobre un sitio local.

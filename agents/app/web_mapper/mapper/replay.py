@@ -9,9 +9,8 @@ from browser import BrowserSession, create_context
 from profiles import Profile
 from route_tree import node_key
 
-from mapper.explore import Log
 from mapper.locators import resolve_locators
-from mapper.operate import ActionRejected, perform_step
+from mapper.operate import ActionRejected, Log, perform_step
 from mapper.page_view import page_text
 from mapper.quote import quote_in_text, quote_on_screen
 from mapper.route import Step
@@ -29,8 +28,13 @@ class Replay:
     quote_on_screen: bool = False
     error: str | None = None
 
-    def verifies(self, final_node: str) -> bool:
-        return self.error is None and self.quote_found and node_key(self.final_url, self.final_title) == final_node
+    def failure(self, final_node: str) -> str | None:
+        """Por qué la repetición no verifica la ruta, o None si la verifica."""
+        if self.error:
+            return self.error
+        if node_key(self.final_url, self.final_title) != final_node:
+            return f"terminó en otra página: «{self.final_title}» {self.final_url}"
+        return None if self.quote_found else "la cita no está en la página final"
 
 
 @dataclass
@@ -74,22 +78,14 @@ async def replay_route(browser: Browser, profile: Profile, url: str, route: list
     return replay
 
 
-def _failure(replay: Replay, final_node: str) -> str:
-    if replay.error:
-        return replay.error
-    if node_key(replay.final_url, replay.final_title) != final_node:
-        return f"terminó en otra página: «{replay.final_title}» {replay.final_url}"
-    return "la cita no está en la página final"
-
-
 async def verify_and_minimise(
     browser: Browser, profile: Profile, url: str, candidate: list[Step], final_node: str, quote: str, log: Log = print
 ) -> Verification:
     """Verifica la candidata y quita, una por una, las acciones que no cambian de página si la ruta sigue verificando."""
     best = await replay_route(browser, profile, url, candidate, quote)
     replays = 1
-    if not best.verifies(final_node):
-        error = _failure(best, final_node)
+    error = best.failure(final_node)
+    if error:
         log(f"la ruta candidata no verificó: {error}")
         return Verification(False, candidate, best, replays, 0, error)
 
@@ -101,7 +97,7 @@ async def verify_and_minimise(
         trial_route = route[:index] + route[index + 1:]
         trial = await replay_route(browser, profile, url, trial_route, quote)
         replays += 1
-        if trial.verifies(final_node):
+        if trial.failure(final_node) is None:
             log(f"se quitó el paso {index + 1}: {route[index].label}")
             route, best = trial_route, trial
     return Verification(True, best.steps, best, replays, len(candidate) - len(route), None)

@@ -10,18 +10,11 @@ import argparse
 import asyncio
 import json
 import shutil
-import tempfile
 import time
 from pathlib import Path
 
-from playwright.async_api import async_playwright
-
 from mapper import config
-from mapper.decider import ClaudeDecider
-from mapper.prompts import system_prompt
-from mapper.reference import Mapping, map_reference
-
-from browser import connect_browser  # del evaluador: va después de `mapper`, que lo pone en sys.path
+from mapper.reference import Mapping, map_references
 
 AGENTS_DIR = Path(__file__).resolve().parents[2]
 RUNS_DIR = AGENTS_DIR / ".runs"
@@ -41,13 +34,13 @@ def build_parser() -> argparse.ArgumentParser:
     target.add_argument("--url", help="URL inicial del sitio")
     target.add_argument("--instruction", help="Tarea en lenguaje natural")
     route.add_argument(
-        "--profiles", default="desktop", help=f"viewports separados por coma: {', '.join(config.VIEWPORTS)} (por defecto: desktop)"
+        "--viewports", default="desktop", help=f"viewports separados por coma: {', '.join(config.VIEWPORTS)} (por defecto: desktop)"
     )
     route.add_argument("--model", default=config.MODEL, help=f"modelo del Mapeador (por defecto: {config.MODEL})")
     route.add_argument("--effort", default=config.EFFORT, choices=["low", "medium", "high", "xhigh", "max"])
     route.add_argument(
         "--output", type=Path, default=None,
-        help="carpeta base (por defecto agents/.runs/<tarea>/, o agents/.runs/ con --url); la ruta queda en reference/<perfil>/",
+        help="carpeta base (por defecto agents/.runs/<tarea>/, o agents/.runs/ con --url); la ruta queda en reference/<viewport>/",
     )
     route.add_argument("--cdp-url", default=None, help="navegador remoto vía CDP (por defecto, Chromium local)")
     return parser
@@ -68,31 +61,11 @@ def resolve_target(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
     parser.error("falta qué mapear: usa --task <id>, o --url con --instruction")
 
 
-async def run_routes(mappings: list[Mapping], cdp_url: str | None) -> list[dict]:
-    # Claude Code corre en una carpeta vacía para no cargar CLAUDE.md ni memoria de ningún proyecto.
-    claude_cwd = Path(tempfile.mkdtemp(prefix="web_mapper-claude-"))
-    try:
-        async with async_playwright() as playwright:
-            browser = await connect_browser(playwright, cdp_url)
-            try:
-                return await asyncio.gather(*(
-                    map_reference(browser, mapping, ClaudeDecider(
-                        system_prompt(mapping.profile.width, mapping.profile.height),
-                        mapping.model, mapping.effort, claude_cwd, mapping.out_dir / "claude_code.log",
-                    ))
-                    for mapping in mappings
-                ))
-            finally:
-                await browser.close()
-    finally:
-        shutil.rmtree(claude_cwd, ignore_errors=True)
-
-
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
     task_id, url, instruction, base_dir = resolve_target(parser, args)
-    viewports = [key.strip() for key in args.profiles.split(",") if key.strip()]
+    viewports = [key.strip() for key in args.viewports.split(",") if key.strip()]
     unknown = [key for key in viewports if key not in config.VIEWPORTS]
     if unknown:
         parser.error(f"viewports desconocidos: {', '.join(unknown)}; disponibles: {', '.join(config.VIEWPORTS)}")
@@ -104,11 +77,14 @@ def main() -> None:
         for key in viewports
     ]
     started = time.monotonic()
-    documents = asyncio.run(run_routes(mappings, args.cdp_url))
+    results = asyncio.run(map_references(mappings, args.cdp_url))
     print(f"\nListo en {time.monotonic() - started:.0f} s.")
-    for mapping, document in zip(mappings, documents):
-        totals = document["totals"]
-        print(f"  {mapping.viewport}: {document['status']}, {totals['min_steps']} pasos mínimos — {mapping.out_dir / 'route.md'}")
+    for mapping, result in zip(mappings, results):
+        if isinstance(result, BaseException):
+            print(f"  {mapping.viewport}: error interno, {type(result).__name__}: {result}")
+        else:
+            print(f"  {mapping.viewport}: {result['status']}, {result['totals']['min_steps']} pasos mínimos"
+                  f" — {mapping.out_dir / 'route.md'}")
 
 
 if __name__ == "__main__":

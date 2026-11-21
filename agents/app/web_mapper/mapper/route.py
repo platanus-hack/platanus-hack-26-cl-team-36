@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 
 from route_tree import node_key
 
-# Acciones de UI del evaluador que necesita una persona que solo ve la pantalla para hacer cada acción.
-UI_ACTIONS_PER_ACTION = {"click": 1, "fill": 2, "select": 2, "press": 1, "back": 1}
+# Acciones de UI del evaluador por acción (escribir o elegir = clic + tecleo).
+UI_ACTIONS_PER_ACTION = {"click": 1, "fill": 2, "select": 2, "press": 1, "back": 1, "scroll": 1}
 
 
 @dataclass
@@ -20,8 +20,8 @@ class Target:
 
 @dataclass
 class Step:
-    action: str              # click | fill | select | press | back
-    value: str | None        # texto escrito, opción elegida o tecla
+    action: str              # click | fill | select | press | back | scroll
+    value: str | None        # texto escrito, opción elegida, tecla o dirección del scroll
     target: Target | None
     url_before: str
     title_before: str
@@ -57,22 +57,27 @@ class Step:
         return UI_ACTIONS_PER_ACTION[self.action] + self.scrolls_needed
 
 
-def distill(steps: list[Step]) -> list[Step]:
+def distill(steps: list[Step], keep_steps_before_leaving: bool = False) -> list[Step]:
     """Corta cada vuelta que regresa a un nodo ya visitado; conserva las acciones dentro de una página.
 
-    Al volver a un nodo, la ruta se recorta hasta donde se salió de él, con lo hecho allí antes de salir.
+    Al volver a un nodo, la ruta se recorta hasta donde se llegó a él: volver por un enlace recarga la página y lo
+    hecho allí se repite. Con `keep_steps_before_leaving` se recorta hasta donde se salió, para cuando volver atrás
+    conserva el estado de la página.
     """
     route: list[Step] = []
-    departures: dict[str, int] = {}  # nodo -> largo de la ruta al salir de él
+    marks: dict[str, int] = {steps[0].node_before: 0} if steps and not keep_steps_before_leaving else {}
     for step in steps:
-        if step.changes_node and step.node_after in departures:
-            cut = departures[step.node_after]
+        if step.changes_node and step.node_after in marks:
+            cut = marks[step.node_after]
             del route[cut:]
-            departures = {node: length for node, length in departures.items() if length < cut}
+            marks = {node: length for node, length in marks.items()
+                     if length < cut or (node == step.node_after and not keep_steps_before_leaving)}
             continue
-        if step.changes_node:
-            departures[step.node_before] = len(route)
+        if step.changes_node and keep_steps_before_leaving:
+            marks[step.node_before] = len(route)
         route.append(step)
+        if step.changes_node and not keep_steps_before_leaving:
+            marks[step.node_after] = len(route)
     return route
 
 

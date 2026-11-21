@@ -9,12 +9,25 @@ from mapper import config
 
 _HELPERS_JS = r"""
 const clean = (s, n = 80) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
+const clippedByAncestor = (el, box) => {
+  if (getComputedStyle(el).position === 'fixed') return false;
+  for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+    const style = getComputedStyle(node);
+    const clipsX = /hidden|clip/.test(style.overflowX), clipsY = /hidden|clip/.test(style.overflowY);
+    if (!clipsX && !clipsY) continue;
+    const clip = node.getBoundingClientRect();
+    if (clipsX && (box.right <= clip.left || box.left >= clip.right)) return true;
+    if (clipsY && (box.bottom <= clip.top || box.top >= clip.bottom)) return true;
+  }
+  return false;
+};
 const displayable = (el) => {
   const box = el.getBoundingClientRect();
   if (box.width <= 1 || box.height <= 1) return false;
   if (!el.checkVisibility({checkOpacity: true, checkVisibilityCSS: true})) return false;
   const left = box.left + scrollX, width = document.documentElement.scrollWidth;
-  return left + box.width > 0 && left < width;
+  if (left + box.width <= 0 || left >= width || box.bottom + scrollY <= 0) return false;
+  return !clippedByAncestor(el, box);
 };
 const centerInViewport = (el) => {
   const box = el.getBoundingClientRect();
@@ -70,13 +83,38 @@ _SNAPSHOT_JS = "(maxElements) => {" + _HELPERS_JS + r"""
   const headings = [...document.querySelectorAll('h1, h2, h3, [role=heading]')]
     .filter(displayable).map((h) => (h.tagName.match(/^H\d$/) ? h.tagName.toLowerCase() : 'h') + ' ' + clean(h.innerText, 100))
     .filter((h) => h.length > 3).slice(0, 40);
+  // Posición en innerText del primer texto que se ve desde el borde superior del viewport.
+  const textOffset = (text) => {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const rendered = {};
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const snippet = clean(node.textContent, 40);
+      if (snippet.length < 3) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const box = range.getBoundingClientRect();
+      if (box.height <= 0) continue;
+      rendered[snippet] = (rendered[snippet] || 0) + 1;
+      if (box.bottom <= 0) continue;
+      let index = -1;
+      for (let seen = 0; seen < rendered[snippet]; seen++) {
+        index = text.indexOf(snippet, index + 1);
+        if (index < 0) break;
+      }
+      // Un nodo largo que empieza sobre la pantalla: se estima cuánto de él ya quedó arriba.
+      if (index >= 0) return index + (box.top < 0 ? Math.floor(clean(node.textContent, 1e9).length * -box.top / box.height) : 0);
+    }
+    return 0;
+  };
+  const text = document.body ? document.body.innerText : '';
   return {
     url: location.href,
     title: document.title,
     scrollY: Math.round(scrollY),
     pageHeight: document.documentElement.scrollHeight,
     headings,
-    text: document.body ? document.body.innerText : '',
+    text,
+    textOffset: textOffset(text),
     total: elements.length,
     elements: kept.map((el, i) => {
       const visible = displayable(el);
@@ -133,6 +171,7 @@ class PageView:
     elements: list[Element]
     total_elements: int     # antes del tope de config.MAX_ELEMENTS
     text: str               # texto visible completo (innerText del body)
+    text_offset: int        # dónde empieza en `text` lo que está en pantalla
 
     def element(self, ref: str) -> Element | None:
         return next((element for element in self.elements if element.ref == ref), None)
@@ -153,6 +192,7 @@ async def read_page_view(page: Page) -> PageView:
     return PageView(
         url=raw["url"], title=raw["title"].strip(), scroll_y=raw["scrollY"], page_height=raw["pageHeight"],
         headings=raw["headings"], elements=elements, total_elements=raw["total"], text=raw["text"],
+        text_offset=raw["textOffset"],
     )
 
 
@@ -167,12 +207,12 @@ async def element_for_ref(page: Page, ref: str) -> ElementHandle | None:
     return handle.as_element()
 
 
-async def is_displayable(handle: ElementHandle) -> bool:
-    return await handle.evaluate(f"(el) => {{ {_HELPERS_JS} return displayable(el); }}")
-
-
-async def is_in_viewport(handle: ElementHandle) -> bool:
-    return await handle.evaluate(f"(el) => {{ {_HELPERS_JS} return displayable(el) && centerInViewport(el); }}")
+async def display_state(handle: ElementHandle) -> tuple[bool, bool]:
+    """Si el elemento se puede mostrar y si su centro está en el viewport."""
+    visible, in_viewport = await handle.evaluate(
+        f"(el) => {{ {_HELPERS_JS} const visible = displayable(el); return [visible, visible && centerInViewport(el)]; }}"
+    )
+    return visible, in_viewport
 
 
 async def page_text(page: Page) -> str:

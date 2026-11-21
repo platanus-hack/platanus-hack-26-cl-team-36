@@ -75,6 +75,7 @@ setup:
     uv run playwright install chromium
     cd ../web_mapper
     uv sync
+    uv run playwright install chromium
     echo "Done. Next: \`just local up\`"
 
 # ── 2. Run ────────────────────────────────────────────────────────────────
@@ -245,7 +246,7 @@ backoffice:
 
 # ── 6. Reference routes ───────────────────────────────────────────────────
 
-# Finds and verifies the shortest route for a task in agents/tasks/. E.g. just local route wom-baja-fibra --profiles desktop,mobile
+# Finds and verifies the shortest route for a task in agents/tasks/. E.g. just local route wom-baja-fibra --viewports desktop,mobile
 [group('6. Reference routes · calls Claude, uses your plan')]
 [working-directory('agents/app/web_mapper')]
 [positional-arguments]
