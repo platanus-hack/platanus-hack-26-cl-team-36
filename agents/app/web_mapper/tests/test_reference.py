@@ -56,7 +56,7 @@ def test_detour_and_useless_step_are_removed_and_route_verifies(site, tmp_path):
         ("click", "Menú", {}),
         ("click", "Ayuda", {}),
         ("click", "Imprimir", {}),                  # no hace nada: la minimización lo quita
-        ("click", "¿Cómo doy de baja?", {}),
+        ("click", "¿Cómo doy de baja?", {}),         # abre el acordeón al borde del viewport: la cita queda abajo
         ("done", None, {"answer": "Llamar al 103", "quote": "Para dar de baja llama al 104."}),
         ("done", None, {"answer": "Llamar al 103", "quote": QUOTE}),
     ])
@@ -65,7 +65,11 @@ def test_detour_and_useless_step_are_removed_and_route_verifies(site, tmp_path):
     assert document["status"] == "verified" and document["quote_found"]
     assert [step["target"]["name"] for step in document["steps"]] == ["Menú", "Ayuda", "¿Cómo doy de baja?"]
     assert [step["in_viewport"] for step in document["steps"]] == [True, True, False]
-    assert document["totals"] == {"actions": 3, "estimated_scrolls": 1, "min_steps": 4, "distinct_pages": 2}
+    assert document["totals"] == {
+        "actions": 3, "estimated_scrolls": 1, "quote_scrolls": 1, "min_steps": 5, "distinct_pages": 2,
+    }
+    assert [node.split(" | ")[1] for node in document["nodes"]] == ["Inicio", "Ayuda"]
+    assert document["final_node"] == document["nodes"][-1]
     assert document["verification"] == {"replays": 4, "removed_steps": 1, "error": None}
     assert document["exploration"]["steps"] == 6 and document["exploration"]["turns"] == 9
     assert document["evaluator_profiles"] == ["first_time", "hurried"]

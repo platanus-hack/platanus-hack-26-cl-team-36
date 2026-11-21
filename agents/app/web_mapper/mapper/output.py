@@ -6,7 +6,7 @@ from pathlib import Path
 
 from route_tree import node_key
 
-from mapper.route import Step, totals
+from mapper.route import Step, route_nodes, totals
 
 
 def _step_record(number: int, step: Step) -> dict:
@@ -34,14 +34,18 @@ def _step_record(number: int, step: Step) -> dict:
     }
 
 
-def route_document(meta: dict, status: str, start_url: str, start_title: str, steps: list[Step], details: dict) -> dict:
+def route_document(
+    meta: dict, status: str, start_url: str, start_title: str, steps: list[Step], quote_scrolls: int, details: dict
+) -> dict:
     """`meta`: tarea, viewport y modelo. `details`: respuesta, cita, exploración y verificación."""
     start_node = node_key(start_url, start_title)
     return {
         **meta,
         "status": status,
         **details,
-        "totals": totals(steps, start_node),
+        "totals": totals(steps, start_node, quote_scrolls),
+        "nodes": route_nodes(steps, start_node),
+        "final_node": steps[-1].node_after if steps else start_node,
         "start": {"url": start_url, "title": start_title, "node": start_node, "screenshot": "step_00.png"},
         "steps": [_step_record(number, step) for number, step in enumerate(steps, 1)],
     }
@@ -55,7 +59,8 @@ def route_markdown(document: dict) -> str:
         f"- Estado: **{document['status']}** · viewport {document['profile']} ({document['viewport']})",
         f"- Respuesta: {document['answer'] or '—'}",
         f"- Cita: «{document['quote']}» (en la página: {'sí' if document['quote_found'] else 'no'})" if document["quote"] else "- Cita: —",
-        f"- Pasos mínimos: {summary['min_steps']} ({summary['actions']} acciones, {summary['estimated_scrolls']} scrolls,"
+        f"- Pasos mínimos: {summary['min_steps']} ({summary['actions']} acciones,"
+        f" {summary['estimated_scrolls'] + summary['quote_scrolls']} scrolls,"
         f" {summary['distinct_pages']} páginas)",
         f"- Exploración: {document['exploration']['steps']} acciones, {document['exploration']['turns']} turnos,"
         f" US$ {document['exploration']['cost_usd']}",

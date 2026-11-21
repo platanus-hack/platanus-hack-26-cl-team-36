@@ -1,4 +1,4 @@
-from mapper.route import Step, distill, totals
+from mapper.route import Step, distill, route_nodes, totals
 
 
 def _step(name: str, before: str, after: str, in_viewport: bool | None = True, action: str = "click") -> Step:
@@ -35,6 +35,11 @@ def test_distill_cuts_nested_loops_and_a_return_to_the_start():
 
 def test_totals_count_ui_actions_like_the_evaluator():
     steps = [_step("menú", "a", "a"), _step("buscar", "a", "a", False, "fill"), _step("ir", "a", "b")]
-    assert totals(steps, steps[0].node_before) == {
-        "actions": 3, "estimated_scrolls": 1, "min_steps": 1 + (2 + 1) + 1, "distinct_pages": 2,
+    assert totals(steps, steps[0].node_before, 1) == {
+        "actions": 3, "estimated_scrolls": 1, "quote_scrolls": 1, "min_steps": 1 + (2 + 1) + 1 + 1, "distinct_pages": 2,
     }
+
+
+def test_route_nodes_are_distinct_and_ordered():
+    steps = [_step("menú", "a", "a"), _step("ir", "a", "b"), _step("abrir", "b", "b"), _step("seguir", "b", "c")]
+    assert [node.split(" | ")[1] for node in route_nodes(steps, steps[0].node_before)] == ["a", "b", "c"]

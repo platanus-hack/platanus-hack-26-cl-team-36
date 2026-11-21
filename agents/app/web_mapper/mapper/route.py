@@ -76,11 +76,17 @@ def distill(steps: list[Step]) -> list[Step]:
     return route
 
 
-def totals(steps: list[Step], start_node: str) -> dict:
-    scrolls = sum(step.scrolls_needed for step in steps)
+def route_nodes(steps: list[Step], start_node: str) -> list[str]:
+    """Nodos distintos de la ruta, en orden, desde el inicial."""
+    return list(dict.fromkeys([start_node, *(step.node_after for step in steps)]))
+
+
+def totals(steps: list[Step], start_node: str, quote_scrolls: int) -> dict:
+    """`quote_scrolls`: 1 si al final hay que desplazarse para tener la cita en pantalla."""
     return {
         "actions": len(steps),
-        "estimated_scrolls": scrolls,
-        "min_steps": sum(step.ui_actions for step in steps),
-        "distinct_pages": len({start_node, *(step.node_after for step in steps)}),
+        "estimated_scrolls": sum(step.scrolls_needed for step in steps),
+        "quote_scrolls": quote_scrolls,
+        "min_steps": sum(step.ui_actions for step in steps) + quote_scrolls,
+        "distinct_pages": len(route_nodes(steps, start_node)),
     }

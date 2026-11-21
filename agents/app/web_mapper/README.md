@@ -62,7 +62,8 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 - **Límites:** 40 acciones, 60 turnos y 15 minutos de exploración. Los envíos de formularios POST o con contraseña se
   cancelan, como en el evaluador.
 - **Pasos mínimos** (`min_steps`) en la unidad del evaluador: un clic o una tecla es 1, escribir o elegir en una lista
-  es 2 (clic y tecleo), y cada elemento que estaba fuera de pantalla suma un scroll.
+  es 2 (clic y tecleo), cada elemento que estaba fuera de pantalla suma un scroll, y suma otro si al final la cita no
+  está en pantalla (`quote_scrolls`), porque el juez decide con la captura final.
 
 ## Salida
 

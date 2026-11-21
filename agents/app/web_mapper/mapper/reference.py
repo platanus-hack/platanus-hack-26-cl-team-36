@@ -103,8 +103,9 @@ async def map_reference(browser: Browser, mapping: Mapping, decider: Decider) ->
     else:
         status, steps = ("verified" if verification.verified else "unverified"), verification.route
     start = verification.replay if verification and verification.verified else exploration
+    quote_scrolls = int(bool(verification and verification.replay.quote_found and not verification.replay.quote_on_screen))
     document = route_document(
-        _meta(mapping), status, start.start_url, start.start_title, steps,
+        _meta(mapping), status, start.start_url, start.start_title, steps, quote_scrolls,
         _details(exploration, verification, decider.usage, decider.cost_usd),
     )
     write_reference(mapping.out_dir, document, start.start_screenshot, steps)

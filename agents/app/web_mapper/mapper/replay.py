@@ -13,7 +13,7 @@ from mapper.explore import Log
 from mapper.locators import resolve_locators
 from mapper.operate import ActionRejected, perform_step
 from mapper.page_view import page_text
-from mapper.quote import quote_in_text
+from mapper.quote import quote_in_text, quote_on_screen
 from mapper.route import Step
 
 
@@ -26,6 +26,7 @@ class Replay:
     final_url: str = ""
     final_title: str = ""
     quote_found: bool = False
+    quote_on_screen: bool = False
     error: str | None = None
 
     def verifies(self, final_node: str) -> bool:
@@ -65,6 +66,7 @@ async def replay_route(browser: Browser, profile: Profile, url: str, route: list
         if replay.error is None:
             replay.final_url, replay.final_title = await session.url_and_title()
             replay.quote_found = quote_in_text(quote, await page_text(session.page))
+            replay.quote_on_screen = replay.quote_found and await quote_on_screen(session.page, quote)
     except PlaywrightError as error:
         replay.error = f"el navegador falló: {error.message.splitlines()[0]}"
     finally:
