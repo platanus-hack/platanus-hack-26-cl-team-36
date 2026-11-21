@@ -3,7 +3,13 @@
 **Qué es esta carpeta.** Aquí van los spikes del proyecto: sus scripts y sus informes. Qué spikes hay que hacer y
 por qué está en [el plan](../docs/plan.md).
 
-Todavía no se ha hecho ninguno.
+Hechos hasta ahora:
+
+| Fecha | Pregunta | Informe |
+|---|---|---|
+| 2026-11-21 | ¿Hasta qué nivel de cambio se puede modificar wom.cl sin romperlo? | [alcance-cambios-wom](2026-11-21-alcance-cambios-wom.md) |
+
+Los tres spikes del plan todavía no se han hecho.
 
 ## Qué es un spike
 
