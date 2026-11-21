@@ -154,6 +154,12 @@ class Run:
     videos: list[str] = field(default_factory=list)  # con --record-video: video.webm y uno más por pestaña nueva
     video_offset_s: float = 0.0                     # segundo del video en que empieza el intento (carga inicial)
     verdict: dict = field(default_factory=dict)     # outcome, justification y, si aplica, model_verdict
+    # Exploradores con nivel de conocimiento (conocimiento.py): el nivel, si `sin_contexto` leyó la tarea con palabras
+    # de todos los días (False = la tarea no traía esa versión y leyó la original) y los términos oficiales que intentó
+    # escribir antes de verlos en el sitio (el harness no los dejó).
+    conocimiento: str | None = None
+    tarea_coloquial: bool | None = None
+    terminos_rechazados: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)

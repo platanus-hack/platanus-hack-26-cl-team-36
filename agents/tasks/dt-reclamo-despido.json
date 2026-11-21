@@ -3,5 +3,15 @@
   "host": "www.dt.gob.cl",
   "start_url": "https://www.dt.gob.cl/portal/1626/w3-channel.html",
   "description": "Te despidieron y crees que fue injustificado: llega al trámite para reclamar ante la Inspección del Trabajo.",
-  "expected_answer": "La ficha Ingreso de Reclamo por Despido (w3-article-125086.html)."
+  "expected_answer": "La ficha Ingreso de Reclamo por Despido (w3-article-125086.html).",
+  "description_sin_contexto": "Te echaron de tu trabajo y crees que no fue justo: llega a donde se pide que la Inspección del Trabajo revise tu caso.",
+  "terminos_oficiales": [
+    "despido injustificado",
+    "reclamo por despido",
+    "ingreso de reclamo",
+    "carta de aviso",
+    "comparendo",
+    "conciliación"
+  ],
+  "conocimiento_del_tema": "Cuando un trabajador cree que su despido fue injustificado puede presentar un reclamo por despido ante la Inspección del Trabajo; el trámite se llama ingreso de reclamo. Después se cita al trabajador y al empleador a un comparendo de conciliación. Se suele pedir la carta de aviso del despido y los datos del empleador."
 }

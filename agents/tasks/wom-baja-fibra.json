@@ -3,5 +3,13 @@
   "host": "www.wom.cl",
   "start_url": "https://www.wom.cl/",
   "description": "Encuentra cómo dar de baja tu servicio de Internet Fibra.",
-  "expected_answer": "Llamar al 103 desde una línea WOM, o al 22 337 7600."
+  "expected_answer": "Llamar al 103 desde una línea WOM, o al 22 337 7600.",
+  "description_sin_contexto": "Quieres dejar de tener el internet por fibra que tienes contratado con WOM en tu casa: averigua cómo cancelarlo.",
+  "terminos_oficiales": [
+    "dar de baja",
+    "baja de servicio",
+    "término de contrato",
+    "terminación de contrato"
+  ],
+  "conocimiento_del_tema": "En las compañías de telecomunicaciones, cancelar un servicio se llama dar de baja el servicio o término de contrato, y la empresa debe aceptar la baja por los mismos canales en que se contrató."
 }

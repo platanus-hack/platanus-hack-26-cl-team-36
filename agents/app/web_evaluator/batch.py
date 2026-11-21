@@ -16,6 +16,7 @@ import proposal
 import reference
 import report
 from browser import BrowserSession, NavegadorConTema, create_context, open_browsers, prohibido_en_tema
+from conocimiento import SIN_CONTEXTO, ConocimientoDeTarea
 from engines import ApiEngine, ClaudeCodeEngine
 from harness import SyntheticUser
 from judge import ApiJudge, ClaudeCodeJudge, judge_run, propose_criteria
@@ -126,11 +127,16 @@ async def run_batch(
     browser: str = "local",
     record_video: bool = False,
     tema_css: Path | None = None,
+    conocimiento: ConocimientoDeTarea | None = None,
+    conjunto_exploradores: str | None = None,
 ) -> Path:
     """Corre una tanda y devuelve su carpeta, con report.md, route_tree.json y una carpeta por perfil.
 
     Con `tema_css`, cada página de cada usuario (y la del criterio) se ve con ese tema, como con la extensión. La
     tanda deja una copia en `tema.css` y lo registra en `route_tree.json` (`tema`), para distinguirla de una sin tema.
+
+    Con `conocimiento` (lo que la tarea dice de su tema), los exploradores con nivel leen la tarea de su nivel; el
+    criterio y el juez usan siempre `instruction`. `conjunto_exploradores` solo se registra, para agrupar tandas.
     """
     css, tema = describir_tema(tema_css) if tema_css else (None, None)
     batch_dir = output_dir / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -172,7 +178,8 @@ async def run_batch(
                 criteria_task = asyncio.create_task(_criteria_for(judge, criteria_browser, url, instruction))
                 users = [
                     SyntheticUser(
-                        make_engine(), user_browser, PROFILES[key], url, instruction, batch_dir / key, record_video
+                        make_engine(), user_browser, PROFILES[key], url, instruction, batch_dir / key, record_video,
+                        conocimiento=conocimiento,
                     )
                     for key, user_browser in zip(profile_keys, user_browsers)
                 ]
@@ -213,7 +220,10 @@ async def run_batch(
         "judge_model": judge_model,
         "effort": effort,
         "tema": tema,
+        "conjunto_exploradores": conjunto_exploradores,
     }
+    if any(PROFILES[key].conocimiento == SIN_CONTEXTO for key in profile_keys):
+        meta["tarea_sin_contexto"] = (conocimiento or ConocimientoDeTarea()).description_sin_contexto
     _write_json(batch_dir / "criteria.json", criteria)
     _write_json(batch_dir / "route_tree.json", {**meta, "criteria": criteria, **tree})
     comparison = reference.compare_batch(output_dir, url, instruction, run_dicts)

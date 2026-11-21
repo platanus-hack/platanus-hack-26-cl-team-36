@@ -6,6 +6,7 @@ Uso, desde agents/app/web_evaluator/:
     uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal"
     uv run main.py --goals ../../.runs/www.wom.cl/goals/goals.json --limit 3
     uv run main.py --task wom-baja-fibra --css tema.css
+    uv run main.py --task sii-exencion-contribuciones --exploradores conocimiento --model claude-haiku-5-5
 """
 
 import argparse
@@ -17,8 +18,14 @@ from pathlib import Path
 
 import config
 from batch import TemaInvalido, describir_tema, run_batch
+from conocimiento import ConocimientoDeTarea
 from goals_run import run_catalog
-from profiles import PERFILES_POR_DEFECTO, PROFILES
+from profiles import (
+    CONJUNTOS_EXPLORADORES,
+    PERFILES_POR_DEFECTO,
+    PROFILES,
+    exploradores_del_conjunto,
+)
 from site_summary import write_summary
 
 AGENTS_DIR = Path(__file__).resolve().parents[2]
@@ -75,6 +82,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help=f"perfiles separados por coma, de: {', '.join(PROFILES)} (por defecto: {','.join(PERFILES_POR_DEFECTO)};"
         " con --goals, first_time). Los explorador* siguen la skill explorar-caminos y solo corren en local",
+    )
+    parser.add_argument(
+        "--exploradores",
+        nargs="?",
+        const=config.CONJUNTO_EXPLORADORES,
+        default=None,
+        choices=list(CONJUNTOS_EXPLORADORES),
+        metavar="CONJUNTO",
+        help="suma los exploradores de un conjunto: "
+        + "; ".join(f"{nombre} = {', '.join(claves)}" for nombre, claves in CONJUNTOS_EXPLORADORES.items())
+        + f". Sin nombre, {config.CONJUNTO_EXPLORADORES} (config.CONJUNTO_EXPLORADORES). Sin --profiles, corren solo ellos",
     )
     parser.add_argument(
         "--output",
@@ -145,9 +163,11 @@ def main() -> None:
         if task is None:
             parser.error(f"no existe la tarea '{args.task}'; disponibles: {', '.join(available_tasks()) or 'ninguna'}")
         url, instruction = task["start_url"], task["description"]
+        conocimiento = ConocimientoDeTarea.de_tarea(task)
         output_dir = args.output or RUNS_DIR / task["id"]
     elif args.url and args.instruction:
         url, instruction = args.url, args.instruction
+        conocimiento = None
         output_dir = args.output or RUNS_DIR
     else:
         parser.error("falta qué probar: usa --task <id>, --url con --instruction, o --goals <goals.json>")
@@ -158,14 +178,20 @@ def main() -> None:
         parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión, o usa --engine api")
     if args.cdp_url and args.browser != "local":
         parser.error("--cdp-url solo sirve con --browser local")
-    profiles = args.profiles or ("first_time" if args.goals else ",".join(PERFILES_POR_DEFECTO))
+    if args.exploradores and not args.profiles:
+        profiles = ""  # solo los exploradores del conjunto
+    else:
+        profiles = args.profiles or ("first_time" if args.goals else ",".join(PERFILES_POR_DEFECTO))
     profile_keys = [key.strip() for key in profiles.split(",") if key.strip()]
+    if args.exploradores:
+        profile_keys += [key for key in exploradores_del_conjunto(args.exploradores) if key not in profile_keys]
     unknown = [key for key in profile_keys if key not in PROFILES]
     if unknown:
         parser.error(f"perfiles desconocidos: {', '.join(unknown)}; disponibles: {', '.join(PROFILES)}")
     if args.goals:
         options = {"engine": args.engine, "user_model": args.model, "effort": args.effort, "cdp_url": args.cdp_url,
-                   "browser": args.browser, "record_video": args.record_video, "tema_css": args.css}
+                   "browser": args.browser, "record_video": args.record_video, "tema_css": args.css,
+                   "conjunto_exploradores": args.exploradores}
         summary = asyncio.run(run_catalog(catalog, args.goals, RUNS_DIR, args.goal, args.limit, args.rerun, profile_keys,
                                           **options))
         print(f"\nListo. Resumen: {display_path(summary)}")
@@ -184,6 +210,8 @@ def main() -> None:
         browser=args.browser,
         record_video=args.record_video,
         tema_css=args.css,
+        conocimiento=conocimiento,
+        conjunto_exploradores=args.exploradores,
     ))
     print(f"\nListo. Reporte: {display_path(batch_dir / 'report.md')}")
 

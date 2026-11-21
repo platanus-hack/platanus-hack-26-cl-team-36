@@ -3,5 +3,12 @@
   "host": "www.ine.gob.cl",
   "start_url": "https://www.ine.gob.cl/",
   "description": "Necesitas saber cuándo sale el IPC de noviembre de 2026: averigua qué día y a qué hora lo publica el INE.",
-  "expected_answer": "El lunes 7 de diciembre de 2026 a las 08:00 (Agenda Estadística 2026)."
+  "expected_answer": "El lunes 7 de diciembre de 2026 a las 08:00 (Agenda Estadística 2026).",
+  "description_sin_contexto": "Quieres saber cuándo sale el dato oficial de cuánto subieron los precios en noviembre de 2026 (el que se usa para reajustar los arriendos): averigua qué día y a qué hora lo da a conocer el INE.",
+  "terminos_oficiales": [
+    "IPC",
+    "Índice de Precios al Consumidor",
+    "variación mensual"
+  ],
+  "conocimiento_del_tema": "El dato oficial de cuánto suben los precios es el IPC (Índice de Precios al Consumidor). El INE lo publica una vez al mes, con la variación mensual del mes anterior, en una fecha y hora que anuncia con anticipación."
 }

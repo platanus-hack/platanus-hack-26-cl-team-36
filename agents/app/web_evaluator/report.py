@@ -15,6 +15,7 @@ _SIGNAL_LABELS = {
     "revisit": "revisita",
     "security_block": "bloqueo de seguridad",
 }
+_NIVEL_LABELS = {"sin_contexto": "sin contexto", "conoce_tema": "conoce el tema"}
 _END_REASON_LABELS = {
     "done": "El usuario declaró que terminó",
     "blocked": "El usuario se detuvo porque el sitio pedía algo que no puede hacer",
@@ -108,6 +109,39 @@ def _action_with_target(step: dict) -> str:
     return step["description"]
 
 
+def _nivel_label(run: dict) -> str:
+    nivel = run.get("conocimiento")
+    return _NIVEL_LABELS.get(nivel, nivel) if nivel else "—"
+
+
+def _seccion_por_nivel(meta: dict, runs: list[dict]) -> list[str]:
+    """Resultados agrupados por nivel de conocimiento del tema; vacía si ningún intento tiene nivel."""
+    niveles = [nivel for nivel in _NIVEL_LABELS if any(run.get("conocimiento") == nivel for run in runs)]
+    if not niveles:
+        return []
+    lines = ["", "## Resultado por nivel de conocimiento", ""]
+    if "tarea_sin_contexto" in meta:
+        if meta["tarea_sin_contexto"]:
+            lines.append(f"Tarea que leyó el nivel «sin contexto»: {meta['tarea_sin_contexto']}")
+        else:
+            lines.append("La tarea no trae versión con palabras de todos los días: «sin contexto» leyó la original.")
+        lines.append("")
+    lines += [
+        "| Nivel | Intentos | Éxitos | Pasos (mediana) | Tiempo (mediana) | Escrituras rechazadas |",
+        "|---|---|---|---|---|---|",
+    ]
+    for nivel in niveles:
+        del_nivel = [run for run in runs if run.get("conocimiento") == nivel]
+        exitos = sum(run["verdict"].get("outcome") == "success" for run in del_nivel)
+        pasos = statistics.median(len(run["steps"]) for run in del_nivel)
+        tiempo = statistics.median(run["duration_s"] for run in del_nivel)
+        rechazos = sum(len(run.get("terminos_rechazados") or []) for run in del_nivel)
+        lines.append(
+            f"| {_NIVEL_LABELS[nivel]} | {len(del_nivel)} | {exitos} | {pasos:.0f} | {tiempo:.0f} s | {rechazos} |"
+        )
+    return lines
+
+
 def hesitation_points(run: dict) -> list[str]:
     """Pasos donde el usuario dudó o se equivocó, según las señales del registro."""
     steps = run["steps"]
@@ -176,20 +210,25 @@ def generate(
     for item in criteria.get("evidence", []):
         lines.append(f"- {item}")
 
+    con_nivel = any(run.get("conocimiento") for run in runs)
     lines += [
         "",
         "## Resumen por perfil",
         "",
-        "| Perfil | Viewport | Resultado | Pasos | Clics | Tiempo | Señales de error |",
-        "|---|---|---|---|---|---|---|",
+        "| Perfil | Viewport |" + (" Conocimiento |" if con_nivel else "")
+        + " Resultado | Pasos | Clics | Tiempo | Señales de error |",
+        "|---|---|---|---|---|---|---|" + ("---|" if con_nivel else ""),
     ]
     for run in runs:
         acciones, segundos = _limites(run)
         lines.append(
-            f"| {run['profile_name']} | {run['viewport']} | {_outcome_label(run['verdict'].get('outcome'))} | "
+            f"| {run['profile_name']} | {run['viewport']} |" + (f" {_nivel_label(run)} |" if con_nivel else "")
+            + f" {_outcome_label(run['verdict'].get('outcome'))} | "
             f"{len(run['steps'])} de {acciones} | {_count_clicks(run['steps'])} | "
             f"{run['duration_s']:.0f} s de {segundos} s | {_count_signals(run['steps'])} |"
         )
+
+    lines += _seccion_por_nivel(meta, runs)
 
     if comparison:
         lines += reference.report_section(comparison, {run["profile"]: run["profile_name"] for run in runs})
