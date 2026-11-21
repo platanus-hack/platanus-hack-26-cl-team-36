@@ -5,7 +5,14 @@ from dataclasses import dataclass, field
 LEVELS = ("summary", "user_goal", "subfunction")
 INTENTS = ("find_info", "reach_page", "transact")
 PROMINENCE_ORDER = ("buried", "secondary", "primary")
-EXCLUDING_GATES = {"login", "personal_data", "bot_check"}  # el evaluador no puede intentarlos
+EXCLUDING_GATES = ("login", "personal_data", "bot_check")  # el evaluador no puede intentarlos
+
+# El Mapeador no envía formularios: en un objetivo `transact` la ruta llega hasta el paso anterior al envío.
+_SUFFIXES = {
+    "transact": " Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto"
+                " de esa pantalla.",
+    "reach_page": " Termina en esa página y cita su título o encabezado principal.",
+}
 
 
 @dataclass
@@ -26,10 +33,30 @@ class Goal:
     gates: list[str] = field(default_factory=list)
     complexity: str | None = None
     reference_route: dict | None = None
+    # Lo que el evaluador lee sin repetir estas reglas: la tarea que reciben ambos y por qué no lo intentaría.
+    instruction: str = ""
+    exclusion: str | None = None
 
 
-def routable(goals: list[Goal], limit: int) -> list[Goal]:
-    """Los `user_goal` que el evaluador puede intentar, los más escondidos primero y luego por id."""
-    candidates = [goal for goal in goals if goal.level == "user_goal" and not EXCLUDING_GATES & set(goal.gates)]
+def instruction(goal: Goal) -> str:
+    return goal.description + _SUFFIXES.get(goal.intent, "")
+
+
+def exclusion(goal: Goal) -> str | None:
+    """Por qué el evaluador no lo intenta (nivel o barrera), o None si lo intenta."""
+    if goal.level != "user_goal":
+        return f"nivel {goal.level}"
+    blocking = [gate for gate in EXCLUDING_GATES if gate in goal.gates]
+    return f"barrera {', '.join(blocking)}" if blocking else None
+
+
+def fill_evaluation(goal: Goal) -> None:
+    goal.instruction = instruction(goal)
+    goal.exclusion = exclusion(goal)
+
+
+def routable(goals: list[Goal], limit: int | None) -> list[Goal]:
+    """Los que el evaluador puede intentar, los más escondidos primero y luego por id; `limit` None es todos."""
+    candidates = [goal for goal in goals if exclusion(goal) is None]
     candidates.sort(key=lambda goal: (PROMINENCE_ORDER.index(goal.prominence), goal.id))
     return candidates[:limit]

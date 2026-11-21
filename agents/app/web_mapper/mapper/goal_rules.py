@@ -5,7 +5,7 @@ import re
 from route_tree import normalize_url
 
 from mapper import config
-from mapper.goals import INTENTS, LEVELS, Goal
+from mapper.goals import INTENTS, LEVELS, Goal, fill_evaluation
 from mapper.outline import Field, Link, PageOutline, SiteOutline
 
 _ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -205,9 +205,10 @@ def complexity(steps: int | None) -> str | None:
 
 
 def classify(raw_goals: list[dict], outline: SiteOutline, viewport_height: int) -> tuple[list[Goal], list[str]]:
-    """Valida lo que propuso el modelo y completa `prominence` y `gates`."""
+    """Valida lo que propuso el modelo y completa `prominence`, `gates`, `instruction` y `exclusion`."""
     goals, issues = validate(raw_goals, outline)
     for goal in goals:
         goal.prominence = prominence(goal, outline, viewport_height)
         goal.gates = gates(goal, outline)
+        fill_evaluation(goal)
     return goals, issues

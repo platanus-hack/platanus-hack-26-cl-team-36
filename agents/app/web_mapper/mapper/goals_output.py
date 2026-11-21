@@ -1,11 +1,11 @@
-"""Escritura del catálogo: outline.json, goals.json y goals.md."""
+"""Escritura y lectura del catálogo: outline.json, goals.json y goals.md."""
 
 import json
 from dataclasses import asdict
 from pathlib import Path
 
-from mapper.outline import SiteOutline
-from mapper.goals import Goal
+from mapper.outline import Field, Form, Link, PageOutline, SiteOutline
+from mapper.goals import Goal, fill_evaluation
 
 
 def _write_json(path: Path, data) -> None:
@@ -42,3 +42,24 @@ def goals_markdown(meta: dict, goals: list[Goal], issues: list[str]) -> str:
 def write_catalog(out_dir: Path, meta: dict, goals: list[Goal], issues: list[str]) -> None:
     _write_json(out_dir / "goals.json", {**meta, "issues": issues, "goals": [asdict(goal) for goal in goals]})
     (out_dir / "goals.md").write_text(goals_markdown(meta, goals, issues), encoding="utf-8")
+
+
+def read_catalog(path: Path) -> tuple[dict, list[Goal], list[str]]:
+    """Meta, objetivos y correcciones de un goals.json; `instruction` y `exclusion` se recalculan con las reglas actuales."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    fields = Goal.__dataclass_fields__
+    goals = [Goal(**{key: value for key, value in raw.items() if key in fields}) for raw in data.pop("goals")]
+    for goal in goals:
+        fill_evaluation(goal)
+    return data, goals, data.pop("issues")
+
+
+def read_outline_file(path: Path) -> SiteOutline:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    pages = [
+        PageOutline(**{**page, "links": [Link(**link) for link in page["links"]],
+                       "forms": [Form(form["method"], form["zone"], [Field(**item) for item in form["fields"]])
+                                 for form in page["forms"]]})
+        for page in data["pages"]
+    ]
+    return SiteOutline(**{**data, "pages": pages})
