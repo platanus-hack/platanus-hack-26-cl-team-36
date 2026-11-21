@@ -13,7 +13,7 @@ personal_repo := "brayanmoreno/hackathon-grupo36"
 help:
     @just --list --list-submodules --unsorted
 
-# Copies main and the tags to the personal repo now, and follows the deploy if one starts
+# Copies main and the tags to the personal repo now, and follows the deploys it starts
 [group('GitHub')]
 sync: _gh
     #!/usr/bin/env bash
@@ -37,20 +37,28 @@ sync: _gh
     fi
     echo "  ✔ The personal repo is at $(gh api repos/{{ personal_repo }}/commits/main --jq '.sha[0:7]'), same as main"
 
-    # A push that touches backend/ or infra/app/ starts the Terraform workflow within seconds.
-    deploy=""
-    for _ in $(seq 8); do deploy="$(run_since terraform.yml push)"; [ -n "$deploy" ] && break; sleep 2; done
-    if [ -z "$deploy" ]; then
-        echo "  ✔ Nothing to deploy: no changes in backend/ or infra/app/"
+    # Within seconds, the push starts every workflow whose paths it touches (Terraform,
+    # AgentCore…). Give them time to show up, then follow each one.
+    sleep 10
+    runs="$(gh run list -R {{ personal_repo }} --event push --branch main --limit 20 \
+        --json databaseId,createdAt,workflowName \
+        --jq "[.[] | select(.createdAt >= \"$since\")] | reverse | .[] | \"\(.databaseId)\t\(.workflowName)\"")"
+    if [ -z "$runs" ]; then
+        echo "  ✔ Nothing to deploy: the changes don't touch any deploy workflow"
         exit 0
     fi
-    echo "Deploying to AWS… (https://github.com/{{ personal_repo }}/actions/runs/$deploy)"
-    if ! gh run watch "$deploy" -R {{ personal_repo }} --exit-status --interval 5 > /dev/null; then
-        echo "  ✘ The deploy failed:" >&2
-        gh run view "$deploy" -R {{ personal_repo }} --log-failed | tail -n 20 >&2
-        exit 1
-    fi
-    echo "  ✔ Deployed"
+    failed=0
+    while IFS=$'\t' read -r run name; do
+        echo "$name… (https://github.com/{{ personal_repo }}/actions/runs/$run)"
+        if gh run watch "$run" -R {{ personal_repo }} --exit-status --interval 5 > /dev/null < /dev/null; then
+            echo "  ✔ $name done"
+        else
+            echo "  ✘ $name failed:" >&2
+            gh run view "$run" -R {{ personal_repo }} --log-failed < /dev/null | tail -n 20 >&2
+            failed=1
+        fi
+    done <<< "$runs"
+    exit "$failed"
 
 # Publishes a signed version of the extension from main, e.g. just publish v0.3.0
 [group('GitHub')]
