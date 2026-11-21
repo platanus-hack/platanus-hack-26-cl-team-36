@@ -1,7 +1,6 @@
 """Ruta de referencia de una tarea en un viewport: explorar, verificar, buscar una más corta y escribir."""
 
 import asyncio
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +9,7 @@ from playwright.async_api import Browser
 from shared.browser.session import BrowserSession, create_context
 from shared.browser.viewports import Screen
 from shared.claude.caller import ClaudeCaller
+from shared import store
 
 from guide import config
 from guide.candidates import Candidate, search_record, shorter_instruction
@@ -24,16 +24,24 @@ from guide.route import distill
 
 @dataclass
 class Mapping:
-    """Qué mapear y dónde dejarlo."""
+    """Qué mapear y de qué corridas viene."""
 
-    task_id: str | None
+    goal: str
     url: str
     instruction: str
     screen: Screen
     model: str
     effort: str
-    out_dir: Path
+    inputs: tuple[store.RunKey, ...] = ()
     extra_routes: int = config.EXTRA_ROUTES
+
+    @property
+    def prefix(self) -> store.RunPrefix:
+        return store.guide(self.url, self.goal, self.screen.viewport)
+
+    @property
+    def label(self) -> str:
+        return f"{self.goal} {self.screen.viewport}"
 
 
 async def _explore(browser: Browser, mapping: Mapping, decider: Decider, instruction: str, log: Log) -> Exploration:
@@ -47,7 +55,7 @@ async def _explore(browser: Browser, mapping: Mapping, decider: Decider, instruc
 def _meta(mapping: Mapping) -> dict:
     screen = mapping.screen
     return {
-        "task_id": mapping.task_id,
+        "goal": mapping.goal,
         "instruction": mapping.instruction,
         "start_url": mapping.url,
         "viewport": screen.viewport,
@@ -120,36 +128,33 @@ async def _search(browser: Browser, mapping: Mapping, decider: Decider, log: Log
     return candidates, best
 
 
-async def map_reference(browser: Browser, mapping: Mapping, decider: Decider) -> dict:
-    """Mapea la ruta, la escribe en `mapping.out_dir` y devuelve el documento de route.json."""
-    viewport = mapping.screen.viewport
-    prefix = f"{mapping.task_id} {viewport}" if mapping.task_id else viewport
-
+async def map_reference(browser: Browser, mapping: Mapping, decider: Decider, out_dir: Path) -> dict:
+    """Mapea la ruta, la escribe en `out_dir` y devuelve el documento de route.json."""
     def log(text: str) -> None:
-        print(f"[{prefix}] {text}", flush=True)
+        print(f"[{mapping.label}] {text}", flush=True)
 
-    shutil.rmtree(mapping.out_dir, ignore_errors=True)
-    mapping.out_dir.mkdir(parents=True)
     candidates, best = await _search(browser, mapping, decider, log)
     document = route_document(
         _meta(mapping), best.status, best.start, best.steps, best.quote_scrolls,
         {**_details(best, decider.usage, decider.cost_usd), "search": search_record(candidates, best)},
     )
-    write_reference(mapping.out_dir, document, best.start[2], best.steps)
-    log(f"{best.status}: {document['totals']['min_steps']} pasos mínimos — {mapping.out_dir / 'route.json'}")
+    write_reference(out_dir, document, best.start[2], best.steps)
+    log(f"{best.status}: {document['totals']['min_steps']} pasos mínimos")
     return document
 
 
 async def map_references(
-    browser: Browser, mappings: list[Mapping], claude_cwd: Path, concurrency: int
-) -> list[dict | BaseException]:
-    """Mapea varias rutas, a lo más `concurrency` a la vez; el error de una no detiene a las demás."""
+    browser: Browser, backend: store.Backend, mappings: list[Mapping], claude_cwd: Path, concurrency: int
+) -> list[tuple[store.RunKey, dict] | BaseException]:
+    """Una corrida de guide por ruta, a lo más `concurrency` a la vez; el error de una no detiene a las demás."""
     semaphore = asyncio.Semaphore(concurrency)
 
-    async def one(mapping: Mapping) -> dict:
-        caller = ClaudeCaller(mapping.model, mapping.effort, claude_cwd, mapping.out_dir / "claude_code.log")
-        decider = ClaudeDecider(system_prompt(mapping.screen.width, mapping.screen.height), caller)
+    async def one(mapping: Mapping) -> tuple[store.RunKey, dict]:
         async with semaphore:
-            return await map_reference(browser, mapping, decider)
+            with store.running(backend, mapping.prefix, model=mapping.model, inputs=mapping.inputs) as run:
+                caller = ClaudeCaller(mapping.model, mapping.effort, claude_cwd, run.workdir / "claude_code.log")
+                decider = ClaudeDecider(system_prompt(mapping.screen.width, mapping.screen.height), caller)
+                document = await map_reference(browser, mapping, decider, run.workdir)
+            return run.key, document
 
     return await asyncio.gather(*(one(mapping) for mapping in mappings), return_exceptions=True)

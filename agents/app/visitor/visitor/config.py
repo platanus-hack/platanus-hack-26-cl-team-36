@@ -3,10 +3,6 @@
 import os
 from pathlib import Path
 
-AGENTS_DIR = Path(__file__).resolve().parents[3]
-RUNS_DIR = AGENTS_DIR / ".runs"
-TASKS_DIR = AGENTS_DIR / "tasks"
-
 # Modelos en local: los usuarios sintéticos navegan con Sonnet; el criterio y el veredicto los da Opus.
 # En AWS se usa solo Sonnet 4.6 (BEDROCK_*_MODEL, más abajo).
 USER_MODEL = "claude-sonnet-5-5"
@@ -30,8 +26,10 @@ EXPLORADOR_MAX_TURNOS = 70
 
 # Skills de Claude Code del repo (.claude/skills/): algunos perfiles cargan una en su prompt. La carpeta queda fuera
 # de la imagen de AgentCore, así que ahí no hay skills (None) y esos perfiles solo corren en local.
-_SKILLS = AGENTS_DIR.parent / ".claude" / "skills"
-DIR_SKILLS: Path | None = _SKILLS if _SKILLS.is_dir() else None
+# Desde agents/app/visitor/visitor/config.py, la raíz del repo está cuatro carpetas arriba.
+_CARPETAS_ARRIBA = Path(__file__).resolve().parents
+_SKILLS = _CARPETAS_ARRIBA[4] / ".claude" / "skills" if len(_CARPETAS_ARRIBA) > 4 else None
+DIR_SKILLS: Path | None = _SKILLS if _SKILLS and _SKILLS.is_dir() else None
 
 # Señales de error.
 NO_EFFECT_THRESHOLD = 0.005  # fracción de píxeles que deben cambiar para que una acción "tenga efecto"

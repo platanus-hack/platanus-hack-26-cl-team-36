@@ -1,28 +1,38 @@
-"""Escritura de summary.json y summary.md junto al catálogo."""
+"""Una corrida de summary: summary.json y summary.md del último catálogo del sitio."""
 
 import json
-from pathlib import Path
 
+import posixpath
+
+from shared import store
 from shared.catalog.files import read_catalog, read_outline
 
 from summary.markdown import summary_markdown
 from summary.rows import goal_row, totals
 
 
-def write_summary(catalog_path: Path, runs_dir: Path, tema: str | None = None) -> Path:
-    """Escribe el resumen del catálogo y devuelve la ruta de summary.md.
+def write_summary(backend: store.Backend, url: str, tema: str | None = None) -> store.RunKey:
+    """Escribe el resumen del último catálogo de `url` y devuelve su corrida.
 
-    Con `tema` (sha256 corto), solo cuenta las tandas con ese tema y escribe summary-tema-<sha>.{json,md}.
+    Con `tema` (sha256 corto), solo cuenta las tandas con ese tema; summary.json lo registra en `tema`.
     """
-    meta, goals, _ = read_catalog(catalog_path)
-    summary_dir = catalog_path.parent
-    outline = read_outline(summary_dir / "outline.json")
-    rows = [goal_row(goal, outline, runs_dir, summary_dir, tema) for goal in goals]
-    total = totals(rows)
-    name = f"summary-tema-{tema}" if tema else "summary"
-    (summary_dir / f"{name}.json").write_text(
-        json.dumps({"host": meta["host"], "tema": tema, "totals": total, "goals": rows}, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    (summary_dir / f"{name}.md").write_text(summary_markdown(meta["host"], rows, total), encoding="utf-8")
-    return summary_dir / f"{name}.md"
+    catalog = store.latest_run(backend, store.cataloger(url))
+    if catalog is None:
+        raise LookupError(f"no hay catálogo de {url}")
+    meta, goals, _ = read_catalog(backend, catalog)
+    outline = read_outline(backend, catalog)
+    rows, inputs = [], [catalog]
+    for goal in goals:
+        row, used = goal_row(backend, goal, outline, tema)
+        rows.append(row)
+        inputs += used
+    with store.running(backend, store.summary(url), model=None, inputs=inputs) as run:
+        for row in rows:
+            row["report"] = row["report"] and posixpath.relpath(row["report"], str(run.key))
+        total = totals(rows)
+        (run.workdir / "summary.json").write_text(
+            json.dumps({"host": meta["host"], "tema": tema, "totals": total, "goals": rows}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        (run.workdir / "summary.md").write_text(summary_markdown(meta["host"], rows, total), encoding="utf-8")
+    return run.key

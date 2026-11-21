@@ -8,19 +8,21 @@ from pathlib import Path
 
 from playwright.async_api import Browser, async_playwright
 
+from shared import store
 from shared.browser.session import BrowserSession, create_context
 from shared.browser.theme import NavegadorConTema, describir_tema
 from shared.browser.viewports import SCREENS
 from shared.claude.workdir import claude_workdir
 
-from visitor import config, proposal, report
+from visitor import config, report
 from visitor.api_engine import ApiEngine
 from visitor.browsers import open_browsers
 from visitor.claude_code_engine import ClaudeCodeEngine
-from visitor.comparison import compare_batch
+from visitor.comparison import References, compare_batch
 from visitor.harness import SyntheticUser
 from visitor.judge import ApiJudge, ClaudeCodeJudge, judge_run, propose_criteria
 from visitor.profiles import PROFILES
+from visitor.proposal import proposals
 from visitor.recording import Run
 from visitor.route_tree import build_route_tree
 
@@ -150,33 +152,13 @@ async def _attempts(judge, make_engine, profile_keys: list[str], url: str, instr
     return runs, criteria
 
 
-async def run_batch(
-    url: str,
-    instruction: str,
-    profile_keys: list[str],
-    output_dir: Path,
-    engine: str = "claude-code",
-    user_model: str | None = None,
-    effort: str = config.USER_EFFORT,
-    cdp_url: str | None = None,
-    task_id: str | None = None,
-    browser: str = "local",
-    record_video: bool = False,
-    tema_css: Path | None = None,
-) -> Path:
-    """Corre una tanda y devuelve su carpeta, con report.md, route_tree.json y una carpeta por perfil.
-
-    Con `tema_css`, cada página de cada usuario (y la del criterio) se ve con ese tema, como con la extensión. La
-    tanda deja una copia en `tema.css` y lo registra en `route_tree.json` (`tema`), para distinguirla de una sin tema.
-    """
+async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, profile_keys: list[str],
+                       references: References, engine: str, user_model: str, judge_model: str, effort: str,
+                       cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None) -> None:
     css, tema = describir_tema(tema_css) if tema_css else (None, None)
-    batch_dir = output_dir / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    batch_dir.mkdir(parents=True, exist_ok=False)
     if css is not None:
         (batch_dir / "tema.css").write_text(css, encoding="utf-8")
         print(f"[tema] {tema['archivo']} (sha256 {tema['sha256']})", flush=True)
-
-    user_model, judge_model = models_for(engine, user_model)
     with claude_workdir("visitor") as claude_cwd:
         judge, make_engine = _judge_and_engines(engine, user_model, judge_model, effort, claude_cwd)
         runs, criteria = await _attempts(judge, make_engine, profile_keys, url, instruction, batch_dir, browser,
@@ -188,8 +170,8 @@ async def run_batch(
     meta = {
         "url": url,
         "instruction": instruction,
-        "task_id": task_id,
-        "timestamp": batch_dir.name,
+        "task_id": goal,
+        "timestamp": datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
         "engine": engine,
         "browser": browser,
         "user_model": user_model,
@@ -199,9 +181,41 @@ async def run_batch(
     }
     _write_json(batch_dir / "criteria.json", criteria)
     _write_json(batch_dir / "route_tree.json", {**meta, "criteria": criteria, **tree})
-    comparison = compare_batch(output_dir, url, instruction, run_dicts)
+    comparison = compare_batch(references, run_dicts)
     if comparison:
-        comparison["proposals"] = proposal.write_proposals(output_dir, batch_dir, run_dicts, comparison)
-        _write_json(batch_dir / "reference_comparison.json", comparison)
+        found = proposals(run_dicts, comparison, references)
+        comparison["proposals"] = [item["route"] for item in found]
+        _write_json(batch_dir / "comparison.json", comparison)
+        if found:
+            _write_json(batch_dir / "proposals.json", found)
     (batch_dir / "report.md").write_text(report.generate(meta, criteria, run_dicts, tree, comparison), encoding="utf-8")
-    return batch_dir
+
+
+async def run_batch(
+    backend: store.Backend,
+    prefix: store.RunPrefix,
+    url: str,
+    instruction: str,
+    profile_keys: list[str],
+    references: References,
+    inputs: tuple[store.RunKey, ...] = (),
+    engine: str = "claude-code",
+    user_model: str | None = None,
+    effort: str = config.USER_EFFORT,
+    cdp_url: str | None = None,
+    browser: str = "local",
+    record_video: bool = False,
+    tema_css: Path | None = None,
+) -> store.RunKey:
+    """Una corrida de visitor: report.md, route_tree.json, comparison.json y una carpeta por perfil.
+
+    `inputs` y las corridas de guide de `references` quedan en el manifiesto. Con `tema_css`, cada página de cada
+    usuario (y la del criterio) se ve con ese tema, como con la extensión; la corrida deja una copia en `tema.css` y lo
+    registra en `route_tree.json` (`tema`), para distinguirla de una sin tema.
+    """
+    user_model, judge_model = models_for(engine, user_model)
+    with store.running(backend, prefix, model=user_model,
+                       inputs=(*inputs, *(key for key, _ in references.values()))) as run:
+        await _write_batch(run.workdir, prefix.goal, url, instruction, profile_keys, references, engine, user_model,
+                           judge_model, effort, cdp_url, browser, record_video, tema_css)
+    return run.key

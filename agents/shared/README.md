@@ -10,7 +10,7 @@ otro.
 | `shared.claude` | `process`: el proceso de `claude -p` en stream-json. `caller`: llamadas con salida JSON que suman tokens y costo. `workdir`: carpeta vacía para Claude Code. | cataloger, guide, visitor, web_designer |
 | `shared.nodes` | `urls`: URL normalizada, nodo de una página (URL más título) y sitio de una URL. | todos |
 | `shared.dom` | `visibility`: el JavaScript que decide qué se puede mostrar. | cataloger, guide |
-| `shared.catalog` | `goal`: el objetivo, qué se intenta y su id. `outline`: el esquema del sitio. `tasks`: las tareas escritas a mano. `files`: lectura de un catálogo del almacén. `routes`: la ruta vigente de un objetivo. `prominence`: prominencia y complejidad. `visits`: las tandas del Visitante de un objetivo, por tema. | cataloger, guide, visitor, summary |
+| `shared.catalog` | `goal`: el objetivo, qué se intenta y su id. `outline`: el esquema del sitio. `tasks`: las tareas escritas a mano. `files`: lectura de un catálogo del almacén. `routes`: la ruta vigente de un objetivo y su última corrida del Visitante con o sin tema. `prominence`: prominencia y complejidad. | cataloger, guide, visitor, summary |
 
 ## shared.store
 

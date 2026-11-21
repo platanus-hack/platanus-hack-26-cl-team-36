@@ -28,13 +28,14 @@ def map_site(tmp_path, script, on_done=None, extra_routes=1):
         (tmp_path / name).write_text(f'<meta charset="utf-8">{html}', encoding="utf-8")
     decider = ScriptedDecider(script, on_done)
     mapping = Mapping("prueba", (tmp_path / "index.html").as_uri(), "Encuentra cómo dar de baja", DESKTOP,
-                      "guion", "low", tmp_path / "out", extra_routes)
+                      "guion", "low", extra_routes=extra_routes)
+    (tmp_path / "out").mkdir()
 
     async def main():
         async with async_playwright() as playwright:
             browser = await connect_browser(playwright)
             try:
-                return await map_reference(browser, mapping, decider)
+                return await map_reference(browser, mapping, decider, tmp_path / "out")
             finally:
                 await browser.close()
 

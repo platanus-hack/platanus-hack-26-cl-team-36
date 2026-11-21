@@ -4,12 +4,11 @@ Los localizadores salen del texto y el href que el Visitante registró del eleme
 llega a su página final y la cita de la referencia está en ella.
 """
 
-import json
 from dataclasses import replace
-from pathlib import Path
 
 from playwright.async_api import Browser
 
+from shared import store
 from shared.browser.keys import is_back_key
 from shared.browser.viewports import SCREENS
 from shared.nodes.urls import node_key
@@ -22,7 +21,7 @@ from guide.route import Step, Target, totals
 
 _CLICKS = {"left_click", "double_click", "triple_click"}
 _IMPLICIT_ROLES = {"a": "link", "button": "button"}
-_META_KEYS = ("task_id", "instruction", "start_url", "viewport", "viewport_size", "model", "effort")
+_META_KEYS = ("goal", "instruction", "start_url", "viewport", "viewport_size", "model", "effort")
 
 
 class Unresolvable(Exception):
@@ -60,18 +59,16 @@ def derive_steps(proposal: dict) -> list[Step]:
     return steps
 
 
-def _write_json(path: Path, data: dict) -> None:
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+async def adopt(browser: Browser, backend: store.Backend, route_run: store.RunKey, proposal: dict,
+                visitor_run: store.RunKey, log: Log) -> str:
+    """Verifica la propuesta contra la ruta de `route_run`; si es más corta, es una corrida nueva de guide.
 
-
-async def adopt(browser: Browser, folder: Path, log: Log) -> str:
-    """Verifica la propuesta de `folder`, la adopta si es más corta y devuelve su estado nuevo."""
-    proposal = json.loads((folder / "proposed.json").read_text(encoding="utf-8"))
-    route = json.loads((folder / "route.json").read_text(encoding="utf-8"))
+    Devuelve `promoted`, `not_shorter`, `unverified` o `stale`.
+    """
+    route = backend.read_json(route_run.file("route.json"))
 
     def close(status: str, reason: str) -> str:
-        _write_json(folder / "proposed.json", {**proposal, "status": status, "reason": reason})
-        log(f"{folder}: {status} — {reason}")
+        log(f"{route_run}: {status} — {reason}")
         return status
 
     if (proposal["start_url"], proposal["instruction"]) != (route["start_url"], route["instruction"]):
@@ -94,12 +91,11 @@ async def adopt(browser: Browser, folder: Path, log: Log) -> str:
         **{key: route.get(key) for key in ("answer", "quote", "exploration", "search")},
         "quote_found": True,
         "verification": {"replays": 1, "removed_steps": 0, "error": None},
-        "adopted_from": {"batch": proposal["batch"], "profile": proposal["profile"], "previous_min_steps": previous},
+        "adopted_from": {"run": str(visitor_run), "profile": proposal["profile"], "previous_min_steps": previous},
     }
     document = route_document({key: route.get(key) for key in _META_KEYS}, "verified",
                               (replay.start_url, replay.start_title, replay.start_screenshot), replay.steps,
                               quote_scrolls, details)
-    for old in folder.glob("step_*.png"):
-        old.unlink()
-    write_reference(folder, document, replay.start_screenshot, replay.steps)
-    return close("promoted", f"{new_steps} pasos mínimos; la referencia tenía {previous}")
+    with store.running(backend, route_run.prefix, model=route.get("model"), inputs=(route_run, visitor_run)) as run:
+        write_reference(run.workdir, document, replay.start_screenshot, replay.steps)
+    return close("promoted", f"{new_steps} pasos mínimos; la referencia tenía {previous} — {run.key}")

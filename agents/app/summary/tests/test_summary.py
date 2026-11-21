@@ -1,64 +1,73 @@
-import json
+from datetime import timedelta
+
+from shared import store
 
 from summary.site import write_summary
-from tests.fixtures_site import START, goal, write_batch, write_catalog, write_json, write_route
+from tests.fixtures_site import NOW, START, goal, write_batch, write_catalog, write_route
 
 
-def test_summary_from_files_on_disk(tmp_path):
-    runs_dir = tmp_path / ".runs"
+def _summary(backend: store.Backend) -> tuple[store.RunKey, dict, str]:
+    run = write_summary(backend, START)
+    return run, backend.read_json(run.file("summary.json")), backend.read_text(run.file("summary.md"))
+
+
+def test_summary_from_the_latest_runs_names_its_inputs(tmp_path):
+    backend = store.LocalBackend(tmp_path)
     goals = [goal("s-menos"), goal("s-igual"), goal("s-falla"), goal("s-login", gates=["login"]),
              goal("s-sin-tanda"), goal("s-sin-ruta"), goal("s-grupo", level="summary")]
+    catalog = write_catalog(backend, goals)
     for item, steps in zip(goals[:3] + goals[4:5], (3, 2, 4, 5)):
-        write_route(runs_dir, item, steps)
-    write_batch(runs_dir, "s-menos", {"first_time": ("success", 2, 1.0, True), "hurried": ("failed", 6, 0.0, False)})
-    write_batch(runs_dir, "s-menos", {"first_time": ("success", 9, 0.3, False)}, name="2025-01-01_00-00-00")
-    write_batch(runs_dir, "s-igual", {"first_time": ("success", 2, 1.0, False)})
-    write_batch(runs_dir, "s-falla", {"first_time": ("abandoned", 15, 0.0, False)})
-    write_json(runs_dir / "s-menos" / "reference" / "desktop" / "proposed.json", {"status": "proposed"})
-    catalog = write_catalog(tmp_path / ".runs" / "www.sitio.cl" / "goals", goals)
+        write_route(backend, item, steps)
+    write_batch(backend, "s-menos", {"first_time": ("success", 9, 0.3, False)}, NOW - timedelta(days=1))
+    latest = write_batch(backend, "s-menos", {"first_time": ("success", 2, 1.0, True), "hurried": ("failed", 6, 0.0, False)},
+                         proposals=True)
+    write_batch(backend, "s-igual", {"first_time": ("success", 2, 1.0, False)})
+    write_batch(backend, "s-falla", {"first_time": ("abandoned", 15, 0.0, False)})
 
-    markdown = write_summary(catalog, runs_dir).read_text(encoding="utf-8")
-    summary = json.loads((catalog.parent / "summary.json").read_text(encoding="utf-8"))
+    run, summary, markdown = _summary(backend)
     assert summary["totals"] == {"goals": 7, "mapped": 4, "verified": 4, "evaluated": 3, "runs": 4, "successes": 2,
                                  "success_rate": 0.5, "spl": 0.5, "beat_reference": 1, "proposals": 1}
     rows = {row["id"]: row for row in summary["goals"]}
     assert [rows[key]["fewer"] for key in ("s-menos", "s-igual", "s-falla")] == ["visitante", "igual", None]
-    assert rows["s-menos"]["report"] == "../../s-menos/2026-01-01_00-00-00/report.md"
+    report = f"../../visitor/s-menos/{latest.run_id}/report.md"
+    assert rows["s-menos"]["report"] == report
     assert {key: rows[key]["not_run"] for key in ("s-login", "s-sin-tanda", "s-sin-ruta", "s-grupo")} == {
         "s-login": "barrera login", "s-sin-tanda": "sin tanda (límite o error)",
         "s-sin-ruta": "sin ruta (límite o error)", "s-grupo": "nivel summary",
     }
     assert ("| `s-menos` Tarea s-menos. | user_goal | find_info | buried | easy | 3 (2 rutas) |"
             " first_time: success, 2 pasos; hurried: failed, 6 pasos | 1.00; 0.00 | visitante (propuesta proposed) |"
-            " [reporte](../../s-menos/2026-01-01_00-00-00/report.md) |") in markdown
+            f" [reporte]({report}) |") in markdown
     assert "| `s-sin-ruta` Tarea s-sin-ruta. | sin ruta (límite o error) |" in markdown
     assert "Intentos con éxito: 2/4 (50%) · SPL: 0.50" in markdown
+    inputs = store.read_manifest(backend, run).inputs
+    assert inputs[0] == str(catalog) and str(latest) in inputs and len(inputs) == 1 + 4 + 3
 
 
-def test_a_verified_route_sets_prominence_and_complexity(tmp_path):
-    runs_dir = tmp_path / ".runs"
+def test_a_verified_route_sets_prominence_and_complexity_and_adoption_is_promoted(tmp_path):
+    backend = store.LocalBackend(tmp_path)
     deep = {"target": {"href": START + "baja"}, "in_viewport": False, "changes_node": True}
     goals = [goal("s-ruta", prominence="primary"), goal("s-sin-verificar", prominence="primary"), goal("s-sin-ruta")]
-    write_route(runs_dir, goals[0], min_steps=7, steps=[deep])
-    write_route(runs_dir, goals[1], status="not_found", steps=[deep])
-    catalog = write_catalog(tmp_path / "catalogo", goals, [{"text": "Baja", "href": START + "baja", "zone": "footer",
-                                                             "visible": True, "top": 5000}])
-    write_summary(catalog, runs_dir)
-    rows = {row["id"]: row for row in json.loads((catalog.parent / "summary.json").read_text(encoding="utf-8"))["goals"]}
+    write_catalog(backend, goals, [{"text": "Baja", "href": START + "baja", "zone": "footer", "visible": True,
+                                    "top": 5000}])
+    visit = write_batch(backend, "s-ruta", {"first_time": ("success", 4, 1.0, False)}, NOW - timedelta(days=1))
+    write_route(backend, goals[0], min_steps=7, steps=[deep], inputs=(visit,))
+    write_route(backend, goals[1], status="not_found", steps=[deep])
+    rows = {row["id"]: row for row in _summary(backend)[1]["goals"]}
     assert [(rows[key]["prominence"], rows[key]["complexity"]) for key in rows] == [
         ("buried", "medium"), ("primary", None), ("buried", None)]
+    assert rows["s-ruta"]["proposal"] == "promoted"
 
 
 def test_con_tema_solo_cuenta_las_tandas_de_ese_tema(tmp_path):
+    backend = store.LocalBackend(tmp_path)
     item = goal("s-a")
-    write_route(tmp_path, item)
-    write_batch(tmp_path, "s-a", {"first_time": ("abandoned", 9, None, False)})  # sin tema
-    write_batch(tmp_path, "s-a", {"first_time": ("success", 3, None, False)}, name="2026-01-02_00-00-00")
-    write_json(tmp_path / "s-a" / "2026-01-02_00-00-00" / "route_tree.json", {"tema": {"sha256": "abc123"}})
-    catalog = write_catalog(tmp_path / "catalogo", [item])
+    write_catalog(backend, [item])
+    write_route(backend, item, 3)
+    write_batch(backend, "s-a", {"first_time": ("abandoned", 9, None, False)}, NOW - timedelta(days=1))
+    write_batch(backend, "s-a", {"first_time": ("success", 3, None, False)}, tema="abc123")
 
-    sin_tema = json.loads(write_summary(catalog, tmp_path).with_suffix(".json").read_text(encoding="utf-8"))
-    con_tema = json.loads(write_summary(catalog, tmp_path, "abc123").with_suffix(".json").read_text(encoding="utf-8"))
-    assert sin_tema["goals"][0]["runs"][0]["outcome"] == "abandoned"
+    sin_tema = backend.read_json(write_summary(backend, START).file("summary.json"))
+    con_tema = backend.read_json(write_summary(backend, START, "abc123").file("summary.json"))
+    assert sin_tema["goals"][0]["runs"][0]["outcome"] == "abandoned" and sin_tema["tema"] is None
     assert con_tema["goals"][0]["runs"][0]["outcome"] == "success" and con_tema["tema"] == "abc123"
-    assert (catalog.parent / "summary-tema-abc123.md").is_file() and (catalog.parent / "summary.md").is_file()

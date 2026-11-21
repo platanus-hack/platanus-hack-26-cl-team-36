@@ -1,10 +1,9 @@
-import json
-
 import pytest
 
+from shared import store
 from shared.nodes.urls import node_key
 
-from visitor.comparison import compare, compare_batch, load_reference, report_section, visited_nodes
+from visitor.comparison import compare, compare_batch, find_references, reference_for, report_section, visited_nodes
 
 URL, INSTRUCTION = "https://s.cl/", "Encuentra el horario."
 HOME, HELP, HOURS, OTHER = (
@@ -79,35 +78,40 @@ def test_attempt_shorter_than_reference_is_capped_and_flagged():
     assert result["efficiency"] == 1.0 and result["beat_reference"]
 
 
-def _write_route(output_dir, viewport="desktop", **changes):
-    path = output_dir / "reference" / viewport / "route.json"
-    path.parent.mkdir(parents=True)
-    path.write_text(json.dumps({**ROUTE, **changes}), encoding="utf-8")
+def _publish(backend, run_status="succeeded", **changes):
+    run = store.start_run(backend, store.guide(URL, "horario", "desktop"), model="m")
+    backend.write_json(run.key.file("route.json"), {**ROUTE, **changes})
+    store.finish_run(backend, run, run_status)
+    return run.key
 
 
-def test_load_reference_matches_task_and_profile(tmp_path):
-    _write_route(tmp_path)
-    assert load_reference(tmp_path, URL, INSTRUCTION, "hurried") is not None
-    assert load_reference(tmp_path, URL, INSTRUCTION, "mobile") is None
-    assert load_reference(tmp_path, URL, "Otra tarea.", "hurried") is None
-    assert load_reference(tmp_path, URL, INSTRUCTION, "explorador") is None
+def test_find_references_match_goal_instruction_and_viewport(tmp_path):
+    backend = store.LocalBackend(tmp_path)
+    run = _publish(backend)
+    assert find_references(backend, URL, "horario", INSTRUCTION, ["hurried", "mobile"]) == {"desktop": (run, ROUTE)}
+    assert find_references(backend, URL, "horario", "Otra tarea.", ["hurried"]) == {}
+    assert find_references(backend, URL, "otro", INSTRUCTION, ["hurried"]) == {}
+    assert find_references(backend, URL, "horario", INSTRUCTION, ["explorador"]) == {}
+    assert reference_for({"desktop": (run, ROUTE)}, "explorador") is None
 
 
-def test_unreadable_route_is_ignored(tmp_path):
-    _write_route(tmp_path)
-    (tmp_path / "reference" / "desktop" / "route.json").write_text("{", encoding="utf-8")
-    assert load_reference(tmp_path, URL, INSTRUCTION, "hurried") is None
+def test_a_failed_newer_guide_run_does_not_hide_the_last_good_one(tmp_path):
+    backend = store.LocalBackend(tmp_path)
+    good = _publish(backend)
+    _publish(backend, run_status="failed")
+    assert find_references(backend, URL, "horario", INSTRUCTION, ["first_time"])["desktop"][0] == good
 
 
 def test_unverified_route_is_ignored(tmp_path):
-    _write_route(tmp_path, status="unverified")
-    assert compare_batch(tmp_path, URL, INSTRUCTION, [_run([HELP, HOURS])]) is None
+    backend = store.LocalBackend(tmp_path)
+    _publish(backend, status="unverified")
+    references = find_references(backend, URL, "horario", INSTRUCTION, ["first_time"])
+    assert references == {} and compare_batch(references, [_run([HELP, HOURS])]) is None
 
 
-def test_compare_batch_averages_efficiency_and_renders(tmp_path):
-    _write_route(tmp_path)
+def test_compare_batch_averages_efficiency_and_renders():
     runs = [_run([HELP, HOURS]), _run([HELP], outcome="failed", profile="hurried"), _run([HELP, HOURS], profile="mobile")]
-    comparison = compare_batch(tmp_path, URL, INSTRUCTION, runs)
+    comparison = compare_batch({"desktop": (None, ROUTE)}, runs)
     assert comparison["spl"] == 0.5 and [row["profile"] for row in comparison["runs"]] == ["first_time", "hurried"]
     section = "\n".join(report_section(comparison, {"first_time": "Primera vez"}))
     assert "| Primera vez | 2 / 2 | 1.00 | 0.00 | sí | 1.00 |" in section

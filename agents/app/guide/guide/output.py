@@ -74,7 +74,7 @@ def route_markdown(document: dict) -> str:
         lines.append(f"- Rutas exploradas: {search['tried']} (pasos mínimos: {tried}; se eligió la {search['chosen']})")
     if document.get("adopted_from"):
         source = document["adopted_from"]
-        lines.append(f"- Adoptada del Visitante: tanda {source['batch']}, perfil {source['profile']}"
+        lines.append(f"- Adoptada del Visitante: corrida {source['run']}, perfil {source['profile']}"
                      f" (la anterior tenía {source['previous_min_steps']} pasos mínimos)")
     lines += ["", f"0. Inicio en «{document['start']['title']}» {document['start']['url']}"]
     for step in document["steps"]:

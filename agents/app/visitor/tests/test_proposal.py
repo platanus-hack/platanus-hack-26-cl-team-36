@@ -1,9 +1,8 @@
-import json
-
+from shared import store
 from shared.nodes.urls import node_key
 
 from visitor.comparison import compare_batch, report_section
-from visitor.proposal import write_proposals
+from visitor.proposal import proposals
 
 URL, INSTRUCTION = "https://s.cl/", "Encuentra el horario."
 HOME, HELP, HOURS = ("https://s.cl/", "Inicio"), ("https://s.cl/ayuda", "Ayuda"), ("https://s.cl/horario", "Horario")
@@ -23,39 +22,33 @@ def _run(pages, profile="first_time", outcome="success"):
             "steps": steps, "verdict": {"outcome": outcome}}
 
 
-def _setup(tmp_path):
-    folder = tmp_path / "reference" / "desktop"
-    folder.mkdir(parents=True)
-    (folder / "route.json").write_text(json.dumps(ROUTE), encoding="utf-8")
-    return folder / "proposed.json"
+DESKTOP_RUN = store.guide("s.cl", "horario", "desktop").run("2026-01-01T00-00-00Z")
+MOBILE_RUN = store.guide("s.cl", "horario", "mobile").run("2026-01-01T00-00-00Z")
 
 
-def _propose(tmp_path, runs, batch="2026-01-01_00-00-00"):
-    comparison = compare_batch(tmp_path, URL, INSTRUCTION, runs)
-    return comparison, write_proposals(tmp_path, tmp_path / batch, runs, comparison)
+def _propose(runs, references=None):
+    references = references or {"desktop": (DESKTOP_RUN, ROUTE)}
+    comparison = compare_batch(references, runs)
+    return comparison, proposals(runs, comparison, references)
 
 
-def test_the_shortest_run_that_beats_the_reference_is_proposed(tmp_path):
-    path = _setup(tmp_path)
-    comparison, written = _propose(tmp_path, [_run([HELP, HOURS]), _run([HOURS], "hurried"), _run([HOURS], "mobile")])
-    assert written == ["reference/desktop/proposed.json"]
-    document = json.loads(path.read_text(encoding="utf-8"))
-    assert (document["profile"], document["batch"], document["steps_count"], document["reference_min_steps"]) == (
-        "hurried", "2026-01-01_00-00-00", 1, 3)
+def test_the_shortest_run_that_beats_the_reference_is_proposed():
+    comparison, found = _propose([_run([HELP, HOURS]), _run([HOURS], "hurried"), _run([HOURS, HOURS])])
+    [document] = found
+    assert (document["route"], document["profile"], document["steps_count"], document["reference_min_steps"]) == (
+        str(DESKTOP_RUN), "hurried", 1, 3)
     assert document["nodes"] == [node_key(*HOME), node_key(*HOURS)] and document["final_node"] == node_key(*HOURS)
     assert document["steps"][0]["element"] == {"tag": "a", "text": "Horario", "href": HOURS[0]}
-    comparison["proposals"] = written
-    assert "queda propuesto en `reference/desktop/proposed.json`" in "\n".join(report_section(comparison, {}))
+    comparison["proposals"] = [document["route"]]
+    assert f"menos pasos que la ruta `{DESKTOP_RUN}`" in "\n".join(report_section(comparison, {}))
 
 
-def test_no_proposal_without_a_successful_shorter_run(tmp_path):
-    path = _setup(tmp_path)
-    assert _propose(tmp_path, [_run([HELP, HOURS, HOURS]), _run([HOURS], "hurried", "failed")])[1] == []
-    assert not path.exists()
+def test_no_proposal_without_a_successful_shorter_run():
+    assert _propose([_run([HELP, HOURS, HOURS]), _run([HOURS], "hurried", "failed")])[1] == []
 
 
-def test_an_earlier_shorter_proposal_is_kept(tmp_path):
-    path = _setup(tmp_path)
-    _propose(tmp_path, [_run([HOURS])], "primera")
-    _propose(tmp_path, [_run([HELP, HOURS])], "segunda")
-    assert json.loads(path.read_text(encoding="utf-8"))["batch"] == "primera"
+def test_each_beaten_route_gets_its_own_proposal():
+    references = {"desktop": (DESKTOP_RUN, ROUTE), "mobile": (MOBILE_RUN, {**ROUTE, "viewport": "mobile"})}
+    found = _propose([_run([HOURS]), _run([HOURS], "mobile")], references)[1]
+    assert [(item["route"], item["profile"]) for item in found] == [(str(DESKTOP_RUN), "first_time"),
+                                                                    (str(MOBILE_RUN), "mobile")]

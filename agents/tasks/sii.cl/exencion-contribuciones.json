@@ -1,6 +1,6 @@
 {
-  "id": "sii-exencion-contribuciones",
-  "host": "www.sii.cl",
+  "id": "exencion-contribuciones",
+  "host": "sii.cl",
   "start_url": "https://www.sii.cl/",
   "description": "Tienes 67 años: encuentra hasta cuándo puedes pedir la exención de contribuciones de tu vivienda principal.",
   "expected_answer": "Hasta el 31 de diciembre de 2026."

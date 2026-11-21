@@ -2,10 +2,10 @@
 
 Uso, desde agents/app/guide/:
 
-    uv run main.py route --task wom-baja-fibra
+    uv run main.py route --task wom.cl/baja-fibra
     uv run main.py route --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal"
-    uv run main.py route --goals ../../.runs/www.wom.cl/goals/goals.json --routes 2
-    uv run main.py adopt --id wom-baja-fibra
+    uv run main.py route --site https://www.wom.cl/ --routes 2
+    uv run main.py adopt --goal wom.cl/baja-fibra
 """
 
 import argparse

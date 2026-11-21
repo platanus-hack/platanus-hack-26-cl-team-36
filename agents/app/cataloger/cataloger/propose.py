@@ -33,11 +33,10 @@ CATALOG_SCHEMA = {
 }
 
 
-def system_prompt(id_prefix: str) -> str:
-    return f"""Eres el Catalogador. Lees el esquema de un sitio (sus páginas, enlaces, formularios y botones) y haces el catálogo de los objetivos que el sitio ofrece a un visitante.
+SYSTEM_PROMPT = """Eres el Catalogador. Lees el esquema de un sitio (sus páginas, enlaces, formularios y botones) y haces el catálogo de los objetivos que el sitio ofrece a un visitante.
 
 CADA OBJETIVO
-- "id": kebab-case, único, empieza con "{id_prefix}-". Ejemplo: "{id_prefix}-horario-sucursal".
+- "id": kebab-case, único, sin el nombre del sitio. Ejemplo: "horario-sucursal".
 - "description": una tarea cerrada en segunda persona, con una sola interpretación y un final claro, como estas:
   · "Encuentra cómo dar de baja tu servicio de Internet Fibra."
   · "Tienes 67 años: encuentra hasta cuándo puedes pedir la exención de contribuciones de tu vivienda principal."
@@ -96,6 +95,6 @@ def render_outline(outline: SiteOutline) -> str:
     ])
 
 
-async def propose_goals(caller: ClaudeCaller, outline: SiteOutline, id_prefix: str) -> list[dict]:
-    output = await caller.ask(system_prompt(id_prefix), CATALOG_SCHEMA, render_outline(outline))
+async def propose_goals(caller: ClaudeCaller, outline: SiteOutline) -> list[dict]:
+    output = await caller.ask(SYSTEM_PROMPT, CATALOG_SCHEMA, render_outline(outline))
     return output["goals"]

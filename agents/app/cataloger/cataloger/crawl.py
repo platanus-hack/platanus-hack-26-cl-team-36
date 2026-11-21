@@ -11,6 +11,7 @@ from shared.browser.session import PAGE_LOAD_TIMEOUT_MS, BrowserSession, create_
 from shared.browser.viewports import Screen
 from shared.catalog.outline import PageOutline, SiteOutline
 from shared.nodes.urls import normalize_url, same_site
+from shared import store
 
 from cataloger import config
 from cataloger.outline import read_outline
@@ -52,7 +53,7 @@ async def _load(session: BrowserSession, url: str) -> int | None:
 
 async def crawl(browser: Browser, screen: Screen, start_url: str, max_pages: int, max_depth: int,
                 log: Callable[[str], None]) -> SiteOutline:
-    outline = SiteOutline(start_url, urlsplit(start_url).hostname or "", f"{screen.width}x{screen.height}", [], [])
+    outline = SiteOutline(start_url, store.normalize_host(start_url), f"{screen.width}x{screen.height}", [], [])
     queue: list[tuple[str, int]] = [(start_url, 0)]
     seen = {normalize_url(start_url)}
     context = await create_context(browser, screen)

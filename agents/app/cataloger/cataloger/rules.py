@@ -2,12 +2,11 @@
 
 import re
 
-from shared.catalog.goal import INTENTS, LEVELS, Goal, fill_evaluation
+from shared.catalog.goal import INTENTS, LEVELS, Goal, fill_evaluation, slugify
 from shared.catalog.outline import Field, PageOutline, SiteOutline
 from shared.catalog.prominence import prominence
+from shared.catalog.tasks import task_ids
 from shared.nodes.urls import normalize_url
-
-from cataloger import config
 
 _ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
@@ -44,27 +43,6 @@ def page_gates(page: PageOutline) -> list[str]:
     return gates
 
 
-def id_prefix(host: str) -> str:
-    """Primer nombre del host sin www, como en los ids de agents/tasks/ (www.wom.cl → wom)."""
-    return host.lower().removeprefix("www.").split(".")[0]
-
-
-def _slug(text: str) -> str:
-    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", text.lower())).strip("-")
-
-
-def _goal_id(raw_id: str | None, prefix: str) -> tuple[str, str | None]:
-    """El id en kebab-case con el prefijo del sitio, y la corrección si hubo que agregarlo."""
-    goal_id = _slug(raw_id or "")
-    if goal_id and not goal_id.startswith(f"{prefix}-"):
-        return f"{prefix}-{goal_id}", f"{goal_id}: id sin el prefijo «{prefix}-»; se agrega"
-    return goal_id, None
-
-
-def _task_ids() -> set[str]:
-    return {path.stem for path in config.TASKS_DIR.glob("*.json")}
-
-
 def _free_id(goal_id: str, taken: set[str]) -> str:
     number = 2
     while f"{goal_id}-{number}" in taken:
@@ -75,18 +53,16 @@ def _free_id(goal_id: str, taken: set[str]) -> str:
 def validate(raw_goals: list[dict], outline: SiteOutline, reserved: set[str] | None = None) -> tuple[list[Goal], list[str]]:
     """Convierte lo que propuso el modelo en objetivos válidos. Devuelve también qué se descartó o corrigió y por qué.
 
-    `reserved`: ids que no se pueden usar; por defecto, los de agents/tasks/.
+    `reserved`: ids que no se pueden usar; por defecto, los de las tareas del host.
     """
-    prefix = id_prefix(outline.host)
-    reserved = _task_ids() if reserved is None else reserved
+    reserved = task_ids(outline.host) if reserved is None else reserved
     pages = {normalize_url(page.url): page.url for page in outline.pages}
     start_hrefs = {link.href for link in outline.pages[0].links}
     goals: list[Goal] = []
     issues: list[str] = []
     proposed: set[str] = set()
     for raw in raw_goals:
-        goal_id, issue = _goal_id(raw.get("id"), prefix)
-        issues += [issue] if issue else []
+        goal_id = slugify(raw.get("id") or "")
         if not _ID.match(goal_id) or goal_id in proposed:
             issues.append(f"{raw.get('id')!r}: id vacío o repetido; se descarta")
             continue
@@ -102,7 +78,7 @@ def validate(raw_goals: list[dict], outline: SiteOutline, reserved: set[str] | N
             issues.append(f"{goal_id}: la entrada {entry} no es un enlace de la página inicial; queda sin entrada")
             entry = None
         proposed.add(goal_id)
-        parent = _goal_id(raw.get("parent"), prefix)[0] or None
+        parent = slugify(raw.get("parent") or "") or None
         goals.append(Goal(
             id=goal_id, host=outline.host, start_url=outline.start_url,
             description=raw["description"].strip(), expected_answer=None, level=raw["level"], parent=parent,
@@ -115,7 +91,7 @@ def validate(raw_goals: list[dict], outline: SiteOutline, reserved: set[str] | N
 
 
 def _rename_reserved(goals: list[Goal], reserved: set[str]) -> list[str]:
-    """Un id de agents/tasks/ recibe un sufijo numérico: la ruta de un objetivo se escribe en la carpeta de su id."""
+    """El id de una tarea del host recibe un sufijo numérico: una tarea y un objetivo del mismo id serían el mismo."""
     taken = reserved | {goal.id for goal in goals}
     renamed: dict[str, str] = {}
     for goal in goals:
