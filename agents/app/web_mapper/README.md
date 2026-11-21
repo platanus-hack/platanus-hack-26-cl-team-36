@@ -113,7 +113,7 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 3. **Campos sin modelo.** Se valida lo que propuso el modelo; lo que se descarta o corrige queda en `issues`.
    `prominence` sale del primer elemento de la ruta verificada en la página inicial o, sin ruta, de dónde está `entry`;
    `gates` de las señales de sus páginas de evidencia (solo campos visibles de formularios del contenido, no del
-   encabezado ni del pie) y `complexity` de la ruta, si verificó.
+   encabezado ni del pie) y `complexity` de las acciones de la ruta, sin scrolls, si verificó.
 4. **Rutas.** Con `--routes N`, se mapean los `user_goal` sin `login`, `personal_data` ni `bot_check`, primero los
    menos prominentes. Como el Mapeador no envía formularios, en un objetivo `transact` la instrucción le pide llegar
    hasta el paso anterior al envío; la ruta no prueba el envío.
