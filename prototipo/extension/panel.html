@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pieles</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <main>
+      <header class="cabecera">
+        <h1>Pieles</h1>
+        <span id="estado-puente" class="etiqueta" data-tono="neutro">Puente: comprobando…</span>
+      </header>
+
+      <section class="bloque">
+        <label for="sugerencia">¿Cómo quieres ver las páginas?</label>
+        <textarea
+          id="sugerencia"
+          rows="3"
+          placeholder="Por ejemplo: modo oscuro, texto más grande y sin barra lateral"
+        ></textarea>
+        <button id="guardar" type="button" class="principal">Guardar y aplicar</button>
+      </section>
+
+      <section class="bloque">
+        <label class="interruptor">
+          <input id="adaptar-todos" type="checkbox" />
+          <span>Adaptar todos los sitios</span>
+        </label>
+        <label class="interruptor">
+          <input id="adaptar-sitio" type="checkbox" />
+          <span>Adaptar este sitio <span id="nombre-sitio" class="tenue"></span></span>
+        </label>
+      </section>
+
+      <section class="bloque" aria-live="polite">
+        <h2>Esta página</h2>
+        <p id="estado-pagina" class="estado" data-estado="inactiva">Sin piel</p>
+        <p id="detalle-pagina" class="detalle"></p>
+        <p id="pie-pagina" class="tenue"></p>
+        <div class="acciones">
+          <button id="alternar" type="button" hidden>Ver original</button>
+          <button id="regenerar" type="button">Regenerar</button>
+        </div>
+      </section>
+
+      <p id="aviso" class="aviso" role="status"></p>
+
+      <footer class="bloque">
+        <button id="borrar-pieles" type="button" class="discreto">Borrar pieles guardadas</button>
+        <details>
+          <summary>Avanzado</summary>
+          <label for="url-puente">URL del puente local</label>
+          <div class="fila">
+            <input id="url-puente" type="url" spellcheck="false" />
+            <button id="guardar-url-puente" type="button">Guardar</button>
+          </div>
+        </details>
+      </footer>
+    </main>
+    <script type="module" src="panel.js"></script>
+  </body>
+</html>
