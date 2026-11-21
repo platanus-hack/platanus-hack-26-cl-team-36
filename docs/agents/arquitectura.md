@@ -1,134 +1,121 @@
 # Arquitectura de los agentes: directorios y AgentCore
 
 **Qué es este documento.** Dónde va el código de los agentes en el repositorio, cómo se organiza como proyecto de
-AgentCore y qué se pasan el evaluador y el optimizador. Es para quien vaya a construirlos. Sale de la sección 5 del
-[evaluador](evaluador.md); el diseño del agente que mide está allí.
+AgentCore y qué se pasan los agentes. Es para quien vaya a construirlos. Sale de la sección 5 del
+[diseño del Visitante](evaluador.md), que allí se llama evaluador.
 
 ## Distribución de directorios
 
-**Cada agente es una carpeta de `agents/app/` con sus herramientas, y su despliegue en AgentCore vive en `infra/`.**
+**Cada agente es una carpeta de `agents/app/` con un solo trabajo, y su despliegue en AgentCore vive en `infra/`.**
 Se sigue la estructura que genera la CLI de AgentCore (`agentcore create`): una carpeta por agente dentro de `app/` y
 una carpeta de configuración, `agentcore/`. Esa configuración está en `infra/agentcore/`, junto al resto de la
-infraestructura; `infra/` es el proyecto de la CLI y apunta al código de `agents/app/`. El mismo código corre de dos
-formas: como script en tu computador y, cuando haga falta escalar, en AgentCore. Seguir esa estructura desde el
-comienzo evita mover código al pasar de una a otra.
-
-Así se ubica en el repositorio:
+infraestructura; `infra/` es el proyecto de la CLI y apunta al código de `agents/app/`. El mismo código corre como
+script en tu computador y en AgentCore.
 
 ```
-platanus-hack-26-cl-team-36/
-  backend/  extension/                   ← lo que ya existe: la extensión y su servidor
-  docs/  .specs/  .spikes/                ← documentación y pruebas cortas
-  infra/agentcore/                        ← configuración de despliegue en AgentCore (ver infra/README.md)
-  agents/                                 ← NUEVO: el código de los agentes
-    app/
-      web_evaluator/                      ← MIDE: agentes que usan la página solo con capturas
-        main.py                           ← punto de entrada (script local hoy, AgentCore después)
-        harness.py                        ← el ciclo: captura → Claude → acción → captura
-        model/load.py                     ← qué Claude se usa
-        tools/                            ← SOLO las nueve acciones que el agente puede pedir
-        judge.py                          ← fuera de tools/ a propósito: lee la URL y el DOM
-        profiles/                         ← un perfil de agente por archivo
-      web_mapper/                         ← MAPEA: lee el DOM, cataloga los objetivos y sus rutas de referencia
-        main.py                           ← punto de entrada: route y goals
-        mapper/                           ← vista del DOM, exploración, verificación, esquema y catálogo
-      web_optimizer/                      ← PROPONE: lee lo que deja el evaluador y escribe un parche
-        main.py                           ← punto de entrada
-        model/load.py                     ← qué Claude se usa
-        tools/                            ← leer recorridos y grafo, leer el DOM, escribir un parche
-    tasks/                                ← las tareas, compartidas por los dos agentes
-    .runs/                                ← recorridos, capturas y resúmenes (fuera de git)
+agents/
+  app/
+    cataloger/                ← CATALOGA: recorre el sitio leyendo el DOM y clasifica sus objetivos
+      main.py  cataloger/  tests/
+    guide/                    ← GUÍA: encuentra y verifica la ruta de referencia de un objetivo, con DOM y capturas
+      main.py  guide/  tests/
+    visitor/                  ← VISITA: usuarios sintéticos que intentan un objetivo viendo solo capturas
+      main.py  agentcore_app.py  visitor/  tests/
+    summary/                  ← RESUME: compara, por objetivo, la ruta de la Guía con los intentos del Visitante
+      main.py  summary/  tests/
+  shared/                     ← lo que usan dos o más: almacén, navegador, Claude Code, nodos, DOM y catálogo
+  tasks/                      ← tareas escritas a mano
+  .runs/                      ← salidas de los agentes (fuera de git)
 ```
+
+Cada carpeta de `app/` es un proyecto de uv que se corre con `uv run main.py` y depende de `agents/shared/` como
+dependencia de ruta editable. Ningún agente importa la carpeta de otro: se comunican solo por archivos.
 
 **Los agentes:**
 
-| | `web_evaluator` | `web_mapper` | `web_optimizer` |
+| | `cataloger` (Catalogador) | `guide` (Guía) | `visitor` (Visitante) |
 |---|---|---|---|
-| **Qué hace** | Intenta una tarea N veces y mide cuántas veces se logra. | Cataloga los objetivos de un sitio y encuentra la ruta de referencia de cada uno, con sus pasos mínimos. | Lee dónde se pierden los agentes y propone un parche. |
-| **Qué ve** | Solo capturas de lo visible. | El DOM de la página y capturas. | Recorridos, grafo y el DOM de la página. |
-| **Qué puede hacer** | Las nueve acciones de la sección 3 del [evaluador](evaluador.md). | Clic, escribir, elegir, teclas, atrás y scroll sobre elementos a la vista; no puede ir a una URL ni seguir un enlace a otro host. | Leer archivos de `.runs/` y escribir un parche. |
-| **Qué entrega** | Recorridos, grafo y resumen de la tanda. | `goals.json`: los objetivos clasificados. `route.json`: la ruta verificada y la cita que la respalda. | Una variante nueva para que el evaluador la mida. |
-| **Quién decide** | El juez, no el agente. | La repetición: la ruta vale si llega a la misma página y la cita está en ella. | La regla del experimento (PR 6) y una persona. |
+| **Qué hace** | Cataloga los objetivos de un sitio y los clasifica. | Encuentra la ruta de referencia de un objetivo, con sus pasos mínimos. | Intenta un objetivo con varios perfiles y mide cuántos lo logran. |
+| **Qué ve** | El DOM de cada página. | El DOM de la página y capturas. | Solo capturas de lo visible. |
+| **Qué puede hacer** | Recorrer enlaces del mismo sitio, sin enviar formularios. | Clic, escribir, elegir, teclas, atrás y scroll sobre elementos a la vista; no puede ir a una URL ni seguir un enlace a otro host. | Las nueve acciones de la sección 3 del [diseño](evaluador.md). |
+| **Qué entrega** | `goals.json`: los objetivos clasificados. | `route.json`: la ruta verificada y la cita que la respalda. | Recorridos, árbol de rutas, comparación con la referencia y reporte. |
+| **Quién decide** | Reglas sin modelo sobre lo que propone el modelo. | La repetición: la ruta vale si llega a la misma página y la cita está en ella. | El juez, no el agente. |
 
-**`tools/` contiene solo lo que el agente puede pedir.** El juez queda fuera de esa carpeta a propósito. Así las
-reglas 2 y 3 de la sección 2 del [evaluador](evaluador.md) se ven en la estructura: si algo está en `tools/`, el agente lo puede usar, y nada que lea
-la URL o el DOM puede estar ahí.
+**La expectativa que ordena el producto:** cada objetivo pasa por separado por la Guía y por el Visitante, y la Guía,
+que tiene herramientas web, debe lograrlo al menos igual de bien.
 
 **Detalles:**
 
-- **`web_evaluator`, con guion bajo.** Python no puede importar una carpeta con guion, y el nombre de un runtime de
-  AgentCore tampoco lo acepta (patrón `[a-zA-Z][a-zA-Z0-9_]{0,47}`).
-- **En el avance 1 no existe `infra/agentcore/`.** `main.py` se corre como un script de Python, pero conviene
-  escribirlo desde ya cumpliendo el contrato HTTP que espera AgentCore Runtime, para que el avance 5 sea desplegar y
-  no reescribir. La CLI acepta código fuera de su proyecto: `infra/agentcore/agentcore.json` apunta a
-  `../agents/app/web_evaluator`.
-- **La plantilla de AgentCore usa Strands, pero no es obligatorio.** AgentCore Runtime acepta cualquier código. Lo que
-  importa es que el ciclo cumpla las tres reglas de la sección 2 del [evaluador](evaluador.md).
-
-En el glosario siguen siendo "Evaluador" y "Optimizador"; en el código se proponen `web_evaluator` y `web_optimizer`.
-Se decide junto con la pregunta "¿Qué nombres se usan?" del plan (sección 6).
+- **Nombres con guion bajo o una palabra.** Python no puede importar una carpeta con guion, y el nombre de un runtime
+  de AgentCore tampoco lo acepta (patrón `[a-zA-Z][a-zA-Z0-9_]{0,47}`).
+- **El runtime desplegado se llama `web_evaluator`.** `infra/agentcore/agentcore.json` lo apunta a
+  `../agents/app/visitor`; la CLI lo empaqueta desde `uv.lock` e instala `agents/shared/` sin editable.
+- **El Optimizador** se propone como `web_optimizer`.
 
 ## Flujo por sitio
 
-**Cada objetivo evaluable de un sitio pasa por el Mapeador y por el evaluador, y un resumen los compara.** Se
-comunican por archivos en `agents/.runs/`. El Mapeador decide en el catálogo qué objetivos se evalúan (`exclusion`) y
-con qué tarea (`instruction`); el evaluador solo lo lee. `just local site <url> <N>` corre todo.
+**Cada objetivo evaluable de un sitio pasa por la Guía y por el Visitante, y un resumen los compara.** Se comunican
+por archivos en `agents/.runs/`. El Catalogador decide en el catálogo qué objetivos se evalúan (`exclusion`) y con qué
+tarea (`instruction`); la Guía y el Visitante solo lo leen. `just local site <url> <N>` corre todo.
 
 ```mermaid
 flowchart LR
-  C["web_mapper goals<br/>catálogo"] -->|"goals.json"| R["web_mapper goals --routes<br/>ruta por objetivo"]
-  R -->|"reference/desktop/route.json"| E["web_evaluator --goals<br/>una tanda por objetivo"]
-  E -->|"report.md, reference_comparison.json"| S["summary.md<br/>Mapeador contra evaluador"]
-  E -.->|"proposed.json, si usó menos pasos"| A["web_mapper adopt<br/>verifica y adopta"]
-  A -.-> R
+  C["cataloger<br/>catálogo"] -->|"goals.json"| G["guide route --goals<br/>ruta por objetivo"]
+  C -->|"goals.json"| V["visitor --goals<br/>una tanda por objetivo"]
+  G -->|"reference/desktop/route.json"| V
+  V -->|"report.md, reference_comparison.json"| S["summary<br/>Guía contra Visitante"]
+  G --> S
+  V -.->|"proposed.json, si usó menos pasos"| A["guide adopt<br/>verifica y adopta"]
+  A -.-> G
 ```
 
-La ruta de referencia es la más corta verificada entre las exploradas. Por eso el Mapeador busca una más corta después
-de la primera, y un intento que usa menos pasos queda propuesto hasta que `adopt` lo verifica repitiéndolo.
+La ruta de referencia es la más corta verificada entre las exploradas. Por eso la Guía busca una más corta después
+de la primera, y un intento que usa menos pasos queda propuesto hasta que `adopt` lo verifica repitiéndolo. La
+prominencia y la complejidad que salen de la ruta las calcula el resumen.
 
-## Del evaluador al optimizador
+## Del Visitante al Optimizador
 
-**Lo que deja el evaluador es lo que lee el optimizador.** El optimizador ya está en [la propuesta](../index.md)
-(sección 3): lee el grafo de navegación, propone parches y le pide al evaluador que los mida. Los dos agentes forman
+**Lo que deja el Visitante es lo que lee el Optimizador.** El Optimizador ya está en [la propuesta](../index.md)
+(sección 3): lee el grafo de navegación, propone parches y le pide al Visitante que los mida. Los dos agentes forman
 un ciclo:
 
 ```mermaid
 flowchart LR
-  T["Tarea + variante"] --> E["web_evaluator<br/>N intentos"]
+  T["Tarea + variante"] --> E["visitor<br/>N intentos"]
   E -->|"recorridos, grafo,<br/>resumen de la tanda"| O["web_optimizer<br/>propone un parche"]
   O -->|"variante nueva"| E
   E -->|"control y variante"| X["Experimento<br/>(regla del PR 6)"]
   X --> P["Una persona aprueba"]
 ```
 
-**Cómo se invoca el evaluador:**
+**Cómo se invocaría el Visitante sobre una variante (propuesta):**
 
 ```
-python agents/app/web_evaluator/main.py --task <id> --variant <id | control> --n <intentos> \
-    --profile <id> --viewport <ancho>x<alto> --model <id>
+uv run main.py --task <id> --variant <id | control> --n <intentos> --profiles <ids> --model <id>
 ```
 
 **Lo que entrega**, por tarea y variante, en `agents/.runs/`:
 
 | Qué | Para qué le sirve al optimizador | Forma |
 |---|---|---|
-| Los recorridos, con la captura de cada paso | Ver qué tenía en pantalla un agente cuando se perdió | Formas de datos, sección 6, con los cambios de la sección 3 del [evaluador](evaluador.md) |
+| Los recorridos, con la captura de cada paso | Ver qué tenía en pantalla un agente cuando se perdió | Formas de datos, sección 6, con los cambios de la sección 3 del [diseño](evaluador.md) |
 | El grafo de navegación | Saber en qué etapa se abandona más | Formas de datos, sección 7 |
-| El resumen de la tanda | Intentos, logrados, errores de puntería, costo y tiempo. Es lo que compara el experimento | Lo calcula el evaluador; el experimento es formas de datos, sección 8 |
+| El resumen de la tanda | Intentos, logrados, errores de puntería, costo y tiempo. Es lo que compara el experimento | Lo calcula el Visitante; el experimento es formas de datos, sección 8 |
 
 **Reglas del contrato:**
 
-- **Se comunican por archivos, no por llamadas.** En local, el optimizador lee `agents/.runs/` y lanza el evaluador
-  sobre la variante nueva. En AgentCore, el optimizador invocaría al evaluador desplegado; es una propuesta, sin
+- **Se comunican por archivos, no por llamadas.** En local, el Optimizador lee `agents/.runs/` y lanza el Visitante
+  sobre la variante nueva. En AgentCore, el Optimizador invocaría al Visitante desplegado; es una propuesta, sin
   probar.
 - **Una variante se identifica con su `id`** ([formas de datos](../formas-de-datos.md), sección 4), que sale de sus
   parches.
 - **Las etapas salen de la tarea, no de los elementos.** Así el grafo de la variante se compara con el del control
   aunque un parche renombre u oculte un botón.
-- **El optimizador no decide solo.** Aplica la regla de aceptación del experimento (PR 6); no la inventa. Y una persona
+- **El Optimizador no decide solo.** Aplica la regla de aceptación del experimento (PR 6); no la inventa. Y una persona
   aprueba antes de que el parche quede activo.
-- **Las reglas de la sección 2 del [evaluador](evaluador.md) solo valen para él.** El optimizador sí lee el DOM, porque para escribir un parche
-  necesita localizar elementos. Lo que no puede hacer es medir su propio parche: eso lo hace siempre el evaluador.
+- **Las reglas de la sección 2 del [diseño](evaluador.md) solo valen para el Visitante.** El Optimizador sí lee el DOM, porque para
+  escribir un parche necesita localizar elementos. Lo que no puede hacer es medir su propio parche: eso lo hace
+  siempre el Visitante.
 
 **Sobre el nombre.** Se planteó "web refinator". "Refinator" no existe en inglés ("refiner" sí), y el glosario ya
 llama Optimizador a esta pieza. Se propone `web_optimizer` para no tener dos nombres para lo mismo.

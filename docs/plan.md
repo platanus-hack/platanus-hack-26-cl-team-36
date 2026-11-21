@@ -1,5 +1,7 @@
 # Plan: qué hay que averiguar y qué hay que construir
 
+> El agente que este documento llama evaluador es el Visitante ([`agents/app/visitor/`](../agents/app/visitor/README.md)).
+
 **Qué es este documento.** El plan de trabajo, para quienes van a programar. Parte de
 [la propuesta](index.md); conviene leerla antes. Fecha: 2026-11-21. Se escribió leyendo el repositorio en `main`
 (`d9556ea`) y la PR #6, todavía sin fusionar; no se ejecutó nada para escribirlo.

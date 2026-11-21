@@ -1,5 +1,7 @@
 # Páginas web que se adaptan a cada persona, con cambios que se prueban antes de aplicarse
 
+> El agente que este documento llama evaluador es el Visitante ([`agents/app/visitor/`](../agents/app/visitor/README.md)).
+
 **Qué es este documento.** El punto de entrada del proyecto, para cualquiera del equipo o del jurado. No hace falta
 haber leído nada antes. Es una **propuesta en revisión**: cambia el rumbo respecto de [.specs/MVP.md](../.specs/MVP.md),
 y la sección 1 dice en qué.

@@ -1,5 +1,7 @@
 # Especificación del backoffice, versión 0
 
+> El agente que este documento llama evaluador es el Visitante ([`agents/app/visitor/`](../agents/app/visitor/README.md)).
+
 | | |
 |---|---|
 | **Estado** | Listo para que alguien lo tome (2026-11-21) |
