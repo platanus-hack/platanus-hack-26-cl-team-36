@@ -1,7 +1,7 @@
 # Firma la extensión en Mozilla (no listada) y la publica como release, con el .xpi
 # adjunto. Se dispara con un tag vX.Y.Z (ver extension/README.md):
 #
-#   git tag v0.3.0 && git push origin v0.3.0
+#   just publish v0.3.0      (o: git tag v0.3.0 && git push origin v0.3.0)
 #
 # La versión sale del tag: se escribe en el manifest solo dentro de esta ejecución.
 # Corre solo en el repo personal (privado), así que el release solo lo ven sus
