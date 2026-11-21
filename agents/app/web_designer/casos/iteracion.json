@@ -1,0 +1,32 @@
+[
+  {
+    "id": "wikipedia",
+    "url": "https://es.wikipedia.org/wiki/Valdivia",
+    "gustos": "Me gusta el modo oscuro y necesito la letra más grande, leo de noche y me cansa la vista.",
+    "tarea": "Saber en qué año se fundó Valdivia y quién la fundó."
+  },
+  {
+    "id": "hackernews",
+    "url": "https://news.ycombinator.com/",
+    "gustos": "Algo claro pero suave, con menos ruido y más aire entre las noticias; ahora se ve todo apretado.",
+    "tarea": "Elegir una noticia interesante y abrir sus comentarios."
+  },
+  {
+    "id": "metro",
+    "url": "https://www.metro.cl/",
+    "gustos": "Alto contraste y letra grande, no veo bien los colores claros.",
+    "tarea": "Averiguar desde qué hora funciona el Metro el sábado y cuánto cuesta el pasaje con tarjeta bip! ese día."
+  },
+  {
+    "id": "sernac",
+    "url": "https://www.sernac.cl/portal/617/w3-channel.html",
+    "gustos": "Menos ruido, que se vea ordenado y tranquilo; me pierdo con tantos banners y menús.",
+    "tarea": "Averiguar cuántos días tengo para devolver un producto que compré por internet (derecho a retracto)."
+  },
+  {
+    "id": "mdn",
+    "url": "https://developer.mozilla.org/es/docs/Web/HTML/Reference/Elements/details",
+    "gustos": "Estilo editorial y colorido, como una revista: que dé gusto leer, pero sin perder el código.",
+    "tarea": "Entender cómo hacer que un elemento details aparezca abierto por defecto."
+  }
+]
