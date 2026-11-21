@@ -2,7 +2,7 @@
 # (infra/agentcore/). From anywhere in the repo, as `just aws <command>`. They use your
 # AWS credentials for the project account: export AWS_PROFILE=<profile>.
 #
-#   just aws visit wom-baja-fibra                a task from agents/tasks/, on AgentCore
+#   just aws visit wom.cl/baja-fibra             a task from agents/tasks/, on AgentCore
 #   just aws visit <url> "<task>" [profiles]     any site, on AgentCore
 #   just aws deploy                              deploys from your computer (CI does it on every merge)
 #
@@ -24,7 +24,7 @@ runtime_arn := "aws bedrock-agentcore-control list-agent-runtimes --query \"agen
 help:
     @just --list aws --unsorted --list-heading '{{ list_heading }}'
 
-# Synthetic users on AgentCore: a task id from agents/tasks/, or a URL and a task. Saves report.md in agents/.runs/aws/
+# Synthetic users on AgentCore: a task from agents/tasks/ as <host>/<goal>, or a URL and a task. Saves report.md in agents/.runs/aws/
 [group('Synthetic users on AgentCore · Claude on Bedrock, billed to the AWS account')]
 visit target task="" profiles="": _ready
     #!/usr/bin/env bash

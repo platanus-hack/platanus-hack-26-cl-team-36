@@ -6,15 +6,16 @@
 #      just local down                       stops them
 #   3. just local test                       before pushing
 #   4. just local catalog <url>              cataloger: goal catalog of a site (calls Claude)
-#   5. just local guide <task>               guide: reference route of a task (calls Claude)
+#   5. just local guide <host>/<goal>        guide: reference route of a task (calls Claude)
 #   6. just local visit <url> "<task>"       visitor: synthetic users (calls Claude)
 #      just local visit-tasks [prefix]       visitor on the tasks in agents/tasks/ (calls Claude)
 #   7. just local backoffice                 viewer of the visitor runs, at http://localhost:4848
 #   8. just local site <url> [goals]         catalog, guide and visitor per goal, and summary (calls Claude)
-#      just local summary <url>              rewrites that summary from the files on disk
+#      just local summary <url>              a new summary from the latest runs in the store
 #
 # Recipes run from the repo root, so every path here is relative to it. What `up`
-# leaves behind (process ids and logs) goes to local/.state/, outside git.
+# leaves behind (process ids and logs) goes to local/.state/, outside git. The agents
+# write to the store in AGENTS_STORE, by default agents/.runs/ (see agents/shared/README.md).
 
 set working-directory := '..'
 
@@ -210,7 +211,7 @@ catalog url *options: _agents_ready
 
 # ── 5. Guide ──────────────────────────────────────────────────────────────
 
-# Finds and verifies the shortest route for a task in agents/tasks/. E.g. just local guide wom-baja-fibra --viewports desktop,mobile
+# Finds and verifies the shortest route for a task in agents/tasks/. E.g. just local guide wom.cl/baja-fibra --viewports desktop,mobile
 [group('5. Guide · calls Claude, uses your plan')]
 [working-directory('agents/app/guide')]
 [positional-arguments]
@@ -234,7 +235,7 @@ visit url task *options: _ready
     shift 2
     exec uv run main.py --url "$url" --instruction "$task" ${1+"$@"}
 
-# Runs the visitor on the tasks in agents/tasks/ in parallel: all, or the ones whose id starts with wom, sii or dt
+# Runs the visitor on the tasks in agents/tasks/ in parallel: all, or the ones whose host starts with wom, sii or dt
 [group('6. Visitor · calls Claude, uses your plan')]
 [working-directory('agents/app/visitor')]
 [positional-arguments]
@@ -245,15 +246,15 @@ visit-tasks task="all" *options: _ready
     [ $# -gt 0 ] && shift
     [ "$prefix" = all ] && prefix=""
     ids=()
-    for f in ../../tasks/"$prefix"*.json; do
-        [ -e "$f" ] && ids+=("$(basename "$f" .json)")
+    for f in ../../tasks/"$prefix"*/*.json; do
+        [ -e "$f" ] && ids+=("$(basename "$(dirname "$f")")/$(basename "$f" .json)")
     done
     if [ ${#ids[@]} -eq 0 ]; then
-        echo "error: no task in agents/tasks/ starts with '$prefix'" >&2
+        echo "error: no host in agents/tasks/ starts with '$prefix'" >&2
         exit 1
     fi
 
-    # Each task writes to agents/.runs/<id>/, so parallel runs don't collide.
+    # Each task is its own run in the store, so parallel runs don't collide.
     pids=()
     for id in "${ids[@]}"; do
         uv run main.py --task "$id" ${1+"$@"} 2>&1 | sed -u "s/^/[$id] /" &
@@ -285,26 +286,23 @@ site url goals="3": _ready _agents_ready
     #!/usr/bin/env bash
     set -euo pipefail
     url="$1" goals="${2:-3}"
-    host="$(echo "$url" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\1#' | tr '[:upper:]' '[:lower:]')"
-    catalog="../../.runs/$host/goals/goals.json"
     limit=(--limit "$goals")
     [ "$goals" = all ] && limit=()
-    # Every step skips what is already on disk, so re-running resumes.
+    # Every step skips what already has a succeeded run in the store, so re-running resumes.
     (cd agents/app/cataloger && uv run main.py --url "$url")
-    (cd agents/app/guide && uv run main.py route --goals "$catalog" --routes "$goals")
-    (cd agents/app/visitor && uv run main.py --goals "$catalog" ${limit[@]+"${limit[@]}"})
+    (cd agents/app/guide && uv run main.py route --site "$url" --routes "$goals")
+    (cd agents/app/visitor && uv run main.py --site "$url" ${limit[@]+"${limit[@]}"})
     cd agents/app/summary
-    uv run main.py --goals "$catalog"
+    uv run main.py --site "$url"
 
-# Rewrites the summary of a site from the files on disk, without calling Claude. E.g. just local summary https://www.wom.cl/
+# Writes a new summary of a site from the latest runs in the store, without calling Claude. E.g. just local summary https://www.wom.cl/
 [group('8. Site · `site` calls Claude, uses your plan')]
 [positional-arguments]
 summary url: _agents_ready
     #!/usr/bin/env bash
     set -euo pipefail
-    host="$(echo "$1" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\1#' | tr '[:upper:]' '[:lower:]')"
     cd agents/app/summary
-    exec uv run main.py --goals "../../.runs/$host/goals/goals.json"
+    exec uv run main.py --site "$1"
 
 [private]
 _agents_ready:
