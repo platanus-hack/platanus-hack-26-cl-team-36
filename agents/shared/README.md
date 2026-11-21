@@ -1,9 +1,23 @@
-# shared.store
+# shared
 
-Almacén de las salidas de los agentes. Define las claves, los ids de corrida y el manifiesto, y escribe en disco
-(`agents/.runs/`) o en S3 con el mismo árbol. Ninguna clave se arma a mano fuera de este paquete.
+Lo que usan dos o más agentes de `agents/app/`. Cada pieza tiene un solo lugar; ningún agente importa la carpeta de
+otro.
 
-## Layout
+| Paquete | Qué es | Lo usan |
+|---|---|---|
+| `shared.store` | Almacén de las salidas: claves, ids de corrida, manifiesto, disco y S3. | todos |
+| `shared.browser` | `session`: navegador, contexto aislado con la red de seguridad de formularios y sesión de una pestaña. `viewports`: `desktop` y `mobile`. `keys`: teclas al formato de Playwright. `theme`: el tema CSS (`--css`) en cada documento. `pixels`: cuánto cambió la pantalla entre dos capturas. | cataloger, guide, visitor, summary (`theme`), web_designer |
+| `shared.claude` | `process`: el proceso de `claude -p` en stream-json. `caller`: llamadas con salida JSON que suman tokens y costo. `workdir`: carpeta vacía para Claude Code. | cataloger, guide, visitor, web_designer |
+| `shared.nodes` | `urls`: URL normalizada, nodo de una página (URL más título) y sitio de una URL. | todos |
+| `shared.dom` | `visibility`: el JavaScript que decide qué se puede mostrar. | cataloger, guide |
+| `shared.catalog` | `goal`: el objetivo y qué se intenta. `outline`: el esquema del sitio. `files`: lectura de goals.json y outline.json. `prominence`: prominencia y complejidad. `visits`: las tandas del Visitante de un objetivo, por tema. | cataloger, guide, visitor, summary |
+
+## shared.store
+
+Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agents/.runs/`) o en S3 con el mismo
+árbol. Ninguna clave se arma a mano fuera de este paquete.
+
+### Layout
 
 ```
 <host>/                                  host normalizado: minúsculas, sin "www.", puerto si no es el por defecto
@@ -14,9 +28,9 @@ Almacén de las salidas de los agentes. Define las claves, los ids de corrida y 
   summary/<run>/                         manifest.json summary.json summary.md
 ```
 
-## Reglas
+### Reglas
 
-- `<host>` se normaliza igual que `normalize_url` del evaluador; un host suelto se toma como https.
+- `<host>` se normaliza igual que `shared.nodes.urls.normalize_url`; un host suelto se toma como https.
 - Un host internacional queda en punycode (`ñandú.cl` → `xn--and-6ma2c.cl`); uno con `_` se rechaza: no es un host.
 - `<goal>` es kebab-case y no lleva el host (`baja-fibra`); `<viewport>` es `desktop` o `mobile`; `<profile>` es la
   clave de un perfil del visitante.
@@ -29,7 +43,7 @@ Almacén de las salidas de los agentes. Define las claves, los ids de corrida y 
 - Todo nombre de archivo lleva extensión y ningún perfil la lleva; cualquier otro segmento se rechaza.
 - `manifest.json` dice qué es la carpeta y, en `inputs`, las claves de las corridas que consumió.
 
-## Uso
+### Uso
 
 ```python
 from shared.store import finish_run, guide, latest_run, open_backend, start_run, visitor
@@ -48,7 +62,7 @@ finish_run(store, run, "succeeded")                      # publica la carpeta y 
 En disco, `run.workdir` es la carpeta de la corrida. En S3 es una carpeta temporal que `finish_run` sube y borra. Los
 archivos ocultos (`.DS_Store`) no se publican.
 
-## Local y S3
+### Local y S3
 
 `AGENTS_STORE` elige el backend:
 
@@ -68,10 +82,11 @@ Desde un agente en `agents/app/<agente>/`, como dependencia de ruta editable (si
 
 ```toml
 [project]
-dependencies = ["shared[s3]"]
+dependencies = ["shared[browser]"]
 
 [tool.uv.sources]
 shared = { path = "../../shared", editable = true }
 ```
 
-`boto3` solo se instala con el extra `s3`. Las pruebas corren sin red: `uv run pytest -q`.
+`playwright` solo se instala con el extra `browser`, `pillow` con `pixels` y `boto3` con `s3`. Las pruebas corren sin red:
+`uv run pytest -q`.

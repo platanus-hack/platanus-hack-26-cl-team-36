@@ -5,13 +5,15 @@ import asyncio
 from playwright.async_api import Browser, BrowserContext, Page
 from playwright.async_api import Error as PlaywrightError
 
-from browser import MOBILE_USER_AGENT, TEMA_CLASE, TEMA_ESTILO_ID
+from shared.browser.session import MOBILE_USER_AGENT
+from shared.browser.theme import TEMA_CLASE, TEMA_ESTILO_ID
+
 from disenador import config
 
 VIEWPORTS = {"escritorio": config.ESCRITORIO, "movil": config.MOVIL}
 
 # Aplica el tema en la página ya cargada, como la extensión: clase `mi-tema` en <html> y un <style> propio al final
-# del <head>. A diferencia del script del evaluador, no lo repone si el sitio lo quita: aquí hay que poder apagarlo.
+# del <head>. A diferencia de `shared.browser.theme`, no lo repone si el sitio lo quita: aquí hay que poder apagarlo.
 _APLICAR = """([css, id, clase]) => {
   document.getElementById(id)?.remove();
   const estilo = document.createElement("style");

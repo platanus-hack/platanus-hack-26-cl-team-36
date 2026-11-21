@@ -15,7 +15,9 @@ from urllib.parse import urlparse
 
 from playwright.async_api import Browser, async_playwright
 
-from browser import connect_browser
+from shared.browser.pixels import screen_change_ratio
+from shared.browser.session import connect_browser
+
 from disenador import config, juez, mapa, metricas, pagina
 from disenador.css import analizar, sanear
 from disenador.modelo import ESQUEMA_TEMA, ErrorDeModelo, Skill, mensaje_de_diseno, prompt_de_sistema
@@ -23,7 +25,6 @@ from disenador.modelo import ESQUEMA_TEMA, ErrorDeModelo, Skill, mensaje_de_dise
 
 class TemaRechazado(Exception):
     """El navegador lee el CSS saneado distinto que el saneamiento: no se aplica."""
-from recording import screen_change_ratio
 
 
 @dataclass
@@ -151,7 +152,7 @@ async def generacion(browser, caso: Caso, preparado: Preparado, rep: int, carpet
         saneado = sanear(respuesta["css"])
         analisis = analizar(saneado)
         # Última palabra del navegador: si su parser ve algo fuera de ámbito o que carga recursos, no se aplica.
-        # `tema.css` se escribe solo si pasa: es el que se aplicó y el que se le puede pasar al evaluador (--css).
+        # `tema.css` se escribe solo si pasa: es el que se aplicó y el que se le puede pasar al Visitante (--css).
         analisis["violaciones_navegador"] = violaciones = await pagina.verificar_css(browser, saneado.css)
         (carpeta / ("tema-rechazado.css" if violaciones else "tema.css")).write_text(saneado.css, encoding="utf-8")
         if violaciones:
