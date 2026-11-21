@@ -17,6 +17,7 @@
   },
   "action": {
     "default_title": "Pieles: adapta las páginas a tu gusto",
-    "default_popup": "panel.html"
+    "default_popup": "panel.html",
+    "default_area": "navbar"
   }
 }

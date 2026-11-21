@@ -17,7 +17,36 @@ archivo de Python sin dependencias.
 - Python 3.
 - Claude Code instalado y con la sesión iniciada (`claude` en la terminal).
 
+## Arranque con un solo comando
+
+```bash
+python3 prototipo/lanzar.py
+```
+
+Deja corriendo, separados de la terminal, el puente (puerto 8765), la página de demostración
+(`http://127.0.0.1:8000/`, u otro puerto si ese está ocupado) y un Firefox aparte, con ventana y perfil propio, con el
+complemento ya instalado, su botón en la barra y la página de demostración abierta. No toca tu Firefox. Falta solo el
+paso 3 de más abajo: escribir la sugerencia en el panel.
+
+| Orden | Qué hace |
+|---|---|
+| `lanzar.py --sugerencia "modo oscuro y texto más grande"` | Arranca y deja escrita la sugerencia, sin pasar por el panel. |
+| `lanzar.py --estado` | Muestra qué está corriendo, con sus PID y puertos, y si el complemento sigue instalado. |
+| `lanzar.py --detener` | Detiene lo que arrancó el lanzador (y nada más). |
+
+- Lanzarlo dos veces no duplica nada: si todo corre, muestra el estado; si cerraste la ventana de Firefox, solo
+  vuelve a abrir lo que falta.
+- El perfil, los registros (`registros/puente.log`, `demo.log`, `firefox.log`) y `pids.json` quedan en
+  `prototipo/.ejecucion/`, fuera de git.
+- **La sugerencia y las pieles guardadas sobreviven** a `--detener` y a reiniciar ese Firefox: el complemento es
+  temporal y el lanzador lo reinstala en cada arranque, pero el perfil se conserva. Para empezar de cero, detén el
+  prototipo y borra `prototipo/.ejecucion/perfil/`.
+- La barra de direcciones de ese Firefox sale rayada y con un icono de robot porque el lanzador lo maneja por
+  Marionette, cuyo puerto queda abierto en `127.0.0.1` mientras ese Firefox siga abierto.
+
 ## Cómo usarlo
+
+Los pasos a mano, sin el lanzador:
 
 1. Arranca el puente y déjalo corriendo:
 
