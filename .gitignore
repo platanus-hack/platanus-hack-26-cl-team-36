@@ -1,2 +1,10 @@
 __pycache__/
 .DS_Store
+
+# Terraform (el .terraform.lock.hcl sí se sube)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+tfplan
+infra/app/.build/

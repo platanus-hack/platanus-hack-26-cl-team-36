@@ -1,0 +1,78 @@
+# Aplica infra/app en AWS. Corre solo en el repo personal (ver infra/README.md):
+# en el repo de la organización el job se salta.
+name: Terraform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/app/**"
+      - "backend/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: "apply crea o actualiza la infraestructura; destroy la borra entera"
+        type: choice
+        options: [apply, destroy]
+        default: apply
+
+permissions:
+  id-token: write # OIDC: asumir el rol de AWS sin llaves guardadas
+  contents: read
+
+# Nunca dos applies a la vez; el que llega después espera.
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  TF_IN_AUTOMATION: "true"
+  ACCION: ${{ inputs.accion || 'apply' }}
+
+jobs:
+  terraform:
+    if: github.repository == 'brayanmoreno/hackathon-grupo36'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/app
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.17.2
+          terraform_wrapper: false
+
+      - name: terraform init
+        run: |
+          cuenta=$(aws sts get-caller-identity --query Account --output text)
+          terraform init -input=false -backend-config="bucket=hackathon-grupo36-tfstate-${cuenta}"
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive
+
+      - name: terraform validate
+        run: terraform validate
+
+      - name: terraform plan
+        run: |
+          if [ "$ACCION" = destroy ]; then
+            terraform plan -input=false -destroy -out=tfplan
+          else
+            terraform plan -input=false -out=tfplan
+          fi
+
+      - name: terraform apply
+        run: terraform apply -input=false tfplan
+
+      - name: URL de la API
+        if: env.ACCION == 'apply'
+        run: echo "API desplegada en $(terraform output -raw function_url)" >> "$GITHUB_STEP_SUMMARY"
