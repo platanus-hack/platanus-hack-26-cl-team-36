@@ -112,4 +112,4 @@ cpSync(origen.ruta, destino, {
 const prefs = path.join(destino, "prefs.js");
 writeFileSync(prefs, sanitizarPrefs(readFileSync(prefs, "utf8")));
 
-console.log("\n✔ Listo. Ahora corre: npm run dev:sesion");
+console.log("\n✔ Listo. La usan `npm run dev:sesion` y `just local up sesion`.");
