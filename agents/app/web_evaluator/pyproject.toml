@@ -19,7 +19,7 @@ dev = ["pytest>=8.0"]
 package = false
 
 [tool.agentcore]
-# Entrada en AgentCore Runtime; main.py sigue siendo el comando local. La CLI copia esto a agents/agentcore/agentcore.json.
+# Entrada en AgentCore Runtime; main.py sigue siendo el comando local. La CLI copia esto a infra/agentcore/agentcore.json.
 entrypoint = "agentcore_app.py"
 
 [tool.pytest.ini_options]

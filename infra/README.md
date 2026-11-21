@@ -2,6 +2,8 @@
 
 La API (`backend/`) corre en AWS como una Lambda con URL pública. Terraform la crea y la actualiza desde GitHub
 Actions, en el repo personal [brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36).
+El evaluador web (`agents/app/web_evaluator/`) corre en AgentCore Runtime; lo despliega la CLI de AgentCore desde
+`agentcore/`, en el mismo repo personal.
 
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
 Actions, con el plan de Terraform, quedarían a la vista. El repo personal es privado y es una copia de `main` de este.
@@ -19,7 +21,7 @@ proyecto se ve en [settings.aws.com](https://settings.aws.com) → Project → A
    suele atrasarlo.
 3. Si el cambio toca `backend/` o `infra/app/`, el workflow `Terraform` del repo personal hace `plan` y `apply`.
 4. La URL de la API queda en el resumen de esa ejecución.
-5. Si el cambio toca `agents/agentcore/` o `agents/app/web_evaluator/`, el workflow `AgentCore` despliega el evaluador
+5. Si el cambio toca `infra/agentcore/` o `agents/app/web_evaluator/`, el workflow `AgentCore` despliega el evaluador
    web con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol. La CLI
    empaqueta el código para arm64 y aplica su propio stack de CDK; no pasa por Terraform. La primera vez también
    prepara la cuenta para CDK (`CDKToolkit`). Desde un computador: `just aws` (ver
@@ -34,6 +36,12 @@ abajo).
   GitHub a AWS por OIDC (sin llaves guardadas), el rol que asume el workflow y una alerta de presupuesto. Se aplica
   una vez, a mano, y su estado queda en el computador de quien lo aplicó.
 - `app/`: la Lambda, su URL, su rol y su log. Su estado vive en el bucket.
+- `agentcore/`: el evaluador web en AgentCore Runtime. `infra/` es el proyecto de la
+  [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime
+  `web_evaluator`, con su código en `../agents/app/web_evaluator/`, y `agentcore/cdk/` es el stack que la CLI genera.
+  `agentcore/.cli/deployed-state.json` enlaza el proyecto con lo desplegado. `agentcore/aws-targets.json` queda con el
+  id de la cuenta después de desplegar desde un computador: no lo subas, el repo es público.
+- `justfile`: `just aws`, los comandos del evaluador en AgentCore (`explore`, `deploy`, `status`, `logs`).
 - `../backend/lambda.js`: entrada de la Lambda. Levanta el servidor de `index.js` y le reenvía cada request, así
   `index.js` funciona igual en local y en AWS.
 

@@ -8,7 +8,7 @@
       "description": "Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos",
       "build": "CodeZip",
       "entrypoint": "agentcore_app.py",
-      "codeLocation": "app/web_evaluator",
+      "codeLocation": "../agents/app/web_evaluator",
       "runtimeVersion": "PYTHON_3_12",
       "protocol": "HTTP",
       "additionalPolicies": [

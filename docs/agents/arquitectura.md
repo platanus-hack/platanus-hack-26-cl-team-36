@@ -6,10 +6,12 @@ AgentCore y qué se pasan el evaluador y el optimizador. Es para quien vaya a co
 
 ## Distribución de directorios
 
-**`agents/` es un proyecto de AgentCore, y cada agente es una carpeta con sus herramientas.** Se sigue la estructura
-que genera la CLI de AgentCore (`agentcore create`): una carpeta de configuración, `agentcore/`, y una carpeta por
-agente dentro de `app/`. El mismo código corre de dos formas: como script en tu computador y, cuando haga falta
-escalar, en AgentCore. Seguir esa estructura desde el comienzo evita mover código al pasar de una a otra.
+**Cada agente es una carpeta de `agents/app/` con sus herramientas, y su despliegue en AgentCore vive en `infra/`.**
+Se sigue la estructura que genera la CLI de AgentCore (`agentcore create`): una carpeta por agente dentro de `app/` y
+una carpeta de configuración, `agentcore/`. Esa configuración está en `infra/agentcore/`, junto al resto de la
+infraestructura; `infra/` es el proyecto de la CLI y apunta al código de `agents/app/`. El mismo código corre de dos
+formas: como script en tu computador y, cuando haga falta escalar, en AgentCore. Seguir esa estructura desde el
+comienzo evita mover código al pasar de una a otra.
 
 Así se ubica en el repositorio:
 
@@ -17,8 +19,8 @@ Así se ubica en el repositorio:
 platanus-hack-26-cl-team-36/
   backend/  extension/                   ← lo que ya existe: la extensión y su servidor
   docs/  .specs/  .spikes/                ← documentación y pruebas cortas
-  agents/                                 ← NUEVO: el proyecto de AgentCore
-    agentcore/                            ← configuración de despliegue (se crea en el avance 5)
+  infra/agentcore/                        ← configuración de despliegue en AgentCore (ver infra/README.md)
+  agents/                                 ← NUEVO: el código de los agentes
     app/
       web_evaluator/                      ← MIDE: agentes que usan la página solo con capturas
         main.py                           ← punto de entrada (script local hoy, AgentCore después)
@@ -53,10 +55,10 @@ la URL o el DOM puede estar ahí.
 
 - **`web_evaluator`, con guion bajo.** Python no puede importar una carpeta con guion, y el nombre de un runtime de
   AgentCore tampoco lo acepta (patrón `[a-zA-Z][a-zA-Z0-9_]{0,47}`).
-- **En el avance 1 no existe `agents/agentcore/`.** `main.py` se corre como un script de Python, pero conviene
+- **En el avance 1 no existe `infra/agentcore/`.** `main.py` se corre como un script de Python, pero conviene
   escribirlo desde ya cumpliendo el contrato HTTP que espera AgentCore Runtime, para que el avance 5 sea desplegar y
-  no reescribir. No está comprobado que `agentcore create` acepte una carpeta que ya existe; si no, se crea el proyecto
-  aparte y se copia `agentcore/`.
+  no reescribir. La CLI acepta código fuera de su proyecto: `infra/agentcore/agentcore.json` apunta a
+  `../agents/app/web_evaluator`.
 - **La plantilla de AgentCore usa Strands, pero no es obligatorio.** AgentCore Runtime acepta cualquier código. Lo que
   importa es que el ciclo cumpla las tres reglas de la sección 2 del [evaluador](evaluador.md).
 

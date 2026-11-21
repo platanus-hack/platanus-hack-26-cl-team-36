@@ -44,7 +44,7 @@ Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del rep
 El evaluador también corre en AWS, en AgentCore Runtime, con Claude en Bedrock y la cuenta de la hackatón
 (`export AWS_PROFILE=<perfil>`): `just aws explore wom-baja-fibra` o `just aws explore <url> "<task>"`. Se despliega
 solo al mergear a `main`; los detalles están en [el evaluador](agents/app/web_evaluator/README.md#en-aws-agentcore) y
-en [`aws/justfile`](aws/justfile).
+en [la infraestructura](infra/README.md).
 
 | Pieza | Qué es |
 |---|---|

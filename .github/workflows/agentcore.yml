@@ -1,4 +1,5 @@
-# Despliega agents/ (el evaluador web) en AgentCore Runtime con la CLI de AgentCore, que
+# Despliega el evaluador web (agents/app/web_evaluator/) en AgentCore Runtime con la CLI de
+# AgentCore, cuyo proyecto es infra/ (configuración en infra/agentcore/). La CLI
 # empaqueta el código para arm64 y aplica su stack de CDK. Corre solo en el repo personal
 # (ver infra/README.md): en el repo de la organización el job se salta.
 name: AgentCore
@@ -7,7 +8,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "agents/agentcore/**"
+      - "infra/agentcore/**"
       - "agents/app/web_evaluator/**"
       - "package.json"
       - "package-lock.json"
@@ -32,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: agents
+        working-directory: infra
     steps:
       - uses: actions/checkout@v7
 

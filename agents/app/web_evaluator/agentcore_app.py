@@ -1,4 +1,4 @@
-"""Entrada del evaluador web en AgentCore Runtime (la CLI de AgentCore la despliega; ver agents/agentcore/).
+"""Entrada del evaluador web en AgentCore Runtime (la CLI de AgentCore la despliega; ver infra/agentcore/).
 
 Recibe una tarea y responde en stream (SSE): un aviso cada 20 s mientras corre la tanda y, al final, el
 resultado de cada perfil y el reporte. Así `agentcore invoke` muestra el avance y la conexión no queda
