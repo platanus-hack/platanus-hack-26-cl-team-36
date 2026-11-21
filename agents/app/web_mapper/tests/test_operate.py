@@ -26,6 +26,20 @@ def test_hidden_element_is_rejected_until_its_menu_opens(with_session):
     with_session("index.html", body)
 
 
+def test_element_that_hides_and_comes_back_is_awaited(with_session):
+    async def body(session):
+        _, products = await _handle(session, "Productos")
+        hide = "(el, ms) => { el.hidden = true; setTimeout(() => { el.hidden = false; }, ms); }"
+        await products.evaluate(hide, 5000)
+        with pytest.raises(ActionRejected, match="no está a la vista"):
+            await perform_step(session, "click", None, products, None, reappear_s=0.5)
+        await products.evaluate(hide, 500)
+        step = await perform_step(session, "click", None, products, None, reappear_s=3)
+        assert step.title_after == "Productos" and step.in_viewport
+
+    with_session("index.html", body)
+
+
 def test_click_below_the_fold_records_it_was_off_screen(with_session):
     async def body(session):
         _, contact = await _handle(session, "Contacto")

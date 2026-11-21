@@ -1,5 +1,7 @@
 """Ejecución de una acción sobre un elemento, solo como la haría una persona, y registro del paso."""
 
+import asyncio
+import time
 from collections.abc import Callable
 
 from playwright.async_api import ElementHandle
@@ -13,6 +15,7 @@ from mapper.route import Step, Target
 ELEMENT_ACTIONS = {"click", "fill", "select"}
 _ACTION_TIMEOUT_MS = 5_000
 _SCROLL_FRACTION = 0.8   # de la altura del viewport por scroll
+_REAPPEAR_POLL_S = 0.5
 
 Log = Callable[[str], None]
 
@@ -48,17 +51,31 @@ async def _execute(session: BrowserSession, action: str, value: str | None, hand
         raise ActionRejected(f"La acción '{action}' no existe.")
 
 
+async def _display_state(handle: ElementHandle, reappear_s: float) -> tuple[bool, bool]:
+    """Como `display_state`, esperando hasta `reappear_s` a que se vuelva a mostrar (un carrusel que rota)."""
+    deadline = time.monotonic() + reappear_s
+    visible, in_viewport = await display_state(handle)
+    while not visible and time.monotonic() < deadline:
+        await asyncio.sleep(_REAPPEAR_POLL_S)
+        visible, in_viewport = await display_state(handle)
+    return visible, in_viewport
+
+
 async def perform_step(
-    session: BrowserSession, action: str, value: str | None, handle: ElementHandle | None, target: Target | None
+    session: BrowserSession, action: str, value: str | None, handle: ElementHandle | None, target: Target | None,
+    reappear_s: float = 0.0,
 ) -> Step:
-    """Hace la acción, espera a que la página reaccione y devuelve el paso con lo observado antes y después."""
+    """Hace la acción, espera a que la página reaccione y devuelve el paso con lo observado antes y después.
+
+    `reappear_s`: cuánto esperar a un elemento que estaba a la vista y dejó de estarlo.
+    """
     if action in ELEMENT_ACTIONS and handle is None:
         raise ActionRejected(f"La acción '{action}' necesita un elemento que exista en la página.")
     url_before, title_before = await session.url_and_title()
     in_viewport = None
     try:
         if handle is not None:
-            visible, in_viewport = await display_state(handle)
+            visible, in_viewport = await _display_state(handle, reappear_s)
             if not visible:
                 raise ActionRejected("Ese elemento no está a la vista: primero abre el menú o control que lo muestra.")
         await _execute(session, action, value, handle)

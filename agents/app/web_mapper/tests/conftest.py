@@ -7,6 +7,7 @@ import pytest
 from playwright.async_api import async_playwright
 
 from browser import BrowserSession, connect_browser, create_context
+from mapper import config
 from mapper.decider import Decision
 from profiles import Profile
 
@@ -65,6 +66,12 @@ class ScriptedDecider:
             line = next(line for line in text.splitlines() if f"«{name}»" in line and line.startswith("e"))
             ref = line.split(" · ")[0]
         return Decision(reason="guion", action=action, ref=ref, **extra)
+
+
+@pytest.fixture(autouse=True)
+def short_reappear_wait(monkeypatch):
+    """Las páginas de prueba no tienen carruseles: un elemento oculto no vuelve."""
+    monkeypatch.setattr(config, "REAPPEAR_S", 1.0)
 
 
 @pytest.fixture

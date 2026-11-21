@@ -1,4 +1,4 @@
-"""Adopción de la ruta que propone el evaluador (proposed.json): se repite y, si verifica y es más corta, es la referencia.
+"""Adopción de una ruta propuesta por el evaluador: si al repetirla verifica y es más corta, pasa a ser la referencia.
 
 Los localizadores salen del texto y el href que el evaluador registró del elemento clicado. La propuesta verifica si
 llega a su página final y la cita de la referencia está en ella.

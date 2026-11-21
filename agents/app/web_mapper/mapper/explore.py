@@ -58,7 +58,8 @@ async def _act(session: BrowserSession, decision: Decision, view: PageView) -> S
     if handle is not None:
         locators = await record_locators(session.page, handle, element)
         target = Target(element.tag, element.role, element.name, element.text, element.href, locators)
-    return await perform_step(session, decision.action, decision.text, handle, target)
+    reappear_s = config.REAPPEAR_S if element and element.visible else 0.0
+    return await perform_step(session, decision.action, decision.text, handle, target, reappear_s)
 
 
 def _exhausted_limit(exploration: Exploration, remaining_s: float) -> str | None:

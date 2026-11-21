@@ -1,4 +1,4 @@
-"""Subcomando `adopt`: verifica las rutas que propuso el evaluador para una tarea u objetivo y adopta las más cortas."""
+"""Subcomando `adopt`: verifica las rutas que propuso el evaluador para una tarea u objetivo."""
 
 import argparse
 import asyncio
@@ -12,7 +12,7 @@ from mapper.runtime import runtime
 
 def add_parser(commands: argparse._SubParsersAction) -> None:
     command = commands.add_parser("adopt", help="verifica las rutas propuestas por el evaluador y adopta las más cortas")
-    command.add_argument("--id", required=True, help="id de la tarea u objetivo: lee agents/.runs/<id>/reference/*/proposed.json")
+    command.add_argument("--id", required=True, help="tarea u objetivo: lee agents/.runs/<id>/reference/*/proposed.json")
 
 
 async def _adopt(folders: list[Path], cdp_url: str | None) -> list[str]:

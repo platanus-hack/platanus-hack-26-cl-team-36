@@ -10,6 +10,7 @@ from browser import BrowserSession, create_context
 from profiles import Profile
 from route_tree import node_key
 
+from mapper import config
 from mapper.locators import resolve_locators
 from mapper.operate import ActionRejected, Log, perform_step
 from mapper.page_view import page_text
@@ -54,7 +55,8 @@ async def _run_steps(session: BrowserSession, route: list[Step], replay: Replay,
     for number, step in enumerate(route, 1):
         try:
             handle = await resolve(session.page, step.target.locators) if step.target else None
-            replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target))
+            # Cada paso registrado estaba a la vista al hacerse.
+            replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target, config.REAPPEAR_S))
         except (ActionRejected, PlaywrightError) as error:
             replay.error = f"paso {number} ({step.label}): {error}"
             return
