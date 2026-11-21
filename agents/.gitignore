@@ -18,11 +18,3 @@ __pycache__/
 
 # Sistema operativo.
 .DS_Store
-
-# CLI de AgentCore (agentcore/): estado local, caché del empaquetado y salida de CDK.
-# deployed-state.json sí se sube: enlaza el proyecto con su stack desplegado.
-agentcore/.cli/*
-!agentcore/.cli/deployed-state.json
-agentcore/.cache/
-agentcore/cdk/cdk.out/
-node_modules/

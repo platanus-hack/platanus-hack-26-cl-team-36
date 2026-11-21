@@ -1,8 +1,8 @@
 # Commands are grouped by environment, and they work from anywhere in the repo:
 # `just local` lists local development (local/justfile), `just aws` the web
-# evaluator in AgentCore (aws/justfile).
+# evaluator in AgentCore (infra/justfile).
 mod local
-mod aws
+mod aws 'infra/justfile'
 
 # Deploys and releases run as GitHub Actions in this personal repo, a copy of main from
 # the organization repo (see infra/README.md). Every team member is a collaborator there.
@@ -38,7 +38,8 @@ sync: _gh
     echo "  ✔ The personal repo is at $(gh api repos/{{ personal_repo }}/commits/main --jq '.sha[0:7]'), same as main"
 
     # A push starts the deploys within seconds: Terraform if it touches backend/ or infra/app/,
-    # AgentCore if it touches the web evaluator (agents/). Prints "workflow id" for each one.
+    # AgentCore if it touches the web evaluator (agents/app/web_evaluator/ or infra/agentcore/).
+    # Prints "workflow id" for each one.
     deploys_since() {
         for workflow in terraform.yml agentcore.yml; do
             id="$(run_since "$workflow" push)"

@@ -46,10 +46,10 @@ uv run main.py --engine api --task wom-baja-fibra
 ## En AWS (AgentCore)
 
 El mismo evaluador corre en [AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/), con Claude en Amazon
-Bedrock y AgentCore Browser, y gasta de la cuenta de AWS de la hackatón en vez de tu plan. `agents/` es el proyecto
-de la [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agents/agentcore/agentcore.json` declara este
-runtime, y la CLI lo empaqueta para arm64 y lo despliega. La entrada en AWS es `agentcore_app.py`; `main.py` sigue
-siendo el comando local.
+Bedrock y AgentCore Browser, y gasta de la cuenta de AWS de la hackatón en vez de tu plan. La
+[CLI de AgentCore](https://github.com/aws/agentcore-cli) empaqueta esta carpeta para arm64 y la despliega; su
+configuración está en [`infra/agentcore/`](../../../infra/README.md#carpetas), junto al resto de la infraestructura. La
+entrada en AWS es `agentcore_app.py`; `main.py` sigue siendo el comando local.
 
 En AWS se usa solo Claude Haiku 5.5, tanto para los usuarios sintéticos como para el juez (`BEDROCK_USER_MODEL` y
 `BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. En la cuenta basta con habilitar Haiku 5.5 en
