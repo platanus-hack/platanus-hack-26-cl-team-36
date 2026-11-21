@@ -112,3 +112,20 @@ python agents/app/web_evaluator/main.py --task <id> --variant <id | control> --n
 **Sobre el nombre.** Se planteó "web refinator". "Refinator" no existe en inglés ("refiner" sí), y el glosario ya
 llama Optimizador a esta pieza. Se propone `web_optimizer` para no tener dos nombres para lo mismo.
 
+## Almacén
+
+**Las salidas de los agentes tienen un solo árbol por sitio, igual en `agents/.runs/` y en S3.** Lo define el paquete
+[`agents/shared/`](../../agents/shared/README.md) (`shared.store`): las claves, los ids de corrida, el manifiesto y
+los backends local y S3.
+
+```
+<host>/
+  cataloger/<run>/                       manifest.json outline.json goals.json goals.md
+  guide/<goal>/<viewport>/<run>/         manifest.json route.json route.md step_00.png …
+  visitor/<goal>/<run>/                  manifest.json criteria.json route_tree.json comparison.json report.md
+      <profile>/                         run.json step_00.png … video.webm
+  summary/<run>/                         manifest.json summary.json summary.md
+```
+
+`<run>` es el instante UTC de inicio y la última corrida es la última clave. Cada `manifest.json` dice qué es la
+carpeta y de qué corridas viene.
