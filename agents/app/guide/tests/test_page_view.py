@@ -84,6 +84,15 @@ def test_text_clipped_by_a_collapsed_accordion_is_not_in_the_view(with_session):
     with_session("acordeon.html", body)
 
 
+def test_links_without_a_host_are_listed(with_session):
+    async def body(session):
+        lines = render_view(await read_page_view(session.page)).splitlines()
+        for name in ("Escríbenos", "Llámanos"):
+            assert any(f"link · «{name}» · →" in line for line in lines), name
+
+    with_session("acordeon.html", body)
+
+
 def test_element_below_the_fold_of_an_inner_scroll_panel_is_usable(with_session):
     async def body(session):
         view = await read_page_view(session.page)

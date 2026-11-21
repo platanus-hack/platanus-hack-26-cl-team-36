@@ -47,7 +47,8 @@ PAGES = {
     "acordeon.html": """<title>Acordeón</title>
         <button onclick="document.getElementById('respuesta').style.maxHeight = 'none'">Ver respuesta</button>
         <div id="respuesta" style="max-height:0;overflow:hidden"><p>La respuesta es 42.</p></div>
-        <a href="https://otro.example/">Otro sitio</a>""",
+        <a href="https://otro.example/">Otro sitio</a>
+        <a href="mailto:contacto@sitio.cl">Escríbenos</a> <a href="tel:+56226749300">Llámanos</a>""",
     "app.html": """<title>Aplicación</title>
         <div style="height:100vh;overflow:hidden"><div style="height:100%;overflow:auto">
           <div style="height:2000px"></div><a href="productos.html">Al fondo del panel</a>

@@ -18,3 +18,9 @@ def test_same_site_accepts_subdomains_of_the_start_host_only():
     start = "https://www.sii.cl/"
     assert same_site("https://homer.sii.cl/", start) and same_site("https://sii.cl/servicios_online", start)
     assert not same_site("https://sii.cl.evil.com/", start) and not same_site("https://gob.cl/", "https://www.dt.gob.cl/")
+
+
+def test_links_without_a_host_belong_to_no_site():
+    start = "https://www.dt.gob.cl/portal/"
+    assert not same_site("mailto:contacto@dt.gob.cl", start) and not same_site(start, "javascript:void(0)")
+    assert not same_site("tel:+56226749300", start)
