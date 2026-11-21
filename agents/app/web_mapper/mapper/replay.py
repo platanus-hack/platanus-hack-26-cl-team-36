@@ -1,8 +1,9 @@
 """Verificación de la ruta repitiéndola en un contexto nuevo, y minimización sin llamar al modelo."""
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
-from playwright.async_api import Browser
+from playwright.async_api import Browser, ElementHandle, Page
 from playwright.async_api import Error as PlaywrightError
 
 from browser import BrowserSession, create_context
@@ -14,6 +15,8 @@ from mapper.operate import ActionRejected, Log, perform_step
 from mapper.page_view import page_text
 from mapper.quote import quote_in_text, quote_on_screen
 from mapper.route import Step
+
+Resolver = Callable[[Page, list[dict]], Awaitable[ElementHandle | None]]
 
 
 @dataclass
@@ -47,17 +50,19 @@ class Verification:
     error: str | None           # por qué no verificó la candidata
 
 
-async def _run_steps(session: BrowserSession, route: list[Step], replay: Replay) -> None:
+async def _run_steps(session: BrowserSession, route: list[Step], replay: Replay, resolve: Resolver) -> None:
     for number, step in enumerate(route, 1):
         try:
-            handle = await resolve_locators(session.page, step.target.locators) if step.target else None
+            handle = await resolve(session.page, step.target.locators) if step.target else None
             replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target))
         except (ActionRejected, PlaywrightError) as error:
             replay.error = f"paso {number} ({step.label}): {error}"
             return
 
 
-async def replay_route(browser: Browser, profile: Profile, url: str, route: list[Step], quote: str) -> Replay:
+async def replay_route(
+    browser: Browser, profile: Profile, url: str, route: list[Step], quote: str, resolve: Resolver = resolve_locators
+) -> Replay:
     """Repite la ruta desde la URL inicial y comprueba si la cita está en la página final."""
     context = await create_context(browser, profile)
     replay = Replay()
@@ -66,7 +71,7 @@ async def replay_route(browser: Browser, profile: Profile, url: str, route: list
         await session.open(url)
         replay.start_url, replay.start_title = await session.url_and_title()
         replay.start_screenshot = await session.screenshot()
-        await _run_steps(session, route, replay)
+        await _run_steps(session, route, replay, resolve)
         if replay.error is None:
             replay.final_url, replay.final_title = await session.url_and_title()
             replay.quote_found = quote_in_text(quote, await page_text(session.page))

@@ -54,9 +54,7 @@ def route_document(
 
 
 def route_markdown(document: dict) -> str:
-    summary, search = document["totals"], document["search"]
-    tried = ", ".join(str(route["min_steps"] if route["min_steps"] is not None else route["status"])
-                      for route in search["routes"])
+    summary = document["totals"]
     lines = [
         f"# Ruta de referencia: {document['instruction']}",
         "",
@@ -68,10 +66,17 @@ def route_markdown(document: dict) -> str:
         f" {summary['distinct_pages']} páginas)",
         f"- Exploración: {document['exploration']['steps']} acciones, {document['exploration']['turns']} turnos,"
         f" US$ {document['exploration']['cost_usd']}",
-        f"- Rutas exploradas: {search['tried']} (pasos mínimos: {tried}; se eligió la {search['chosen']})",
-        "",
-        f"0. Inicio en «{document['start']['title']}» {document['start']['url']}",
     ]
+    search = document.get("search")
+    if search:
+        tried = ", ".join(str(route["min_steps"] if route["min_steps"] is not None else route["status"])
+                          for route in search["routes"])
+        lines.append(f"- Rutas exploradas: {search['tried']} (pasos mínimos: {tried}; se eligió la {search['chosen']})")
+    if document.get("adopted_from"):
+        source = document["adopted_from"]
+        lines.append(f"- Adoptada del evaluador: tanda {source['batch']}, perfil {source['profile']}"
+                     f" (la anterior tenía {source['previous_min_steps']} pasos mínimos)")
+    lines += ["", f"0. Inicio en «{document['start']['title']}» {document['start']['url']}"]
     for step in document["steps"]:
         scroll = " (scroll antes)" if step["scrolls_needed"] else ""
         lines.append(f"{step['number']}. {step['label']}{scroll} → «{step['title_after']}» {step['url_after']}")

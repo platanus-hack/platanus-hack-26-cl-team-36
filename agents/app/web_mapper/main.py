@@ -5,14 +5,15 @@ Uso, desde agents/app/web_mapper/:
     uv run main.py route --task wom-baja-fibra
     uv run main.py route --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal"
     uv run main.py goals --url https://www.wom.cl/ --routes 2
+    uv run main.py adopt --id wom-baja-fibra
 """
 
 import argparse
 import shutil
 
-from mapper import config, goals_command, route_command
+from mapper import adopt_command, config, goals_command, route_command
 
-COMMANDS = {"route": route_command, "goals": goals_command}
+COMMANDS = {"route": route_command, "goals": goals_command, "adopt": adopt_command}
 
 
 def build_parser() -> argparse.ArgumentParser:

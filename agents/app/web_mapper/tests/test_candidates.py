@@ -22,12 +22,12 @@ LONG = [("click", "Menú", {}), ("click", "Servicios", {}), ("click", "Dar de ba
 SHORT = [("click", "Ver más", {}), ("done", None, {"answer": "Llamar al 103", "quote": QUOTE})]
 
 
-def _map(tmp_path, script, on_done=None):
+def map_site(tmp_path, script, on_done=None, extra_routes=1):
     for name, html in PAGES.items():
         (tmp_path / name).write_text(f'<meta charset="utf-8">{html}', encoding="utf-8")
     decider = ScriptedDecider(script, on_done)
     mapping = Mapping("prueba", (tmp_path / "index.html").as_uri(), "Encuentra cómo dar de baja", "desktop", DESKTOP,
-                      "guion", "low", tmp_path / "out", 1)
+                      "guion", "low", tmp_path / "out", extra_routes)
 
     async def main():
         async with async_playwright() as playwright:
@@ -41,7 +41,7 @@ def _map(tmp_path, script, on_done=None):
 
 
 def test_shorter_verified_route_replaces_the_first(tmp_path):
-    document, decider = _map(tmp_path, LONG + SHORT)
+    document, decider = map_site(tmp_path, LONG + SHORT)
     assert "Ya hay una ruta verificada de 3 pasos mínimos" in decider.prompts[4]
     assert "3. click «Dar de baja» → «Baja»" in decider.prompts[4]
     assert document["status"] == "verified" and document["totals"]["min_steps"] == 1
@@ -60,12 +60,12 @@ def test_shorter_route_that_does_not_verify_keeps_the_first(tmp_path):
             index = tmp_path / "index.html"
             index.write_text(index.read_text(encoding="utf-8").replace(">Ver más</a>", "></a>"), encoding="utf-8")
 
-    document, _ = _map(tmp_path, LONG + SHORT, remove_shortcut)
+    document, _ = map_site(tmp_path, LONG + SHORT, remove_shortcut)
     assert document["status"] == "verified" and document["totals"]["min_steps"] == 3
     assert document["search"]["chosen"] == 1
     assert [route["status"] for route in document["search"]["routes"]] == ["verified", "unverified"]
 
 
 def test_no_extra_exploration_after_an_unanswered_first(tmp_path):
-    document, decider = _map(tmp_path, [("give_up", None, {"text": "No está."})])
+    document, decider = map_site(tmp_path, [("give_up", None, {"text": "No está."})])
     assert document["status"] == "not_found" and document["search"]["tried"] == 1 and len(decider.prompts) == 1
