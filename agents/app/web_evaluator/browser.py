@@ -81,8 +81,8 @@ class BrowserSession:
         self.opened_at: float | None = None  # time.monotonic() al abrir la primera pestaña: el 0:00 del video
 
     async def open(self, url: str) -> None:
+        self.opened_at = time.monotonic()  # Playwright empieza a grabar al crear la página
         page = await self.context.new_page()
-        self.opened_at = time.monotonic()
         self._watch(page)
         self.page = page
         self.context.on("page", self._on_new_tab)
@@ -130,20 +130,26 @@ class BrowserSession:
         """Captura solo del viewport, nunca de la página completa."""
         return await self.page.screenshot(type="png", full_page=False, timeout=15_000)
 
-    async def save_videos(self, run_dir: Path) -> list[str]:
-        """Renombra los videos de cada pestaña a video.webm, video-2.webm... Llamar tras cerrar el contexto."""
+    async def save_videos(self, run_dir: Path, incidents: list[str]) -> list[str]:
+        """Deja el video de cada pestaña como video.webm, video-2.webm... Llamar tras cerrar el contexto.
+
+        El número es el orden de la pestaña: video.webm es siempre la primera, la que siguen los minutos del reporte.
+        Un video que no se pudo guardar queda anotado en `incidents`.
+        """
         names: list[str] = []
-        for page in self.pages:
+        for number, page in enumerate(self.pages, start=1):
             if page.video is None:
                 continue
+            name = "video.webm" if number == 1 else f"video-{number}.webm"
             try:
                 source = Path(await page.video.path())
-            except PlaywrightError:
-                continue
-            if not source.exists():
-                continue
-            name = "video.webm" if not names else f"video-{len(names) + 1}.webm"
-            source.replace(run_dir / name)
+                source.replace(run_dir / name)
+            except Exception:
+                try:  # navegador remoto: el archivo no está en este disco y hay que descargarlo
+                    await page.video.save_as(run_dir / name)
+                except Exception as error:
+                    incidents.append(f"no se pudo guardar {name}: {type(error).__name__}: {error}"[:300])
+                    continue
             names.append(name)
         return names
 

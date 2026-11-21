@@ -87,6 +87,20 @@ agents/.runs/<tarea>/<fecha-hora>/
 
 `agents/.runs/` queda fuera de git.
 
+### Trazabilidad de tiempos
+
+`run.json` guarda en `started_at` la hora local (ISO 8601, con zona) en que empieza el intento. Cada paso registra
+tres momentos, en segundos desde ese inicio (`*_s`) y como hora absoluta (`*_at`):
+
+| Campo | Momento |
+|---|---|
+| `decided_s`, `decided_at` | El modelo devolvió el turno que pidió la acción. Si un turno pide varias, comparten este valor. |
+| `executed_s`, `executed_at` | Justo antes de ejecutar el clic, la tecla o el scroll. |
+| `settled_s`, `settled_at` | La página terminó de reaccionar y se tomó la captura. Es el mismo valor que `seconds_since_start`. |
+
+`settled_s - executed_s` es lo que tardó la página en responder. Con `--record-video`, el segundo de la acción en el
+video es `video_offset_s + executed_s`, y es el que muestra el reporte en la columna Video.
+
 Con `--record-video`, cada pestaña que abre el usuario tiene su propio video (`video.webm`, `video-2.webm`...). Los
 minutos del reporte son del primero. Un intento de 3 minutos ocupa del orden de 15 a 30 MB.
 

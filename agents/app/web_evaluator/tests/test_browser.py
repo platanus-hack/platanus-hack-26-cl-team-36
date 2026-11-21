@@ -139,7 +139,7 @@ def test_record_video_saves_one_webm_per_tab(site, tmp_path):
                 await session.wait_until_settled()
                 assert (await session.url_and_title())[1] == "Dos"
                 await context.close()
-                return await session.save_videos(video_dir)
+                return await session.save_videos(video_dir, [])
             finally:
                 await browser.close()
 
@@ -160,7 +160,7 @@ def test_without_video_dir_nothing_is_recorded(site, tmp_path):
                 session = BrowserSession(context, DESKTOP)
                 await session.open((site / "one.html").as_uri())
                 await context.close()
-                return await session.save_videos(tmp_path)
+                return await session.save_videos(tmp_path, [])
             finally:
                 await browser.close()
 
