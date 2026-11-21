@@ -1,25 +1,26 @@
 # Spikes
 
-Esta carpeta guarda lo que tiene fecha: planes, mediciones y pruebas. La carpeta [`docs/`](../docs/index.md) explica
-qué es el producto y sus piezas; no lleva fechas ni planes.
+**Qué es esta carpeta.** Aquí van los spikes del proyecto: sus scripts y sus informes. Qué spikes hay que hacer y
+por qué está en [el plan](../docs/plan.md).
+
+Todavía no se ha hecho ninguno.
 
 ## Qué es un spike
 
 Una prueba corta para contestar una pregunta cuya respuesta cambia lo que vamos a construir. No es código que se
 conserve.
 
-Cada spike deja dos cosas:
+Cada spike deja dos archivos en esta carpeta, con el mismo nombre:
 
-1. **Un informe** en `.spikes/<fecha>-<tema>.md`.
-2. **Un script de un solo archivo** en `spikes/<tema>.py`, que cualquiera pueda volver a correr. Al principio dice
-   qué mide y cómo se ejecuta.
+- `<fecha>-<tema>.py`: un script que cualquiera pueda volver a correr. Al principio dice qué mide y cómo se ejecuta.
+- `<fecha>-<tema>.md`: el informe.
 
 ## Cómo se escribe el informe
 
 ```
 # Spike: <la pregunta> (<fecha>)
 
-Qué versión del código se usó, en qué equipo y qué se consultó.
+Qué versión del código se usó, en qué computador y qué se consultó.
 
 ## Respuesta corta
 La conclusión en un párrafo. Qué quedó demostrado y qué no.
@@ -34,13 +35,8 @@ La decisión que se toma con esto, y lo que queda sin resolver.
 Reglas:
 
 - La respuesta va primero.
+- La regla para decidir se escribe antes de medir.
 - Lo demostrado se separa de lo supuesto.
-- Cada número dice sobre cuántos casos se calculó, cuándo y en qué equipo.
+- Cada número dice sobre cuántos casos se calculó, cuándo y en qué computador.
 - Un informe no se reescribe. Si la conclusión cambia, se agrega otro que enlaza al anterior.
 - Lo que la documentación necesite de un spike se copia a `docs/` como conclusión, con su fecha.
-
-## Índice
-
-| Fecha | Documento | Qué es |
-|---|---|---|
-| 2026-11-21 | [Qué hay que averiguar y qué hay que construir](2026-11-21-plan.md) | Plan |

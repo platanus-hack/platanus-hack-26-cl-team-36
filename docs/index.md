@@ -1,34 +1,62 @@
-# Qué estamos construyendo y a dónde va
+# Páginas web que se adaptan a cada persona, con cambios que se prueban antes de aplicarse
 
-Este documento es el punto de entrada. Explica de dónde venimos, cuál es la idea, qué piezas tiene y en qué estado
-está cada una. No hace falta haber leído nada antes.
+**Qué es este documento.** El punto de entrada del proyecto, para cualquiera del equipo o del jurado. No hace falta
+haber leído nada antes. Es una **propuesta en revisión**: cambia el rumbo respecto de [specs/MVP.md](../specs/MVP.md),
+y la sección 1 dice en qué.
 
-**Orden de lectura sugerido**
+**En un párrafo.** Una extensión de navegador mejora cualquier página web sin tocar el sitio original. Hace dos
+cosas. Primero **optimiza**: agentes de IA intentan una tarea en la página, se registra dónde se pierden, se propone
+un cambio acotado y se acepta solo si más agentes logran la tarea y sigue siendo igual de fácil cancelar o rechazar.
+Después **personaliza**: la *soul*, un archivo con las preferencias de la persona que nunca sale de su computador,
+ajusta la página encima de esas optimizaciones. Hoy funciona un prototipo que adapta el estilo de una página; la
+evaluación con agentes está planificada y aún no construida.
 
-1. Este documento.
-2. [El plan](../.spikes/2026-11-21-plan.md): qué hay que averiguar y qué hay que construir.
-3. [Glosario](glosario.md): los términos, por si alguno no queda claro.
-4. [Formas de datos](datos.md): solo cuando se vaya a programar.
+El producto todavía no tiene nombre. Somos el equipo 36 de la hackatón, categoría Multiplayer.
+
+**Orden de lectura**
+
+1. Este documento: de dónde venimos, la idea y las piezas.
+2. [El plan](plan.md): qué hay que averiguar y qué hay que construir.
+3. [Glosario](glosario.md): para consultar un término.
+4. [Formas de datos](formas-de-datos.md): solo al programar.
+
+**Sobre el idioma.** Los documentos van en español. El código y los datos usan nombres en inglés; el glosario dice
+cuál corresponde a cada término. En el texto solo se dejan en inglés *soul*, *spike*, *PR* y *script*.
 
 ## 1. De dónde venimos
 
-Somos el equipo 36 de la hackatón, en el track Multiplayer. La idea de partida fue una extensión de navegador que
-usa el Claude de cada persona para adaptar cualquier página web a su gusto.
+### Lo que ya funciona
 
-**Lo que ya funciona.** El [prototipo](../prototipo/README.md) hace esto: la persona escribe cómo quiere ver las
-páginas ("modo oscuro, texto más grande"); la extensión le envía a su Claude la estructura de la página; Claude
-devuelve una hoja de estilo; la extensión la aplica. Tarda entre 7 y 10 segundos y la segunda visita sale de la
-caché.
+El [prototipo](../prototipo/README.md) es una extensión de Firefox. La persona escribe cómo quiere ver las páginas
+("modo oscuro, texto más grande"). La extensión envía la estructura de la página a Claude, Claude devuelve una hoja
+de estilo y la extensión la aplica. El panel muestra una explicación de lo que cambió y permite ver la página
+original.
 
-**Lo que aprendimos con él.**
+"Claude" aquí es Claude Code, instalado en el computador de la persona y con su sesión iniciada. La extensión no
+puede hablar con él directamente; lo hace a través de un programa pequeño que llamamos **puente**.
 
-- Claude escribe el estilo sin ver el resultado. A veces rompe la página: en las pruebas dejó un panel sin oscurecer
-  y unas tarjetas demasiado estrechas.
-- No tenemos cómo saber si un cambio ayuda o estorba. Solo sabemos si a la persona le gusta.
+Una adaptación tardó 6,6, 8,7 y 9,7 segundos en las tres páginas medidas el 2026-11-21. La segunda visita a un sitio
+sale de la caché.
 
-**Lo que ya propuso el equipo.** [specs/MVP.md](../specs/MVP.md) añade dos ideas: registrar los recorridos de las
-personas, y validar un cambio con agentes de IA que hacen una tarea en el sitio. Este documento toma esa segunda idea
-y la pone en el centro.
+### Lo que aprendimos
+
+- **Claude escribe el estilo sin ver el resultado.** Según las notas del prototipo, dejó un panel sin oscurecer y
+  unas tarjetas demasiado estrechas.
+- **No sabemos si un cambio ayuda o estorba.** Solo sabemos si a la persona le gusta.
+
+### Qué cambia respecto de `specs/MVP.md`
+
+Ese documento propone más que el prototipo: un servidor central donde las personas comparten y valoran sus
+adaptaciones, un recomendador, el registro de cómo navega cada persona, y una validación con agentes de IA.
+
+Esta propuesta **toma la validación con agentes y la pone en el centro**, y **deja fuera, por ahora, el servidor
+central, las valoraciones y el recomendador**. La razón: hoy no podemos decir si una adaptación es buena, y compartir
+adaptaciones sin saberlo reparte el problema. Primero hay que poder medir.
+
+La consecuencia hay que decirla: **con esta propuesta, nada se comparte entre personas todavía.** Lo que una persona
+mide queda en su computador. Lo multiplayer pasa a ser el paso siguiente: compartir optimizaciones que ya traen su
+evidencia. Si el equipo necesita mostrar algo compartido en la hackatón, hay que decidirlo ahora; está en la lista de
+decisiones del [plan](plan.md).
 
 ## 2. La idea
 
@@ -37,43 +65,46 @@ página que ve la persona = página original + optimizaciones + soul
 ```
 
 - **Página original:** el sitio tal como lo sirve su dueño. No se toca; todo se aplica encima, en el navegador.
-- **Optimizaciones:** cambios que hacen que una tarea se complete mejor para cualquiera. No se aceptan por gusto,
-  sino con evidencia.
-- **Soul:** el perfil de preferencias de una persona. Ajusta la página a ella y nunca sale de su equipo.
+- **Optimizaciones:** cambios que hacen que una tarea se complete mejor para cualquiera. Solo se aceptan si una
+  medición muestra que mejoran la tarea.
+- **Soul:** las preferencias de una persona. Ajusta la página a ella y nunca sale de su computador.
 
 ### Un ejemplo
 
-Un formulario de inscripción tiene tres pasos. En el segundo hay dos botones que dicen "Continuar": uno avanza y el
+Un formulario de inscripción tiene tres etapas. En la segunda hay dos botones que dicen "Continuar": uno avanza y el
 otro vuelve al inicio.
 
-1. **Se mide.** Veinte agentes de IA intentan inscribirse, cada uno con una conducta distinta (uno impaciente, uno
-   que lee todo…). Solo seis lo logran. El registro de sus pasos muestra que la mayoría se pierde en el segundo paso.
-2. **Se propone un cambio.** Renombrar el botón que avanza a "Siguiente paso" y darle más peso visual.
-3. **Se vuelve a medir.** Con el cambio, quince de veinte lo logran. Además se comprueba que sigue siendo igual de
-   fácil cancelar la inscripción: un cambio que mejora el número a costa de atrapar a la gente se rechaza.
+1. **Se mide.** La persona pide evaluar el formulario. En su computador, veinte agentes de IA intentan inscribirse,
+   cada uno con una conducta distinta (uno impaciente, uno que lee todo). Solo seis lo logran. Sus recorridos
+   muestran que la mayoría se pierde en la segunda etapa.
+2. **Se propone un parche.** Renombrar el botón que avanza a "Siguiente paso" y darle más peso visual.
+3. **Se vuelve a medir.** Con el parche, quince de veinte lo logran. Además se comprueba una salvaguarda: cancelar la
+   inscripción sigue siendo igual de fácil. Un parche que mejora el número a costa de atrapar a la gente se rechaza.
 4. **Se acepta.** Eso es una optimización: sirve a cualquiera que quiera inscribirse.
 5. **Entra la soul.** Ana prefiere colores apagados y texto grande. Su soul ajusta la página a eso, encima de la
    optimización.
-6. **Se comprueba para Ana.** Los colores apagados de Ana le quitan el peso visual al botón. Un agente que navega
-   "como Ana" lo detecta, y el sistema conserva para ella el cambio de nombre, que su soul no altera.
+6. **Se comprueba para Ana.** Los colores apagados de Ana le quitan el peso visual al botón. Un agente con la soul de
+   Ana lo nota: el botón ya no destaca. Para ella, la optimización se reduce al nuevo nombre del botón, que su soul
+   no toca.
 
 **Por qué las dos cosas van juntas.** Una optimización es un promedio: funciona para la mayoría y puede fallarle a
-una persona concreta. La soul la ajusta a esa persona, y permite comprobarlo sin esperar a tener usuarios reales.
+una persona concreta. La soul adapta la página a esa persona, y un agente con esa soul comprueba que la optimización
+le sigue sirviendo, sin esperar a tener usuarios reales.
 
-**Qué tiene de multiplayer.** Una optimización aceptada sirve a todos los que usan ese sitio. Compartirlas entre
-personas es el paso siguiente; hoy todo corre en el equipo de cada una.
+Los pasos 1 a 5 son lo que el plan intenta construir. El paso 6 queda para después.
 
 ## 3. Las piezas
 
-Todo corre en el equipo de la persona. No hay servidor propio.
+Todo corre en el computador de la persona, con su propio Claude. No hay servidor.
 
 ```mermaid
 flowchart LR
   WEB["Página original"]
-  subgraph EQ["Equipo de la persona"]
+  subgraph PC["Computador de la persona"]
     EXT["Extensión"]
     PU["Puente"]
-    IA["Su Claude"]
+    CL["Claude Code"]
+    SO[("Soul")]
     AL[("Almacén local")]
     EV["Evaluador"]
     OP["Optimizador"]
@@ -81,77 +112,82 @@ flowchart LR
   end
   WEB --> EXT
   WEB --> EV
-  EXT -->|"aplica cambios con"| MO
-  EV -->|"aplica cambios con"| MO
+  EXT -->|"aplica parches con"| MO
+  EV -->|"aplica parches con"| MO
   EXT <--> PU
-  PU --> IA
-  EV --> IA
-  OP --> IA
-  EV -->|"guarda recorridos"| AL
-  OP -->|"guarda cambios y resultados"| AL
+  PU --> CL
+  PU <--> SO
   PU <--> AL
+  EV --> CL
+  OP --> CL
+  EV -->|"guarda recorridos"| AL
+  OP -->|"guarda parches y resultados"| AL
 ```
 
-| Pieza | Qué hace | Estado hoy |
-|---|---|---|
-| **Puente** | Conecta la extensión con el Claude de la persona. | Funciona en el prototipo. |
-| **Extensión** | Aplica los cambios al navegar y explica por qué la página se ve así. | El prototipo aplica una hoja de estilo; no explica nada. |
-| **Soul** | Guarda las preferencias de la persona y las convierte en cambios para cada sitio. | El prototipo guarda una sola instrucción. |
-| **Motor de parches** | Aplica cambios a una página de forma segura y reversible. | No existe. El prototipo aplica estilo libre. |
-| **Evaluador** | Lanza agentes que intentan una tarea y registra dónde se pierden. | No existe. |
-| **Optimizador** | Propone cambios a partir de lo que encontró el evaluador y decide cuál se acepta. | No existe. |
-| **Almacén local** | Guarda en archivos lo aprendido de cada sitio. | No existe. |
+| Pieza | Estado hoy |
+|---|---|
+| Puente | Funciona en el prototipo. |
+| Extensión | El prototipo aplica una hoja de estilo, la explica y muestra la original. |
+| Soul | El prototipo guarda una sola instrucción escrita por la persona. |
+| Motor de parches | No existe. |
+| Evaluador | No existe. Las pruebas del prototipo ya manejan un navegador sin ventana y toman capturas. |
+| Optimizador | No existe. |
+| Almacén local | No existe. |
 
 ### Puente
 
-Un programa pequeño en el equipo de la persona. Recibe peticiones de la extensión, se las pasa a su Claude y devuelve
-la respuesta. Existe porque una extensión no puede hablar con Claude directamente usando la sesión de la persona.
-
-Ya funciona: `prototipo/puente/puente.py`. Le falta comprobar que quien lo llama es la extensión y no una página web
-cualquiera.
+Un programa en el computador de la persona. Recibe peticiones de la extensión, se las pasa a Claude Code y devuelve
+la respuesta. Ya rechaza las peticiones que vienen de una página web. Le falta un código de emparejamiento, para que
+tampoco lo pueda usar otro programa del mismo computador.
 
 ### Extensión
 
-Lo que la persona instala y ve. Al cargar una página aplica los cambios guardados para ese sitio. Debe poder
-responder "¿por qué esta página se ve así?" y mostrar la original con un clic.
+Lo que la persona instala y ve. Al cargar una página aplica lo guardado para ese sitio. Hoy explica la hoja de estilo
+que generó; con esta propuesta tendría que explicar además qué optimización está aplicada y sobre cuántos intentos
+se midió.
 
 ### Soul
 
-Un archivo que la persona puede leer, corregir y borrar, con sus preferencias. De él sale, para cada sitio, un
-conjunto de cambios de presentación. También sirve para crear un agente que navega "como esa persona".
+Un archivo que la persona puede leer, corregir y borrar, con sus preferencias. De él sale, para cada sitio, un parche
+que solo cambia la presentación. También sirve para crear un agente que navega con esas preferencias.
 
-La llamamos soul porque es lo que hace que la página sea de esa persona. No es la personalidad de un agente.
+La llamamos soul porque reúne lo que hace que una página se sienta propia. No es la personalidad de un agente.
 
 ### Motor de parches
 
 Un **parche** es una lista de cambios escritos como datos, no como código: "renombra este botón", "oculta este
-bloque", "cambia este color". El motor los aplica, los puede deshacer y comprueba después que nada importante se
-rompió: que los botones para salir, cancelar o rechazar siguen ahí y se pueden pulsar.
+bloque", "cambia este color". El motor los aplica, los puede deshacer y hace después una **comprobación de
+seguridad**: los botones para salir, cancelar o rechazar siguen ahí y se pueden pulsar.
 
-Lo usan tanto la extensión como el evaluador. Así, lo que miden los agentes es exactamente lo que verá la persona.
+Reemplaza la hoja de estilo libre del prototipo, que Claude escribe sin restricciones y que a veces rompía la página.
 
-Reemplaza la hoja de estilo libre del prototipo, que es la que a veces rompía la página.
+Lo usan la extensión y el evaluador. Así, la optimización que miden los agentes es la misma que se le aplica a la
+persona. Lo que los agentes no ven es la soul de cada persona; de eso trata el paso 6 del ejemplo.
 
 ### Evaluador
 
 Lanza agentes de IA que intentan una **tarea** en una página: inscribirse, encontrar un dato, completar un trámite.
-Cada agente ve la página como una captura con los elementos numerados y elige qué hacer. Que lo haya logrado lo
-decide el programa, no el agente.
+Cada agente recibe la página, elige una acción, la ejecuta y repite. El programa, y no el agente, decide si la tarea
+se logró.
 
-De todos los intentos sale un **grafo de navegación**: por qué etapas pasan, por dónde siguen y dónde abandonan.
+De todos los intentos sale un **grafo de navegación**: por qué etapas pasan los agentes, por dónde siguen y dónde
+abandonan.
 
-La página sobre la que se evalúa no está fijada. La elige quien construya esta pieza.
+Qué recibe exactamente el agente (solo la estructura de la página, o también una captura) es lo primero que hay que
+averiguar. Tampoco hay todavía una página de prueba: la elige quien construya el evaluador.
+
+La evaluación la lanza la persona, en su computador, y gasta de su propio plan de Claude.
 
 ### Optimizador
 
-Lee el grafo de navegación, propone parches y pide al evaluador que los mida. Acepta un parche solo si mejora la
+Lee el grafo de navegación, propone parches y le pide al evaluador que los mida. Acepta un parche solo si mejora la
 tarea y no empeora una **salvaguarda**: una tarea contraria que debe seguir siendo igual de fácil, como cancelar o
-rechazar un extra. Una persona aprueba antes de que el cambio quede activo.
+rechazar un extra. Una persona aprueba antes de que el parche quede activo.
 
 ### Almacén local
 
-Archivos en el equipo de la persona con las tareas, los parches, los recorridos de los agentes y los resultados de
-cada sitio. La soul se guarda aparte y nunca se exporta.
+Archivos en el computador de la persona con las tareas, los parches, los recorridos y los resultados de cada sitio.
+La soul se guarda aparte y nunca se exporta.
 
 ## 4. Lo que esto no es
 
@@ -162,8 +198,7 @@ cada sitio. La soul se guarda aparte y nunca se exporta.
 
 ## 5. Qué sigue
 
-Antes de construir hay que averiguar cuatro cosas, empezando por cómo se conectan el Claude de la persona y la
-interfaz de una página. Está en [el plan](../.spikes/2026-11-21-plan.md).
+[El plan](plan.md) dice qué hay que averiguar primero y qué hay que construir.
 
 Material de apoyo: [investigación previa](investigacion-ui-adaptativa.md) sobre interfaces adaptativas y
 [referencias](referencias.md) de herramientas que podrían sumarse.
