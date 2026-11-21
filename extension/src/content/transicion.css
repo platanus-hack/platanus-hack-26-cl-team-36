@@ -1,0 +1,614 @@
+/*
+  Transición "metamorfosis" (content/transicion.js). Se carga en todas las páginas, así
+  que todo va bajo html[data-mt-transicion], que solo existe mientras dura la
+  transición: no toca la página ni las View Transitions propias del sitio.
+
+  Modos (valor de data-mt-transicion):
+    entrada  activar con View Transitions (~1,5 s)
+    salida   desactivar con View Transitions (~1 s): todo vuelve hacia el botón
+    ligera   activar sin View Transitions: frente encima de la página y destello por pieza
+    suave    prefers-reduced-motion: fundido de 150 ms
+
+  Capas de la entrada (de atrás hacia adelante):
+    cámara   la página entera (el pseudoelemento ::view-transition) se sacude en 3D: se
+             inclina hacia el botón con el golpe, rebota al otro lado y se asienta.
+             Siempre ampliada lo justo para que no se vea el borde.
+    fondo    el tema aparece detrás del frente con un recorte circular desde el botón.
+    piezas   cada bloque [data-mt-pieza] es una escama: cuando el frente la alcanza se
+             levanta (escala, sombra y bordes con separación cromática), empujada lejos
+             del botón, da media vuelta en 3D sobre el eje perpendicular a la dirección
+             del frente (la captura vieja se tiñe del color del espectro que le toca y
+             desaparece de canto; la nueva entra teñida desde el otro lado), pasa de
+             largo y aterriza con rebote y un temblor de gelatina.
+    frente   #mt-frente: un estallido de rayos del espectro desde el botón, un destello
+             en la esquina y tres anillos que barren la pantalla. Al final, cuando las
+             piezas aterrizan, un brillo iridiscente cruza la página en diagonal.
+
+  Cada pieza recibe de <html> (ver transicion.js):
+    --mt-f  de 0 (junto al botón) a 1 (esquina opuesta): define su retraso y su color.
+    --mt-a  dirección del botón a la pieza, en grados: define el eje de giro.
+  El frente avanza con easeOutQuad (r = 1 - (1 - t)²): alcanza f en t = 1 - sqrt(1 - f).
+  Al desactivar se encoge con easeInQuad (r = 1 - t²): alcanza f en t = sqrt(1 - f), y f
+  se mide al punto más lejano de la pieza (el que el frente toca primero al encogerse).
+*/
+
+@property --mt-radio {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Intensidad del destello de la esquina (fondo de #mt-frente). Se anima esta variable y
+   no la opacidad del frente: la opacidad de #mt-frente apagaría también sus hijos (el
+   brillo final, los rayos y los anillos). */
+@property --mt-destello {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+/* ---------- Nombres: solo nuestras piezas y el frente participan ---------- */
+
+html[data-mt-transicion] :not([data-mt-pieza], #mt-frente) {
+  view-transition-name: none !important;
+}
+
+html[data-mt-transicion] [data-mt-pieza] {
+  view-transition-class: mt-pieza !important;
+}
+
+/* Una regla por índice (0 a MAX_NOMBRES - 1 en transicion.js): el nombre de la pieza y
+   sus parámetros. Los pseudoelementos no heredan del elemento, sino de <html>: por eso
+   se repite para cada grupo. */
+html[data-mt-transicion] [data-mt-pieza="0"] { view-transition-name: mt-p0 !important; --mt-f: var(--mt-f-0); --mt-a: var(--mt-a-0); }
+html[data-mt-transicion] [data-mt-pieza="1"] { view-transition-name: mt-p1 !important; --mt-f: var(--mt-f-1); --mt-a: var(--mt-a-1); }
+html[data-mt-transicion] [data-mt-pieza="2"] { view-transition-name: mt-p2 !important; --mt-f: var(--mt-f-2); --mt-a: var(--mt-a-2); }
+html[data-mt-transicion] [data-mt-pieza="3"] { view-transition-name: mt-p3 !important; --mt-f: var(--mt-f-3); --mt-a: var(--mt-a-3); }
+html[data-mt-transicion] [data-mt-pieza="4"] { view-transition-name: mt-p4 !important; --mt-f: var(--mt-f-4); --mt-a: var(--mt-a-4); }
+html[data-mt-transicion] [data-mt-pieza="5"] { view-transition-name: mt-p5 !important; --mt-f: var(--mt-f-5); --mt-a: var(--mt-a-5); }
+html[data-mt-transicion] [data-mt-pieza="6"] { view-transition-name: mt-p6 !important; --mt-f: var(--mt-f-6); --mt-a: var(--mt-a-6); }
+html[data-mt-transicion] [data-mt-pieza="7"] { view-transition-name: mt-p7 !important; --mt-f: var(--mt-f-7); --mt-a: var(--mt-a-7); }
+html[data-mt-transicion] [data-mt-pieza="8"] { view-transition-name: mt-p8 !important; --mt-f: var(--mt-f-8); --mt-a: var(--mt-a-8); }
+html[data-mt-transicion] [data-mt-pieza="9"] { view-transition-name: mt-p9 !important; --mt-f: var(--mt-f-9); --mt-a: var(--mt-a-9); }
+html[data-mt-transicion] [data-mt-pieza="10"] { view-transition-name: mt-p10 !important; --mt-f: var(--mt-f-10); --mt-a: var(--mt-a-10); }
+html[data-mt-transicion] [data-mt-pieza="11"] { view-transition-name: mt-p11 !important; --mt-f: var(--mt-f-11); --mt-a: var(--mt-a-11); }
+html[data-mt-transicion] [data-mt-pieza="12"] { view-transition-name: mt-p12 !important; --mt-f: var(--mt-f-12); --mt-a: var(--mt-a-12); }
+html[data-mt-transicion] [data-mt-pieza="13"] { view-transition-name: mt-p13 !important; --mt-f: var(--mt-f-13); --mt-a: var(--mt-a-13); }
+html[data-mt-transicion] [data-mt-pieza="14"] { view-transition-name: mt-p14 !important; --mt-f: var(--mt-f-14); --mt-a: var(--mt-a-14); }
+html[data-mt-transicion] [data-mt-pieza="15"] { view-transition-name: mt-p15 !important; --mt-f: var(--mt-f-15); --mt-a: var(--mt-a-15); }
+html[data-mt-transicion] [data-mt-pieza="16"] { view-transition-name: mt-p16 !important; --mt-f: var(--mt-f-16); --mt-a: var(--mt-a-16); }
+html[data-mt-transicion] [data-mt-pieza="17"] { view-transition-name: mt-p17 !important; --mt-f: var(--mt-f-17); --mt-a: var(--mt-a-17); }
+html[data-mt-transicion] [data-mt-pieza="18"] { view-transition-name: mt-p18 !important; --mt-f: var(--mt-f-18); --mt-a: var(--mt-a-18); }
+html[data-mt-transicion] [data-mt-pieza="19"] { view-transition-name: mt-p19 !important; --mt-f: var(--mt-f-19); --mt-a: var(--mt-a-19); }
+html[data-mt-transicion] [data-mt-pieza="20"] { view-transition-name: mt-p20 !important; --mt-f: var(--mt-f-20); --mt-a: var(--mt-a-20); }
+html[data-mt-transicion] [data-mt-pieza="21"] { view-transition-name: mt-p21 !important; --mt-f: var(--mt-f-21); --mt-a: var(--mt-a-21); }
+html[data-mt-transicion] [data-mt-pieza="22"] { view-transition-name: mt-p22 !important; --mt-f: var(--mt-f-22); --mt-a: var(--mt-a-22); }
+html[data-mt-transicion] [data-mt-pieza="23"] { view-transition-name: mt-p23 !important; --mt-f: var(--mt-f-23); --mt-a: var(--mt-a-23); }
+html[data-mt-transicion] [data-mt-pieza="24"] { view-transition-name: mt-p24 !important; --mt-f: var(--mt-f-24); --mt-a: var(--mt-a-24); }
+html[data-mt-transicion] [data-mt-pieza="25"] { view-transition-name: mt-p25 !important; --mt-f: var(--mt-f-25); --mt-a: var(--mt-a-25); }
+html[data-mt-transicion] [data-mt-pieza="26"] { view-transition-name: mt-p26 !important; --mt-f: var(--mt-f-26); --mt-a: var(--mt-a-26); }
+html[data-mt-transicion] [data-mt-pieza="27"] { view-transition-name: mt-p27 !important; --mt-f: var(--mt-f-27); --mt-a: var(--mt-a-27); }
+html[data-mt-transicion] [data-mt-pieza="28"] { view-transition-name: mt-p28 !important; --mt-f: var(--mt-f-28); --mt-a: var(--mt-a-28); }
+html[data-mt-transicion] [data-mt-pieza="29"] { view-transition-name: mt-p29 !important; --mt-f: var(--mt-f-29); --mt-a: var(--mt-a-29); }
+html[data-mt-transicion] [data-mt-pieza="30"] { view-transition-name: mt-p30 !important; --mt-f: var(--mt-f-30); --mt-a: var(--mt-a-30); }
+html[data-mt-transicion] [data-mt-pieza="31"] { view-transition-name: mt-p31 !important; --mt-f: var(--mt-f-31); --mt-a: var(--mt-a-31); }
+html[data-mt-transicion] [data-mt-pieza="32"] { view-transition-name: mt-p32 !important; --mt-f: var(--mt-f-32); --mt-a: var(--mt-a-32); }
+html[data-mt-transicion] [data-mt-pieza="33"] { view-transition-name: mt-p33 !important; --mt-f: var(--mt-f-33); --mt-a: var(--mt-a-33); }
+html[data-mt-transicion] [data-mt-pieza="34"] { view-transition-name: mt-p34 !important; --mt-f: var(--mt-f-34); --mt-a: var(--mt-a-34); }
+html[data-mt-transicion] [data-mt-pieza="35"] { view-transition-name: mt-p35 !important; --mt-f: var(--mt-f-35); --mt-a: var(--mt-a-35); }
+html[data-mt-transicion] [data-mt-pieza="36"] { view-transition-name: mt-p36 !important; --mt-f: var(--mt-f-36); --mt-a: var(--mt-a-36); }
+html[data-mt-transicion] [data-mt-pieza="37"] { view-transition-name: mt-p37 !important; --mt-f: var(--mt-f-37); --mt-a: var(--mt-a-37); }
+html[data-mt-transicion] [data-mt-pieza="38"] { view-transition-name: mt-p38 !important; --mt-f: var(--mt-f-38); --mt-a: var(--mt-a-38); }
+html[data-mt-transicion] [data-mt-pieza="39"] { view-transition-name: mt-p39 !important; --mt-f: var(--mt-f-39); --mt-a: var(--mt-a-39); }
+html[data-mt-transicion] [data-mt-pieza="40"] { view-transition-name: mt-p40 !important; --mt-f: var(--mt-f-40); --mt-a: var(--mt-a-40); }
+html[data-mt-transicion] [data-mt-pieza="41"] { view-transition-name: mt-p41 !important; --mt-f: var(--mt-f-41); --mt-a: var(--mt-a-41); }
+html[data-mt-transicion] [data-mt-pieza="42"] { view-transition-name: mt-p42 !important; --mt-f: var(--mt-f-42); --mt-a: var(--mt-a-42); }
+html[data-mt-transicion] [data-mt-pieza="43"] { view-transition-name: mt-p43 !important; --mt-f: var(--mt-f-43); --mt-a: var(--mt-a-43); }
+html[data-mt-transicion] [data-mt-pieza="44"] { view-transition-name: mt-p44 !important; --mt-f: var(--mt-f-44); --mt-a: var(--mt-a-44); }
+html[data-mt-transicion] [data-mt-pieza="45"] { view-transition-name: mt-p45 !important; --mt-f: var(--mt-f-45); --mt-a: var(--mt-a-45); }
+html[data-mt-transicion] [data-mt-pieza="46"] { view-transition-name: mt-p46 !important; --mt-f: var(--mt-f-46); --mt-a: var(--mt-a-46); }
+html[data-mt-transicion] [data-mt-pieza="47"] { view-transition-name: mt-p47 !important; --mt-f: var(--mt-f-47); --mt-a: var(--mt-a-47); }
+html[data-mt-transicion] [data-mt-pieza="48"] { view-transition-name: mt-p48 !important; --mt-f: var(--mt-f-48); --mt-a: var(--mt-a-48); }
+html[data-mt-transicion] [data-mt-pieza="49"] { view-transition-name: mt-p49 !important; --mt-f: var(--mt-f-49); --mt-a: var(--mt-a-49); }
+html[data-mt-transicion] [data-mt-pieza="50"] { view-transition-name: mt-p50 !important; --mt-f: var(--mt-f-50); --mt-a: var(--mt-a-50); }
+html[data-mt-transicion] [data-mt-pieza="51"] { view-transition-name: mt-p51 !important; --mt-f: var(--mt-f-51); --mt-a: var(--mt-a-51); }
+html[data-mt-transicion] [data-mt-pieza="52"] { view-transition-name: mt-p52 !important; --mt-f: var(--mt-f-52); --mt-a: var(--mt-a-52); }
+html[data-mt-transicion] [data-mt-pieza="53"] { view-transition-name: mt-p53 !important; --mt-f: var(--mt-f-53); --mt-a: var(--mt-a-53); }
+html[data-mt-transicion] [data-mt-pieza="54"] { view-transition-name: mt-p54 !important; --mt-f: var(--mt-f-54); --mt-a: var(--mt-a-54); }
+html[data-mt-transicion] [data-mt-pieza="55"] { view-transition-name: mt-p55 !important; --mt-f: var(--mt-f-55); --mt-a: var(--mt-a-55); }
+html[data-mt-transicion]::view-transition-group(mt-p0) { --mt-f: var(--mt-f-0); --mt-a: var(--mt-a-0); }
+html[data-mt-transicion]::view-transition-group(mt-p1) { --mt-f: var(--mt-f-1); --mt-a: var(--mt-a-1); }
+html[data-mt-transicion]::view-transition-group(mt-p2) { --mt-f: var(--mt-f-2); --mt-a: var(--mt-a-2); }
+html[data-mt-transicion]::view-transition-group(mt-p3) { --mt-f: var(--mt-f-3); --mt-a: var(--mt-a-3); }
+html[data-mt-transicion]::view-transition-group(mt-p4) { --mt-f: var(--mt-f-4); --mt-a: var(--mt-a-4); }
+html[data-mt-transicion]::view-transition-group(mt-p5) { --mt-f: var(--mt-f-5); --mt-a: var(--mt-a-5); }
+html[data-mt-transicion]::view-transition-group(mt-p6) { --mt-f: var(--mt-f-6); --mt-a: var(--mt-a-6); }
+html[data-mt-transicion]::view-transition-group(mt-p7) { --mt-f: var(--mt-f-7); --mt-a: var(--mt-a-7); }
+html[data-mt-transicion]::view-transition-group(mt-p8) { --mt-f: var(--mt-f-8); --mt-a: var(--mt-a-8); }
+html[data-mt-transicion]::view-transition-group(mt-p9) { --mt-f: var(--mt-f-9); --mt-a: var(--mt-a-9); }
+html[data-mt-transicion]::view-transition-group(mt-p10) { --mt-f: var(--mt-f-10); --mt-a: var(--mt-a-10); }
+html[data-mt-transicion]::view-transition-group(mt-p11) { --mt-f: var(--mt-f-11); --mt-a: var(--mt-a-11); }
+html[data-mt-transicion]::view-transition-group(mt-p12) { --mt-f: var(--mt-f-12); --mt-a: var(--mt-a-12); }
+html[data-mt-transicion]::view-transition-group(mt-p13) { --mt-f: var(--mt-f-13); --mt-a: var(--mt-a-13); }
+html[data-mt-transicion]::view-transition-group(mt-p14) { --mt-f: var(--mt-f-14); --mt-a: var(--mt-a-14); }
+html[data-mt-transicion]::view-transition-group(mt-p15) { --mt-f: var(--mt-f-15); --mt-a: var(--mt-a-15); }
+html[data-mt-transicion]::view-transition-group(mt-p16) { --mt-f: var(--mt-f-16); --mt-a: var(--mt-a-16); }
+html[data-mt-transicion]::view-transition-group(mt-p17) { --mt-f: var(--mt-f-17); --mt-a: var(--mt-a-17); }
+html[data-mt-transicion]::view-transition-group(mt-p18) { --mt-f: var(--mt-f-18); --mt-a: var(--mt-a-18); }
+html[data-mt-transicion]::view-transition-group(mt-p19) { --mt-f: var(--mt-f-19); --mt-a: var(--mt-a-19); }
+html[data-mt-transicion]::view-transition-group(mt-p20) { --mt-f: var(--mt-f-20); --mt-a: var(--mt-a-20); }
+html[data-mt-transicion]::view-transition-group(mt-p21) { --mt-f: var(--mt-f-21); --mt-a: var(--mt-a-21); }
+html[data-mt-transicion]::view-transition-group(mt-p22) { --mt-f: var(--mt-f-22); --mt-a: var(--mt-a-22); }
+html[data-mt-transicion]::view-transition-group(mt-p23) { --mt-f: var(--mt-f-23); --mt-a: var(--mt-a-23); }
+html[data-mt-transicion]::view-transition-group(mt-p24) { --mt-f: var(--mt-f-24); --mt-a: var(--mt-a-24); }
+html[data-mt-transicion]::view-transition-group(mt-p25) { --mt-f: var(--mt-f-25); --mt-a: var(--mt-a-25); }
+html[data-mt-transicion]::view-transition-group(mt-p26) { --mt-f: var(--mt-f-26); --mt-a: var(--mt-a-26); }
+html[data-mt-transicion]::view-transition-group(mt-p27) { --mt-f: var(--mt-f-27); --mt-a: var(--mt-a-27); }
+html[data-mt-transicion]::view-transition-group(mt-p28) { --mt-f: var(--mt-f-28); --mt-a: var(--mt-a-28); }
+html[data-mt-transicion]::view-transition-group(mt-p29) { --mt-f: var(--mt-f-29); --mt-a: var(--mt-a-29); }
+html[data-mt-transicion]::view-transition-group(mt-p30) { --mt-f: var(--mt-f-30); --mt-a: var(--mt-a-30); }
+html[data-mt-transicion]::view-transition-group(mt-p31) { --mt-f: var(--mt-f-31); --mt-a: var(--mt-a-31); }
+html[data-mt-transicion]::view-transition-group(mt-p32) { --mt-f: var(--mt-f-32); --mt-a: var(--mt-a-32); }
+html[data-mt-transicion]::view-transition-group(mt-p33) { --mt-f: var(--mt-f-33); --mt-a: var(--mt-a-33); }
+html[data-mt-transicion]::view-transition-group(mt-p34) { --mt-f: var(--mt-f-34); --mt-a: var(--mt-a-34); }
+html[data-mt-transicion]::view-transition-group(mt-p35) { --mt-f: var(--mt-f-35); --mt-a: var(--mt-a-35); }
+html[data-mt-transicion]::view-transition-group(mt-p36) { --mt-f: var(--mt-f-36); --mt-a: var(--mt-a-36); }
+html[data-mt-transicion]::view-transition-group(mt-p37) { --mt-f: var(--mt-f-37); --mt-a: var(--mt-a-37); }
+html[data-mt-transicion]::view-transition-group(mt-p38) { --mt-f: var(--mt-f-38); --mt-a: var(--mt-a-38); }
+html[data-mt-transicion]::view-transition-group(mt-p39) { --mt-f: var(--mt-f-39); --mt-a: var(--mt-a-39); }
+html[data-mt-transicion]::view-transition-group(mt-p40) { --mt-f: var(--mt-f-40); --mt-a: var(--mt-a-40); }
+html[data-mt-transicion]::view-transition-group(mt-p41) { --mt-f: var(--mt-f-41); --mt-a: var(--mt-a-41); }
+html[data-mt-transicion]::view-transition-group(mt-p42) { --mt-f: var(--mt-f-42); --mt-a: var(--mt-a-42); }
+html[data-mt-transicion]::view-transition-group(mt-p43) { --mt-f: var(--mt-f-43); --mt-a: var(--mt-a-43); }
+html[data-mt-transicion]::view-transition-group(mt-p44) { --mt-f: var(--mt-f-44); --mt-a: var(--mt-a-44); }
+html[data-mt-transicion]::view-transition-group(mt-p45) { --mt-f: var(--mt-f-45); --mt-a: var(--mt-a-45); }
+html[data-mt-transicion]::view-transition-group(mt-p46) { --mt-f: var(--mt-f-46); --mt-a: var(--mt-a-46); }
+html[data-mt-transicion]::view-transition-group(mt-p47) { --mt-f: var(--mt-f-47); --mt-a: var(--mt-a-47); }
+html[data-mt-transicion]::view-transition-group(mt-p48) { --mt-f: var(--mt-f-48); --mt-a: var(--mt-a-48); }
+html[data-mt-transicion]::view-transition-group(mt-p49) { --mt-f: var(--mt-f-49); --mt-a: var(--mt-a-49); }
+html[data-mt-transicion]::view-transition-group(mt-p50) { --mt-f: var(--mt-f-50); --mt-a: var(--mt-a-50); }
+html[data-mt-transicion]::view-transition-group(mt-p51) { --mt-f: var(--mt-f-51); --mt-a: var(--mt-a-51); }
+html[data-mt-transicion]::view-transition-group(mt-p52) { --mt-f: var(--mt-f-52); --mt-a: var(--mt-a-52); }
+html[data-mt-transicion]::view-transition-group(mt-p53) { --mt-f: var(--mt-f-53); --mt-a: var(--mt-a-53); }
+html[data-mt-transicion]::view-transition-group(mt-p54) { --mt-f: var(--mt-f-54); --mt-a: var(--mt-a-54); }
+html[data-mt-transicion]::view-transition-group(mt-p55) { --mt-f: var(--mt-f-55); --mt-a: var(--mt-a-55); }
+
+/* Lo que se deriva de --mt-f y --mt-a (igual para elementos y pseudoelementos). */
+html[data-mt-transicion] [data-mt-pieza],
+html[data-mt-transicion]::view-transition-group(*.mt-pieza) {
+  /* Tono del espectro de la marca, de lima (junto al botón) a magenta (lo más lejos). */
+  --mt-tono: calc(88 + 242 * var(--mt-f));
+  --mt-tinte: hsl(var(--mt-tono) 100% 64%);
+  /* sepia() deja la imagen en ~38°; hue-rotate() la lleva al tono de la pieza. */
+  --mt-giro-tinte: calc((var(--mt-tono) - 38) * 1deg);
+  /* Eje de giro: perpendicular a la dirección del frente, con un poco de torsión. */
+  --mt-eje-x: calc(-1 * sin(var(--mt-a) * 1deg));
+  --mt-eje-y: cos(var(--mt-a) * 1deg);
+  /* Empuje: hacia afuera del botón. */
+  --mt-empuje-x: calc(cos(var(--mt-a) * 1deg) * 26px * var(--mt-sentido, 1));
+  --mt-empuje-y: calc(sin(var(--mt-a) * 1deg) * 26px * var(--mt-sentido, 1));
+}
+
+/* ---------- El frente ---------- */
+
+html[data-mt-transicion] #mt-frente {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+  view-transition-name: mt-frente !important;
+}
+
+/* Rayos: un abanico del espectro que nace en la esquina del botón y gira al abrirse. */
+html[data-mt-transicion] #mt-frente::before {
+  content: "";
+  position: absolute;
+  top: -110vmax;
+  right: -110vmax;
+  width: 220vmax;
+  height: 220vmax;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    #b8ff5c 0deg 1.6deg,
+    transparent 1.6deg 7deg,
+    #2ee6c5 7deg 8.2deg,
+    transparent 8.2deg 13deg,
+    #4c8dff 13deg 14.6deg,
+    transparent 14.6deg 20deg,
+    #8b5cf6 20deg 21deg,
+    transparent 21deg 26deg,
+    #f472b6 26deg 27.6deg,
+    transparent 27.6deg 33deg
+  );
+  mask-image: radial-gradient(circle, #000 0, rgb(0 0 0 / 0.7) 12%, rgb(0 0 0 / 0.25) 30%, transparent 48%);
+  opacity: 0;
+}
+
+/* Anillos: tres ondas concéntricas con el espectro según el radio (lima junto al botón,
+   magenta en la esquina opuesta), con estela; el destello vive en el fondo del propio
+   frente. */
+html[data-mt-transicion] #mt-frente::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle hypot(100vw, 100vh) at 100% 0,
+    #f4ffe0 0%,
+    #b8ff5c 8%,
+    #2ee6c5 28%,
+    #4c8dff 52%,
+    #8b5cf6 76%,
+    #f472b6 100%
+  );
+  mask-image:
+    radial-gradient(
+      circle at 100% 0,
+      transparent calc(var(--mt-radio) - 200px),
+      rgb(0 0 0 / 0.1) calc(var(--mt-radio) - 120px),
+      rgb(0 0 0 / 0.5) calc(var(--mt-radio) - 24px),
+      #000 calc(var(--mt-radio) - 4px),
+      #000 var(--mt-radio),
+      transparent calc(var(--mt-radio) + 14px)
+    ),
+    radial-gradient(
+      circle at 100% 0,
+      transparent calc(var(--mt-radio) * 0.78 - 5px),
+      rgb(0 0 0 / 0.8) calc(var(--mt-radio) * 0.78),
+      transparent calc(var(--mt-radio) * 0.78 + 6px)
+    ),
+    radial-gradient(
+      circle at 100% 0,
+      transparent calc(var(--mt-radio) * 0.58 - 3px),
+      rgb(0 0 0 / 0.55) calc(var(--mt-radio) * 0.58),
+      transparent calc(var(--mt-radio) * 0.58 + 4px)
+    );
+}
+
+/* Brillo final: una banda iridiscente del espectro cruza la página desde el botón
+   cuando las piezas aterrizan, como la luz sobre la piel del camaleón. */
+html[data-mt-transicion] #mt-frente > .mt-brillo {
+  position: absolute;
+  inset: -60%;
+  background: linear-gradient(
+    225deg,
+    transparent 41%,
+    rgb(184 255 92 / 0.4) 45%,
+    rgb(46 230 197 / 0.55) 47.5%,
+    rgb(255 255 255 / 0.6) 49%,
+    rgb(76 141 255 / 0.55) 50.5%,
+    rgb(139 92 246 / 0.5) 53%,
+    rgb(244 114 182 / 0.4) 55%,
+    transparent 59%
+  );
+  opacity: 0;
+}
+
+html[data-mt-transicion="entrada"] #mt-frente > .mt-brillo {
+  animation: mt-brillo-cruza 680ms cubic-bezier(0.35, 0.1, 0.55, 1) 780ms both;
+}
+
+/* La banda (41–59 % de una caja del 220 % del viewport) parte y termina fuera de la
+   pantalla: con ±34 % no asoma en la esquina mientras espera (relleno "both"). */
+@keyframes mt-brillo-cruza {
+  from { opacity: 0.9; transform: translate(34%, -34%); }
+  75% { opacity: 0.9; }
+  to { opacity: 0; transform: translate(-34%, 34%); }
+}
+
+html[data-mt-transicion="entrada"] #mt-frente,
+html[data-mt-transicion="ligera"] #mt-frente {
+  background: radial-gradient(
+    circle at 100% 0,
+    rgb(255 255 255 / var(--mt-destello)) 0,
+    rgb(233 255 208 / var(--mt-destello)) 4vmax,
+    rgb(184 255 92 / calc(0.55 * var(--mt-destello))) 12vmax,
+    transparent 30vmax
+  );
+  animation: mt-destello-esquina 520ms ease-out both;
+}
+
+html[data-mt-transicion="entrada"] #mt-frente::before,
+html[data-mt-transicion="ligera"] #mt-frente::before {
+  animation: mt-rayos-abren 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+html[data-mt-transicion="entrada"] #mt-frente::after,
+html[data-mt-transicion="ligera"] #mt-frente::after {
+  animation:
+    mt-frente-crece 720ms cubic-bezier(0.5, 1, 0.89, 1) both,
+    mt-frente-apaga 820ms linear both;
+}
+
+html[data-mt-transicion="salida"] #mt-frente {
+  background: radial-gradient(
+    circle at 100% 0,
+    rgb(255 255 255 / var(--mt-destello)) 0,
+    rgb(251 224 255 / var(--mt-destello)) 4vmax,
+    rgb(244 114 182 / calc(0.55 * var(--mt-destello))) 12vmax,
+    transparent 30vmax
+  );
+  animation: mt-destello-esquina 360ms ease-in reverse both;
+}
+
+html[data-mt-transicion="salida"] #mt-frente::before {
+  animation: mt-rayos-cierran 560ms cubic-bezier(0.6, 0, 0.8, 0.4) both;
+}
+
+html[data-mt-transicion="salida"] #mt-frente::after {
+  animation:
+    mt-frente-encoge 440ms cubic-bezier(0.11, 0, 0.5, 0) both,
+    mt-frente-apaga-al-final 460ms linear both;
+}
+
+@keyframes mt-destello-esquina {
+  from { --mt-destello: 0; }
+  12% { --mt-destello: 1; }
+  to { --mt-destello: 0; }
+}
+
+@keyframes mt-rayos-abren {
+  from { opacity: 0; transform: scale(0.04) rotate(-50deg); }
+  14% { opacity: 1; }
+  to { opacity: 0; transform: scale(1) rotate(28deg); }
+}
+
+@keyframes mt-rayos-cierran {
+  from { opacity: 0; transform: scale(1) rotate(28deg); }
+  40% { opacity: 0.8; }
+  to { opacity: 0; transform: scale(0.04) rotate(-50deg); }
+}
+
+@keyframes mt-frente-crece {
+  from { --mt-radio: 0px; }
+  to { --mt-radio: calc(hypot(100vw, 100vh) + 220px); }
+}
+
+@keyframes mt-frente-encoge {
+  from { --mt-radio: calc(hypot(100vw, 100vh) + 40px); }
+  to { --mt-radio: 0px; }
+}
+
+@keyframes mt-frente-apaga {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes mt-frente-apaga-al-final {
+  0%, 85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* El frente se ve en vivo (su propia animación); su captura no se anima aparte. */
+html[data-mt-transicion]::view-transition-group(mt-frente),
+html[data-mt-transicion]::view-transition-new(mt-frente),
+html[data-mt-transicion]::view-transition-old(mt-frente) {
+  animation: none;
+}
+
+/* ---------- Cámara: la página entera se sacude en 3D ---------- */
+
+/* Escala ≥ 1,12 mientras está inclinada: con perspectiva de 1600 px y hasta 8° de giro,
+   el lado que se aleja se achica a ~0,95; así nunca se ve el borde de la página. */
+html[data-mt-transicion="entrada"]::view-transition {
+  transform-origin: 50% 50%;
+  animation: mt-camara-entra 1500ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
+}
+
+html[data-mt-transicion="salida"]::view-transition {
+  transform-origin: 50% 50%;
+  animation: mt-camara-sale 1000ms cubic-bezier(0.3, 0.7, 0.3, 1) both;
+}
+
+@keyframes mt-camara-entra {
+  0% { transform: perspective(1600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); filter: saturate(1) contrast(1); }
+  12% { transform: perspective(1600px) rotateX(-7deg) rotateY(8deg) rotateZ(-0.6deg) scale(1.15); filter: saturate(1.35) contrast(1.06); }
+  38% { transform: perspective(1600px) rotateX(4deg) rotateY(-5deg) rotateZ(0.4deg) scale(1.13); filter: saturate(1.2) contrast(1.04); }
+  62% { transform: perspective(1600px) rotateX(-1.6deg) rotateY(2deg) rotateZ(-0.15deg) scale(1.06); filter: saturate(1.08) contrast(1.02); }
+  82% { transform: perspective(1600px) rotateX(0.5deg) rotateY(-0.6deg) rotateZ(0deg) scale(1.02); filter: saturate(1) contrast(1); }
+  100% { transform: perspective(1600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); filter: saturate(1) contrast(1); }
+}
+
+@keyframes mt-camara-sale {
+  0% { transform: perspective(1600px) rotateX(0deg) rotateY(0deg) scale(1); }
+  30% { transform: perspective(1600px) rotateX(4deg) rotateY(-5deg) scale(1.1); }
+  62% { transform: perspective(1600px) rotateX(-2.5deg) rotateY(3deg) scale(1.07); }
+  100% { transform: perspective(1600px) rotateX(0deg) rotateY(0deg) scale(1); }
+}
+
+/* ---------- Fondo ---------- */
+
+/* Entrada: el tema aparece detrás del frente con un recorte circular del mismo radio. */
+html[data-mt-transicion="entrada"]::view-transition-old(root) {
+  animation: none;
+}
+
+html[data-mt-transicion="entrada"]::view-transition-new(root) {
+  animation: mt-revela 720ms cubic-bezier(0.5, 1, 0.89, 1) both;
+}
+
+@keyframes mt-revela {
+  from { clip-path: circle(0 at 100% 0); }
+  to { clip-path: circle(hypot(100vw, 100vh) at 100% 0); }
+}
+
+/* Salida: el tema (captura vieja) queda encima y se recoge hacia el botón. */
+html[data-mt-transicion="salida"]::view-transition-old(root) {
+  z-index: 1;
+  animation: mt-recoge 440ms cubic-bezier(0.11, 0, 0.5, 0) both;
+}
+
+html[data-mt-transicion="salida"]::view-transition-new(root) {
+  animation: none;
+}
+
+@keyframes mt-recoge {
+  from { clip-path: circle(hypot(100vw, 100vh) at 100% 0); }
+  to { clip-path: circle(0 at 100% 0); }
+}
+
+/* ---------- Piezas: la metamorfosis de cada escama ---------- */
+
+/* Duración y retraso por modo. --mt-sentido: 1 = gira y se empuja lejos del botón;
+   -1 = hacia el botón. */
+html[data-mt-transicion="entrada"]::view-transition-group(*.mt-pieza) {
+  --mt-sentido: 1;
+  --mt-duracion: 860ms;
+  --mt-retardo: calc(720ms * (1 - sqrt(1 - var(--mt-f))));
+}
+
+html[data-mt-transicion="salida"]::view-transition-group(*.mt-pieza) {
+  --mt-sentido: -1;
+  --mt-duracion: 600ms;
+  --mt-retardo: calc(440ms * sqrt(1 - var(--mt-f)));
+}
+
+/* El grupo conserva la animación del navegador (lleva la pieza de su lugar viejo al
+   nuevo); solo se sincroniza con el frente. */
+html[data-mt-transicion]::view-transition-group(*.mt-pieza) {
+  animation-duration: var(--mt-duracion);
+  animation-delay: var(--mt-retardo);
+  animation-timing-function: cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+
+/* El par (vieja + nueva) salta: se levanta empujado por la onda, se estira y aterriza
+   con temblor de gelatina. */
+html[data-mt-transicion]::view-transition-image-pair(*.mt-pieza) {
+  animation: mt-salta var(--mt-duracion) linear var(--mt-retardo) both;
+}
+
+html[data-mt-transicion]::view-transition-old(*.mt-pieza) {
+  mix-blend-mode: normal;
+  backface-visibility: hidden;
+  animation: mt-gira-sale var(--mt-duracion) linear var(--mt-retardo) both;
+}
+
+html[data-mt-transicion]::view-transition-new(*.mt-pieza) {
+  mix-blend-mode: normal;
+  backface-visibility: hidden;
+  animation: mt-gira-llega var(--mt-duracion) linear var(--mt-retardo) both;
+}
+
+@keyframes mt-salta {
+  0% {
+    transform: translate(0, 0) scale(1, 1) skew(0deg, 0deg);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  24% {
+    transform: translate(var(--mt-empuje-x), var(--mt-empuje-y)) scale(1.14, 1.04)
+      skew(calc(var(--mt-eje-y) * -7deg), calc(var(--mt-eje-x) * 5deg));
+    animation-timing-function: ease-in-out;
+  }
+  46% {
+    transform: translate(calc(var(--mt-empuje-x) * 1.3), calc(var(--mt-empuje-y) * 1.3)) scale(1.2, 1.2)
+      skew(0deg, 0deg);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.4);
+  }
+  70% {
+    transform: translate(calc(var(--mt-empuje-x) * -0.2), calc(var(--mt-empuje-y) * -0.2)) scale(0.94, 1.07)
+      skew(calc(var(--mt-eje-y) * 3deg), calc(var(--mt-eje-x) * -2deg));
+    animation-timing-function: ease-in-out;
+  }
+  84% {
+    transform: translate(0, 0) scale(1.03, 0.97) skew(0deg, 0deg);
+  }
+  93% {
+    transform: translate(0, 0) scale(0.99, 1.01) skew(0deg, 0deg);
+  }
+  100% {
+    transform: translate(0, 0) scale(1, 1) skew(0deg, 0deg);
+  }
+}
+
+/* Media vuelta: la vieja gira hasta quedar de canto (se tiñe mientras gira, con bordes
+   de neón: magenta a un lado, turquesa al otro, y un halo del tinte) y desaparece; la nueva aparece de canto desde el otro lado, teñida, pasa de largo
+   (18°), vuelve (-7°) y se asienta mientras recupera sus colores.
+   Los bordes son box-shadow y no drop-shadow: cada filtro de sombra obliga a pintar la
+   pieza aparte y con 40 piezas se pierde un tercio de los cuadros. Van en las capturas
+   (no en el par) para que giren con ellas. */
+@keyframes mt-gira-sale {
+  0% {
+    opacity: 1;
+    transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, 0deg);
+    filter: sepia(0) saturate(1) hue-rotate(0deg) brightness(1);
+    border-radius: 0;
+    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 0 0 transparent;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.9, 0.5);
+  }
+  45% {
+    opacity: 1;
+    transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * 89deg));
+    filter: sepia(1) saturate(5) hue-rotate(var(--mt-giro-tinte)) brightness(1.15);
+    border-radius: 12px;
+    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85), 0 0 34px 4px var(--mt-tinte);
+  }
+  45.01%, 100% {
+    opacity: 0;
+    transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * 90deg));
+    filter: sepia(1) saturate(5) hue-rotate(var(--mt-giro-tinte)) brightness(1.15);
+    border-radius: 12px;
+    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85), 0 0 34px 4px var(--mt-tinte);
+  }
+}
+
+@keyframes mt-gira-llega {
+  0%, 45% {
+    opacity: 0;
+    transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * -90deg));
+    filter: sepia(1) saturate(5) hue-rotate(var(--mt-giro-tinte)) brightness(1.15);
+    border-radius: 12px;
+    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85), 0 0 34px 4px var(--mt-tinte);
+  }
+  45.01% {
+    opacity: 1;
+    transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * -89deg));
+    filter: sepia(1) saturate(5) hue-rotate(var(--mt-giro-tinte)) brightness(1.15);
+    border-radius: 12px;
+    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85), 0 0 34px 4px var(--mt-tinte);
+    animation-timing-function: cubic-bezier(0.1, 0.6, 0.3, 1);
+  }
+  68% {
+    opacity: 1;
+    transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * 18deg));
+    filter: sepia(0.45) saturate(2.2) hue-rotate(var(--mt-giro-tinte)) brightness(1.06);
+    border-radius: 10px;
+    box-shadow: 3px 0 0 0 rgb(255 46 170 / 0.5), -3px 0 0 0 rgb(40 255 220 / 0.5), 0 0 20px 2px var(--mt-tinte);
+    animation-timing-function: ease-in-out;
+  }
+  84% {
+    opacity: 1;
+    transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * -7deg));
+    filter: sepia(0.08) saturate(1.2) hue-rotate(0deg) brightness(1.02);
+    border-radius: 6px;
+    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 10px 0 color-mix(in srgb, var(--mt-tinte) 55%, transparent);
+    animation-timing-function: ease-in-out;
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, 0deg);
+    filter: sepia(0) saturate(1) hue-rotate(0deg) brightness(1);
+    border-radius: 0;
+    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 0 0 transparent;
+  }
+}
+
+/* ---------- Ligera (sin View Transitions): el tema ya está; destello por pieza ---------- */
+
+html[data-mt-transicion="ligera"] [data-mt-pieza] {
+  animation: mt-destello 520ms ease-out both;
+  animation-delay: calc(720ms * (1 - sqrt(1 - var(--mt-f))));
+}
+
+@keyframes mt-destello {
+  from { filter: none; }
+  30% { filter: saturate(1.9) brightness(1.12) drop-shadow(0 0 12px var(--mt-tinte)); }
+  to { filter: none; }
+}
+
+/* ---------- Suave (prefers-reduced-motion) ---------- */
+
+html[data-mt-transicion="suave"]::view-transition-group(root) {
+  animation-duration: 150ms;
+}
