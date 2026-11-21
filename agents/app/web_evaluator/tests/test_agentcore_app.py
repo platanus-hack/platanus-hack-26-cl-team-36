@@ -1,0 +1,85 @@
+import asyncio
+import json
+from types import SimpleNamespace
+
+import pytest
+
+import agentcore_app
+from agentcore_app import InvalidRequest, parse_request
+from judge import ApiJudge
+from profiles import PROFILES
+
+
+def test_parse_request_fills_defaults():
+    request = parse_request({"url": "https://ejemplo.cl", "instruction": "  Encontrar el horario  "})
+    assert request["instruction"] == "Encontrar el horario"
+    assert request["profiles"] == list(PROFILES)
+    assert request["task_id"] is None
+    assert request["effort"] and request["model"]
+
+
+@pytest.mark.parametrize("payload", [
+    "no es un objeto",
+    {"instruction": "x"},
+    {"url": "ftp://ejemplo.cl", "instruction": "x"},
+    {"url": "https://ejemplo.cl", "instruction": "   "},
+    {"url": "https://ejemplo.cl", "instruction": "x", "profiles": ["astronauta"]},
+    {"url": "https://ejemplo.cl", "instruction": "x", "effort": "turbo"},
+])
+def test_parse_request_rejects_bad_payloads(payload):
+    with pytest.raises(InvalidRequest):
+        parse_request(payload)
+
+
+def _collect(payload) -> list[dict]:
+    async def run():
+        return [event async for event in agentcore_app.invoke(payload, None)]
+    return asyncio.run(run())
+
+
+def test_invoke_streams_an_error_for_a_bad_request():
+    assert _collect({"url": "nada"}) == [{"error": "falta `url`, con http:// o https://"}]
+
+
+def test_invoke_streams_progress_and_report(tmp_path, monkeypatch):
+    async def fake_batch(**kwargs):
+        batch_dir = tmp_path / "tanda"
+        (batch_dir / "mobile").mkdir(parents=True)
+        (batch_dir / "mobile" / "run.json").write_text(json.dumps({"profile": "mobile", "verdict": {"outcome": "success"}}))
+        (batch_dir / "report.md").write_text("# Reporte")
+        return batch_dir
+
+    monkeypatch.setattr(agentcore_app, "run_batch", fake_batch)
+    events = _collect({"url": "https://ejemplo.cl", "instruction": "x", "profiles": ["mobile"]})
+    assert events[0]["status"] == "running"
+    assert events[-1]["status"] == "done"
+    assert events[-1]["outcomes"] == {"mobile": "success"}
+    assert events[-1]["report"] == "# Reporte"
+
+
+def test_invoke_streams_batch_errors(monkeypatch):
+    async def failing_batch(**kwargs):
+        raise RuntimeError("sin credenciales")
+
+    monkeypatch.setattr(agentcore_app, "run_batch", failing_batch)
+    events = _collect({"url": "https://ejemplo.cl", "instruction": "x"})
+    assert events[-1] == {"status": "error", "error": "RuntimeError: sin credenciales"}
+
+
+class _FakeMessages:
+    def __init__(self):
+        self.calls = []
+
+    async def create(self, **kwargs):
+        self.calls.append(kwargs)
+        text = SimpleNamespace(type="text", text='{"outcome": "success", "justification": "ok"}')
+        return SimpleNamespace(stop_reason="end_turn", content=[text])
+
+
+def test_judge_without_fallbacks_uses_plain_messages_api():
+    messages, beta_messages = _FakeMessages(), _FakeMessages()
+    client = SimpleNamespace(messages=messages, beta=SimpleNamespace(messages=beta_messages))
+    judge = ApiJudge(client, model="anthropic.claude-opus-5-5", fallbacks=False)
+    assert asyncio.run(judge.ask_json("sistema", "texto", b"png", {"type": "object"}))["outcome"] == "success"
+    assert beta_messages.calls == []
+    assert "fallbacks" not in messages.calls[0] and messages.calls[0]["model"] == "anthropic.claude-opus-5-5"

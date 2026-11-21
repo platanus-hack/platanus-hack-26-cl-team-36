@@ -1,6 +1,8 @@
-# Commands are grouped by environment. Local development lives in local/justfile:
-# `just local` lists its commands, and they work from anywhere in the repo.
+# Commands are grouped by environment, and they work from anywhere in the repo:
+# `just local` lists local development (local/justfile), `just aws` the web
+# evaluator in AgentCore (aws/justfile).
 mod local
+mod aws
 
 [private]
 [default]

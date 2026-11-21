@@ -63,21 +63,29 @@ class ClaudeCodeJudge:
 class ApiJudge:
     name = "api"
 
-    def __init__(self, client, model: str = config.JUDGE_MODEL, effort: str = config.JUDGE_EFFORT):
+    def __init__(
+        self, client, model: str = config.JUDGE_MODEL, effort: str = config.JUDGE_EFFORT, fallbacks: bool = True
+    ):
         self.client = client
         self.model = model
         self.effort = effort
+        # Bedrock no tiene el parámetro `fallbacks`: ahí una negativa del modelo queda como error del juez.
+        self.fallbacks = fallbacks
 
     async def ask_json(self, system_prompt: str, text: str, image: bytes, schema: dict) -> dict:
-        response = await self.client.beta.messages.create(
-            model=self.model,
-            max_tokens=config.JUDGE_MAX_TOKENS,
-            system=system_prompt,
-            messages=[{"role": "user", "content": [{"type": "text", "text": text}, png_image_block(image)]}],
-            output_config={"effort": self.effort, "format": {"type": "json_schema", "schema": schema}},
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-        )
+        request = {
+            "model": self.model,
+            "max_tokens": config.JUDGE_MAX_TOKENS,
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": [{"type": "text", "text": text}, png_image_block(image)]}],
+            "output_config": {"effort": self.effort, "format": {"type": "json_schema", "schema": schema}},
+        }
+        if self.fallbacks:
+            response = await self.client.beta.messages.create(
+                **request, betas=["server-side-fallback-2026-07-01"], fallbacks="default"
+            )
+        else:
+            response = await self.client.messages.create(**request)
         if response.stop_reason == "refusal":
             raise RuntimeError(getattr(response.stop_details, "explanation", None) or "el modelo se negó")
         response_text = next((block.text for block in response.content if block.type == "text"), None)

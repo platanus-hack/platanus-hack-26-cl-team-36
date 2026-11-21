@@ -31,6 +31,11 @@ just local validate [wom|sii|dt]      #    the reference tasks in agents/tasks/ 
 Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del repo; los comandos están en
 [`local/justfile`](local/justfile).
 
+El evaluador también corre en AWS, en AgentCore Runtime, con Claude en Bedrock y la cuenta de la hackatón
+(`export AWS_PROFILE=<perfil>`): `just aws explore wom-baja-fibra` o `just aws explore <url> "<task>"`. Se despliega
+solo al mergear a `main`; los detalles están en [el evaluador](agents/app/web_evaluator/README.md#en-aws-agentcore) y
+en [`aws/justfile`](aws/justfile).
+
 | Pieza | Qué es |
 |---|---|
 | [`extension/`](extension/README.md) | Extensión de Firefox que cambia el diseño de cada sitio aplicando un tema |

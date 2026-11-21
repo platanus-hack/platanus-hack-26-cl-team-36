@@ -27,9 +27,10 @@ uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de l
 | `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). Las corridas quedan en `agents/.runs/<id>/`. |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. Las corridas quedan en `agents/.runs/`. |
 | `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres). |
-| `--engine` | `claude-code` (por defecto) o `api`. |
+| `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
 | `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`). |
 | `--output` | Otra carpeta para las corridas. |
+| `--browser` | `local` (Chromium, por defecto) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 
 Por defecto usa tu **Claude Code local** (`--engine claude-code`): no necesita clave de API, solo tener `claude`
@@ -40,6 +41,27 @@ oficial de computer use:
 export ANTHROPIC_API_KEY=...
 uv run main.py --engine api --task wom-baja-fibra
 ```
+
+## En AWS (AgentCore)
+
+El mismo evaluador corre en [AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/), con Claude en Amazon
+Bedrock y AgentCore Browser, y gasta de la cuenta de AWS de la hackatón en vez de tu plan. `agents/` es el proyecto
+de la [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agents/agentcore/agentcore.json` declara este
+runtime, y la CLI lo empaqueta para arm64 y lo despliega. La entrada en AWS es `agentcore_app.py`; `main.py` sigue
+siendo el comando local.
+
+Con `export AWS_PROFILE=<perfil de la cuenta de la hackatón>`, una prueba de concepto en tres pasos:
+
+```bash
+just local explore https://example.com "Encontrar el enlace More information" --profiles first_time \
+    --engine bedrock --browser agentcore   # 1. desde tu computador: ¿la cuenta deja usar Claude y el navegador?
+just aws deploy                            # 2. despliega (al mergear a main lo hace el workflow AgentCore)
+just aws explore wom-baja-fibra            # 3. la tanda corre en AgentCore; el reporte queda en agents/.runs/aws/
+```
+
+`just aws status` muestra lo desplegado y `just aws logs` los logs del runtime. La respuesta llega en stream: un
+aviso cada 20 s y, al final, el resultado de cada perfil y `report.md`. Las capturas de cada paso quedan en AWS y
+se pierden al cerrar la sesión.
 
 ## Tareas
 
@@ -53,6 +75,7 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 | Módulo | Qué hace |
 |---|---|
 | `main.py` | Punto de entrada: lee las opciones y lanza una tanda. |
+| `agentcore_app.py` | Punto de entrada en AgentCore Runtime: recibe la tarea por HTTP y responde en stream. |
 | `batch.py` | Una tanda: criterio de éxito, usuarios en paralelo, veredictos, árbol y reporte. |
 | `harness.py` | El ciclo de cada usuario: captura → modelo → acción → registro. |
 | `engines.py` | Cómo decide el modelo: `ClaudeCodeEngine` (`claude -p`) o `ApiEngine` (computer use). |

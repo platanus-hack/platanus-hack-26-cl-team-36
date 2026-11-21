@@ -19,6 +19,11 @@ proyecto se ve en [settings.aws.com](https://settings.aws.com) → Project → A
    suele atrasarlo.
 3. Si el cambio toca `backend/` o `infra/app/`, el workflow `Terraform` del repo personal hace `plan` y `apply`.
 4. La URL de la API queda en el resumen de esa ejecución.
+5. Si el cambio toca `agents/agentcore/` o `agents/app/web_evaluator/`, el workflow `AgentCore` despliega el evaluador
+   web con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol. La CLI
+   empaqueta el código para arm64 y aplica su propio stack de CDK; no pasa por Terraform. La primera vez también
+   prepara la cuenta para CDK (`CDKToolkit`). Desde un computador: `just aws` (ver
+   [el evaluador](../agents/app/web_evaluator/README.md#en-aws-agentcore)).
 
 Las PRs no muestran un plan. Antes de mergear un cambio de infraestructura, corre `terraform plan` en local (ver más
 abajo).
@@ -86,7 +91,8 @@ Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resume
 
 ## Al terminar la hackatón
 
-1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal.
+1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El evaluador web no es parte de
+   Terraform: en CloudFormation (us-east-2), borra el stack `AgentCore-ChameleonAgents-…` y después `CDKToolkit`.
 2. Desactiva `Sincroniza desde la organización`. Corre unas 290 veces al día y cada vez cuenta como un minuto de los
    2.000 gratis al mes de un repo privado.
 3. Para borrar también lo de `bootstrap/`, quita `prevent_destroy` del bucket, vacíalo (incluidas las versiones

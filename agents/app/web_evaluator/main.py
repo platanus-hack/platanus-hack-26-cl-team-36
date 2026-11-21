@@ -64,12 +64,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--engine",
         default="claude-code",
-        choices=["claude-code", "api"],
-        help="claude-code: tu Claude Code local, sin clave de API (por defecto). api: API de Anthropic con computer use.",
+        choices=["claude-code", "api", "bedrock"],
+        help="claude-code: tu Claude Code local, sin clave de API (por defecto). api: API de Anthropic con computer use."
+        " bedrock: Claude en Amazon Bedrock, con las credenciales de AWS del entorno.",
     )
     parser.add_argument("--model", default=config.USER_MODEL, help="modelo de los usuarios sintéticos")
     parser.add_argument("--effort", default=config.USER_EFFORT, choices=["low", "medium", "high", "xhigh", "max"])
-    parser.add_argument("--cdp-url", default=None, help="navegador remoto vía CDP (por defecto, Chromium local)")
+    parser.add_argument(
+        "--browser",
+        default="local",
+        choices=["local", "agentcore"],
+        help="local: Chromium en tu computador (por defecto). agentcore: AgentCore Browser en AWS, una sesión por usuario.",
+    )
+    parser.add_argument("--cdp-url", default=None, help="navegador remoto vía CDP, con --browser local")
     return parser
 
 
@@ -95,6 +102,8 @@ def main() -> None:
         parser.error("falta la variable de entorno ANTHROPIC_API_KEY (necesaria con --engine api)")
     if args.engine == "claude-code" and not shutil.which("claude"):
         parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión, o usa --engine api")
+    if args.cdp_url and args.browser != "local":
+        parser.error("--cdp-url solo sirve con --browser local")
     profile_keys = [key.strip() for key in args.profiles.split(",") if key.strip()]
     unknown = [key for key in profile_keys if key not in PROFILES]
     if unknown:
@@ -110,6 +119,7 @@ def main() -> None:
         effort=args.effort,
         cdp_url=args.cdp_url,
         task_id=args.task,
+        browser=args.browser,
     ))
     print(f"\nListo. Reporte: {display_path(batch_dir / 'report.md')}")
 

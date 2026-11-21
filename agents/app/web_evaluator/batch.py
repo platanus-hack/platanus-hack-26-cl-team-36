@@ -12,7 +12,7 @@ from playwright.async_api import Browser, async_playwright
 
 import config
 import report
-from browser import BrowserSession, connect_browser, create_context
+from browser import BrowserSession, create_context, open_browsers
 from engines import ApiEngine, ClaudeCodeEngine
 from harness import SyntheticUser
 from judge import ApiJudge, ClaudeCodeJudge, judge_run, propose_criteria
@@ -89,6 +89,7 @@ async def run_batch(
     effort: str = config.USER_EFFORT,
     cdp_url: str | None = None,
     task_id: str | None = None,
+    browser: str = "local",
 ) -> Path:
     """Corre una tanda y devuelve su carpeta, con report.md, route_tree.json y una carpeta por perfil."""
     batch_dir = output_dir / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -96,29 +97,38 @@ async def run_batch(
 
     # Claude Code corre en una carpeta vacía para no cargar CLAUDE.md ni memoria de ningún proyecto.
     claude_cwd = Path(tempfile.mkdtemp(prefix="web_evaluator-claude-"))
-    if engine == "api":
+    if engine in ("api", "bedrock"):
         import anthropic
 
-        client = anthropic.AsyncAnthropic()
-        judge = ApiJudge(client)
-        make_engine = functools.partial(ApiEngine, client, user_model, effort)
+        if engine == "bedrock":
+            client = anthropic.AsyncAnthropicBedrockMantle(aws_region=config.AWS_REGION)
+            model_prefix = config.BEDROCK_MODEL_PREFIX
+        else:
+            client = anthropic.AsyncAnthropic()
+            model_prefix = ""
+        judge = ApiJudge(client, model=model_prefix + config.JUDGE_MODEL, fallbacks=engine == "api")
+        make_engine = functools.partial(ApiEngine, client, model_prefix + user_model, effort)
     else:
         judge = ClaudeCodeJudge(claude_cwd)
         make_engine = functools.partial(ClaudeCodeEngine, user_model, effort, claude_cwd)
 
     try:
         async with async_playwright() as playwright:
-            browser = await connect_browser(playwright, cdp_url)
+            browsers = open_browsers(playwright, browser, cdp_url)
             try:
-                criteria_task = asyncio.create_task(_criteria_for(judge, browser, url, instruction))
+                # Uno para el criterio y uno por usuario (en local, todos son el mismo Chromium).
+                criteria_browser, *user_browsers = await asyncio.gather(
+                    *(browsers.open() for _ in range(len(profile_keys) + 1))
+                )
+                criteria_task = asyncio.create_task(_criteria_for(judge, criteria_browser, url, instruction))
                 users = [
-                    SyntheticUser(make_engine(), browser, PROFILES[key], url, instruction, batch_dir / key)
-                    for key in profile_keys
+                    SyntheticUser(make_engine(), user_browser, PROFILES[key], url, instruction, batch_dir / key)
+                    for key, user_browser in zip(profile_keys, user_browsers)
                 ]
                 attempts = await asyncio.gather(*(user.attempt() for user in users), return_exceptions=True)
                 criteria = await criteria_task
             finally:
-                await browser.close()
+                await browsers.close()
 
         runs: list[Run] = []
         for user, attempt in zip(users, attempts):
@@ -147,6 +157,7 @@ async def run_batch(
         "task_id": task_id,
         "timestamp": batch_dir.name,
         "engine": engine,
+        "browser": browser,
         "user_model": user_model,
         "judge_model": config.JUDGE_MODEL,
         "effort": effort,

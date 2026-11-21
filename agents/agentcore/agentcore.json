@@ -1,0 +1,41 @@
+{
+  "name": "ChameleonAgents",
+  "version": 2,
+  "managedBy": "CDK",
+  "runtimes": [
+    {
+      "name": "web_evaluator",
+      "description": "Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos",
+      "build": "CodeZip",
+      "entrypoint": "agentcore_app.py",
+      "codeLocation": "app/web_evaluator",
+      "runtimeVersion": "PYTHON_3_12",
+      "protocol": "HTTP",
+      "additionalPolicies": [
+        "arn:aws:iam::aws:policy/AmazonBedrockMantleInferenceAccess"
+      ],
+      "lifecycleConfiguration": {
+        "idleRuntimeSessionTimeout": 900,
+        "maxLifetime": 3600
+      },
+      "connections": [
+        {
+          "id": "navegador",
+          "to": {
+            "type": "browser"
+          },
+          "description": "AgentCore Browser administrado por AWS: una sesión por usuario sintético"
+        }
+      ]
+    }
+  ],
+  "memories": [],
+  "knowledgeBases": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": [],
+  "policyEngines": [],
+  "configBundles": [],
+  "harnesses": []
+}
