@@ -5,6 +5,8 @@ Chromium local, mañana uno remoto vía CDP sin tocar el resto del código.
 """
 
 import asyncio
+import time
+from pathlib import Path
 
 from playwright.async_api import Browser, BrowserContext, Dialog, Page, Playwright, Response
 from playwright.async_api import Error as PlaywrightError
@@ -42,8 +44,12 @@ async def connect_browser(playwright: Playwright, cdp_url: str | None = None) ->
     return await playwright.chromium.launch(headless=True)
 
 
-async def create_context(browser: Browser, profile: Profile) -> BrowserContext:
-    """Contexto aislado (cookies, caché) con el viewport del perfil y escala 1:1."""
+async def create_context(browser: Browser, profile: Profile, video_dir: Path | None = None) -> BrowserContext:
+    """Contexto aislado (cookies, caché) con el viewport del perfil y escala 1:1.
+
+    Con `video_dir`, Playwright graba un video .webm por pestaña, al tamaño del viewport.
+    Los archivos recién quedan escritos al cerrar el contexto: ver `BrowserSession.save_videos`.
+    """
     options: dict = {
         "viewport": {"width": profile.width, "height": profile.height},
         "device_scale_factor": 1,  # un píxel de la captura = una coordenada de clic
@@ -52,6 +58,11 @@ async def create_context(browser: Browser, profile: Profile) -> BrowserContext:
     }
     if profile.mobile:
         options.update(is_mobile=True, has_touch=True, user_agent=MOBILE_USER_AGENT)
+    if video_dir is not None:
+        options.update(
+            record_video_dir=str(video_dir),
+            record_video_size={"width": profile.width, "height": profile.height},
+        )
     context = await browser.new_context(**options)
     await context.add_init_script(FORM_GUARD_SCRIPT)
     return context
@@ -66,9 +77,12 @@ class BrowserSession:
         self.page: Page | None = None
         self.events: list[str] = []          # se vacía después de cada paso
         self.http_status: int | None = None  # último estado HTTP del documento principal
+        self.pages: list[Page] = []          # todas las pestañas, en orden de apertura (una por video)
+        self.opened_at: float | None = None  # time.monotonic() al abrir la primera pestaña: el 0:00 del video
 
     async def open(self, url: str) -> None:
         page = await self.context.new_page()
+        self.opened_at = time.monotonic()
         self._watch(page)
         self.page = page
         self.context.on("page", self._on_new_tab)
@@ -77,6 +91,7 @@ class BrowserSession:
         self.events.clear()
 
     def _watch(self, page: Page) -> None:
+        self.pages.append(page)
         page.on("dialog", self._on_dialog)
         page.on("response", lambda response, watched=page: self._on_response(watched, response))
 
@@ -114,6 +129,23 @@ class BrowserSession:
     async def screenshot(self) -> bytes:
         """Captura solo del viewport, nunca de la página completa."""
         return await self.page.screenshot(type="png", full_page=False, timeout=15_000)
+
+    async def save_videos(self, run_dir: Path) -> list[str]:
+        """Renombra los videos de cada pestaña a video.webm, video-2.webm... Llamar tras cerrar el contexto."""
+        names: list[str] = []
+        for page in self.pages:
+            if page.video is None:
+                continue
+            try:
+                source = Path(await page.video.path())
+            except PlaywrightError:
+                continue
+            if not source.exists():
+                continue
+            name = "video.webm" if not names else f"video-{len(names) + 1}.webm"
+            source.replace(run_dir / name)
+            names.append(name)
+        return names
 
     async def url_and_title(self) -> tuple[str, str]:
         url = self.page.url

@@ -143,6 +143,8 @@ class Run:
     incidents: list[str] = field(default_factory=list)
     token_usage: dict = field(default_factory=dict)
     final_screenshot: str = ""
+    videos: list[str] = field(default_factory=list)  # con --record-video: video.webm y uno más por pestaña nueva
+    video_offset_s: float = 0.0                     # segundo del video en que empieza el intento (carga inicial)
     verdict: dict = field(default_factory=dict)     # outcome, justification y, si aplica, model_verdict
 
     def to_dict(self) -> dict:

@@ -43,6 +43,11 @@ def _count_signals(steps: list[dict]) -> str:
     return ", ".join(f"{n} {_SIGNAL_LABELS.get(signal, signal)}" for signal, n in counts.items())
 
 
+def _video_time(seconds: float) -> str:
+    seconds = max(0, int(seconds))
+    return f"{seconds // 60}:{seconds % 60:02d}"
+
+
 def _count_clicks(steps: list[dict]) -> int:
     return sum(1 for step in steps if step["action"] in _CLICK_ACTIONS)
 
@@ -180,6 +185,13 @@ def generate(meta: dict, criteria: dict, runs: list[dict], tree: dict) -> str:
             f"- **Tokens:** {tokens.get('input_tokens', 0)} de entrada, "
             f"{tokens.get('cache_read_input_tokens', 0)} leídos de caché, {tokens.get('output_tokens', 0)} de salida",
             f"- **Última captura:** [{run['final_screenshot']}]({folder}/{run['final_screenshot']})",
+        ]
+        videos = run.get("videos") or []
+        if videos:
+            links = ", ".join(f"[{video}]({folder}/{video})" for video in videos)
+            note = " (uno por pestaña; los minutos de los pasos son del primero)" if len(videos) > 1 else ""
+            lines.append(f"- **Video:** {links}{note}")
+        lines += [
             "",
             "**Dónde dudó o se equivocó**",
             "",
@@ -190,14 +202,21 @@ def generate(meta: dict, criteria: dict, runs: list[dict], tree: dict) -> str:
             "",
             "<details><summary>Todos los pasos</summary>",
             "",
-            "| # | Acción | Esperaba | Quedó en | Señales | Captura |",
-            "|---|---|---|---|---|---|",
+            "| # | Acción | Esperaba | Quedó en | Señales | Captura |" + (" Video |" if videos else ""),
+            "|---|---|---|---|---|---|" + ("---|" if videos else ""),
         ]
+        offset = run.get("video_offset_s", 0.0)
         for step in run["steps"]:
             signals = ", ".join(_SIGNAL_LABELS.get(signal, signal) for signal in step["signals"]) or "—"
+            # El paso se ejecuta al final de su duración; el video lo muestra entre ambos minutos.
+            video_cell = ""
+            if videos:
+                start = offset + step["seconds_since_start"] - step["duration_s"]
+                video_cell = f" {_video_time(start)}–{_video_time(offset + step['seconds_since_start'])} |"
             lines.append(
                 f"| {step['number']} | {_cell(_action_with_target(step))} | {_cell(step['expectation'])} | "
                 f"{_cell(step['title'] or step['url'])} | {signals} | [{step['screenshot']}]({folder}/{step['screenshot']}) |"
+                + video_cell
             )
         lines += ["", "</details>"]
 

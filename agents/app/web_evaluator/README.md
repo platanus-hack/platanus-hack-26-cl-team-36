@@ -31,6 +31,7 @@ uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de l
 | `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`). |
 | `--output` | Otra carpeta para las corridas. |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
+| `--record-video` | Graba un video `.webm` de cada intento (al tamaño del viewport), además de las capturas de cada paso. El reporte enlaza el video y marca en qué minuto ocurre cada paso. |
 
 Por defecto usa tu **Claude Code local** (`--engine claude-code`): no necesita clave de API, solo tener `claude`
 instalado y con sesión iniciada, y consume los límites de tu plan. Con una clave de API puedes usar la herramienta
@@ -79,12 +80,15 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 ```
 agents/.runs/<tarea>/<fecha-hora>/
 ├── criteria.json
-├── <perfil>/           step_NN.png, run.json, claude_code.log
+├── <perfil>/           step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
 ├── route_tree.json     nodos, ramas y ruta recomendada
 └── report.md
 ```
 
 `agents/.runs/` queda fuera de git.
+
+Con `--record-video`, cada pestaña que abre el usuario tiene su propio video (`video.webm`, `video-2.webm`...). Los
+minutos del reporte son del primero. Un intento de 3 minutos ocupa del orden de 15 a 30 MB.
 
 ## Pruebas
 

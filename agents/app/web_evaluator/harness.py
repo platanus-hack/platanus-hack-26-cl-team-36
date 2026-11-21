@@ -18,13 +18,24 @@ NOT_EXECUTED_MESSAGE = "Not executed: an earlier computer action in this turn fa
 
 
 class SyntheticUser:
-    def __init__(self, engine, browser: Browser, profile: Profile, url: str, instruction: str, run_dir: Path):
+    def __init__(
+        self,
+        engine,
+        browser: Browser,
+        profile: Profile,
+        url: str,
+        instruction: str,
+        run_dir: Path,
+        record_video: bool = False,
+    ):
         self.engine = engine
         self.browser = browser
         self.profile = profile
         self.url = url
         self.instruction = instruction
         self.run_dir = run_dir
+        self.record_video = record_video
+        self.session: BrowserSession | None = None
         self.run = Run(
             profile=profile.key,
             profile_name=profile.name,
@@ -40,7 +51,7 @@ class SyntheticUser:
 
     async def attempt(self) -> Run:
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        context = await create_context(self.browser, self.profile)
+        context = await create_context(self.browser, self.profile, self.run_dir if self.record_video else None)
         try:
             self.session = BrowserSession(context, self.profile)
             self.executor = Executor(self.session)
@@ -49,8 +60,10 @@ class SyntheticUser:
         finally:
             await self.engine.close()
             self.run.token_usage = self.engine.usage
-            self.run.save(self.run_dir)
             await context.close()
+            if self.record_video and self.session:
+                self.run.videos = await self.session.save_videos(self.run_dir)
+            self.run.save(self.run_dir)
         return self.run
 
     async def _loop(self) -> None:
@@ -61,6 +74,8 @@ class SyntheticUser:
         run.final_screenshot = run.start["screenshot"]
         self.visited_nodes = {node_key(url, title)}
         self.started_at = time.monotonic()
+        if self.session.opened_at is not None:
+            run.video_offset_s = round(self.started_at - self.session.opened_at, 2)
         self.last_step_end_s = 0.0
         self._log(f"inicio en {url} — {title!r}")
 
