@@ -1,12 +1,12 @@
-// Fuente de corridas en el sistema de archivos, con el layout de agents/shared (shared.store): cada tanda es una
-// corrida <host>/visitor/<objetivo>/<corrida>/ con route_tree.json, criteria.json y una carpeta por perfil.
+// Fuente de corridas en el sistema de archivos (layout en public/nucleo/almacen.js): cada tanda es una corrida
+// del Visitante que terminó bien, con route_tree.json, criteria.json y una carpeta por perfil.
 
 import { createReadStream, existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { AGENTE, CORRIDA, HOST, MANIFIESTO, OBJETIVO, idDeTanda } from "../../public/nucleo/almacen.js";
 
-const NOMBRE_DE_CORRIDA = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z(_\d{2})?$/;
 const RAIZ_DEL_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const RAIZ_POR_DEFECTO = path.join(RAIZ_DEL_REPO, "agents", ".runs");
 
@@ -35,16 +35,25 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
   const base = path.resolve(raiz);
   const rutaDe = (id, relativa = "") => path.join(base, ...id.split("/"), ...relativa.split("/").filter(Boolean));
 
+  // Una corrida en curso, abandonada o fallida no es una tanda.
+  const terminoBien = async (id) => {
+    try {
+      return JSON.parse(await readFile(rutaDe(id, MANIFIESTO), "utf8")).status === "succeeded";
+    } catch {
+      return false;
+    }
+  };
+
   return {
     descripcion: describirCarpeta(base),
 
     async listarIds() {
       const ids = [];
-      for (const host of await subcarpetas(base)) {
-        for (const objetivo of await subcarpetas(path.join(base, host, "visitor"))) {
-          for (const corrida of await subcarpetas(path.join(base, host, "visitor", objetivo))) {
-            const id = `${host}/visitor/${objetivo}/${corrida}`;
-            if (NOMBRE_DE_CORRIDA.test(corrida) && existsSync(rutaDe(id, "route_tree.json"))) ids.push(id);
+      for (const host of (await subcarpetas(base)).filter((nombre) => HOST.test(nombre))) {
+        for (const objetivo of (await subcarpetas(path.join(base, host, AGENTE))).filter((nombre) => OBJETIVO.test(nombre))) {
+          for (const corrida of await subcarpetas(path.join(base, host, AGENTE, objetivo))) {
+            const id = idDeTanda(host, objetivo, corrida);
+            if (CORRIDA.test(corrida) && existsSync(rutaDe(id, "route_tree.json")) && (await terminoBien(id))) ids.push(id);
           }
         }
       }

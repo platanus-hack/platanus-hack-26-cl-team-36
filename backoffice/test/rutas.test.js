@@ -103,9 +103,9 @@ test("idioma= se separa del hash y nunca vuelve a escribirse", () => {
 });
 
 test("tandaId con caracteres especiales se codifica por segmento", () => {
-  const hash = enlaceATanda("wom.cl/visitor/tarea con espacio/2026-11-21T07-28-42Z");
-  assert.equal(hash, "#/t/wom.cl/visitor/tarea%20con%20espacio/2026-11-21T07-28-42Z/resumen");
-  assert.equal(parsearHash(hash).tandaId, "wom.cl/visitor/tarea con espacio/2026-11-21T07-28-42Z");
+  const hash = enlaceATanda("localhost:8080/visitor/baja/2026-11-21T07-28-42Z");
+  assert.equal(hash, "#/t/localhost%3A8080/visitor/baja/2026-11-21T07-28-42Z/resumen");
+  assert.equal(parsearHash(hash).tandaId, "localhost:8080/visitor/baja/2026-11-21T07-28-42Z");
 });
 
 test("un tandaId que armaría otra ruta no es una tanda", () => {
@@ -118,7 +118,8 @@ test("un tandaId que armaría otra ruta no es una tanda", () => {
   ]) {
     assert.equal(parsearHash(hash).tipo, "desconocida", hash);
   }
-  assert.equal(parsearHash("#/t/wom.cl/visitor/baja.fibra_2/2026-01-01T00-00-00Z_01/resumen").tipo, "tanda");
+  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra-2/2026-01-01T00-00-00Z_01/resumen").tipo, "tanda");
+  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra/2026-01-01T00-00-00Z_00/resumen").tipo, "desconocida");
 });
 
 test("normalizarPaso: vacío, inválido, fuera de rango", () => {

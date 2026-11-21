@@ -158,6 +158,8 @@ Las corridas muestran páginas de terceros y a veces datos de quien corrió la p
 fusionadas, los hallazgos, la fuente (incluida una fuente falsa en memoria), el servidor, los módulos puros de las
 pantallas y los diccionarios.
 
-Las tandas de `test/fixtures/corridas/demo.cl/visitor/tarea-demo/` son sintéticas, con la forma de `agents/.runs/`. Sus
+Las tandas de `test/fixtures/corridas/demo.cl/visitor/tarea-demo/` son sintéticas, con la forma de `agents/.runs/`; la
+fuente solo lista las corridas cuyo `manifest.json` dice `succeeded`, y el fixture trae una fallida y una en curso. El
+layout que lee el backoffice está en `public/nucleo/almacen.js`. Sus
 `route_tree.json` los generó `build_route_tree` del Visitante (`agents/app/visitor/visitor/route_tree.py`) a partir de
 los `run.json`; si cambia el formato del evaluador, hay que regenerarlos igual.

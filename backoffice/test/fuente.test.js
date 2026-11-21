@@ -1,6 +1,8 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { crearFuente } from "../lib/fuente.js";
@@ -12,6 +14,17 @@ const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
 const ID = "demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
 const leer = (relativa) => readFileSync(`${RAIZ}/${ID}/${relativa}`);
 const texto = async (cuerpo) => Buffer.concat(await cuerpo.toArray()).toString("latin1");
+
+test("fuente de archivos: solo corridas que terminaron bien, también de un host con puerto", async () => {
+  const raiz = mkdtempSync(path.join(tmpdir(), "corridas-"));
+  const origen = `${RAIZ}/demo.cl/visitor/tarea-demo`;
+  for (const corrida of ["2026-11-21T10-00-00Z", "2026-11-21T12-00-00Z", "2026-11-21T13-00-00Z"]) {
+    cpSync(`${origen}/${corrida}`, `${raiz}/localhost:8080/visitor/tarea-demo/${corrida}`, { recursive: true });
+  }
+  cpSync(`${origen}/2026-11-21T10-00-00Z`, `${raiz}/demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z_00`, { recursive: true });
+  const ids = await crearFuenteDeArchivos({ raiz }).listarIds();
+  assert.deepEqual(ids, ["localhost:8080/visitor/tarea-demo/2026-11-21T10-00-00Z"]);
+});
 
 test("fuente de archivos: ids, perfiles, JSON, archivos y rangos", async () => {
   const fuente = crearFuenteDeArchivos({ raiz: RAIZ });
