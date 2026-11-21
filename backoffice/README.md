@@ -21,6 +21,12 @@ Abre <http://localhost:4848>. Para tener algo que ver, primero hay que correr el
 | `BACKOFFICE_FUENTE` | `archivos` | De dónde se leen las corridas. Hoy solo existe `archivos`; otro valor hace fallar el arranque. |
 | `BACKOFFICE_HOSTS` | (vacío) | Valores extra aceptados en la cabecera `Host` (con puerto, p. ej. `otro.host:8080`), separados por coma. Por defecto solo `localhost`, `127.0.0.1` y `[::1]`. |
 
+**Tandas archivadas.** La carpeta `agents/.runs/archivo/` nunca se lista: ahí van las tandas viejas que ya no se
+quieren mostrar, para no mezclar series distintas. Desde 2026-11-21 la lista muestra solo las tandas con los 8
+exploradores (`--exploradores conocimiento`); las anteriores (4 exploradores y los perfiles por defecto) quedaron en
+`agents/.runs/archivo/2026-11-21-4-exploradores/<tarea>/<fecha-hora>/`. Para verlas:
+`BACKOFFICE_CORRIDAS=agents/.runs/archivo/2026-11-21-4-exploradores npm run backoffice`.
+
 Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 
 ## Pantallas

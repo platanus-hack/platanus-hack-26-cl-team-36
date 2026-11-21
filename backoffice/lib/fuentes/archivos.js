@@ -1,5 +1,9 @@
 // Fuente de corridas en el sistema de archivos: una carpeta con <tarea>/<fecha-hora>/ (o <fecha-hora>/)
 // por tanda, cada una con route_tree.json, criteria.json y una carpeta por perfil.
+//
+// La carpeta `archivo/` de la raíz guarda tandas viejas que ya no se muestran (por ejemplo
+// archivo/2026-11-21-4-exploradores/<tarea>/<fecha-hora>/): nunca se lista. Para verlas, se apunta
+// BACKOFFICE_CORRIDAS a una de sus subcarpetas.
 
 import { createReadStream, existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
@@ -7,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const NOMBRE_DE_TANDA = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
+export const CARPETA_DE_ARCHIVO = "archivo";
 const RAIZ_DEL_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const RAIZ_POR_DEFECTO = path.join(RAIZ_DEL_REPO, "agents", ".runs");
 
@@ -41,6 +46,7 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
     async listarIds() {
       const ids = [];
       for (const nombre of await subcarpetas(base)) {
+        if (nombre === CARPETA_DE_ARCHIVO) continue;
         if (NOMBRE_DE_TANDA.test(nombre)) {
           if (existsSync(path.join(base, nombre, "route_tree.json"))) ids.push(nombre);
           continue;

@@ -1,6 +1,8 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { crearFuente } from "../lib/fuente.js";
@@ -40,6 +42,24 @@ test("fuente de archivos: ids, perfiles, JSON, archivos y rangos", async () => {
   final.cuerpo.destroy();
   const fuera = await fuente.abrirArchivo(ID, "first_time/step_01.png", { inicio: 10_000 });
   assert.deepEqual([fuera.cuerpo, fuera.rango], [null, null]);
+});
+
+test("fuente de archivos: la carpeta archivo/ nunca se lista, y se puede abrir como raíz", async () => {
+  const raiz = mkdtempSync(path.join(tmpdir(), "corridas-"));
+  const tanda = (...partes) => {
+    mkdirSync(path.join(raiz, ...partes), { recursive: true });
+    writeFileSync(path.join(raiz, ...partes, "route_tree.json"), "{}");
+  };
+  try {
+    tanda("tarea", "2026-11-21_20-00-00");
+    tanda("archivo", "2026-11-21_10-00-00");
+    tanda("archivo", "2026-11-21-4-exploradores", "tarea", "2026-11-21_10-00-00");
+    assert.deepEqual(await crearFuenteDeArchivos({ raiz }).listarIds(), ["tarea/2026-11-21_20-00-00"]);
+    const archivada = crearFuenteDeArchivos({ raiz: path.join(raiz, "archivo", "2026-11-21-4-exploradores") });
+    assert.deepEqual(await archivada.listarIds(), ["tarea/2026-11-21_10-00-00"]);
+  } finally {
+    rmSync(raiz, { recursive: true, force: true });
+  }
 });
 
 test("crearFuente elige la fuente por tipo", () => {
