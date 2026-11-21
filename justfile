@@ -37,20 +37,34 @@ sync: _gh
     fi
     echo "  ✔ The personal repo is at $(gh api repos/{{ personal_repo }}/commits/main --jq '.sha[0:7]'), same as main"
 
-    # A push that touches backend/ or infra/app/ starts the Terraform workflow within seconds.
-    deploy=""
-    for _ in $(seq 8); do deploy="$(run_since terraform.yml push)"; [ -n "$deploy" ] && break; sleep 2; done
-    if [ -z "$deploy" ]; then
-        echo "  ✔ Nothing to deploy: no changes in backend/ or infra/app/"
+    # A push starts the deploys within seconds: Terraform if it touches backend/ or infra/app/,
+    # AgentCore if it touches the web evaluator (agents/). Prints "workflow id" for each one.
+    deploys_since() {
+        for workflow in terraform.yml agentcore.yml; do
+            id="$(run_since "$workflow" push)"
+            [ -z "$id" ] || echo "$workflow $id"
+        done
+    }
+    deploys=""
+    for _ in $(seq 8); do deploys="$(deploys_since)"; [ -n "$deploys" ] && break; sleep 2; done
+    # Both start from the same push: give the second one a moment to show up.
+    [ -z "$deploys" ] || { sleep 3; deploys="$(deploys_since)"; }
+    if [ -z "$deploys" ]; then
+        echo "  ✔ Nothing to deploy: no changes in backend/, infra/app/ or the web evaluator"
         exit 0
     fi
-    echo "Deploying to AWS… (https://github.com/{{ personal_repo }}/actions/runs/$deploy)"
-    if ! gh run watch "$deploy" -R {{ personal_repo }} --exit-status --interval 5 > /dev/null; then
-        echo "  ✘ The deploy failed:" >&2
-        gh run view "$deploy" -R {{ personal_repo }} --log-failed | tail -n 20 >&2
-        exit 1
-    fi
-    echo "  ✔ Deployed"
+    failed=0
+    while read -r workflow deploy; do
+        echo "Deploying to AWS with ${workflow%.yml}… (https://github.com/{{ personal_repo }}/actions/runs/$deploy)"
+        if gh run watch "$deploy" -R {{ personal_repo }} --exit-status --interval 5 > /dev/null < /dev/null; then
+            echo "  ✔ Deployed"
+        else
+            echo "  ✘ The deploy failed:" >&2
+            gh run view "$deploy" -R {{ personal_repo }} --log-failed < /dev/null | tail -n 20 >&2
+            failed=1
+        fi
+    done <<< "$deploys"
+    exit "$failed"
 
 # Publishes a signed version of the extension from main, e.g. just publish v0.3.0
 [group('GitHub')]
