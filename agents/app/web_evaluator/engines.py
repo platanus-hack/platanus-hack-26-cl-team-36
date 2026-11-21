@@ -287,6 +287,17 @@ _FINAL_TEXT_PATTERN = re.compile(
 _FINAL_TEXT_REASONS = {"terminado": "done", "bloqueado": "blocked", "me rindo": "gave_up"}
 
 
+def _with_cache_breakpoint(messages: list[dict]) -> list[dict]:
+    """Una copia de los mensajes con el punto de caché en el último bloque, sin tocar el historial.
+
+    Equivale a la caché automática (`cache_control` de nivel superior), que Bedrock no acepta por bedrock-runtime.
+    Solo se marca el último mensaje: los anteriores se leen de la caché y no gastan puntos (el máximo es 4).
+    """
+    *earlier, last = messages
+    *blocks, final = last["content"]
+    return [*earlier, {**last, "content": [*blocks, {**final, "cache_control": {"type": "ephemeral"}}]}]
+
+
 class ApiEngine:
     name = "api"
 
@@ -311,9 +322,8 @@ class ApiEngine:
                 max_tokens=config.USER_MAX_TOKENS,
                 system=self.system_prompt,
                 tools=self.tools,
-                messages=self.messages,
+                messages=_with_cache_breakpoint(self.messages),
                 output_config={"effort": self.effort},
-                cache_control={"type": "ephemeral"},
             )
         except (anthropic.APIStatusError, anthropic.APIConnectionError) as error:
             raise AttemptEnded("api_error", str(error)[:300])

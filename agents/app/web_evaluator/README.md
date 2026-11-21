@@ -52,9 +52,13 @@ configuración está en [`infra/agentcore/`](../../../infra/README.md#carpetas),
 entrada en AWS es `agentcore_app.py`; `main.py` sigue siendo el comando local.
 
 En AWS se usa solo Claude Haiku 5.5, tanto para los usuarios sintéticos como para el juez (`BEDROCK_USER_MODEL` y
-`BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. En la cuenta basta con habilitar Haiku 5.5 en
-Bedrock (us-east-2). Ojo: Haiku puede errar más la puntería de los clics que Sonnet, y esos errores se cuentan como
-fricción del sitio; conviene comparar una misma tarea en local y en AWS antes de confiar en los resultados.
+`BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. En us-east-2, Haiku 5.5 solo se sirve por
+perfiles de inferencia que reparten entre regiones, así que se llama por el endpoint `bedrock-runtime` con el perfil de
+EE.UU., `us.anthropic.claude-haiku-5-5`, que usa us-east-1, us-east-2 y us-west-2
+([ficha del modelo en AWS](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-5-5.html)).
+Ese endpoint no acepta la caché automática, así que `ApiEngine` marca el punto de caché a mano. Ojo: Haiku puede errar
+más la puntería de los clics que Sonnet, y esos errores se cuentan como fricción del sitio; conviene comparar una misma
+tarea en local y en AWS antes de confiar en los resultados.
 
 Con `export AWS_PROFILE=<perfil de la cuenta de la hackatón>`, una prueba de concepto en tres pasos:
 
