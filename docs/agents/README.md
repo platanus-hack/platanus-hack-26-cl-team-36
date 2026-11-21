@@ -9,3 +9,4 @@ en el [glosario](../glosario.md).
 | [Evaluador](evaluador.md) | Cómo un agente usa una página como una persona, solo con capturas, y cómo se construye en avances. |
 | [Arquitectura](arquitectura.md) | Dónde va el código (`agents/`), cómo se organiza como proyecto de AgentCore y qué se pasan el evaluador y el optimizador. |
 | [Niveles de cambio](niveles-de-cambio.md) | Cuán agresivo puede ser un parche, del estilo a una interfaz nueva, con su factibilidad. |
+| [Niveles de tarea](niveles-de-tarea.md) | Cómo clasifica el mapeador los objetivos de un sitio y cómo se compara un intento con la ruta de referencia. |
