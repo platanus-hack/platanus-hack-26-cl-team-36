@@ -2,11 +2,13 @@
 name = "web_evaluator"
 version = "0.1.0"
 description = "Usuarios sintéticos que intentan una tarea en un sitio web y unen sus recorridos en un árbol de rutas."
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"   # el runtime de AgentCore usa la misma versión (agentcore.json)
 dependencies = [
-    "anthropic>=1.0",
+    "anthropic[bedrock]>=2.12",
     "playwright>=1.48",
     "pillow>=10.0",
+    "bedrock-agentcore>=1.27",
+    "aws-opentelemetry-distro>=0.10",   # AgentCore arranca el código con opentelemetry-instrument
 ]
 
 [dependency-groups]
@@ -15,6 +17,10 @@ dev = ["pytest>=8.0"]
 [tool.uv]
 # Módulos planos que se corren con `uv run main.py`, como un agente de AgentCore: no se empaqueta.
 package = false
+
+[tool.agentcore]
+# Entrada en AgentCore Runtime; main.py sigue siendo el comando local. La CLI copia esto a agents/agentcore/agentcore.json.
+entrypoint = "agentcore_app.py"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

@@ -1,0 +1,68 @@
+# Despliega agents/ (el evaluador web) en AgentCore Runtime con la CLI de AgentCore, que
+# empaqueta el código para arm64 y aplica su stack de CDK. Corre solo en el repo personal
+# (ver infra/README.md): en el repo de la organización el job se salta.
+name: AgentCore
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agents/agentcore/**"
+      - "agents/app/web_evaluator/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/agentcore.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write # OIDC: asumir el rol de AWS sin llaves guardadas
+  contents: read
+
+# Nunca dos despliegues a la vez; el que llega después espera.
+concurrency:
+  group: agentcore
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+
+jobs:
+  deploy:
+    if: github.repository == 'brayanmoreno/hackathon-grupo36'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agents
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      # La CLI empaqueta el código de Python con uv.
+      - uses: astral-sh/setup-uv@v10
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: CLI de AgentCore (la versión fijada en package.json)
+        working-directory: .
+        run: |
+          npm ci --ignore-scripts
+          npx agentcore config telemetry.enabled false
+
+      # El primer despliegue también prepara la cuenta para CDK (bootstrap) y crea el target default.
+      - name: agentcore deploy
+        run: npx agentcore deploy
+
+      - name: Estado
+        run: |
+          {
+            echo '```'
+            npx agentcore status
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

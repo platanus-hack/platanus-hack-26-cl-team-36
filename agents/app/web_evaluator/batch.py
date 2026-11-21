@@ -12,7 +12,7 @@ from playwright.async_api import Browser, async_playwright
 
 import config
 import report
-from browser import BrowserSession, connect_browser, create_context
+from browser import BrowserSession, create_context, open_browsers
 from engines import ApiEngine, ClaudeCodeEngine
 from harness import SyntheticUser
 from judge import ApiJudge, ClaudeCodeJudge, judge_run, propose_criteria
@@ -33,27 +33,33 @@ def _write_json(path: Path, data) -> None:
 
 
 async def _criteria_for(judge, browser: Browser, url: str, instruction: str) -> dict:
+    fallback = {"criterion": f"La pantalla final muestra que se cumplió la tarea: {instruction}", "evidence": []}
     context = await create_context(browser, _CRITERIA_PROFILE)
     try:
         session = BrowserSession(context, _CRITERIA_PROFILE)
         await session.open(url)
         start_screenshot = await session.screenshot()
+    except Exception as error:  # si la página inicial no carga, la tanda sigue con el criterio de la tarea
+        print(f"[criterio] no se pudo abrir la página inicial ({error}); se usa la tarea como criterio", flush=True)
+        criteria = fallback
+    else:
+        try:
+            criteria = await propose_criteria(judge, instruction, start_screenshot)
+        except Exception as error:  # sin criterio igual se puede juzgar con la tarea
+            print(f"[criterio] no se pudo generar ({error}); se usa la tarea como criterio", flush=True)
+            criteria = fallback
     finally:
         await context.close()
-    try:
-        criteria = await propose_criteria(judge, instruction, start_screenshot)
-    except Exception as error:  # sin criterio igual se puede juzgar con la tarea
-        print(f"[criterio] no se pudo generar ({error}); se usa la tarea como criterio", flush=True)
-        criteria = {"criterion": f"La pantalla final muestra que se cumplió la tarea: {instruction}", "evidence": []}
     print(f"[criterio] {criteria['criterion']}", flush=True)
     return criteria
 
 
 async def _record_verdict(judge, instruction: str, criteria: dict, run: Run, run_dir: Path) -> None:
     if run.end_reason in _INTERRUPTED_REASONS:
+        # Un error técnico no es un abandono del usuario: se reporta aparte y no cuenta en el árbol.
         run.verdict = {
-            "outcome": "abandoned",
-            "justification": f"El intento se interrumpió ({run.end_reason}): {run.final_message}",
+            "outcome": "interrupted",
+            "justification": f"El intento se interrumpió por un error técnico ({run.end_reason}): {run.final_message}",
         }
     else:
         final_screenshot = (run_dir / run.final_screenshot).read_bytes()
@@ -73,47 +79,68 @@ async def _record_verdict(judge, instruction: str, criteria: dict, run: Run, run
     print(f"[{run.profile}] veredicto: {run.verdict['outcome']} — {run.verdict['justification']}", flush=True)
 
 
+def models_for(engine: str, user_model: str | None = None) -> tuple[str, str]:
+    """Los modelos (usuarios, juez). En AWS (bedrock) solo Haiku; en local, Sonnet y Opus (ver config.py)."""
+    if engine == "bedrock":
+        return user_model or config.BEDROCK_USER_MODEL, config.BEDROCK_JUDGE_MODEL
+    return user_model or config.USER_MODEL, config.JUDGE_MODEL
+
+
 async def run_batch(
     url: str,
     instruction: str,
     profile_keys: list[str],
     output_dir: Path,
     engine: str = "claude-code",
-    user_model: str = config.USER_MODEL,
+    user_model: str | None = None,
     effort: str = config.USER_EFFORT,
     cdp_url: str | None = None,
     task_id: str | None = None,
+    browser: str = "local",
     record_video: bool = False,
 ) -> Path:
     """Corre una tanda y devuelve su carpeta, con report.md, route_tree.json y una carpeta por perfil."""
     batch_dir = output_dir / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     batch_dir.mkdir(parents=True, exist_ok=False)
 
+    user_model, judge_model = models_for(engine, user_model)
+
     # Claude Code corre en una carpeta vacía para no cargar CLAUDE.md ni memoria de ningún proyecto.
     claude_cwd = Path(tempfile.mkdtemp(prefix="web_evaluator-claude-"))
-    if engine == "api":
+    if engine in ("api", "bedrock"):
         import anthropic
 
-        client = anthropic.AsyncAnthropic()
-        judge = ApiJudge(client)
-        make_engine = functools.partial(ApiEngine, client, user_model, effort)
+        if engine == "bedrock":
+            client = anthropic.AsyncAnthropicBedrockMantle(aws_region=config.AWS_REGION)
+            model_prefix = config.BEDROCK_MODEL_PREFIX
+        else:
+            client = anthropic.AsyncAnthropic()
+            model_prefix = ""
+        judge = ApiJudge(client, model=model_prefix + judge_model, fallbacks=engine == "api")
+        make_engine = functools.partial(ApiEngine, client, model_prefix + user_model, effort)
     else:
-        judge = ClaudeCodeJudge(claude_cwd)
+        judge = ClaudeCodeJudge(claude_cwd, model=judge_model)
         make_engine = functools.partial(ClaudeCodeEngine, user_model, effort, claude_cwd)
 
     try:
         async with async_playwright() as playwright:
-            browser = await connect_browser(playwright, cdp_url)
+            browsers = open_browsers(playwright, browser, cdp_url)
             try:
-                criteria_task = asyncio.create_task(_criteria_for(judge, browser, url, instruction))
+                # Uno para el criterio y uno por usuario (en local, todos son el mismo Chromium).
+                criteria_browser, *user_browsers = await asyncio.gather(
+                    *(browsers.open() for _ in range(len(profile_keys) + 1))
+                )
+                criteria_task = asyncio.create_task(_criteria_for(judge, criteria_browser, url, instruction))
                 users = [
-                    SyntheticUser(make_engine(), browser, PROFILES[key], url, instruction, batch_dir / key, record_video)
-                    for key in profile_keys
+                    SyntheticUser(
+                        make_engine(), user_browser, PROFILES[key], url, instruction, batch_dir / key, record_video
+                    )
+                    for key, user_browser in zip(profile_keys, user_browsers)
                 ]
                 attempts = await asyncio.gather(*(user.attempt() for user in users), return_exceptions=True)
                 criteria = await criteria_task
             finally:
-                await browser.close()
+                await browsers.close()
 
         runs: list[Run] = []
         for user, attempt in zip(users, attempts):
@@ -134,15 +161,17 @@ async def run_batch(
         shutil.rmtree(claude_cwd, ignore_errors=True)
 
     run_dicts = [run.to_dict() for run in runs]
-    tree = build_route_tree(run_dicts)
+    # El árbol y la ruta recomendada solo usan intentos reales; los interrumpidos quedan en el reporte.
+    tree = build_route_tree([r for r in run_dicts if r["verdict"].get("outcome") != "interrupted"])
     meta = {
         "url": url,
         "instruction": instruction,
         "task_id": task_id,
         "timestamp": batch_dir.name,
         "engine": engine,
+        "browser": browser,
         "user_model": user_model,
-        "judge_model": config.JUDGE_MODEL,
+        "judge_model": judge_model,
         "effort": effort,
     }
     _write_json(batch_dir / "criteria.json", criteria)

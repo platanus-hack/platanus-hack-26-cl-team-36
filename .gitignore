@@ -8,3 +8,6 @@ __pycache__/
 *.tfvars
 tfplan
 infra/app/.build/
+
+# Dependencias de npm de la raíz (la CLI de AgentCore)
+/node_modules/

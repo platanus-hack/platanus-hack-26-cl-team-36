@@ -13,5 +13,8 @@
     "start:backend": "npm --prefix backend start",
     "sign": "npm --prefix extension run sign",
     "backoffice": "npm --prefix backoffice start"
+  },
+  "devDependencies": {
+    "@aws/agentcore": "1.2.0"
   }
 }
