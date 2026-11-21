@@ -1,7 +1,7 @@
 variable "region" {
-  description = "Región de AWS donde viven el bucket del estado y la app."
+  description = "Región de AWS donde viven el bucket del estado y la app. Debe ser la del proyecto de AWS (ver infra/README.md)."
   type        = string
-  default     = "us-east-1"
+  default     = "us-east-2"
 }
 
 variable "github_repo" {

@@ -16,7 +16,7 @@ terraform {
   #   terraform init -backend-config="bucket=hackathon-grupo36-tfstate-<id de la cuenta>"
   backend "s3" {
     key          = "app/terraform.tfstate"
-    region       = "us-east-1"
+    region       = "us-east-2"
     encrypt      = true
     use_lockfile = true
   }
