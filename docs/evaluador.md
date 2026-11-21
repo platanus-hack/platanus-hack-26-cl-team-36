@@ -176,26 +176,42 @@ el ejecutor es donde va el realismo del avance 2, que Playwright MCP no trae.
 
 **`agents/` es un proyecto de AgentCore, y cada agente es una carpeta con sus herramientas.** Se sigue la estructura
 que genera la CLI de AgentCore (`agentcore create`): una carpeta de configuración, `agentcore/`, y una carpeta por
-agente dentro de `app/`. Así, el día del avance 5, `agentcore add runtime` y `agentcore deploy` encuentran el código
-donde lo esperan. El evaluador es el primer agente; el optimizador, el segundo.
+agente dentro de `app/`. El mismo código corre de dos formas: como script en tu computador y, cuando haga falta
+escalar, en AgentCore. Seguir esa estructura desde el comienzo evita mover código al pasar de una a otra.
+
+Así se ubica en el repositorio:
 
 ```
-agents/                         el proyecto de AgentCore
-  agentcore/                    configuración de despliegue (avance 5): agentcore.json, aws-targets.json, cdk/
-  app/
-    web_evaluator/              el evaluador: un agente que usa una página como una persona
-      README.md                 cómo correrlo
-      main.py                   punto de entrada: recibe tarea, variante y perfil; corre intentos; deja el resumen
-      harness.py                el ciclo: captura → Claude → acción → captura
-      model/load.py             qué Claude se usa: local primero, Bedrock después
-      tools/                    SOLO lo que el agente puede pedir: las nueve acciones de la sección 3
-      judge.py                  decide el resultado y la etapa; lo único que lee la URL y el DOM
-      profiles/                 un perfil de agente por archivo
-      pyproject.toml
-    web_optimizer/              (después) lee lo que deja el evaluador y propone parches
-  tasks/                        una tarea por archivo (formas de datos, sección 5); las usan los dos agentes
-  .runs/                        recorridos, capturas y resúmenes (fuera de git)
+platanus-hack-26-cl-team-36/
+  backend/  extension/  prototipo/        ← lo que ya existe: la extensión y su servidor
+  docs/  specs/  spikes/                  ← documentación y pruebas cortas
+  agents/                                 ← NUEVO: el proyecto de AgentCore
+    agentcore/                            ← configuración de despliegue (se crea en el avance 5)
+    app/
+      web_evaluator/                      ← MIDE: agentes que usan la página solo con capturas
+        main.py                           ← punto de entrada (script local hoy, AgentCore después)
+        harness.py                        ← el ciclo: captura → Claude → acción → captura
+        model/load.py                     ← qué Claude se usa
+        tools/                            ← SOLO las nueve acciones que el agente puede pedir
+        judge.py                          ← fuera de tools/ a propósito: lee la URL y el DOM
+        profiles/                         ← un perfil de agente por archivo
+      web_optimizer/                      ← PROPONE: lee lo que deja el evaluador y escribe un parche
+        main.py                           ← punto de entrada
+        model/load.py                     ← qué Claude se usa
+        tools/                            ← leer recorridos y grafo, leer el DOM, escribir un parche
+    tasks/                                ← las tareas, compartidas por los dos agentes
+    .runs/                                ← recorridos, capturas y resúmenes (fuera de git)
 ```
+
+**Los dos agentes:**
+
+| | `web_evaluator` | `web_optimizer` |
+|---|---|---|
+| **Qué hace** | Intenta una tarea N veces y mide cuántas veces se logra. | Lee dónde se pierden los agentes y propone un parche. |
+| **Qué ve** | Solo capturas de lo visible. | Recorridos, grafo y el DOM de la página. |
+| **Qué puede hacer** | Las nueve acciones de la sección 3. | Leer archivos de `.runs/` y escribir un parche. |
+| **Qué entrega** | Recorridos, grafo y resumen de la tanda. | Una variante nueva para que el evaluador la mida. |
+| **Quién decide** | El juez, no el agente. | La regla del experimento (PR 6) y una persona. |
 
 **`tools/` contiene solo lo que el agente puede pedir.** El juez queda fuera de esa carpeta a propósito. Así las
 reglas 2 y 3 de la sección 2 se ven en la estructura: si algo está en `tools/`, el agente lo puede usar, y nada que lea
