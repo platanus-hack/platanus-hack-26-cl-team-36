@@ -56,6 +56,7 @@ export default {
     abrirSitio: "Abrir {host} en otra pestaña",
     verInstruccion: "Ver la instrucción completa",
     ocultarInstruccion: "Ver menos",
+    versionSinContexto: "Versión sin contexto:",
     intentos: ({ n }, { plural }) => `${n} ${plural(n, { one: "intento", other: "intentos" })}`,
     llegan: ({ n, de }, { plural }) => `${n}/${de} ${plural(n, { one: "llega", other: "llegan" })}`,
     ningunoValido: "Ningún intento válido",

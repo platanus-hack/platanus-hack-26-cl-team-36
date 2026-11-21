@@ -96,6 +96,9 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {boolean} vuelveALaRuta
  * @property {number | null} vuelveEnPaso
  * @property {Demora[]} demoras
+ * @property {"sin_contexto" | "conoce_tema" | null} conocimiento   nivel de conocimiento del explorador (null: perfil común)
+ * @property {string | null} instruccion    la tarea tal como la leyó este intento (sin contexto: la versión coloquial)
+ * @property {string[]} terminosRechazados  términos oficiales que el harness no le dejó escribir
  *
  * @typedef {{ logrado: number, fallido: number, abandonado: number, error: number }} Finales
  *
@@ -663,6 +666,9 @@ function armarIntento({ perfil, run, video }, ubicacion, ruta, inicios) {
     vuelveALaRuta,
     vuelveEnPaso,
     demoras: [],
+    conocimiento: run.conocimiento === "sin_contexto" || run.conocimiento === "conoce_tema" ? run.conocimiento : null,
+    instruccion: typeof run.instruction === "string" && run.instruction.trim() ? run.instruction.trim() : null,
+    terminosRechazados: Array.isArray(run.terminos_rechazados) ? [...new Set(run.terminos_rechazados.map(String))] : [],
   };
   intento.demoras = error
     ? []
@@ -891,6 +897,8 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
     id,
     tarea: arbol?.task_id ?? (id.includes("/") ? id.split("/")[0] : null),
     instruccion: arbol?.instruction ?? "",
+    // La tarea en palabras de alguien sin contexto (la que leen los exploradores «sin contexto»), si la tanda la tiene.
+    instruccionSinContexto: typeof arbol?.tarea_sin_contexto === "string" && arbol.tarea_sin_contexto.trim() ? arbol.tarea_sin_contexto.trim() : null,
     url,
     host: hostDe(url),
     fecha,

@@ -491,3 +491,28 @@ test("tanda de exploradores: sin hallazgos ni titulares de costo en pasos (dan p
   assert.notEqual(tanda.titulares.perfiles.vars.caso, "masPasos");
   assert.notEqual(tanda.titulares.tanda.vars.caso, "masPasos");
 });
+
+// ── Nivel de conocimiento: cada intento con su propia tarea ─────────────────────────────────────────────────────
+
+test("cada intento lleva su nivel de conocimiento, la tarea que leyó y los términos que no pudo escribir", () => {
+  const carpeta = new URL(`./fixtures/corridas/${VIEJA}/`, import.meta.url);
+  const leer = (archivo) => JSON.parse(readFileSync(new URL(archivo, carpeta), "utf8"));
+  const arbol = { ...leer("route_tree.json"), tarea_sin_contexto: "Quieres dejar de pagar el internet de la casa: averigua cómo." };
+  const coloquial = "Quieres dejar de pagar el internet de la casa: averigua cómo.";
+  const runs = {
+    first_time: { ...leer("first_time/run.json"), conocimiento: "sin_contexto", instruction: coloquial, tarea_coloquial: true, terminos_rechazados: ["dar de baja", "dar de baja"] },
+    hurried: { ...leer("hurried/run.json"), conocimiento: "conoce_tema", terminos_rechazados: [] },
+    mobile: leer("mobile/run.json"),
+  };
+  const tanda = armarTanda({ id: VIEJA, arbol, criterio: leer("criteria.json"), intentos: Object.entries(runs).map(([perfil, run]) => ({ perfil, run, video: false })) });
+  const [sinContexto, conoce, comun] = tanda.intentos;
+  assert.equal(sinContexto.conocimiento, "sin_contexto");
+  assert.equal(sinContexto.instruccion, coloquial);
+  assert.deepEqual(sinContexto.terminosRechazados, ["dar de baja"]);
+  assert.equal(conoce.conocimiento, "conoce_tema");
+  assert.equal(conoce.instruccion, runs.hurried.instruction?.trim() || null);
+  assert.equal(comun.conocimiento, null, "un perfil común no tiene nivel");
+  assert.deepEqual(comun.terminosRechazados, []);
+  assert.equal(tanda.instruccionSinContexto, coloquial);
+  assert.equal((tandaViejaCon(() => {})).instruccionSinContexto, null);
+});

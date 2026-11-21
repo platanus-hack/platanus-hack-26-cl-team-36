@@ -57,6 +57,7 @@ export default {
     abrirSitio: "Open {host} in a new tab",
     verInstruccion: "Show the full instruction",
     ocultarInstruccion: "Show less",
+    versionSinContexto: "No-context version:",
     intentos: ({ n }, { plural }) => `${n} ${plural(n, { one: "attempt", other: "attempts" })}`,
     llegan: ({ n, de }, { plural }) => `${n}/${de} ${plural(n, { one: "reaches it", other: "reach it" })}`,
     ningunoValido: "No valid attempts",
