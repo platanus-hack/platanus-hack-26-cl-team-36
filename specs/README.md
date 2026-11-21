@@ -1,155 +1,198 @@
-# Camaleón · documento raíz
+# Camaleón · spec raíz
 
-*Nombre en código provisional. Propuesta para revisión del equipo, 2026-11-21.*
+| | |
+|---|---|
+| **Status** | Draft, para revisión del equipo |
+| **Updated** | 2026-11-21 |
+| **Nombre** | Provisional |
 
-## 1. Qué es y para quién
+Términos en [glossary.md](glossary.md). Formas de datos y reglas en [contracts.md](contracts.md).
+
+## 1. Qué es
 
 ```
-página efectiva = página origen + optimizaciones + soul
+página efectiva = source page + optimizations + soul
 ```
 
-Una persona, con la IA que corre en su propio equipo, hace que un sitio web le funcione mejor. Las **optimizaciones**
-son capas de cambios que hacen que una misión se complete mejor, validadas con evidencia por un enjambre de agentes
-que navega el sitio. La **soul** son las preferencias de esa persona, que nunca salen de su equipo. La página origen
-no se toca: todo se aplica encima, en el navegador.
+Un usuario, con la IA que corre en su propio equipo, hace que un sitio web le funcione mejor.
 
-**Por qué van juntas:** una optimización es un promedio de la población y puede fallarle a una persona concreta. La
+- Las **optimizations** son patches que hacen que una task se complete mejor. Se validan con evidencia: un harness
+  lanza agentes que navegan el sitio.
+- La **soul** es el perfil de preferencias del usuario. No sale de su equipo.
+- La source page no se modifica: todo se aplica encima, en el navegador, con una extensión.
+
+**Por qué van juntas.** Una optimization es un promedio de la población y puede fallarle a un usuario concreto. La
 soul convierte "funciona para la población" en "funciona para ti", y permite comprobarlo sin tráfico real.
 
 ## 2. Foco inicial
 
-Un solo flujo de punta a punta, sobre una tienda de demostración propia:
+Un solo flujo de punta a punta, sobre **un target que elige y documenta quien toma EVAL-1**. Ningún spec asume un
+sitio; los requisitos de un target válido están en EVAL-1.
 
-1. El enjambre intenta la misión "comprar un producto" y deja un **grafo de navegación** con el hito donde más se
-   abandona.
-2. Se propone una **capa de optimización**, se vuelve a medir y se acepta con evidencia.
-3. La persona tiene una **soul**; su capa se aplica encima.
-4. La **extensión** muestra la página efectiva y por qué se ve así.
+**Hito 1 — el bucle cierra.**
 
-**Prueba de que la fórmula se sostiene** (segundo paso del foco): una soul tapa la mejora de una optimización, el
-agente que navega como esa persona lo detecta, y el sistema cambia a una capa que la soul no puede tocar.
+1. El harness intenta la task del target y produce un navigation graph con el stage de mayor abandono.
+2. Se propone un optimization patch, se corre un experiment y se acepta con evidencia.
+3. El usuario tiene una soul; su soul patch se aplica encima.
+4. La extensión muestra la página efectiva y explica qué cambió y con qué evidencia.
 
-Todo lo que no sirva a este flujo espera.
+**Hito 2 — la fórmula se sostiene.** Un soul patch anula el efecto de un optimization patch; la soul persona lo
+detecta en un experiment; el sistema ofrece un patch que la soul no puede anular.
+
+Fuera de alcance: todo lo que no sirva a estos dos hitos.
 
 ### Punto de partida
 
-No se empieza de cero. El [prototipo](../prototipo/README.md) ya conecta una extensión de Firefox con la IA local de
-la persona y aplica una hoja de estilo generada, con pruebas de punta a punta y tiempos medidos (entre 7 y 10 s por
-generación). Eso es evidencia para la pila Soul y para las incógnitas de B2:
+El [prototipo](../prototipo/README.md) ya conecta una extensión con la IA local del usuario y aplica una hoja de
+estilo generada, con pruebas de punta a punta y tiempos medidos. Es evidencia para el stack Soul y para FND-2.
 
-| Ya existe en el prototipo | Lo que le falta para esta propuesta | Pila |
+| Ya existe en el prototipo | Lo que falta | PRs |
 |---|---|---|
-| Servicio local que llama a la IA de la persona y responde a la extensión. | Secreto de emparejamiento; un cliente compartido con salida validada. | S1, S2 |
-| Mapa de la página sin texto ni valores. | Huellas y lista de elementos visibles, compartidas con el enjambre. | M1 |
-| Hoja de estilo saneada, en caché por sitio. | Capas como datos, con operaciones cerradas, protegidos y puertas. | M2, M3, S4 |
-| Una instrucción global escrita por la persona. | Una soul que se ve, se corrige y se borra. | S3 |
-| Página de demostración y pruebas con navegador sin ventana. | Fricciones conmutables, hitos, enjambre, grafo y medición. | E1 a E5 |
+| Bridge que llama a la IA del usuario y responde a la extensión. | Pairing token; un cliente compartido con salida validada. | SOUL-1, SOUL-2 |
+| Mapa de la página sin texto ni valores. | Locators y lista de elementos visibles, compartidos con el harness. | ENG-1 |
+| Hoja de estilo saneada, en caché por host. | Patches declarativos, con operaciones cerradas, protected elements e invariants. | ENG-2, ENG-3, SOUL-4 |
+| Una instrucción global escrita por el usuario. | Una soul que se ve, se corrige y se borra. | SOUL-3 |
+| Pruebas con navegador sin ventana. | Target, harness, navigation graph y experiment. | EVAL-1 a EVAL-5 |
 
-Las ideas de recorridos de personas y de validación con agentes que el equipo ya propuso quedan recogidas en la pila
-Evaluación (E3 a E5 y E7).
+Las ideas de recorridos de usuarios y de validación con agentes que el equipo ya propuso quedan recogidas en el
+stack Eval.
 
 ## 3. Objetivos y no-objetivos
 
-| Objetivos | No-objetivos (por ahora, a propósito) |
-|---|---|
-| Medir si la personalización con IA local es factible (tiempo, tasa de capas válidas). | Compartir optimizaciones entre personas. El modelo se diseña, no se construye. |
-| Producir un grafo de navegación a partir de corridas de agentes, guardado en local. | Sitios con sesión iniciada, pagos o efectos reales. |
-| Cerrar el bucle medir → proponer capa → volver a medir, con un freno ético medible. | Probar que mejora la usabilidad para humanos. Los agentes dan fricciones candidatas. |
-| Aplicar `origen + capas` igual en la extensión y en el enjambre. | Ejecutar código generado por un modelo. Las capas son datos. |
-| | Otros navegadores, publicación en tiendas, cuentas de usuario. |
+| # | Objetivo | Lo prueban |
+|---|---|---|
+| G1 | Medir si la personalización con IA local es factible (latencia, tasa de patches válidos). | SOUL-4, SOUL-6 |
+| G2 | Producir un navigation graph a partir de runs de agentes, guardado en local. | EVAL-2 a EVAL-4 |
+| G3 | Cerrar el bucle medir → proponer → volver a medir, con guardrails medidos. | EVAL-5, OPT-1 a OPT-3 |
+| G4 | Aplicar `source page + patches` igual en la extensión y en el harness. | ENG-2, ENG-4, EXT-3 |
+| G5 | Mostrar que soul y optimizations se necesitan (hito 2). | OPT-4 |
 
-## 4. Contratos congelados
+**No-objetivos**, a propósito:
 
-Lo único rígido del proyecto está en [contratos.md](contratos.md): vocabulario, formas de datos y reglas con
-DEBE / NO DEBE. Se implementan como esquemas en el primer PR de la base y desde ahí la verdad vive en los esquemas y
-sus pruebas, no en este texto. Cambiar un contrato es un PR propio sobre la base.
+- Compartir optimizations entre usuarios. Se diseña (EXT-6); no se construye.
+- Targets con sesión iniciada, pagos o efectos reales.
+- Probar que mejora la usabilidad para humanos. Los agentes dan fricciones candidatas.
+- Ejecutar código generado por un modelo. Los patches son datos.
+- Publicación en tiendas de extensiones y cuentas de usuario.
 
-Todo lo demás (librerías, estructura interna, algoritmos) lo decide quien implementa cada PR.
+## 4. Stacks
 
-## 5. Mapa de pilas
-
-Cada pila es una serie de PRs apilados con un dueño. La base se fusiona a `main` en la primera hora; las demás nacen
-de `main`, no unas de otras.
+Cada stack es una serie de PRs apilados. Foundation se fusiona a `main` primero; los demás nacen de `main`, no unos
+de otros.
 
 ```mermaid
 graph BT
-  main --> B1["B1 contratos + datos de prueba"]
-  B1 --> B2["B2 pruebas de plataforma"]
-  B2 --> M1["Motor · M1…M5"]
-  B2 --> E1["Evaluación · E1…E7"]
-  B2 --> S1["Soul · S1…S6"]
-  B2 --> X1["Extensión · X1…X6"]
-  M1 -.-> O1["Mejora · O1…O5"]
-  E1 -.-> O1
-  S1 -.-> O1
+  main --> FND["Foundation · FND-1, FND-2"]
+  FND --> ENG["Engine · ENG-1…5"]
+  FND --> EVAL["Eval · EVAL-1…7"]
+  FND --> SOUL["Soul · SOUL-1…6"]
+  FND --> EXT["Extension · EXT-1…6"]
+  ENG -.-> OPT["Optimizer · OPT-1…5"]
+  EVAL -.-> OPT
+  SOUL -.-> OPT
 ```
 
-| Pila | Propuestas | Resultado | Dueño |
+| # | Stack | Spec | Entrega |
 |---|---|---|---|
-| Base | [pilas/base.md](pilas/base.md) | Contratos ejecutables, datos de prueba e incógnitas de plataforma resueltas | Todos |
-| Motor | [pilas/motor.md](pilas/motor.md) | `origen + capas`: aplicar, revertir, validar, puertas | P2 |
-| Evaluación | [pilas/evaluacion.md](pilas/evaluacion.md) | Tienda de demostración, enjambre, trazas, grafo, medición | P1 |
-| Soul | [pilas/soul.md](pilas/soul.md) | Conexión con la IA local, la soul y su capa | P3 |
-| Extensión | [pilas/extension.md](pilas/extension.md) | Almacén local y la extensión que aplica composiciones | P4 |
-| Mejora | [pilas/mejora.md](pilas/mejora.md) | Bucle de mejora y la prueba soul contra optimización | P2, cuando Motor y Evaluación entreguen |
+| 0 | Foundation | [stacks/0-foundation.md](stacks/0-foundation.md) | Contratos ejecutables, fixtures e incógnitas de plataforma resueltas |
+| 1 | Engine | [stacks/1-engine.md](stacks/1-engine.md) | El patch engine: aplicar, revertir, validar, invariants |
+| 2 | Eval | [stacks/2-eval.md](stacks/2-eval.md) | Target, harness, trajectories, navigation graph, experiment |
+| 3 | Soul | [stacks/3-soul.md](stacks/3-soul.md) | Bridge, cliente de IA, la soul y su soul patch |
+| 4 | Extension | [stacks/4-extension.md](stacks/4-extension.md) | Local store y la extensión que aplica variants |
+| 5 | Optimizer | [stacks/5-optimizer.md](stacks/5-optimizer.md) | Bucle de mejora y la prueba del hito 2 |
 
-Las líneas punteadas son dependencias de datos reales. Hasta entonces, cada pila trabaja contra los datos de prueba
-de B1.
+Las líneas punteadas son dependencias de datos reales; hasta entonces cada stack trabaja contra los fixtures de
+FND-1. Los owners se asignan al tomar cada stack.
 
-## 6. Definición de hecho
+**Prioridades.** P0: necesario para el hito 1. P1: necesario para el hito 2. P2: se recorta primero.
+
+### Orden de construcción
+
+Los stacks se numeran en el orden en que se abren. Dentro de un stack, los PRs van en orden numérico. Entre stacks,
+el orden lo dan estas oleadas: los PRs de una misma oleada se pueden construir en paralelo.
+
+| Oleada | PRs | Al terminar existe |
+|---|---|---|
+| 0 | FND-1 → FND-2 | Contratos ejecutables, fixtures y decisiones de plataforma |
+| 1 | ENG-1 · EVAL-1 · SOUL-1 · EXT-1 | Locators, un target validado, bridge emparejado, local store |
+| 2 | ENG-2 · EVAL-2 · SOUL-2 · SOUL-3 · EXT-2 · OPT-1 (con fixtures) | Una variant aplicable, una trajectory real, cliente de IA, una soul, scaffold de la extensión |
+| 3 | ENG-3 · EVAL-3 · EXT-3 | Validación e invariants, un batch de control, la extensión aplica una variant |
+| 4 | ENG-4 · EVAL-4 · SOUL-4 · OPT-2 | Variant estable en la página, navigation graph, soul patch, candidate patches |
+| 5 | EVAL-5 · EXT-4 · OPT-3 | Un experiment `accepted` y el panel que lo explica. **Hito 1.** |
+| 6 | SOUL-6 · OPT-4 · EVAL-6 | Factibilidad medida, soul persona y la prueba de la fórmula. **Hito 2.** |
+| 7 | ENG-5 · EVAL-7 · SOUL-5 · EXT-5 · EXT-6 · OPT-5 | Lo recortable (P2) |
+
+## 5. Definition of Done
 
 Un PR está hecho cuando:
 
-- Cada validación de su propuesta tiene **evidencia pegada** en el PR: el comando y su salida, o una captura.
-  "Las pruebas pasan" sin salida no cuenta.
-- Las comprobaciones globales están en verde (las define B1: tipos, estilo, pruebas).
-- No cambia un contrato. Si lo necesita, hay antes un PR sobre la base.
-- Cabe en una revisión: un solo propósito, con sus pruebas. Si la descripción se alarga, se parte.
+- Cada requisito de su spec tiene **evidencia adjunta** en el PR: el comando y su salida, o una captura. Un
+  requisito sin evidencia se considera no cumplido.
+- Las comprobaciones globales pasan (las define FND-1).
+- No cambia un contrato. Si lo necesita, va antes un PR sobre Foundation.
+- Tiene un solo propósito e incluye sus pruebas. Si la descripción se alarga, se divide.
 
-Las validaciones se escriben como lista de comprobación, una línea cada una:
-`CUANDO <evento> EL SISTEMA DEBE <respuesta>` o `SI <condición> ENTONCES EL SISTEMA DEBE <respuesta>`,
-seguida de cómo se comprueba.
+## 6. Decisiones
 
-## 7. Decisiones
+**Tomadas**
 
-**Tomadas.** Entran solo las que varios análisis independientes sostuvieron o que se verificaron en documentación
-oficial.
-
-| Decisión | Sustento |
+| Decisión | Fundamento |
 |---|---|
-| La extensión sigue en el navegador del prototipo. | Funciona y está medida. Como el enjambre inyecta el motor y no carga la extensión, no obliga a cambiar de navegador. |
-| Las capas son datos declarativos; nunca código generado. | Coinciden todos los análisis; además lo exige la política de extensiones. |
-| Un único motor de capas, compartido por la extensión y el enjambre. El enjambre lo inyecta; no carga la extensión. | Coinciden todos. El motor DEBE dar el mismo resultado en el navegador de la extensión y en el del enjambre (validación de M4). |
-| Éxito e hitos se evalúan por código. El grafo tiene hitos como nodos y admite ciclos. | Coinciden todos; un árbol de acciones no agrupa nada. |
-| El agente observa captura de pantalla más elementos visibles numerados. | Decisión del equipo: las fricciones visuales deben contar. |
-| Datos en archivos locales; identificadores derivados del contenido. | Coinciden dos análisis; no hace falta servidor para el foco. |
-| Un cambio en la página solo avisa; una operación que no encuentra su elemento hace caducar la composición. | Coinciden dos análisis. |
-| Ninguna petición entre extensión y servicio local queda abierta más de 20 s. | El navegador corta el proceso de fondo a los 30 s (verificado). |
-| Un producto distribuible usa clave de API. La sesión del plan personal solo vale para uso propio. | Términos del proveedor (verificado). |
+| Los patches son datos declarativos; nunca código generado. | Seguridad, y las plataformas de extensiones prohíben código remoto. |
+| Un único patch engine para la extensión y el harness. El harness lo inyecta; no carga la extensión. | Lo que se mide debe ser lo que ve el usuario (C6). |
+| El éxito y los stages se evalúan por código. El navigation graph tiene stages como nodos y admite ciclos. | Los jueces LLM son poco fiables; los grafos de acciones no agregan. |
+| La observation por defecto es `som`. | Las fricciones visuales deben afectar al agente. |
+| Datos en archivos locales; ids derivados del contenido. | El foco no necesita servidor. |
+| Una variant contiene solo optimization patches; el soul patch va encima. | Un experiment vale para cualquier usuario y la soul no viaja. |
+| Un cambio de `source_hash` solo avisa; una operación `unresolved` repetida vuelve `stale` la variant. | El hash cambia con detalles irrelevantes. |
+| La extensión sigue en el navegador del prototipo. | Funciona y está medida. |
+| Un producto distribuible usa clave de API; la sesión personal solo vale para uso propio. | Términos del proveedor de IA. |
 
-**Abiertas.** Las resuelve el PR indicado, con evidencia.
+**Abiertas.** Las cierra el PR indicado, con evidencia.
 
-| Decisión | Dónde |
+| Decisión | PR |
 |---|---|
-| Transporte entre la extensión y el servicio local. | B2, S1 |
-| Cómo se invoca a la IA local (opciones del SDK, salida estructurada con imágenes, llamadas en paralelo). | B2, S2 |
-| Con qué proveedor y modelo corre el enjambre, y cuánto cuesta un paso. | B2, E3 |
-| En qué navegador corre el enjambre, y si conviene llevar la extensión a otro. | B2, M4 |
-| Cómo se garantiza que una capa no cargue recursos externos ni oculte lo protegido. | M3 |
-| Cuándo se aplica una composición para que no parpadee ni la borre el propio sitio. | M4, X3 |
-| Permisos y forma del panel de la extensión. | X2, X4 |
+| Transporte entre la extensión y el bridge. | FND-2, SOUL-1 |
+| Cómo se invoca a la IA local (salida estructurada, imágenes, paralelismo). | FND-2, SOUL-2 |
+| Proveedor y modelo del harness; costo por step. | FND-2, EVAL-3 |
+| En qué navegador corre el harness. | FND-2, ENG-4 |
+| Cómo se garantiza que un patch no cargue recursos externos ni debilite lo protegido. | ENG-3 |
+| Cuándo se aplica una variant para evitar el destello de la source page y sobrevivir a re-renders. | ENG-4, EXT-3 |
+| Permisos y forma del panel de la extensión. | EXT-2, EXT-4 |
+| Si este spec reemplaza a `specs/MVP.md`. | Equipo |
 
-## 8. Riesgos y plan de recorte
+## 7. Supuestos
 
-| Riesgo | Señal | Qué se recorta |
+| Supuesto | Lo verifica |
+|---|---|
+| La IA local responde con salida estructurada, sin herramientas y con imágenes. | FND-2 |
+| El presupuesto de IA alcanza para un experiment con poder suficiente. | FND-2, EVAL-3 |
+| Existe un target válido con margen de mejora en su línea base. | EVAL-1 |
+| El patch engine da el mismo resultado en dos navegadores. | FND-2, ENG-4 |
+| La conducta de un agente con observation `som` cambia ante fricciones visuales. | EVAL-3 |
+
+## 8. Amenazas y controles
+
+| Amenaza | Control | Requisitos |
 |---|---|---|
-| La cuota de IA no alcanza para medir y programar a la vez. | B2 mide el costo por paso. | Plan mínimo de medición (unas 90 corridas) y fricciones grandes en la tienda. |
-| El éxito de un agente no es el de una persona. | — | Se declara como límite. No se promete usabilidad humana. |
-| Optimizar deriva en manipular. | Un antiobjetivo cae. | La capa se rechaza. Es parte de la demostración, no un recorte. |
-| El alcance no cabe. | Punto de control a las 6 h: una traza real, una capa manual visible en la extensión, una capa de soul generada. | En orden: pila Mejora más allá de O3, operaciones extra del motor (M5), reconocimiento con IA (E6), recorridos humanos (E7), aprendizaje de la soul (S5), exportar (X5). |
+| Una página inyecta instrucciones en lo que lee el modelo. | Lo que llega de una página son datos; el modelo no tiene herramientas. | SOUL-2, EVAL-6 |
+| Una página llama al bridge. | Pairing token; se rechaza todo origen que no sea la extensión. | SOUL-1 |
+| Un patch manipula al usuario (oculta la salida, inventa urgencia). | Operaciones cerradas, protected elements, invariants y guardrails medidos. | ENG-3, OPT-3 |
+| Un patch importado es malicioso. | Se revalida entero y queda marcado como ajeno. | EXT-5 |
+| La soul o las capturas salen del equipo. | Solo al proveedor de IA configurado, con aviso previo; nunca al exportar. | SOUL-3, EXT-5 |
+| Un run causa efectos reales en un sitio. | `side_effects`, bloqueo de escrituras a terceros, requisitos del target. | EVAL-1, EVAL-2 |
 
-## 9. Cómo se trabaja
+## 9. Riesgos y plan de recorte
 
-- Pilas con el soporte nativo de GitHub para PRs apilados (`gh stack`); si B1 muestra que no está disponible en el
-  repositorio, ramas encadenadas con git.
-- Un árbol de trabajo por persona o agente. Nunca dos agentes en la misma copia.
+| Riesgo | Señal | Respuesta |
+|---|---|---|
+| El presupuesto de IA no alcanza para medir y programar a la vez. | FND-2 mide el costo por step. | Experiment mínimo y un target con más margen de mejora. |
+| El éxito de un agente no es el de un usuario. | — | Se declara como límite; no se promete usabilidad humana. |
+| Optimizar deriva en manipular. | Un guardrail queda `violated`. | El patch se rechaza. Es parte de la demostración. |
+| El alcance no cabe. | Punto de control: una trajectory real sobre el target, un patch manual visible en la extensión y un soul patch generado. | Se recortan los P2, y después los P1. |
+
+## 10. Cómo se trabaja
+
+- Stacked PRs con el soporte nativo de la plataforma; si FND-1 muestra que no está disponible, ramas encadenadas.
+- Un árbol de trabajo por persona o agente de código. Nunca dos agentes en la misma copia.
+- Las decisiones que se cierran se registran con contexto, opciones y resultado.
