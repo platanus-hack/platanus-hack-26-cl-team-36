@@ -8,13 +8,19 @@ El evaluador web (`agents/app/web_evaluator/`) corre en AgentCore Runtime; lo de
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
 Actions, con el plan de Terraform, quedarían a la vista. El repo personal es privado y es una copia de `main` de este.
 
-**La cuenta de AWS.** Todo corre en una subcuenta de desarrollo de la organización de AWS de Unholster. Antes
-usábamos una cuenta creada para la hackatón con el registro nuevo de AWS, pero esa cuenta no deja crear runtimes de
-AgentCore (*maxAgents limit exceeded*, y subir la cuota requiere un caso a AWS Support).
+**La cuenta de AWS.** Todo corre en una cuenta creada con el registro nuevo de AWS (*Sign up for AWS (new)*). Con ese
+registro, la cuenta es un "proyecto" dentro de una organización que administra AWS, y las políticas de esa organización
+(SCP) limitan lo que se puede hacer en ella:
 
-**Por qué `us-east-2`.** Es la región donde partió el proyecto (la cuenta anterior solo permitía esa). AgentCore y el
-perfil de inferencia de EE.UU. de Claude Haiku 5.5 (`us.anthropic.claude-haiku-5-5`) están disponibles ahí, así que
-la mantenemos.
+- Los recursos regionales, como S3 o Lambda, solo se pueden crear en la región del proyecto, `us-east-2` (Ohio). La
+  región se ve en [settings.aws.com](https://settings.aws.com) → Project → Additional info.
+- No se pueden crear grupos IAM ni usuarios IAM con contraseña. El equipo entra invitado al proyecto (ver
+  [Acceso del equipo](#acceso-del-equipo)).
+- Bedrock no da acceso a Claude Opus 4.7 ni a los modelos posteriores: responden *is not available for this account*,
+  y eso solo lo puede habilitar AWS (Sales o Support). Por eso el evaluador web usa Claude Sonnet 4.6 (ver
+  [el evaluador](../agents/app/web_evaluator/README.md#en-aws-agentcore)).
+
+Antes, el proyecto corría en una subcuenta de desarrollo de la organización de AWS de Unholster.
 
 ## Cómo llega un cambio a AWS
 
@@ -46,6 +52,28 @@ abajo).
 - `justfile`: `just aws`, los comandos del evaluador en AgentCore (`explore`, `deploy`, `status`, `logs`).
 - `../backend/lambda.js`: entrada de la Lambda. Levanta el servidor de `index.js` y le reenvía cada request, así
   `index.js` funciona igual en local y en AWS.
+
+## Acceso del equipo
+
+La cuenta no tiene usuarios IAM. Cada persona entra con su AWS Builder ID, invitada al proyecto, y saca credenciales
+temporales con `aws login`. Los invitados son administradores del proyecto, que es lo que necesitan Terraform y la CLI
+de AgentCore, pero no pueden invitar a otros ni ver la facturación.
+
+1. **Invitar**, quien es dueño del proyecto: [settings.aws.com](https://settings.aws.com) → **Team** → **Invite new
+   team member**, con el correo de la persona y el proyecto, y **Send invitation**. La invitación dura 14 días.
+2. **Aceptar**, la persona invitada: abre el correo de AWS y entra con su AWS Builder ID. Si no tiene uno, lo crea
+   ahí mismo.
+3. **Entrar desde la CLI**, con la AWS CLI 2.32 o más nueva (`aws --version`):
+
+   ```bash
+   aws login --profile grupo36          # abre el navegador: elige el proyecto
+   aws configure set region us-east-2 --profile grupo36
+   export AWS_PROFILE=grupo36
+   aws sts get-caller-identity          # confirma que es la cuenta del proyecto
+   ```
+
+   La sesión dura hasta 12 horas; después, `aws login --profile grupo36` otra vez. Si Terraform no logra leer esas
+   credenciales: `eval "$(aws configure export-credentials --format env)"`.
 
 ## Puesta en marcha (una vez)
 
