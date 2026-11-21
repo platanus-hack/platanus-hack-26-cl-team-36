@@ -50,6 +50,10 @@
 //      algo más (p. ej. `websiteActivity`/`browsingActivity` por la URL). Hoy nada de
 //      esto sale del equipo y por eso el manifest no lo declara.
 
+import "../comun/idioma.js";
+
+const { t, IDIOMA_POR_DEFECTO } = globalThis.MiTema.idioma;
+
 export const VERSION_REGISTRO = 1;
 export const VOTOS_VALIDOS = ["mejor", "peor", "comentario"];
 export const MAX_COMENTARIO = 2000; // caracteres
@@ -60,21 +64,22 @@ export const CLAVE_ID_USUARIO = "idUsuario";
 
 // ---------- Validación ----------
 
-// → { ok: true, voto, comentario } | { ok: false, error } (error legible para el usuario).
+// Respuesta de error de los mensajes de votos: `codigo` es lo que el popup traduce al idioma
+// del usuario (clave `error.<codigo>` de comun/idioma.js, con `parametros`); `error` es el
+// mismo texto en español, para registros y para quien no traduzca.
+export function falloVoto(codigo, parametros = {}) {
+  const respuesta = { ok: false, codigo, error: t(IDIOMA_POR_DEFECTO, `error.${codigo}`, parametros) };
+  if (Object.keys(parametros).length > 0) respuesta.parametros = parametros;
+  return respuesta;
+}
+
+// → { ok: true, voto, comentario } | { ok: false, codigo, error } (ver `falloVoto`).
 export function validarVoto({ voto, comentario } = {}) {
-  if (!VOTOS_VALIDOS.includes(voto)) {
-    return { ok: false, error: "Elige si la página quedó mejor, peor o si solo quieres comentar." };
-  }
-  if (comentario != null && typeof comentario !== "string") {
-    return { ok: false, error: "El comentario debe ser texto." };
-  }
+  if (!VOTOS_VALIDOS.includes(voto)) return falloVoto("voto-invalido");
+  if (comentario != null && typeof comentario !== "string") return falloVoto("comentario-no-texto");
   const texto = (comentario ?? "").trim();
-  if (voto === "comentario" && !texto) {
-    return { ok: false, error: "Escribe tu comentario antes de enviarlo." };
-  }
-  if (texto.length > MAX_COMENTARIO) {
-    return { ok: false, error: `El comentario es muy largo (máximo ${MAX_COMENTARIO} caracteres).` };
-  }
+  if (voto === "comentario" && !texto) return falloVoto("comentario-vacio");
+  if (texto.length > MAX_COMENTARIO) return falloVoto("comentario-largo", { max: MAX_COMENTARIO });
   return { ok: true, voto, comentario: texto };
 }
 

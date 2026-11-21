@@ -10,7 +10,7 @@ import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
 import { consultarTema } from "./api.js";
 import { cargarTemaLocal } from "./temas-locales.js";
 import { resolverTema } from "./temas.js";
-import { crearAlmacenVotos, crearRegistroVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
+import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
 
 // ---------- 1. Estado ON/OFF y badge ----------
 
@@ -146,14 +146,15 @@ async function cssParaEditado(tabId, temaId) {
   return `${features}\n/* tema ${temaId} */\n${cssTema}`;
 }
 
-// `voto:guardar` { tabId?, voto, comentario } → { ok: true, id, pendientes } | { ok: false, error }
+// `voto:guardar` { tabId?, voto, comentario } → { ok: true, id, pendientes } | { ok: false, codigo, error }
 // `tabId` hace falta si el mensaje no viene de un content script (p. ej. un popup).
+// `codigo` se traduce con la clave `error.<codigo>` del diccionario (comun/idioma.js).
 async function guardarVoto(mensaje, sender) {
   const validacion = validarVoto(mensaje);
-  if (!validacion.ok) return { ok: false, error: validacion.error };
+  if (!validacion.ok) return validacion;
 
   const tabId = mensaje.tabId ?? sender.tab?.id;
-  if (!Number.isInteger(tabId)) return { ok: false, error: "No se sabe de qué pestaña es tu opinión." };
+  if (!Number.isInteger(tabId)) return falloVoto("sin-pestana");
 
   let captura;
   try {
@@ -162,10 +163,8 @@ async function guardarVoto(mensaje, sender) {
     console.warn("[mi-tema] No se pudo capturar la página para el voto:", error);
     captura = null;
   }
-  if (!captura) return { ok: false, error: "No se pudo leer esta página. Recárgala e inténtalo de nuevo." };
-  if (!captura.temaId && validacion.voto !== "comentario") {
-    return { ok: false, error: "Esta página no tiene un tema de Chameleon: no hay con qué comparar." };
-  }
+  if (!captura) return falloVoto("sin-captura");
+  if (!captura.temaId && validacion.voto !== "comentario") return falloVoto("sin-tema");
 
   try {
     const [cssTema, idUsuario] = await Promise.all([
@@ -187,7 +186,7 @@ async function guardarVoto(mensaje, sender) {
     return { ok: true, id: registro.id, pendientes: await almacenVotos.contar() };
   } catch (error) {
     console.error("[mi-tema] No se pudo guardar el voto:", error);
-    return { ok: false, error: "No se pudo guardar tu opinión. Inténtalo de nuevo." };
+    return falloVoto("guardar");
   }
 }
 
@@ -197,7 +196,8 @@ async function estadoVotos() {
     return { pendientes: await almacenVotos.contar() };
   } catch (error) {
     console.error("[mi-tema] No se pudieron contar los votos:", error);
-    return { pendientes: 0, error: "No se pudieron leer las opiniones guardadas." };
+    const { codigo, error: texto } = falloVoto("contar");
+    return { pendientes: 0, codigo, error: texto };
   }
 }
 

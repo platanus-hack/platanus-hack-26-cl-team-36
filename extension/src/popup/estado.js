@@ -13,16 +13,22 @@
 //
 // Para saber si está encendido se usa `activo` de storage (la fuente de verdad) y no la
 // clase `mi-tema` de la página: esa cambia recién a mitad de la transición.
+//
+// Avisos y motivos se devuelven como claves del diccionario (comun/idioma.js): el popup
+// los traduce al idioma elegido, así un cambio de idioma no obliga a recalcular nada.
 
+import "../comun/idioma.js";
 import { MAX_COMENTARIO } from "../background/votos.js";
 
 export { MAX_COMENTARIO };
 
+const { t } = globalThis.MiTema.idioma;
+
+// Claves del diccionario de cada aviso.
 export const AVISOS = {
-  noDisponible:
-    "Chameleon no puede leer esta pestaña. Las páginas internas de Firefox no lo permiten; si es un sitio web, recárgalo.",
-  sinTema: "Esta página todavía no tiene un tema de Chameleon. Cuéntanos qué te gustaría cambiar.",
-  apagado: "Chameleon está apagado. Enciéndelo para comparar con la página original, o déjanos un comentario.",
+  noDisponible: "aviso.noDisponible",
+  sinTema: "aviso.sinTema",
+  apagado: "aviso.apagado",
 };
 
 // pagina: { alcanzable, temaId } (respuesta de `estado:pagina`, o alcanzable false si falló).
@@ -35,21 +41,20 @@ export function decidirVista({ activo, pagina }) {
 
 // Decide si se puede enviar y qué voto sale. `opcion` es el botón elegido
 // ("mejor" | "peor" | "comentario" | null); en "solo-comentario" no hay que elegir.
-// → { ok: true, voto, comentario } | { ok: false, motivo }
+// → { ok: true, voto, comentario } | { ok: false, motivo, parametros? } (motivo = clave del diccionario)
 export function validarEnvio({ modo, opcion, comentario = "" }) {
-  if (modo === "no-disponible") return { ok: false, motivo: "No se puede opinar sobre esta pestaña." };
+  if (modo === "no-disponible") return { ok: false, motivo: "motivo.noDisponible" };
   const voto = modo === "solo-comentario" ? "comentario" : opcion;
-  if (!["mejor", "peor", "comentario"].includes(voto)) return { ok: false, motivo: "Elige una opción para enviar." };
+  if (!["mejor", "peor", "comentario"].includes(voto)) return { ok: false, motivo: "motivo.elegir" };
   const texto = comentario.trim();
-  if (voto === "comentario" && !texto) return { ok: false, motivo: "Escribe tu comentario para enviar." };
-  if (texto.length > MAX_COMENTARIO) return { ok: false, motivo: `El comentario es muy largo (máximo ${MAX_COMENTARIO} caracteres).` };
+  if (voto === "comentario" && !texto) return { ok: false, motivo: "motivo.escribir" };
+  if (texto.length > MAX_COMENTARIO) return { ok: false, motivo: "motivo.largo", parametros: { max: MAX_COMENTARIO } };
   return { ok: true, voto, comentario: texto };
 }
 
-export function textoPendientes(pendientes) {
-  if (!Number.isInteger(pendientes) || pendientes <= 0) return "Aún no hay opiniones guardadas en tu equipo.";
-  if (pendientes === 1) return "1 opinión guardada en tu equipo.";
-  return `${pendientes.toLocaleString("es-CL")} opiniones guardadas en tu equipo.`;
+export function textoPendientes(pendientes, idioma) {
+  const n = Number.isInteger(pendientes) && pendientes > 0 ? pendientes : 0;
+  return t(idioma, "opinion.pendientes", { n });
 }
 
 // Ejecuta tareas asíncronas de a una, en orden. Así dos clics rápidos en el interruptor
