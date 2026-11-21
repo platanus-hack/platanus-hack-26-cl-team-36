@@ -84,7 +84,8 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
    `fill` o `select` sobre una ref, `press`, `back`, `scroll`, o el final `done`, `blocked` o `give_up`. El texto de la
    página llega desde la pantalla actual. `done` lleva la respuesta y una cita textual de la página; si la cita no está
    en el texto visible, se rechaza. No puede ir a una URL ni usar un elemento oculto: primero debe abrir lo que lo
-   muestra.
+   muestra. Si un elemento que estaba a la vista se oculta al actuar, como la diapositiva de un carrusel, se espera
+   hasta 30 s a que vuelva; lo mismo al repetir la ruta.
 2. **Destilar.** Se corta cada vuelta que regresa a un nodo ya visitado (URL normalizada más título, como en el
    evaluador), desde donde se llegó a él. Las acciones dentro de una página se conservan. Si esa candidata no verifica,
    se prueba cortar desde donde se salió del nodo, porque volver atrás puede conservar el estado de la página.
