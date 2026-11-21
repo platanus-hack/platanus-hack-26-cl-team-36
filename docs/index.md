@@ -130,7 +130,7 @@ flowchart LR
 | Extensión | El prototipo aplica una hoja de estilo, la explica y muestra la original. |
 | Soul | El prototipo guarda una sola instrucción escrita por la persona. |
 | Motor de parches | No existe. |
-| Evaluador | No existe. Las pruebas del prototipo ya manejan un navegador sin ventana y toman capturas. |
+| Evaluador | No existe. Hay dos bases: las pruebas del prototipo ya manejan un navegador sin ventana, y la PR #6 recorre tres tareas en sitios reales con pasos escritos a mano. |
 | Optimizador | No existe. |
 | Almacén local | No existe. |
 
@@ -174,7 +174,7 @@ De todos los intentos sale un **grafo de navegación**: por qué etapas pasan lo
 abandonan.
 
 Qué recibe exactamente el agente (solo la estructura de la página, o también una captura) es lo primero que hay que
-averiguar. Tampoco hay todavía una página de prueba: la elige quien construya el evaluador.
+averiguar. Como página de prueba hay tres candidatas en sitios chilenos reales (PR #6); el plan dice qué les falta.
 
 La evaluación la lanza la persona, en su computador, y gasta de su propio plan de Claude.
 

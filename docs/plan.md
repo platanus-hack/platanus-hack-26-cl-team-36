@@ -2,7 +2,7 @@
 
 **Qué es este documento.** El plan de trabajo, para quienes van a programar. Parte de
 [la propuesta](index.md); conviene leerla antes. Fecha: 2026-11-21. Se escribió leyendo el repositorio en `main`
-(`d9556ea`); no se ejecutó nada para escribirlo.
+(`d9556ea`) y la PR #6, todavía sin fusionar; no se ejecutó nada para escribirlo.
 
 ## Resumen
 
@@ -36,7 +36,7 @@ Hay una cuarta que no intentamos responder: si lo que le cuesta a un agente le c
 | Un cambio a una página se escribe como datos (un parche), no como código ni como estilo libre. | El estilo libre rompió páginas en el prototipo. Un parche se puede validar, deshacer y explicar. El spike 1 confirma si Claude los escribe bien. |
 | La extensión y el evaluador aplican los parches con el mismo código. | Si difieren, lo que miden los agentes no es lo que se le aplica a la persona. |
 | El programa decide si una tarea se logró. | Lo que un agente dice de su propio éxito no es evidencia. |
-| La extensión sigue en Firefox, y el evaluador parte de la automatización que ya usan las pruebas del prototipo. | Es lo que funciona hoy. El spike 2 puede cambiarlo si no alcanza. |
+| La extensión sigue en Firefox. | Es donde funciona el prototipo. |
 | Todo se guarda en archivos locales, sin servidor. | Alcanza para medir. Deja fuera lo compartido; ver "Decisiones del equipo". |
 
 ### Reglas
@@ -58,8 +58,20 @@ El plan no fija la página de prueba. La elige quien haga el PR 0. Sirve si:
 - tiene un defecto conocido y grande, para que haya algo que mejorar;
 - no causa consecuencias reales y, si es de terceros, sus condiciones permiten el uso automatizado.
 
-Lo más simple es una página propia, servida en local. La página de demostración del prototipo no sirve tal cual: es
-una portada de noticias, sin ninguna tarea que completar.
+Hay dos candidatas, y sirven para cosas distintas:
+
+- **Una página propia, servida en local.** Permite encender y apagar un defecto y repetir sin sorpresas. Es la que
+  usa el spike 1 y la que sirve para calibrar a los agentes. La página de demostración del prototipo no sirve tal
+  cual: es una portada de noticias, sin ninguna tarea que completar.
+- **Sitios reales.** La PR #6 trae tres tareas en sitios chilenos (dar de baja un servicio en wom.cl, una exención
+  en sii.cl, un reclamo en dt.gob.cl), sin sesión iniciada. Cada una tiene una secuencia de pasos escrita a mano que
+  llega al final y una condición de éxito que comprueba el programa. Son mejores para mostrar, porque el defecto es
+  real.
+
+A las tareas de la PR #6 les falta, respecto de la lista de arriba: una salvaguarda por tarea; revisar que las
+condiciones de cada sitio permitan el uso automatizado; y asumir que el sitio cambia (su README ya pide volver a
+validar antes de mostrar). En un sitio real no hay versión "sin el defecto": se compara el sitio tal cual contra el
+sitio con un parche.
 
 ## 4. Los tres spikes
 
@@ -121,8 +133,9 @@ para ver si lo detecta.
 **Qué queremos saber.** Si agentes locales pueden intentar una tarea de varios pasos en una página, y si de sus
 recorridos sale un dato útil. También cuánto tarda y cuesta.
 
-**Qué hay que preparar.** La página de prueba del PR 0 y su tarea, escrita a mano. Lo que el spike 1 haya decidido
-sobre qué recibe el agente.
+**Qué hay que preparar.** La página local del spike 1, ampliada a una tarea de varios pasos con un defecto que se
+puede apagar, y su tarea escrita a mano. Lo que el spike 1 haya decidido sobre qué recibe el agente. Si queda
+tiempo, se repite con una tarea de la PR #6.
 
 **Qué se hace**
 
@@ -164,7 +177,7 @@ Cada uno tiene una condición para darlo por terminado. Cómo se programa lo dec
 
 | # | Qué construye | Necesita | Está terminado cuando |
 |---|---|---|---|
-| 0 | **Página de prueba.** Con un defecto que se puede encender y apagar, una tarea, una salvaguarda y una forma de volver al estado inicial. | — | Cumple la lista de la sección 3, y una secuencia de pasos escrita a mano logra la tarea. |
+| 0 | **Páginas de prueba.** Una local, con un defecto que se puede encender y apagar; y las tareas en sitios reales de la PR #6, cada una con su salvaguarda. | PR #6 | Cada una cumple la lista de la sección 3, y una secuencia de pasos escrita a mano logra la tarea. |
 | 1 | **Localizador.** Encontrar un elemento por lo que es y cómo se llama. | Spike 1 | En la página de prueba, cada elemento que se puede pulsar se encuentra de forma única, o el programa dice que no pudo. |
 | 2 | **Motor de parches.** Aplicar y deshacer tres cambios: estilo, ocultar y renombrar. | PR 1 | El mismo parche produce la misma página aplicado desde la extensión y desde el evaluador (misma estructura y mismos estilos), y deshacerlo devuelve la original. |
 | 3 | **Comprobación de seguridad.** Detectar los elementos protegidos y verificar que siguen visibles y se pueden pulsar. | PR 2 | Un grupo de parches tramposos (ocultar "No, gracias", volver invisible un enlace de salida, renombrar un precio) se rechaza completo. |
@@ -207,6 +220,8 @@ Este plan no puede tomarlas. Hay que cerrarlas antes de repartir el trabajo.
 | **¿Qué se muestra al final, y a qué hora se cierra?** | De eso depende el recorte de la sección 7. |
 | **¿Quién toma cada spike y cada línea?** | Hay trabajo para tres líneas en paralelo más la página de prueba. |
 | **¿Alcanza el plan de Claude de cada uno?** | El evaluador gasta de la misma cuota que se usa para programar. El spike 2 da el número. |
+| **¿Con qué navegador trabaja el evaluador?** | Las pruebas del prototipo manejan Firefox; la PR #6 maneja Chrome con otra herramienta. Si el evaluador usa Chrome y la extensión Firefox, el motor de parches tiene que dar el mismo resultado en los dos (condición del PR 2). |
+| **¿Qué nombres se usan?** | La PR #6 dice "misión" y "enjambre" y escribe los campos en español (`sitio`, `pasos`, `exito`). Esta propuesta dice "tarea" y "evaluador" y los escribe en inglés. Hay que elegir antes de que haya más código. |
 
 ## 7. Propuesta de recorte
 

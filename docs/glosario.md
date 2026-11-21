@@ -39,7 +39,7 @@ Dos palabras se usan siempre con un solo sentido:
 | **Agente** | Un Claude que intenta una tarea en una página, paso a paso. | `agent` |
 | **Perfil de agente** | La conducta que se le pide a un agente: impaciente, lector cuidadoso, etc. | `agent_profile` |
 | **Página de prueba** | La página sobre la que se evalúa. La elige quien la construye; el plan dice qué debe cumplir. | `test page` |
-| **Tarea** | Lo que se intenta lograr en una página, con una condición que el programa puede comprobar. | `task` |
+| **Tarea** | Lo que se intenta lograr en una página, con una condición que el programa puede comprobar. La PR #6 la llama "misión". | `task` |
 | **Etapa** | Un tramo reconocible de una tarea. | `stage` |
 | **Salvaguarda** | Una tarea contraria que no debe volverse más difícil, como cancelar o rechazar un extra. | `guardrail` |
 | **Intento** | Un agente tratando de completar una tarea una vez. | `run` |
