@@ -8,6 +8,7 @@ Hechos hasta ahora:
 | Fecha | Pregunta | Informe |
 |---|---|---|
 | 2026-11-21 | ¿Hasta qué nivel de cambio se puede modificar wom.cl sin romperlo? | [alcance-cambios-wom](2026-11-21-alcance-cambios-wom.md) |
+| 2026-11-21 | ¿8 exploradores con dos niveles de conocimiento encuentran más caminos que los 4 de siempre? | [exploradores-conocimiento](2026-11-21-exploradores-conocimiento.md) |
 
 Los tres spikes del plan todavía no se han hecho.
 
