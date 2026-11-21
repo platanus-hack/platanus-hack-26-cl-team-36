@@ -8,20 +8,22 @@
 //
 // Opciones:
 //   fila    cuántos items van en la fila deslizable (por defecto 8)
-//   textos  { titulo, destacado, boton, fila, lista, original, volver }
+//   textos  por idioma, para reemplazar los genéricos del diccionario (claves `cartelera.*`
+//           de comun/idioma.js): { es: { titulo, destacado, boton, fila, lista, original,
+//           volver }, en: {…} }. Un objeto plano ({ titulo, … }) vale para todos los idiomas.
 
 (() => {
   const { crear } = MiTema.dom;
 
-  const TEXTOS = {
-    titulo: "Para ti",
-    destacado: "Destacado",
-    boton: "Reproducir",
-    fila: "Sigue explorando",
-    lista: "Más",
-    original: "Ver original",
-    volver: "Volver a la vista nueva",
-  };
+  const CLAVES = ["titulo", "destacado", "boton", "fila", "lista", "original", "volver"];
+
+  // Textos en el idioma actual: los del diccionario, reemplazados por los del tema.
+  function textosEn(idioma, propios = {}) {
+    const genericos = Object.fromEntries(CLAVES.map((clave) => [clave, MiTema.idioma.t(idioma, `cartelera.${clave}`)]));
+    const porIdioma = propios[idioma];
+    const planos = Object.values(propios).every((valor) => typeof valor === "string") ? propios : {};
+    return { ...genericos, ...planos, ...(porIdioma && typeof porIdioma === "object" ? porIdioma : {}) };
+  }
 
   function miniatura(item, { grande = false } = {}) {
     const img = crear("img", { src: (grande && item.imagen_grande) || item.imagen, alt: "", loading: "lazy" });
@@ -50,7 +52,7 @@
   }
 
   function dibujar(items, opciones, contexto) {
-    const t = { ...TEXTOS, ...opciones.textos };
+    const t = textosEn(MiTema.idioma.actual(), opciones.textos);
     const enFila = opciones.fila ?? 8;
     const [destacado, ...resto] = items;
     const fila = resto.slice(0, enFila);

@@ -66,7 +66,8 @@
     // Sin datos (p. ej. la portada de YouTube sin sesión), se deja la sección original.
     if (items.length === 0) return quitar(id);
 
-    const firma = JSON.stringify(items.map(({ original, ...datos }) => datos));
+    // El idioma entra en la firma: si cambia, la vista se redibuja con los textos nuevos.
+    const firma = JSON.stringify([MiTema.idioma.actual(), items.map(({ original, ...datos }) => datos)]);
     const previo = estado.get(id);
     if (previo && previo.firma === firma && previo.nodo.isConnected && previo.contenedor === contenedor) {
       // Mismos datos: no se redibuja, pero el sitio pudo recrear sus elementos.
