@@ -4,7 +4,7 @@
   "managedBy": "CDK",
   "runtimes": [
     {
-      "name": "web_evaluator",
+      "name": "web_evaluator_image",
       "description": "Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos",
       "build": "Container",
       "entrypoint": "agentcore_app.py",

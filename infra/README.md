@@ -46,7 +46,9 @@ abajo).
 - `app/`: la Lambda, su URL, su rol y su log. Su estado vive en el bucket.
 - `agentcore/`: el evaluador web en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime
-  `web_evaluator`, con su código en `../agents/app/web_evaluator/`, y `agentcore/cdk/` es el stack que la CLI genera.
+  `web_evaluator_image`, con su código en `../agents/app/web_evaluator/`, y `agentcore/cdk/` es el stack que la CLI
+  genera. El runtime se llama así porque AgentCore no deja pasar un runtime de zip a imagen: el anterior,
+  `web_evaluator`, era de zip y se reemplazó.
   `agentcore/.cli/deployed-state.json` enlaza el proyecto con lo desplegado. `agentcore/aws-targets.json` queda con el
   id de la cuenta después de desplegar desde un computador: no lo subas, el repo es público.
 - `justfile`: `just aws`, los comandos del evaluador en AgentCore (`explore`, `deploy`, `status`, `logs`).
