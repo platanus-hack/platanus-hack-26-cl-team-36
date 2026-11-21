@@ -1,0 +1,13 @@
+/*
+  Feature "vista" (features/vista.js). Con el tema activo, la sección original queda
+  oculta y se ve la vista nueva; con el botón de la extensión apagado o con "ver
+  original" (html.mt-vista-original), vuelve la sección original.
+*/
+
+html.mi-tema:not(.mt-vista-original) [data-mt-oculto] {
+  display: none !important;
+}
+
+html:not(.mi-tema) .mt-vista {
+  display: none !important;
+}

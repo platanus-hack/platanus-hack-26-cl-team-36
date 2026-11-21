@@ -34,5 +34,22 @@ for (const id of ids) {
       assert.ok(existsSync(new URL(archivo, src)), `falta ${archivo}`);
       assert.ok(scriptsCargados.includes(archivo), `${archivo} no está en content_scripts del manifest`);
     }
+
+    for (const vista of [].concat(tema.features.vista ?? [])) {
+      for (const clave of ["id", "contenedor", "items", "campos", "componente"]) {
+        assert.ok(vista[clave], `la vista "${vista.id}" no tiene \`${clave}\``);
+      }
+      const archivo = `componentes/${vista.componente}.js`;
+      assert.ok(existsSync(new URL(archivo, src)), `la vista "${vista.id}" pide ${archivo}, que no existe`);
+      assert.ok(scriptsCargados.includes(archivo), `${archivo} no está en content_scripts del manifest`);
+    }
   });
 }
+
+test("los componentes se cargan después de content/plantillas.js y antes del motor", () => {
+  const posicion = (archivo) => scriptsCargados.indexOf(archivo);
+  for (const archivo of scriptsCargados.filter((a) => a.startsWith("componentes/") || a.startsWith("features/"))) {
+    assert.ok(posicion(archivo) > posicion("content/plantillas.js"), `${archivo} debe ir después de content/plantillas.js`);
+    assert.ok(posicion(archivo) < posicion("content/motor.js"), `${archivo} debe ir antes de content/motor.js`);
+  }
+});

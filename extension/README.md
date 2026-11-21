@@ -21,11 +21,14 @@ extension/
 │   │   ├── temas-locales.js  ← carga src/temas/<id>/
 │   │   └── temas.js          ← lógica pura (validar temas, decidir el tema); testeable con Node
 │   ├── content/
-│   │   ├── registro.js       ← registro de features (globalThis.MiTema)
+│   │   ├── registro.js       ← registro de features y componentes (globalThis.MiTema)
+│   │   ├── plantillas.js     ← lee datos de la página según una plantilla; crea elementos seguros
 │   │   └── motor.js          ← genérico: pide el tema, pone la clase mi-tema, corre features
 │   ├── features/             ← comportamientos JS reutilizables, configurables por el tema
-│   │   ├── modo-foco.js
-│   │   └── modo-foco.css
+│   │   ├── modo-foco.js/.css
+│   │   └── vista.js/.css     ← reemplaza una sección por una vista hecha con un componente
+│   ├── componentes/          ← catálogo de piezas de interfaz que usan las vistas
+│   │   └── cartelera.js/.css
 │   ├── temas/                ← CSS y config de cada tema; la API dice cuál usar
 │   │   ├── youtube/
 │   │   │   ├── tema.json     ← nombre, features y sus opciones
@@ -124,6 +127,47 @@ No hace falta tocar el manifest: la extensión corre en todos los sitios http(s)
 Solo `nombre` es obligatorio en la práctica (el tema de Gmail no tiene más).
 `eventosNavegacion` son eventos propios del sitio cuando navega sin recargar (SPA);
 además el motor siempre reacciona a cambios del DOM.
+
+## Vistas: cambiar una sección completa
+
+Además de CSS, un tema puede reemplazar una sección entera de la página por una interfaz
+nueva. Ejemplo: en YouTube, la grilla de la portada pasa a ser una "cartelera" (un video
+destacado, una fila deslizable y una lista compacta).
+
+- **El código** es un componente del catálogo (`src/componentes/cartelera.js`), dentro de la extensión.
+- **Lo específico del sitio es una plantilla** (datos), en la feature `vista` del `tema.json`:
+  qué sección reemplazar, cómo leer cada item, qué componente usar y qué elemento original
+  clickear. Si el sitio cambia su HTML, se arregla la plantilla, no la extensión.
+- **La sección original sigue debajo, oculta.** Al hacer clic en un item se acciona el
+  elemento original (el sitio navega a su manera), el botón "Ver original" la muestra, y si
+  la vista falla o no encuentra datos se deja la página original.
+
+```json
+"vista": [{
+  "id": "portada",
+  "rutas": ["/"],
+  "contenedor": "ytd-browse[page-subtype=\"home\"] ytd-rich-grid-renderer",
+  "items": "#contents > ytd-rich-item-renderer yt-lockup-view-model",
+  "campos": {
+    "titulo": { "selector": "a.ytLockupMetadataViewModelTitle" },
+    "enlace": { "selector": "a.ytLockupMetadataViewModelTitle", "atributo": "href" },
+    "imagen": { "selector": "a", "atributo": "href", "patron": "[?&]v=([\\w-]{11})",
+                "formato": "https://i.ytimg.com/vi/$1/hqdefault.jpg" }
+  },
+  "accion": { "selector": "a.ytLockupMetadataViewModelTitle" },
+  "componente": "cartelera",
+  "opciones": { "fila": 8, "textos": { "titulo": "Para ti" } }
+}]
+```
+
+Las reglas de `campos` (texto, atributo, varias partes unidas, patrón y formato, alternativas)
+están documentadas en `src/content/plantillas.js`.
+
+**Agregar un componente:** `src/componentes/<id>.js` con
+`MiTema.registrarComponente("<id>", { dibujar(items, opciones, contexto) { … } })`, que devuelve
+un elemento armado con `MiTema.dom.crear` (nunca `innerHTML`), más su CSS en
+`src/componentes/<id>.css`. Ambos van en `content_scripts` del manifest, después de
+`content/plantillas.js` y antes de `content/motor.js`.
 
 ## Agregar una feature
 
