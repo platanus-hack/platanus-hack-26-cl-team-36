@@ -10,41 +10,87 @@ lo aplica en segundos. **Lo que falta construir es el otro lado de la fórmula: 
 mejora una tarea.** Son tres piezas nuevas (patch engine, harness, optimizer) y dos que se extienden desde el
 prototipo (soul, extension).
 
-Antes de construir hay cuatro preguntas que pueden cambiar el plan. Se contestan con spikes de menos de una hora
-cada uno.
+Antes de construir hay cuatro spikes. El primero es la conexión local entre el agente del usuario y la UI de una
+página: de él depende todo lo demás.
 
 ## 1. Estado verificado de partida
 
 | Hecho | Evidencia | Consecuencia |
 |---|---|---|
-| La extensión llama a la IA local y aplica el resultado. | `prototipo/puente/puente.py` invoca `claude -p` con `--json-schema` y `--tools ""`; `prototipo/pruebas/e2e_real.py`. | El bridge no es una incógnita. Se reutiliza la invocación. |
+| La extensión llama a la IA local y aplica el resultado. | `prototipo/puente/puente.py` invoca `claude -p` con `--json-schema` y `--tools ""`; `prototipo/pruebas/e2e_real.py`. | La dirección extensión → agente funciona. Falta la contraria: que el agente vea y actúe sobre la página (spike 1). |
 | Una generación tarda entre 6,6 y 9,7 s. | `prototipo/README.md`, medición del 2026-11-21 sobre tres páginas. | Un agente que decide paso a paso tardaría del orden de 10 s por paso, si el costo es parecido. **Inferencia: no está medido.** |
 | El modelo escribe la hoja de estilo sin ver el resultado, y a veces rompe el layout. | `prototipo/README.md`, "Límites conocidos". | Hacen falta operaciones acotadas y una comprobación posterior (invariants). |
 | El mapa de la página no lleva texto ni valores. | `prototipo/extension/mapa_pagina.js`. | Sirve de base para los locators. Hoy describe etiquetas y clases, no rol y nombre accesible. |
-| Hay pruebas con navegador sin ventana. | `prototipo/pruebas/e2e.py` usa Firefox con Marionette. | El harness puede partir de ahí o usar otro automatizador; lo decide el spike 1. |
+| Hay pruebas con navegador sin ventana. | `prototipo/pruebas/e2e.py` usa Firefox con Marionette. | El spike 1 puede partir de ahí o usar otro automatizador. |
 | Ningún agente navega, no hay trajectories ni experiments. | No existe código. | Es lo que hay que construir. |
 
-## 2. Spikes pendientes
+## 2. Spikes
 
-Cada uno contesta una pregunta y deja un script y un informe ([forma](README.md)).
+Cuatro, en este orden. Cada uno contesta una pregunta y deja un script y un informe ([forma](README.md)).
 
-| # | Pregunta | Qué decide | Cómo se mide |
-|---|---|---|---|
-| 1 | ¿Puede un agente con la IA local completar una task de varios pasos en un navegador sin ventana? ¿Cuánto tarda y cuesta un paso? | Si el harness es viable y con qué automatizador. Fija el presupuesto de runs. | Un script: una página de prueba de 3 pasos, un bucle observar → decidir → actuar, 5 runs. Se anota éxito, segundos y tokens por paso. |
-| 2 | ¿Cambia la conducta del agente si ve la captura, o le basta la lista de elementos? | Si la observation lleva captura (`som`) o no. Sin captura, una fricción visual no existe para el agente. | El mismo script con y sin captura, sobre una página con el botón clave bajo el pliegue. 10 runs por brazo. |
-| 3 | ¿Cuántos runs en paralelo aguanta la sesión personal sin errores de límite? | Si alcanza el plan personal o hace falta clave de API. | 1, 2, 4 y 8 runs simultáneos del script del spike 1. |
-| 4 | ¿Genera el modelo un patch declarativo válido a la primera, a partir del mapa de la página? | Si los patches pueden ser datos, o si la tasa de fallo obliga a otro formato. | 20 generaciones contra el esquema de [contracts.md](../docs/contracts.md) §3. Se anota la tasa de válidos y de operaciones que resuelven su elemento. |
+### Spike 1 · Conexión local: el agente del usuario y la UI de una página local
 
-**Orden:** 1 primero, porque 2 y 3 reutilizan su script. El 4 es independiente y puede ir en paralelo.
+**Es el inicial. Los demás reutilizan lo que deje.**
 
-**Si el spike 1 sale mal** (el agente no completa una task simple, o un paso tarda más de 30 s), el harness no cabe y
-el plan se reduce a soul + patch engine. Conviene saberlo en la primera hora.
+**Pregunta.** ¿Cómo se relacionan el agente local del usuario (su Claude Code) y la interfaz de una página que corre
+en local? En las dos direcciones:
+
+- **De la página al agente:** ¿qué necesita recibir para entender la UI? Mapa de la página, captura, ambos.
+- **Del agente a la página:** ¿puede cambiarla (aplicar un patch) y actuar sobre ella (clic, escribir), y ver el
+  resultado de lo que hizo?
+- **Con las preferencias del usuario en medio:** dada una soul mínima, ¿lo que devuelve el agente la refleja?
+
+**Punto de partida.** El prototipo cubre un caso: la extensión envía el mapa de la página, el agente devuelve una
+hoja de estilo y no ve el resultado. Falta que el agente vea la página, actúe sobre ella y compruebe su cambio.
+
+**Cómo se mide.** Una página local sencilla y una soul de tres preferencias. Un script recorre el ciclo completo:
+el agente recibe la página, propone un cambio, se aplica, el agente recibe la página cambiada y dice si quedó como
+esperaba. Se anota qué se envió, qué volvió, cuánto tardó cada tramo y cuántas veces el cambio fue válido.
+
+**Qué decide.** El canal entre agente y página que usan todos los demás spikes: qué viaja en cada dirección, en qué
+formato vuelve un cambio y cuánto tarda una vuelta. También si la personalización local a nivel de soul es factible.
+
+### Spike 2 · Evaluación agéntica: de una página a un navigation graph
+
+**Pregunta.** ¿Pueden el usuario y su agente investigar una página, definir una misión y levantar agentes locales
+que intenten completarla, y de ahí obtener una primera versión del dato?
+
+**Cómo se mide.** Sobre la página del spike 1, extendida a una tarea de varios pasos: el agente propone la task y
+sus etapas; unos pocos agentes locales la intentan usando el canal del spike 1; sus recorridos se guardan en archivos
+locales y se agregan en un grafo por etapas. Se anota cuántos llegan, por qué camino, cuánto tarda y cuesta un paso,
+y cuántos agentes en paralelo aguanta la sesión.
+
+**Qué decide.** Si el harness es viable, la forma del dato (trajectory y navigation graph) y el presupuesto de runs.
+
+### Spike 3 · Mejora iterativa: la misma evaluación sobre la página con modificaciones
+
+**Pregunta.** Dado un patch sobre la página, ¿la evaluación del spike 2 distingue la página modificada de la
+original? Aquí nace el módulo que es `source page + patches`.
+
+**Cómo se mide.** Un patch escrito a mano que quita una fricción conocida de la página, y otro que no debería
+cambiar nada. Se repite la evaluación sobre cada versión y se comparan los grafos.
+
+**Qué decide.** Si el bucle medir → modificar → volver a medir da una señal distinguible del ruido, y cuántos runs
+hacen falta para verla.
+
+### Spike 4 · Almacenamiento y uso desde la extensión (diseño)
+
+**Pregunta.** Con los datos reales de los spikes 2 y 3, ¿cómo se modela el almacenamiento y cómo lo consume la
+extensión?
+
+**Cómo se mide.** Es un spike de diseño, sin código: se revisa [contracts.md](../docs/contracts.md) contra los
+archivos que dejaron los spikes anteriores y se corrige lo que no calce.
+
+**Qué decide.** La forma del local store y qué lee la extensión al navegar.
+
+**Si el spike 1 sale bien y el 2 mal** (el agente no completa una tarea simple, o un paso tarda demasiado), el
+harness no cabe y el plan se reduce a soul y patch engine.
 
 ## 3. Decisiones
 
 | Decisión | Por qué |
 |---|---|
-| Los cambios a una página son datos declarativos (patches), no código ni CSS libre. | El prototipo mostró que el CSS libre rompe layouts; además un patch se puede validar, revertir y explicar. Pendiente del spike 4. |
+| Los cambios a una página son datos declarativos (patches), no código ni CSS libre. | El prototipo mostró que el CSS libre rompe layouts; además un patch se puede validar, revertir y explicar. Lo confirma el spike 1. |
 | Un solo patch engine para la extensión y el harness. | Si difieren, lo que se mide no es lo que ve el usuario. |
 | El éxito de una task se evalúa por código. | Lo que declara un agente sobre su propio éxito no es evidencia. |
 | El target no se fija en el plan. | Lo elige quien construye el harness. Requisitos en §4. |
@@ -71,7 +117,7 @@ Siete PRs. Cada uno tiene un criterio de aceptación; cómo se implementa lo dec
 |---|---|---|---|
 | 1 | **Patch engine mínimo**: locators por rol y nombre; aplicar y revertir `set_style`, `hide` y `relabel`. | Mapa de la página del prototipo | El mismo patch, aplicado desde la extensión y desde el automatizador, deja el mismo DOM; revertirlo deja la página original. |
 | 2 | **Invariants**: calcular protected elements y comprobar que siguen visibles y clicables. | PR 1 | Un conjunto de patches manipuladores (ocultar "No, gracias", volver invisible un enlace de salida, reetiquetar un precio) se rechaza entero. |
-| 3 | **Un run**: un agente intenta la task del target y deja una trajectory. | Spike 1 | Sobre el target, una trajectory válida en disco con el éxito evaluado por código. |
+| 3 | **Un run**: un agente intenta la task del target y deja una trajectory. | Spikes 1 y 2 | Sobre el target, una trajectory válida en disco con el éxito evaluado por código. |
 | 4 | **Batch y navigation graph**: varias personas, presupuesto con tope, grafo por etapas. | PR 3 | Tras un batch de control, el grafo muestra en qué etapa se abandona más, con ejemplos de fallo. |
 | 5 | **Experiment**: variant contra control, con un guardrail y un A/A. | PR 1, PR 4 | Un patch escrito a mano produce una decisión `accepted`, y un patch placebo no. |
 | 6 | **Soul**: perfil editable, soul patch por sitio y soul persona. | Bridge e instrucción del prototipo | Tres perfiles distintos producen tres soul patches válidos y visiblemente distintos sobre la misma página, sin romper ningún invariant. |
@@ -79,8 +125,11 @@ Siete PRs. Cada uno tiene un criterio de aceptación; cómo se implementa lo dec
 
 ```mermaid
 graph LR
-  S1["Spike 1-3"] --> P3["3 · Un run"] --> P4["4 · Batch y grafo"] --> P5["5 · Experiment"]
-  S4["Spike 4"] --> P1["1 · Patch engine"] --> P2["2 · Invariants"]
+  S1["Spike 1 · conexión local"] --> S2["Spike 2 · evaluación"] --> S3["Spike 3 · mejora"] --> S4["Spike 4 · almacenamiento"]
+  S1 --> P1["1 · Patch engine"] --> P2["2 · Invariants"]
+  S1 --> P6
+  S2 --> P3["3 · Un run"] --> P4["4 · Batch y grafo"] --> P5["5 · Experiment"]
+  S3 --> P5
   P1 --> P5
   P1 --> P6["6 · Soul"]
   P2 --> P7["7 · Bucle completo"]
@@ -110,7 +159,7 @@ PR 7 esté hecho, con lo aprendido.
 
 ## 8. Qué no se sabe
 
-- Costo y tiempo por paso de un agente (spike 1). Toda la planificación del harness depende de esto.
+- Costo y tiempo por paso de un agente (spike 2). Toda la planificación del harness depende de esto.
 - Cuántos runs hacen falta para ver un efecto. Con 20 por brazo solo se distinguen diferencias de 35 a 40 puntos,
   así que el target necesita una fricción grande.
 - Si el éxito de un agente predice el de un usuario. No se intenta probar.
