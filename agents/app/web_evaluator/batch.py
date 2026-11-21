@@ -33,27 +33,33 @@ def _write_json(path: Path, data) -> None:
 
 
 async def _criteria_for(judge, browser: Browser, url: str, instruction: str) -> dict:
+    fallback = {"criterion": f"La pantalla final muestra que se cumplió la tarea: {instruction}", "evidence": []}
     context = await create_context(browser, _CRITERIA_PROFILE)
     try:
         session = BrowserSession(context, _CRITERIA_PROFILE)
         await session.open(url)
         start_screenshot = await session.screenshot()
+    except Exception as error:  # si la página inicial no carga, la tanda sigue con el criterio de la tarea
+        print(f"[criterio] no se pudo abrir la página inicial ({error}); se usa la tarea como criterio", flush=True)
+        criteria = fallback
+    else:
+        try:
+            criteria = await propose_criteria(judge, instruction, start_screenshot)
+        except Exception as error:  # sin criterio igual se puede juzgar con la tarea
+            print(f"[criterio] no se pudo generar ({error}); se usa la tarea como criterio", flush=True)
+            criteria = fallback
     finally:
         await context.close()
-    try:
-        criteria = await propose_criteria(judge, instruction, start_screenshot)
-    except Exception as error:  # sin criterio igual se puede juzgar con la tarea
-        print(f"[criterio] no se pudo generar ({error}); se usa la tarea como criterio", flush=True)
-        criteria = {"criterion": f"La pantalla final muestra que se cumplió la tarea: {instruction}", "evidence": []}
     print(f"[criterio] {criteria['criterion']}", flush=True)
     return criteria
 
 
 async def _record_verdict(judge, instruction: str, criteria: dict, run: Run, run_dir: Path) -> None:
     if run.end_reason in _INTERRUPTED_REASONS:
+        # Un error técnico no es un abandono del usuario: se reporta aparte y no cuenta en el árbol.
         run.verdict = {
-            "outcome": "abandoned",
-            "justification": f"El intento se interrumpió ({run.end_reason}): {run.final_message}",
+            "outcome": "interrupted",
+            "justification": f"El intento se interrumpió por un error técnico ({run.end_reason}): {run.final_message}",
         }
     else:
         final_screenshot = (run_dir / run.final_screenshot).read_bytes()
@@ -133,7 +139,8 @@ async def run_batch(
         shutil.rmtree(claude_cwd, ignore_errors=True)
 
     run_dicts = [run.to_dict() for run in runs]
-    tree = build_route_tree(run_dicts)
+    # El árbol y la ruta recomendada solo usan intentos reales; los interrumpidos quedan en el reporte.
+    tree = build_route_tree([r for r in run_dicts if r["verdict"].get("outcome") != "interrupted"])
     meta = {
         "url": url,
         "instruction": instruction,

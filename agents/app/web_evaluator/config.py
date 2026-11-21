@@ -17,6 +17,7 @@ MAX_TURNS = 40      # tope de seguridad de llamadas al modelo por intento
 LOCALE = "es-CL"
 TIMEZONE = "America/Santiago"
 PAGE_LOAD_TIMEOUT_MS = 30_000
+PAGE_LOAD_ATTEMPTS = 2       # intentos de carga inicial antes de dar el intento por interrumpido
 
 # Señales de error.
 NO_EFFECT_THRESHOLD = 0.005  # fracción de píxeles que deben cambiar para que una acción "tenga efecto"

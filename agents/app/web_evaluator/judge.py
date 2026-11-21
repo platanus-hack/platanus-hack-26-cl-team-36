@@ -33,6 +33,7 @@ _VERDICT_SCHEMA = {
 
 _CRITERIA_SYSTEM_PROMPT = """Defines criterios de éxito para pruebas de usabilidad de sitios web.
 Recibes una tarea y la captura de la página inicial del sitio. Propón un criterio de éxito que se pueda verificar mirando SOLO una captura de pantalla final (sin URL ni código): qué debe verse en pantalla cuando la tarea está cumplida. El criterio debe servir tanto en escritorio como en móvil.
+Si la tarea pide comparar o elegir el valor extremo (por ejemplo, "el más barato"), NO exijas que se vean todas las opciones a la vez: una captura de un carrusel o de una lista larga no las muestra todas. Exige en cambio que se vea el dato que responde la tarea (la opción elegida con su valor visible, por ejemplo su precio) junto a su nombre.
 Responde en español: "criterion" en una o dos frases, y "evidence" con 2 a 4 elementos visibles concretos que lo confirmarían."""
 
 _VERDICT_SYSTEM_PROMPT = """Juzgas el resultado de un intento de un usuario sintético en una prueba de usabilidad.
@@ -40,6 +41,7 @@ Recibes la tarea, el criterio de éxito, cómo terminó el intento y la última 
 - "success": la captura muestra evidencia que cumple el criterio.
 - "failed": el usuario terminó en un estado equivocado (creyó cumplir la tarea pero la captura no cumple el criterio, o la pantalla muestra un error).
 - "abandoned": el usuario se detuvo, se rindió, quedó bloqueado o se le acabaron los pasos o el tiempo sin cumplir el criterio.
+Criterio de consistencia: si la captura muestra el dato que responde la tarea y coincide con lo que declaró el usuario en su mensaje final, es "success", aunque no se vean todas las opciones de una comparación. No descartes una respuesta por falta de elementos que el criterio no pedía. Si el dato no aparece ni en la captura ni en el mensaje, es "failed".
 Responde en español con "outcome" y una "justification" de una sola frase."""
 
 

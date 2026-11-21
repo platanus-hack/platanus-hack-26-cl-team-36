@@ -5,7 +5,7 @@ import statistics
 import config
 
 _CLICK_ACTIONS = {"left_click", "double_click", "triple_click"}
-_OUTCOME_LABELS = {"success": "éxito", "failed": "fallo", "abandoned": "abandono"}
+_OUTCOME_LABELS = {"success": "éxito", "failed": "fallo", "abandoned": "abandono", "interrupted": "interrumpido"}
 _SIGNAL_LABELS = {
     "no_effect": "sin efecto",
     "visible_error": "error visible",

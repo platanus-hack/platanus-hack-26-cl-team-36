@@ -8,6 +8,7 @@ import asyncio
 
 from playwright.async_api import Browser, BrowserContext, Dialog, Page, Playwright, Response
 from playwright.async_api import Error as PlaywrightError
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 import config
 from profiles import Profile
@@ -72,7 +73,15 @@ class BrowserSession:
         self._watch(page)
         self.page = page
         self.context.on("page", self._on_new_tab)
-        await page.goto(url, wait_until="domcontentloaded", timeout=config.PAGE_LOAD_TIMEOUT_MS)
+        # La carga inicial puede fallar por red transitoria: se reintenta antes de dar el intento por perdido.
+        for attempt in range(1, config.PAGE_LOAD_ATTEMPTS + 1):
+            try:
+                await page.goto(url, wait_until="domcontentloaded", timeout=config.PAGE_LOAD_TIMEOUT_MS)
+                break
+            except PlaywrightTimeoutError:
+                if attempt == config.PAGE_LOAD_ATTEMPTS:
+                    raise
+                await asyncio.sleep(2)
         await self.wait_until_settled()
         self.events.clear()
 
