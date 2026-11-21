@@ -29,6 +29,9 @@ platanus-hack-26-cl-team-36/
         tools/                            ← SOLO las nueve acciones que el agente puede pedir
         judge.py                          ← fuera de tools/ a propósito: lee la URL y el DOM
         profiles/                         ← un perfil de agente por archivo
+      web_mapper/                         ← MAPEA: lee el DOM y encuentra la ruta de referencia
+        main.py                           ← punto de entrada
+        mapper/                           ← vista del DOM, exploración, destilación y verificación
       web_optimizer/                      ← PROPONE: lee lo que deja el evaluador y escribe un parche
         main.py                           ← punto de entrada
         model/load.py                     ← qué Claude se usa
@@ -37,15 +40,15 @@ platanus-hack-26-cl-team-36/
     .runs/                                ← recorridos, capturas y resúmenes (fuera de git)
 ```
 
-**Los dos agentes:**
+**Los agentes:**
 
-| | `web_evaluator` | `web_optimizer` |
-|---|---|---|
-| **Qué hace** | Intenta una tarea N veces y mide cuántas veces se logra. | Lee dónde se pierden los agentes y propone un parche. |
-| **Qué ve** | Solo capturas de lo visible. | Recorridos, grafo y el DOM de la página. |
-| **Qué puede hacer** | Las nueve acciones de la sección 3 del [evaluador](evaluador.md). | Leer archivos de `.runs/` y escribir un parche. |
-| **Qué entrega** | Recorridos, grafo y resumen de la tanda. | Una variante nueva para que el evaluador la mida. |
-| **Quién decide** | El juez, no el agente. | La regla del experimento (PR 6) y una persona. |
+| | `web_evaluator` | `web_mapper` | `web_optimizer` |
+|---|---|---|---|
+| **Qué hace** | Intenta una tarea N veces y mide cuántas veces se logra. | Encuentra la ruta de referencia de una tarea, con sus pasos mínimos. | Lee dónde se pierden los agentes y propone un parche. |
+| **Qué ve** | Solo capturas de lo visible. | El DOM de la página y capturas. | Recorridos, grafo y el DOM de la página. |
+| **Qué puede hacer** | Las nueve acciones de la sección 3 del [evaluador](evaluador.md). | Clic, escribir, elegir, teclas y atrás sobre elementos a la vista; no puede ir a una URL. | Leer archivos de `.runs/` y escribir un parche. |
+| **Qué entrega** | Recorridos, grafo y resumen de la tanda. | `route.json`: la ruta verificada y la cita que respalda la respuesta. | Una variante nueva para que el evaluador la mida. |
+| **Quién decide** | El juez, no el agente. | La repetición: la ruta vale si llega a la misma página y la cita está en ella. | La regla del experimento (PR 6) y una persona. |
 
 **`tools/` contiene solo lo que el agente puede pedir.** El juez queda fuera de esa carpeta a propósito. Así las
 reglas 2 y 3 de la sección 2 del [evaluador](evaluador.md) se ven en la estructura: si algo está en `tools/`, el agente lo puede usar, y nada que lea

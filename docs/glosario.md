@@ -45,6 +45,7 @@ Dos palabras se usan siempre con un solo sentido:
 | **Intento** | Un agente tratando de completar una tarea una vez. | `run` |
 | **Paso** | Una acción de un agente dentro de un intento. | `step` |
 | **Recorrido** | El registro paso a paso de un intento. Solo de agentes. | archivo en `runs/` (se propone `agents/.runs/`) |
+| **Ruta de referencia** | El camino más corto que cumple una tarea, verificado por el Mapeador. Con ella se comparan los recorridos. | `reference route` |
 | **Tanda** | Varios intentos lanzados juntos, con un tope de gasto. | `batch` |
 | **Grafo de navegación** | El resumen de muchos recorridos: etapas, por dónde se sigue y dónde se abandona. | `navigation graph` |
 | **Experimento** | La comparación de una variante contra el control para una tarea. Termina en aceptada, rechazada o no concluyente. | `experiment` |
@@ -58,6 +59,7 @@ Dos palabras se usan siempre con un solo sentido:
 | **Extensión** | Lo que la persona instala en el navegador. | `extension` |
 | **Motor de parches** | Aplica, deshace y comprueba parches. Lo usan la extensión y el evaluador. | `patch engine` |
 | **Evaluador** | Lanza agentes que intentan una tarea y guarda sus recorridos. Su diseño está en [evaluador](agents/evaluador.md). | `evaluator` (se propone `web_evaluator`) |
+| **Mapeador** | Lee el DOM para encontrar la ruta de referencia de una tarea y la verifica repitiéndola. | `web_mapper` |
 | **Optimizador** | Propone parches a partir de lo que deja el evaluador y decide cuál se acepta. | `optimizer` (se propone `web_optimizer`) |
 | **Harness** | El programa que controla el ciclo de un agente: le entrega la captura, recibe su acción y la hace ejecutar. Es parte del evaluador. | `harness` |
 | **Ejecutor** | La parte del harness que realiza en el navegador la acción que pidió el agente y toma la captura siguiente. | `executor` |
