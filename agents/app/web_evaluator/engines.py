@@ -370,13 +370,18 @@ class ApiEngine:
             block: dict = {"type": "tool_result", "tool_use_id": result.request.id}
             if result.request.is_computer and not self.legacy_computer:
                 block["toolset_name"] = "computer"
-            block["content"] = [png_image_block(result.image)] if result.image else result.text
             if result.is_error:
-                block["is_error"] = True
+                # Un resultado con error solo puede llevar texto: Claude Sonnet 4.6 responde 400 si lleva una imagen.
+                block["content"], block["is_error"] = result.text, True
+            else:
+                block["content"] = [png_image_block(result.image)] if result.image else result.text
             blocks.append(block)
-        # La captura más reciente va adjunta al último resultado del turno.
+        # La captura más reciente va adjunta al último resultado del turno o, si ese resultado es un error, después
+        # de los resultados, como un bloque más del mismo mensaje.
         last_block = blocks[-1]
-        if not isinstance(last_block["content"], list):
+        if last_block.get("is_error"):
+            blocks.append(png_image_block(screenshot))
+        elif not isinstance(last_block["content"], list):
             last_block["content"] = [{"type": "text", "text": last_block["content"]}, png_image_block(screenshot)]
         self.messages.append({"role": "user", "content": blocks})
 

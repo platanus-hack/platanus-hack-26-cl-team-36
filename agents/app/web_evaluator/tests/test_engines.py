@@ -92,3 +92,18 @@ def test_api_engine_uses_the_legacy_computer_tool_on_bedrock(tmp_path):
     asyncio.run(engine.respond([ActionResult(action, "OK")], _png_header(390, 844)))
     [result] = engine.messages[-1]["content"]
     assert result["tool_use_id"] == "t1" and "toolset_name" not in result
+
+
+def test_api_engine_sends_errors_as_text_and_the_screenshot_apart(tmp_path):
+    """Un tool_result con `is_error` solo puede llevar texto (Sonnet 4.6 responde 400): la captura va aparte."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from engines import ActionRequest, ActionResult, ApiEngine
+
+    engine = ApiEngine(SimpleNamespace(), "us.anthropic.claude-sonnet-4-6", "medium")
+    click = ActionRequest("t1", "left_click", {"coordinate": [10, 20]}, True)
+    asyncio.run(engine.respond([ActionResult(click, "falta la expectativa", True, b"captura")], b"pantalla"))
+    result, screenshot = engine.messages[-1]["content"]
+    assert result == {"type": "tool_result", "tool_use_id": "t1", "content": "falta la expectativa", "is_error": True}
+    assert screenshot["type"] == "image"
