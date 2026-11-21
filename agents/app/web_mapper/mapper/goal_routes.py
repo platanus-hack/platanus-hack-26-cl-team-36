@@ -24,6 +24,7 @@ def route_summary(document: dict, path: Path) -> dict:
     return {
         "status": document["status"],
         "steps": document["totals"]["min_steps"] if verified else None,
+        "actions": document["totals"]["actions"] if verified else None,
         "pages": document["totals"]["distinct_pages"] if verified else None,
         "nodes": document["nodes"] if verified else None,
         "key_nodes": [document["final_node"]] if verified else None,
@@ -35,7 +36,7 @@ def _apply(goal: Goal, document: dict) -> None:
     """Completa `reference_route`; si verificó, `complexity` y la respuesta de un `find_info`."""
     goal.reference_route = route_summary(document, route_path(goal))
     if document["status"] == "verified":
-        goal.complexity = complexity(document["totals"]["min_steps"])
+        goal.complexity = complexity(document["totals"]["actions"])
         if goal.intent == "find_info":
             goal.expected_answer = document["answer"] or None
 

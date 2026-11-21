@@ -4,6 +4,7 @@ Las métricas y sus fuentes están en docs/agents/niveles-de-tarea.md, sección 
 """
 
 import json
+import math
 import statistics
 from pathlib import Path
 
@@ -68,7 +69,7 @@ def compare(run: dict, route: dict) -> dict:
         "min_steps": min_steps,
         "efficiency": round(min_steps / steps if steps > min_steps else 1.0, 2) if success else 0.0,
         "beat_reference": success and steps < min_steps,
-        "lostness": round((revisits - 1) ** 2 + (detour - 1) ** 2, 2),
+        "lostness": round(math.sqrt((revisits - 1) ** 2 + (detour - 1) ** 2), 2),
         "revisits": round(revisits, 2),
         "detour": round(detour, 2),
         "reached_final_node": route["final_node"] in nodes,

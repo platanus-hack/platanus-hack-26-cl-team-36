@@ -106,6 +106,7 @@ def test_personal_data_signal_ignores_search_boxes_selects_and_names_of_things()
     assert signals(Field("Correo", "email", "")) == ["personal_data"]
     assert signals(Field("Nombre de la empresa", "text", "")) == []
     assert signals(Field("Buscar por nombre del trámite", "text", "")) == []
+    assert signals(Field("Clave", "text", "new-password")) == ["login"]
     assert signals(Field("Nombre", "search", "")) == []
     assert signals(Field("Dirección regional", "select", "")) == []
     assert page_gates(PageOutline(START, "x", 0, [], [], [Form("post", "footer", [Field("RUT", "text", "")])], [], True)) \
@@ -208,14 +209,14 @@ def test_transact_routes_stop_before_submitting_and_route_summary_shape():
     assert instruction(_goal("sitio-a")) == "x"
     assert "sin hacerlo" in instruction(_goal("sitio-b", intent="transact"))
     assert instruction(_goal("sitio-c", intent="reach_page")).endswith("cita su título o encabezado principal.")
-    document = {"status": "verified", "totals": {"min_steps": 6, "distinct_pages": 3},
+    document = {"status": "verified", "totals": {"min_steps": 6, "actions": 4, "distinct_pages": 3},
                 "nodes": ["a", "b", "c"], "final_node": "c"}
     assert route_summary(document, config.RUNS_DIR / "x" / "route.json") == {
-        "status": "verified", "steps": 6, "pages": 3, "nodes": ["a", "b", "c"], "key_nodes": ["c"],
+        "status": "verified", "steps": 6, "actions": 4, "pages": 3, "nodes": ["a", "b", "c"], "key_nodes": ["c"],
         "route": ".runs/x/route.json",
     }
     assert route_summary({**document, "status": "not_found"}, config.RUNS_DIR / "x" / "route.json") == {
-        "status": "not_found", "steps": None, "pages": None, "nodes": None, "key_nodes": None,
+        "status": "not_found", "steps": None, "actions": None, "pages": None, "nodes": None, "key_nodes": None,
         "route": ".runs/x/route.json",
     }
 
@@ -227,14 +228,16 @@ def test_a_failed_goal_route_does_not_stop_the_others(tmp_path, monkeypatch):
     async def fake_map_reference(browser, mapping, decider):
         if mapping.task_id == "sitio-roto":
             raise RuntimeError("se cayó")
-        return {"status": "verified", "answer": "Llama al 103", "totals": {"min_steps": 3, "distinct_pages": 2},
+        return {"status": "verified", "answer": "Llama al 103",
+                "totals": {"min_steps": 7, "actions": 5, "distinct_pages": 2},
                 "nodes": ["a", "b"], "final_node": "b"}
 
     monkeypatch.setattr(reference, "map_reference", fake_map_reference)
     goals = [_goal("sitio-info"), _goal("sitio-roto"), _goal("sitio-pagina", intent="reach_page")]
     asyncio.run(goal_routes.map_goal_routes(None, goals, "m", "low", tmp_path, 0))
     info, broken, page = goals
-    assert info.reference_route["steps"] == 3 and info.expected_answer == "Llama al 103" and info.complexity == "easy"
+    assert info.reference_route["steps"] == 7 and info.expected_answer == "Llama al 103"
+    assert info.complexity == "easy"  # por las 5 acciones, sin los scrolls de min_steps
     assert broken.reference_route is None and broken.complexity is None
     assert page.reference_route["route"] == ".runs/sitio-pagina/reference/desktop/route.json"
     assert page.expected_answer is None
@@ -291,7 +294,8 @@ def test_resume_takes_verified_routes_for_the_same_instruction(tmp_path, monkeyp
     monkeypatch.setattr(config, "AGENTS_DIR", tmp_path)
     monkeypatch.setattr(config, "RUNS_DIR", tmp_path / ".runs")
     done, changed, unverified, missing = (_goal(f"sitio-{name}", instruction="x") for name in ("a", "b", "c", "d"))
-    route = {"status": "verified", "instruction": "x", "answer": "Sí.", "totals": {"min_steps": 3, "distinct_pages": 2},
+    route = {"status": "verified", "instruction": "x", "answer": "Sí.",
+             "totals": {"min_steps": 3, "actions": 2, "distinct_pages": 2},
              "nodes": ["a", "b"], "final_node": "b"}
     for goal, changes in ((done, {}), (changed, {"instruction": "otra"}), (unverified, {"status": "unverified"})):
         route_path(goal).parent.mkdir(parents=True)
@@ -307,7 +311,7 @@ def test_verified_routes_count_toward_the_route_limit(tmp_path, monkeypatch):
              (("a", "buried"), ("b", "buried"), ("c", "primary"), ("d", "primary"))]
     route_path(goals[2]).parent.mkdir(parents=True)
     route_path(goals[2]).write_text(json.dumps({
-        "status": "verified", "instruction": "x", "answer": "", "totals": {"min_steps": 1, "distinct_pages": 1},
+        "status": "verified", "instruction": "x", "answer": "", "totals": {"min_steps": 1, "actions": 1, "distinct_pages": 1},
         "nodes": ["a"], "final_node": "a"}), encoding="utf-8")
     assert [goal.id for goal in goals_command._pending_routes(goals, 2, False)] == ["sitio-a"]
     assert [goal.id for goal in goals_command._pending_routes(goals, None, False)] == ["sitio-a", "sitio-b", "sitio-d"]

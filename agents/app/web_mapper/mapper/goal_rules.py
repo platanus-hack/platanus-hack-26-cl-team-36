@@ -11,7 +11,7 @@ from mapper.outline import Field, Link, PageOutline, SiteOutline
 _ID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 _SCREENS_FOR_SECONDARY = 3   # NN/g: el 81 % del tiempo de lectura ocurre en las tres primeras pantallas
 
-_LOGIN_AUTOCOMPLETE = {"username", "current-password", "one-time-code"}
+_LOGIN_AUTOCOMPLETE = {"username", "current-password", "new-password", "one-time-code"}
 _PERSONAL_AUTOCOMPLETE = re.compile(
     r"^(name|given-name|family-name|additional-name|email|tel(-.*)?|street-address|address-line\d|address-level\d"
     r"|postal-code|country(-name)?|bday(-.*)?|cc-.*)$"
@@ -197,11 +197,11 @@ def gates(goal: Goal, outline: SiteOutline) -> list[str]:
     return [gate for gate in ("login", "personal_data", "side_effect", "bot_check") if gate in found]
 
 
-def complexity(steps: int | None) -> str | None:
-    """Bandas de Online-Mind2Web sobre los pasos de la ruta de referencia: ≤5, 6–10, ≥11."""
-    if steps is None:
+def complexity(actions: int | None) -> str | None:
+    """Bandas de Online-Mind2Web sobre las acciones de la ruta de referencia, sin scrolls: ≤5, 6–10, ≥11."""
+    if actions is None:
         return None
-    return "easy" if steps <= 5 else ("medium" if steps <= 10 else "hard")
+    return "easy" if actions <= 5 else ("medium" if actions <= 10 else "hard")
 
 
 def classify(raw_goals: list[dict], outline: SiteOutline, viewport_height: int) -> tuple[list[Goal], list[str]]:
