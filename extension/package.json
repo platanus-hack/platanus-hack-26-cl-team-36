@@ -1,0 +1,22 @@
+{
+  "name": "mi-tema",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Extensión de Firefox que cambia el diseño de sitios web aplicando temas (CSS + features).",
+  "scripts": {
+    "dev": "web-ext run --start-url https://www.youtube.com",
+    "dev:sesion": "web-ext run --start-url https://www.youtube.com --firefox-profile=.perfil-dev --profile-create-if-missing --keep-profile-changes",
+    "test": "node --test test/*.test.js",
+    "lint": "web-ext lint",
+    "check": "npm test && npm run lint",
+    "build": "web-ext build --overwrite-dest",
+    "sign": "web-ext sign --channel=unlisted"
+  },
+  "webExt": {
+    "sourceDir": "src"
+  },
+  "devDependencies": {
+    "web-ext": "^10.8.0"
+  }
+}

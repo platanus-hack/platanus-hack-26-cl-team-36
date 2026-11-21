@@ -1,0 +1,29 @@
+/*
+  Estilo base del botón de la feature "modo-foco".
+  El tema puede cambiar el color definiendo --mt-acento en html.mi-tema.
+  Qué se oculta en modo foco NO va aquí: depende del sitio y lo define el tema.
+*/
+
+#mt-foco {
+  display: none;
+}
+html.mi-tema #mt-foco {
+  display: inline-block;
+  margin: 10px 0 4px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mt-acento, #7c3aed);
+  color: #fff;
+  font: 500 14px/1.4 system-ui, sans-serif;
+  cursor: pointer;
+}
+html.mi-tema #mt-foco:hover {
+  filter: brightness(0.9);
+}
+html.mi-tema #mt-foco.mt-flotante {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 9999;
+}

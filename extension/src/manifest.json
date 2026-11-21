@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Mi Tema",
+  "version": "0.2.0",
+  "description": "Cambia el diseño de sitios web aplicando temas (CSS + features). PoC: YouTube.",
+
+  "icons": {
+    "48": "icons/icon.svg",
+    "96": "icons/icon.svg"
+  },
+
+  "permissions": ["storage", "scripting"],
+
+  "host_permissions": ["*://*.youtube.com/*"],
+
+  "background": {
+    "scripts": ["background/index.js"],
+    "type": "module"
+  },
+
+  "action": {
+    "default_title": "Activar / desactivar mi tema",
+    "default_icon": "icons/icon.svg"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "css": ["features/modo-foco.css"],
+      "js": ["content/registro.js", "features/modo-foco.js", "content/motor.js"],
+      "run_at": "document_start"
+    }
+  ],
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "yt-tema-grupo36@hackathon.local",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  }
+}

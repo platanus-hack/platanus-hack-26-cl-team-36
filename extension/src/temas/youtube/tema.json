@@ -1,0 +1,11 @@
+{
+  "nombre": "YouTube morado",
+  "dominios": ["youtube.com"],
+  "features": {
+    "modo-foco": {
+      "rutas": ["/watch"],
+      "ancla": "ytd-watch-metadata #title"
+    }
+  },
+  "eventosNavegacion": ["yt-navigate-finish"]
+}
