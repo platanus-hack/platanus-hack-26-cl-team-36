@@ -21,6 +21,7 @@ uv run main.py --task wom-baja-fibra
 uv run main.py --task sii-exencion-contribuciones --profiles mobile --effort low
 uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
 uv run main.py --goals ../../.runs/www.wom.cl/goals/goals.json --limit 3
+uv run main.py --task wom-baja-fibra --css ../../.runs/diseno/www.wom.cl/<fecha-hora>/rep-01/tema.css
 ```
 
 | Opción | Qué hace |
@@ -35,6 +36,7 @@ uv run main.py --goals ../../.runs/www.wom.cl/goals/goals.json --limit 3
 | `--browser` | `local` (Chromium, por defecto) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 | `--record-video` | Graba un video `.webm` de cada intento (al tamaño del viewport), además de las capturas de cada paso. El reporte enlaza el video y marca en qué minuto ocurre cada paso. |
+| `--css <archivo>` | Aplica un tema en cada página de cada usuario y en la del criterio, como la extensión: clase `mi-tema` en `<html>` y el CSS en `<style id="mt-tema-css">`, desde que se crea cada documento y repuestos si el sitio los quita. La tanda guarda una copia en `tema.css` y registra archivo y sha256 corto en `route_tree.json` (`tema`) y en el reporte, para comparar tandas con y sin tema. Los temas salen del [diseñador](../web_designer/README.md). |
 
 Por defecto usa tu **Claude Code local** (`--engine claude-code`): no necesita clave de API, solo tener `claude`
 instalado y con sesión iniciada, y consume los límites de tu plan. Con una clave de API puedes usar la herramienta
@@ -134,6 +136,7 @@ agents/.runs/<tarea>/<fecha-hora>/
 ├── criteria.json
 ├── <perfil>/           step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
 ├── route_tree.json     nodos, ramas y ruta recomendada
+├── tema.css            solo con --css: el tema aplicado (route_tree.json lo registra en `tema`)
 ├── reference_comparison.json   solo si hay ruta de referencia
 └── report.md
 ```
@@ -152,4 +155,4 @@ uv run pytest -q
 ```
 
 Las pruebas no llaman a Claude: cubren el árbol, los motores y las acciones del navegador sobre páginas locales, la
-propuesta de ruta, el plan de un catálogo y el resumen a partir de archivos.
+propuesta de ruta, el plan de un catálogo, el resumen a partir de archivos y la aplicación de un tema con `--css`.

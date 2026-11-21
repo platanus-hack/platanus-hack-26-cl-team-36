@@ -1,6 +1,7 @@
 """Configuración del evaluador web: modelos, límites de cada intento, navegador y AWS."""
 
 import os
+from pathlib import Path
 
 # Modelos en local: los usuarios sintéticos navegan con Sonnet; el criterio y el veredicto los da Opus.
 # En AWS se usa solo Haiku (BEDROCK_*_MODEL, más abajo).
@@ -15,6 +16,15 @@ JUDGE_MAX_TOKENS = 4_000
 MAX_STEPS = 15      # acciones ejecutadas en la página
 MAX_SECONDS = 180   # tiempo total del intento, incluida la espera del modelo
 MAX_TURNS = 40      # tope de seguridad de llamadas al modelo por intento
+
+# Los perfiles exploradores prueban varios caminos y vuelven atrás: necesitan más presupuesto que el resto.
+EXPLORADOR_MAX_ACCIONES = 30
+EXPLORADOR_MAX_SEGUNDOS = 300  # con Haiku en esfuerzo medium, 18 acciones tomaron ~70 s en wom.cl
+EXPLORADOR_MAX_TURNOS = 70
+
+# Skills de Claude Code del repo (.claude/skills/): algunos perfiles cargan una en su prompt. La carpeta queda fuera
+# de lo que se despliega en AgentCore, así que esos perfiles solo corren en local.
+DIR_SKILLS = Path(__file__).resolve().parents[3] / ".claude" / "skills"
 
 # Navegador.
 LOCALE = "es-CL"

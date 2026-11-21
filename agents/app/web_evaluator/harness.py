@@ -7,13 +7,12 @@ from pathlib import Path
 
 from playwright.async_api import Browser
 
-import config
-from actions import CLICK_ACTIONS, UI_ACTIONS, Executor, InvalidActionError, UnavailableActionError
+from actions import CLICK_ACTIONS, UI_ACTIONS, VOLVER_A_NODO, Executor, InvalidActionError, UnavailableActionError
 from browser import BrowserSession, create_context
 from engines import ActionRequest, ActionResult, AttemptEnded
 from profiles import Profile, system_prompt
 from recording import Run, Step, blocked_form_count, element_at, has_no_effect, screen_change_ratio, visible_error
-from route_tree import node_key
+from route_tree import node_key, normalize_url
 
 NOT_EXECUTED_MESSAGE = "Not executed: an earlier computer action in this turn failed."
 
@@ -84,6 +83,9 @@ class SyntheticUser:
         run.start = {"url": url, "title": title, "screenshot": self._save_screenshot(0, self.current_screenshot)}
         run.final_screenshot = run.start["screenshot"]
         self.visited_nodes = {node_key(url, title)}
+        # Páginas vistas en este intento, con un id corto para `volver_a_nodo`: clave del nodo -> (id, url, título).
+        self.paginas: dict[str, tuple[str, str, str]] = {}
+        self._registrar_pagina(url, title)
         self.started_at = time.monotonic()
         self.started_wall = datetime.now().astimezone()
         run.start["at"] = run.started_at = _iso(self.started_wall)
@@ -101,9 +103,9 @@ class SyntheticUser:
                 self.run_dir,
             )
             while True:
-                if run.turns >= config.MAX_TURNS:
+                if run.turns >= self.profile.limite_turnos:
                     raise AttemptEnded("step_limit", "Se alcanzó el máximo de turnos del modelo.")
-                remaining_s = config.MAX_SECONDS - (time.monotonic() - self.started_at)
+                remaining_s = self.profile.limite_segundos - (time.monotonic() - self.started_at)
                 if remaining_s <= 0:
                     raise AttemptEnded("time_limit")
                 run.turns += 1
@@ -115,6 +117,8 @@ class SyntheticUser:
                 if turn.final:
                     raise AttemptEnded(*turn.final)
                 results = await self._process_requests(turn.requests)
+                if self.profile.explora:
+                    self._agregar_presupuesto(results)
                 await self.engine.respond(results, self.current_screenshot)
         except AttemptEnded as ended:
             run.end_reason = ended.reason
@@ -151,7 +155,7 @@ class SyntheticUser:
                 ))
                 failed = True
                 continue
-            if len(self.run.steps) >= config.MAX_STEPS:
+            if len(self.run.steps) >= self.profile.limite_acciones:
                 raise AttemptEnded("step_limit")
             if not expectation:
                 self.run.incidents.append(f"intentó '{request.name}' sin declarar su expectativa")
@@ -161,16 +165,53 @@ class SyntheticUser:
                 failed = True
                 continue
             try:
-                await self._execute_step(request.name, request.input, expectation)
+                action_input = self._resolver_volver(request.input) if request.name == VOLVER_A_NODO else request.input
+                await self._execute_step(request.name, action_input, expectation)
                 results.append(ActionResult(request, "OK"))
             except (InvalidActionError, UnavailableActionError) as error:
                 self.run.incidents.append(f"{request.name}: {error}")
                 results.append(ActionResult(request, str(error), is_error=True))
                 failed = True
             expectation = None
-            if time.monotonic() - self.started_at > config.MAX_SECONDS:
+            if time.monotonic() - self.started_at > self.profile.limite_segundos:
                 raise AttemptEnded("time_limit")
         return results
+
+    def _agregar_presupuesto(self, results: list[ActionResult]) -> None:
+        """Suma al último resultado del turno cuántas acciones y segundos le quedan al usuario.
+
+        Los exploradores lo necesitan para decidir cuándo dejar de probar caminos y volver a la respuesta.
+        """
+        ultimo = next((result for result in reversed(results) if result.image is None), None)
+        if ultimo is None:
+            return
+        hechas, limite = len(self.run.steps), self.profile.limite_acciones
+        segundos = max(0, int(self.profile.limite_segundos - (time.monotonic() - self.started_at)))
+        nota = f"Llevas {hechas} de {limite} acciones: te quedan {limite - hechas} acciones y {segundos} s."
+        if self.engine.name == "claude-code":  # volver_a_nodo solo existe en el esquema JSON de Claude Code
+            nota += f" {self._paginas_vistas()}"
+        ultimo.text = f"{ultimo.text.rstrip('.')}. {nota}"
+
+    def _registrar_pagina(self, url: str, title: str) -> None:
+        key = self._nodo_actual = node_key(url, title)
+        if key not in self.paginas:
+            self.paginas[key] = (f"p{len(self.paginas) + 1}", url, (title or "").strip())
+
+    def _paginas_vistas(self) -> str:
+        actual = self.paginas.get(self._nodo_actual)
+        lista = ", ".join(f"{pid} «{(titulo or normalize_url(url))[:50]}»" for pid, url, titulo in self.paginas.values())
+        return f"Páginas vistas: {lista}." + (f" Estás en {actual[0]}." if actual else "")
+
+    def _resolver_volver(self, action_input: dict) -> dict:
+        """El nodo que pidió el modelo -> la URL que guardó el harness al verlo."""
+        if not self.profile.explora:
+            raise UnavailableActionError(f"La acción '{VOLVER_A_NODO}' no está disponible en este entorno.")
+        pedido = str(action_input.get("nodo") or "").strip().lower()
+        for pid, url, titulo in self.paginas.values():
+            if pid == pedido:
+                return {"nodo": pid, "url": url, "titulo": titulo or normalize_url(url)}
+        conocidos = ", ".join(pid for pid, _, _ in self.paginas.values())
+        raise InvalidActionError(f"No hay una página vista con id {pedido!r}; usa uno de: {conocidos}.")
 
     async def _execute_step(self, name: str, action_input: dict, expectation: str) -> None:
         run = self.run
@@ -201,8 +242,12 @@ class SyntheticUser:
         signals: list[str] = []
         error_detail = None
         node_before, node_after = node_key(url_before, title_before), node_key(url, title)
-        if executed.went_back or (node_after != node_before and node_after in self.visited_nodes):
+        if executed.went_back:
             signals.append("went_back")
+        elif node_after != node_before and node_after in self.visited_nodes:
+            # Volver con un clic a una página ya vista: para un perfil normal es dar vueltas; un explorador lo hace a
+            # propósito (regresa a un cruce o a la respuesta), así que no se cuenta como error.
+            signals.append("revisit" if self.profile.explora else "went_back")
         if has_no_effect(url_before, url, change_ratio):
             signals.append("no_effect")
         error_text = await visible_error(self.session.page)
@@ -214,6 +259,7 @@ class SyntheticUser:
         if self.session.page is page and await blocked_form_count(page) > blocked_before:
             signals.append("security_block")
         self.visited_nodes.add(node_after)
+        self._registrar_pagina(url, title)
 
         elapsed_s = settled_s
         run.steps.append(Step(
