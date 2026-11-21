@@ -2,12 +2,14 @@
 // sitio en particular; todo lo específico viene del tema.
 //
 //   1. Pide al background el tema para esta URL (el background le pregunta a la
-//      API e inyecta el CSS). Si no hay tema, no toca la página.
+//      API e inyecta el CSS). Si no hay tema, no toca la página (salvo la animación
+//      del botón, que corre en todos los sitios).
 //   2. Marca <html> con la clase `mi-tema` (según el botón de la extensión) y el
 //      atributo `data-mt-tema`, y los repone si el sitio los borra.
 //   3. Ejecuta las features que pide el tema en cada navegación y cambio del DOM.
-//   4. Cuando el usuario aprieta el botón, anima el cambio (content/transicion.js).
-//      Solo ahí: al cargar y al navegar la clase se pone sin animación.
+//   4. Cuando el usuario aprieta el botón, anima el cambio (content/transicion.js), en
+//      cualquier sitio, tenga tema o no. Solo ahí: al cargar y al navegar la clase se
+//      pone sin animación.
 //
 // Ojo: algunos sitios reemplazan el <html> completo al cargar (Gmail usa
 // document.open/write) o pisan sus clases. Por eso nunca guardamos una referencia
@@ -67,29 +69,34 @@
     actualizarUI();
   }
 
+  // `activo` (lo que se ve) cambia recién dentro de la transición: si el sitio mueve el
+  // DOM antes, marcarHtml() no adelanta la clase y la captura de "antes" sale bien.
+  // El botón anima en cualquier sitio, tenga tema o no: sin tema la transición corre
+  // igual y simplemente no cambia nada debajo.
+  let botonTocado = false; // si el botón cambió el estado antes de leerlo, manda el botón
+  function escucharBoton() {
+    browser.storage.onChanged.addListener((cambios, area) => {
+      if (area !== "local" || !("activo" in cambios)) return;
+      const pedido = cambios.activo.newValue ?? true;
+      botonTocado = true;
+      MiTema.transicion.animar(pedido, () => {
+        activo = pedido;
+        marcarHtml();
+      });
+    });
+  }
+
   async function iniciar() {
+    escucharBoton();
     const [estado, respuesta] = await Promise.all([
       browser.storage.local.get("activo"),
       browser.runtime.sendMessage({ tipo: "tema:aplicar" }),
     ]);
+    if (!botonTocado) activo = estado.activo ?? true;
     if (!respuesta) return; // sin tema para este sitio (o la API no respondió)
 
     tema = respuesta;
-    activo = estado.activo ?? true;
     console.info(`[mi-tema] Tema "${tema.id}" aplicado${activo ? "" : " (desactivado con el botón)"}.`);
-
-    // `activo` (lo que se ve) cambia recién dentro de la transición: si el sitio mueve el
-    // DOM antes, marcarHtml() no adelanta la clase y la captura de "antes" sale bien.
-    let pedido = activo;
-    browser.storage.onChanged.addListener((cambios, area) => {
-      if (area === "local" && "activo" in cambios) {
-        pedido = cambios.activo.newValue ?? true;
-        MiTema.transicion.animar(pedido, () => {
-          activo = pedido;
-          marcarHtml();
-        });
-      }
-    });
 
     const features = prepararFeatures();
     vigilarCambios(() => {

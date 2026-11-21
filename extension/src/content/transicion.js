@@ -1,15 +1,20 @@
-// Transición al activar/desactivar Chameleon con el botón: la "ola de adaptación".
+// Transición al activar/desactivar Chameleon con el botón: la "metamorfosis".
 //
-// Un frente de onda con el espectro de la marca sale de la esquina superior derecha
-// (donde está el botón) y recorre la página. Cada bloque visible ("pieza", como las
-// escamas del camaleón) cambia de su aspecto original al del tema por separado, justo
-// cuando el frente lo alcanza. Al desactivar, la ola vuelve hacia el botón, más corta.
+// Un estallido con el espectro de la marca sale de la esquina superior derecha (donde
+// está el botón) y la página entera se sacude en 3D. Cada bloque visible ("pieza", como
+// las escamas del camaleón) se levanta, da una vuelta en 3D alejándose del botón, se
+// tiñe del color del espectro que le toca y aterriza con rebote ya transformado. Al
+// desactivar, las piezas vuelven a girar hacia el botón y la onda se recoge en él.
+// Corre en cualquier sitio, tenga tema o no: sin cambios, las piezas giran igual.
 //
-// Cómo funciona (JS solo marca; todo lo visual está en transicion.css):
-//   - Con View Transitions (Firefox ≥ 144): se eligen hasta MAX_PIEZAS bloques visibles,
-//     se marcan con `data-mt-ola="<balde>"` (el balde es la distancia al botón, de 0 a
-//     BALDES - 1) y el cambio de clase va dentro de `document.startViewTransition`. El
-//     CSS les da un `view-transition-name` propio y un retraso según su balde.
+// Cómo funciona (JS marca y mide; todo lo visual está en transicion.css):
+//   - Con View Transitions (Firefox ≥ 144): se eligen hasta MAX_PIEZAS bloques visibles
+//     (y hasta MAX_PIEZAS_NUEVAS que aparecen con el cambio; en total MAX_NOMBRES) y se
+//     marcan con `data-mt-pieza="<i>"`; el CSS le da a cada uno el nombre `mt-p<i>`.
+//     Sus parámetros van como propiedades personalizadas en <html> (`--mt-f-<i>`: qué tan
+//     lejos está del botón, de 0 a 1; `--mt-a-<i>`: hacia dónde, en grados), que los
+//     pseudoelementos de la transición heredan. El cambio de clase va dentro de
+//     `document.startViewTransition`.
 //   - Sin View Transitions: se aplica el tema al instante y una versión liviana (el
 //     frente encima de la página y un destello por pieza). Al desactivar, sin efecto.
 //   - Con `prefers-reduced-motion`: un fundido de 150 ms (o nada, sin View Transitions).
@@ -19,9 +24,9 @@
 // al terminar, al interrumpirse o si se vuelve a apretar el botón a mitad de camino.
 
 (() => {
-  const BALDES = 12;
   const MAX_PIEZAS = 40; // del estado de antes
   const MAX_PIEZAS_NUEVAS = 16; // las que solo aparecen después del cambio
+  const MAX_NOMBRES = MAX_PIEZAS + MAX_PIEZAS_NUEVAS; // reglas mt-p0 … mt-p55 en el CSS
   const MAX_VISITAS = 800; // tope del recorrido del DOM
   const AREA_MINIMA = 1600; // px² visibles (≈ 40 × 40)
   const LADO_MINIMO = 16; // px
@@ -32,10 +37,10 @@
   const ESCALA_MAXIMA = 1.25; // cuánto puede crecer o achicarse (ancho o alto)
 
   // Duración del modo ligero (ms): ahí no hay View Transition que avise que terminó.
-  const DURACION_LIGERA = 1050;
+  const DURACION_LIGERA = 1300;
 
   const ATRIBUTO_MODO = "data-mt-transicion"; // en <html>, mientras dura
-  const ATRIBUTO_PIEZA = "data-mt-ola"; // en cada pieza: su balde
+  const ATRIBUTO_PIEZA = "data-mt-pieza"; // en cada pieza: su índice
   const ID_FRENTE = "mt-frente";
   const XHTML = "http://www.w3.org/1999/xhtml";
   const HOJAS = new Set(["img", "video", "canvas", "iframe", "svg", "picture", "input", "textarea", "select", "button"]);
@@ -54,15 +59,21 @@
     return Math.hypot(dx, dy);
   }
 
-  // Balde de una pieza: cuándo la alcanza el frente. El frente nace en la esquina
-  // superior derecha y su radio máximo es la diagonal del viewport. Al activar crece y
-  // toca primero el punto más cercano de la pieza; al desactivar se encoge hacia el
-  // botón y la toca primero por el más lejano (`lejano`).
-  function balde(rect, viewport, lejano = false) {
+  // Dónde está una pieza respecto del botón (esquina superior derecha):
+  //   f      cuándo la alcanza el frente, de 0 (junto al botón) a 1 (esquina opuesta). El
+  //          radio máximo del frente es la diagonal del viewport. Al activar crece y toca
+  //          primero el punto más cercano de la pieza; al desactivar se encoge hacia el
+  //          botón y la toca primero por el más lejano (`lejano`).
+  //   angulo dirección del botón al centro de la pieza, en grados (90 = hacia abajo,
+  //          180 = hacia la izquierda). El CSS hace girar la pieza alejándose del botón.
+  function posicion(rect, viewport, lejano = false) {
     const origen = { x: viewport.ancho, y: 0 };
     const maxima = Math.hypot(viewport.ancho, viewport.alto);
-    const fraccion = maxima > 0 ? distancia(rect, origen, lejano) / maxima : 0;
-    return Math.min(BALDES - 1, Math.floor(fraccion * BALDES));
+    const f = maxima > 0 ? Math.min(1, distancia(rect, origen, lejano) / maxima) : 0;
+    const cx = (rect.left + rect.right) / 2;
+    const cy = (rect.top + rect.bottom) / 2;
+    const angulo = (Math.atan2(cy - origen.y, cx - origen.x) * 180) / Math.PI;
+    return { f: Math.round(f * 1000) / 1000, angulo: Math.round(angulo) };
   }
 
   function areaVisible(rect, viewport) {
@@ -79,7 +90,7 @@
   //                  | { soloHijos: true } (display: contents: se baja a sus hijos)
   //                  | { rect, hoja } (rect: left/top/right/bottom/width/height)
   //   omitir(nodo) → true para saltar el nodo y sus hijos (p. ej. ya elegido)
-  //   lejano       ver balde()
+  //   lejano       ver posicion()
   function elegirPiezas(raiz, { hijos, medir, viewport, maximo = MAX_PIEZAS, omitir = () => false, lejano = false }) {
     const areaViewport = viewport.ancho * viewport.alto;
     const cola = [...hijos(raiz)];
@@ -114,7 +125,7 @@
       }
       if (visible / areaViewport > FRACCION_MAXIMA) continue;
       if (visible < AREA_MINIMA || rect.width < LADO_MINIMO || rect.height < LADO_MINIMO) continue;
-      piezas.push({ nodo, rect, balde: balde(rect, viewport, lejano) });
+      piezas.push({ nodo, rect, ...posicion(rect, viewport, lejano) });
     }
     return piezas;
   }
@@ -147,7 +158,9 @@
   // son los globales; los tests pasan uno falso.
   function crear(entorno) {
     const { documento, ventana } = entorno;
-    let actual = null; // corrida en curso: { modo, vt, piezas (nodo → rect de antes), frente, temporizador, limpia }
+    // Corrida en curso: { modo, vt, piezas (nodo → rect de antes), indices (cuántos nombres
+    // se usaron), frente, temporizador, limpia }.
+    let actual = null;
 
     const viewport = () => ({ ancho: ventana.innerWidth, alto: ventana.innerHeight });
 
@@ -168,10 +181,16 @@
 
     const hijos = (nodo) => [...nodo.children];
 
-    // Lee todo primero (elegirPiezas) y recién después escribe los atributos.
+    // Lee todo primero (elegirPiezas) y recién después escribe: el índice de cada pieza
+    // en su atributo y sus parámetros en <html>, de donde los heredan los pseudoelementos.
     function marcar(corrida, piezas) {
-      for (const { nodo, balde: b, rect } of piezas) {
-        nodo.setAttribute(ATRIBUTO_PIEZA, String(b));
+      const estilo = documento.documentElement.style;
+      for (const { nodo, rect, f, angulo } of piezas) {
+        if (corrida.indices >= MAX_NOMBRES) break;
+        const i = corrida.indices++;
+        nodo.setAttribute(ATRIBUTO_PIEZA, String(i));
+        estilo.setProperty(`--mt-f-${i}`, String(f));
+        estilo.setProperty(`--mt-a-${i}`, String(angulo));
         corrida.piezas.set(nodo, rect);
       }
     }
@@ -209,6 +228,9 @@
       const frente = documento.createElement("div");
       frente.id = ID_FRENTE;
       frente.setAttribute("aria-hidden", "true");
+      const brillo = documento.createElement("div");
+      brillo.className = "mt-brillo";
+      frente.append(brillo);
       documento.documentElement.append(frente);
       corrida.frente = frente;
     }
@@ -220,6 +242,12 @@
       entorno.cancelar(corrida.temporizador);
       for (const nodo of corrida.piezas.keys()) nodo.removeAttribute(ATRIBUTO_PIEZA);
       corrida.piezas.clear();
+      const estilo = documento.documentElement?.style;
+      for (let i = 0; i < corrida.indices; i++) {
+        estilo?.removeProperty(`--mt-f-${i}`);
+        estilo?.removeProperty(`--mt-a-${i}`);
+      }
+      corrida.indices = 0;
       corrida.frente?.remove();
       corrida.frente = null;
       if (actual === corrida) {
@@ -233,8 +261,7 @@
       return {
         visible: documento.visibilityState === "visible",
         conTransiciones: typeof documento.startViewTransition === "function",
-        conClases:
-          !!css?.supports("view-transition-class", "mt-ola") && !!css?.supports("view-transition-name", "match-element"),
+        conClases: !!css?.supports("view-transition-class", "mt-pieza"),
         reducirMovimiento: !!ventana.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
       };
     }
@@ -253,7 +280,7 @@
       const modo = elegirModo(activar, soporte());
       if (!modo) return aplicar();
 
-      const corrida = { modo, vt: null, piezas: new Map(), frente: null, temporizador: null, limpia: false };
+      const corrida = { modo, vt: null, piezas: new Map(), indices: 0, frente: null, temporizador: null, limpia: false };
       actual = corrida;
       documento.documentElement.setAttribute(ATRIBUTO_MODO, modo);
 
@@ -304,9 +331,9 @@
       instancia.animar(activar, aplicar);
     },
     // Para los tests.
-    BALDES,
+    MAX_NOMBRES,
     distancia,
-    balde,
+    posicion,
     elegirPiezas,
     seMovio,
     elegirModo,

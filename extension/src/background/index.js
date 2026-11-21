@@ -25,10 +25,19 @@ async function pintarBadge(activo) {
 
 // Clic en el ícono: invierte el estado y lo guarda.
 // content/motor.js escucha el cambio en storage y aplica/quita el tema al instante.
-browser.action.onClicked.addListener(async () => {
+// Los clics se encolan: leer y guardar son asíncronos, y dos clics seguidos que leyeran
+// el mismo valor viejo contarían como uno solo.
+let clicsPendientes = Promise.resolve();
+
+async function alternar() {
   const activo = !(await leerActivo());
   await browser.storage.local.set({ activo });
   await pintarBadge(activo);
+}
+
+browser.action.onClicked.addListener(() => {
+  clicsPendientes = clicsPendientes.then(alternar, alternar);
+  return clicsPendientes;
 });
 
 browser.runtime.onStartup.addListener(async () => pintarBadge(await leerActivo()));
