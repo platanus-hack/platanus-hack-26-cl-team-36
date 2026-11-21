@@ -1,0 +1,255 @@
+/* Replay (diseño §10.6). Todo selector va bajo .p-replay. Los valores dinámicos llegan por CSSOM:
+   --proporcion (ancho/alto de la captura), --corte, --opacidad, --clic-x, --clic-y, --pos. */
+
+.p-replay { container: replay / inline-size; --alto-pestanas: 41px; --alto-captura: max(320px, calc(100dvh - 420px)); }
+.p-replay .replay { display: grid; gap: var(--e-4); min-width: 0; }
+.p-replay .replay-aviso:empty { display: none; }
+
+/* ── Cabecera: intentos, cifras, veredicto ─────────────────────────────── */
+.p-replay .replay-cabecera {
+  display: grid; gap: var(--e-2); padding-block: var(--e-1) var(--e-3);
+  background: var(--fondo); border-bottom: 1px solid var(--borde-sutil); min-width: 0;
+}
+@media (min-width: 820px) and (min-height: 760px) {
+  .p-replay .replay-cabecera { position: sticky; top: var(--alto-pestanas); z-index: 4; }
+  /* Con el veredicto abierto la cabecera deja de ser fija: si no, taparía el visor al desplazarse. */
+  .p-replay .replay-cabecera.abierta { position: static; }
+}
+.p-replay .replay-cabecera-fila { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-4); min-width: 0; }
+.p-replay .replay-intentos { min-width: 0; max-width: 100%; }
+.p-replay .replay-intentos ul { display: flex; gap: var(--e-2); overflow-x: auto; scrollbar-width: none; padding: 2px; }
+.p-replay .replay-pildora { gap: 6px; }
+.p-replay .replay-pildora[aria-current="true"] { background: var(--acento-sutil); border-color: transparent; color: var(--texto-1); }
+.p-replay .replay-pildora .insignia-compacta .icono { width: 14px; height: 14px; }
+.p-replay .replay-meta { display: flex; flex-wrap: wrap; font-size: 12px; font-variant-numeric: tabular-nums; }
+.p-replay .replay-meta > * + *::before { content: "·"; margin-inline: var(--e-2); color: var(--texto-4); }
+
+.p-replay .replay-cabecera-veredicto { flex-wrap: nowrap; align-items: flex-start; }
+.p-replay .replay-veredicto { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--e-1) var(--e-2); min-width: 0; flex: 1; }
+.p-replay .replay-veredicto > .insignia { flex: none; margin-block-start: 1px; }
+.p-replay .replay-veredicto-texto { color: var(--texto-2); min-width: 0; flex: 1 1 240px; }
+.p-replay .replay-veredicto-error { display: grid; gap: var(--e-2); min-width: 0; flex: 1; }
+.p-replay .replay-veredicto-error .detalle-tecnico { max-width: 80ch; }
+.p-replay .replay-alternar-veredicto { flex: none; color: var(--texto-3); font-size: 13px; }
+.p-replay .replay-flecha { transition: transform var(--dur-1) var(--curva-salida); }
+.p-replay .replay-alternar-veredicto[aria-expanded="true"] .replay-flecha { transform: rotate(90deg); }
+.p-replay .replay-panel { display: grid; gap: var(--e-4); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.p-replay .replay-panel[hidden] { display: none; }
+.p-replay .replay-panel-seccion { display: grid; gap: var(--e-2); align-content: start; }
+.p-replay .replay-respuesta { margin: 0; padding-inline-start: var(--e-3); border-inline-start: 2px solid var(--borde-fuerte); color: var(--texto-2); }
+.p-replay .replay-evidencias { display: grid; gap: var(--e-1); padding-inline-start: var(--e-4); list-style: disc; color: var(--texto-2); }
+.p-replay .replay-evidencias-titulo { margin-block-start: var(--e-2); }
+
+/* ── Cuerpo: riel | visor ──────────────────────────────────────────────── */
+.p-replay .replay-cuerpo { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--e-4); align-items: start; min-width: 0; }
+
+.p-replay .replay-rail { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-2); min-width: 0; }
+.p-replay .replay-rail-contenido { min-width: 0; }
+.p-replay .replay-rail-cabecera { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); }
+.p-replay .replay-rail-lista {
+  display: grid; gap: 1px; align-content: start; padding: 2px; margin: 0;
+  max-height: calc(var(--alto-captura) + 40px); overflow: auto; overscroll-behavior: contain;
+  border: 1px solid var(--borde-sutil); border-radius: var(--radio-2); background: var(--superficie-1);
+}
+.p-replay .replay-rail-lista:focus-visible { outline-offset: -2px; }
+.p-replay .replay-rail-fila {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 14px; align-items: center; gap: var(--e-2);
+  min-height: 30px; padding: 0 var(--e-2); border-radius: var(--radio-1); color: var(--texto-2); cursor: pointer;
+}
+.p-replay .replay-rail-fila:hover { background: var(--superficie-2); color: var(--texto-1); }
+.p-replay .replay-rail-fila[aria-selected="true"] { background: var(--acento-sutil); color: var(--texto-1); box-shadow: inset 2px 0 0 var(--acento); }
+.p-replay .replay-rail-lista:focus-visible .replay-rail-fila[aria-selected="true"] { outline: 2px solid var(--anillo-foco); outline-offset: -2px; }
+.p-replay .replay-rail-grupo .replay-rail-firma { color: var(--texto-3); }
+.p-replay .replay-rail-numero { color: var(--texto-3); font-size: 12px; text-align: right; white-space: nowrap; }
+.p-replay .replay-rail-fila[aria-selected="true"] .replay-rail-numero { color: var(--acento-fuerte); }
+.p-replay .replay-rail-senales { display: inline-flex; gap: 2px; }
+.p-replay .replay-rail-carril { display: inline-flex; color: var(--acento); }
+.p-replay .replay-rail-carril .icono { width: 14px; height: 14px; }
+.p-replay .carril-fuera-de-ruta { color: var(--texto-3); }
+.p-replay .carril-en-ruta { color: var(--acento); }
+.p-replay .replay-rail-vacio { padding: var(--e-2); font-size: 12px; }
+.p-replay .replay-rail-leyenda { display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-3); }
+.p-replay .replay-rail-leyenda > span { display: inline-flex; align-items: center; gap: var(--e-1); }
+.p-replay .replay-rail-leyenda .icono { width: 12px; height: 12px; }
+
+/* ── Visor ─────────────────────────────────────────────────────────────── */
+.p-replay .replay-visor { display: grid; gap: var(--e-3); min-width: 0; container: visor / inline-size; }
+.p-replay .replay-barra-visor { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); }
+.p-replay .replay-separador { flex: 1; }
+.p-replay .replay-escenario { display: grid; gap: var(--e-4); align-items: start; min-width: 0; }
+@container visor (width >= 720px) {
+  .p-replay .replay-escenario { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); }
+}
+
+.p-replay .replay-marco { display: grid; gap: var(--e-2); margin: 0; min-width: 0; justify-items: center; }
+.p-replay .replay-medida {
+  position: relative; width: min(100%, calc(var(--alto-captura) * var(--proporcion, 1.333)));
+  aspect-ratio: var(--proporcion, 1.333);
+  border-radius: var(--radio-2); overflow: hidden; background: var(--superficie-1); box-shadow: 0 0 0 1px var(--borde-sutil);
+}
+.p-replay .replay-lienzo { position: absolute; inset: 0; }
+.p-replay .replay-lienzo[hidden], .p-replay .replay-video[hidden] { display: none; }
+.p-replay .replay-captura { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.p-replay .replay-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--fondo); }
+
+/* Qué captura se ve según el modo (la de "Antes" está debajo). */
+.p-replay .replay-lienzo[data-modo="despues"] .replay-captura-antes { visibility: hidden; }
+.p-replay .replay-lienzo[data-modo="antes"] .replay-captura-despues { visibility: hidden; }
+.p-replay .replay-lienzo[data-modo="deslizar"] .replay-captura-despues { clip-path: inset(0 0 0 var(--corte, 50%)); }
+.p-replay .replay-lienzo[data-modo="deslizar"]::after {
+  content: ""; position: absolute; inset-block: 0; left: var(--corte, 50%); width: 2px; margin-left: -1px;
+  background: var(--acento); box-shadow: 0 0 0 1px oklch(0 0 0 / 0.4); pointer-events: none;
+}
+.p-replay .replay-lienzo[data-modo="superponer"] .replay-captura-despues { opacity: var(--opacidad, 0.5); }
+.p-replay .replay-sin-captura { position: absolute; inset: 0; display: none; place-items: center; padding: var(--e-4); text-align: center; }
+.p-replay .replay-lienzo.falta-despues[data-modo="despues"] .replay-sin-captura,
+.p-replay .replay-lienzo.falta-antes[data-modo="antes"] .replay-sin-captura { display: grid; }
+
+/* Anillo del clic: en % de la captura, así sigue al tamaño sin JS. */
+.p-replay .replay-clic {
+  position: absolute; left: var(--clic-x); top: var(--clic-y); width: 34px; height: 34px; margin: -17px 0 0 -17px;
+  border: 2px solid var(--aviso); border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 2px oklch(0 0 0 / 0.55), inset 0 0 0 1px oklch(0 0 0 / 0.4);
+}
+.p-replay .replay-clic[hidden] { display: none; }
+.p-replay .replay-clic::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px;
+  border-radius: 50%; background: var(--aviso); box-shadow: 0 0 0 2px oklch(0 0 0 / 0.55);
+}
+.p-replay .replay-clic-numero {
+  position: absolute; left: 100%; top: -6px; margin-left: 2px; padding: 0 5px; border-radius: var(--radio-pildora);
+  background: var(--aviso); color: oklch(0.2 0.03 60); font-size: 11px; line-height: 16px; font-weight: 600;
+}
+.p-replay .replay-clic.pulso { animation: replay-pulso 600ms var(--curva-salida) 1; }
+@keyframes replay-pulso { from { transform: scale(1.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .p-replay .replay-clic.pulso { animation: none; } }
+
+.p-replay .replay-control-comparar { width: min(100%, calc(var(--alto-captura) * var(--proporcion, 1.333))); }
+.p-replay .replay-control-comparar[hidden] { display: none; }
+.p-replay .replay-rango { width: 100%; accent-color: var(--acento); }
+
+.p-replay .replay-leyenda { text-align: center; color: var(--texto-3); font-size: 12px; line-height: 20px; min-width: 0; max-width: 100%; text-wrap: balance; }
+.p-replay .replay-leyenda > * + *::before { content: "·"; margin-inline: var(--e-2); color: var(--texto-4); }
+.p-replay .replay-pagina { color: var(--texto-2); }
+.p-replay .replay-url { overflow-wrap: anywhere; }
+
+/* ── Tarjeta del paso ──────────────────────────────────────────────────── */
+.p-replay .replay-tarjeta { display: grid; gap: var(--e-3); min-width: 0; }
+.p-replay .replay-tarjeta-contenido { display: grid; gap: var(--e-3); min-width: 0; }
+.p-replay .replay-tarjeta-cabecera { display: grid; gap: var(--e-2); }
+/* Texto corrido (no flex): "Paso 5 ·" va pegado al comienzo de la firma y nunca queda solo al final de una línea. */
+.p-replay .replay-tarjeta-titulo { font-size: 15px; line-height: 22px; overflow-wrap: anywhere; }
+.p-replay .replay-tarjeta-numero { color: var(--texto-3); font-weight: 500; white-space: nowrap; margin-inline-end: var(--e-2); }
+.p-replay .replay-tarjeta-numero::after { content: "·"; margin-inline-start: var(--e-2); color: var(--texto-4); }
+.p-replay .replay-tarjeta-senales { display: flex; flex-wrap: wrap; gap: var(--e-1); }
+.p-replay .replay-par { display: grid; gap: var(--e-2); }
+@container visor (width < 720px) and (width >= 480px) {
+  .p-replay .replay-par { grid-template-columns: 1fr 1fr; }
+}
+.p-replay .replay-caja { display: grid; gap: var(--e-1); padding: var(--e-2) var(--e-3); border-radius: var(--radio-2); background: var(--superficie-2); }
+.p-replay .replay-caja .prosa { font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }
+.p-replay .replay-coincide { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) var(--e-2); }
+.p-replay .replay-ayuda { min-width: 24px; min-height: 24px; color: var(--texto-3); }
+.p-replay .replay-ruta { display: flex; align-items: flex-start; gap: var(--e-2); margin: 0; color: var(--texto-2); }
+.p-replay .replay-ruta > .icono { margin-block-start: 2px; color: var(--texto-3); }
+.p-replay .replay-ruta-termina > .icono { color: var(--exito); }
+.p-replay .replay-comparacion { display: grid; gap: var(--e-1); padding: var(--e-2) var(--e-3); border-radius: var(--radio-2); border: 1px solid var(--borde-sutil); }
+.p-replay .replay-comparacion.difiere { background: var(--aviso-fondo); border-color: transparent; }
+.p-replay .replay-comparacion.igual { background: var(--exito-fondo); border-color: transparent; }
+.p-replay .replay-comparacion-fila { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: var(--e-2); }
+.p-replay .replay-comparacion dt { display: inline-flex; align-items: center; gap: var(--e-1); color: var(--texto-3); font-size: 12px; }
+.p-replay .replay-comparacion dt .icono { width: 12px; height: 12px; color: var(--acento); }
+.p-replay .replay-comparacion dd { margin: 0; overflow-wrap: anywhere; }
+.p-replay .replay-tramo { margin-inline-start: var(--e-2); font-size: 12px; white-space: nowrap; }
+.p-replay .replay-comparacion-marca { display: inline-block; vertical-align: -3px; margin-inline-start: var(--e-1); }
+.p-replay .replay-comparacion.igual .replay-comparacion-marca { color: var(--exito); }
+.p-replay .replay-comparacion.difiere .replay-comparacion-marca { color: var(--aviso); }
+.p-replay .replay-fin { font-size: 12px; }
+.p-replay .replay-navegacion { display: flex; justify-content: space-between; gap: var(--e-2); }
+.p-replay .replay-navegacion .boton[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+.p-replay .replay-tecla { display: inline-flex; }
+@media (pointer: coarse) { .p-replay .replay-tecla { display: none; } }
+/* "Mantén B" es un atajo de teclado: en pantallas táctiles o angostas sobra (Antes/Después siguen en los modos). */
+@media (pointer: coarse), (max-width: 719px) { .p-replay .replay-manten-b { display: none; } }
+
+/* ── Línea de tiempo ───────────────────────────────────────────────────── */
+.p-replay .replay-linea { display: grid; gap: var(--e-2); padding-block-start: var(--e-3); border-top: 1px solid var(--borde-sutil); min-width: 0; }
+.p-replay .replay-linea[hidden] { display: none; }
+.p-replay .replay-tira { display: flex; gap: var(--e-1); overflow-x: auto; padding: 3px; scrollbar-width: thin; }
+.p-replay .replay-tira li { display: grid; gap: 3px; flex: none; }
+.p-replay .replay-cuadro {
+  position: relative; display: block; height: 56px; width: calc(56px * var(--proporcion, 1.333)); padding: 0;
+  border: 1px solid var(--borde-sutil); border-radius: var(--radio-1); overflow: hidden; background: var(--superficie-1);
+}
+.p-replay .replay-cuadro img { width: 100%; height: 100%; object-fit: cover; object-position: top; opacity: 0.7; }
+.p-replay .replay-cuadro:hover img { opacity: 1; }
+.p-replay .replay-cuadro[aria-current="step"] { outline: 2px solid var(--acento); outline-offset: 1px; }
+.p-replay .replay-cuadro[aria-current="step"] img { opacity: 1; }
+.p-replay .replay-cuadro-numero {
+  position: absolute; left: 2px; bottom: 2px; padding: 0 4px; border-radius: var(--radio-1);
+  background: oklch(0 0 0 / 0.7); color: var(--texto-1); font-size: 10px; line-height: 14px;
+}
+.p-replay .replay-cuadro.tono-aviso { border-color: var(--aviso); }
+.p-replay .replay-cuadro.tono-peligro { border-color: var(--peligro); }
+.p-replay .replay-carril-ruta { height: 4px; border-radius: 2px; }
+.p-replay .replay-carril-ruta.carril-en-ruta { background: var(--acento); }
+.p-replay .replay-carril-ruta.carril-fuera-de-ruta { box-shadow: inset 0 0 0 1px var(--texto-3); }
+
+.p-replay .replay-controles { display: flex; align-items: center; gap: var(--e-3); min-width: 0; }
+.p-replay .replay-reproducir { flex: none; color: var(--texto-1); }
+.p-replay .replay-pista { position: relative; }
+.p-replay .replay-controles .replay-pista { flex: 1; min-width: 80px; display: block; }
+.p-replay .replay-barra { width: 100%; margin: 0; accent-color: var(--acento); position: relative; z-index: 1; }
+.p-replay .replay-marcas { position: absolute; inset: -6px 7px auto 7px; height: 6px; pointer-events: none; }
+.p-replay .replay-marca { position: absolute; left: var(--pos); top: 0; width: 2px; height: 6px; margin-left: -1px; border-radius: 1px; background: var(--texto-4); }
+.p-replay .replay-marca.actual { background: var(--texto-1); }
+.p-replay .replay-marca.tono-aviso { background: var(--aviso); width: 4px; margin-left: -2px; }
+.p-replay .replay-marca.tono-peligro { background: var(--peligro); width: 4px; margin-left: -2px; }
+.p-replay .replay-marca.tono-fuera { background: var(--texto-2); }
+.p-replay .replay-reloj { flex: none; color: var(--texto-3); font-size: 12px; min-width: 9ch; text-align: right; }
+/* Velocidad: <select> nativo con aspecto de botón, pegado a reproducir. */
+.p-replay .replay-velocidad {
+  flex: none; height: 32px; min-width: 64px; padding: 0 26px 0 var(--e-2);
+  border: 1px solid var(--borde); border-radius: var(--radio-2);
+  background: var(--superficie-1) no-repeat;
+  background-image: linear-gradient(45deg, transparent 50%, var(--texto-3) 50%), linear-gradient(135deg, var(--texto-3) 50%, transparent 50%);
+  background-size: 5px 5px, 5px 5px;
+  background-position: right 13px center, right 8px center;
+  color: var(--texto-1); font: inherit; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums;
+  appearance: none; cursor: pointer;
+}
+.p-replay .replay-velocidad:hover { border-color: var(--borde-fuerte); }
+.p-replay .replay-velocidad option { background: var(--superficie-3); color: var(--texto-1); }
+
+/* ── Angosto: el riel se vuelve una tira de números; la captura entra en 60 dvh ── */
+@container replay (width < 820px) {
+  .p-replay { --alto-captura: 60dvh; }
+  .p-replay .replay-cuerpo { grid-template-columns: minmax(0, 1fr); }
+  .p-replay .replay-rail-cabecera h3, .p-replay .replay-rail-leyenda { display: none; }
+  .p-replay .replay-rail-lista {
+    display: flex; gap: var(--e-1); max-height: none; overflow-x: auto; overflow-y: hidden; padding: 3px;
+  }
+  .p-replay .replay-rail-fila { display: inline-flex; flex: none; gap: 2px; min-width: 36px; min-height: 36px; padding: 0 var(--e-2); justify-content: center; border: 1px solid var(--borde-sutil); }
+  .p-replay .replay-rail-fila[aria-selected="true"] { box-shadow: none; border-color: var(--acento); }
+  .p-replay .replay-rail-firma { display: none; }
+  .p-replay .replay-rail-numero { text-align: center; }
+  .p-replay .replay-rail-carril:empty, .p-replay .replay-rail-fila:not(.con-senal) .replay-rail-carril { display: none; }
+  .p-replay .replay-rail-senales .icono { width: 12px; height: 12px; }
+  .p-replay .replay-visor { display: flex; flex-direction: column; }
+  .p-replay .replay-barra-visor { order: 2; }
+  .p-replay .replay-escenario { order: 1; display: contents; }
+  .p-replay .replay-marco { order: 1; }
+  .p-replay .replay-tarjeta { order: 3; }
+  .p-replay .replay-navegacion { order: -1; }
+  .p-replay .replay-tira { display: none; }
+  .p-replay .replay-cabecera-veredicto { flex-wrap: wrap; }
+  .p-replay .replay-veredicto-texto.prosa {
+    flex-basis: 100%; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  }
+  .p-replay .replay-alternar-veredicto { padding-inline: 0; }
+}
+@container replay (width < 480px) {
+  .p-replay .replay-separador { display: none; }
+  .p-replay .replay-controles { gap: var(--e-2); }
+  .p-replay .replay-velocidad { min-width: 58px; padding-inline-end: 22px; background-position: right 11px center, right 6px center; }
+}

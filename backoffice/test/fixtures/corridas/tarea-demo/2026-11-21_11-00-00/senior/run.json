@@ -1,0 +1,131 @@
+{
+ "profile": "senior",
+ "profile_name": "Adulto mayor",
+ "viewport": "1024x768",
+ "model": "modelo",
+ "start_url": "https://www.ejemplo.test/",
+ "instruction": "Encontrar cómo dar de baja",
+ "engine": "claude-code",
+ "start": {
+  "url": "https://www.ejemplo.test/",
+  "title": "Inicio | Ejemplo",
+  "screenshot": "step_00.png"
+ },
+ "steps": [
+  {
+   "number": 1,
+   "action": "left_click",
+   "action_input": {
+    "coordinate": [
+     200,
+     100
+    ]
+   },
+   "description": "clic en (200, 100)",
+   "coordinates": [
+    200,
+    100
+   ],
+   "expectation": "Ver los trámites.",
+   "element": {
+    "tag": "button",
+    "text": "Trámites",
+    "role": null,
+    "href": null,
+    "type": null,
+    "id": null
+   },
+   "url_before": "https://www.ejemplo.test/",
+   "title_before": "Inicio | Ejemplo",
+   "url": "https://www.ejemplo.test/sin-titulo?x=1",
+   "title": "",
+   "screenshot_before": "step_00.png",
+   "screenshot": "step_01.png",
+   "seconds_since_start": 4.0,
+   "duration_s": 4.0,
+   "screen_change": 0.7,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 2,
+   "action": "left_click",
+   "action_input": {
+    "coordinate": [
+     200,
+     300
+    ]
+   },
+   "description": "clic en (200, 300)",
+   "coordinates": [
+    200,
+    300
+   ],
+   "expectation": "Encontrar la baja.",
+   "element": {
+    "tag": "button",
+    "text": "Otro",
+    "role": null,
+    "href": null,
+    "type": null,
+    "id": null
+   },
+   "url_before": "https://www.ejemplo.test/sin-titulo?x=1",
+   "title_before": "",
+   "url": "https://www.ejemplo.test/sin-titulo?x=2",
+   "title": "",
+   "screenshot_before": "step_01.png",
+   "screenshot": "step_02.png",
+   "seconds_since_start": 8.0,
+   "duration_s": 4.0,
+   "screen_change": 0.6,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 3,
+   "action": "key",
+   "action_input": {
+    "text": "alt+Left"
+   },
+   "description": "atrás",
+   "coordinates": null,
+   "expectation": "Volver.",
+   "element": null,
+   "url_before": "https://www.ejemplo.test/sin-titulo?x=2",
+   "title_before": "",
+   "url": "https://www.ejemplo.test/sin-titulo?x=1",
+   "title": "",
+   "screenshot_before": "step_02.png",
+   "screenshot": "step_03.png",
+   "seconds_since_start": 10.0,
+   "duration_s": 2.0,
+   "screen_change": 0.6,
+   "signals": [
+    "went_back"
+   ],
+   "error_detail": null,
+   "events": []
+  }
+ ],
+ "end_reason": "gave_up",
+ "final_message": "No encontré dónde dar de baja.",
+ "duration_s": 11.0,
+ "turns": 4,
+ "screenshots_requested": 0,
+ "incidents": [],
+ "token_usage": {
+  "input_tokens": 10,
+  "output_tokens": 100,
+  "cache_read_input_tokens": 0,
+  "cache_creation_input_tokens": 0,
+  "equivalent_cost_usd": 0.02
+ },
+ "final_screenshot": "step_03.png",
+ "verdict": {
+  "outcome": "failed",
+  "justification": "La pantalla final no muestra cómo dar de baja."
+ }
+}

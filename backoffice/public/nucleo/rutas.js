@@ -1,0 +1,188 @@
+// Gramática de las rutas (diseño §5.1). Puro: no toca document ni window, así node:test lo importa.
+//
+//   #/                          Corridas   ?q= &sitio= &filtro= &orden= &vista=
+//   #/t/<tandaId>               → #/t/<tandaId>/resumen
+//   #/t/<tandaId>/<pestaña>     resumen · telarana · replay · perfiles
+//
+// Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
+// saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan.
+
+export const PESTANAS = ["resumen", "telarana", "replay", "perfiles"];
+export const PESTANA_POR_DEFECTO = "resumen";
+
+// Claves del diccionario (no textos): t(NOMBRES_DE_PESTANA.replay) → "Replay".
+export const NOMBRES_DE_PESTANA = Object.freeze({
+  resumen: "comun.pestana.resumen",
+  telarana: "comun.pestana.telarana",
+  replay: "comun.pestana.replay",
+  perfiles: "comun.pestana.perfiles",
+});
+
+const FECHA_HORA = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
+// La tarea de un tandaId (lo que va antes de la fecha): un solo segmento que no empieza con "." ni trae "/", "\\"
+// o caracteres de control, para que el id nunca arme otra ruta al pedirlo ("..%2F..%2Fx" → "../../x").
+const TAREA_SEGURA = /^[^./\\\u0000-\u001f][^/\\\u0000-\u001f]*$/;
+
+// Orden estable de los parámetros conocidos; los demás van después, en orden alfabético.
+const ORDEN_DE_PARAMETROS = {
+  corridas: ["q", "sitio", "filtro", "orden", "vista"],
+  resumen: [],
+  telarana: ["perfil", "pagina", "historia", "paso", "vista"],
+  replay: ["intento", "paso", "modo", "ver", "senales"],
+  perfiles: ["orden"],
+};
+
+// Valores por defecto: no se escriben en el hash.
+const POR_DEFECTO = {
+  corridas: { vista: "lista", orden: "nuevas" },
+  replay: { modo: "despues" },
+};
+
+// Sinónimos aceptados dentro de una tanda (se reescriben al nombre canónico).
+const ALIAS = {
+  replay: { perfil: "intento" },
+  telarana: { nodo: "pagina" },
+};
+
+const PANTALLAS_LEGADAS = new Set(["telarana", "replay", "perfiles"]);
+
+export const AVISO_ENLACE_SIN_TANDA = "comun.aviso.enlaceSinTanda";
+
+function separar(hash) {
+  const sinAlmohadilla = String(hash ?? "").replace(/^#/, "");
+  const indice = sinAlmohadilla.indexOf("?");
+  const camino = indice === -1 ? sinAlmohadilla : sinAlmohadilla.slice(0, indice);
+  const consulta = indice === -1 ? "" : sinAlmohadilla.slice(indice + 1);
+  return { camino, consulta };
+}
+
+function leerParametros(consulta) {
+  const parametros = {};
+  for (const [clave, valor] of new URLSearchParams(consulta)) {
+    if (valor !== "" && !(clave in parametros)) parametros[clave] = valor;
+  }
+  return parametros;
+}
+
+function aplicarAlias(pestana, parametros) {
+  const alias = ALIAS[pestana];
+  if (!alias) return parametros;
+  const resultado = { ...parametros };
+  for (const [viejo, nuevo] of Object.entries(alias)) {
+    if (viejo in resultado) {
+      if (!(nuevo in resultado)) resultado[nuevo] = resultado[viejo];
+      delete resultado[viejo];
+    }
+  }
+  return resultado;
+}
+
+function segmentos(camino) {
+  try {
+    return camino.split("/").filter(Boolean).map(decodeURIComponent);
+  } catch {
+    return null;
+  }
+}
+
+/** @returns {import("./rutas.js").Ruta} */
+export function parsearHash(hash) {
+  const { camino, consulta } = separar(hash);
+  const partes = segmentos(camino);
+  const original = `#${String(hash ?? "").replace(/^#/, "")}`;
+  if (!partes) return { tipo: "desconocida", hash: original };
+  const parametros = leerParametros(consulta);
+
+  if (partes.length === 0) return { tipo: "corridas", parametros };
+
+  if (partes[0] === "t") {
+    const resto = partes.slice(1);
+    const fin = resto.findIndex((parte) => FECHA_HORA.test(parte));
+    if (fin === -1) return { tipo: "desconocida", hash: original };
+    if (fin > 1 || (fin === 1 && !TAREA_SEGURA.test(resto[0]))) return { tipo: "desconocida", hash: original };
+    const tandaId = resto.slice(0, fin + 1).join("/");
+    const despues = resto.slice(fin + 1);
+    if (despues.length > 1) return { tipo: "desconocida", hash: original };
+    const pestana = despues[0] ?? PESTANA_POR_DEFECTO;
+    if (!PESTANAS.includes(pestana)) return { tipo: "desconocida", hash: original };
+    return { tipo: "tanda", tandaId, pestana, parametros: aplicarAlias(pestana, parametros) };
+  }
+
+  if (partes.length === 1 && PANTALLAS_LEGADAS.has(partes[0])) {
+    const legado = traducirLegado(hash);
+    if (legado) return { tipo: "legado", ...legado };
+  }
+  return { tipo: "desconocida", hash: original };
+}
+
+function consultaCanonica(clave, parametros) {
+  const orden = ORDEN_DE_PARAMETROS[clave] ?? [];
+  const defecto = POR_DEFECTO[clave] ?? {};
+  const pares = Object.entries(parametros ?? {})
+    .filter(([nombre, valor]) => nombre !== "idioma" && valor !== null && valor !== undefined && valor !== "")
+    .map(([nombre, valor]) => [nombre, String(valor)])
+    .filter(([nombre, valor]) => defecto[nombre] !== valor);
+  pares.sort(([a], [b]) => {
+    const ia = orden.indexOf(a);
+    const ib = orden.indexOf(b);
+    if (ia !== -1 || ib !== -1) return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+  const texto = new URLSearchParams(pares).toString();
+  return texto ? `?${texto}` : "";
+}
+
+/** Hash canónico: orden estable de parámetros, sin valores vacíos ni por defecto, sin `idioma`. */
+export function hashDe({ tipo, tandaId, pestana = PESTANA_POR_DEFECTO, parametros = {} }) {
+  if (tipo === "tanda") {
+    const id = String(tandaId).split("/").map(encodeURIComponent).join("/");
+    const limpios = aplicarAlias(pestana, parametros);
+    return `#/t/${id}/${pestana}${consultaCanonica(pestana, limpios)}`;
+  }
+  return `#/${consultaCanonica("corridas", parametros)}`;
+}
+
+export function enlaceATanda(tandaId, pestana = PESTANA_POR_DEFECTO, parametros = {}) {
+  return hashDe({ tipo: "tanda", tandaId, pestana, parametros });
+}
+
+/**
+ * Enlaces de la v0 (#/telarana?t=…, #/replay?t=…&perfil=…, #/perfiles?t=…).
+ * @returns {{ destino: string, aviso: string | null } | null}  aviso es una clave del diccionario.
+ */
+export function traducirLegado(hash) {
+  const { camino, consulta } = separar(hash);
+  const partes = segmentos(camino);
+  if (!partes || partes.length !== 1 || !PANTALLAS_LEGADAS.has(partes[0])) return null;
+  const pestana = partes[0];
+  const { t: tandaId, ...resto } = leerParametros(consulta);
+  if (!tandaId) return { destino: hashDe({ tipo: "corridas" }), aviso: AVISO_ENLACE_SIN_TANDA };
+  return { destino: enlaceATanda(tandaId, pestana, resto), aviso: null };
+}
+
+/** Separa `idioma=` del hash: → { idioma: string | null, hash: string sin ese parámetro }. */
+export function extraerIdioma(hash) {
+  const { camino, consulta } = separar(hash);
+  const parametros = new URLSearchParams(consulta);
+  if (!parametros.has("idioma")) return { idioma: null, hash: `#${camino}${consulta ? `?${consulta}` : ""}` };
+  const idioma = parametros.get("idioma");
+  parametros.delete("idioma");
+  const resto = parametros.toString();
+  return { idioma, hash: `#${camino || "/"}${resto ? `?${resto}` : ""}` };
+}
+
+/**
+ * Lee el parámetro `paso` (1-based) contra un intento de `total` pasos (diseño §5.9).
+ * → { paso: number, aviso: { clave, vars } | null }. Sin valor → paso 1 y sin aviso.
+ */
+export function normalizarPaso(valor, total) {
+  const ultimo = Math.max(1, Number(total) || 0);
+  if (valor === null || valor === undefined || valor === "") return { paso: 1, aviso: null };
+  const texto = String(valor);
+  if (!/^\d+$/.test(texto) || Number(texto) < 1) {
+    return { paso: 1, aviso: { clave: "comun.estado.pasoInvalido", vars: { paso: texto } } };
+  }
+  const numero = Number(texto);
+  if (numero > ultimo) return { paso: ultimo, aviso: { clave: "comun.estado.pasoFueraDeRango", vars: { total: ultimo } } };
+  return { paso: numero, aviso: null };
+}

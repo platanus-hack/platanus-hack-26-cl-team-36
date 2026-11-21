@@ -1,0 +1,340 @@
+{
+ "url": "https://www.ejemplo.test/",
+ "instruction": "Encontrar cómo dar de baja",
+ "task_id": "tarea-demo",
+ "timestamp": "2026-11-21_11-00-00",
+ "engine": "claude-code",
+ "user_model": "modelo",
+ "judge_model": "modelo",
+ "effort": "low",
+ "criteria": {
+  "criterion": "Se ve cómo dar de baja",
+  "evidence": [
+   "Un título que dice baja"
+  ]
+ },
+ "nodes": [
+  {
+   "id": "n1",
+   "url": "https://ejemplo.test/",
+   "title": "Inicio | Ejemplo",
+   "visits": 4,
+   "profiles": [
+    "first_time",
+    "hurried",
+    "mobile",
+    "senior"
+   ],
+   "is_start": true,
+   "endings": {
+    "success": 0,
+    "failed": 0,
+    "abandoned": 0
+   }
+  },
+  {
+   "id": "n2",
+   "url": "https://ejemplo.test/ayuda?q=baja",
+   "title": "Ayuda | Ejemplo",
+   "visits": 1,
+   "profiles": [
+    "first_time"
+   ],
+   "is_start": false,
+   "endings": {
+    "success": 0,
+    "failed": 0,
+    "abandoned": 0
+   }
+  },
+  {
+   "id": "n3",
+   "url": "https://ejemplo.test/ayuda/baja",
+   "title": "Cómo dar de baja | Ejemplo",
+   "visits": 2,
+   "profiles": [
+    "first_time",
+    "hurried"
+   ],
+   "is_start": false,
+   "endings": {
+    "success": 2,
+    "failed": 0,
+    "abandoned": 0
+   }
+  },
+  {
+   "id": "n4",
+   "url": "https://ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "visits": 2,
+   "profiles": [
+    "hurried",
+    "mobile"
+   ],
+   "is_start": false,
+   "endings": {
+    "success": 0,
+    "failed": 0,
+    "abandoned": 1
+   }
+  },
+  {
+   "id": "n5",
+   "url": "https://ejemplo.test/sin-titulo?x=1",
+   "title": "",
+   "visits": 2,
+   "profiles": [
+    "senior"
+   ],
+   "is_start": false,
+   "endings": {
+    "success": 0,
+    "failed": 1,
+    "abandoned": 0
+   }
+  },
+  {
+   "id": "n6",
+   "url": "https://ejemplo.test/sin-titulo?x=2",
+   "title": "",
+   "visits": 1,
+   "profiles": [
+    "senior"
+   ],
+   "is_start": false,
+   "endings": {
+    "success": 0,
+    "failed": 0,
+    "abandoned": 0
+   }
+  }
+ ],
+ "branches": [
+  {
+   "source": "n1",
+   "target": "n2",
+   "action": "clic «Buscar»",
+   "successes": 1,
+   "failures": 0,
+   "times_s": [
+    8.0
+   ],
+   "steps": [
+    3
+   ],
+   "profiles": [
+    "first_time"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "first_time",
+     "success": true,
+     "actions": [
+      "clic «Close»",
+      "escribir «baja»"
+     ]
+    }
+   ],
+   "median_time_s": 8.0,
+   "cost": 0.4055
+  },
+  {
+   "source": "n2",
+   "target": "n3",
+   "action": "clic «Dar de baja»",
+   "successes": 1,
+   "failures": 0,
+   "times_s": [
+    3.0
+   ],
+   "steps": [
+    1
+   ],
+   "profiles": [
+    "first_time"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "first_time",
+     "success": true,
+     "actions": []
+    }
+   ],
+   "median_time_s": 3.0,
+   "cost": 0.4055
+  },
+  {
+   "source": "n1",
+   "target": "n4",
+   "action": "clic «Ayuda»",
+   "successes": 1,
+   "failures": 1,
+   "times_s": [
+    2.0,
+    3.0
+   ],
+   "steps": [
+    1,
+    1
+   ],
+   "profiles": [
+    "hurried",
+    "mobile"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "hurried",
+     "success": true,
+     "actions": []
+    },
+    {
+     "profile": "mobile",
+     "success": false,
+     "actions": []
+    }
+   ],
+   "median_time_s": 2.5,
+   "cost": 0.6931
+  },
+  {
+   "source": "n4",
+   "target": "n3",
+   "action": "clic «Dar de baja»",
+   "successes": 0,
+   "failures": 1,
+   "times_s": [
+    15.0
+   ],
+   "steps": [
+    7
+   ],
+   "profiles": [
+    "hurried"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "hurried",
+     "success": false,
+     "actions": [
+      "scroll down x5",
+      "scroll down x5",
+      "scroll down x5",
+      "scroll down x5",
+      "scroll up x3",
+      "scroll down x5"
+     ]
+    }
+   ],
+   "median_time_s": 15.0,
+   "cost": 1.0986
+  },
+  {
+   "source": "n1",
+   "target": "n5",
+   "action": "clic «Trámites»",
+   "successes": 0,
+   "failures": 1,
+   "times_s": [
+    4.0
+   ],
+   "steps": [
+    1
+   ],
+   "profiles": [
+    "senior"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "senior",
+     "success": false,
+     "actions": []
+    }
+   ],
+   "median_time_s": 4.0,
+   "cost": 1.0986
+  },
+  {
+   "source": "n5",
+   "target": "n6",
+   "action": "clic «Otro»",
+   "successes": 0,
+   "failures": 1,
+   "times_s": [
+    4.0
+   ],
+   "steps": [
+    1
+   ],
+   "profiles": [
+    "senior"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "senior",
+     "success": false,
+     "actions": []
+    }
+   ],
+   "median_time_s": 4.0,
+   "cost": 1.0986
+  },
+  {
+   "source": "n6",
+   "target": "n5",
+   "action": "atrás",
+   "successes": 0,
+   "failures": 1,
+   "times_s": [
+    2.0
+   ],
+   "steps": [
+    1
+   ],
+   "profiles": [
+    "senior"
+   ],
+   "preceding_actions": [
+    {
+     "profile": "senior",
+     "success": false,
+     "actions": []
+    }
+   ],
+   "median_time_s": 2.0,
+   "cost": 1.0986
+  }
+ ],
+ "recommended_route": {
+  "start_node": "n1",
+  "end_node": "n3",
+  "steps": [
+   {
+    "source": "n1",
+    "target": "n2",
+    "action": "clic «Buscar»",
+    "successes": 1,
+    "failures": 0,
+    "median_time_s": 8.0,
+    "cost": 0.4055,
+    "preceding_actions": [
+     "clic «Close»",
+     "escribir «baja»"
+    ]
+   },
+   {
+    "source": "n2",
+    "target": "n3",
+    "action": "clic «Dar de baja»",
+    "successes": 1,
+    "failures": 0,
+    "median_time_s": 3.0,
+    "cost": 0.4055,
+    "preceding_actions": []
+   }
+  ],
+  "total_cost": 1.0987,
+  "estimated_probability": 0.333,
+  "total_median_time_s": 11.0
+ }
+}

@@ -1,0 +1,97 @@
+{
+ "profile": "mobile",
+ "profile_name": "Móvil",
+ "viewport": "390x844",
+ "model": "modelo",
+ "start_url": "https://www.ejemplo.test/",
+ "instruction": "Encontrar cómo dar de baja",
+ "engine": "claude-code",
+ "start": {
+  "url": "https://www.ejemplo.test/",
+  "title": "Inicio | Ejemplo",
+  "screenshot": "step_00.png"
+ },
+ "steps": [
+  {
+   "number": 1,
+   "action": "left_click",
+   "action_input": {
+    "coordinate": [
+     350,
+     30
+    ]
+   },
+   "description": "clic en (350, 30)",
+   "coordinates": [
+    350,
+    30
+   ],
+   "expectation": "Ir a la ayuda.",
+   "element": {
+    "tag": "a",
+    "text": "Ayuda",
+    "role": null,
+    "href": "/ayuda",
+    "type": null,
+    "id": null
+   },
+   "url_before": "https://www.ejemplo.test/",
+   "title_before": "Inicio | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_00.png",
+   "screenshot": "step_01.png",
+   "seconds_since_start": 3.0,
+   "duration_s": 3.0,
+   "screen_change": 0.7,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 2,
+   "action": "scroll",
+   "action_input": {
+    "scroll_direction": "down",
+    "scroll_amount": 5
+   },
+   "description": "scroll down x5",
+   "coordinates": [
+    512,
+    384
+   ],
+   "expectation": "Ver más opciones de ayuda.",
+   "element": null,
+   "url_before": "https://www.ejemplo.test/ayuda",
+   "title_before": "Ayuda | Ejemplo",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda | Ejemplo",
+   "screenshot_before": "step_01.png",
+   "screenshot": "step_02.png",
+   "seconds_since_start": 5.0,
+   "duration_s": 2.0,
+   "screen_change": 0.4,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  }
+ ],
+ "end_reason": "internal_error",
+ "final_message": "Error: Page.screenshot: Protocol error (Page.captureScreenshot): Unable to capture screenshot\nCall log:\n  - taking page screenshot\n",
+ "duration_s": 0.0,
+ "turns": 3,
+ "screenshots_requested": 0,
+ "incidents": [],
+ "token_usage": {
+  "input_tokens": 10,
+  "output_tokens": 100,
+  "cache_read_input_tokens": 0,
+  "cache_creation_input_tokens": 0,
+  "equivalent_cost_usd": 0.012
+ },
+ "final_screenshot": "step_02.png",
+ "verdict": {
+  "outcome": "abandoned",
+  "justification": "El intento se interrumpió (internal_error): Error: Page.screenshot: Protocol error (Page.captureScreenshot): Unable to capture screenshot\nCall log:\n  - taking page screenshot\n"
+ }
+}

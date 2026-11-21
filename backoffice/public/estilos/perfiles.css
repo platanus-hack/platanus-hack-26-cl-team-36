@@ -1,0 +1,194 @@
+/* Pestaña Perfiles (diseño §10.7). Todo selector va bajo .p-perfiles; los componentes compartidos no se reestilan. */
+
+.p-perfiles { display: grid; gap: var(--e-6); min-width: 0; }
+.p-perfiles .perfiles-cabecera { display: grid; gap: var(--e-3); max-width: 880px; }
+.p-perfiles .perfiles-titular { text-wrap: balance; }
+.p-perfiles .perfiles-bloque { margin: 0; gap: var(--e-3); min-width: 0; }
+.p-perfiles .perfiles-bloque-cabecera { display: grid; gap: 2px; }
+.p-perfiles .perfiles-ayuda { color: var(--texto-3); font-size: 12px; line-height: 16px; max-width: 96ch; text-wrap: pretty; }
+
+/* ── Leyendas ───────────────────────────────────────────────────────── */
+.p-perfiles .perfiles-leyenda {
+  display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4); color: var(--texto-3); font-size: 12px; line-height: 16px;
+}
+.p-perfiles .perfiles-leyenda > li { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ── Marcas por resultado (unidades, leyenda y puntos) ─────────────── */
+.p-perfiles .unidad { color: var(--neutro); }
+.p-perfiles .unidad-directo { color: var(--exito); }
+.p-perfiles .unidad-indirecto { color: var(--exito); }
+.p-perfiles .unidad-fallido { color: var(--peligro); }
+.p-perfiles .unidad-abandonado { color: var(--neutro); }
+.p-perfiles .unidad-error { color: var(--texto-2); }
+
+/* ── 1. Resultado: un punto por intento ─────────────────────────────── */
+.p-perfiles .unidades { display: grid; gap: var(--e-3); }
+.p-perfiles .unidades-filas { display: grid; gap: var(--e-1); max-width: 640px; }
+.p-perfiles .unidades-fila {
+  display: grid; grid-template-columns: minmax(96px, 160px) auto minmax(0, 1fr); align-items: center; gap: var(--e-3);
+  min-height: 32px;
+}
+.p-perfiles .unidades-nombre { color: var(--texto-1); font-weight: 500; }
+.p-perfiles .unidades-marcas { display: flex; flex-wrap: wrap; gap: var(--e-1); }
+.p-perfiles a.unidad, .p-perfiles .unidad-muestra {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radio-2);
+}
+.p-perfiles .unidad-muestra { width: 20px; height: 20px; }
+.p-perfiles a.unidad:hover { background: var(--superficie-2); text-decoration: none; }
+.p-perfiles a.unidad .icono { width: 18px; height: 18px; }
+.p-perfiles .unidad-error:is(a, .unidad-muestra) {
+  background: var(--rayado), var(--neutro-fondo); box-shadow: inset 0 0 0 1px var(--borde);
+}
+.p-perfiles .unidades-conteo { white-space: nowrap; color: var(--texto-3); font-size: 12px; }
+.p-perfiles .unidades-conteo .num { font-size: 13px; }
+
+/* ── 2. Perfiles × hitos ────────────────────────────────────────────── */
+.p-perfiles .calor-bloque { display: grid; gap: var(--e-3); min-width: 0; }
+/* position: relative: los textos .visualmente-oculto (position: absolute) de adentro quedan dentro de la caja que
+   desplaza; sin esto se salen y la página entera se ensancha. */
+.p-perfiles .calor-caja {
+  position: relative; overflow-x: auto; max-width: 100%; border: 1px solid var(--borde-sutil); border-radius: var(--radio-3);
+  background: var(--superficie-1); overscroll-behavior-x: contain;
+}
+.p-perfiles .calor { border-collapse: separate; border-spacing: 4px; width: 100%; min-width: calc(140px + var(--columnas, 4) * 112px); }
+.p-perfiles .calor th { font-weight: 500; text-align: start; vertical-align: bottom; }
+.p-perfiles .calor thead th { padding: var(--e-2) var(--e-2) var(--e-1); color: var(--texto-3); font-size: 12px; line-height: 16px; }
+.p-perfiles .calor-perfil {
+  position: sticky; inset-inline-start: 0; z-index: 1; background: var(--superficie-1);
+  width: 140px; max-width: 140px; padding-inline: var(--e-2); color: var(--texto-1);
+}
+.p-perfiles .calor tbody .calor-perfil { vertical-align: middle; }
+.p-perfiles .calor-hito { min-width: 104px; }
+.p-perfiles .calor-numero {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; margin-inline-end: 6px;
+  border-radius: var(--radio-pildora); background: var(--acento-sutil); color: var(--acento-fuerte);
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.p-perfiles .calor-pagina {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  color: var(--texto-2); margin-block-start: 2px;
+}
+.p-perfiles .calor-hito-url .calor-pagina { font-style: italic; color: var(--texto-3); }
+.p-perfiles .calor-url { color: var(--texto-3); }
+.p-perfiles .calor td { padding: 0; }
+.p-perfiles .calor-celda {
+  --v: 0;
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 var(--e-2);
+  border-radius: var(--radio-2); color: var(--texto-1);
+  background: color-mix(in oklch, var(--acento) calc(var(--v) * 55%), var(--superficie-2));
+  font-variant-numeric: tabular-nums;
+}
+.p-perfiles a.calor-celda:hover { text-decoration: none; box-shadow: inset 0 0 0 1px var(--borde-fuerte); color: var(--texto-1); }
+.p-perfiles a.calor-celda:focus-visible { outline-offset: 1px; }
+.p-perfiles .calor-cero { color: var(--texto-3); }
+.p-perfiles .calor-sin-validos { background: var(--rayado), var(--superficie-2); color: var(--texto-3); }
+.p-perfiles .calor-sale { color: var(--aviso); font-weight: 600; }
+.p-perfiles .calor-celda .insignia { color: var(--aviso); }
+.p-perfiles .calor-celda .insignia-peligro { color: var(--peligro-texto); }
+.p-perfiles .calor-rampa {
+  display: inline-block; width: 48px; height: 10px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--superficie-2), color-mix(in oklch, var(--acento) 55%, var(--superficie-2)));
+}
+
+/* ── 3. Métricas: una columna por métrica, filas alineadas ──────────── */
+.p-perfiles .metricas {
+  --alto-fila: 32px;
+  display: grid; grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr)); gap: var(--e-4) var(--e-5);
+}
+.p-perfiles .metrica { display: grid; grid-template-rows: auto 1fr; gap: var(--e-2); margin: 0; min-width: 0; }
+.p-perfiles .metrica-cabecera { display: grid; gap: 2px; align-content: start; }
+.p-perfiles .metrica-titulo { color: var(--texto-1); font-weight: 500; }
+.p-perfiles .metrica-definicion { color: var(--texto-3); font-size: 12px; line-height: 16px; text-wrap: pretty; }
+.p-perfiles .metrica-cuerpo { display: grid; grid-template-columns: 1fr; gap: var(--e-3); align-items: end; }
+.p-perfiles .metrica:first-child .metrica-cuerpo { grid-template-columns: minmax(80px, 140px) minmax(0, 1fr); }
+.p-perfiles .metrica-nombres { display: none; }
+.p-perfiles .metrica:first-child .metrica-nombres { display: grid; padding-block-end: 18px; }
+.p-perfiles .metrica-nombres > li { height: var(--alto-fila); line-height: var(--alto-fila); color: var(--texto-1); }
+.p-perfiles .metrica-lienzo { display: grid; gap: 2px; padding-inline: 10px; min-width: 0; }
+.p-perfiles .metrica-regla { position: relative; height: 16px; }
+.p-perfiles .metrica-ruta {
+  position: absolute; inset-inline-start: var(--x, 0); transform: translateX(-50%); white-space: nowrap;
+  color: var(--acento); font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums;
+}
+.p-perfiles .metrica-grafico { display: block; overflow: visible; max-width: none; }
+.p-perfiles .metrica-guia { stroke: var(--borde); stroke-width: 1; }
+.p-perfiles .metrica-ruta-linea { stroke: var(--acento); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.p-perfiles .metrica-sin-validos {
+  fill: var(--texto-3); font-size: 11px; font-style: italic; stroke: var(--fondo); stroke-width: 4px; paint-order: stroke;
+}
+.p-perfiles .metrica-eje {
+  display: flex; justify-content: space-between; color: var(--texto-3); font-size: 11px; line-height: 16px;
+  font-variant-numeric: tabular-nums; margin-inline: -10px;
+}
+.p-perfiles .punto-ancla { overflow: visible; max-width: none; }
+.p-perfiles .punto .icono { width: 16px; height: 16px; }
+.p-perfiles .punto-area { fill: transparent; }
+.p-perfiles a.punto:hover .punto-area, .p-perfiles a.punto:focus-visible .punto-area { fill: var(--superficie-3); }
+.p-perfiles a.punto:focus { outline: none; }
+.p-perfiles a.punto:focus-visible .punto-area { stroke: var(--anillo-foco); stroke-width: 2; }
+.p-perfiles .punto.unidad-error .icono { color: var(--texto-2); }
+
+/* ── 4. Intentos ────────────────────────────────────────────────────── */
+.p-perfiles .perfiles-tabla-caja { position: relative; min-width: 0; }
+.p-perfiles .perfiles-tabla td, .p-perfiles .perfiles-tabla th[scope="row"] { white-space: nowrap; }
+.p-perfiles .perfiles-tabla th[scope="row"] {
+  padding: var(--e-2) var(--e-3); border-bottom: 1px solid var(--borde-sutil); text-align: start;
+  font-size: 13px; line-height: 20px; letter-spacing: normal; text-transform: none; font-weight: 500;
+}
+.p-perfiles .perfiles-fila { cursor: pointer; }
+.p-perfiles .perfiles-fila-enlace { color: var(--texto-1); }
+.p-perfiles .perfiles-fila-enlace:focus-visible { outline-offset: 2px; }
+.p-perfiles .perfiles-fila:focus-within { background: var(--superficie-1); }
+.p-perfiles .perfiles-fila-error .perfiles-fila-enlace { color: var(--texto-2); }
+.p-perfiles .perfiles-tinte {
+  --v: 0;
+  background: color-mix(in oklch, var(--aviso) calc(var(--v) * 30%), transparent);
+}
+.p-perfiles .no-aplica { color: var(--texto-4); }
+.p-perfiles .perfiles-celda-ir { width: 24px; color: var(--texto-4); }
+.p-perfiles .perfiles-fila:hover .perfiles-celda-ir { color: var(--acento); }
+.p-perfiles .tira { display: inline-flex; gap: 2px; vertical-align: middle; }
+.p-perfiles .tira img {
+  width: 44px; height: 28px; object-fit: cover; object-position: top; border-radius: 2px;
+  background: var(--superficie-2); box-shadow: inset 0 0 0 1px var(--borde-sutil);
+}
+
+/* ── Anchos medios ──────────────────────────────────────────────────── */
+@media (max-width: 1099px) {
+  .p-perfiles .metricas { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .p-perfiles .metrica .metrica-cuerpo { grid-template-columns: minmax(72px, 120px) minmax(0, 1fr); }
+  .p-perfiles .metrica .metrica-nombres { display: grid; padding-block-end: 18px; }
+  .p-perfiles .perfiles-tabla-caja { overflow-x: auto; }
+}
+
+/* ── Teléfono: bloques apilados, métricas una por una, tabla en tarjetas ── */
+@media (max-width: 719px) {
+  .p-perfiles { gap: var(--e-5); }
+  .p-perfiles .unidades-fila { grid-template-columns: minmax(72px, 112px) auto minmax(0, 1fr); gap: var(--e-2); }
+  .p-perfiles .calor-perfil { width: 104px; max-width: 104px; }
+  .p-perfiles .calor { min-width: calc(104px + var(--columnas, 4) * 96px); }
+  .p-perfiles .calor-hito { min-width: 88px; }
+  .p-perfiles .metricas { grid-template-columns: minmax(0, 1fr); gap: var(--e-5); }
+
+  .p-perfiles .perfiles-tabla-caja { overflow: visible; }
+  .p-perfiles .perfiles-tabla, .p-perfiles .perfiles-tabla tbody { display: block; }
+  .p-perfiles .perfiles-tabla thead { display: none; }
+  .p-perfiles .perfiles-tabla tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--e-1) var(--e-3);
+    padding: var(--e-3); margin-block-end: var(--e-2);
+    background: var(--superficie-1); border: 1px solid var(--borde-sutil); border-radius: var(--radio-3);
+  }
+  .p-perfiles .perfiles-tabla td, .p-perfiles .perfiles-tabla th[scope="row"] {
+    display: flex; justify-content: space-between; gap: var(--e-2); padding: 0; border: 0; text-align: start;
+    white-space: normal; min-width: 0;
+  }
+  .p-perfiles .perfiles-tabla td[data-etiqueta]::before {
+    content: attr(data-etiqueta); color: var(--texto-3); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .p-perfiles .perfiles-tabla th[scope="row"] { grid-column: 1 / -1; font-size: 14px; }
+  .p-perfiles .perfiles-tabla td:nth-child(2) { grid-column: 1 / -1; justify-content: flex-start; }
+  .p-perfiles .perfiles-tabla td:nth-child(2)::before { display: none; }
+  .p-perfiles .perfiles-celda-tira { grid-column: 1 / -1; }
+  .p-perfiles .perfiles-celda-tira::before { display: none; }
+  .p-perfiles .perfiles-tabla .perfiles-celda-ir { display: none; }
+}

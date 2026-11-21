@@ -1,16 +1,24 @@
-// Backoffice v0: visor de solo lectura de las corridas del evaluador (.specs/backoffice-v0.md).
-// Sirve la página de public/ y una API que lee agents/.runs/. No gatilla nada ni llama a Claude.
+// Backoffice: visor de solo lectura de las corridas del evaluador (.specs/backoffice-v0.md).
+// Sirve la página de public/ y una API que lee las corridas a través de una fuente (lib/fuente.js;
+// por defecto, la carpeta agents/.runs/). No gatilla nada ni llama a Claude.
 //
-//   GET /api/tandas                       → resumen de cada tanda, de la más nueva a la más vieja
+//   GET /api/tandas                       → { carpeta, tandas: resumen de cada tanda, de la más nueva a la más vieja }
 //   GET /api/tandas/<tarea>/<fecha-hora>  → la tanda completa, ya derivada para las pantallas
 //   GET /archivos/<tarea>/<fecha-hora>/<perfil>/<step_NN.png | video.webm>
+//   GET /<ruta>.{html,js,css,svg,woff2}   → archivos de public/
+//
+// Solo responde a pedidos dirigidos a este computador (Host localhost, 127.0.0.1 o [::1] con el puerto del
+// servidor): así una página ajena no puede leer las corridas apuntando su dominio a 127.0.0.1 (DNS rebinding).
+// BACKOFFICE_HOSTS="otro.host:8080,…" agrega hosts permitidos (para cuando se sirva detrás de algo con acceso).
 
-import { createReadStream } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
-import { leerTanda, listarTandas, rutaDeArchivo } from "./lib/tandas.js";
+import { crearFuente } from "./lib/fuente.js";
+import { abrirArchivoDeIntento, leerTanda, listarTandas } from "./lib/tandas.js";
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const PUBLICO = path.join(AQUI, "public");
@@ -21,15 +29,17 @@ const TIPOS = {
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".webm": "video/webm",
+  ".woff2": "font/woff2",
 };
-const ARCHIVOS_PUBLICOS = new Set(["index.html", "app.js", "dom.js", "estilos.css", "telarana.js", "huella.js", "icono.svg"]);
+// Lo que se sirve de public/: cualquier archivo con estas extensiones, en minúsculas, a cualquier profundidad.
+const RUTA_PUBLICA = /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:html|js|css|svg|woff2)$/;
 
 // Las capturas muestran páginas de terceros y a veces datos de quien corrió la prueba: la página
 // solo carga lo propio (más las fuentes de Google) y nada de lo leído de una corrida se ejecuta.
 const CABECERAS_DE_SEGURIDAD = {
   "Content-Security-Policy":
     "default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self' https://fonts.googleapis.com; " +
-    "font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
+    "font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
 };
@@ -42,29 +52,81 @@ function responder(res, estado, tipo, cuerpo) {
 const responderJson = (res, estado, datos) =>
   responder(res, estado, "application/json; charset=utf-8", JSON.stringify(datos));
 
-async function servirArchivo(req, res, ruta) {
-  const tipo = TIPOS[path.extname(ruta)] ?? "application/octet-stream";
-  const { size } = await stat(ruta);
-  const cabeceras = { "Content-Type": tipo, "Cache-Control": "no-store", "Accept-Ranges": "bytes", ...CABECERAS_DE_SEGURIDAD };
-  // Los videos se piden por rangos para poder saltar al minuto de un paso.
-  const rango = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
-  if (rango && (rango[1] || rango[2])) {
-    const inicio = rango[1] ? Number(rango[1]) : Math.max(0, size - Number(rango[2]));
-    const fin = rango[1] && rango[2] ? Math.min(Number(rango[2]), size - 1) : size - 1;
-    if (inicio > fin || inicio >= size) {
-      res.writeHead(416, { "Content-Range": `bytes */${size}` });
-      return res.end();
-    }
-    res.writeHead(206, { ...cabeceras, "Content-Range": `bytes ${inicio}-${fin}/${size}`, "Content-Length": fin - inicio + 1 });
-    return createReadStream(ruta, { start: inicio, end: fin }).pipe(res);
-  }
-  res.writeHead(200, { ...cabeceras, "Content-Length": size });
-  createReadStream(ruta).pipe(res);
+// Lee la cabecera Range ("bytes=0-99", "bytes=100-", "bytes=-500"); null si no hay o no se entiende.
+export function leerRango(cabecera) {
+  const partes = /^bytes=(\d*)-(\d*)$/.exec(String(cabecera ?? "").trim());
+  if (!partes || (!partes[1] && !partes[2])) return null;
+  return {
+    ...(partes[1] ? { inicio: Number(partes[1]) } : {}),
+    ...(partes[2] ? { fin: Number(partes[2]) } : {}),
+  };
 }
 
-export function crearServidor({ raizCorridas }) {
+const tipoDe = (nombre) => TIPOS[path.extname(nombre)] ?? "application/octet-stream";
+
+// Envía un archivo abierto (de una fuente o de public/), con 206 si se pidió un rango.
+async function enviar(req, res, nombre, { cuerpo, tamano, rango }) {
+  const cabeceras = { "Content-Type": tipoDe(nombre), "Cache-Control": "no-store", "Accept-Ranges": "bytes", ...CABECERAS_DE_SEGURIDAD };
+  if (!cuerpo) {
+    res.writeHead(416, { ...CABECERAS_DE_SEGURIDAD, "Content-Range": `bytes */${tamano}` });
+    return res.end();
+  }
+  if (rango) {
+    res.writeHead(206, { ...cabeceras, "Content-Range": `bytes ${rango.inicio}-${rango.fin}/${tamano}`, "Content-Length": rango.fin - rango.inicio + 1 });
+  } else {
+    res.writeHead(200, { ...cabeceras, "Content-Length": tamano });
+  }
+  if (req.method === "HEAD") {
+    cuerpo.destroy();
+    return res.end();
+  }
+  try {
+    await pipeline(cuerpo, res);
+  } catch {
+    // El navegador cortó la descarga (por ejemplo, al saltar en un video): no es un error del servidor.
+  }
+}
+
+async function servirPublico(req, res, ruta) {
+  const info = await stat(ruta);
+  if (!info.isFile()) return responderJson(res, 404, { error: "No encontrado" });
+  const size = info.size;
+  return enviar(req, res, ruta, { cuerpo: createReadStream(ruta), tamano: size, rango: null });
+}
+
+const NOMBRES_LOCALES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * true si la cabecera Host apunta a este computador en `puerto` (o es uno de `extra`, en minúsculas).
+ * @param {string | undefined} host
+ * @param {number} puerto
+ * @param {Set<string>} [extra]
+ */
+export function hostPermitido(host, puerto, extra = new Set()) {
+  const texto = String(host ?? "").trim().toLowerCase();
+  if (!texto) return false;
+  if (extra.has(texto)) return true;
+  const partes = /^(\[[0-9a-f:.]+\]|[^:]+)(?::(\d+))?$/.exec(texto);
+  if (!partes || !NOMBRES_LOCALES.has(partes[1])) return false;
+  return partes[2] === undefined ? puerto === 80 : Number(partes[2]) === puerto;
+}
+
+const hostsDelEntorno = () =>
+  new Set(String(process.env.BACKOFFICE_HOSTS ?? "").split(",").map((host) => host.trim().toLowerCase()).filter(Boolean));
+
+/**
+ * @param {{ fuente?: import("./lib/fuente.js").Fuente, raizCorridas?: string, hostsPermitidos?: string[] }} opciones
+ *        `fuente` de donde leer las corridas; o `raizCorridas`, una carpeta (fuente de archivos).
+ *        `hostsPermitidos`: hosts extra ("otro.host:8080") además de localhost; por defecto, BACKOFFICE_HOSTS.
+ */
+export function crearServidor({ fuente, raizCorridas, hostsPermitidos } = {}) {
+  const origen = fuente ?? crearFuente({ tipo: "archivos", raiz: raizCorridas });
+  const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   return createServer(async (req, res) => {
     try {
+      if (!hostPermitido(req.headers.host, req.socket.localPort, extra)) {
+        return responderJson(res, 403, { error: "Host no permitido" });
+      }
       if (req.method !== "GET" && req.method !== "HEAD") {
         return responderJson(res, 405, { error: "Solo lectura" });
       }
@@ -77,21 +139,27 @@ export function crearServidor({ raizCorridas }) {
       }
 
       if (partes[0] === "api" && partes[1] === "tandas") {
-        if (partes.length === 2) return responderJson(res, 200, await listarTandas(raizCorridas));
-        const tanda = await leerTanda(raizCorridas, partes.slice(2).join("/"));
+        if (partes.length === 2) return responderJson(res, 200, await listarTandas(origen));
+        const tanda = await leerTanda(origen, partes.slice(2).join("/"));
         return tanda ? responderJson(res, 200, tanda) : responderJson(res, 404, { error: "No existe esa tanda" });
       }
 
       if (partes[0] === "archivos" && partes.length >= 4) {
         const archivo = partes.at(-1);
-        const perfil = partes.at(-2);
-        const id = partes.slice(1, -2).join("/");
-        const ruta = await rutaDeArchivo(raizCorridas, id, perfil, archivo);
-        return ruta ? servirArchivo(req, res, ruta) : responderJson(res, 404, { error: "No existe ese archivo" });
+        const abierto = await abrirArchivoDeIntento(origen, {
+          id: partes.slice(1, -2).join("/"),
+          perfil: partes.at(-2),
+          archivo,
+          rango: leerRango(req.headers.range) ?? undefined,
+        });
+        return abierto ? enviar(req, res, archivo, abierto) : responderJson(res, 404, { error: "No existe ese archivo" });
       }
 
-      const nombre = partes.length === 0 ? "index.html" : partes.length === 1 ? partes[0] : null;
-      if (nombre && ARCHIVOS_PUBLICOS.has(nombre)) return servirArchivo(req, res, path.join(PUBLICO, nombre));
+      const relativa = partes.length === 0 ? "index.html" : partes.join("/");
+      if (RUTA_PUBLICA.test(relativa)) {
+        const ruta = path.join(PUBLICO, relativa);
+        if (ruta.startsWith(PUBLICO + path.sep) && existsSync(ruta)) return servirPublico(req, res, ruta);
+      }
       return responderJson(res, 404, { error: "No encontrado" });
     } catch (error) {
       console.error(error);
@@ -102,11 +170,11 @@ export function crearServidor({ raizCorridas }) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const puerto = Number(process.env.PORT) || 4848;
-  const raizCorridas = path.resolve(
-    process.env.BACKOFFICE_CORRIDAS ?? path.join(AQUI, "..", "agents", ".runs"),
-  );
+  const fuente = crearFuente({
+    raiz: path.resolve(process.env.BACKOFFICE_CORRIDAS ?? path.join(AQUI, "..", "agents", ".runs")),
+  });
   // Solo en este computador: las corridas pueden mostrar datos de quien corrió la prueba.
-  const servidor = crearServidor({ raizCorridas });
+  const servidor = crearServidor({ fuente });
   servidor.on("error", (error) => {
     if (error.code !== "EADDRINUSE") throw error;
     console.error(
@@ -116,6 +184,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(1);
   });
   servidor.listen(puerto, "127.0.0.1", () => {
-    console.log(`Backoffice en http://localhost:${puerto} · corridas de ${raizCorridas}`);
+    console.log(`Backoffice en http://localhost:${puerto} · corridas de ${fuente.descripcion}`);
   });
 }

@@ -37,3 +37,44 @@ export function hostDe(url) {
     return "";
   }
 }
+
+// La URL normalizada sin la consulta: esquema + host + ruta (+ el fragmento de SPA, si lo hay).
+// Dos nodos con la misma rutaSinConsulta y el mismo título son la misma página (lib/paginas.js).
+export function rutaSinConsulta(texto) {
+  const normalizada = normalizarUrl(texto);
+  try {
+    const url = new URL(normalizada);
+    return `${url.protocol}//${url.host}${url.pathname}${url.hash}`;
+  } catch {
+    return normalizada.split("?")[0];
+  }
+}
+
+// La consulta de una URL normalizada, sin el "?": "s=dar+de+baja+fibra", o "" si no tiene.
+export function consultaDe(texto) {
+  const normalizada = normalizarUrl(texto);
+  try {
+    return new URL(normalizada).search.slice(1);
+  } catch {
+    return normalizada.includes("?") ? normalizada.split("?")[1].split("#")[0] : "";
+  }
+}
+
+// La ruta (path) de una URL, "/" si no se puede leer.
+export function caminoDe(texto) {
+  try {
+    return new URL(normalizarUrl(texto)).pathname || "/";
+  } catch {
+    return "/";
+  }
+}
+
+// "wom.cl/centro-de-ayuda": host y ruta, para mostrar un cambio de página en pocas letras.
+export function rutaLegible(texto) {
+  try {
+    const url = new URL(texto);
+    return `${url.hostname.replace(/^www\./, "")}${url.pathname}`;
+  } catch {
+    return String(texto ?? "");
+  }
+}
