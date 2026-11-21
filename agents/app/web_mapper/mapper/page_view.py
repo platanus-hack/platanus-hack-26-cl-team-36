@@ -14,6 +14,12 @@ def site_host(url: str) -> str:
     return normalize_url(url).split("/")[2]
 
 
+def same_site(url: str, start_url: str) -> bool:
+    """El host es el de la página inicial o un subdominio suyo."""
+    host, site = site_host(url), site_host(start_url)
+    return host == site or host.endswith(f".{site}")
+
+
 HELPERS_JS = r"""
 const clean = (s, n = 80) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
 // Un contenedor con scroll no oculta lo que tiene: desde él se sigue con su propia caja.
@@ -200,12 +206,12 @@ class Element:
         """El href si apunta al mismo sitio; los enlaces externos no se le muestran al modelo."""
         if not self.href:
             return None
-        return self.href if site_host(self.href) == site_host(page_url) else None
+        return self.href if same_site(self.href, page_url) or same_site(page_url, self.href) else None
 
     def leaves_site(self, start_url: str) -> bool:
-        """Si es un enlace web a otro host que el de la página inicial."""
+        """Si es un enlace web fuera del sitio de la página inicial."""
         return bool(self.href) and urlsplit(self.href).scheme in ("http", "https") and \
-            site_host(self.href) != site_host(start_url)
+            not same_site(self.href, start_url)
 
 
 @dataclass

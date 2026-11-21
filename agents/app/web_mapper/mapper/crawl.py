@@ -15,21 +15,25 @@ from mapper import config as mapper_config
 from mapper.goal_rules import page_gates
 from mapper.operate import Log
 from mapper.outline import PageOutline, SiteOutline, read_outline
-from mapper.page_view import site_host
+from mapper.page_view import same_site
 
 _ZONE_ORDER = {"nav": 0, "main": 1, "footer": 2}
 _SKIPPED_EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".zip", ".doc", ".docx", ".xls", ".xlsx", ".mp4")
 
 
-def _crawlable(url: str, host: str) -> bool:
+def _crawlable(url: str, start_url: str) -> bool:
     parts = urlsplit(url)
-    return parts.scheme in ("http", "https") and site_host(url) == host and not parts.path.lower().endswith(_SKIPPED_EXTENSIONS)
+    return (
+        parts.scheme in ("http", "https")
+        and same_site(url, start_url)
+        and not parts.path.lower().endswith(_SKIPPED_EXTENSIONS)
+    )
 
 
-def next_urls(page: PageOutline, host: str) -> list[str]:
+def next_urls(page: PageOutline, start_url: str) -> list[str]:
     """Enlaces del mismo sitio, primero los del encabezado y la navegación, después el contenido y el pie."""
     links = sorted(page.links, key=lambda link: _ZONE_ORDER[link.zone])
-    return list(dict.fromkeys(link.href for link in links if _crawlable(link.href, host)))
+    return list(dict.fromkeys(link.href for link in links if _crawlable(link.href, start_url)))
 
 
 async def _load(session: BrowserSession, url: str) -> int | None:
@@ -48,8 +52,7 @@ async def _load(session: BrowserSession, url: str) -> int | None:
 
 
 async def crawl(browser: Browser, profile: Profile, start_url: str, max_pages: int, max_depth: int, log: Log) -> SiteOutline:
-    host = site_host(start_url)
-    outline = SiteOutline(start_url, urlsplit(start_url).hostname or host, f"{profile.width}x{profile.height}", [], [])
+    outline = SiteOutline(start_url, urlsplit(start_url).hostname or "", f"{profile.width}x{profile.height}", [], [])
     queue: list[tuple[str, int]] = [(start_url, 0)]
     seen = {normalize_url(start_url)}
     context = await create_context(browser, profile)
@@ -67,7 +70,7 @@ async def crawl(browser: Browser, profile: Profile, start_url: str, max_pages: i
                 outline.failures.append(f"{url}: {error.message.splitlines()[0]}")
                 continue
             final_url = normalize_url(page.url)
-            if site_host(page.url) != host:
+            if not same_site(page.url, start_url):
                 outline.failures.append(f"{url}: redirige a otro sitio, {page.url}")
                 continue
             if final_url != normalize_url(url) and final_url in seen:
@@ -78,7 +81,7 @@ async def crawl(browser: Browser, profile: Profile, start_url: str, max_pages: i
             log(f"esquema {len(outline.pages)}/{max_pages} (profundidad {depth}): {page.title} — {page.url}")
             if depth >= max_depth:
                 continue
-            for link in next_urls(page, host):
+            for link in next_urls(page, start_url):
                 if normalize_url(link) not in seen:
                     seen.add(normalize_url(link))
                     queue.append((link, depth + 1))

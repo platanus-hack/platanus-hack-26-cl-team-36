@@ -1,5 +1,5 @@
 from mapper.operate import perform_step
-from mapper.page_view import element_for_ref, page_text, read_page_view
+from mapper.page_view import element_for_ref, page_text, read_page_view, same_site
 from mapper.prompts import render_view
 
 
@@ -93,3 +93,9 @@ def test_element_below_the_fold_of_an_inner_scroll_panel_is_usable(with_session)
         assert step.title_after == "Productos" and step.in_viewport is False
 
     with_session("app.html", body)
+
+
+def test_same_site_accepts_subdomains_of_the_start_host_only():
+    start = "https://www.sii.cl/"
+    assert same_site("https://homer.sii.cl/", start) and same_site("https://sii.cl/servicios_online", start)
+    assert not same_site("https://sii.cl.evil.com/", start) and not same_site("https://gob.cl/", "https://www.dt.gob.cl/")
