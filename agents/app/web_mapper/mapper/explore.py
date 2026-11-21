@@ -10,7 +10,8 @@ from browser import BrowserSession
 from route_tree import node_key
 
 from mapper import config
-from mapper.decider import Decider, Decision, DeciderError
+from mapper.claude import ClaudeCallError
+from mapper.decider import Decider, Decision
 from mapper.locators import record_locators
 from mapper.operate import ELEMENT_ACTIONS, ActionRejected, Log, perform_step
 from mapper.page_view import PageView, element_for_ref, read_page_view
@@ -111,7 +112,7 @@ async def _turn(session: BrowserSession, decider: Decider, instruction: str, exp
     except TimeoutError:
         exploration.end_reason = "time_limit"
         return
-    except DeciderError as error:
+    except ClaudeCallError as error:
         exploration.end_reason, exploration.message = "model_error", str(error)
         return
     outcome = await _apply(session, decision, view, exploration)

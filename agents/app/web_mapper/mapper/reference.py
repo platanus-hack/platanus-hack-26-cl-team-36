@@ -2,15 +2,15 @@
 
 import asyncio
 import shutil
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from playwright.async_api import Browser, async_playwright
+from playwright.async_api import Browser
 
-from browser import BrowserSession, connect_browser, create_context
+from browser import BrowserSession, create_context
 from profiles import PROFILES, Profile
 
+from mapper.claude import ClaudeCaller
 from mapper.decider import ClaudeDecider, Decider
 from mapper.explore import Exploration, explore
 from mapper.operate import Log
@@ -124,22 +124,16 @@ async def map_reference(browser: Browser, mapping: Mapping, decider: Decider) ->
     return document
 
 
-async def map_references(mappings: list[Mapping], cdp_url: str | None) -> list[dict | BaseException]:
-    """Mapea cada viewport en paralelo; el error de uno no detiene a los demás."""
-    # Carpeta vacía: Claude Code no carga CLAUDE.md ni memoria.
-    claude_cwd = Path(tempfile.mkdtemp(prefix="web_mapper-claude-"))
-    try:
-        async with async_playwright() as playwright:
-            browser = await connect_browser(playwright, cdp_url)
-            try:
-                return await asyncio.gather(*(
-                    map_reference(browser, mapping, ClaudeDecider(
-                        system_prompt(mapping.profile.width, mapping.profile.height),
-                        mapping.model, mapping.effort, claude_cwd, mapping.out_dir / "claude_code.log",
-                    ))
-                    for mapping in mappings
-                ), return_exceptions=True)
-            finally:
-                await browser.close()
-    finally:
-        shutil.rmtree(claude_cwd, ignore_errors=True)
+async def map_references(
+    browser: Browser, mappings: list[Mapping], claude_cwd: Path, concurrency: int
+) -> list[dict | BaseException]:
+    """Mapea varias rutas, a lo más `concurrency` a la vez; el error de una no detiene a las demás."""
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def one(mapping: Mapping) -> dict:
+        caller = ClaudeCaller(mapping.model, mapping.effort, claude_cwd, mapping.out_dir / "claude_code.log")
+        decider = ClaudeDecider(system_prompt(mapping.profile.width, mapping.profile.height), caller)
+        async with semaphore:
+            return await map_reference(browser, mapping, decider)
+
+    return await asyncio.gather(*(one(mapping) for mapping in mappings), return_exceptions=True)
