@@ -44,7 +44,7 @@ Dos palabras se usan siempre con un solo sentido:
 | **Salvaguarda** | Una tarea contraria que no debe volverse más difícil, como cancelar o rechazar un extra. | `guardrail` |
 | **Intento** | Un agente tratando de completar una tarea una vez. | `run` |
 | **Paso** | Una acción de un agente dentro de un intento. | `step` |
-| **Recorrido** | El registro paso a paso de un intento. Solo de agentes. | archivo en `runs/` |
+| **Recorrido** | El registro paso a paso de un intento. Solo de agentes. | archivo en `runs/` (se propone `agents/.runs/`) |
 | **Tanda** | Varios intentos lanzados juntos, con un tope de gasto. | `batch` |
 | **Grafo de navegación** | El resumen de muchos recorridos: etapas, por dónde se sigue y dónde se abandona. | `navigation graph` |
 | **Experimento** | La comparación de una variante contra el control para una tarea. Termina en aceptada, rechazada o no concluyente. | `experiment` |
@@ -57,8 +57,11 @@ Dos palabras se usan siempre con un solo sentido:
 | **Puente** | Programa local que conecta la extensión con Claude Code. | `bridge` |
 | **Extensión** | Lo que la persona instala en el navegador. | `extension` |
 | **Motor de parches** | Aplica, deshace y comprueba parches. Lo usan la extensión y el evaluador. | `patch engine` |
-| **Evaluador** | Lanza agentes que intentan una tarea y guarda sus recorridos. | `evaluator` |
-| **Optimizador** | Propone parches a partir del grafo de navegación y decide cuál se acepta. | `optimizer` |
+| **Evaluador** | Lanza agentes que intentan una tarea y guarda sus recorridos. Su diseño está en [evaluador](agents/evaluador.md). | `evaluator` (se propone `web_evaluator`) |
+| **Optimizador** | Propone parches a partir de lo que deja el evaluador y decide cuál se acepta. | `optimizer` (se propone `web_optimizer`) |
+| **Harness** | El programa que controla el ciclo de un agente: le entrega la captura, recibe su acción y la hace ejecutar. Es parte del evaluador. | `harness` |
+| **Ejecutor** | La parte del harness que realiza en el navegador la acción que pidió el agente y toma la captura siguiente. | `executor` |
+| **Juez** | La parte del evaluador que decide, con las condiciones de la tarea, si un intento se logró y en qué etapa va. Es lo único que lee la URL y el DOM. | `judge` |
 | **Almacén local** | Los archivos donde se guarda lo aprendido de cada sitio. | `local store` |
 
 ## El trabajo

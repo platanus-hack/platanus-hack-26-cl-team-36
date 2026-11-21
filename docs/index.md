@@ -201,5 +201,7 @@ La soul se guarda aparte y nunca se exporta.
 [El plan](plan.md) dice qué hay que averiguar primero y qué hay que construir.
 
 Material de apoyo: [investigación previa](investigacion-ui-adaptativa.md) sobre interfaces adaptativas y
-[referencias](referencias.md) de herramientas que podrían sumarse; y los [niveles de cambio a una
-página](agents.md), del estilo a una interfaz nueva, con su factibilidad.
+[referencias](referencias.md) de herramientas que podrían sumarse. Lo de los agentes está en [agents/](agents/README.md):
+el diseño del [evaluador](agents/evaluador.md), que usa una página solo a partir de capturas; la
+[arquitectura](agents/arquitectura.md), con los directorios y AgentCore; y los [niveles de cambio a una
+página](agents/niveles-de-cambio.md), del estilo a una interfaz nueva.
