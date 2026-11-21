@@ -8,6 +8,7 @@
 #   4. just local explore <url> "<task>"     synthetic users (calls Claude)
 #   5. just local backoffice                 viewer of those runs, at http://localhost:4848
 #   6. just local route <task>               reference route of a task (calls Claude)
+#      just local goals <url>                goal catalog of a site (calls Claude)
 #
 # Recipes run from the repo root, so every path here is relative to it. What `up`
 # leaves behind (process ids and logs) goes to local/.state/, outside git.
@@ -244,10 +245,10 @@ backoffice:
     @echo "Backoffice at http://localhost:4848 · Ctrl+C to stop"
     npm --prefix backoffice start
 
-# ── 6. Reference routes ───────────────────────────────────────────────────
+# ── 6. Mapper ─────────────────────────────────────────────────────────────
 
 # Finds and verifies the shortest route for a task in agents/tasks/. E.g. just local route wom-baja-fibra --viewports desktop,mobile
-[group('6. Reference routes · calls Claude, uses your plan')]
+[group('6. Mapper · calls Claude, uses your plan')]
 [working-directory('agents/app/web_mapper')]
 [positional-arguments]
 route task *options: _mapper_ready
@@ -256,6 +257,17 @@ route task *options: _mapper_ready
     task="$1"
     shift
     exec uv run main.py route --task "$task" ${1+"$@"}
+
+# Catalogs the goals a site offers and classifies them. E.g. just local goals https://www.wom.cl/ --routes 2
+[group('6. Mapper · calls Claude, uses your plan')]
+[working-directory('agents/app/web_mapper')]
+[positional-arguments]
+goals url *options: _mapper_ready
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$1"
+    shift
+    exec uv run main.py goals --url "$url" ${1+"$@"}
 
 [private]
 _mapper_ready:
