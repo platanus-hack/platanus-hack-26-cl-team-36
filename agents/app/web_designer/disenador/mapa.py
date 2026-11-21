@@ -2,8 +2,9 @@
 
 Solo lleva lo que sirve para diseñar: landmarks, encabezados, contenedores grandes (etiqueta, id, clases estables,
 rol, tamaño y posición en el documento), colores y tamaños de letra calculados de los nodos clave, los botones con
-fondo propio, los enlaces de la navegación (texto, href y un selector que los encuentra: la receta Tarea resalta los
-que llevan a la tarea sin inventar selectores) y los colores de los enlaces (el color de marca), las variables CSS del sitio declaradas en
+fondo propio, los enlaces de la navegación (texto, href y un selector que encuentra solo a ese elemento, o a sus
+copias en otro menú (`copias`), o null si no hay uno corto; nunca la etiqueta sola: la receta Tarea resalta los que
+llevan a la tarea sin inventar selectores) y los colores de los enlaces (el color de marca), las variables CSS del sitio declaradas en
 `:root`/`html`/`body` (hasta 40: primero las de color, y entre ellas las de fondo), conteos de enlaces y botones, y el esquema de color. Los ids y clases que parecen generados (hashes, números largos) o que
 necesitarían escaparse en CSS no se incluyen: el tema no puede usar barras invertidas.
 """
@@ -34,6 +35,66 @@ _MAPA_JS = r"""() => {
     if (el.id && estable(el.id)) return s + "#" + el.id;
     const c = clases(el).slice(0, 2);
     return c.length ? s + "." + c.join(".") : s;
+  };
+  // Un selector que encuentra solo a este elemento (para los botones y enlaces que la receta Tarea copia tal cual):
+  // id, clases, href (completo o su comienzo), aria-label o, si nada de eso lo distingue, su posición bajo el
+  // landmark o el id más cercano. null si no hay uno corto: nunca la etiqueta sola (`a` resalta todos los enlaces).
+  const citable = (valor) => valor.length <= 80 && !/['\\\n]/.test(valor);
+  const unico = (sel) => { try { return document.querySelectorAll(sel).length === 1; } catch { return false; } };
+  const selectorUnico = (el) => {
+    const etiqueta = el.tagName.toLowerCase();
+    const candidatos = [];
+    if (el.id && estable(el.id)) candidatos.push(etiqueta + "#" + el.id);
+    const c = clases(el);
+    if (c.length) candidatos.push(etiqueta + "." + c.slice(0, 2).join("."), etiqueta + "." + c.join("."));
+    const href = el.getAttribute("href");
+    if (href) {
+      const crudo = href.trim();
+      if (citable(crudo)) candidatos.push(etiqueta + "[href='" + crudo + "']");
+      const comienzo = crudo.slice(0, 60);
+      if (comienzo.length >= 8 && citable(comienzo)) candidatos.push(etiqueta + "[href^='" + comienzo + "']");
+    }
+    const aria = el.getAttribute("aria-label");
+    if (aria && citable(aria)) candidatos.push(etiqueta + "[aria-label='" + aria + "']");
+    const elegido = candidatos.find(unico);
+    if (elegido) return elegido;
+    // El mismo enlace en dos menús (escritorio y celular): el candidato dentro del ancestro que lo distingue (con id
+    // estable, un landmark o clases que solo tiene él).
+    for (let ancestro = el.parentElement, nivel = 0; ancestro && ancestro !== document.body && nivel < 8; ancestro = ancestro.parentElement, nivel += 1) {
+      const nombre = ancestro.tagName.toLowerCase();
+      const anclas = [];
+      if (ancestro.id && estable(ancestro.id)) anclas.push(nombre + "#" + ancestro.id);
+      if (/^(header|nav|main|footer|aside)$/.test(nombre)) anclas.push(nombre);
+      const ca = clases(ancestro);
+      if (ca.length) anclas.push(nombre + "." + ca.slice(0, 2).join("."));
+      for (const ancla of anclas.filter(unico)) {
+        const dentro = candidatos.map((candidato) => ancla + " " + candidato).find(unico);
+        if (dentro) return dentro;
+      }
+    }
+    // Posición: etiqueta:nth-of-type(n) hasta un ancla (id estable o landmark), como mucho 4 niveles (la regla de
+    // la skill para los selectores del tema).
+    const pasos = [];
+    for (let actual = el; actual && actual !== document.documentElement && pasos.length < 4; actual = actual.parentElement) {
+      const nombre = actual.tagName.toLowerCase();
+      if (actual !== el && actual.id && estable(actual.id)) { pasos.unshift(nombre + "#" + actual.id); break; }
+      if (actual !== el && /^(header|nav|main|footer|aside)$/.test(nombre) && unico(nombre)) { pasos.unshift(nombre); break; }
+      const hermanos = actual.parentElement ? [...actual.parentElement.children].filter((h) => h.tagName === actual.tagName) : [actual];
+      pasos.unshift(hermanos.length > 1 ? nombre + ":nth-of-type(" + (hermanos.indexOf(actual) + 1) + ")" : nombre);
+    }
+    const ruta = pasos.join(" > ");
+    return pasos.length > 1 && unico(ruta) ? ruta : null;
+  };
+  // Un enlace repetido tal cual en otro menú (el de escritorio y el del celular): si no hay un selector corto solo
+  // para él, sirve el de su href, que encuentra solo sus copias (mismo destino). El mapa dice cuántas son.
+  const selectorDeEnlace = (a) => {
+    const propio = selectorUnico(a);
+    if (propio) return { selector: propio };
+    const crudo = (a.getAttribute("href") || "").trim();
+    if (!crudo || !citable(crudo)) return { selector: null };
+    const sel = "a[href='" + crudo + "']";
+    const copias = document.querySelectorAll(sel).length;
+    return copias > 1 && copias <= 3 ? { selector: sel, copias } : { selector: null };
   };
   const estilo = (el) => {
     const cs = getComputedStyle(el);
@@ -100,7 +161,7 @@ _MAPA_JS = r"""() => {
     .filter(visible)
     .filter((el) => { const f = getComputedStyle(el).backgroundColor; return !transparente(f) && f !== fondoBody; })
     .slice(0, 6)
-    .map((el) => ({ ...nodo(el), texto: texto(el, 40) }));
+    .map((el) => ({ ...nodo(el), selector: selectorUnico(el), texto: texto(el, 40) }));
   // Enlaces de la cabecera y la navegación (hasta 15, sin repetir): texto visible, href sin consulta y un selector
   // que encuentra ese enlace. No se filtran por la tarea: el modelo elige.
   const enlacesDeNavegacion = (() => {
@@ -121,9 +182,7 @@ _MAPA_JS = r"""() => {
         const clave = rotulo + "|" + href;
         if (vistos.has(clave)) continue;
         vistos.add(clave);
-        const citable = crudo.length <= 80 && !/['\\]/.test(crudo);
-        const sel = a.id && estable(a.id) ? "a#" + a.id : citable ? "a[href='" + crudo + "']" : selector(a);
-        lista.push({ texto: rotulo, href: href.slice(0, 80), selector: sel });
+        lista.push({ texto: rotulo, href: href.slice(0, 80), ...selectorDeEnlace(a) });
       }
     }
     return lista;

@@ -199,3 +199,51 @@ def test_como_texto_recorta_los_enlaces_de_navegacion_antes_que_los_landmarks():
     assert json.loads(mapa.como_texto(base, max_caracteres=10**6)) == base
     # Un mapa viejo sin la lista tampoco falla.
     assert "enlaces_de_navegacion" not in json.loads(mapa.como_texto({k: v for k, v in base.items() if k != "enlaces_de_navegacion"}, 200))
+
+
+SELECTORES = """<!doctype html><meta charset="utf-8"><title>Selectores</title>
+<header><nav>
+  <a href="/uno">Uno</a>
+  <a href="https://ejemplo.test/cuenta/ingresar?volver=https%3A%2F%2Fejemplo.test%2Fservicios%2Ftramites%2Fpagina-muy-larga-de-verdad">Inicia sesión</a>
+  <a href="/con'comilla">Comilla</a>
+  <a class="item" href="/dos'x">Dos</a><a class="item" href="/tres'x">Tres</a>
+</nav>
+<div><div><div><ul><li><a href="/economia">Economía</a></li></ul></div></div></div>
+<div><div><div><ul><li><a href="/economia">Economía</a></li></ul></div></div></div>
+</header>
+<main>
+  <button style="background:#0a58ca;color:#fff">Anterior</button>
+  <button style="background:#0a58ca;color:#fff">Siguiente</button>
+  <button aria-label="Cerrar aviso" style="background:#c00;color:#fff">×</button>
+</main>"""
+
+
+def test_el_mapa_nunca_da_una_etiqueta_sola_y_cada_selector_encuentra_un_solo_elemento(tmp_path):
+    archivo = tmp_path / "selectores.html"
+    archivo.write_text(SELECTORES, encoding="utf-8")
+    resultado = {}
+
+    async def cuerpo(page):
+        resultado.update(await mapa.construir_mapa(page))
+        elegidos = [x["selector"] for x in resultado["enlaces_de_navegacion"] + resultado["botones_destacados"]]
+        resultado["cuantos"] = {s: await page.evaluate("(s) => document.querySelectorAll(s).length", s) for s in elegidos if s}
+
+    _en_pagina(archivo.as_uri(), cuerpo)
+    enlaces = {x["texto"]: x["selector"] for x in resultado["enlaces_de_navegacion"]}
+    botones = {x["texto"]: x["selector"] for x in resultado["botones_destacados"]}
+    assert enlaces["Uno"] == "a[href='/uno']"
+    # href largo: su comienzo; con comilla: la posición bajo el landmark (antes daba "a").
+    assert enlaces["Inicia sesión"].startswith("a[href^='https://ejemplo.test/cuenta/ingresar?")
+    assert enlaces["Comilla"] == "nav > a:nth-of-type(3)"
+    assert enlaces["Dos"] == "nav > a:nth-of-type(4)"
+    # Botones sin id ni clases (antes "button"): por su aria-label o por su posición.
+    assert botones["×"] == "button[aria-label='Cerrar aviso']"
+    assert botones["Anterior"] == "main > button:nth-of-type(1)" and botones["Siguiente"] == "main > button:nth-of-type(2)"
+    # El mismo enlace en dos menús iguales y hondos: el selector de su href, que encuentra solo sus 2 copias.
+    economia = next(x for x in resultado["enlaces_de_navegacion"] if x["texto"] == "Economía")
+    assert economia == {"texto": "Economía", "href": "/economia", "selector": "a[href='/economia']", "copias": 2}
+    for selector in [*enlaces.values(), *botones.values()]:
+        assert selector is None or not selector.isalpha(), selector
+    copias = {x["selector"]: x.get("copias", 1) for x in resultado["enlaces_de_navegacion"] + resultado["botones_destacados"] if x["selector"]}
+    assert resultado["cuantos"] and all(n == copias[s] for s, n in resultado["cuantos"].items()), resultado["cuantos"]
+    assert sum(1 for n in copias.values() if n == 1) >= 6, "los demás encuentran un solo elemento"
