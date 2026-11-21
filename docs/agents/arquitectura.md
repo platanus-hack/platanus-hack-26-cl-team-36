@@ -68,6 +68,24 @@ la URL o el DOM puede estar ahí.
 En el glosario siguen siendo "Evaluador" y "Optimizador"; en el código se proponen `web_evaluator` y `web_optimizer`.
 Se decide junto con la pregunta "¿Qué nombres se usan?" del plan (sección 6).
 
+## Flujo por sitio
+
+**Cada objetivo evaluable de un sitio pasa por el Mapeador y por el evaluador, y un resumen los compara.** Se
+comunican por archivos en `agents/.runs/`. El Mapeador decide en el catálogo qué objetivos se evalúan (`exclusion`) y
+con qué tarea (`instruction`); el evaluador solo lo lee. `just local site <url> <N>` corre todo.
+
+```mermaid
+flowchart LR
+  C["web_mapper goals<br/>catálogo"] -->|"goals.json"| R["web_mapper goals --routes<br/>ruta por objetivo"]
+  R -->|"reference/desktop/route.json"| E["web_evaluator --goals<br/>una tanda por objetivo"]
+  E -->|"report.md, reference_comparison.json"| S["summary.md<br/>Mapeador contra evaluador"]
+  E -.->|"proposed.json, si usó menos pasos"| A["web_mapper adopt<br/>verifica y adopta"]
+  A -.-> R
+```
+
+La ruta de referencia es la más corta verificada entre las exploradas. Por eso el Mapeador busca una más corta después
+de la primera, y un intento que usa menos pasos queda propuesto hasta que `adopt` lo verifica repitiéndolo.
+
 ## Del evaluador al optimizador
 
 **Lo que deja el evaluador es lo que lee el optimizador.** El optimizador ya está en [la propuesta](../index.md)

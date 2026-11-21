@@ -159,8 +159,10 @@ secuencia de nodos y s ∈ {0, 1}, el veredicto del juez.
   desplazamientos de un agente que solo ve capturas. Con el límite actual de 15 acciones, un `hard` deja poco margen:
   falta fijar `max_steps` en función de ℓ.
 - **La fórmula original de la desorientación** (raíz, definición de R, umbral), hasta leer Smith 1996.
-- **Rutas más cortas que la del mapeador.** Si un intento usa menos pasos que ℓ, e pasaría de 1: se acota con
-  min(1, e) y se registra el caso para corregir la ruta.
+- **Rutas más cortas que la del mapeador.** La ruta de referencia es la más corta verificada entre las exploradas, no
+  la mínima del sitio: el mapeador busca una más corta después de la primera, y un intento que usa menos pasos que ℓ
+  queda como propuesta que el mapeador verifica antes de adoptarla. Mientras tanto e se acota con min(1, e). Falta
+  saber cuántas exploraciones extra bastan y si la ruta es estable entre corridas.
 - **Escritorio y móvil.** La prominencia y la ruta cambian con el viewport; `mobile` necesitaría su propia ruta.
 - **El acuerdo del modelo en `level` e `intent`.** Clasificar a mano los objetivos de los tres sitios de
   [tareas en sitios chilenos](../tareas-sitios-chilenos.md) y medir cuántos coinciden con el mapeador.

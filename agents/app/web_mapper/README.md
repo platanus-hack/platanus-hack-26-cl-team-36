@@ -2,7 +2,7 @@
 
 El **Mapeador** lee el DOM de un sitio. Con `goals` cataloga los **objetivos** que el sitio ofrece a un visitante,
 clasificados según [niveles de tarea](../../../docs/agents/niveles-de-tarea.md). Con `route` encuentra la **ruta de
-referencia** de una tarea, el camino más corto que la cumple, y la verifica repitiéndola. Es la contraparte del [evaluador](../web_evaluator/README.md), que
+referencia** de una tarea, la más corta verificada entre las que explora. Es la contraparte del [evaluador](../web_evaluator/README.md), que
 solo ve capturas: sus intentos se comparan con esta ruta. Dónde va cada pieza está en
 [arquitectura](../../../docs/agents/arquitectura.md).
 
@@ -23,7 +23,8 @@ Usa módulos del evaluador (navegador, Claude Code local, nodos y perfiles) desd
 uv run main.py route --task wom-baja-fibra
 uv run main.py route --task sii-exencion-contribuciones --viewports desktop,mobile
 uv run main.py route --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
-uv run main.py goals --url https://www.wom.cl/ --routes 2
+uv run main.py goals --url https://www.wom.cl/ --routes all
+uv run main.py adopt --id wom-baja-fibra
 ```
 
 `route`:
@@ -33,6 +34,7 @@ uv run main.py goals --url https://www.wom.cl/ --routes 2
 | `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). La ruta queda en `agents/.runs/<id>/reference/<viewport>/`. |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. La ruta queda en `agents/.runs/reference/<viewport>/`. |
 | `--viewports` | Viewports separados por coma: `desktop` (1024x768, el de `first_time` y `hurried`) y `mobile` (390x844). Por defecto, `desktop`. |
+| `--shorter N` | Exploraciones más que buscan una ruta más corta que la primera verificada (por defecto 1). |
 | `--output` | Otra carpeta base en vez de `agents/.runs/<id>/`. |
 
 `goals`:
@@ -41,8 +43,16 @@ uv run main.py goals --url https://www.wom.cl/ --routes 2
 |---|---|
 | `--url` | Página inicial del sitio. El catálogo queda en `agents/.runs/<host>/goals/`. |
 | `--pages`, `--depth` | Topes del esquema (por defecto 30 páginas y profundidad 2). |
-| `--routes N` | Mapea la ruta de hasta N objetivos (por defecto 0). Cada ruta queda en `agents/.runs/<id>/reference/desktop/`. |
+| `--routes N` | Mapea la ruta de hasta N objetivos, o de todos con `all` (por defecto 0). Cada ruta queda en `agents/.runs/<id>/reference/desktop/`. |
+| `--shorter N` | Como en `route`. |
+| `--rerun` | Rehace el catálogo y las rutas. Sin esta opción se reutiliza `goals.json` y no se vuelve a mapear una ruta ya verificada. |
 | `--output` | Otra carpeta en vez de `agents/.runs/<host>/goals/`. |
+
+`adopt`:
+
+| Opción | Qué hace |
+|---|---|
+| `--id` | Tarea u objetivo cuyas propuestas del evaluador (`reference/<viewport>/proposed.json`) se verifican. |
 
 En los dos: `--model` y `--effort` (por defecto `claude-opus-5-5`, `high`) y `--cdp-url` para un navegador remoto.
 
@@ -53,7 +63,8 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 | Módulo | Qué hace |
 |---|---|
 | `main.py`, `mapper/route_command.py`, `mapper/goals_command.py` | Punto de entrada y cada subcomando. |
-| `mapper/reference.py` | Una ruta: explorar, destilar, verificar, minimizar y escribir. |
+| `mapper/reference.py` | Una ruta: explorar, destilar, verificar, minimizar, buscar una más corta y escribir. |
+| `mapper/candidates.py` | Rutas candidatas, cuál gana y la instrucción que pide una más corta. |
 | `mapper/explore.py` | El ciclo: vista del DOM → modelo → acción → historial. |
 | `mapper/page_view.py` | La vista: encabezados, elementos interactivos con ref y estado, y texto visible. |
 | `mapper/operate.py` | Ejecuta una acción sobre un elemento y registra el paso. |
@@ -65,6 +76,7 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 | `mapper/outline.py`, `mapper/crawl.py` | Esquema de cada página y recorrido del sitio. |
 | `mapper/catalog.py`, `mapper/goal_rules.py` | Objetivos propuestos por el modelo; validación y campos sin modelo. |
 | `mapper/goals.py`, `mapper/goal_routes.py`, `mapper/goals_output.py` | El objetivo, sus rutas y la escritura del catálogo. |
+| `mapper/adopt.py`, `mapper/adopt_command.py` | Verificación y adopción de una ruta propuesta por el evaluador. |
 
 ### Ruta (`route`)
 
@@ -79,6 +91,10 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 3. **Verificar y minimizar.** La ruta se repite en un contexto nuevo con los localizadores registrados. Si llega al
    mismo nodo final y la cita está en la página, queda `verified`. Después se prueba quitar cada acción que no cambia
    de página y se conserva la ruta más corta que sigue verificando. Esta fase no llama al modelo.
+4. **Buscar una más corta.** Con `--shorter N`, después de la primera ruta verificada se explora hasta N veces más con
+   la ruta conocida en la instrucción, pidiendo una estrictamente más corta y atendiendo a lo que destaca en la
+   captura. Cada candidata pasa por los pasos 2 y 3 con su propia cita. Queda la verificada con menos `min_steps` (a
+   igualdad, menos acciones); `search` en route.json registra cada intento.
 - **Límites:** 40 acciones, 60 turnos y 15 minutos de exploración. Los envíos de formularios POST o con contraseña se
   cancelan, como en el evaluador.
 - **Pasos mínimos** (`min_steps`) en la unidad del evaluador: un clic o una tecla es 1, escribir o elegir en una lista
@@ -99,13 +115,23 @@ Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume l
 4. **Rutas.** Con `--routes N`, se mapean los `user_goal` sin `login`, `personal_data` ni `bot_check`, primero los
    menos prominentes. Como el Mapeador no envía formularios, en un objetivo `transact` la instrucción le pide llegar
    hasta el paso anterior al envío; la ruta no prueba el envío.
+5. **Para el evaluador.** Cada objetivo guarda `instruction`, la tarea que reciben el Mapeador y el evaluador, y
+   `exclusion`, por qué el evaluador no lo intenta (nivel o barrera) o `null`.
+
+### Adopción (`adopt`)
+
+Cuando un intento del evaluador logra la tarea con menos pasos que la referencia, deja `proposed.json` junto a ella.
+`adopt` la repite con localizadores sacados del texto y el href que el evaluador registró de cada elemento clicado.
+Si llega a la página final del intento, la cita de la referencia está en ella y tiene menos `min_steps`, reemplaza a
+route.json. `status` de la propuesta queda `promoted`, `not_shorter`, `unverified` o `stale`.
 
 ## Salida
 
 ```
 agents/.runs/<tarea>/reference/<viewport>/
-├── route.json        estado, respuesta, cita, totales, pasos, exploración y verificación
+├── route.json        estado, respuesta, cita, totales, pasos, exploración, verificación y búsqueda
 ├── route.md
+├── proposed.json     ruta propuesta por el evaluador, si alguna vez usó menos pasos
 ├── step_NN.png       la pantalla después de cada paso (step_00 es el inicio)
 └── claude_code.log
 ```
@@ -118,6 +144,7 @@ agents/.runs/<host>/goals/
 ├── outline.json      el esquema del sitio
 ├── goals.json        los objetivos: cada uno tiene la forma de una tarea de agents/tasks/ y se promueve copiándolo
 ├── goals.md          tabla agrupada por summary
+├── summary.md/json   resumen del sitio, que escribe el evaluador
 └── claude_code.log
 ```
 
