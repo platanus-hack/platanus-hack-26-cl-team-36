@@ -42,7 +42,8 @@ jobs:
           cache: npm
 
       # La CLI empaqueta el código de Python con uv.
-      - uses: astral-sh/setup-uv@v10
+      # setup-uv ya no publica un tag por versión mayor (no existe @v10): va la versión exacta.
+      - uses: astral-sh/setup-uv@v10.4.0
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
