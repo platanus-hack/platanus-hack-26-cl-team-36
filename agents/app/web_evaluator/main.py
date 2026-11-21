@@ -82,6 +82,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="local: Chromium en tu computador (por defecto). agentcore: AgentCore Browser en AWS, una sesión por usuario.",
     )
     parser.add_argument("--cdp-url", default=None, help="navegador remoto vía CDP, con --browser local")
+    parser.add_argument(
+        "--record-video",
+        action="store_true",
+        help="graba un video .webm de cada intento, además de las capturas de cada paso",
+    )
     return parser
 
 
@@ -125,6 +130,7 @@ def main() -> None:
         cdp_url=args.cdp_url,
         task_id=args.task,
         browser=args.browser,
+        record_video=args.record_video,
     ))
     print(f"\nListo. Reporte: {display_path(batch_dir / 'report.md')}")
 

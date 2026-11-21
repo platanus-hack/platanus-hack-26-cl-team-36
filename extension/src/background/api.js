@@ -1,12 +1,12 @@
 // Cliente del backend (ver backend/index.js).
 //
-//   POST {API_URL}/temas/buscar   { "url": "https://www.youtube.com" }
+//   POST {urlDeLaApi()}/temas/buscar   { "url": "https://www.youtube.com" }   (ver config.js)
 //     { success: true,  tema: "youtube" } → hay tema
 //     { success: false, ... }             → el sitio no tiene tema (la API responde 404)
 //
 // Solo se envía el origen (esquema + dominio), nunca la ruta ni los parámetros.
 
-import { API_URL } from "./config.js";
+import { urlDeLaApi } from "./config.js";
 
 // Si el backend no responde a tiempo, se trata como caído (no se aplica tema).
 const TIEMPO_MAXIMO_MS = 2000;
@@ -14,7 +14,7 @@ const TIEMPO_MAXIMO_MS = 2000;
 // Devuelve el id del tema, o null si el sitio no tiene tema.
 // Lanza error si el backend no responde o responde algo inesperado.
 export async function consultarTema(url) {
-  const respuesta = await fetch(`${API_URL}/temas/buscar`, {
+  const respuesta = await fetch(`${await urlDeLaApi()}/temas/buscar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url: new URL(url).origin }),

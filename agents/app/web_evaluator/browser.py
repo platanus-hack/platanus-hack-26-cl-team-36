@@ -6,6 +6,8 @@ Browser por usuario, sin tocar el resto del código.
 """
 
 import asyncio
+import time
+from pathlib import Path
 
 from playwright.async_api import Browser, BrowserContext, Dialog, Page, Playwright, Response
 from playwright.async_api import Error as PlaywrightError
@@ -108,8 +110,12 @@ def open_browsers(playwright: Playwright, kind: str = "local", cdp_url: str | No
     return SharedBrowser(playwright, cdp_url)
 
 
-async def create_context(browser: Browser, profile: Profile) -> BrowserContext:
-    """Contexto aislado (cookies, caché) con el viewport del perfil y escala 1:1."""
+async def create_context(browser: Browser, profile: Profile, video_dir: Path | None = None) -> BrowserContext:
+    """Contexto aislado (cookies, caché) con el viewport del perfil y escala 1:1.
+
+    Con `video_dir`, Playwright graba un video .webm por pestaña, al tamaño del viewport.
+    Los archivos recién quedan escritos al cerrar el contexto: ver `BrowserSession.save_videos`.
+    """
     options: dict = {
         "viewport": {"width": profile.width, "height": profile.height},
         "device_scale_factor": 1,  # un píxel de la captura = una coordenada de clic
@@ -118,6 +124,11 @@ async def create_context(browser: Browser, profile: Profile) -> BrowserContext:
     }
     if profile.mobile:
         options.update(is_mobile=True, has_touch=True, user_agent=MOBILE_USER_AGENT)
+    if video_dir is not None:
+        options.update(
+            record_video_dir=str(video_dir),
+            record_video_size={"width": profile.width, "height": profile.height},
+        )
     context = await browser.new_context(**options)
     await context.add_init_script(FORM_GUARD_SCRIPT)
     return context
@@ -132,8 +143,11 @@ class BrowserSession:
         self.page: Page | None = None
         self.events: list[str] = []          # se vacía después de cada paso
         self.http_status: int | None = None  # último estado HTTP del documento principal
+        self.pages: list[Page] = []          # todas las pestañas, en orden de apertura (una por video)
+        self.opened_at: float | None = None  # time.monotonic() al abrir la primera pestaña: el 0:00 del video
 
     async def open(self, url: str) -> None:
+        self.opened_at = time.monotonic()  # Playwright empieza a grabar al crear la página
         page = await self.context.new_page()
         self._watch(page)
         self.page = page
@@ -151,6 +165,7 @@ class BrowserSession:
         self.events.clear()
 
     def _watch(self, page: Page) -> None:
+        self.pages.append(page)
         page.on("dialog", self._on_dialog)
         page.on("response", lambda response, watched=page: self._on_response(watched, response))
 
@@ -188,6 +203,29 @@ class BrowserSession:
     async def screenshot(self) -> bytes:
         """Captura solo del viewport, nunca de la página completa."""
         return await self.page.screenshot(type="png", full_page=False, timeout=15_000)
+
+    async def save_videos(self, run_dir: Path, incidents: list[str]) -> list[str]:
+        """Deja el video de cada pestaña como video.webm, video-2.webm... Llamar tras cerrar el contexto.
+
+        El número es el orden de la pestaña: video.webm es siempre la primera, la que siguen los minutos del reporte.
+        Un video que no se pudo guardar queda anotado en `incidents`.
+        """
+        names: list[str] = []
+        for number, page in enumerate(self.pages, start=1):
+            if page.video is None:
+                continue
+            name = "video.webm" if number == 1 else f"video-{number}.webm"
+            try:
+                source = Path(await page.video.path())
+                source.replace(run_dir / name)
+            except Exception:
+                try:  # navegador remoto: el archivo no está en este disco y hay que descargarlo
+                    await page.video.save_as(run_dir / name)
+                except Exception as error:
+                    incidents.append(f"no se pudo guardar {name}: {type(error).__name__}: {error}"[:300])
+                    continue
+            names.append(name)
+        return names
 
     async def url_and_title(self) -> tuple[str, str]:
         url = self.page.url

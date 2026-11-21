@@ -113,12 +113,19 @@ class Step:
     title: str
     screenshot_before: str
     screenshot: str
-    seconds_since_start: float
+    seconds_since_start: float  # = settled_s; se mantiene con este nombre para el árbol y reportes anteriores
     duration_s: float           # desde el fin del paso anterior: decisión del modelo + ejecución
     screen_change: float
     signals: list[str] = field(default_factory=list)
     error_detail: str | None = None
     events: list[str] = field(default_factory=list)
+    # Trazabilidad: tres momentos del paso, en segundos desde el inicio del intento y en hora local ISO 8601.
+    decided_s: float | None = None  # el modelo devolvió el turno que pidió esta acción
+    executed_s: float = 0.0         # justo antes de ejecutar el clic, la tecla o el scroll
+    settled_s: float = 0.0          # la página terminó de reaccionar y se tomó la captura
+    decided_at: str = ""
+    executed_at: str = ""
+    settled_at: str = ""
 
 
 @dataclass
@@ -132,6 +139,7 @@ class Run:
     start_url: str
     instruction: str
     engine: str = ""
+    started_at: str = ""                            # hora local ISO 8601 del segundo 0 del intento
     start: dict = field(default_factory=dict)       # url, title, screenshot
     steps: list[Step] = field(default_factory=list)
     # done | blocked | gave_up | step_limit | time_limit | refusal | api_error | no_response | internal_error
@@ -143,6 +151,8 @@ class Run:
     incidents: list[str] = field(default_factory=list)
     token_usage: dict = field(default_factory=dict)
     final_screenshot: str = ""
+    videos: list[str] = field(default_factory=list)  # con --record-video: video.webm y uno más por pestaña nueva
+    video_offset_s: float = 0.0                     # segundo del video en que empieza el intento (carga inicial)
     verdict: dict = field(default_factory=dict)     # outcome, justification y, si aplica, model_verdict
 
     def to_dict(self) -> dict:

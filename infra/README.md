@@ -61,6 +61,9 @@ alerta avisa al pasar el 50 % y el 100 % de 20 USD al mes, contando el gasto ant
 - Secreto `SYNC_TOKEN`: un token fine-grained (GitHub → Settings → Developer settings → Fine-grained tokens) con
   acceso solo a `hackathon-grupo36`, y permisos *Contents* y *Workflows* en lectura y escritura. El token por defecto
   de Actions no sirve: no puede subir cambios a `.github/workflows/` y lo que sube no dispara otros workflows.
+- Secretos `WEB_EXT_API_KEY` y `WEB_EXT_API_SECRET`: las claves de addons.mozilla.org para el workflow
+  `Publicar extensión`, que firma la extensión al subir un tag `vX.Y.Z` (ver `extension/README.md`).
+  Se cargan desde un `extension/.env` con `gh secret set -f extension/.env -R brayanmoreno/hackathon-grupo36`.
 
 **3. Primera copia.** El workflow de sincronización solo corre cuando ya está en `main` del repo personal, así que la
 primera copia se hace a mano, después de mergear esta PR:
@@ -70,7 +73,7 @@ git switch main && git pull
 git push git@github.com:brayanmoreno/hackathon-grupo36.git main
 ```
 
-Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resumen en `API_URL` de
+Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resumen en `API_URL_AWS` de
 `extension/src/background/config.js`, sin el `/` final.
 
 ## Día a día

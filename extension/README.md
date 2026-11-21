@@ -187,7 +187,7 @@ npm run dev:backend   # http://localhost:4747
 En cada página, la extensión hace:
 
 ```
-POST http://localhost:4747/temas/buscar
+POST <URL de la API>/temas/buscar
 { "url": "https://www.youtube.com" }      ← solo el origen, nunca la ruta ni parámetros
 ```
 
@@ -200,9 +200,16 @@ POST http://localhost:4747/temas/buscar
 Hoy el backend responde `success: true` para YouTube (`youtube.com` y subdominios) y Gmail
 (`mail.google.com`), y `success: false` para el resto.
 
-La URL del backend está en `src/background/config.js`. `host_permissions` del manifest
-debe cubrir su dominio **sin puerto**: Firefox no acepta puertos en esos patrones, y con
-puerto la request sale como CORS y falla. Hoy lo cubre `http://*/*`.
+La URL de la API depende de cómo está cargada la extensión (`src/background/config.js`):
+
+- **Modo desarrollo** (`npm run dev`, `just local up`): la API local, `http://localhost:4747`.
+  Sin el backend local corriendo no se aplica ningún tema.
+- **Instalada** (`.xpi` firmado): la API desplegada en AWS (ver [infra/README.md](../infra/README.md)).
+  Los cambios de `backend/` llegan ahí solos después de mergearse.
+
+`host_permissions` del manifest debe cubrir los dos dominios **sin puerto**: Firefox no
+acepta puertos en esos patrones, y con puerto la request sale como CORS y falla. Hoy los
+cubren `http://*/*` y `https://*/*`.
 
 Lo que hay que tener en cuenta:
 
@@ -222,6 +229,26 @@ Lo que hay que tener en cuenta:
 Firefox solo instala de forma permanente extensiones firmadas por Mozilla. La firmamos
 como **no listada**: no aparece en la tienda y se distribuye como `.xpi` descargable.
 
+### Con un tag (lo normal)
+
+Desde `main` actualizado, con un número de versión mayor que el último publicado:
+
+```bash
+git tag v0.3.0 && git push origin v0.3.0
+```
+
+El workflow `Publicar extensión` del repo personal ([infra/README.md](../infra/README.md))
+toma la versión del tag, corre los tests, firma en Mozilla y crea un release con el `.xpi`
+en [brayanmoreno/hackathon-grupo36/releases](https://github.com/brayanmoreno/hackathon-grupo36/releases).
+Ese repo es privado: solo el equipo puede descargarlo. Tarda unos minutos, más lo que tarde
+la sincronización en copiar el tag si tu `origin` no sube a los dos repos.
+
+- No hace falta cambiar `version` en `manifest.json`: manda el tag.
+- Mozilla no firma dos veces la misma versión. Si la firma falla después de subirla, usa el
+  número siguiente en vez de repetir el tag.
+
+### A mano
+
 1. Crea una cuenta en addons.mozilla.org y genera tus credenciales en
    https://addons.mozilla.org/developers/addon/api/key/ (si te pide aceptar el acuerdo
    de distribución, acéptalo).
@@ -236,8 +263,8 @@ como **no listada**: no aparece en la tienda y se distribuye como `.xpi` descarg
 4. Súbelo a un release de GitHub (o cualquier link https). Quien abra ese link en Firefox
    puede instalarla.
 
-Mientras la API esté en `localhost:4747`, la extensión instalada solo aplica temas en un
-computador que tenga el backend corriendo (`npm run dev:backend`).
+La extensión instalada usa la API en AWS, así que funciona en cualquier computador sin
+levantar el backend.
 
 - Cada versión nueva que firmes necesita un número de `version` mayor en `manifest.json`.
 - El id (`browser_specific_settings.gecko.id`) queda asociado a la cuenta de AMO que firma
