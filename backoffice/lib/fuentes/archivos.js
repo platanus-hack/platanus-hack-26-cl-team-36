@@ -1,12 +1,12 @@
-// Fuente de corridas en el sistema de archivos: una carpeta con <tarea>/<fecha-hora>/ (o <fecha-hora>/)
-// por tanda, cada una con route_tree.json, criteria.json y una carpeta por perfil.
+// Fuente de corridas en el sistema de archivos, con el layout de agents/shared (shared.store): cada tanda es una
+// corrida <host>/visitor/<objetivo>/<corrida>/ con route_tree.json, criteria.json y una carpeta por perfil.
 
 import { createReadStream, existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const NOMBRE_DE_TANDA = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
+const NOMBRE_DE_CORRIDA = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z(_\d{2})?$/;
 const RAIZ_DEL_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const RAIZ_POR_DEFECTO = path.join(RAIZ_DEL_REPO, "agents", ".runs");
 
@@ -40,14 +40,11 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
 
     async listarIds() {
       const ids = [];
-      for (const nombre of await subcarpetas(base)) {
-        if (NOMBRE_DE_TANDA.test(nombre)) {
-          if (existsSync(path.join(base, nombre, "route_tree.json"))) ids.push(nombre);
-          continue;
-        }
-        for (const fecha of await subcarpetas(path.join(base, nombre))) {
-          if (NOMBRE_DE_TANDA.test(fecha) && existsSync(path.join(base, nombre, fecha, "route_tree.json"))) {
-            ids.push(`${nombre}/${fecha}`);
+      for (const host of await subcarpetas(base)) {
+        for (const objetivo of await subcarpetas(path.join(base, host, "visitor"))) {
+          for (const corrida of await subcarpetas(path.join(base, host, "visitor", objetivo))) {
+            const id = `${host}/visitor/${objetivo}/${corrida}`;
+            if (NOMBRE_DE_CORRIDA.test(corrida) && existsSync(rutaDe(id, "route_tree.json"))) ids.push(id);
           }
         }
       }

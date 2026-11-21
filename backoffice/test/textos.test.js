@@ -77,7 +77,7 @@ function sinRestos(texto) {
 }
 
 test("tanda nueva: titular y hallazgos en español e inglés", async () => {
-  const tanda = await leerTanda(RAIZ, "tarea-demo/2026-11-21_11-00-00");
+  const tanda = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z");
   assert.equal(textoDeTitular(tanda.titulares.tanda, tanda, es), "2 de 3 llegan a la respuesta. No llega: Adulto mayor.");
   assert.equal(textoDeTitular(tanda.titulares.tanda, tanda, en), "2 of 3 reach the answer. Did not reach it: Adulto mayor.");
   assert.deepEqual(tanda.hallazgos.map((h) => textoDeHallazgo(h, tanda, es)), [
@@ -104,13 +104,13 @@ test("tanda nueva: titular y hallazgos en español e inglés", async () => {
 });
 
 test("el titular de Corridas se resuelve con el resumen de la tanda", async () => {
-  const tanda = await leerTanda(RAIZ, "tarea-demo/2026-11-21_11-00-00");
+  const tanda = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z");
   const resumen = { perfiles: tanda.intentos.map((i) => ({ intento: i.id, perfil: i.perfil, nombre: i.nombrePerfil })) };
   assert.equal(textoDeTitular(tanda.titulares.tanda, resumen, es), "2 de 3 llegan a la respuesta. No llega: Adulto mayor.");
 });
 
 test("todo lo de las dos tandas se escribe sin restos de claves ni variables", async () => {
-  for (const id of ["tarea-demo/2026-11-21_10-00-00", "tarea-demo/2026-11-21_11-00-00"]) {
+  for (const id of ["demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z", "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z"]) {
     const tanda = await leerTanda(RAIZ, id);
     for (const t of [es, en]) {
       for (const hallazgo of tanda.hallazgos) sinRestos(textoDeHallazgo(hallazgo, tanda, t));

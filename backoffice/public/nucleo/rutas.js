@@ -18,10 +18,11 @@ export const NOMBRES_DE_PESTANA = Object.freeze({
   perfiles: "comun.pestana.perfiles",
 });
 
-const FECHA_HORA = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
-// La tarea de un tandaId (lo que va antes de la fecha): un solo segmento que no empieza con "." ni trae "/", "\\"
-// o caracteres de control, para que el id nunca arme otra ruta al pedirlo ("..%2F..%2Fx" → "../../x").
-const TAREA_SEGURA = /^[^./\\\u0000-\u001f][^/\\\u0000-\u001f]*$/;
+// Un tandaId es "<host>/visitor/<objetivo>/<corrida>" (layout de agents/shared).
+const CORRIDA = /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z(_\d{2})?$/;
+// Cada segmento antes de la corrida: no empieza con "." ni trae "/", "\\" o caracteres de control, para que el id
+// nunca arme otra ruta al pedirlo ("..%2F..%2Fx" → "../../x").
+const SEGMENTO_SEGURO = /^[^./\\\u0000-\u001f][^/\\\u0000-\u001f]*$/;
 
 // Orden estable de los parámetros conocidos; los demás van después, en orden alfabético.
 const ORDEN_DE_PARAMETROS = {
@@ -97,9 +98,10 @@ export function parsearHash(hash) {
 
   if (partes[0] === "t") {
     const resto = partes.slice(1);
-    const fin = resto.findIndex((parte) => FECHA_HORA.test(parte));
-    if (fin === -1) return { tipo: "desconocida", hash: original };
-    if (fin > 1 || (fin === 1 && !TAREA_SEGURA.test(resto[0]))) return { tipo: "desconocida", hash: original };
+    const fin = resto.findIndex((parte) => CORRIDA.test(parte));
+    if (fin !== 3 || resto[1] !== "visitor" || !resto.slice(0, 3).every((parte) => SEGMENTO_SEGURO.test(parte))) {
+      return { tipo: "desconocida", hash: original };
+    }
     const tandaId = resto.slice(0, fin + 1).join("/");
     const despues = resto.slice(fin + 1);
     if (despues.length > 1) return { tipo: "desconocida", hash: original };
