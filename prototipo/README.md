@@ -110,5 +110,5 @@ Hacker News quedaron adaptados en 6,6 s, 9,7 s y 8,7 s, y al recargar la piel se
 - **Una instrucción global** y una piel por sitio y patrón de ruta. Cambiar la instrucción regenera en la siguiente
   visita.
 - **Fuera de este prototipo:** valoraciones, preferencias recordadas, recorridos, servidor central y recomendaciones.
-- **Distinto de `specs/MVP.md`:** el puente es Python con `claude -p` en vez de Node con el Agent SDK; el complemento
+- **Distinto de `.specs/MVP.md`:** el puente es Python con `claude -p` en vez de Node con el Agent SDK; el complemento
   no usa WXT; no hay token de emparejamiento (el puente solo acepta peticiones con origen `moz-extension://`).

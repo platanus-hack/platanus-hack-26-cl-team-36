@@ -12,7 +12,7 @@ lo que hizo, que agentes prueben una página, y que un parche se acepte con una 
 El trabajo tiene dos partes:
 
 1. **Tres spikes**, que contestan lo que no sabemos. Van primero. Cómo se escriben está en
-   [spikes/README.md](../spikes/README.md).
+   [.spikes/README.md](../.spikes/README.md).
 2. **Nueve PRs**, que construyen lo que los spikes confirmen. No caben todos en la hackatón: la sección 7 propone qué
    hacer primero.
 
@@ -215,7 +215,7 @@ Este plan no puede tomarlas. Hay que cerrarlas antes de repartir el trabajo.
 
 | Decisión | Por qué importa |
 |---|---|
-| **¿Esta propuesta reemplaza a `specs/MVP.md`, o conviven?** | Hoy hay dos documentos que apuntan a cosas distintas. |
+| **¿Esta propuesta reemplaza a `.specs/MVP.md`, o conviven?** | Hoy hay dos documentos que apuntan a cosas distintas. |
 | **¿Qué se muestra de multiplayer?** | Esta propuesta no comparte nada entre personas. Si la categoría lo exige, hay que sumar algo compartido o explicar por qué es el paso siguiente. |
 | **¿Qué se muestra al final, y a qué hora se cierra?** | De eso depende el recorte de la sección 7. |
 | **¿Quién toma cada spike y cada línea?** | Hay trabajo para tres líneas en paralelo más la página de prueba. |
@@ -238,7 +238,7 @@ Es una propuesta. Si el equipo prefiere mostrar la soul antes que la medición, 
 
 ## 8. Lo que dejamos fuera
 
-- Compartir optimizaciones entre personas, y el servidor central de `specs/MVP.md`.
+- Compartir optimizaciones entre personas, y el servidor central de `.specs/MVP.md`.
 - Usar la navegación de personas reales como dato.
 - Combinar varios parches y medir cuánto aporta cada uno.
 - Que Claude proponga la tarea de un sitio que no conoce.

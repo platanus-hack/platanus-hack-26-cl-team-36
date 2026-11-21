@@ -11,7 +11,7 @@ entrada dice qué es, para qué nos serviría y qué habría que comprobar antes
   Modeling"). Tiene cuatro modos según el tipo de imagen; uno de ellos es para **interfaces de usuario** y otro para
   imágenes de comercio electrónico.
 - **Para qué nos serviría:**
-  - **Mapa de calor sin esperar a nadie.** La validación con agentes ([specs/MVP.md](../specs/MVP.md), sección 9)
+  - **Mapa de calor sin esperar a nadie.** La validación con agentes ([.specs/MVP.md](../.specs/MVP.md), sección 9)
     genera mapas de calor a partir de los clics de varios agentes. SUM daría un mapa de atención con una sola
     captura de pantalla, en segundos: el antes y el después de una piel se podrían comparar al instante.
   - **Una señal para Claude.** Hoy Claude escribe el CSS sin ver el resultado. El mapa de atención de la página
