@@ -2,7 +2,7 @@
 
 **Qué es este documento.** El plan de trabajo, para quienes van a programar. Parte de
 [la propuesta](index.md); conviene leerla antes. Fecha: 2026-11-21. Se escribió leyendo el repositorio en `main`
-(`d9556ea`) y la PR #6, todavía sin fusionar; no se ejecutó nada para escribirlo.
+(`4955b65`); no se ejecutó nada para escribirlo.
 
 ## Resumen
 
@@ -63,14 +63,13 @@ Hay dos candidatas, y sirven para cosas distintas:
 - **Una página propia, servida en local.** Permite encender y apagar un defecto y repetir sin sorpresas. Es la que
   usa el spike 1 y la que sirve para calibrar a los agentes. La página de demostración del prototipo no sirve tal
   cual: es una portada de noticias, sin ninguna tarea que completar.
-- **Sitios reales.** La PR #6 trae tres tareas en sitios chilenos (dar de baja un servicio en wom.cl, una exención
-  en sii.cl, un reclamo en dt.gob.cl), sin sesión iniciada. Cada una tiene una secuencia de pasos escrita a mano que
-  llega al final y una condición de éxito que comprueba el programa. Son mejores para mostrar, porque el defecto es
-  real.
+- **Sitios reales.** El documento de [tareas en sitios chilenos](tareas-sitios-chilenos.md) propone tres (dar de baja un servicio en wom.cl, una exención en sii.cl,
+  un reclamo en dt.gob.cl), sin sesión iniciada. Cada una tiene una ruta comprobada a mano el 2026-11-21 y una
+  respuesta esperada. Son mejores para mostrar, porque el defecto es real. Todavía no hay código que las recorra.
 
-A las tareas de la PR #6 les falta, respecto de la lista de arriba: una salvaguarda por tarea; revisar que las
-condiciones de cada sitio permitan el uso automatizado; y asumir que el sitio cambia (su README ya pide volver a
-validar antes de mostrar). En un sitio real no hay versión "sin el defecto": se compara el sitio tal cual contra el
+A esas tareas les falta, respecto de la lista de arriba: una salvaguarda por tarea; una condición de éxito que
+compruebe el programa; revisar que las condiciones de cada sitio permitan el uso automatizado; y asumir que el sitio
+cambia (el documento ya pide volver a comprobar las rutas antes de mostrar). En un sitio real no hay versión "sin el defecto": se compara el sitio tal cual contra el
 sitio con un parche.
 
 ## 4. Los tres spikes
@@ -135,7 +134,7 @@ recorridos sale un dato útil. También cuánto tarda y cuesta.
 
 **Qué hay que preparar.** La página local del spike 1, ampliada a una tarea de varios pasos con un defecto que se
 puede apagar, y su tarea escrita a mano. Lo que el spike 1 haya decidido sobre qué recibe el agente. Si queda
-tiempo, se repite con una tarea de la PR #6.
+tiempo, se repite con una de las [tareas en sitios chilenos](tareas-sitios-chilenos.md).
 
 **Qué se hace**
 
@@ -177,7 +176,7 @@ Cada uno tiene una condición para darlo por terminado. Cómo se programa lo dec
 
 | # | Qué construye | Necesita | Está terminado cuando |
 |---|---|---|---|
-| 0 | **Páginas de prueba.** Una local, con un defecto que se puede encender y apagar; y las tareas en sitios reales de la PR #6, cada una con su salvaguarda. | PR #6 | Cada una cumple la lista de la sección 3, y una secuencia de pasos escrita a mano logra la tarea. |
+| 0 | **Páginas de prueba.** Una local, con un defecto que se puede encender y apagar; y las [tareas en sitios chilenos](tareas-sitios-chilenos.md), cada una con su salvaguarda y su condición de éxito. | — | Cada una cumple la lista de la sección 3, y una secuencia de pasos escrita a mano logra la tarea. |
 | 1 | **Localizador.** Encontrar un elemento por lo que es y cómo se llama. | Spike 1 | En la página de prueba, cada elemento que se puede pulsar se encuentra de forma única, o el programa dice que no pudo. |
 | 2 | **Motor de parches.** Aplicar y deshacer tres cambios: estilo, ocultar y renombrar. | PR 1 | El mismo parche produce la misma página aplicado desde la extensión y desde el evaluador (misma estructura y mismos estilos), y deshacerlo devuelve la original. |
 | 3 | **Comprobación de seguridad.** Detectar los elementos protegidos y verificar que siguen visibles y se pueden pulsar. | PR 2 | Un grupo de parches tramposos (ocultar "No, gracias", volver invisible un enlace de salida, renombrar un precio) se rechaza completo. |
@@ -220,8 +219,8 @@ Este plan no puede tomarlas. Hay que cerrarlas antes de repartir el trabajo.
 | **¿Qué se muestra al final, y a qué hora se cierra?** | De eso depende el recorte de la sección 7. |
 | **¿Quién toma cada spike y cada línea?** | Hay trabajo para tres líneas en paralelo más la página de prueba. |
 | **¿Alcanza el plan de Claude de cada uno?** | El evaluador gasta de la misma cuota que se usa para programar. El spike 2 da el número. |
-| **¿Con qué navegador trabaja el evaluador?** | Las pruebas del prototipo manejan Firefox; la PR #6 maneja Chrome con otra herramienta. Si el evaluador usa Chrome y la extensión Firefox, el motor de parches tiene que dar el mismo resultado en los dos (condición del PR 2). |
-| **¿Qué nombres se usan?** | La PR #6 dice "misión" y "enjambre" y escribe los campos en español (`sitio`, `pasos`, `exito`). Esta propuesta dice "tarea" y "evaluador" y los escribe en inglés. Hay que elegir antes de que haya más código. |
+| **¿Con qué navegador trabaja el evaluador?** | Las pruebas del prototipo manejan Firefox; las tareas en sitios chilenos se comprobaron con Chrome y otra herramienta. Si el evaluador usa Chrome y la extensión Firefox, el motor de parches tiene que dar el mismo resultado en los dos (condición del PR 2). |
+| **¿En qué idioma van los campos de los datos?** | `specs/MVP.md` y las tareas en sitios chilenos los escriben en español (`sitio`, `url_inicial`, `instruccion`, `respuesta_esperada`). [Formas de datos](formas-de-datos.md) los propone en inglés. Hay que elegir antes de que haya código. |
 
 ## 7. Propuesta de recorte
 

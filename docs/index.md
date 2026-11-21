@@ -20,6 +20,8 @@ El producto todavía no tiene nombre. Somos el equipo 36 de la hackatón, catego
 3. [Glosario](glosario.md): para consultar un término.
 4. [Formas de datos](formas-de-datos.md): solo al programar.
 
+Aparte: [tareas en sitios chilenos](tareas-sitios-chilenos.md), con tres tareas candidatas y cifras para el pitch.
+
 **Sobre el idioma.** Los documentos van en español. El código y los datos usan nombres en inglés; el glosario dice
 cuál corresponde a cada término. En el texto solo se dejan en inglés *soul*, *spike*, *PR* y *script*.
 
@@ -130,7 +132,7 @@ flowchart LR
 | Extensión | El prototipo aplica una hoja de estilo, la explica y muestra la original. |
 | Soul | El prototipo guarda una sola instrucción escrita por la persona. |
 | Motor de parches | No existe. |
-| Evaluador | No existe. Hay dos bases: las pruebas del prototipo ya manejan un navegador sin ventana, y la PR #6 recorre tres tareas en sitios reales con pasos escritos a mano. |
+| Evaluador | No existe. Hay dos bases: las pruebas del prototipo ya manejan un navegador sin ventana, y hay tres [tareas en sitios chilenos](tareas-sitios-chilenos.md) con su ruta comprobada a mano. |
 | Optimizador | No existe. |
 | Almacén local | No existe. |
 
@@ -174,7 +176,7 @@ De todos los intentos sale un **grafo de navegación**: por qué etapas pasan lo
 abandonan.
 
 Qué recibe exactamente el agente (solo la estructura de la página, o también una captura) es lo primero que hay que
-averiguar. Como página de prueba hay tres candidatas en sitios chilenos reales (PR #6); el plan dice qué les falta.
+averiguar. Como página de prueba hay tres [tareas en sitios chilenos](tareas-sitios-chilenos.md) candidatas; el plan dice qué les falta.
 
 La evaluación la lanza la persona, en su computador, y gasta de su propio plan de Claude.
 
