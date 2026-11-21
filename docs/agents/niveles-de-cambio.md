@@ -1,6 +1,6 @@
 # Niveles de cambio a una página: del estilo a una interfaz nueva
 
-> El agente que este documento llama evaluador es el Visitante ([`agents/app/visitor/`](../../agents/app/visitor/README.md)).
+> Evaluador = Visitante ([`agents/app/visitor/`](../../agents/app/visitor/README.md)).
 
 **Qué es este documento.** Una investigación, no una decisión. Responde cuán agresivo puede ser un cambio a una
 página ajena: desde cambiar colores hasta poner piezas nuevas que se acoplan con la página original, o reemplazar su

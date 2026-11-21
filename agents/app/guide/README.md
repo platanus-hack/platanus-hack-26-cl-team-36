@@ -113,6 +113,9 @@ agents/.runs/<tarea>/reference/<viewport>/
 └── claude_code.log
 ```
 
+La respuesta que encontró la ruta queda en `answer` de route.json: es la que va en `expected_answer` al promover un
+objetivo a tarea.
+
 `status` es `verified`, `unverified` (la repetición no llegó o no encontró la cita) o `not_found` (la exploración
 terminó sin respuesta).
 

@@ -1,6 +1,6 @@
 # Evaluador: agentes que usan la página como una persona
 
-> El agente que este documento llama evaluador es el Visitante ([`agents/app/visitor/`](../../agents/app/visitor/README.md)).
+> Evaluador = Visitante ([`agents/app/visitor/`](../../agents/app/visitor/README.md)).
 
 **Qué es este documento.** El diseño del **evaluador**, la pieza que lanza agentes a intentar una tarea en una
 página ([la propuesta](../index.md), sección 3). Detalla lo que [el plan](../plan.md) deja abierto en el spike 2 y en los

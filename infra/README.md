@@ -17,8 +17,8 @@ registro, la cuenta es un "proyecto" dentro de una organización que administra 
 - No se pueden crear grupos IAM ni usuarios IAM con contraseña. El equipo entra invitado al proyecto (ver
   [Acceso del equipo](#acceso-del-equipo)).
 - Bedrock no da acceso a Claude Opus 4.7 ni a los modelos posteriores: responden *is not available for this account*,
-  y eso solo lo puede habilitar AWS (Sales o Support). Por eso el evaluador web usa Claude Sonnet 4.6 (ver
-  [el evaluador](../agents/app/web_evaluator/README.md#en-aws-agentcore)).
+  y eso solo lo puede habilitar AWS (Sales o Support). Por eso el Visitante usa Claude Sonnet 4.6 (ver
+  [el Visitante](../agents/app/visitor/README.md#en-aws-agentcore)).
 
 Antes, el proyecto corría en una subcuenta de desarrollo de la organización de AWS de Unholster.
 

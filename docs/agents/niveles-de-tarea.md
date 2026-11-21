@@ -59,8 +59,8 @@ pedir confirmación antes de operaciones irreversibles (borrar, comprar) o de en
 
 ## 3. El esquema de un objetivo
 
-Ejemplo sobre la tarea de WOM de [`agents/tasks/`](../../agents/tasks/); la ruta no está medida. Se conservan los
-campos de [formas de datos](../formas-de-datos.md), sección 5.
+Ejemplo de un objetivo de `goals.json` sobre la tarea de WOM de [`agents/tasks/`](../../agents/tasks/). Se conservan
+los campos de [formas de datos](../formas-de-datos.md), sección 5.
 
 ```json
 {
@@ -68,22 +68,17 @@ campos de [formas de datos](../formas-de-datos.md), sección 5.
   "host": "www.wom.cl",
   "start_url": "https://www.wom.cl/",
   "description": "Encuentra cómo dar de baja tu servicio de Internet Fibra.",
+  "expected_answer": null,
   "level": "user_goal",
   "parent": "wom-gestionar-servicio",
   "intent": "find_info",
+  "evidence": ["https://www.wom.cl/ayuda/"],
+  "entry": "https://www.wom.cl/ayuda/",
   "submits_form": false,
   "prominence": "buried",
-  "complexity": "easy",
   "gates": [],
-  "expected_answer": "Llamar al 103 desde una línea WOM, o al 22 337 7600.",
-  "success": { "element_visible": { "role": "heading", "name": "Baja de servicios" } },
-  "reference_route": {
-    "steps": 4,
-    "actions": 2,
-    "pages": 3,
-    "nodes": ["wom.cl/ | WOM", "wom.cl/ayuda | Ayuda", "wom.cl/ayuda/baja | Baja de servicios"],
-    "key_nodes": ["wom.cl/ayuda/baja | Baja de servicios"]
-  }
+  "instruction": "Encuentra cómo dar de baja tu servicio de Internet Fibra.",
+  "exclusion": null
 }
 ```
 
@@ -102,8 +97,8 @@ campos de [formas de datos](../formas-de-datos.md), sección 5.
 | `reference_route.nodes` | lista | Nodos con la identidad del árbol de rutas del Visitante: URL normalizada más título. |
 | `reference_route.key_nodes` | lista | Nodos por los que pasa toda ruta que logra el objetivo. Con una ruta, su nodo final; con varias, los nodos comunes a todas. |
 
-El catálogo guarda la prominencia por `entry`; la que sale del primer elemento de la ruta, `complexity` y
-`reference_route` salen del `route.json` de la Guía, y los calcula el resumen del sitio.
+`complexity`, la prominencia por ruta y los números de `reference_route` están en `summary.json`; la respuesta, en
+`answer` del `route.json` de la Guía.
 
 Los cortes de `prominence` siguen a NN/g: el 57 % del tiempo de visualización ocurre en la primera pantalla y el 81 %
 en las tres primeras (2018, pantalla de 1920×1080). Equiparar abrir un menú con desplazarse es decisión propia.
