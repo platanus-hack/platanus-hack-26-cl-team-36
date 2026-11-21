@@ -5,7 +5,7 @@
 // `host_permissions` del manifest debe cubrir los dos dominios, SIN puerto (Firefox no
 // acepta puertos ahí). test/api.test.js lo verifica.
 export const API_URL_LOCAL = "http://localhost:4747";
-export const API_URL_AWS = "https://q4zpcnvmzh2t62pznbf4kz47ym0uuteo.lambda-url.us-east-2.on.aws";
+export const API_URL_AWS = "https://3mdp2ysaoyiokxq6nfjltjei4e0zwfme.lambda-url.us-east-2.on.aws";
 
 // web-ext y about:debugging cargan la extensión como temporal: installType "development".
 // getSelf() no necesita el permiso "management". Fuera de Firefox (tests) no hay
