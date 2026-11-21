@@ -17,7 +17,9 @@ el tema completo: todo lo específico de un sitio debe poder expresarse como **d
 - `src/background/api.js`: `consultarTema(url)`: `POST {API_URL}/temas/buscar` con `{ url: origen }`. `{success: true, tema}` → id; `{success: false}` → null; caído/timeout (2 s)/respuesta rara → lanza.
 - `src/background/temas-locales.js`: `cargarTemaLocal(id)` lee `src/temas/<id>/`.
 - `src/background/config.js`: `API_URL`.
-- `src/content/registro.js` → `src/features/*.js` → `src/content/motor.js`: content scripts, en ese orden.
+- Content scripts, en este orden: `src/content/registro.js` → `src/content/plantillas.js` → `src/componentes/*.js` → `src/features/*.js` → `src/content/motor.js`.
+- `src/content/plantillas.js`: `MiTema.plantillas.leerCampos` (lee datos de la página según reglas de una plantilla) y `MiTema.dom.crear` (crea elementos sin `innerHTML`; `href`/`src` pasan por `urlSegura`).
+- `src/features/vista.js`: reemplaza una sección por una vista dibujada con un componente del catálogo (`src/componentes/`), según una plantilla en el `tema.json`. La sección original queda oculta con `data-mt-oculto` y los clics se reenvían a sus elementos.
 - `src/temas/<id>/tema.json` + `tema.css`. El id es el nombre de la carpeta y es lo que devuelve la API.
 - `test/`: `node:test`. `temas-locales.test.js` valida cada tema de `src/temas/`.
 - `scripts/`: herramientas de desarrollo en Node, sin dependencias. `clonar-perfil.js` copia un perfil real de Firefox a `.perfil-dev/` quitando su asociación al grupo de perfiles (`scripts/lib/perfiles-firefox.js`).
@@ -32,6 +34,9 @@ el tema completo: todo lo específico de un sitio debe poder expresarse como **d
 - **Todo el CSS de un tema va bajo `html.mi-tema`**, así el botón apaga el diseño completo. Las features usan clases extra (`html.mi-tema.mi-tema-foco`).
 - **JS maneja estado y clases; CSS maneja lo visual.** Evitar estilos inline desde JS.
 - **Los sitios suelen ser SPA.** Cada feature expone `actualizar(opciones)` idempotente; el motor la llama en cada evento de `eventosNavegacion` y cuando el DOM cambia. Nunca insertar algo sin revisar antes si ya existe.
+- **Vistas = componente del catálogo + plantilla.** Lo específico del sitio (selectores, campos, qué clickear) va en la plantilla del `tema.json`, nunca en el componente. Un componente nuevo solo si ningún componente existente sirve; debe servir para otros sitios.
+- **Componentes sin `innerHTML`:** todo con `MiTema.dom.crear`. El texto de la página va como texto y las URLs pasan por `urlSegura` (bloquea `javascript:`/`data:`); así una plantilla remota nunca puede ejecutar código.
+- **Si una vista falla o no encuentra datos, se deja la página original** (nunca una vista a medias).
 - **Content scripts comparten global:** envolver cada archivo en una IIFE y exponer solo vía `globalThis.MiTema`.
 - **Nunca guardar una referencia fija a `document.documentElement` ni observar `document.body`.** Gmail reemplaza el `<html>` completo al cargar (`document.open`/`write`) y otros sitios pisan sus clases. Leer `document.documentElement` cada vez y observar `document` (que sobrevive). El motor repone `mi-tema` y `data-mt-tema` en `marcarHtml()`.
 - **Selectores:** preferir etiquetas propias del sitio (`ytd-*`) e `id`s sobre clases generadas. Si no se conoce la estructura actual del sitio, pedir al usuario que copie el HTML del elemento desde el inspector en lugar de adivinar.
@@ -45,6 +50,12 @@ el tema completo: todo lo específico de un sitio debe poder expresarse como **d
 ## Agregar un sitio
 
 `{ dominio, tema: "<id>" }` en `SITIOS` de `../backend/temas.js` + carpeta `src/temas/<id>/` con `tema.json` y `tema.css`. El manifest no cambia. `npm run check` desde la raíz verifica que cada tema del backend exista en la extensión.
+
+## Agregar un componente
+
+`src/componentes/<id>.js` con `MiTema.registrarComponente("<id>", { dibujar(items, opciones, contexto) {…} })` que devuelve un `Element` hecho con `MiTema.dom.crear`; `contexto` trae `abrir(item, evento)`, `viendoOriginal()` y `alternarOriginal()`. CSS en `src/componentes/<id>.css`, scopeado por su clase. Ambos en `content_scripts` del manifest (el test de orden lo verifica).
+
+Para conocer el HTML actual de un sitio antes de escribir una plantilla, no adivinar: pedir al usuario el HTML del elemento o sondearlo con un Firefox headless.
 
 ## Agregar una feature
 
