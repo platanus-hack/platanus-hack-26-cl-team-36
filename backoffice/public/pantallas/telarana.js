@@ -13,7 +13,7 @@ import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
 import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
 import { nombreDePagina, textoDeFirma, textoDeTitular } from "../datos/textos.js";
-import { altoDeFilaPara, crearCamara, zoomLegible } from "../telarana/camara.js";
+import { altoDeFilaPara, cajaDeEtiqueta, crearCamara, zoomLegible } from "../telarana/camara.js";
 import {
   activosDePerfil,
   finalesPorPagina,
@@ -60,6 +60,7 @@ function crearPantalla(contenedor, ctx) {
     historia: null,
     geo: null,
     altoFila: null, // alto de fila con que se dibujó (depende del ancho del lienzo)
+    zoomDelAncho: null, // zoom con que el mapa entra a lo ancho del lienzo
     dibujo: null,
     ancho: 0,
     introHecha: false,
@@ -295,14 +296,16 @@ function crearPantalla(contenedor, ctx) {
     return { x: caja.x - HOLGURA.izquierda, y: caja.y, ancho: caja.ancho + HOLGURA.izquierda + HOLGURA.derecha, alto: caja.alto + HOLGURA.abajo };
   }
 
-  /** Alto de fila para que los nombres quepan viendo el mapa entero a lo ancho del lienzo. */
-  function altoDeFilaParaElAncho() {
-    const { caja } = geometria(distribucion);
-    return altoDeFilaPara(lienzo.clientWidth / (caja.ancho + HOLGURA.izquierda + HOLGURA.derecha), ALTO_FILA);
+  /** Zoom con que se ve el mapa entero a lo ancho del lienzo. */
+  function zoomDelAncho() {
+    const { caja } = geometria(distribucion, { elegirFormas: false }); // la caja no depende de la forma de los avances
+    return lienzo.clientWidth / (caja.ancho + HOLGURA.izquierda + HOLGURA.derecha);
   }
 
   function dibujar() {
-    estado.geo = geometria(distribucion, { altoFila: estado.altoFila ?? ALTO_FILA });
+    // Los avances esquivan los nombres del tamaño con que se verán al ajustar la vista.
+    const etiqueta = cajaDeEtiqueta(Math.max(estado.zoomDelAncho ?? 1, zoomLegible(estado.altoFila ?? ALTO_FILA)));
+    estado.geo = geometria(distribucion, { altoFila: estado.altoFila ?? ALTO_FILA, etiqueta });
     estado.dibujo = dibujarEscena({
       escena,
       distribucion,
@@ -388,9 +391,12 @@ function crearPantalla(contenedor, ctx) {
     const primera = !estado.geo;
     if (!primera && Math.abs(ancho - estado.ancho) < 2) return;
     estado.ancho = ancho;
-    const altoFila = altoDeFilaParaElAncho();
-    const redibujar = primera || altoFila !== estado.altoFila;
+    // Alto de fila para que los nombres quepan viendo el mapa entero a lo ancho.
+    const zoom = zoomDelAncho();
+    const altoFila = altoDeFilaPara(zoom, ALTO_FILA);
+    const redibujar = primera || altoFila !== estado.altoFila || Math.abs(zoom - estado.zoomDelAncho) > 0.02;
     estado.altoFila = altoFila;
+    estado.zoomDelAncho = zoom;
     if (redibujar) dibujar();
     if (primera) ponerVista3d(estado.ctx.parametros?.vista === "3d", { animar: false });
     ajustar();
