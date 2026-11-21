@@ -98,8 +98,9 @@ def script_de_tema(css: str) -> str:
     return antes + config_json + despues
 
 
-# Lo que el filtro de la extensión (y del diseñador, agents/app/web_designer/disenador/css.py) borra de un tema. Un
-# tema con esto no se aplicaría igual en la extensión, así que el evaluador lo rechaza en vez de probar otra cosa.
+# Lo más grueso de lo que el saneamiento del diseñador (agents/app/web_designer/disenador/css.py) borra de un tema.
+# Un tema con esto no salió del diseñador tal cual, así que el evaluador lo rechaza en vez de probar otra cosa. No es
+# un filtro completo (no revisa el ámbito `html.mi-tema`), y la extensión hoy no filtra: inyecta el CSS tal cual.
 _PROHIBIDO_EN_TEMA = {
     "url(": re.compile(r"url\s*\(", re.I),
     "image-set(": re.compile(r"image-set\s*\(", re.I),

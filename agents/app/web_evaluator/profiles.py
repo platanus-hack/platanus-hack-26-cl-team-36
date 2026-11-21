@@ -152,9 +152,10 @@ _FRONTMATTER = re.compile(r"\A---\s*\n.*?\n---\s*\n", re.DOTALL)
 @cache
 def cuerpo_de_skill(nombre: str) -> str:
     """El cuerpo de .claude/skills/<nombre>/SKILL.md, sin el frontmatter YAML."""
-    ruta = config.DIR_SKILLS / nombre / "SKILL.md"
-    if not ruta.is_file():
-        raise FileNotFoundError(f"no existe la skill {nombre!r} en {ruta}; los perfiles que la usan solo corren en local")
+    ruta = config.DIR_SKILLS / nombre / "SKILL.md" if config.DIR_SKILLS else None
+    if ruta is None or not ruta.is_file():
+        donde = ruta or "este entorno (sin .claude/skills/)"
+        raise FileNotFoundError(f"no existe la skill {nombre!r} en {donde}; los perfiles que la usan solo corren en local")
     return _FRONTMATTER.sub("", ruta.read_text(encoding="utf-8"), count=1).strip()
 
 

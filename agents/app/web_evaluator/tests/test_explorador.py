@@ -6,6 +6,7 @@ import threading
 from contextlib import contextmanager
 from dataclasses import replace
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 import pytest
 from playwright.async_api import async_playwright
@@ -70,6 +71,23 @@ def test_el_prompt_de_los_otros_perfiles_no_cambia():
 
 def test_una_skill_que_no_existe_da_un_error_claro(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DIR_SKILLS", tmp_path)
+    profiles.cuerpo_de_skill.cache_clear()
+    try:
+        with pytest.raises(FileNotFoundError, match="explorar-caminos"):
+            system_prompt(PROFILES["explorador"])
+    finally:
+        profiles.cuerpo_de_skill.cache_clear()
+
+
+def test_config_se_importa_fuera_del_repo_como_en_agentcore(monkeypatch):
+    """En AgentCore el código queda en /var/task: config.py no tiene tres carpetas por encima ni hay skills.
+    Se usa /task y no /var/task porque en macOS /var es un enlace a /private/var y resolve() sumaría una carpeta."""
+    fuente = Path(config.__file__).read_text(encoding="utf-8")
+    espacio = {"__file__": "/task/config.py", "__name__": "config_en_agentcore"}
+    exec(compile(fuente, "/task/config.py", "exec"), espacio)
+    assert espacio["DIR_SKILLS"] is None
+
+    monkeypatch.setattr(config, "DIR_SKILLS", None)
     profiles.cuerpo_de_skill.cache_clear()
     try:
         with pytest.raises(FileNotFoundError, match="explorar-caminos"):

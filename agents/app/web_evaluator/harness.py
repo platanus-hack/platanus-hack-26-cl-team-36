@@ -92,9 +92,10 @@ class SyntheticUser:
         self.visited_nodes = {node_key(url, title)}
         # Páginas vistas en este intento, con un id corto para `volver_a_nodo`: clave del nodo -> (id, url, título).
         self.paginas: dict[str, tuple[str, str, str]] = {}
-        # volver_a_nodo solo lleva a páginas http(s) del mismo sitio que la URL inicial: nunca a otro sitio al que
-        # llegó por un enlace, ni a una página de error del navegador.
-        self.dominio = registrable_domain(self.url)
+        # volver_a_nodo solo lleva a páginas http(s) del mismo sitio que la página inicial: nunca a otro sitio al que
+        # llegó por un enlace, ni a una página de error del navegador. Vale el sitio donde terminó la carga, no el de
+        # la URL pedida: si esa redirige a otro dominio, las páginas siguientes son de ese otro.
+        self.dominio = registrable_domain(url) or registrable_domain(self.url)
         self._registrar_pagina(url, title, inicial=True)
         self.nodo_inicial = node_key(url, title)
         self.ramas_desde_inicio: set[str] = set()  # páginas a las que llegó con un clic desde la inicial

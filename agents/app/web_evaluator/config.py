@@ -27,8 +27,11 @@ EXPLORADOR_MAX_SEGUNDOS = 420
 EXPLORADOR_MAX_TURNOS = 70
 
 # Skills de Claude Code del repo (.claude/skills/): algunos perfiles cargan una en su prompt. La carpeta queda fuera
-# de lo que se despliega en AgentCore, así que esos perfiles solo corren en local.
-DIR_SKILLS = Path(__file__).resolve().parents[3] / ".claude" / "skills"
+# de lo que se despliega en AgentCore, así que esos perfiles solo corren en local. En AgentCore este archivo queda en
+# /var/task/config.py, sin el repo alrededor ni tres carpetas por encima: ahí no hay skills (None) y el módulo debe
+# poder importarse igual.
+_CARPETAS_ARRIBA = Path(__file__).resolve().parents
+DIR_SKILLS: Path | None = _CARPETAS_ARRIBA[3] / ".claude" / "skills" if len(_CARPETAS_ARRIBA) > 3 else None
 
 # Navegador.
 LOCALE = "es-CL"
