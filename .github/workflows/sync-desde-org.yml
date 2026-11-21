@@ -1,0 +1,34 @@
+# Copia main del repo de la organización al repo personal, que es donde corren
+# los despliegues (ver infra/README.md). El repo de la organización manda: lo que
+# esté solo en main del repo personal se pierde. En el repo de la organización
+# el job se salta.
+#
+# Necesita el secreto SYNC_TOKEN en el repo personal: un token fine-grained con
+# Contents y Workflows en lectura y escritura sobre ese repo. Con GITHUB_TOKEN no
+# sirve: no puede subir cambios a .github/workflows/ y sus pushes no disparan el
+# workflow de Terraform.
+name: Sincroniza desde la organización
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  sync:
+    if: github.repository == 'brayanmoreno/hackathon-grupo36'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copia main
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          git init -q espejo && cd espejo
+          git fetch -q https://github.com/platanus-hack/platanus-hack-26-cl-team-36.git main
+          git push --force "https://x-access-token:${SYNC_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" FETCH_HEAD:refs/heads/main
