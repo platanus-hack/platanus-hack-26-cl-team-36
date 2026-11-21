@@ -19,6 +19,10 @@ from browser import connect_browser
 from disenador import config, juez, mapa, metricas, pagina
 from disenador.css import analizar, sanear
 from disenador.modelo import ESQUEMA_TEMA, ErrorDeModelo, Skill, mensaje_de_diseno, prompt_de_sistema
+
+
+class TemaRechazado(Exception):
+    """El navegador lee el CSS saneado distinto que el saneamiento: no se aplica."""
 from recording import screen_change_ratio
 
 
@@ -96,6 +100,9 @@ async def evaluar(browser: Browser, url: str, css: str, carpeta: Path) -> tuple[
             antes = await pagina.capturar(page)
             medida_antes = await metricas.medir(page, "antes")
             referencia = await pagina.capturar(page)  # cuánto cambia la página sola, sin tocarla
+            # Lo que la página pierde sola (carruseles, re-renders) con la misma espera que tendrá el tema.
+            await pagina.esperar(page, config.ESPERA_TEMA_S)
+            medida_ruido = await metricas.medir(page, "ruido")
             await pagina.aplicar_tema(page, css)
             despues = await pagina.capturar(page)
             medida_despues = await metricas.medir(page, "despues")
@@ -115,7 +122,7 @@ async def evaluar(browser: Browser, url: str, css: str, carpeta: Path) -> tuple[
         (carpeta / f"despues{sufijo}.png").write_bytes(despues)
         if not identica:
             (carpeta / f"sin-mi-tema{sufijo}.png").write_bytes(apagada)
-        medidas[viewport] = {"antes": medida_antes, "despues": medida_despues}
+        medidas[viewport] = {"antes": medida_antes, "ruido": medida_ruido, "despues": medida_despues}
         capturas[f"antes{sufijo}"], capturas[f"despues{sufijo}"] = antes, despues
     return medidas, sin_clase, capturas
 
@@ -143,8 +150,17 @@ async def generacion(browser, caso: Caso, preparado: Preparado, rep: int, carpet
         fila["segundos_modelo"] = respuesta.get("segundos")
         saneado = sanear(respuesta["css"])
         (carpeta / "tema.css").write_text(saneado.css, encoding="utf-8")
+        analisis = analizar(saneado)
+        # Última palabra del navegador: si su parser ve algo fuera de ámbito o que carga recursos, no se aplica.
+        analisis["violaciones_navegador"] = violaciones = await pagina.verificar_css(browser, saneado.css)
+        if violaciones:
+            fila["violaciones_navegador"] = len(violaciones)
+            _escribir_json(carpeta / "metricas.json", {"css": analisis, "violaciones": violaciones,
+                                                       "fila": {"violaciones_navegador": len(violaciones)}})
+            raise TemaRechazado(f"el navegador lee el CSS saneado distinto que el saneamiento ({len(violaciones)}"
+                                f" violación(es); la primera: {violaciones[0]['motivo']})")
         medidas, sin_clase, capturas = await evaluar(browser, caso.url, saneado.css, carpeta)
-        resultado = metricas.combinar(medidas, analizar(saneado), sin_clase)
+        resultado = metricas.combinar(medidas, analisis, sin_clase)
         _escribir_json(carpeta / "metricas.json", resultado)
         fila.update(resultado["fila"])
     except Exception as error:  # una generación fallida no detiene las demás

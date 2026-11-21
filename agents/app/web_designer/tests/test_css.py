@@ -1,6 +1,6 @@
 """Saneamiento, ámbito html.mi-tema y riesgos del CSS; lectura del skill y del JSON del modelo."""
 
-from disenador.css import analizar, con_ambito, sanear
+from disenador.css import CADENA_ROTA, analizar, con_ambito, quitar_comentarios, sanear
 from disenador.modelo import CONTRATO, json_tolerante, leer_skill, prompt_de_sistema
 
 
@@ -26,7 +26,7 @@ def test_rechaza_lo_peligroso_y_conserva_important():
     saneado = sanear(css)
     motivos = [r["motivo"] for r in saneado.rechazos]
     assert motivos == ["@import", "url(", "barra invertida", "url(", "expression(", "javascript:",
-                       "barra invertida en el selector", "url(", "@charset no permitida"]
+                       "barra invertida en el selector", "@font-face no permitida", "@charset no permitida"]
     assert "color: #eee !important;" in saneado.css
     assert "html.mi-tema .b {\n  color: red;\n}" in saneado.css
     assert "html.mi-tema a" not in saneado.css  # quedó vacía
@@ -85,3 +85,72 @@ def test_skill_y_prompt(tmp_path):
     assert skill.nombre == "disenar-tema" and skill.cuerpo == "# Diseñar\nCuerpo." and len(skill.sha256) == 12
     assert prompt_de_sistema(skill).startswith("# Diseñar") and CONTRATO in prompt_de_sistema(skill)
     assert CONTRATO in prompt_de_sistema(None) and "Diseñar" not in prompt_de_sistema(None)
+
+
+# Las dos cargas de la revisión: un salto de línea dentro de una cadena la termina en CSS, y antes el lector la seguía
+# hasta la comilla siguiente, así que el navegador veía reglas que el saneamiento no.
+CARGA_FONT_FACE = '@font-face "\n;html.mi-tema body{background:url(https://evil.example/b)} " {font-family:a}'
+CARGA_CONTENT = 'html.mi-tema a{content:"x\n} *{display:none !important} "}'
+CARGA_LAYER = '@layer "\n;body{background:url(https://evil.example/c)} html.mi-tema q{color:blue}'
+
+
+def test_cadena_con_salto_de_linea_se_rechaza():
+    saneado = sanear(CARGA_FONT_FACE)
+    assert saneado.css.strip() == ""
+    assert [r["motivo"] for r in saneado.rechazos] == ["cadena rota", "url(", "texto fuera de una regla"]
+
+    # La regla que Chromium ve después de la cadena rota se lee igual aquí: queda bajo html.mi-tema y es violación.
+    saneado = sanear(CARGA_CONTENT)
+    assert saneado.css == "html.mi-tema * {\n  display:none !important;\n}\n"
+    assert saneado.fuera_de_ambito == [{"selector": "*", "corregido": "html.mi-tema *"}]
+    assert [r["motivo"] for r in saneado.rechazos] == ["cadena rota", "texto fuera de una regla"]
+
+    saneado = sanear(CARGA_LAYER)
+    assert "evil" not in saneado.css and "@layer" not in saneado.css
+    assert "html.mi-tema q" in saneado.css
+    assert [r["motivo"] for r in saneado.rechazos] == ["cadena rota", "url("]
+
+    for salto in ("\r", "\f"):
+        assert sanear(f'html.mi-tema a {{ content: "x{salto}y"; color: red }}').rechazos[0]["motivo"] == "cadena rota"
+    assert sanear('html.mi-tema a { content: "sin cerrar').rechazos[0]["motivo"] == "cadena rota"
+    # La comilla final abre otra cadena que llega al final del texto: también rota.
+    assert quitar_comentarios('a{content:"x\n/* c */"}') == 'a{content:"x' + CADENA_ROTA + '\n"}' + CADENA_ROTA
+
+
+def test_solo_at_reglas_permitidas():
+    css = """@font-face { font-family: a; }
+    @page { margin: 0 }
+    @namespace svg x;
+    @property --x { syntax: '<color>'; inherits: false; initial-value: red; }
+    @scope (body) { a { color: red } }
+    @starting-style { html.mi-tema a { opacity: 0 } }
+    @media (min-width: 600px) { html.mi-tema a { color: red } }
+    @supports (display: grid) { html.mi-tema b { display: grid } }
+    @layer tema { html.mi-tema c { color: red } }
+    @layer base, tema;
+    @container (min-width: 1px) { html.mi-tema d { color: red } }
+    @keyframes k { from { opacity: 0 } @media (x) { a { b: c } } to { opacity: 1 } }
+    html.mi-tema e { color: red; @media (x) { color: blue } @font-face { font-family: b } }"""
+    saneado = sanear(css)
+    motivos = [r["motivo"] for r in saneado.rechazos]
+    assert motivos == ["@font-face no permitida", "@page no permitida", "@namespace no permitida",
+                       "@property no permitida", "@scope no permitida", "@starting-style no permitida",
+                       "@media no permitida en @keyframes", "@font-face no permitida en el selector"]
+    for permitida in ("@media (min-width: 600px)", "@supports (display: grid)", "@layer tema", "@layer base, tema;",
+                      "@container (min-width: 1px)", "@keyframes k", "@media (x)"):
+        assert permitida in saneado.css, permitida
+
+
+def test_estructura_y_recursos():
+    css = f"""html.mi-tema a {{ color: f({{); background: src("x.png"); content: "{'x' * 201}"; height: 1px); }}
+    html.mi-tema b {{ color: red; :not(&) i {{ color: red }} &:hover, .c {{ color: blue }} }}
+    html.mi-tema d {{ content: "{'y' * 200}"; }}
+    html.mi-tema z {{ width: calc(1px; }} html.mi-tema y {{ color: red }}"""
+    saneado = sanear(css)
+    # Un paréntesis sin cerrar se traga el resto, como en el navegador: el último fragmento lleva llaves.
+    assert [r["motivo"] for r in saneado.rechazos] == [
+        "llave fuera de una cadena", "src(", "cadena demasiado larga", "paréntesis o corchetes desbalanceados",
+        "& fuera del inicio de una regla anidada en el selector", "llave fuera de una cadena",
+    ]
+    assert "html.mi-tema a" not in saneado.css and ":not(&)" not in saneado.css
+    assert "&:hover, .c {" in saneado.css and "y" * 200 in saneado.css

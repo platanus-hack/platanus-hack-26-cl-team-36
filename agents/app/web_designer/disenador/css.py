@@ -4,22 +4,43 @@ El lector es pequeño y tolerante: entiende reglas, listas de selectores, at-reg
 `@supports`...), `@keyframes`, at-reglas de declaraciones (`@font-face`...) y anidamiento CSS. No valida
 propiedades ni valores: eso queda para el navegador.
 
-Saneamiento:
-- Se descarta toda declaración que contenga algo que pueda cargar recursos o ejecutar código (`url(`,
-  `image-set(`, `expression(`, `javascript:`, `behavior:`, `-moz-binding`) o una barra invertida; una regla cuyo
-  selector tenga alguno de ellos se descarta entera; `@import` y las at-reglas sueltas que no son `@layer` también.
+Las cadenas se leen como el navegador: un salto de línea (o CR o FF) sin escapar termina la cadena (es una
+"bad string"). Así el árbol corta las reglas donde las cortaría Chromium, y la cadena rota se marca para descartar
+el fragmento que la contiene.
+
+Saneamiento (se revisa cada texto que se vuelve a escribir: selectores, declaraciones y preludios de at-reglas):
+- Se descarta todo texto que contenga algo que pueda cargar recursos o ejecutar código (`url(`, `src(`,
+  `image(`/`image-set(`, `expression(`, `javascript:`, `behavior:`, `-moz-binding`, `@import`), una barra invertida,
+  una cadena rota o sin cerrar, una llave o un comentario fuera de una cadena, o paréntesis o corchetes sin cerrar.
+  Una declaración así se descarta sola; una regla cuyo selector la tenga, entera.
+- Una cadena de más de `MAX_CADENA` caracteres (el texto de `content:`) también se descarta.
+- Solo se aceptan las at-reglas `@media`, `@supports`, `@layer`, `@container` y `@keyframes`; las demás
+  (`@font-face`, `@import`, `@namespace`, `@page`, `@property`, `@scope`...) se descartan enteras.
 - Cada selector de primer nivel debe empezar por `html.mi-tema`. Si no, se antepone (`body` pasa a
-  `html.mi-tema body`, `html`/`:root` a `html.mi-tema`) y se informa como violación. No se reescribe nada más:
-  `!important` se conserva (el tema es una hoja de autor y lo necesita para ganarle al sitio).
+  `html.mi-tema body`, `html`/`:root` a `html.mi-tema`) y se informa como violación. Una regla anidada debe empezar
+  por `&` o no usarlo (`:not(&) b` saldría del ámbito y se descarta). No se reescribe nada más: `!important` se
+  conserva (el tema es una hoja de autor y lo necesita para ganarle al sitio).
+
+El navegador tiene la última palabra: `pagina.verificar_css` vuelve a leer el CSS saneado con el parser de Chromium.
 """
 
 import re
 from dataclasses import dataclass, field
 
 AGRUPADORAS = {"media", "supports", "layer", "container", "document", "scope", "starting-style"}
+PERMITIDAS = {"media", "supports", "layer", "container"}          # además de @keyframes
+KEYFRAMES = {"keyframes", "-webkit-keyframes"}
+MAX_CADENA = 200    # caracteres de una cadena (el texto de `content:`, o de una variable que lo lleve)
+
+# Marca que deja la lectura donde una cadena terminó en un salto de línea o en el final del texto. Nunca se escribe:
+# el fragmento que la contiene se descarta.
+CADENA_ROTA = "\ue000"
+_FIN_DE_CADENA = "\n\r\f"
 
 PROHIBIDOS = [
+    ("cadena rota", re.compile(CADENA_ROTA)),
     ("url(", re.compile(r"url\s*\(", re.I)),
+    ("src(", re.compile(r"(?<![\w-])src\s*\(", re.I)),
     ("image-set(", re.compile(r"(?<![\w-])(?:-webkit-)?image(?:-set)?\s*\(", re.I)),
     ("@import", re.compile(r"@import", re.I)),
     ("barra invertida", re.compile(r"\\")),
@@ -89,10 +110,16 @@ class Suelto:
 # ---------------------------------------------------------------------------
 
 def quitar_comentarios(css: str) -> str:
+    """Sin comentarios. Una cadena que termina en un salto de línea o en el final queda marcada con CADENA_ROTA."""
     salida, i, comilla = [], 0, None
     while i < len(css):
         c = css[i]
         if comilla:
+            if c in _FIN_DE_CADENA:  # como en CSS: la cadena termina aquí, rota, y el salto queda fuera
+                salida += [CADENA_ROTA, c]
+                comilla = None
+                i += 1
+                continue
             salida.append(c)
             if c == "\\" and i + 1 < len(css):
                 salida.append(css[i + 1])
@@ -110,6 +137,8 @@ def quitar_comentarios(css: str) -> str:
         else:
             salida.append(c)
         i += 1
+    if comilla:
+        salida.append(CADENA_ROTA)
     return "".join(salida)
 
 
@@ -122,7 +151,7 @@ def _escanear(texto: str, i: int, paradas: str) -> tuple[str, int, str]:
             if c == "\\":
                 i += 2
                 continue
-            if c == comilla:
+            if c == comilla or c in _FIN_DE_CADENA:
                 comilla = None
         elif c in "\"'":
             comilla = c
@@ -166,7 +195,9 @@ def _leer_cuerpo(texto: str, i: int) -> tuple[list[str], list[Regla], int]:
         fragmento, j, c = _escanear(texto, i, "{;}")
         if c == "{":
             sub_declaraciones, sub_anidadas, i = _leer_cuerpo(texto, j + 1)
-            anidadas.append(Regla([" ".join(fragmento.split())], sub_declaraciones, sub_anidadas))
+            preludio = " ".join(fragmento.split())
+            selectores = [preludio] if preludio.startswith("@") else dividir_selectores(fragmento)
+            anidadas.append(Regla(selectores, sub_declaraciones, sub_anidadas))
             continue
         if fragmento.strip():
             declaraciones.append(fragmento.strip())
@@ -263,11 +294,45 @@ class Saneado:
     fuera_de_ambito: list[dict]     # {selector, corregido}
 
 
+def _estructura(texto: str) -> str | None:
+    """Lo que haría que el navegador corte el texto en otro lugar que esta lectura, o una cadena demasiado larga."""
+    pila, comilla, inicio, i = [], None, 0, 0
+    while i < len(texto):
+        c = texto[i]
+        if comilla:
+            if c == "\\":
+                i += 2
+                continue
+            if c in _FIN_DE_CADENA:
+                return "cadena rota"
+            if c == comilla:
+                comilla = None
+                if i - inicio - 1 > MAX_CADENA:
+                    return "cadena demasiado larga"
+        elif c in "\"'":
+            comilla, inicio = c, i
+        elif c in "{}":
+            return "llave fuera de una cadena"
+        elif texto.startswith("/*", i) or texto.startswith("*/", i):
+            return "comentario"
+        elif c in "([":
+            pila.append(")" if c == "(" else "]")
+        elif c in ")]" and (not pila or pila.pop() != c):
+            return "paréntesis o corchetes desbalanceados"
+        i += 1
+    if comilla:
+        return "cadena rota"
+    if pila:
+        return "paréntesis o corchetes desbalanceados"
+    return None
+
+
 def prohibido_en(texto: str) -> str | None:
+    """Por qué no se puede escribir este texto (selector, declaración o preludio), o None si se puede."""
     for motivo, patron in PROHIBIDOS:
         if patron.search(texto):
             return motivo
-    return None
+    return _estructura(texto)
 
 
 def con_ambito(selector: str) -> str | None:
@@ -281,6 +346,7 @@ def con_ambito(selector: str) -> str | None:
 
 
 def _recortar(texto: str) -> str:
+    texto = texto.replace(CADENA_ROTA, "")
     return texto if len(texto) <= 160 else texto[:157] + "..."
 
 
@@ -295,15 +361,22 @@ def _sanear_declaraciones(declaraciones: list[str], rechazos: list[dict]) -> lis
     return limpias
 
 
-def _sanear_regla(regla: Regla, rechazos: list[dict], fuera: list[dict] | None) -> Regla | None:
-    """`fuera` es None dentro de @keyframes y en reglas anidadas: ahí no se exige el ámbito."""
+def _sanear_regla(regla: Regla, rechazos: list[dict], fuera: list[dict], contexto: str) -> Regla | None:
+    """`contexto`: "primer_nivel" (se exige `html.mi-tema`), "anidada" (dentro de otra regla, relativa a ella) o
+    "keyframes" (`from`, `to`, `50%`: sin ámbito)."""
     texto_selectores = ", ".join(regla.selectores)
     motivo = prohibido_en(texto_selectores)
+    if not motivo and contexto == "anidada":
+        nombre = re.match(r"@([\w-]+)", texto_selectores)
+        if nombre and nombre.group(1).lower() not in PERMITIDAS:
+            motivo = f"@{nombre.group(1).lower()} no permitida"
+        elif not nombre and any("&" in s and not s.startswith("&") for s in regla.selectores):
+            motivo = "& fuera del inicio de una regla anidada"
     if motivo:
         rechazos.append({"motivo": f"{motivo} en el selector", "texto": _recortar(texto_selectores)})
         return None
     selectores = regla.selectores
-    if fuera is not None:
+    if contexto == "primer_nivel":
         selectores = []
         for selector in regla.selectores:
             corregido = con_ambito(selector)
@@ -311,35 +384,37 @@ def _sanear_regla(regla: Regla, rechazos: list[dict], fuera: list[dict] | None) 
                 fuera.append({"selector": selector, "corregido": corregido})
             selectores.append(corregido or selector)
     declaraciones = _sanear_declaraciones(regla.declaraciones, rechazos)
-    anidadas = [r for r in (_sanear_regla(sub, rechazos, None) for sub in regla.anidadas) if r]
+    anidadas = [r for r in (_sanear_regla(sub, rechazos, fuera, "anidada") for sub in regla.anidadas) if r]
     if not declaraciones and not anidadas and (regla.declaraciones or regla.anidadas):
         return None  # quedó vacía por los rechazos
     return Regla(selectores, declaraciones, anidadas)
 
 
-def _sanear_lista(items: list, rechazos: list[dict], fuera: list[dict] | None) -> list:
+def _sanear_lista(items: list, rechazos: list[dict], fuera: list[dict], en_keyframes: bool = False) -> list:
     limpios = []
     for item in items:
         if isinstance(item, Regla):
-            regla = _sanear_regla(item, rechazos, fuera)
+            regla = _sanear_regla(item, rechazos, fuera, "keyframes" if en_keyframes else "primer_nivel")
             if regla:
                 limpios.append(regla)
         elif isinstance(item, AtBloque):
+            if en_keyframes or item.nombre not in PERMITIDAS | KEYFRAMES:
+                motivo = f"@{item.nombre} no permitida" + (" en @keyframes" if en_keyframes else "")
+                rechazos.append({"motivo": motivo, "texto": _recortar(f"@{item.nombre} {item.preludio}")})
+                continue
             motivo = prohibido_en(item.preludio)
             if motivo:
                 rechazos.append({"motivo": f"{motivo} en @{item.nombre}", "texto": _recortar(item.preludio)})
                 continue
-            en_keyframes = item.nombre.endswith("keyframes")
-            hijos = _sanear_lista(item.hijos, rechazos, None if en_keyframes else fuera)
+            hijos = _sanear_lista(item.hijos, rechazos, fuera, item.nombre in KEYFRAMES)
             if hijos:
                 limpios.append(AtBloque(item.nombre, item.preludio, hijos))
         elif isinstance(item, AtDeclaraciones):
-            declaraciones = _sanear_declaraciones(item.declaraciones, rechazos)
-            if declaraciones:
-                limpios.append(AtDeclaraciones(item.nombre, item.preludio, declaraciones))
+            rechazos.append({"motivo": f"@{item.nombre} no permitida",
+                             "texto": _recortar(f"@{item.nombre} {item.preludio}")})
         elif isinstance(item, AtSentencia):
             motivo = "@import" if item.nombre == "import" else prohibido_en(item.texto)
-            if motivo or item.nombre != "layer":
+            if motivo or item.nombre != "layer" or en_keyframes:
                 rechazos.append({"motivo": motivo or f"@{item.nombre} no permitida", "texto": _recortar(item.texto)})
             else:
                 limpios.append(item)

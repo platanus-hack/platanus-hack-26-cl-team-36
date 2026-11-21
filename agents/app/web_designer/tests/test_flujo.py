@@ -115,3 +115,63 @@ def test_juez_reintenta_y_tolera_un_orden_fallido(tmp_path):
     assert juicio["par"]["antes_como_A"]["elige"] == "despues" and juicio["par"]["despues_como_A"] is None
     assert juicio["par"]["consistente"] is None and juicio["par"]["preferido"] is None
     assert len(juicio["par"]["errores"]) == 1
+
+
+def test_tema_rechazado_por_el_navegador(sitio, tmp_path, monkeypatch):
+    """Si el saneamiento dejara pasar algo que Chromium lee fuera de ámbito, el tema no se aplica y queda anotado."""
+    from disenador import corrida
+    from disenador.css import Saneado
+
+    monkeypatch.setattr(corrida, "sanear", lambda css: Saneado(css, [], [], []))  # un saneamiento que falla
+    css = tmp_path / "dado.css"
+    css.write_text("body { color: red }\nhtml.mi-tema a { color: blue }", encoding="utf-8")
+    filas = asyncio.run(correr([Caso("rechazo", sitio.as_uri(), "oscuro")], _opciones(css_dado=css),
+                               tmp_path / "salida", ClaudeGuion(), ClaudeGuion()))
+    fila = filas[0]
+    assert "TemaRechazado" in fila["error"] and fila["violaciones_navegador"] == 1
+    carpeta = tmp_path / "salida" / "rep-01"
+    metricas = json.loads((carpeta / "metricas.json").read_text(encoding="utf-8"))
+    assert metricas["violaciones"][0]["motivo"] == "selector fuera de html.mi-tema: body"
+    assert not (carpeta / "despues.png").exists()   # no se aplicó
+
+
+def test_modelo_colgado_falla_sin_detener_la_corrida(sitio, tmp_path, monkeypatch):
+    """Un `claude` que nunca responde se mata al vencer el plazo; la generación queda con error y la corrida sigue."""
+    from disenador import modelo
+
+    procesos = []
+
+    class Entrada:
+        def write(self, datos):
+            pass
+
+        async def drain(self):
+            pass
+
+    class ProcesoColgado:
+        def __init__(self):
+            self.stdin, self.matado, self.cerrado = Entrada(), False, False
+            self.process = self
+
+        def kill(self):
+            self.matado = True
+
+        @classmethod
+        async def open(cls, *args):
+            procesos.append(cls())
+            return procesos[-1]
+
+        async def wait_for_result(self):
+            await asyncio.sleep(3600)
+
+        async def close(self):
+            self.cerrado = True
+
+    monkeypatch.setattr(modelo, "ClaudeCodeProcess", ProcesoColgado)
+    disenador = modelo.ClaudeCode("haiku", "medium", tmp_path, timeout_s=0.2)
+    casos = [Caso("colgado", sitio.as_uri(), "oscuro")]
+    filas = asyncio.run(correr(casos, _opciones(repeticiones=2, concurrencia=2), tmp_path / "salida", disenador,
+                               ClaudeGuion()))
+    assert [f["rep"] for f in filas] == [1, 2]
+    assert all("ErrorDeModelo" in f["error"] and "no respondió en 0.2 s" in f["error"] for f in filas)
+    assert len(procesos) == 2 and all(p.matado and p.cerrado for p in procesos)
