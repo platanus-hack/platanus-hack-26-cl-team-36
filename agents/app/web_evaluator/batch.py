@@ -82,7 +82,7 @@ async def _record_verdict(judge, instruction: str, criteria: dict, run: Run, run
 
 
 def models_for(engine: str, user_model: str | None = None) -> tuple[str, str]:
-    """Los modelos (usuarios, juez). En AWS (bedrock) solo Haiku; en local, Sonnet y Opus (ver config.py)."""
+    """Los modelos (usuarios, juez). En AWS (bedrock) solo Sonnet 4.6; en local, Sonnet 5.5 y Opus (ver config.py)."""
     if engine == "bedrock":
         return user_model or config.BEDROCK_USER_MODEL, config.BEDROCK_JUDGE_MODEL
     return user_model or config.USER_MODEL, config.JUDGE_MODEL

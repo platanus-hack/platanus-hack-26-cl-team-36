@@ -32,6 +32,21 @@ COMPUTER_TOOLSET = {
     "configs": {member: {"enabled": False} for member in DISABLED_MEMBERS},
 }
 
+# Los modelos anteriores a Claude Opus 4.7 no aceptan el toolset: usan la herramienta `computer` de una pieza, con
+# beta y el tamaño de la pantalla. La acción va en `input.action` y no se pueden desactivar miembros: si el modelo
+# pide uno que no está en UI_ACTIONS, se responde con error, igual que con el toolset. Son los que la cuenta de AWS
+# del proyecto puede usar en Bedrock (ver config.BEDROCK_USER_MODEL).
+LEGACY_COMPUTER_MODELS = ("claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5")
+LEGACY_COMPUTER_BETA = "computer-use-2025-11-24"
+
+
+def uses_legacy_computer_tool(model: str) -> bool:
+    return any(name in model for name in LEGACY_COMPUTER_MODELS)
+
+
+def legacy_computer_tool(width: int, height: int) -> dict:
+    return {"type": "computer_20251124", "name": "computer", "display_width_px": width, "display_height_px": height}
+
 UI_ACTIONS = {"left_click", "double_click", "triple_click", "type", "key", "scroll"}
 CLICK_ACTIONS = {"left_click", "double_click", "triple_click"}
 

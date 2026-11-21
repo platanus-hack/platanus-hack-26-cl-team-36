@@ -30,7 +30,7 @@ uv run main.py --goals ../../.runs/www.wom.cl/goals/goals.json --limit 3
 | `--goals <goals.json>` | Un catálogo del [Mapeador](../web_mapper/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
 | `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--goals`, `first_time`). |
 | `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
-| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-haiku-5-5`). |
+| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-sonnet-4-6`). |
 | `--output` | Otra carpeta para las corridas. |
 | `--browser` | `local` (Chromium, por defecto) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
@@ -53,14 +53,18 @@ Bedrock y AgentCore Browser, y gasta de la cuenta de AWS del proyecto en vez de 
 configuración está en [`infra/agentcore/`](../../../infra/README.md#carpetas), junto al resto de la infraestructura. La
 entrada en AWS es `agentcore_app.py`; `main.py` sigue siendo el comando local.
 
-En AWS se usa solo Claude Haiku 5.5, tanto para los usuarios sintéticos como para el juez (`BEDROCK_USER_MODEL` y
-`BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. En us-east-2, Haiku 5.5 solo se sirve por
-perfiles de inferencia que reparten entre regiones, así que se llama por el endpoint `bedrock-runtime` con el perfil de
-EE.UU., `us.anthropic.claude-haiku-5-5`, que usa us-east-1, us-east-2 y us-west-2
-([ficha del modelo en AWS](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-5-5.html)).
-Ese endpoint no acepta la caché automática, así que `ApiEngine` marca el punto de caché a mano. Ojo: Haiku puede errar
-más la puntería de los clics que Sonnet, y esos errores se cuentan como fricción del sitio; conviene comparar una misma
-tarea en local y en AWS antes de confiar en los resultados.
+En AWS se usa solo Claude Sonnet 4.6, tanto para los usuarios sintéticos como para el juez (`BEDROCK_USER_MODEL` y
+`BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. La cuenta del proyecto no tiene acceso en Bedrock a
+Claude Opus 4.7 ni a los modelos posteriores: responden *is not available for this account* y solo AWS puede
+habilitarlos. Se llama por el endpoint `bedrock-runtime` con el perfil de inferencia de EE.UU.,
+`us.anthropic.claude-sonnet-4-6`, que reparte entre us-east-1, us-east-2 y us-west-2.
+
+Sonnet 4.6 no acepta el toolset de computer use (`computer_toolset_20260801`, desde Opus 4.7), así que con él
+`ApiEngine` declara la herramienta anterior, `computer_20251124` con la beta `computer-use-2025-11-24`, y le da el
+tamaño de la pantalla a partir de la primera captura (ver `LEGACY_COMPUTER_MODELS` en `actions.py`). Tampoco acepta el
+esfuerzo `xhigh`. El endpoint no acepta la caché automática, así que `ApiEngine` marca el punto de caché a mano. Ojo:
+Sonnet 4.6 puede errar más la puntería de los clics que Sonnet 5.5, y esos errores se cuentan como fricción del sitio;
+conviene comparar una misma tarea en local y en AWS antes de confiar en los resultados.
 
 Con `export AWS_PROFILE=<perfil de la cuenta del proyecto>`, una prueba de concepto en tres pasos:
 

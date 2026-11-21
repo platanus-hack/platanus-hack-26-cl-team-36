@@ -17,7 +17,7 @@ def test_parse_request_fills_defaults():
     assert request["profiles"] == list(PROFILES)
     assert request["task_id"] is None
     assert request["effort"] == "medium"
-    assert "model" not in request  # en AWS el modelo no se elige por pedido: siempre Haiku
+    assert "model" not in request  # en AWS el modelo no se elige por pedido: siempre Sonnet 4.6
 
 
 @pytest.mark.parametrize("payload", [
@@ -27,14 +27,15 @@ def test_parse_request_fills_defaults():
     {"url": "https://ejemplo.cl", "instruction": "   "},
     {"url": "https://ejemplo.cl", "instruction": "x", "profiles": ["astronauta"]},
     {"url": "https://ejemplo.cl", "instruction": "x", "effort": "turbo"},
+    {"url": "https://ejemplo.cl", "instruction": "x", "effort": "xhigh"},  # Sonnet 4.6 no lo acepta
 ])
 def test_parse_request_rejects_bad_payloads(payload):
     with pytest.raises(InvalidRequest):
         parse_request(payload)
 
 
-def test_aws_uses_only_haiku():
-    assert models_for("bedrock") == ("claude-haiku-5-5", "claude-haiku-5-5")
+def test_aws_uses_only_sonnet_4_6():
+    assert models_for("bedrock") == ("claude-sonnet-4-6", "claude-sonnet-4-6")
     assert models_for("api") == ("claude-sonnet-5-5", "claude-opus-5-5")
     assert models_for("claude-code", "claude-haiku-5-5") == ("claude-haiku-5-5", "claude-opus-5-5")
 
@@ -51,7 +52,7 @@ def test_invoke_streams_an_error_for_a_bad_request():
 
 def test_invoke_streams_progress_and_report(tmp_path, monkeypatch):
     async def fake_batch(**kwargs):
-        assert kwargs.get("user_model") is None  # run_batch elige Haiku con el motor bedrock
+        assert kwargs.get("user_model") is None  # run_batch elige Sonnet 4.6 con el motor bedrock
         batch_dir = tmp_path / "tanda"
         (batch_dir / "mobile").mkdir(parents=True)
         (batch_dir / "mobile" / "run.json").write_text(json.dumps({"profile": "mobile", "verdict": {"outcome": "success"}}))

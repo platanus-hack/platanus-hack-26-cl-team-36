@@ -13,11 +13,12 @@ import asyncio
 import base64
 import json
 import re
+import struct
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import config
-from actions import COMPUTER_TOOLSET
+from actions import COMPUTER_TOOLSET, LEGACY_COMPUTER_BETA, legacy_computer_tool, uses_legacy_computer_tool
 
 
 class AttemptEnded(Exception):
@@ -58,6 +59,12 @@ def png_image_block(png: bytes) -> dict:
         "type": "image",
         "source": {"type": "base64", "media_type": "image/png", "data": base64.standard_b64encode(png).decode()},
     }
+
+
+def png_size(png: bytes) -> tuple[int, int]:
+    """Ancho y alto de un PNG, leídos de su cabecera (IHDR)."""
+    width, height = struct.unpack(">II", png[16:24])
+    return width, height
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +312,7 @@ class ApiEngine:
         self.client = client
         self.model = model
         self.effort = effort
+        self.legacy_computer = uses_legacy_computer_tool(model)  # herramienta `computer` en vez del toolset
         self.tools = [COMPUTER_TOOLSET, EXPECTATION_TOOL]
         self.messages: list[dict] = []
         self.usage = {"input_tokens": 0, "output_tokens": 0, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}
@@ -312,19 +320,26 @@ class ApiEngine:
     async def start(self, system_prompt: str, first_message: str, screenshot: bytes, log_dir: Path) -> None:
         self.system_prompt = system_prompt
         self.messages = [{"role": "user", "content": [{"type": "text", "text": first_message}, png_image_block(screenshot)]}]
+        if self.legacy_computer:
+            # Las capturas son del viewport a escala 1:1: su tamaño es el de la pantalla del perfil.
+            self.tools = [legacy_computer_tool(*png_size(screenshot)), EXPECTATION_TOOL]
 
     async def decide(self) -> Turn:
         import anthropic
 
+        request = {
+            "model": self.model,
+            "max_tokens": config.USER_MAX_TOKENS,
+            "system": self.system_prompt,
+            "tools": self.tools,
+            "messages": _with_cache_breakpoint(self.messages),
+            "output_config": {"effort": self.effort},
+        }
         try:
-            response = await self.client.messages.create(
-                model=self.model,
-                max_tokens=config.USER_MAX_TOKENS,
-                system=self.system_prompt,
-                tools=self.tools,
-                messages=_with_cache_breakpoint(self.messages),
-                output_config={"effort": self.effort},
-            )
+            if self.legacy_computer:
+                response = await self.client.beta.messages.create(**request, betas=[LEGACY_COMPUTER_BETA])
+            else:
+                response = await self.client.messages.create(**request)
         except (anthropic.APIStatusError, anthropic.APIConnectionError) as error:
             raise AttemptEnded("api_error", str(error)[:300])
         for key in self.usage:
@@ -341,16 +356,19 @@ class ApiEngine:
             return Turn(final=("done", text))
         if response.stop_reason == "max_tokens":
             raise AttemptEnded("no_response", "La respuesta del modelo se cortó por max_tokens.")
-        return Turn(requests=[
-            ActionRequest(block.id, block.name, block.input or {}, getattr(block, "toolset_name", None) == "computer")
-            for block in tool_uses
-        ])
+        return Turn(requests=[self._action_request(block) for block in tool_uses])
+
+    def _action_request(self, block) -> ActionRequest:
+        if self.legacy_computer and block.name == "computer":
+            action_input = dict(block.input or {})
+            return ActionRequest(block.id, action_input.pop("action", ""), action_input, True)
+        return ActionRequest(block.id, block.name, block.input or {}, getattr(block, "toolset_name", None) == "computer")
 
     async def respond(self, results: list[ActionResult], screenshot: bytes) -> None:
         blocks = []
         for result in results:
             block: dict = {"type": "tool_result", "tool_use_id": result.request.id}
-            if result.request.is_computer:
+            if result.request.is_computer and not self.legacy_computer:
                 block["toolset_name"] = "computer"
             block["content"] = [png_image_block(result.image)] if result.image else result.text
             if result.is_error:

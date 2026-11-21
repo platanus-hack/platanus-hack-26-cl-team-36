@@ -3,7 +3,7 @@
 import os
 
 # Modelos en local: los usuarios sintéticos navegan con Sonnet; el criterio y el veredicto los da Opus.
-# En AWS se usa solo Haiku (BEDROCK_*_MODEL, más abajo).
+# En AWS se usa solo Sonnet 4.6 (BEDROCK_*_MODEL, más abajo).
 USER_MODEL = "claude-sonnet-5-5"
 JUDGE_MODEL = "claude-opus-5-5"
 USER_EFFORT = "medium"
@@ -28,14 +28,15 @@ NO_EFFECT_THRESHOLD = 0.005  # fracción de píxeles que deben cambiar para que 
 # AWS: el motor `bedrock`, el navegador `agentcore` y el evaluador desplegado en AgentCore Runtime.
 # El proyecto vive en us-east-2 (ver infra/README.md).
 AWS_REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-2"
-# Claude en Amazon Bedrock por el endpoint bedrock-runtime, con el perfil de inferencia de EE.UU. (us.anthropic.claude-...).
-# En us-east-2, Haiku 5.5 no está en bedrock-mantle ni se sirve solo en la región: AWS lo ofrece por perfiles que
-# reparten entre regiones, y el de EE.UU. usa us-east-1, us-east-2 y us-west-2, las que la cuenta permite. Ver
-# https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-5-5.html
+# Claude en Amazon Bedrock por el endpoint bedrock-runtime, con el perfil de inferencia de EE.UU. (us.anthropic.claude-...),
+# que reparte entre us-east-1, us-east-2 y us-west-2.
 BEDROCK_MODEL_PREFIX = "us.anthropic."
-# En AWS (motor bedrock, incluido AgentCore Runtime) solo se usa Haiku, para los usuarios y para el juez.
-BEDROCK_USER_MODEL = "claude-haiku-5-5"
-BEDROCK_JUDGE_MODEL = "claude-haiku-5-5"
+# En AWS (motor bedrock, incluido AgentCore Runtime) solo se usa Sonnet 4.6, para los usuarios y para el juez. La cuenta
+# del proyecto no tiene acceso a Claude Opus 4.7 ni a los modelos posteriores (Bedrock responde "is not available for
+# this account" y solo AWS puede habilitarlos), así que el motor usa la herramienta de computer use anterior al toolset
+# (ver actions.LEGACY_COMPUTER_MODELS). Sonnet 4.6 no acepta el esfuerzo `xhigh`.
+BEDROCK_USER_MODEL = "claude-sonnet-4-6"
+BEDROCK_JUDGE_MODEL = "claude-sonnet-4-6"
 AGENTCORE_RUNTIME_NAME = "web_evaluator"
 AGENTCORE_BROWSER_VIEWPORT = {"width": 1280, "height": 800}   # la ventana; cada perfil fija su propia vista
 AGENTCORE_BROWSER_TIMEOUT_SECONDS = 1800

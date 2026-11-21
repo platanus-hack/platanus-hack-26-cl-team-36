@@ -7,7 +7,7 @@ callada durante los minutos que dura una tanda.
     {"url": "https://...", "instruction": "...", "task_id": "wom-baja-fibra",
      "profiles": ["first_time", "mobile"], "effort": "medium"}
 
-Solo `url` e `instruction` son obligatorios. En AWS usa Claude en Bedrock, solo Haiku (usuarios y juez, ver
+Solo `url` e `instruction` son obligatorios. En AWS usa Claude en Bedrock, solo Sonnet 4.6 (usuarios y juez, ver
 config.BEDROCK_*_MODEL), y AgentCore Browser;
 EVALUATOR_ENGINE y EVALUATOR_BROWSER los cambian (por ejemplo, para `agentcore dev` sin AWS).
 """
@@ -27,7 +27,7 @@ from profiles import PROFILES
 
 ENGINE = os.environ.get("EVALUATOR_ENGINE", "bedrock")
 BROWSER = os.environ.get("EVALUATOR_BROWSER", "agentcore")
-EFFORTS = ("low", "medium", "high", "xhigh", "max")
+EFFORTS = ("low", "medium", "high", "max")  # los de config.BEDROCK_USER_MODEL (Sonnet 4.6 no tiene xhigh)
 PROGRESS_SECONDS = 20
 
 app = BedrockAgentCoreApp()
