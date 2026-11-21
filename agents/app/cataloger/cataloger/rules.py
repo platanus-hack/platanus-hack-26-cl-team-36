@@ -2,7 +2,7 @@
 
 import re
 
-from shared.catalog.goal import INTENTS, LEVELS, Goal, fill_evaluation, slugify
+from shared.catalog.goal import FREE_GOAL_PREFIX, INTENTS, LEVELS, Goal, fill_evaluation, is_free_goal_id, slugify
 from shared.catalog.outline import Field, PageOutline, SiteOutline
 from shared.catalog.prominence import prominence
 from shared.catalog.tasks import task_ids
@@ -65,6 +65,9 @@ def validate(raw_goals: list[dict], outline: SiteOutline, reserved: set[str] | N
         goal_id = slugify(raw.get("id") or "")
         if not _ID.match(goal_id) or goal_id in proposed:
             issues.append(f"{raw.get('id')!r}: id vacío o repetido; se descarta")
+            continue
+        if is_free_goal_id(goal_id):
+            issues.append(f"{goal_id}: el prefijo «{FREE_GOAL_PREFIX}» es de los objetivos libres; se descarta")
             continue
         if raw.get("level") not in LEVELS or raw.get("intent") not in INTENTS or not (raw.get("description") or "").strip():
             issues.append(f"{goal_id}: nivel, intención o descripción inválidos; se descarta")

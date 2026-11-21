@@ -39,19 +39,22 @@ def write_catalog(backend: store.Backend, goals: list[dict], links: list[dict] |
 
 
 def write_route(backend: store.Backend, item: dict, min_steps: int = 3, status: str = "verified", tried: int = 2,
-                steps: list[dict] | None = None, inputs: tuple[store.RunKey, ...] = ()) -> store.RunKey:
+                steps: list[dict] | None = None, inputs: tuple[store.RunKey, ...] = (), viewport: str = "desktop",
+                instruction: str | None = None, moment: datetime = NOW) -> store.RunKey:
     route = {
-        "status": status, "start_url": item["start_url"], "instruction": item["description"], "viewport": "desktop",
+        "status": status, "start_url": item["start_url"], "instruction": instruction or item["description"],
+        "viewport": viewport,
         "totals": {"min_steps": min_steps, "actions": min_steps, "distinct_pages": 2},
         "nodes": ["a", "b"], "final_node": "b", "search": {"tried": tried}, "steps": steps or [],
     }
-    return publish(backend, store.guide(START, item["id"], "desktop"), {"route.json": route}, inputs=inputs)
+    return publish(backend, store.guide(START, item["id"], viewport), {"route.json": route}, moment, inputs)
 
 
 def write_batch(backend: store.Backend, goal_id: str, runs: dict[str, tuple[str, int, float | None, bool]],
                 moment: datetime = NOW, proposals: bool = False, tema: str | None = None) -> store.RunKey:
     """`runs`: perfil → (resultado, pasos, eficiencia, beat_reference); `tema`: sha256 corto, si corrió con uno."""
-    files: dict = {"report.md": "# Reporte", "route_tree.json": {"tema": {"sha256": tema} if tema else None}}
+    files: dict = {"report.md": "# Reporte", "route_tree.json": {"url": START, "instruction": f"Tarea {goal_id}.",
+                                                                 "tema": {"sha256": tema} if tema else None}}
     rows = []
     for profile, (outcome, steps, efficiency, beat) in runs.items():
         files[f"{profile}/run.json"] = {"profile": profile, "steps": [{}] * steps, "verdict": {"outcome": outcome}}

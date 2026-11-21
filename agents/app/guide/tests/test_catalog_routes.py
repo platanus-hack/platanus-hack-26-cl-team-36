@@ -89,3 +89,14 @@ def test_verified_routes_count_toward_the_route_limit(tmp_path):
     assert [goal.id for goal in pending_routes(backend, goals, 2, False)] == ["a"]
     assert [goal.id for goal in pending_routes(backend, goals, None, False)] == ["a", "b", "d"]
     assert [goal.id for goal in pending_routes(backend, goals, 2, True)] == ["a", "b"]
+
+
+def test_a_free_instruction_never_takes_a_catalog_goal_id(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv(store.ENV_VAR, tmp_path.as_uri())
+    parser = build_parser()
+    args = parser.parse_args(["route", "--url", START, "--instruction", "Encuentra algo."])
+    [mapping] = route_command._task_mappings(parser, args)
+    assert mapping.goal.startswith("libre-encuentra-algo-")
+    with pytest.raises(SystemExit):
+        route_command._task_mappings(parser, parser.parse_args(["route", "--url", START, "--instruction", "  "]))
+    assert "vacía" in capsys.readouterr().err

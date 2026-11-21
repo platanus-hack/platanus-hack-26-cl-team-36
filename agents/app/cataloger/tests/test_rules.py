@@ -70,6 +70,11 @@ def test_validation_repairs_or_drops_invalid_goals_and_says_why():
                for goal_id in ("baja", "raro", "inventado", "entrada", "huerfano"))
 
 
+def test_the_free_goal_prefix_is_reserved():
+    goals, issues = validate([_raw("libre-baja-0a1b2c3d"), _raw("baja")], OUTLINE, reserved=set())
+    assert [goal.id for goal in goals] == ["baja"] and "libre-" in issues[0]
+
+
 def test_parent_is_normalised_like_the_id_and_summaries_do_not_nest():
     goals, issues = validate([
         _raw("Gestionar", level="summary", entry=None, parent="Otro grupo"),

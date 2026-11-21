@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Visitante: usuarios sintéticos que intentan una tarea en un sitio viendo solo capturas."
 requires-python = ">=3.12,<3.13"   # la imagen de AgentCore usa la misma versión (Dockerfile)
 dependencies = [
-    "shared[browser,pixels]",
+    "shared[browser,pixels,s3]",   # boto3 ya llega con anthropic[bedrock]: el extra no suma paquetes
     "anthropic[bedrock]>=2.12",
     "playwright>=1.48",
     "bedrock-agentcore>=1.27",

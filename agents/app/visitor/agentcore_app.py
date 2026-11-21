@@ -7,14 +7,15 @@ callada durante los minutos que dura una tanda.
     {"url": "https://...", "instruction": "...", "task_id": "baja-fibra",
      "profiles": ["first_time", "mobile"], "effort": "medium"}
 
-Solo `url` e `instruction` son obligatorios; `task_id` es el objetivo y, sin él, sale de la instrucción. En AWS usa
-Claude en Bedrock, solo Sonnet 4.6 (usuarios y juez, ver config.BEDROCK_*_MODEL), y AgentCore Browser;
-VISITOR_ENGINE y VISITOR_BROWSER los cambian (por ejemplo, para `agentcore dev` sin AWS). La corrida queda en
-AGENTS_STORE o, sin él, en una carpeta temporal de la sesión.
+Solo `url` e `instruction` son obligatorios; `task_id` es el objetivo y, sin él, es el objetivo libre de la
+instrucción. En AWS usa Claude en Bedrock, solo Sonnet 4.6 (usuarios y juez, ver config.BEDROCK_*_MODEL), y AgentCore
+Browser; VISITOR_ENGINE y VISITOR_BROWSER los cambian (por ejemplo, para `agentcore dev` sin AWS). La corrida queda
+en AGENTS_STORE o, sin él, en una carpeta temporal que se borra al responder.
 """
 
 import asyncio
 import os
+import shutil
 import tempfile
 import time
 from pathlib import Path
@@ -86,15 +87,9 @@ def outcomes(backend: store.Backend, run: store.RunKey) -> dict:
     return result
 
 
-@app.entrypoint
-async def invoke(payload, context):
-    try:
-        request = parse_request(payload)
-    except InvalidRequest as error:
-        yield {"error": str(error)}
-        return
+async def _stream(backend: store.Backend, request: dict):
+    """Los avisos de la tanda y, al final, su resultado o el error."""
     started = time.monotonic()
-    backend = store.open_backend(os.environ.get(store.ENV_VAR) or Path(tempfile.mkdtemp(prefix="visitor-")).as_uri())
     batch = asyncio.create_task(run_batch(
         backend,
         store.visitor(request["url"], request["goal"]),
@@ -122,6 +117,23 @@ async def invoke(payload, context):
         "outcomes": outcomes(backend, run),
         "report": backend.read_text(run.file("report.md")),
     }
+
+
+@app.entrypoint
+async def invoke(payload, context):
+    try:
+        request = parse_request(payload)
+    except InvalidRequest as error:
+        yield {"error": str(error)}
+        return
+    configured = os.environ.get(store.ENV_VAR)
+    temporary = None if configured else Path(tempfile.mkdtemp(prefix="visitor-"))
+    try:
+        async for event in _stream(store.open_backend(configured or temporary.as_uri()), request):
+            yield event
+    finally:
+        if temporary:
+            shutil.rmtree(temporary, ignore_errors=True)
 
 
 if __name__ == "__main__":

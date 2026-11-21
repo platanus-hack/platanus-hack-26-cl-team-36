@@ -57,7 +57,10 @@ def _target(parser: argparse.ArgumentParser, args: argparse.Namespace) -> tuple[
             parser.error(f"no existe la tarea '{args.task}'; disponibles: {', '.join(available_tasks()) or 'ninguna'}")
         return task.id, task.start_url, task.description
     if args.url and args.instruction:
-        return instruction_goal_id(args.instruction), args.url, args.instruction
+        try:
+            return instruction_goal_id(args.instruction), args.url, args.instruction
+        except ValueError as error:
+            parser.error(str(error))
     parser.error("falta qué mapear: usa --task <host>/<objetivo>, --url con --instruction, o --site <url>")
 
 

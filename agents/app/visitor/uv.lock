@@ -1537,6 +1537,9 @@ browser = [
 pixels = [
     { name = "pillow" },
 ]
+s3 = [
+    { name = "boto3" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1645,7 +1648,7 @@ dependencies = [
     { name = "aws-opentelemetry-distro" },
     { name = "bedrock-agentcore" },
     { name = "playwright" },
-    { name = "shared", extra = ["browser", "pixels"] },
+    { name = "shared", extra = ["browser", "pixels", "s3"] },
 ]
 
 [package.dev-dependencies]
@@ -1659,7 +1662,7 @@ requires-dist = [
     { name = "aws-opentelemetry-distro", specifier = ">=0.10" },
     { name = "bedrock-agentcore", specifier = ">=1.27" },
     { name = "playwright", specifier = ">=1.48" },
-    { name = "shared", extras = ["browser", "pixels"], editable = "../../shared" },
+    { name = "shared", extras = ["browser", "pixels", "s3"], editable = "../../shared" },
 ]
 
 [package.metadata.requires-dev]

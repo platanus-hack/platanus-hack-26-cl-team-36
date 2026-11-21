@@ -17,7 +17,7 @@ def test_parse_request_fills_defaults():
     request = parse_request({"url": "https://ejemplo.cl", "instruction": "  Encontrar el horario  "})
     assert request["instruction"] == "Encontrar el horario"
     assert request["profiles"] == list(PERFILES_POR_DEFECTO)
-    assert request["goal"] == "encontrar-el-horario"
+    assert request["goal"].startswith("libre-encontrar-el-horario-")
     assert request["effort"] == "medium"
     assert "model" not in request  # en AWS el modelo no se elige por pedido: siempre Sonnet 4.6
 
@@ -71,6 +71,24 @@ def test_invoke_streams_progress_and_report(tmp_path, monkeypatch):
     assert events[-1]["status"] == "done"
     assert events[-1]["outcomes"] == {"mobile": "success"}
     assert events[-1]["report"] == "# Reporte"
+
+
+def test_invoke_removes_its_temporary_store(tmp_path, monkeypatch):
+    folder = tmp_path / "almacen"
+    folder.mkdir()
+    seen = []
+
+    async def fake_batch(backend, prefix, url, instruction, profile_keys, **kwargs):
+        seen.append(backend.root)
+        with store.running(backend, prefix, model=None) as run:
+            (run.workdir / "report.md").write_text("# Reporte")
+        return run.key
+
+    monkeypatch.delenv(store.ENV_VAR, raising=False)
+    monkeypatch.setattr(agentcore_app.tempfile, "mkdtemp", lambda prefix: str(folder))
+    monkeypatch.setattr(agentcore_app, "run_batch", fake_batch)
+    events = _collect({"url": "https://ejemplo.cl", "instruction": "x"})
+    assert events[-1]["report"] == "# Reporte" and seen == [folder] and not folder.exists()
 
 
 def test_invoke_streams_batch_errors(monkeypatch):

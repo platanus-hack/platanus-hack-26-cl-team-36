@@ -24,10 +24,12 @@ def write_route(backend, item: Goal, status: str = "verified") -> store.RunKey:
     return run.key
 
 
-def write_visit(backend, goal_id: str, tema: str | None = None) -> None:
+def write_visit(backend, goal_id: str, instruction: str | None = None, status: str = "succeeded",
+                tema: str | None = None) -> None:
     run = store.start_run(backend, store.visitor(START, goal_id), model="m")
-    backend.write_json(run.key.file("route_tree.json"), {"tema": {"sha256": tema} if tema else None})
-    store.finish_run(backend, run, "succeeded")
+    backend.write_json(run.key.file("route_tree.json"), {"url": START, "instruction": instruction or f"Tarea {goal_id}.",
+                                                         "tema": {"sha256": tema} if tema else None})
+    store.finish_run(backend, run, status)
 
 
 def _skips(planned):
@@ -48,6 +50,15 @@ def test_plan_runs_evaluable_goals_with_a_route_and_says_why_it_skips_the_rest(t
     assert _skips(plan(backend, goals, PROFILES, ["s-hecho"], None, True))["s-hecho"] is None
     assert _skips(plan(backend, goals, PROFILES, ["s-hecho"], None, True))["s-a"] == "no pedido"
     assert _skips(plan(backend, goals, ["mobile"], [], None, False))["s-a"] == "sin ruta verificada"
+
+
+def test_a_visit_for_another_instruction_or_one_that_failed_does_not_count(tmp_path):
+    backend = store.LocalBackend(tmp_path)
+    for name in ("s-a", "s-b"):
+        write_route(backend, goal(name))
+    write_visit(backend, "s-a", instruction="Una tarea libre que reutilizó el id.")
+    write_visit(backend, "s-b", status="failed")
+    assert _skips(plan(backend, [goal("s-a"), goal("s-b")], PROFILES, [], None, False)) == {"s-a": None, "s-b": None}
 
 
 def test_route_for_another_instruction_does_not_count(tmp_path):

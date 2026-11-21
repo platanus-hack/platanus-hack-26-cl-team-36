@@ -4,7 +4,9 @@ Los localizadores salen del texto y el href que el Visitante registró del eleme
 llega a su página final y la cita de la referencia está en ella.
 """
 
+import json
 from dataclasses import replace
+from pathlib import Path
 
 from playwright.async_api import Browser
 
@@ -61,13 +63,18 @@ def derive_steps(proposal: dict) -> list[Step]:
 
 async def adopt(browser: Browser, backend: store.Backend, route_run: store.RunKey, proposal: dict,
                 visitor_run: store.RunKey, log: Log) -> str:
-    """Verifica la propuesta contra la ruta de `route_run`; si es más corta, es una corrida nueva de guide.
+    """Verifica la propuesta contra la ruta de `route_run` y deja el resultado en una corrida nueva de guide.
 
+    Si la propuesta es más corta, la corrida termina `succeeded` con la ruta adoptada; si no, termina `failed` con
+    solo adoption.json. Sus `inputs` son la ruta y la corrida del Visitante, así la propuesta no se revisa dos veces.
     Devuelve `promoted`, `not_shorter`, `unverified` o `stale`.
     """
     route = backend.read_json(route_run.file("route.json"))
 
     def close(status: str, reason: str) -> str:
+        run = store.start_run(backend, route_run.prefix, model=route.get("model"), inputs=(route_run, visitor_run))
+        _write_outcome(run.workdir, status, reason, proposal)
+        store.finish_run(backend, run, "failed")
         log(f"{route_run}: {status} — {reason}")
         return status
 
@@ -96,6 +103,14 @@ async def adopt(browser: Browser, backend: store.Backend, route_run: store.RunKe
     document = route_document({key: route.get(key) for key in _META_KEYS}, "verified",
                               (replay.start_url, replay.start_title, replay.start_screenshot), replay.steps,
                               quote_scrolls, details)
+    reason = f"{new_steps} pasos mínimos; la referencia tenía {previous}"
     with store.running(backend, route_run.prefix, model=route.get("model"), inputs=(route_run, visitor_run)) as run:
         write_reference(run.workdir, document, replay.start_screenshot, replay.steps)
-    return close("promoted", f"{new_steps} pasos mínimos; la referencia tenía {previous} — {run.key}")
+        _write_outcome(run.workdir, "promoted", reason, proposal)
+    log(f"{route_run}: promoted — {reason} — {run.key}")
+    return "promoted"
+
+
+def _write_outcome(workdir: Path, status: str, reason: str, proposal: dict) -> None:
+    outcome = {"status": status, "reason": reason, "profile": proposal["profile"], "steps_count": proposal["steps_count"]}
+    (workdir / "adoption.json").write_text(json.dumps(outcome, ensure_ascii=False, indent=2), encoding="utf-8")

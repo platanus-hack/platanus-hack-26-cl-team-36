@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from shared import store
 from shared.browser.session import open_browser
 from shared.browser.viewports import SCREENS
+from shared.catalog.routes import current_route
 
 from guide.adopt import adopt
 
@@ -18,17 +19,33 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
     command.add_argument("--goal", required=True, help="<host>/<objetivo>: sus propuestas contra su ruta vigente")
 
 
-def pending(backend: store.Backend, host: str, goal: str) -> Iterator[Pending]:
-    """Por viewport, la ruta vigente y la propuesta más corta que la superó: (ruta, propuesta, corrida del Visitante)."""
-    visitor_runs = [run for run in backend.list_runs(store.visitor(host, goal))
-                    if store.read_manifest(backend, run).status == "succeeded"
-                    and backend.exists(run.file("proposals.json"))]
+def _checked(backend: store.Backend, host: str, goal: str) -> set[tuple[str, ...]]:
+    """Las entradas de cada corrida de guide del objetivo: una propuesta revisada deja (ruta, visitor) en ellas."""
+    checked = set()
     for viewport in SCREENS:
-        route_run = store.latest_run(backend, store.guide(host, goal, viewport))
-        candidates = [(proposal, run) for run in visitor_runs for proposal in backend.read_json(run.file("proposals.json"))
-                      if route_run and proposal["route"] == str(route_run)]
-        if candidates:
-            proposal, run = min(candidates, key=lambda item: item[0]["steps_count"])
+        for run in backend.list_runs(store.guide(host, goal, viewport)):
+            try:
+                checked.add(store.read_manifest(backend, run).inputs)
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+    return checked
+
+
+def pending(backend: store.Backend, host: str, goal: str) -> Iterator[Pending]:
+    """Por ruta vigente, la propuesta más corta que la superó y no se revisó: (ruta, propuesta, corrida del Visitante)."""
+    checked = _checked(backend, host, goal)
+    candidates: dict[str, list[tuple[dict, store.RunKey]]] = {}
+    for run in store.runs_with_status(backend, store.visitor(host, goal)):
+        if not backend.exists(run.file("proposals.json")):
+            continue
+        for proposal in backend.read_json(run.file("proposals.json")):
+            if (proposal["route"], str(run)) not in checked:
+                candidates.setdefault(proposal["route"], []).append((proposal, run))
+    for route_key, found in candidates.items():
+        route_run = store.parse_key(route_key).run
+        proposal, run = min(found, key=lambda item: item[0]["steps_count"])
+        current = current_route(backend, proposal["start_url"], goal, route_run.prefix.viewport, proposal["instruction"])
+        if current and current[0] == route_run:
             yield route_run, proposal, run
 
 
@@ -47,6 +64,7 @@ def run(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     except store.InvalidKey as error:
         parser.error(f"objetivo inválido {args.goal!r}: {error}")
     if not found:
-        parser.error(f"no hay propuestas pendientes para {args.goal}")
+        print(f"No hay propuestas pendientes para {args.goal}.")
+        return
     statuses = asyncio.run(_adopt(backend, found, args.cdp_url))
     print(f"\nListo: {', '.join(statuses)}")

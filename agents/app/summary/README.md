@@ -18,7 +18,9 @@ Cada resumen es una corrida de `<host>/summary/` con `summary.md`, `summary.json
 leyó. Los enlaces a los reportes son relativos a la corrida, iguales en disco y en S3. Por objetivo: sus
 clasificaciones, los pasos mínimos de la Guía y cuántas rutas exploró, el resultado y los pasos de cada perfil, la
 eficiencia y quién necesitó menos pasos; y los totales del sitio. Con una ruta verificada, la prominencia sale de su primer elemento en la página inicial y la
-complejidad de sus acciones, sin scrolls. Los objetivos sin tanda aparecen con el motivo.
+complejidad de sus acciones, sin scrolls. Los objetivos sin tanda aparecen con el motivo. Los intentos interrumpidos
+por un error técnico se muestran y se cuentan aparte: no entran en la tasa de éxito, el SPL ni "menos pasos". Las
+corridas que lee son las vigentes de la instrucción del catálogo, de ambos viewports, y todas quedan en `inputs`.
 
 Con `--css`, cuenta solo las tandas que corrieron con ese tema (las del [Visitante](../visitor/README.md) con el mismo
 `--css`) y `summary.json` lo registra en `tema` (sha256 corto); sin `--css`, solo las tandas sin tema y `tema` es

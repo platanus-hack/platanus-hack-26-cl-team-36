@@ -23,7 +23,7 @@ def summary_markdown(host: str, rows: list[dict], total: dict) -> str:
         "",
         f"- Objetivos: {total['goals']} · con ruta: {total['mapped']} · verificadas: {total['verified']}"
         f" · evaluados: {total['evaluated']}",
-        f"- Intentos con éxito: {rate} · SPL: {spl}",
+        f"- Intentos con éxito: {rate} · interrumpidos: {total['interrupted']} · SPL: {spl}",
         f"- Intentos con menos pasos que la referencia: {total['beat_reference']} · propuestas: {total['proposals']}",
         "",
         "| Objetivo | Nivel | Intención | Prominencia | Complejidad | Guía (pasos mínimos) | Visitante | Eficiencia"

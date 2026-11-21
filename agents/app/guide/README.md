@@ -30,7 +30,7 @@ uv run main.py adopt --goal wom.cl/baja-fibra
 | Opción | Qué hace |
 |---|---|
 | `--task <host>/<id>` | Una tarea de [`agents/tasks/`](../../tasks/). |
-| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el id del objetivo sale de la instrucción. |
+| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el objetivo es `libre-<palabras>-<hash>` de la instrucción. |
 | `--site <url>` | El último catálogo del sitio, del [Catalogador](../cataloger/README.md): la ruta de sus objetivos sin `exclusion`, primero los menos prominentes, en desktop. |
 | `--routes N` | Con `--site`: deja hasta N objetivos con ruta verificada, o todos con `all` (por defecto 0); los que ya tienen una corrida verificada para la misma instrucción cuentan y no se rehacen. |
 | `--rerun` | Con `--site`: rehace también las rutas ya verificadas. |
@@ -98,11 +98,12 @@ El navegador, Claude Code, los nodos, los viewports y el objetivo del catálogo 
 ### Adopción (`adopt`)
 
 Cuando un intento del Visitante logra la tarea con menos pasos que la referencia, su corrida deja `proposals.json` con
-la clave de esa ruta. `adopt` toma, por viewport, la propuesta más corta contra la ruta vigente y la repite con
+la clave de esa ruta. `adopt` toma, por ruta vigente, la propuesta más corta sin revisar y la repite con
 localizadores sacados del texto y el href que el Visitante registró de cada elemento clicado. Si llega a la página
 final del intento, la cita de la referencia está en ella y tiene menos `min_steps`, la ruta adoptada es una corrida
 nueva de guide cuyos `inputs` son la ruta anterior y la corrida del Visitante. Cada propuesta termina `promoted`,
-`not_shorter`, `unverified` o `stale`; solo `promoted` escribe.
+`not_shorter`, `unverified` o `stale`, y el resultado queda en `adoption.json` de una corrida nueva con esos mismos
+`inputs`: `succeeded` con la ruta adoptada, o `failed` con solo `adoption.json`. Una propuesta revisada no se repite.
 
 ## Salida
 
@@ -120,7 +121,7 @@ objetivo a tarea.
 
 `status` de route.json es `verified`, `unverified` (la repetición no llegó o no encontró la cita) o `not_found` (la
 exploración terminó sin respuesta); la corrida termina `succeeded` en los tres casos y `failed` si falló el programa.
-La ruta vigente de un objetivo es la de su última corrida `succeeded`.
+La ruta vigente de un objetivo para una instrucción es la de su corrida `succeeded` más nueva de esa instrucción.
 
 ## Pruebas
 

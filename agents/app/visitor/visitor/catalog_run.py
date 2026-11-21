@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from shared import store
 from shared.catalog.goal import Goal
-from shared.catalog.routes import latest_visit
+from shared.catalog.routes import current_visit
 
 from visitor.batch import run_batch
 from visitor.comparison import References, find_references
@@ -34,7 +34,7 @@ def plan(backend: store.Backend, goals: list[Goal], profile_keys: list[str], onl
             skip = goal.exclusion
         elif not references:
             skip = "sin ruta verificada"
-        elif not rerun and latest_visit(backend, goal.start_url, goal.id, tema):
+        elif not rerun and current_visit(backend, goal.start_url, goal.id, goal.instruction, tema):
             skip = "ya evaluado (--rerun para repetirlo)"
         elif limit is not None and running >= limit:
             skip = "límite"

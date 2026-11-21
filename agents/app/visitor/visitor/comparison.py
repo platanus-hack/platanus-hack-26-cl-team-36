@@ -77,11 +77,11 @@ def compare(run: dict, route: dict) -> dict:
 
 
 def compare_batch(references: References, runs: list[dict]) -> dict | None:
-    """Compara cada intento con la ruta de su viewport. None si ninguno tiene ruta de referencia."""
+    """Compara cada intento con la ruta de su viewport, sin los interrumpidos. None si ninguno se compara."""
     rows = []
     for run in runs:
         found = reference_for(references, run["profile"])
-        if found:
+        if found and run["verdict"].get("outcome") != "interrupted":
             rows.append(compare(run, found[1]))
     if not rows:
         return None

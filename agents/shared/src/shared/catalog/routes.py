@@ -48,18 +48,3 @@ def current_visit(backend: store.Backend, url: str, goal: str, instruction: str,
                            lambda tree: (tree.get("url"), tree.get("instruction"), visit_tema(tree))
                            == (url, instruction, tema))
 
-
-def latest_visit(backend: store.Backend, url: str, goal: str,
-                 tema: str | None = None) -> tuple[store.RunKey, dict] | None:
-    """La última corrida de visitor que terminó bien con ese tema (None = sin tema) y su route_tree.json.
-
-    Con y sin tema van al mismo prefijo: una corrida con tema nunca pasa por la línea base sin tema, ni al revés.
-    """
-    for run in reversed(backend.list_runs(store.visitor(url, goal))):
-        if store.read_manifest(backend, run).status != "succeeded":
-            continue
-        key = run.file("route_tree.json")
-        tree = backend.read_json(key) if backend.exists(key) else {}
-        if visit_tema(tree) == tema:
-            return run, tree
-    return None

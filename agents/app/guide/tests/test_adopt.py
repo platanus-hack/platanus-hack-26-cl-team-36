@@ -11,6 +11,7 @@ from shared.browser.session import connect_browser
 from shared.nodes.urls import node_key
 
 from guide.adopt import Unresolvable, adopt, derive_steps
+from guide.adopt_command import pending
 from tests.test_candidates import LONG, map_site
 
 
@@ -75,10 +76,30 @@ def test_shorter_proposal_that_replays_becomes_a_new_guide_run(tmp_path):
     assert sorted(path.name for path in (tmp_path / "almacen" / str(adopted)).glob("step_*.png")) == [
         "step_00.png", "step_01.png"]
     assert "Adoptada del Visitante" in backend.read_text(adopted.file("route.md"))
+    assert backend.read_json(adopted.file("adoption.json"))["status"] == "promoted"
 
 
 def test_proposal_that_does_not_replay_stays_unverified(tmp_path, capsys):
     map_site(tmp_path, LONG, extra_routes=0)
-    status, backend, previous, _ = _propose(tmp_path, {"tag": "a", "text": "No existe", "href": "otra.html"})
+    status, backend, previous, visitor_run = _propose(tmp_path, {"tag": "a", "text": "No existe", "href": "otra.html"})
     assert status == "unverified" and "paso 1" in capsys.readouterr().out
     assert store.latest_run(backend, previous.prefix) == previous
+    [record] = store.runs_with_status(backend, previous.prefix, "failed")
+    assert backend.read_json(record.file("adoption.json"))["status"] == "unverified"
+    assert store.read_manifest(backend, record).inputs == (str(previous), str(visitor_run))
+
+
+def test_a_checked_proposal_is_no_longer_pending(tmp_path):
+    backend = store.LocalBackend(tmp_path)
+    route = {"status": "verified", "start_url": "https://sitio.cl/", "instruction": "x"}
+    route_run = store.start_run(backend, store.guide("sitio.cl", "prueba", "desktop"), model="m")
+    backend.write_json(route_run.key.file("route.json"), route)
+    store.finish_run(backend, route_run, "succeeded")
+    visitor_run = store.start_run(backend, store.visitor("sitio.cl", "prueba"), model="m")
+    proposal = {"route": str(route_run.key), "start_url": route["start_url"], "instruction": "x", "steps_count": 1}
+    backend.write_json(visitor_run.key.file("proposals.json"), [proposal])
+    store.finish_run(backend, visitor_run, "succeeded")
+    assert list(pending(backend, "sitio.cl", "prueba")) == [(route_run.key, proposal, visitor_run.key)]
+    record = store.start_run(backend, route_run.key.prefix, model="m", inputs=(route_run.key, visitor_run.key))
+    store.finish_run(backend, record, "failed")
+    assert list(pending(backend, "sitio.cl", "prueba")) == []

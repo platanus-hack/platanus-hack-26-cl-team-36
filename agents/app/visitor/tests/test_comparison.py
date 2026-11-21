@@ -115,3 +115,10 @@ def test_compare_batch_averages_efficiency_and_renders():
     assert comparison["spl"] == 0.5 and [row["profile"] for row in comparison["runs"]] == ["first_time", "hurried"]
     section = "\n".join(report_section(comparison, {"first_time": "Primera vez"}))
     assert "| Primera vez | 2 / 2 | 1.00 | 0.00 | sí | 1.00 |" in section
+
+
+def test_an_interrupted_attempt_is_not_compared():
+    runs = [_run([HELP, HOURS]), _run([HELP], outcome="interrupted", profile="hurried")]
+    comparison = compare_batch({"desktop": (None, ROUTE)}, runs)
+    assert comparison["spl"] == 1.0 and [row["profile"] for row in comparison["runs"]] == ["first_time"]
+    assert compare_batch({"desktop": (None, ROUTE)}, runs[1:]) is None

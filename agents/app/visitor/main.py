@@ -21,7 +21,7 @@ from shared.catalog.goal import instruction_goal_id
 from shared.catalog.tasks import available_tasks, load_task
 
 from visitor import config
-from visitor.batch import run_batch
+from visitor.batch import BatchInterrupted, run_batch
 from visitor.catalog_run import plan, run_planned
 from visitor.comparison import find_references
 from visitor.profiles import PERFILES_POR_DEFECTO, PROFILES
@@ -93,7 +93,10 @@ def _target(parser: argparse.ArgumentParser, args: argparse.Namespace) -> tuple[
             parser.error(f"no existe la tarea '{args.task}'; disponibles: {', '.join(available_tasks()) or 'ninguna'}")
         return task.id, task.start_url, task.description
     if args.url and args.instruction:
-        return instruction_goal_id(args.instruction), args.url, args.instruction
+        try:
+            return instruction_goal_id(args.instruction), args.url, args.instruction
+        except ValueError as error:
+            parser.error(str(error))
     parser.error("falta qué probar: usa --task <host>/<objetivo>, --url con --instruction, o --site <url>")
 
 
@@ -155,8 +158,11 @@ def main() -> None:
         _run_site(parser, args, backend, profile_keys, options, tema)
         return
     references = find_references(backend, url, goal, instruction, profile_keys)
-    run = asyncio.run(run_batch(backend, store.visitor(url, goal), url, instruction, profile_keys, references,
-                                **options))
+    try:
+        run = asyncio.run(run_batch(backend, store.visitor(url, goal), url, instruction, profile_keys, references,
+                                    **options))
+    except BatchInterrupted as interrupted:
+        raise SystemExit(f"error: {interrupted}. Reporte: {interrupted.run.file('report.md')}")
     print(f"\nListo. Reporte: {run.file('report.md')}")
 
 

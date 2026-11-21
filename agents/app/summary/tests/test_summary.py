@@ -26,7 +26,7 @@ def test_summary_from_the_latest_runs_names_its_inputs(tmp_path):
 
     run, summary, markdown = _summary(backend)
     assert summary["totals"] == {"goals": 7, "mapped": 4, "verified": 4, "evaluated": 3, "runs": 4, "successes": 2,
-                                 "success_rate": 0.5, "spl": 0.5, "beat_reference": 1, "proposals": 1}
+                                 "interrupted": 0, "success_rate": 0.5, "spl": 0.5, "beat_reference": 1, "proposals": 1}
     rows = {row["id"]: row for row in summary["goals"]}
     assert [rows[key]["fewer"] for key in ("s-menos", "s-igual", "s-falla")] == ["visitante", "igual", None]
     report = f"../../visitor/s-menos/{latest.run_id}/report.md"
@@ -39,7 +39,7 @@ def test_summary_from_the_latest_runs_names_its_inputs(tmp_path):
             " first_time: success, 2 pasos; hurried: failed, 6 pasos | 1.00; 0.00 | visitante (propuesta proposed) |"
             f" [reporte]({report}) |") in markdown
     assert "| `s-sin-ruta` Tarea s-sin-ruta. | sin ruta (límite o error) |" in markdown
-    assert "Intentos con éxito: 2/4 (50%) · SPL: 0.50" in markdown
+    assert "Intentos con éxito: 2/4 (50%) · interrumpidos: 0 · SPL: 0.50" in markdown
     inputs = store.read_manifest(backend, run).inputs
     assert inputs[0] == str(catalog) and str(latest) in inputs and len(inputs) == 1 + 4 + 3
 
@@ -71,3 +71,27 @@ def test_con_tema_solo_cuenta_las_tandas_de_ese_tema(tmp_path):
     con_tema = backend.read_json(write_summary(backend, START, "abc123").file("summary.json"))
     assert sin_tema["goals"][0]["runs"][0]["outcome"] == "abandoned" and sin_tema["tema"] is None
     assert con_tema["goals"][0]["runs"][0]["outcome"] == "success" and con_tema["tema"] == "abc123"
+
+
+def test_interrupted_attempts_do_not_count_as_failures(tmp_path):
+    backend = store.LocalBackend(tmp_path)
+    item = goal("s-a")
+    write_catalog(backend, [item])
+    write_route(backend, item)
+    write_batch(backend, "s-a", {"first_time": ("success", 3, 1.0, False), "mobile": ("interrupted", 1, None, False)})
+    _, summary, markdown = _summary(backend)
+    assert {key: summary["totals"][key] for key in ("runs", "interrupted", "successes", "success_rate", "spl")} == {
+        "runs": 1, "interrupted": 1, "successes": 1, "success_rate": 1.0, "spl": 1.0}
+    assert "mobile: interrupted, 1 pasos" in markdown and "Intentos con éxito: 1/1 (100%) · interrumpidos: 1" in markdown
+
+
+def test_routes_of_both_viewports_are_inputs_and_another_instruction_does_not_hide_them(tmp_path):
+    backend = store.LocalBackend(tmp_path)
+    item = goal("s-a")
+    catalog = write_catalog(backend, [item])
+    desktop = write_route(backend, item)
+    mobile = write_route(backend, item, viewport="mobile")
+    write_route(backend, item, instruction="Una tarea libre con el mismo id.", moment=NOW + timedelta(hours=1))
+    run, summary, _ = _summary(backend)
+    assert summary["goals"][0]["route_status"] == "verified"
+    assert store.read_manifest(backend, run).inputs == (str(catalog), str(desktop), str(mobile))

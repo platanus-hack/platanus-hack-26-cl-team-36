@@ -154,7 +154,8 @@ async def _attempts(judge, make_engine, profile_keys: list[str], url: str, instr
 
 async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, profile_keys: list[str],
                        references: References, engine: str, user_model: str, judge_model: str, effort: str,
-                       cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None) -> None:
+                       cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None) -> int:
+    """Escribe la tanda en `batch_dir` y devuelve cuántos intentos no se interrumpieron."""
     css, tema = describir_tema(tema_css) if tema_css else (None, None)
     if css is not None:
         (batch_dir / "tema.css").write_text(css, encoding="utf-8")
@@ -189,6 +190,15 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
         if found:
             _write_json(batch_dir / "proposals.json", found)
     (batch_dir / "report.md").write_text(report.generate(meta, criteria, run_dicts, tree, comparison), encoding="utf-8")
+    return sum(run["verdict"].get("outcome") != "interrupted" for run in run_dicts)
+
+
+class BatchInterrupted(Exception):
+    """Ningún intento terminó: todos se interrumpieron por un error técnico o no cargaron la página."""
+
+    def __init__(self, run: store.RunKey):
+        super().__init__(f"todos los intentos se interrumpieron; la corrida {run} termina failed")
+        self.run = run
 
 
 async def run_batch(
@@ -209,13 +219,16 @@ async def run_batch(
 ) -> store.RunKey:
     """Una corrida de visitor: report.md, route_tree.json, comparison.json y una carpeta por perfil.
 
-    `inputs` y las corridas de guide de `references` quedan en el manifiesto. Con `tema_css`, cada página de cada
-    usuario (y la del criterio) se ve con ese tema, como con la extensión; la corrida deja una copia en `tema.css` y lo
-    registra en `route_tree.json` (`tema`), para distinguirla de una sin tema.
+    `inputs` y las corridas de guide de `references` quedan en el manifiesto. Si ningún intento terminó, la corrida
+    termina `failed` (con su reporte) y lanza `BatchInterrupted`. Con `tema_css`, cada página de cada usuario (y la del
+    criterio) se ve con ese tema, como con la extensión; la corrida deja una copia en `tema.css` y lo registra en
+    `route_tree.json` (`tema`), para distinguirla de una sin tema.
     """
     user_model, judge_model = models_for(engine, user_model)
     with store.running(backend, prefix, model=user_model,
                        inputs=(*inputs, *(key for key, _ in references.values()))) as run:
-        await _write_batch(run.workdir, prefix.goal, url, instruction, profile_keys, references, engine, user_model,
-                           judge_model, effort, cdp_url, browser, record_video, tema_css)
+        finished = await _write_batch(run.workdir, prefix.goal, url, instruction, profile_keys, references, engine,
+                                      user_model, judge_model, effort, cdp_url, browser, record_video, tema_css)
+        if not finished:
+            raise BatchInterrupted(run.key)
     return run.key

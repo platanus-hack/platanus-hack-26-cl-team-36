@@ -27,7 +27,7 @@ uv run main.py --task wom.cl/baja-fibra --css ../../.runs/diseno/www.wom.cl/<fec
 | Opción | Qué hace |
 |---|---|
 | `--task <host>/<id>` | Una tarea de [`agents/tasks/`](../../tasks/). |
-| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el id del objetivo sale de la instrucción. |
+| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el objetivo es `libre-<palabras>-<hash>` de la instrucción. |
 | `--site <url>` | El último catálogo del sitio, del [Catalogador](../cataloger/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
 | `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--site`, `first_time`) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido`, que solo corren si se piden. |
 | `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
@@ -123,7 +123,7 @@ Con `export AWS_PROFILE=<perfil de la cuenta del proyecto>`, una prueba de conce
 just local visit https://example.com "Encontrar el enlace More information" --profiles first_time \
     --engine bedrock --browser agentcore   # 1. desde tu computador: ¿la cuenta deja usar Claude y el navegador?
 just aws deploy                            # 2. despliega (al mergear a main lo hace el workflow AgentCore)
-just aws visit wom.cl/baja-fibra           # 3. la tanda corre en AgentCore; el reporte queda en agents/.runs/aws/
+just aws visit wom.cl/baja-fibra           # 3. la tanda corre en AgentCore; el reporte queda en local/.state/aws/
 ```
 
 `just aws status` muestra lo desplegado y `just aws logs` los logs del runtime (`--follow` para seguirlos). Los tres
@@ -135,7 +135,8 @@ runtime lo define; si no, en una carpeta temporal de la sesión, y se pierde al 
 
 Con `--site` corre, uno tras otro, los objetivos sin `exclusion` que tienen una ruta verificada de la Guía para
 algún perfil, con la `instruction` del catálogo. Cada tanda es una corrida de visitor que nombra en `inputs` el catálogo
-y las rutas con que se comparó. Si una falla, termina como `failed` y siguen las demás. El resumen del sitio lo escribe [summary](../summary/README.md).
+y las rutas con que se comparó. Si una falla, termina como `failed` y siguen las demás. Un objetivo cuya última tanda
+de esa instrucción terminó bien se omite. El resumen del sitio lo escribe [summary](../summary/README.md).
 
 | Opción | Qué hace |
 |---|---|
@@ -215,6 +216,9 @@ Cada tanda es una corrida en el almacén de [`shared.store`](../../shared/README
 ├── proposals.json    solo si un intento usó menos pasos que una ruta
 └── report.md
 ```
+
+Un intento interrumpido por un error técnico no cuenta como éxito ni como fallo: no entra en la comparación, el
+árbol ni el resumen. Si todos se interrumpen, la corrida termina `failed`, con su reporte, y el comando sale con error.
 
 Si el objetivo tiene una ruta vigente de la Guía, verificada para el viewport del perfil, el reporte la compara con
 cada intento ([fórmulas](../../../docs/agents/niveles-de-tarea.md), sección 5). El avance se informa como llegada a la

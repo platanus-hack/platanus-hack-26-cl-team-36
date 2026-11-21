@@ -7,18 +7,17 @@ from shared.browser.viewports import SCREENS
 from shared.catalog.goal import Goal
 from shared.catalog.outline import SiteOutline
 from shared.catalog.prominence import complexity, route_prominence
-from shared.catalog.routes import latest_route, latest_visit
+from shared.catalog.routes import current_route, current_visit
 from shared.store import parse_key
 
 
 Found = tuple[store.RunKey, dict]
 
 
-def _route(backend: store.Backend, goal: Goal) -> Found | None:
-    """La ruta vigente de esta instrucción: una verificada si hay, si no la primera."""
-    found = [route for viewport in SCREENS if (route := latest_route(backend, goal.start_url, goal.id, viewport))
-             and (route[1].get("start_url"), route[1].get("instruction")) == (goal.start_url, goal.instruction)]
-    return next((item for item in found if item[1].get("status") == "verified"), found[0] if found else None)
+def _routes(backend: store.Backend, goal: Goal) -> list[Found]:
+    """Las rutas vigentes de esta instrucción, una por viewport que tenga."""
+    return [route for viewport in SCREENS
+            if (route := current_route(backend, goal.start_url, goal.id, viewport, goal.instruction))]
 
 
 def _runs(backend: store.Backend, batch: store.RunKey) -> list[dict]:
@@ -74,11 +73,12 @@ def goal_row(backend: store.Backend, goal: Goal, outline: SiteOutline,
              tema: str | None = None) -> tuple[dict, list[store.RunKey]]:
     """La fila del objetivo, con `report` como clave del almacén, y las corridas que leyó.
 
-    La tanda es la última con ese tema (sha256 corto; None = el sitio tal cual).
+    La tanda es la vigente con ese tema (sha256 corto; None = el sitio tal cual).
     """
-    found = _route(backend, goal)
+    routes = _routes(backend, goal)
+    found = next((item for item in routes if item[1].get("status") == "verified"), routes[0] if routes else None)
     route = found[1] if found else None
-    visit = latest_visit(backend, goal.start_url, goal.id, tema)
+    visit = current_visit(backend, goal.start_url, goal.id, goal.instruction, tema)
     batch = visit[0] if visit else None
     runs = _runs(backend, batch) if batch else []
     row = {
@@ -93,19 +93,26 @@ def goal_row(backend: store.Backend, goal: Goal, outline: SiteOutline,
         "report": batch.file("report.md") if batch else None,
         "not_run": None if runs else _not_run(goal, route),
     }
-    return row, [run for run in (found[0] if found else None, batch) if run]
+    return row, [key for key, _ in routes] + ([batch] if batch else [])
+
+
+def _attempts(runs: list[dict]) -> list[dict]:
+    """Los intentos reales: uno interrumpido por un error técnico no cuenta como éxito ni como fallo."""
+    return [run for run in runs if run["outcome"] != "interrupted"]
 
 
 def totals(rows: list[dict]) -> dict:
-    runs = [run for row in rows for run in row["runs"]]
+    every = [run for row in rows for run in row["runs"]]
+    runs = _attempts(every)
     compared = [run["efficiency"] for run in runs if run["efficiency"] is not None]
     successes = sum(run["outcome"] == "success" for run in runs)
     return {
         "goals": len(rows),
         "mapped": sum(row["route_status"] is not None for row in rows),
         "verified": sum(row["route_status"] == "verified" for row in rows),
-        "evaluated": sum(bool(row["runs"]) for row in rows),
+        "evaluated": sum(bool(_attempts(row["runs"])) for row in rows),
         "runs": len(runs),
+        "interrupted": len(every) - len(runs),
         "successes": successes,
         "success_rate": round(successes / len(runs), 2) if runs else None,
         "spl": round(statistics.mean(compared), 2) if compared else None,
