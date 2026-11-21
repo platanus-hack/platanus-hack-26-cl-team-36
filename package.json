@@ -7,10 +7,11 @@
     "dev": "npm --prefix extension run dev",
     "dev:sesion": "npm --prefix extension run dev:sesion",
     "perfil:clonar": "npm --prefix extension run perfil:clonar --",
-    "check": "npm --prefix backend test && npm --prefix extension run check",
+    "check": "npm --prefix backend test && npm --prefix backoffice test && npm --prefix extension run check",
     "build": "npm --prefix extension run build",
     "dev:backend": "npm --prefix backend run dev",
     "start:backend": "npm --prefix backend start",
-    "sign": "npm --prefix extension run sign"
+    "sign": "npm --prefix extension run sign",
+    "backoffice": "npm --prefix backoffice start"
   }
 }

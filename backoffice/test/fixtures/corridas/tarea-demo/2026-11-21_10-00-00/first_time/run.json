@@ -1,0 +1,80 @@
+{
+ "profile": "first_time",
+ "profile_name": "first_time",
+ "viewport": "1024x768",
+ "model": "modelo",
+ "start_url": "https://www.ejemplo.test/",
+ "instruction": "Encontrar cómo dar de baja",
+ "engine": "claude-code",
+ "start": {
+  "url": "https://www.ejemplo.test/",
+  "title": "Inicio",
+  "screenshot": "step_00.png"
+ },
+ "steps": [
+  {
+   "number": 1,
+   "action": "left_click",
+   "action_input": {},
+   "description": "clic en (10, 10)",
+   "coordinates": [
+    10,
+    10
+   ],
+   "expectation": "Llego a la ayuda",
+   "element": {
+    "text": "Ayuda"
+   },
+   "url_before": "https://www.ejemplo.test/",
+   "title_before": "Inicio",
+   "url": "https://www.ejemplo.test/ayuda",
+   "title": "Ayuda",
+   "screenshot_before": "step_00.png",
+   "screenshot": "step_01.png",
+   "seconds_since_start": 3,
+   "duration_s": 3.0,
+   "screen_change": 0.4,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  },
+  {
+   "number": 2,
+   "action": "left_click",
+   "action_input": {},
+   "description": "clic en (20, 20)",
+   "coordinates": [
+    20,
+    20
+   ],
+   "expectation": "Veo cómo dar de baja",
+   "element": {
+    "text": "Dar de baja"
+   },
+   "url_before": "https://www.ejemplo.test/ayuda",
+   "title_before": "Ayuda",
+   "url": "https://www.ejemplo.test/ayuda/baja",
+   "title": "Cómo dar de baja",
+   "screenshot_before": "step_01.png",
+   "screenshot": "step_02.png",
+   "seconds_since_start": 6,
+   "duration_s": 3.0,
+   "screen_change": 0.4,
+   "signals": [],
+   "error_detail": null,
+   "events": []
+  }
+ ],
+ "end_reason": "done",
+ "final_message": "respuesta",
+ "duration_s": 10,
+ "turns": 3,
+ "screenshots_requested": 0,
+ "incidents": [],
+ "token_usage": {},
+ "final_screenshot": "step_02.png",
+ "verdict": {
+  "outcome": "success",
+  "justification": "porque sí"
+ }
+}
