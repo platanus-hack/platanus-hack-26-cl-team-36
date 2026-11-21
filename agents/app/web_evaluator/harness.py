@@ -9,12 +9,19 @@ from playwright.async_api import Browser
 
 from actions import CLICK_ACTIONS, UI_ACTIONS, VOLVER_A_NODO, Executor, InvalidActionError, UnavailableActionError
 from browser import BrowserSession, create_context
-from engines import ActionRequest, ActionResult, AttemptEnded
+from engines import ActionRequest, ActionResult, AttemptEnded, Turn
 from profiles import Profile, system_prompt
 from recording import Run, Step, blocked_form_count, element_at, has_no_effect, screen_change_ratio, visible_error
-from route_tree import node_key, normalize_url
+from route_tree import node_key, normalize_url, registrable_domain
 
 NOT_EXECUTED_MESSAGE = "Not executed: an earlier computer action in this turn failed."
+
+# Un explorador no puede terminar mientras esté en la fase de abanico de la skill explorar-caminos: le quedan más de
+# esta fracción de sus acciones y de su tiempo. Haiku tiende a terminar apenas ve la respuesta aunque la skill le diga
+# que siga, y el grafo queda en 2 o 3 ramas; contar el presupuesto es trabajo del harness, no del modelo.
+FRACCION_ABANICO = 0.4
+MAX_FINES_RECHAZADOS = 3  # después de esto se acepta el fin igual, para no forzar un bucle
+MARGEN_ACCION_S = 60  # cuánto puede pasarse del límite de tiempo una acción en curso antes de cortarla
 
 
 def _iso(moment: datetime) -> str:
@@ -85,7 +92,13 @@ class SyntheticUser:
         self.visited_nodes = {node_key(url, title)}
         # Páginas vistas en este intento, con un id corto para `volver_a_nodo`: clave del nodo -> (id, url, título).
         self.paginas: dict[str, tuple[str, str, str]] = {}
-        self._registrar_pagina(url, title)
+        # volver_a_nodo solo lleva a páginas http(s) del mismo sitio que la URL inicial: nunca a otro sitio al que
+        # llegó por un enlace, ni a una página de error del navegador.
+        self.dominio = registrable_domain(self.url)
+        self._registrar_pagina(url, title, inicial=True)
+        self.nodo_inicial = node_key(url, title)
+        self.ramas_desde_inicio: set[str] = set()  # páginas a las que llegó con un clic desde la inicial
+        self.fines_rechazados = 0
         self.started_at = time.monotonic()
         self.started_wall = datetime.now().astimezone()
         run.start["at"] = run.started_at = _iso(self.started_wall)
@@ -115,8 +128,20 @@ class SyntheticUser:
                     raise AttemptEnded("time_limit")
                 self.decided_s = self._elapsed()
                 if turn.final:
-                    raise AttemptEnded(*turn.final)
-                results = await self._process_requests(turn.requests)
+                    rechazo = self._rechazo_de_fin_temprano(turn)
+                    if rechazo is None:
+                        raise AttemptEnded(*turn.final)
+                    await self.engine.respond([rechazo], self.current_screenshot)
+                    continue
+                # Red de seguridad: una acción que se cuelga en el navegador no puede alargar el intento sin fin.
+                quedan_s = self.profile.limite_segundos - (time.monotonic() - self.started_at)
+                try:
+                    results = await asyncio.wait_for(
+                        self._process_requests(turn.requests), timeout=max(quedan_s, 0) + MARGEN_ACCION_S
+                    )
+                except TimeoutError:
+                    self.run.incidents.append("una acción no terminó a tiempo en el navegador")
+                    raise AttemptEnded("time_limit")
                 if self.profile.explora:
                     self._agregar_presupuesto(results)
                 await self.engine.respond(results, self.current_screenshot)
@@ -177,6 +202,41 @@ class SyntheticUser:
                 raise AttemptEnded("time_limit")
         return results
 
+    def _rechazo_de_fin_temprano(self, turn: Turn) -> ActionResult | None:
+        """Si un explorador quiere terminar en la fase de abanico, el error que se le responde; si no, None.
+
+        Solo con Claude Code: en la API un fin es texto sin herramienta, y no hay a qué responder con un error.
+        """
+        if not self.profile.explora or self.engine.name != "claude-code":
+            return None
+        if self.fines_rechazados >= MAX_FINES_RECHAZADOS:
+            return None
+        quedan = self.profile.limite_acciones - len(self.run.steps)
+        segundos = int(self.profile.limite_segundos - (time.monotonic() - self.started_at))
+        en_abanico = (
+            quedan > FRACCION_ABANICO * self.profile.limite_acciones
+            and segundos > FRACCION_ABANICO * self.profile.limite_segundos
+        )
+        if not en_abanico:
+            return None
+        self.fines_rechazados += 1
+        motivo, _ = turn.final
+        self.run.incidents.append(
+            f"quiso terminar ({motivo}) con {quedan} acciones y {segundos} s por delante; se le pidió seguir explorando"
+        )
+        ramas = len(self.ramas_desde_inicio)
+        inicial = self.paginas[self.nodo_inicial][0]
+        texto = (
+            f"Todavía no puedes terminar: estás en la fase 2 (abanico) y te quedan {quedan} acciones y {segundos} s. "
+            f"Desde la página inicial ({inicial}) abriste {ramas} rama(s). Anota lo que encontraste y abre una rama "
+            f"nueva: vuelve con volver_a_nodo a {inicial}, o a una página con candidatas sin probar, y elige un lugar "
+            "que aún no probaste (menú, buscador, pie de página o contenido), mejor si lleva a una página que no has "
+            "visto. Al final, en la fase 3, vuelve a la página de la respuesta y termina ahí. "
+            f"{self._paginas_vistas()}"
+        )
+        self._log(f"fin rechazado ({motivo}): quedan {quedan} acciones y {segundos} s")
+        return ActionResult(ActionRequest(f"fin{self.run.turns}", "fin", {}, False), texto, is_error=True)
+
     def _agregar_presupuesto(self, results: list[ActionResult]) -> None:
         """Suma al último resultado del turno cuántas acciones y segundos le quedan al usuario.
 
@@ -192,8 +252,10 @@ class SyntheticUser:
             nota += f" {self._paginas_vistas()}"
         ultimo.text = f"{ultimo.text.rstrip('.')}. {nota}"
 
-    def _registrar_pagina(self, url: str, title: str) -> None:
+    def _registrar_pagina(self, url: str, title: str, inicial: bool = False) -> None:
         key = self._nodo_actual = node_key(url, title)
+        if not inicial and (self.dominio is None or registrable_domain(url) != self.dominio):
+            return
         if key not in self.paginas:
             self.paginas[key] = (f"p{len(self.paginas) + 1}", url, (title or "").strip())
 
@@ -253,6 +315,8 @@ class SyntheticUser:
         error_text = await visible_error(self.session.page)
         if self.session.http_status and self.session.http_status >= 400:
             error_text = f"HTTP {self.session.http_status}" + (f": {error_text}" if error_text else "")
+        if url.startswith("chrome-error://"):  # el navegador no pudo abrir la página: enlace roto o sitio caído
+            error_text = "el navegador no pudo abrir la página (enlace roto o sitio caído)"
         if error_text:
             signals.append("visible_error")
             error_detail = error_text
@@ -260,6 +324,8 @@ class SyntheticUser:
             signals.append("security_block")
         self.visited_nodes.add(node_after)
         self._registrar_pagina(url, title)
+        if node_before == self.nodo_inicial and node_after != node_before and name != VOLVER_A_NODO:
+            self.ramas_desde_inicio.add(node_after)
 
         elapsed_s = settled_s
         run.steps.append(Step(

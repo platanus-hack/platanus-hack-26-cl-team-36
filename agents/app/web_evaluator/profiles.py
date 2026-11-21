@@ -1,7 +1,6 @@
 """Perfiles de usuario sintético y su prompt de sistema."""
 
 import re
-from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from functools import cache
 
@@ -25,6 +24,8 @@ class Profile:
     # Explora a propósito: recibe su presupuesto restante tras cada acción, y volver a una página ya vista con un clic
     # se registra como `revisit` (no como `went_back`, que cuenta como error en el árbol).
     explora: bool = False
+    # Solo exploradores: dónde abre su primera rama (obligatorio), para que cada uno salga por un lugar distinto.
+    primera_rama: str | None = None
 
     @property
     def limite_acciones(self) -> int:
@@ -37,32 +38,6 @@ class Profile:
     @property
     def limite_turnos(self) -> int:
         return self.max_turnos or config.MAX_TURNS
-
-
-class CatalogoDePerfiles(Mapping):
-    """Todos los perfiles por clave; al recorrerlo da solo los de por defecto.
-
-    Así `key in PROFILES` y `PROFILES[key]` aceptan los opcionales (los exploradores), mientras que quien arma la lista
-    por defecto con `list(PROFILES)` o `",".join(PROFILES)` sigue obteniendo first_time, hurried y mobile.
-    """
-
-    def __init__(self, por_defecto: dict[str, Profile], opcionales: dict[str, Profile]):
-        self.por_defecto = por_defecto
-        self.opcionales = opcionales
-
-    def __getitem__(self, key: str) -> Profile:
-        if key in self.por_defecto:
-            return self.por_defecto[key]
-        return self.opcionales[key]
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self.por_defecto)
-
-    def __len__(self) -> int:
-        return len(self.por_defecto)
-
-    def todos(self) -> dict[str, Profile]:
-        return {**self.por_defecto, **self.opcionales}
 
 
 _POR_DEFECTO: dict[str, Profile] = {
@@ -105,7 +80,7 @@ _POR_DEFECTO: dict[str, Profile] = {
     ),
 }
 
-def _explorador(key: str, name: str, primera_rama: str) -> Profile:
+def _explorador(key: str, name: str, lugar: str, primera_rama: str) -> Profile:
     """Un perfil que sigue la skill explorar-caminos; cada uno abre su primera rama por un lugar distinto."""
     return Profile(
         key=key,
@@ -115,35 +90,61 @@ def _explorador(key: str, name: str, primera_rama: str) -> Profile:
         mobile=False,
         description=(
             "Exploras el sitio a lo ancho para conocer los caminos que tendría una persona. Lees los textos con calma "
-            f"antes de elegir. Empieza tu primera rama por {primera_rama}; las siguientes, por los otros lugares."
+            f"antes de elegir. Tu primera rama sale por {lugar}; las siguientes, por los otros lugares."
         ),
         skill="explorar-caminos",
         max_acciones=config.EXPLORADOR_MAX_ACCIONES,
         max_segundos=config.EXPLORADOR_MAX_SEGUNDOS,
         max_turnos=config.EXPLORADOR_MAX_TURNOS,
         explora=True,
+        primera_rama=primera_rama,
     )
 
 
-# Cada explorador empieza por un lugar distinto de la página inicial, para que la tanda se abra en ramas distintas.
+# Cada explorador empieza por un lugar distinto de la página inicial, para que la tanda se abra en ramas distintas:
+# pedirle variedad a un solo agente no basta (ver la skill explorar-caminos).
 _EXPLORADORES: dict[str, Profile] = {
     profile.key: profile
     for profile in (
-        _explorador("explorador", "Explorador", "el menú principal (arriba, o el ícono de tres rayas)"),
-        _explorador("explorador_buscador", "Explorador buscador", "el buscador del sitio (lupa o campo de búsqueda)"),
         _explorador(
-            "explorador_pie", "Explorador del pie", "el pie de página (ayuda, preguntas frecuentes, mapa del sitio)"
+            "explorador",
+            "Explorador",
+            "el menú principal",
+            "el MENÚ PRINCIPAL, arriba (o el ícono de tres rayas). Haz clic en la sección del menú que mejor calce con "
+            "la tarea; si se abre un submenú, elige en él. No uses el buscador, el pie ni las tarjetas del contenido "
+            "en esta rama.",
+        ),
+        _explorador(
+            "explorador_buscador",
+            "Explorador buscador",
+            "el buscador del sitio",
+            "el BUSCADOR del sitio: haz clic en la lupa o en el campo de búsqueda, escribe 2 a 4 palabras de la tarea "
+            "y presiona Enter; luego abre el resultado que mejor calce. Si no hay buscador después de 1 scroll, "
+            "empieza por el pie de página.",
+        ),
+        _explorador(
+            "explorador_pie",
+            "Explorador del pie",
+            "el pie de página",
+            "el PIE DE PÁGINA: baja hasta el final de la página inicial con scroll (amount 10, las veces que haga "
+            "falta) y haz clic en un enlace del pie (ayuda, preguntas frecuentes, mapa del sitio, trámites o "
+            "servicios). No hagas clic en nada de arriba ni del contenido antes de llegar al pie.",
         ),
         _explorador(
             "explorador_contenido",
             "Explorador del contenido",
-            "los enlaces y botones del contenido de la página (banners, tarjetas, accesos directos), no del menú",
+            "los enlaces del contenido",
+            "el CONTENIDO de la página inicial: una tarjeta, banner, acceso directo o enlace del cuerpo de la página, "
+            "entre la cabecera y el pie. No uses el menú de arriba, el buscador ni el pie en esta rama.",
         ),
     )
 }
 
-# Al recorrerlo da los perfiles por defecto; los exploradores se piden por nombre (--profiles explorador,...).
-PROFILES = CatalogoDePerfiles(_POR_DEFECTO, _EXPLORADORES)
+# Todos los perfiles por clave. Los exploradores son opcionales: se piden por nombre (--profiles explorador,...).
+PROFILES: dict[str, Profile] = {**_POR_DEFECTO, **_EXPLORADORES}
+
+# Los que corren si no se piden perfiles (main.py y agentcore_app.py).
+PERFILES_POR_DEFECTO: tuple[str, ...] = ("first_time", "hurried", "mobile")
 
 _FRONTMATTER = re.compile(r"\A---\s*\n.*?\n---\s*\n", re.DOTALL)
 
@@ -225,7 +226,8 @@ def _seccion_de_skill(profile: Profile, engine: str) -> str:
             '\n- Tienes una acción más: "volver_a_nodo", con "nodo" = el id de una página que ya viste (p1, p2...). '
             "Te lleva directo a esa página. Tras cada acción el sistema te dice los ids de las páginas vistas."
         )
+    primera = f"\n\nTU PRIMERA RAMA (obligatoria)\nTu rama 1 sale por {profile.primera_rama}" if profile.primera_rama else ""
     return (
-        f"\n\nCÓMO EXPLORAR\nSigue este procedimiento durante todo el intento.{acciones}\n\n"
+        f"\n\nCÓMO EXPLORAR\nSigue este procedimiento durante todo el intento.{acciones}{primera}\n\n"
         f"{cuerpo_de_skill(profile.skill)}"
     )

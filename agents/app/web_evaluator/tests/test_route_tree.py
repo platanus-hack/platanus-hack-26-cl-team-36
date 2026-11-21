@@ -124,3 +124,86 @@ def test_no_route_without_successes():
     runs = _runs()
     runs[0]["verdict"] = {"outcome": "failed"}
     assert build_route_tree(runs)["recommended_route"] is None
+
+
+# --- Exploradores: saltos y ramas abandonadas en un intento con éxito ------------------------------------------------
+
+A, C, F = "https://s.cl/a", "https://s.cl/a/c", "https://s.cl/respuesta"
+
+
+def _explorador(steps, outcome="success"):
+    return {"profile": "explorador", "start": {"url": HOME, "title": "Inicio"}, "verdict": {"outcome": outcome},
+            "steps": steps}
+
+
+def _por_par(tree):
+    titulos = {node["id"]: node["title"] for node in tree["nodes"]}
+    return {(titulos[b["source"]], titulos[b["target"]]): b for b in tree["branches"]}
+
+
+def test_un_salto_desde_lo_profundo_deja_como_fallo_toda_la_rama_y_no_es_camino():
+    tree = build_route_tree([_explorador([
+        _step(1, "left_click", "clic", A, "A", 5.0, text="A"),
+        _step(2, "left_click", "clic", C, "C", 9.0, text="C"),                       # rama de 2 clics, callejón
+        _step(3, "volver_a_nodo", "volver a «Inicio»", HOME, "Inicio", 11.0, signals=["went_back"]),
+        _step(4, "left_click", "clic", F, "Respuesta", 15.0, text="Respuesta"),
+    ])])
+    ramas = _por_par(tree)
+    assert (ramas[("Inicio", "A")]["failures"], ramas[("A", "C")]["failures"]) == (1, 1)
+    salto = ramas[("C", "Inicio")]
+    assert salto["salto"] is True and salto["action"] == "volver a «Inicio»"
+    assert (ramas[("Inicio", "Respuesta")]["successes"], ramas[("Inicio", "Respuesta")]["failures"]) == (1, 0)
+    assert "salto" not in ramas[("Inicio", "Respuesta")]
+
+
+def test_volver_al_inicio_con_un_clic_no_vuelve_exitosa_una_rama_abandonada():
+    tree = build_route_tree([_explorador([
+        _step(1, "left_click", "clic", A, "A", 5.0, text="A"),
+        _step(2, "left_click", "clic", HOME, "Inicio", 8.0, signals=["revisit"], text="logo"),
+        _step(3, "left_click", "clic", BRANCHES, "Sucursales", 12.0, text="Sucursales"),
+        _step(4, "left_click", "clic", F, "Respuesta", 15.0, text="Respuesta"),
+        _step(5, "volver_a_nodo", "volver a «A»", A, "A", 17.0, signals=["went_back"]),
+        _step(6, "left_click", "clic", F, "Respuesta", 20.0, signals=["revisit"], text="Otra vez"),
+    ])])
+    ramas = _por_par(tree)
+    assert ramas[("Inicio", "A")]["successes"] == 1  # desde A sí llegó a la respuesta (paso 6)
+    assert ramas[("A", "Inicio")]["failures"] == 1   # el logo no es avance
+    assert ramas[("Inicio", "Sucursales")]["successes"] == ramas[("Sucursales", "Respuesta")]["successes"] == 1
+    assert ramas[("A", "Respuesta")]["successes"] == 1
+
+    sin_paso_6 = build_route_tree([_explorador([
+        _step(1, "left_click", "clic", A, "A", 5.0, text="A"),
+        _step(2, "left_click", "clic", HOME, "Inicio", 8.0, signals=["revisit"], text="logo"),
+        _step(3, "left_click", "clic", F, "Respuesta", 12.0, text="Respuesta"),
+    ])])
+    assert _por_par(sin_paso_6)[("Inicio", "A")]["failures"] == 1  # rama explorada y abandonada
+
+
+def test_la_ruta_recomendada_nunca_usa_un_salto():
+    nodes = [
+        {"id": "n1", "is_start": True, "endings": {"success": 0, "failed": 0, "abandoned": 0}},
+        {"id": "n2", "is_start": False, "endings": {"success": 0, "failed": 0, "abandoned": 0}},
+        {"id": "n3", "is_start": False, "endings": {"success": 5, "failed": 0, "abandoned": 0}},
+    ]
+
+    def rama(source, target, successes, salto=False):
+        return {"source": source, "target": target, "action": f"{source}>{target}", "successes": successes,
+                "failures": 0, "median_time_s": 1.0, "cost": branch_cost(successes, 0), "preceding_actions": [],
+                **({"salto": True} if salto else {})}
+
+    from route_tree import recommended_route
+
+    route = recommended_route(nodes, [rama("n1", "n3", 50, salto=True), rama("n1", "n2", 1), rama("n2", "n3", 1)])
+    assert [step["target"] for step in route["steps"]] == ["n2", "n3"]
+
+
+def test_dominio_registrable():
+    from route_tree import registrable_domain
+
+    assert registrable_domain("https://www.bibliotecanacional.gob.cl/x") == "bibliotecanacional.gob.cl"
+    assert registrable_domain("http://descubre.bibliotecanacional.gob.cl/") == "bibliotecanacional.gob.cl"
+    assert registrable_domain("https://patrimoniocultural.gob.cl/") == "patrimoniocultural.gob.cl"
+    assert registrable_domain("https://www.metro.cl/el-viaje") == "metro.cl"
+    assert registrable_domain("http://127.0.0.1:8000/") == "127.0.0.1"
+    assert registrable_domain("chrome-error://chromewebdata/") is None
+    assert registrable_domain("file:///tmp/uno.html") is None

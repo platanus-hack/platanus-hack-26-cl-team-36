@@ -45,3 +45,30 @@ def test_a_failing_batch_does_not_stop_the_rest(tmp_path, monkeypatch):
         write_route(tmp_path, item)
     asyncio.run(run_planned(plan(goals, tmp_path, PROFILES, [], None, False), tmp_path, profile_keys=PROFILES))
     assert calls == [("s-a", "Tarea s-a.", tmp_path / "s-a", PROFILES), ("s-c", "Tarea s-c.", tmp_path / "s-c", PROFILES)]
+
+
+def test_con_tema_no_se_salta_ni_se_mezcla_con_las_tandas_sin_tema(tmp_path):
+    import json
+
+    from site_summary import write_summary
+
+    item = goal("s-a")
+    write_route(tmp_path, item)
+    write_batch(tmp_path, "s-a", {"first_time": ("abandoned", 9, None, False)})  # sin tema
+    assert _skips(plan([item], tmp_path, PROFILES, [], None, False))["s-a"] == "ya evaluado (--rerun para repetirlo)"
+    assert _skips(plan([item], tmp_path, PROFILES, [], None, False, tema="abc123"))["s-a"] is None
+
+    write_batch(tmp_path, "s-a", {"first_time": ("success", 3, None, False)}, name="2026-01-02_00-00-00")
+    tanda_con_tema = tmp_path / "s-a" / "2026-01-02_00-00-00"
+    (tanda_con_tema / "route_tree.json").write_text(json.dumps({"tema": {"sha256": "abc123"}}), encoding="utf-8")
+    assert _skips(plan([item], tmp_path, PROFILES, [], None, False, tema="abc123"))["s-a"] == (
+        "ya evaluado (--rerun para repetirlo)"
+    )
+
+    catalogo = tmp_path / "goals.json"
+    catalogo.write_text(json.dumps({"host": "www.sitio.cl", "goals": [item]}), encoding="utf-8")
+    sin_tema = json.loads(write_summary(catalogo, tmp_path).with_suffix(".json").read_text(encoding="utf-8"))
+    con_tema = json.loads(write_summary(catalogo, tmp_path, "abc123").with_suffix(".json").read_text(encoding="utf-8"))
+    assert sin_tema["goals"][0]["runs"][0]["outcome"] == "abandoned"
+    assert con_tema["goals"][0]["runs"][0]["outcome"] == "success" and con_tema["tema"] == "abc123"
+    assert (tmp_path / "summary-tema-abc123.md").is_file() and (tmp_path / "summary.md").is_file()

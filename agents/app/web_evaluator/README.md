@@ -29,14 +29,14 @@ uv run main.py --task wom-baja-fibra --css ../../.runs/diseno/www.wom.cl/<fecha-
 | `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). Las corridas quedan en `agents/.runs/<id>/`. |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. Las corridas quedan en `agents/.runs/`. |
 | `--goals <goals.json>` | Un catálogo del [Mapeador](../web_mapper/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
-| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--goals`, `first_time`). |
+| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--goals`, `first_time`) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido`, que solo corren si se piden. |
 | `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
 | `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-haiku-5-5`). |
 | `--output` | Otra carpeta para las corridas. |
 | `--browser` | `local` (Chromium, por defecto) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 | `--record-video` | Graba un video `.webm` de cada intento (al tamaño del viewport), además de las capturas de cada paso. El reporte enlaza el video y marca en qué minuto ocurre cada paso. |
-| `--css <archivo>` | Aplica un tema en cada página de cada usuario y en la del criterio, como la extensión: clase `mi-tema` en `<html>` y el CSS en `<style id="mt-tema-css">`, desde que se crea cada documento y repuestos si el sitio los quita. La tanda guarda una copia en `tema.css` y registra archivo y sha256 corto en `route_tree.json` (`tema`) y en el reporte, para comparar tandas con y sin tema. Los temas salen del [diseñador](../web_designer/README.md). |
+| `--css <archivo>` | Aplica un tema en cada página de cada usuario y en la del criterio, como la extensión: clase `mi-tema` en `<html>` y el CSS en `<style id="mt-tema-css">`, desde que se crea cada documento y repuestos si el sitio los quita. La tanda guarda una copia en `tema.css` y registra archivo y sha256 corto en `route_tree.json` (`tema`) y en el reporte, para comparar tandas con y sin tema. Un tema con `url(`, `image-set(`, `@import`, `expression(`, `javascript:` o barra invertida se rechaza: el filtro de la extensión lo borraría. Todas las tandas, con y sin tema, ignoran la CSP del sitio (`bypass_csp`, como `insertCSS` en la extensión), para que lo único distinto sea el tema. Con `--goals`, las tandas con un tema se planean y resumen aparte (`summary-tema-<sha>.md`). Los temas salen del [diseñador](../web_designer/README.md). |
 
 Por defecto usa tu **Claude Code local** (`--engine claude-code`): no necesita clave de API, solo tener `claude`
 instalado y con sesión iniciada, y consume los límites de tu plan. Con una clave de API puedes usar la herramienta
@@ -46,6 +46,49 @@ oficial de computer use:
 export ANTHROPIC_API_KEY=...
 uv run main.py --engine api --task wom-baja-fibra
 ```
+
+## Exploradores
+
+Los perfiles por defecto intentan la tarea en línea recta, así que su árbol sale casi como una cadena. Los
+**exploradores** buscan a propósito varias formas de llegar: abren una rama, vuelven y abren otra, y anotan lo que
+encuentran. Sirven para dibujar el grafo de caminos de una tarea (la pestaña «Telaraña» del
+[backoffice](../../../backoffice/)), no para medir cuánto le cuesta a una persona.
+
+```bash
+uv run main.py --task metro-tarifa-sabado \
+    --profiles explorador,explorador_buscador,explorador_pie,explorador_contenido \
+    --model claude-haiku-5-5 --effort medium --record-video
+```
+
+- **Procedimiento:** su prompt trae el cuerpo de la skill
+  [`explorar-caminos`](../../../.claude/skills/explorar-caminos/SKILL.md) (inventario de candidatas, abanico de
+  ramas de máximo 3 clics, cierre en la página que responde, hallazgos con cita). Como `.claude/skills/` no se
+  despliega, los exploradores solo corren en local; `agentcore_app.py` los rechaza.
+- **Primera rama distinta:** cada explorador abre su rama 1, obligatoriamente, por un lugar distinto de la página
+  inicial: el menú principal (`explorador`), el buscador (`explorador_buscador`), el pie de página (`explorador_pie`)
+  o los enlaces del contenido (`explorador_contenido`). Va en su prompt como «TU PRIMERA RAMA» (`Profile.primera_rama`).
+  Así la tanda se abre en ramas distintas desde el primer clic.
+- **Presupuesto propio:** 30 acciones y 420 s (`EXPLORADOR_MAX_*` en `config.py`), en vez de 15 y 180 s: con Haiku y 4
+  usuarios en paralelo cada acción toma 12 a 15 s. Tras cada acción el harness le dice cuántas acciones y segundos le
+  quedan, y la lista de páginas vistas con su id (`p1`, `p2`...).
+- **No termina en el abanico:** si un explorador usa `done`, `give_up` o `blocked` con más del 40 % de sus acciones y
+  de su tiempo por delante, el harness no termina el intento: le responde con un error que le pide abrir otra rama
+  (hasta 3 veces; después acepta el fin). Haiku tiende a terminar apenas ve la respuesta y el grafo quedaba en 2 o 3
+  ramas. Cada rechazo queda en `incidents`. Solo con `--engine claude-code`.
+- **`volver_a_nodo`:** una acción más, solo para exploradores y solo con `--engine claude-code`, con
+  `"nodo": "p3"`: el harness lleva la pestaña a la URL que guardó al ver esa página, en 1 acción. Solo tienen id (y
+  se puede volver a) las páginas http(s) del mismo sitio que la URL inicial (mismo dominio registrable, por ejemplo
+  `bibliotecanacional.gob.cl`): no las de otro sitio al que se llegó por un enlace ni las páginas de error del
+  navegador. Con `--engine api` vuelven con `alt+Left`.
+- **Cómo queda en el árbol:** cada `volver_a_nodo` es un **salto**: queda en `branches` con `"salto": true` y la
+  acción `volver a «<título>»`, para que el backoffice dibuje la vuelta, pero la ruta recomendada nunca lo usa porque
+  no es un camino que una persona pueda seguir. En un intento con éxito, un tramo cuenta como éxito solo si desde su
+  destino el usuario llegó a la página final por tramos hacia adelante (sin saltos, retrocesos ni vueltas con un clic
+  a una página ya vista); las ramas que exploró y abandonó cuentan como fallo, a la profundidad que sea. Volver con un
+  clic a una página ya vista se marca `revisit`: no es señal de error, pero ese tramo cuenta como exploración, salvo
+  que llegue a la página final. Así el grafo tiene nodos con varias salidas (el inicio, sobre todo) en vez de una
+  línea, sin que la exploración infle los éxitos.
+- **El reporte** muestra los límites de cada perfil y, en la tabla, pasos y tiempo junto a su tope.
 
 ## En AWS (AgentCore)
 
@@ -95,8 +138,11 @@ eficiencia y quién necesitó menos pasos; y los totales del sitio. Los objetivo
 ## Tareas
 
 Cada archivo de [`agents/tasks/`](../../tasks/) es una tarea con la forma de
-[formas de datos](../../../docs/formas-de-datos.md), sección 5: `id`, `host`, `start_url` y `description`. Las tres
-que hay salen de [tareas en sitios chilenos](../../../docs/tareas-sitios-chilenos.md). `expected_answer` sirve para
+[formas de datos](../../../docs/formas-de-datos.md), sección 5: `id`, `host`, `start_url` y `description`.
+`wom-baja-fibra`, `sii-exencion-contribuciones` y `dt-reclamo-despido` salen de
+[tareas en sitios chilenos](../../../docs/tareas-sitios-chilenos.md). Otras cinco (`bn-socio-prestamo-domicilio`,
+`metro-tarifa-sabado`, `sernac-retracto-compra-online`, `uchile-arancel-medicina` e `ine-fecha-ipc-noviembre`) tienen
+varias rutas comprobadas y señuelos, para probar a los [exploradores](#exploradores). `expected_answer` sirve para
 revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio que propone a partir de la tarea.
 
 ## Cómo funciona
@@ -122,8 +168,18 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
   se lee únicamente para el registro.
 - **Expectativa:** cada acción va acompañada de una frase con lo que el agente espera que pase (campo obligatorio en
   `claude-code`, herramienta `expectation` en `api`). Una acción sin expectativa no se ejecuta.
-- **Límites:** 15 acciones y 3 minutos por intento; al agotarse, el resultado es `abandoned`. Los envíos de
-  formularios POST o con contraseña se cancelan como red de seguridad.
+- **Límites:** 15 acciones y 3 minutos por intento (los exploradores, 30 acciones y 7 minutos); al agotarse, el resultado es
+  `abandoned`. Los envíos de formularios POST o con contraseña se cancelan como red de seguridad.
+- **Capturas:** si Chromium responde `Unable to capture screenshot` (pasa a veces a media navegación), la captura se
+  reintenta 2 veces con una espera corta. Si Playwright se queda esperando que carguen las fuentes (15 s), la captura
+  sale directo por CDP (`Page.captureScreenshot`), sin esa espera, con su propio tope de 10 s.
+- **Descargas y enlaces rotos:** un enlace a un archivo que abre una pestaña nueva (un PDF con `target=_blank`) deja una
+  pestaña en blanco que solo descarga y que no se puede capturar: se cierra y el usuario sigue en la anterior; el paso
+  registra `download:<url>` en sus eventos. Una página `chrome-error://` (enlace roto o sitio caído) cuenta como
+  error visible.
+- **Red de seguridad:** si las acciones de un turno siguen corriendo 60 s después del límite de tiempo (el navegador se
+  colgó), el intento termina por tiempo y queda anotado en `incidents`. Cada respuesta de `claude -p` (usuarios y
+  juez) se espera como máximo `CLAUDE_CODE_TIMEOUT_S` (180 s); después, error claro en vez de esperar para siempre.
 - **Resultados del juez:** `success`, `failed` (terminó en un estado equivocado) o `abandoned`.
 - **Árbol:** un nodo es una URL normalizada más el título de la página. Una rama es la acción entre dos nodos,
   identificada por el texto del elemento clicado. La ruta recomendada es la de menor costo, con
@@ -155,4 +211,5 @@ uv run pytest -q
 ```
 
 Las pruebas no llaman a Claude: cubren el árbol, los motores y las acciones del navegador sobre páginas locales, la
-propuesta de ruta, el plan de un catálogo, el resumen a partir de archivos y la aplicación de un tema con `--css`.
+propuesta de ruta, el plan de un catálogo, el resumen a partir de archivos, la aplicación de un tema con `--css` y
+los exploradores (skill en el prompt, límites propios, `volver_a_nodo` y ramas en el árbol).

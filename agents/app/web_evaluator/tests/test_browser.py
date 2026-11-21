@@ -165,3 +165,62 @@ def test_without_video_dir_nothing_is_recorded(site, tmp_path):
                 await browser.close()
 
     assert asyncio.run(scenario()) == []
+
+
+def test_screenshot_reintenta_un_error_de_protocolo(monkeypatch):
+    import browser as browser_module
+    from playwright.async_api import Error as PlaywrightError
+
+    class PaginaInestable:
+        def __init__(self, fallas):
+            self.fallas, self.llamadas = fallas, 0
+
+        async def screenshot(self, **_):
+            self.llamadas += 1
+            if self.llamadas <= self.fallas:
+                raise PlaywrightError("Protocol error (Page.captureScreenshot): Unable to capture screenshot")
+            return b"png"
+
+    monkeypatch.setattr(browser_module, "SCREENSHOT_ESPERA_S", 0)
+    session = BrowserSession(None, DESKTOP)
+    session.page = PaginaInestable(fallas=2)
+    assert asyncio.run(session.screenshot()) == b"png" and session.page.llamadas == 3
+    session.page = PaginaInestable(fallas=3)
+    with pytest.raises(PlaywrightError, match="Unable to capture"):
+        asyncio.run(session.screenshot())
+    assert session.page.llamadas == 3
+
+
+def test_screenshot_sin_esperar_fuentes_va_por_cdp(site, monkeypatch):
+    """Si Playwright se queda esperando las fuentes, la captura sale igual, del tamaño del viewport."""
+    from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+
+    async def body(session, executor):
+        async def se_cuelga(**_):
+            raise PlaywrightTimeoutError("Page.screenshot: Timeout 15000ms exceeded. waiting for fonts to load...")
+
+        monkeypatch.setattr(session.page, "screenshot", se_cuelga)
+        png = await session.screenshot()
+        assert Image.open(io.BytesIO(png)).size == (DESKTOP.width, DESKTOP.height)
+
+    asyncio.run(_with_session(site, DESKTOP, body))
+
+
+def test_una_pestana_que_solo_descarga_se_cierra(tmp_path):
+    """Un enlace target=_blank a un archivo abre una pestaña en blanco que no se puede capturar: se vuelve a la anterior."""
+    (tmp_path / "archivo.bin").write_bytes(b"\0" * 2048)
+    (tmp_path / "one.html").write_text(
+        '<title>Uno</title><a href="archivo.bin" download target="_blank" '
+        'style="position:absolute;left:20px;top:20px;font-size:30px">Bajar</a>',
+        encoding="utf-8",
+    )
+
+    async def body(session, executor):
+        await executor.execute("left_click", {"coordinate": [40, 35]})
+        await session.wait_until_settled()
+        assert (await session.url_and_title())[1] == "Uno"
+        assert len(await session.screenshot()) > 1000
+        assert any(event.startswith("download:") for event in session.events)
+        assert "download_tab_closed" in session.events and len(session.pages) == 2
+
+    asyncio.run(_with_session(tmp_path, DESKTOP, body))
