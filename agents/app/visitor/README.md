@@ -102,7 +102,8 @@ infraestructura. La entrada en AWS es `agentcore_app.py`; `main.py` es el comand
 La imagen hace falta porque el driver de Playwright es un binario de Node que necesita `libatomic`, y la imagen que
 AgentCore usa para el código en zip no la trae: sin ella, cada tanda termina a los 2 s con *Connection closed while
 reading from the driver*. La imagen no instala Chromium, porque en AWS el navegador es AgentCore Browser. La construye
-CodeBuild en arm64 al desplegar; para revisarla en local: `docker build --platform linux/arm64 .`.
+CodeBuild en arm64 al desplegar. Su contexto es `agents/`, para que entre `agents/shared/`; para revisarla en local,
+desde `agents/`: `docker build --platform linux/arm64 -f app/visitor/Dockerfile .`.
 
 En AWS se usa solo Claude Sonnet 4.6, tanto para los usuarios sintéticos como para el juez (`BEDROCK_USER_MODEL` y
 `BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. La cuenta del proyecto no tiene acceso en Bedrock a

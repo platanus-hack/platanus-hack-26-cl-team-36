@@ -8,7 +8,7 @@
       "description": "Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos",
       "build": "Container",
       "entrypoint": "agentcore_app.py",
-      "codeLocation": "../agents/app/web_evaluator",
+      "codeLocation": "../agents/app/visitor",
       "protocol": "HTTP",
       "lifecycleConfiguration": {
         "idleRuntimeSessionTimeout": 900,
@@ -23,7 +23,8 @@
           "description": "AgentCore Browser administrado por AWS: una sesión por usuario sintético"
         }
       ],
-      "dockerfile": "Dockerfile"
+      "buildContextPath": "../agents",
+      "dockerfile": "app/visitor/Dockerfile"
     }
   ],
   "memories": [],

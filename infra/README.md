@@ -2,7 +2,7 @@
 
 La API (`backend/`) corre en AWS como una Lambda con URL pública. Terraform la crea y la actualiza desde GitHub
 Actions, en el repo personal [brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36).
-El evaluador web (`agents/app/web_evaluator/`) corre en AgentCore Runtime; lo despliega la CLI de AgentCore desde
+El Visitante (`agents/app/visitor/`) corre en AgentCore Runtime; lo despliega la CLI de AgentCore desde
 `agentcore/`, en el mismo repo personal.
 
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
@@ -29,11 +29,11 @@ Antes, el proyecto corría en una subcuenta de desarrollo de la organización de
    suele atrasarlo.
 3. Si el cambio toca `backend/` o `infra/app/`, el workflow `Terraform` del repo personal hace `plan` y `apply`.
 4. La URL de la API queda en el resumen de esa ejecución.
-5. Si el cambio toca `infra/agentcore/` o `agents/app/web_evaluator/`, el workflow `AgentCore` despliega el evaluador
-   web con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol. La CLI
-   construye la imagen del evaluador (`agents/app/web_evaluator/Dockerfile`) en CodeBuild, para arm64, y aplica su
-   propio stack de CDK; no pasa por Terraform. La primera vez también prepara la cuenta para CDK (`CDKToolkit`). Desde
-   un computador: `just aws` (ver [el evaluador](../agents/app/web_evaluator/README.md#en-aws-agentcore)).
+5. Si el cambio toca `infra/agentcore/`, `agents/app/visitor/` o `agents/shared/`, el workflow `AgentCore` despliega
+   el Visitante con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol.
+   La CLI construye la imagen del Visitante (`agents/app/visitor/Dockerfile`, con `agents/` como contexto) en CodeBuild,
+   para arm64, y aplica su propio stack de CDK; no pasa por Terraform. La primera vez también prepara la cuenta para
+   CDK (`CDKToolkit`). Desde un computador: `just aws` (ver [el Visitante](../agents/app/visitor/README.md#en-aws-agentcore)).
 
 Las PRs no muestran un plan. Antes de mergear un cambio de infraestructura, corre `terraform plan` en local (ver más
 abajo).
@@ -44,14 +44,14 @@ abajo).
   GitHub a AWS por OIDC (sin llaves guardadas), el rol que asume el workflow y una alerta de presupuesto. Se aplica
   una vez, a mano, y su estado queda en el computador de quien lo aplicó.
 - `app/`: la Lambda, su URL, su rol y su log. Su estado vive en el bucket.
-- `agentcore/`: el evaluador web en AgentCore Runtime. `infra/` es el proyecto de la
+- `agentcore/`: el Visitante en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime
-  `web_evaluator_image`, con su código en `../agents/app/web_evaluator/`, y `agentcore/cdk/` es el stack que la CLI
-  genera. El runtime se llama así porque AgentCore no deja pasar un runtime de zip a imagen: el anterior,
-  `web_evaluator`, era de zip y se reemplazó.
+  `web_evaluator_image`, con su código en `../agents/app/visitor/` y `../agents/` como contexto de la imagen, para que
+  entre `../agents/shared/`; `agentcore/cdk/` es el stack que la CLI genera. El runtime se llama así porque AgentCore no
+  deja pasar un runtime de zip a imagen: el anterior, `web_evaluator`, era de zip y se reemplazó.
   `agentcore/.cli/deployed-state.json` enlaza el proyecto con lo desplegado. `agentcore/aws-targets.json` queda con el
   id de la cuenta después de desplegar desde un computador: no lo subas, el repo es público.
-- `justfile`: `just aws`, los comandos del evaluador en AgentCore (`explore`, `deploy`, `status`, `logs`).
+- `justfile`: `just aws`, los comandos del Visitante en AgentCore (`visit`, `deploy`, `status`, `logs`).
 - `../backend/lambda.js`: entrada de la Lambda. Levanta el servidor de `index.js` y le reenvía cada request, así
   `index.js` funciona igual en local y en AWS.
 
@@ -135,7 +135,7 @@ Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resume
 
 ## Al terminar la hackatón
 
-1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El evaluador web no es parte de
+1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El Visitante no es parte de
    Terraform: en CloudFormation (us-east-2), borra el stack `AgentCore-ChameleonAgents-…` y después `CDKToolkit`.
 2. Desactiva `Sincroniza desde la organización`. Corre unas 290 veces al día y cada vez cuenta como un minuto de los
    2.000 gratis al mes de un repo privado.
