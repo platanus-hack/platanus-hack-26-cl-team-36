@@ -14,6 +14,10 @@ const FORMAS = {
   "error-herramienta": [
     ["path", { d: "M10.6 2.6a3.1 3.1 0 0 0-3 4.1l-4.8 4.8a1.25 1.25 0 0 0 1.8 1.8l4.8-4.8a3.1 3.1 0 0 0 4.1-3l-1.9 1.3-1.9-.5-.5-1.9z" }],
   ],
+  // Llegan, pero con dificultad (titular de Resumen y Corridas): un check dentro de un triángulo de aviso.
+  dificultad: [["path", { d: "M8 1.75l6.5 11.5H1.5z" }], ["path", { d: "M5.6 9.6l1.6 1.6 3.2-3.4" }]],
+  // Alguien se trabó en esta página (marca de la telaraña): triángulo de aviso con "!".
+  atasco: [["path", { d: "M8 1.75l6.5 11.5H1.5z" }], ["path", { d: "M8 6v3.25" }], ["path", { d: "M8 11.1v.15" }]],
   "sin-efecto": [["circle", { cx: 8, cy: 8, r: 5.75 }], ["path", { d: "M3.9 12.1l8.2-8.2" }]],
   volvio: [["path", { d: "M6 3.75L2.75 7 6 10.25" }], ["path", { d: "M3 7h6.75a3.5 3.5 0 0 1 0 7H8" }]],
   "error-visible": [["path", { d: "M8 2.25l6.25 11H1.75z" }], ["path", { d: "M8 6.5v3" }], ["path", { d: "M8 11.4v.1" }]],

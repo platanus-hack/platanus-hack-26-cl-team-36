@@ -11,6 +11,8 @@ const conNota = (frase, nota) => (nota ? frase.replace(/\.$/, ` ${nota}.`) : fra
 export default {
   pagina: {
     inicio: "Home",
+    // Cuando la tanda tiene más de una página de inicio (sitio.cl y m.sitio.cl).
+    inicioDe: "Home · {sitio}",
   },
 
   error: {
@@ -70,6 +72,7 @@ export default {
   hallazgo: {
     resultado: ({ total, validos, logrados, directos, errores, intentos }) => {
       const [t, v, l, d, e] = [n(total), n(validos), n(logrados), n(directos), n(errores)];
+      if (t === 0) return "This batch has no recorded attempts.";
       if (v === 0) {
         return `No valid attempts: ${t === 1 ? "the only attempt" : `all ${t} attempts`} failed because of a tool error.`;
       }
@@ -113,6 +116,18 @@ export default {
   },
 
   titular: {
+    // Everyone gets there, but someone struggled: the Resumen and Corridas headline does not hide it.
+    tanda: ({ validos, errores, caso, intento, pagina, pasos: cuenta, pasosIdeales }) => {
+      const [v, e] = [n(validos), n(errores)];
+      const sujeto = v === 1
+        ? (e > 0 ? "The only valid attempt reaches" : "The only attempt reaches")
+        : (e > 0 ? `The ${v} valid attempts reach` : `All ${v} reach`);
+      if (caso === "masPasos") {
+        return `${sujeto} the answer, but ${intento ?? ""} takes ${pasos(n(cuenta))} (the route: ${n(pasosIdeales)}).`;
+      }
+      if (caso === "demora") return `${sujeto} the answer, but ${intento ?? ""} takes ${n(cuenta)} steps in a row on «${pagina ?? ""}».`;
+      return `${sujeto} the answer, but ${pasos(n(cuenta))} ${segun(n(cuenta), "has", "have")} stumbles.`;
+    },
     telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos }) => {
       if (!hayRuta) return "Nobody reached the answer: the axis is the busiest path.";
       const [s, v] = [n(siguen), n(validos)];

@@ -23,13 +23,14 @@ export function claseDeTramo(tramo) {
 
 /**
  * @param {{ escena: HTMLElement, distribucion, geo, paginas: Map<string, object>, ramas: Map<string, object>,
- *   textos: { nombre(pagina), ariaDeEstacion(pagina, estacion), detalleDeVariantes(n), visitas(n),
+ *   textos: { nombre(pagina), ariaDeEstacion(pagina, estacion, atascos), detalleDeVariantes(n), visitas(n),
  *             etiquetaDeResultado(r), ariaDeTerminal(r, n) },
  *   urlDeCaptura: (captura) => string | null, intentos: Map<string, object>, particulas: boolean }} opciones
  */
 export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, textos, urlDeCaptura, intentos, particulas }) {
   const elementos = new Map(); // id → elemento (estaciones, grupos de tramo, terminales)
   const estaciones = new Map();
+  const marcasDeAtasco = new Map(); // id → { boton, marca, cuenta, pagina, estacion }
   const tramos = new Map();
   const terminales = new Map();
   const { caja } = geo;
@@ -92,6 +93,9 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
     const variantes = pagina.variantes?.length ?? 0;
     const enTronco = estacion.tipo === "hito" || (estacion.tipo === "inicio" && distribucion.troncoEsRuta);
     const captura = urlDeCaptura(pagina.captura);
+    // Marca de "se trabaron aquí" (oculta hasta marcarAtascos): un triángulo de aviso con cuántos intentos.
+    const cuentaDeAtasco = el("span", { class: "estacion-atasco-cuenta" });
+    const marcaDeAtasco = el("span", { class: "estacion-atasco", "aria-hidden": "true", hidden: true }, icono("atasco"), cuentaDeAtasco);
     const boton = el(
       "button",
       {
@@ -100,13 +104,14 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         "data-pagina": estacion.id,
         "data-foco": `telarana:pagina:${estacion.id}`,
         "aria-pressed": "false",
-        "aria-label": textos.ariaDeEstacion(pagina, estacion),
+        "aria-label": textos.ariaDeEstacion(pagina, estacion, 0),
         estilo: { "--x": `${posicion.x}px`, "--y": `${posicion.y}px` },
       },
       el(
         "span",
         { class: "estacion-punto", "aria-hidden": "true" },
         enTronco && estacion.hito !== null ? el("span", { class: "estacion-numero", texto: String(estacion.hito + 1) }) : null,
+        marcaDeAtasco,
       ),
       el(
         "span",
@@ -119,6 +124,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
       ),
     );
     estaciones.set(estacion.id, boton);
+    marcasDeAtasco.set(estacion.id, { boton, marca: marcaDeAtasco, cuenta: cuentaDeAtasco, pagina, estacion });
     elementos.set(estacion.id, boton);
     nodos.push(boton);
   }
@@ -163,6 +169,16 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
       for (const [clave, boton] of estaciones) {
         const elegida = clave === id;
         if ((boton.getAttribute("aria-pressed") === "true") !== elegida) boton.setAttribute("aria-pressed", String(elegida));
+      }
+    },
+    /** Marca las estaciones donde se trabaron intentos (página → cuántos; cambia con el filtro de perfil). */
+    marcarAtascos(cuantos) {
+      for (const [id, { boton, marca, cuenta, pagina, estacion }] of marcasDeAtasco) {
+        const n = cuantos.get(id) ?? 0;
+        marca.hidden = n === 0;
+        cuenta.textContent = n > 1 ? String(n) : "";
+        boton.classList.toggle("estacion-trabada", n > 0);
+        boton.setAttribute("aria-label", textos.ariaDeEstacion(pagina, estacion, n));
       }
     },
     /** Pone las cuentas de las terminales (cambian con el filtro de perfil). */

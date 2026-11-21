@@ -56,6 +56,7 @@ export default {
     copiarEnlace: "Copy link",
     abrirSitio: "Open {host} in a new tab",
     verInstruccion: "Show the full instruction",
+    ocultarInstruccion: "Show less",
     intentos: ({ n }, { plural }) => `${n} ${plural(n, { one: "attempt", other: "attempts" })}`,
     llegan: ({ n, de }, { plural }) => `${n}/${de} ${plural(n, { one: "reaches it", other: "reach it" })}`,
     ningunoValido: "No valid attempts",
@@ -145,7 +146,7 @@ export default {
   },
   atajos: {
     titulo: "Keyboard shortcuts",
-    nota: "They don't work while you type in a field, except ⌘K and Esc.",
+    nota: "They don't work while you type in a field, except {paleta} and Esc.",
     enEstaVista: "In this view",
     luego: "then",
     mantener: "hold",

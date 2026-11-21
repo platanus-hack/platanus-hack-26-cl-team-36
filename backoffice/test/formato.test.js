@@ -74,3 +74,11 @@ test("idioma desconocido cae en español y los formatos se reutilizan", () => {
   assert.equal(crearFormatos("fr").idioma, "es");
   assert.equal(crearFormatos("es"), es);
 });
+
+test("hora y tiempo con hora: dos tandas de la misma hora relativa se distinguen", () => {
+  assert.equal(es.hora(FECHA), "07:28");
+  assert.equal(en.hora("2026-11-21_19-05-00"), "19:05");
+  assert.equal(es.tiempoConHora(FECHA, ahora), "hace 32 min · 07:28");
+  assert.equal(en.tiempoConHora(FECHA, ahora), "32 min ago · 07:28");
+  assert.equal(es.tiempoConHora("no es fecha", ahora), "");
+});

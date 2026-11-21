@@ -9,6 +9,7 @@
 .p-resumen .resumen-titular-icono { width: 20px; height: 20px; margin-block-start: 4px; }
 .p-resumen .resumen-titular.resumen-nivel-bien .resumen-titular-icono { color: var(--exito); }
 .p-resumen .resumen-titular.resumen-nivel-atencion .resumen-titular-icono { color: var(--peligro); }
+.p-resumen .resumen-titular.resumen-nivel-dificultad .resumen-titular-icono { color: var(--aviso); }
 .p-resumen .resumen-titular.resumen-nivel-error .resumen-titular-icono { color: var(--neutro); }
 .p-resumen .resumen-cifras { row-gap: var(--e-4); }
 .p-resumen .resumen-cifras dd { margin: 0; }

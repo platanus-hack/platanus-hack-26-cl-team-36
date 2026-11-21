@@ -88,7 +88,14 @@ export async function leerTanda(fuente, id) {
 export async function listarTandas(fuente) {
   const origen = comoFuente(fuente);
   const tandas = [];
-  for (const id of await idsDeTandas(origen)) tandas.push(resumirTanda(await leerSinVecinas(origen, id)));
+  for (const id of await idsDeTandas(origen)) {
+    // Una tanda que no se puede leer (un run.json a medio escribir, una forma inesperada) no tumba la lista.
+    try {
+      tandas.push(resumirTanda(await leerSinVecinas(origen, id)));
+    } catch (error) {
+      console.error(`tandas: no se pudo leer «${id}»; se omite de la lista.`, error);
+    }
+  }
   return { carpeta: origen.descripcion, tandas };
 }
 

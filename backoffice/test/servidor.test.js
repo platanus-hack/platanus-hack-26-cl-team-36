@@ -1,7 +1,8 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
+import { request } from "node:http";
 import { fileURLToPath } from "node:url";
-import { crearServidor, leerRango } from "../servidor.js";
+import { crearServidor, hostPermitido, leerRango } from "../servidor.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
 const TANDA = "tarea-demo/2026-11-21_10-00-00";
@@ -106,4 +107,36 @@ test("un rango de bytes devuelve 206", async () => {
   assert.match(respuesta.headers.get("content-range"), /^bytes 0-3\/\d+$/);
   const fuera = await pedir(`/archivos/${TANDA}/first_time/step_01.png`, { headers: { Range: "bytes=99999-" } });
   assert.equal(fuera.status, 416);
+});
+
+// fetch no deja cambiar la cabecera Host: se pide con node:http.
+function pedirConHost(ruta, host) {
+  return new Promise((listo, falla) => {
+    const { port } = servidor.address();
+    const pedido = request({ host: "127.0.0.1", port, path: ruta, headers: { Host: host } }, (respuesta) => {
+      respuesta.resume();
+      respuesta.on("end", () => listo(respuesta.statusCode));
+    });
+    pedido.on("error", falla);
+    pedido.end();
+  });
+}
+
+test("solo responde a Host de este computador con su puerto (DNS rebinding)", async () => {
+  const { port } = servidor.address();
+  for (const host of [`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`, `LOCALHOST:${port}`]) {
+    assert.equal(await pedirConHost("/api/tandas", host), 200, host);
+  }
+  for (const host of [`atacante.example:${port}`, "atacante.example", `localhost:${port + 1}`, `localhost.atacante.example:${port}`]) {
+    assert.equal(await pedirConHost("/api/tandas", host), 403, host);
+  }
+  assert.equal(await pedirConHost(`/archivos/${TANDA}/first_time/step_00.png`, `atacante.example:${port}`), 403);
+});
+
+test("hostPermitido: puerto por defecto y hosts extra", () => {
+  assert.equal(hostPermitido("localhost", 80), true);
+  assert.equal(hostPermitido("localhost", 4848), false);
+  assert.equal(hostPermitido("backoffice.interno:8080", 4848, new Set(["backoffice.interno:8080"])), true);
+  assert.equal(hostPermitido(undefined, 4848), false);
+  assert.equal(hostPermitido("", 4848), false);
 });

@@ -137,8 +137,9 @@
 .p-replay .replay-tarjeta { display: grid; gap: var(--e-3); min-width: 0; }
 .p-replay .replay-tarjeta-contenido { display: grid; gap: var(--e-3); min-width: 0; }
 .p-replay .replay-tarjeta-cabecera { display: grid; gap: var(--e-2); }
-.p-replay .replay-tarjeta-titulo { display: flex; flex-wrap: wrap; gap: 0 var(--e-2); font-size: 15px; line-height: 22px; overflow-wrap: anywhere; }
-.p-replay .replay-tarjeta-numero { color: var(--texto-3); font-weight: 500; }
+/* Texto corrido (no flex): "Paso 5 ·" va pegado al comienzo de la firma y nunca queda solo al final de una línea. */
+.p-replay .replay-tarjeta-titulo { font-size: 15px; line-height: 22px; overflow-wrap: anywhere; }
+.p-replay .replay-tarjeta-numero { color: var(--texto-3); font-weight: 500; white-space: nowrap; margin-inline-end: var(--e-2); }
 .p-replay .replay-tarjeta-numero::after { content: "·"; margin-inline-start: var(--e-2); color: var(--texto-4); }
 .p-replay .replay-tarjeta-senales { display: flex; flex-wrap: wrap; gap: var(--e-1); }
 .p-replay .replay-par { display: grid; gap: var(--e-2); }
@@ -159,7 +160,7 @@
 .p-replay .replay-comparacion dt { display: inline-flex; align-items: center; gap: var(--e-1); color: var(--texto-3); font-size: 12px; }
 .p-replay .replay-comparacion dt .icono { width: 12px; height: 12px; color: var(--acento); }
 .p-replay .replay-comparacion dd { margin: 0; overflow-wrap: anywhere; }
-.p-replay .replay-tramo { margin-inline-start: var(--e-2); font-size: 12px; }
+.p-replay .replay-tramo { margin-inline-start: var(--e-2); font-size: 12px; white-space: nowrap; }
 .p-replay .replay-comparacion-marca { display: inline-block; vertical-align: -3px; margin-inline-start: var(--e-1); }
 .p-replay .replay-comparacion.igual .replay-comparacion-marca { color: var(--exito); }
 .p-replay .replay-comparacion.difiere .replay-comparacion-marca { color: var(--aviso); }
@@ -168,6 +169,8 @@
 .p-replay .replay-navegacion .boton[aria-disabled="true"] { opacity: 0.45; cursor: default; }
 .p-replay .replay-tecla { display: inline-flex; }
 @media (pointer: coarse) { .p-replay .replay-tecla { display: none; } }
+/* "Mantén B" es un atajo de teclado: en pantallas táctiles o angostas sobra (Antes/Después siguen en los modos). */
+@media (pointer: coarse), (max-width: 719px) { .p-replay .replay-manten-b { display: none; } }
 
 /* ── Línea de tiempo ───────────────────────────────────────────────────── */
 .p-replay .replay-linea { display: grid; gap: var(--e-2); padding-block-start: var(--e-3); border-top: 1px solid var(--borde-sutil); min-width: 0; }

@@ -4,7 +4,7 @@
 // Dos nodos son la misma página cuando tienen la misma URL sin consulta y el mismo título no vacío.
 // Los nodos sin título nunca se unen: sin título no hay cómo saber si muestran lo mismo.
 
-import { caminoDe, consultaDe, rutaSinConsulta } from "./url.js";
+import { caminoDe, consultaDe, hostDe, rutaSinConsulta } from "./url.js";
 
 /**
  * @typedef {Object} NodoCrudo   Un nodo de route_tree.json, tal como lo escribe el evaluador.
@@ -129,7 +129,8 @@ const ultimoSegmento = (url) => caminoDe(url).split("/").filter(Boolean).at(-1) 
 
 /**
  * Pone `tituloCorto` y `tituloTipo` a cada página (§2.3 del diseño). No arma frases: una página de
- * inicio queda con tituloCorto null y tituloTipo "inicio", y la pantalla la nombra con el diccionario.
+ * inicio queda con tituloTipo "inicio" y la pantalla la nombra con el diccionario; su tituloCorto es null, o
+ * lo que la distingue de otra página de inicio ("m.sitio.cl") cuando hay más de una.
  * @template {{ titulo: string, url: string, variantes: { consulta: string }[] }} P
  * @param {P[]} paginas
  * @returns {(P & { tituloCorto: string | null, tituloTipo: "sitio" | "inicio" | "url" })[]}
@@ -146,20 +147,29 @@ export function titularPaginas(paginas) {
     }
     return { ...pagina, tituloCorto: quitarSufijo(titulo, sufijo), tituloTipo: "sitio" };
   });
-  // Dos páginas con el mismo título corto se distinguen por la ruta o, si es la misma, por la consulta.
+  // Dos páginas con el mismo nombre se distinguen por el sitio (m.sitio.cl), la ruta o, si es la misma, por la
+  // consulta. Las de inicio no tienen título corto (la pantalla dice "Inicio"): si hay varias, el título corto
+  // queda con lo que las distingue y la pantalla dice "Inicio · m.sitio.cl".
   const repetidos = new Map();
   for (const pagina of conTitulo) {
-    if (pagina.tituloCorto === null) continue;
-    repetidos.set(pagina.tituloCorto, (repetidos.get(pagina.tituloCorto) ?? []).concat([pagina]));
+    const clave = pagina.tituloTipo === "inicio" ? "\u0000inicio" : pagina.tituloCorto;
+    repetidos.set(clave, (repetidos.get(clave) ?? []).concat([pagina]));
   }
   for (const grupo of repetidos.values()) {
     if (grupo.length < 2) continue;
     const base = grupo[0].tituloCorto;
+    const variosSitios = new Set(grupo.map((pagina) => hostDe(pagina.url))).size > 1;
     for (const pagina of grupo) {
-      const mismaRuta = grupo.filter((otra) => caminoDe(otra.url) === caminoDe(pagina.url)).length > 1;
+      const mismoSitio = grupo.filter((otra) => hostDe(otra.url) === hostDe(pagina.url));
+      const mismaRuta = mismoSitio.filter((otra) => caminoDe(otra.url) === caminoDe(pagina.url)).length > 1;
       const consulta = pagina.variantes[0]?.consulta ?? consultaDe(pagina.url);
-      if (mismaRuta && consulta) pagina.tituloCorto = `${base} · ?${consulta}`;
-      else if (!mismaRuta) pagina.tituloCorto = `${base} · /${ultimoSegmento(pagina.url)}`;
+      let distintivo = null;
+      if (variosSitios && mismoSitio.length === 1) distintivo = hostDe(pagina.url);
+      else if (mismaRuta && consulta) distintivo = `?${consulta}`;
+      else if (!mismaRuta) distintivo = `/${ultimoSegmento(pagina.url)}`;
+      else if (base === null) distintivo = String(pagina.titulo ?? "").trim() || null;
+      if (!distintivo) continue;
+      pagina.tituloCorto = base === null ? distintivo : `${base} · ${distintivo}`;
     }
   }
   return conTitulo;

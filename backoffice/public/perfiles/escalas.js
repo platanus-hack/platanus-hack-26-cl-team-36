@@ -167,6 +167,25 @@ export function destinoDeIntento(intento) {
   return { intento: intento.id, paso };
 }
 
+/**
+ * Paso del Replay para un punto de una métrica: tropiezos → el primer paso con señal; pasos y tiempo → donde empieza
+ * la primera demora (los pasos de más); si no hay, el de destinoDeIntento.
+ * @param {object} intento
+ * @param {"pasos" | "tiempo" | "tropiezos" | "hitos"} metrica
+ * @returns {Destino}
+ */
+export function destinoDeMetrica(intento, metrica) {
+  if (metrica === "tropiezos") {
+    const conSenal = (intento.pasos ?? []).find((paso) => (paso.senales ?? []).length > 0);
+    if (conSenal) return { intento: intento.id, paso: conSenal.numero };
+  }
+  if (metrica === "pasos" || metrica === "tiempo") {
+    const demora = (intento.demoras ?? []).find((cada) => esNumero(cada.desdePaso) && cada.desdePaso >= 1);
+    if (demora) return { intento: intento.id, paso: demora.desdePaso };
+  }
+  return destinoDeIntento(intento);
+}
+
 /** Llegar en el paso 0 es empezar ahí: se abre el paso 1 en modo «Antes», que muestra esa página. */
 const destinoDeLlegada = (intento, paso) => (paso >= 1 ? { intento, paso } : { intento, paso: 1, modo: "antes" });
 
@@ -237,7 +256,7 @@ export function puntosDeMetrica(tanda, metrica) {
         valor: valorDe(intento),
         resultado: intento.resultado,
         logro: intento.logro ?? null,
-        destino: destinoDeIntento(intento),
+        destino: destinoDeMetrica(intento, metrica),
       }))
       .filter((punto) => esNumero(punto.valor));
     return { perfil: perfil.perfil, nombre: perfil.nombre ?? perfil.perfil, puntos, errores: propios.filter(esError).length };

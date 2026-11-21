@@ -44,7 +44,9 @@ export default {
     lleganTitulo: "Llegan a esta página: {nombres}",
     nadieLlega: "Ningún intento válido llega a esta página",
     respuesta: "Aquí está la respuesta",
-    accionVeces: "{accion} ×{n}",
+    // n = intentos válidos que hicieron esa acción en el tramo (los con error de la herramienta no cuentan).
+    accionVeces: ({ accion, n }, { plural }) => `${accion} (${n} ${plural(n, { one: "intento", other: "intentos" })})`,
+    accionVecesTitulo: "Cuántos intentos válidos hicieron esta acción en este tramo",
     masAcciones: "+{n}",
     tramoPasos: ({ n }, { plural }) => pasos(n, plural),
   },

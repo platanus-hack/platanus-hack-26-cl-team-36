@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
+  armarTanda,
+  caminoSegunRuta,
   coincidenciaDelPaso,
   distancias,
   errorDelIntento,
@@ -11,6 +14,7 @@ import {
   loQuePaso,
   resultadoDeRama,
   resumenDeError,
+  textoDeElemento,
 } from "../lib/derivar.js";
 import { idsDeTandas, leerTanda, listarTandas } from "../lib/tandas.js";
 import { consultaDe, normalizarUrl, rutaSinConsulta } from "../lib/url.js";
@@ -305,4 +309,113 @@ test("un id que no es una tanda no se lee", async () => {
   assert.equal(await leerTanda(RAIZ, "../corridas"), null);
   assert.equal(await leerTanda(RAIZ, "tarea-demo"), null);
   assert.equal(await leerTanda(RAIZ, `${VIEJA}/first_time`), null);
+});
+
+// La tanda vieja leída tal cual de disco, para variarla en memoria.
+function tandaViejaCruda() {
+  const leer = (archivo) => JSON.parse(readFileSync(`${RAIZ}/${VIEJA}/${archivo}`, "utf8"));
+  return {
+    id: VIEJA,
+    arbol: leer("route_tree.json"),
+    criterio: leer("criteria.json"),
+    intentos: ["first_time", "hurried", "mobile"].map((perfil) => ({ perfil, run: leer(`${perfil}/run.json`), video: false })),
+  };
+}
+
+// El celular parte en m.ejemplo.test (el sitio lo redirige): otra página de inicio, no un desvío.
+function conInicioMovil(cruda, perfiles) {
+  const m = (url) => url.replace("https://www.ejemplo.test/", "https://m.ejemplo.test/");
+  cruda.arbol.nodes.push({
+    id: "n9", url: "https://m.ejemplo.test/", title: "Inicio", visits: perfiles.length, profiles: [...perfiles],
+    is_start: true, endings: { success: 0, failed: 0, abandoned: 0 },
+  });
+  for (const nodo of cruda.arbol.nodes) if (nodo.id === "n1") nodo.profiles = nodo.profiles.filter((p) => !perfiles.includes(p));
+  for (const rama of cruda.arbol.branches) if (rama.source === "n1" && rama.profiles.every((p) => perfiles.includes(p))) rama.source = "n9";
+  for (const intento of cruda.intentos) {
+    if (!perfiles.includes(intento.perfil)) continue;
+    intento.run.start.url = m(intento.run.start.url);
+    const [primero] = intento.run.steps;
+    primero.url_before = m(primero.url_before);
+  }
+  return cruda;
+}
+
+test("video: videoDesfase sale de video_offset_s, 0 si no viene", () => {
+  const cruda = tandaViejaCruda();
+  cruda.intentos[0].run.video_offset_s = 1.75;
+  cruda.intentos[1].run.video_offset_s = "x";
+  const tanda = armarTanda(cruda);
+  assert.deepEqual(tanda.intentos.map((i) => i.videoDesfase), [1.75, 0, 0]);
+});
+
+test("caminoSegunRuta: otra página de inicio hace de inicio de la ruta, y solo al partir", () => {
+  const ruta = { paginas: ["a", "b", "c"] };
+  const inicios = new Set(["a", "m"]);
+  const alterno = caminoSegunRuta(["m", "b", "m"], [0, 2, 5], ruta, inicios);
+  assert.deepEqual([alterno.camino, alterno.llegadas], [["a", "b", "a"], [0, 2, 5]]);
+  assert.equal(alterno.comoRuta("m"), "a");
+  // Si después entra a la página de inicio de la ruta, no se repite el hito.
+  assert.deepEqual(caminoSegunRuta(["m", "a", "b"], [0, 1, 2], ruta, inicios).camino, ["a", "b"]);
+  // Partir en una página que no es de inicio, o sin ruta, no cambia nada.
+  assert.deepEqual(caminoSegunRuta(["x", "b"], [0, 1], ruta, inicios).camino, ["x", "b"]);
+  assert.deepEqual(caminoSegunRuta(["m"], [0], null, inicios).camino, ["m"]);
+});
+
+test("otra página de inicio: no es un desvío en el paso 0 y las dos se llaman distinto", () => {
+  const tanda = armarTanda(conInicioMovil(tandaViejaCruda(), ["mobile"]));
+  const movil = tanda.intentos.find((i) => i.id === "mobile");
+  assert.deepEqual(movil.camino, ["n9", "n4"], "el camino real no cambia");
+  // Se separa al ir a Planes (paso 1), no al partir.
+  assert.deepEqual(movil.seSepara, { tramo: 1, paso: 1, pagina: "n4", seDetuvo: false });
+  assert.deepEqual(movil.hitos[0], { pagina: "n1", alcanzado: true, paso: 0 });
+  assert.equal(movil.pasos[0].rutaAqui.hito, 0);
+  assert.ok(!tanda.hallazgos.some((h) => h.paso === 0), "ningún hallazgo enlaza al paso 0");
+  const desvio = tanda.hallazgos.find((h) => h.id === "desvio:mobile");
+  assert.deepEqual([desvio.vars.desdePagina, desvio.vars.haciaPagina, desvio.vars.paso], ["n1", "n4", 1]);
+
+  const nombres = Object.fromEntries(tanda.telarana.paginas.map((p) => [p.id, [p.tituloTipo, p.tituloCorto]]));
+  assert.deepEqual(nombres.n1, ["inicio", "ejemplo.test"]);
+  assert.deepEqual(nombres.n9, ["inicio", "m.ejemplo.test"]);
+  assert.equal(tanda.telarana.paginas.find((p) => p.id === "n9").esInicio, true);
+});
+
+test("otra página de inicio: quien sigue la ruta desde ella llega directo", () => {
+  const tanda = armarTanda(conInicioMovil(tandaViejaCruda(), ["first_time"]));
+  const primera = tanda.intentos.find((i) => i.id === "first_time");
+  assert.deepEqual(primera.camino, ["n9", "n2", "n3"]);
+  assert.equal(primera.sigueLaRuta, true);
+  assert.equal(primera.logro, "directo");
+  assert.equal(primera.hitosAlcanzados, 3);
+  assert.deepEqual(primera.pasos.map((p) => p.carril), ["en-ruta", "en-ruta"]);
+  assert.equal(primera.pasos[0].rutaAqui.coincideConUsuario, true);
+});
+
+test("una tanda que no se puede derivar se omite de la lista, sin tumbar las demás", async (t) => {
+  const buena = tandaViejaCruda();
+  const fuente = {
+    descripcion: "memoria",
+    listarIds: async () => ["tarea-demo/2026-11-21_10-00-00", "rota/2026-11-21_12-00-00"],
+    listarPerfiles: async (id) => (id.startsWith("rota") ? [] : ["first_time", "hurried", "mobile"]),
+    leerJson: async (id, relativa) => {
+      if (id.startsWith("rota")) return relativa === "route_tree.json" ? { nodes: 5 } : null;
+      if (relativa === "route_tree.json") return buena.arbol;
+      if (relativa === "criteria.json") return buena.criterio;
+      return buena.intentos.find((i) => relativa === `${i.perfil}/run.json`)?.run ?? null;
+    },
+    existe: async () => false,
+    abrirArchivo: async () => null,
+  };
+  const errores = t.mock.method(console, "error", () => {});
+  const { tandas } = await listarTandas(fuente);
+  assert.deepEqual(tandas.map((tanda) => tanda.id), ["tarea-demo/2026-11-21_10-00-00"]);
+  assert.equal(errores.mock.callCount(), 1);
+});
+
+test("el texto de un elemento cortado por el evaluador termina en palabra entera y «…»", () => {
+  const cortado = "Exención de contribuciones para la vivienda principal de personas de 65 años o m";
+  assert.equal(cortado.length, 80);
+  assert.equal(textoDeElemento(cortado), "Exención de contribuciones para la vivienda principal de personas de 65 años o…");
+  assert.equal(textoDeElemento("  Buscar tema "), "Buscar tema");
+  assert.equal(textoDeElemento("x".repeat(80)), `${"x".repeat(80)}…`, "sin espacios cerca del final, se corta donde venía");
+  assert.equal(firmaDelPaso({ action: "left_click", element: { text: cortado } }).objetivo.endsWith("o…"), true);
 });

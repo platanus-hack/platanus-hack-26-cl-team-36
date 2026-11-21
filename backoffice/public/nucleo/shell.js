@@ -69,9 +69,11 @@ function listaDeRecientes() {
   return el(
     "ul",
     { class: "lateral-recientes" },
-    tandas.slice(0, RECIENTES).map((resumen) => {
+    tandas.slice(0, RECIENTES).map((resumen, _, recientes) => {
       const estado = estadoDeTanda(resumen);
       const fecha = resumen.fechaIso ?? resumen.fecha;
+      // Si la misma tarea aparece más de una vez, el nombre no las distingue: se muestra la hora (07:16, 07:28).
+      const repetida = recientes.filter((otra) => otra.tarea === resumen.tarea).length > 1;
       return el(
         "li",
         {},
@@ -84,7 +86,7 @@ function listaDeRecientes() {
             icono(ICONO_DE_ESTADO[estado.tipo]),
           ),
           el("span", { class: "lateral-tanda-nombre truncar", texto: resumen.tarea ?? resumen.host ?? resumen.id }),
-          el("span", { class: "lateral-tanda-fecha", title: fmt.fechaLegible(fecha), texto: fmt.tiempoRelativo(fecha) }),
+          el("span", { class: "lateral-tanda-fecha", title: fmt.fechaLegible(fecha), texto: repetida ? fmt.hora(fecha) : fmt.tiempoRelativo(fecha) }),
         ),
       );
     }),

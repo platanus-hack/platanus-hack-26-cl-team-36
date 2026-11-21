@@ -4,7 +4,8 @@
 
 import { kbd, registrarAtajos } from "./atajos.js";
 import { copiarEnlace } from "./avisos.js";
-import { el } from "./dom.js";
+import { nombreDePagina as nombreDePaginaConT } from "../datos/textos.js";
+import { el, esUrlWeb } from "./dom.js";
 import { conGlobo } from "./globo.js";
 import { fmt, t } from "./i18n.js";
 import { icono, insignia } from "./iconos.js";
@@ -13,11 +14,9 @@ import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda } from "./rutas.js";
 
 const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", error: "error-herramienta" };
 
-/** Nombre visible de una página (igual que nombreDePagina de datos/textos.js, §2.3). */
+/** Nombre visible de una página: nombreDePagina de datos/textos.js con el idioma actual (§2.3). */
 export function nombreDePagina(pagina) {
-  if (!pagina) return "";
-  if (pagina.tituloTipo === "inicio") return t("datos.pagina.inicio");
-  return pagina.tituloCorto ?? pagina.titulo ?? pagina.url ?? pagina.id;
+  return nombreDePaginaConT(pagina, t);
 }
 
 /** Cifras de la tanda con respaldo para la forma anterior de la API. */
@@ -56,7 +55,8 @@ function botonVecina({ id, pestana, tipo, senal }) {
   ];
   if (!id) {
     const sin = t(anterior ? "comun.marco.sinAnterior" : "comun.marco.sinSiguiente");
-    const deshabilitado = el("span", { class: "boton boton-secundario marco-vecina", "aria-disabled": "true", "aria-label": sin }, contenido);
+    // role="link" para que el lector de pantalla anuncie la etiqueta y que está deshabilitado.
+    const deshabilitado = el("span", { class: "boton boton-secundario marco-vecina", role: "link", "aria-disabled": "true", "aria-label": sin }, contenido);
     return conGlobo(deshabilitado, sin, { senal });
   }
   const enlace = el(
@@ -95,10 +95,30 @@ export function montarMarco({ tanda, ruta, navegar }) {
   };
   ponerVecinas();
 
+  // En angosto la instrucción se corta en 2 líneas: se abre tocándola o con el botón (que sí llega el teclado).
   const instruccion = tanda.instruccion
-    ? el("p", { class: "prosa marco-instruccion", texto: tanda.instruccion, title: t("comun.marco.verInstruccion") })
+    ? el("p", { id: "marco-instruccion", class: "prosa marco-instruccion", texto: tanda.instruccion, title: t("comun.marco.verInstruccion") })
     : null;
-  instruccion?.addEventListener("click", () => instruccion.classList.toggle("expandida"));
+  const verInstruccion = instruccion
+    ? el("button", { type: "button", class: "boton boton-fantasma marco-ver-instruccion", "aria-expanded": "false", "aria-controls": "marco-instruccion", texto: t("comun.marco.verInstruccion") })
+    : null;
+  const alternarInstruccion = () => {
+    const abierta = instruccion.classList.toggle("expandida");
+    verInstruccion.setAttribute("aria-expanded", String(abierta));
+    verInstruccion.textContent = t(abierta ? "comun.marco.ocultarInstruccion" : "comun.marco.verInstruccion");
+  };
+  instruccion?.addEventListener("click", alternarInstruccion);
+  verInstruccion?.addEventListener("click", alternarInstruccion);
+  // El botón solo aparece cuando la instrucción de verdad quedó cortada (o ya está abierta, para cerrarla).
+  if (instruccion && typeof ResizeObserver === "function") {
+    const medir = () => {
+      const cortada = instruccion.classList.contains("expandida") || instruccion.scrollHeight > instruccion.clientHeight + 1;
+      instruccion.toggleAttribute("data-cortada", cortada);
+    };
+    const observador = new ResizeObserver(medir);
+    observador.observe(instruccion);
+    senal.addEventListener("abort", () => observador.disconnect(), { once: true });
+  }
 
   const enlacesDePestana = new Map(
     PESTANAS.map((pestana, indice) => [
@@ -117,7 +137,8 @@ export function montarMarco({ tanda, ruta, navegar }) {
   const meta = el(
     "p",
     { class: "marco-meta" },
-    tanda.url
+    tanda.url && !esUrlWeb(tanda.url) ? el("span", { class: "marco-sitio", texto: tanda.host || tanda.url }) : null,
+    tanda.url && esUrlWeb(tanda.url)
       ? el(
           "a",
           { class: "marco-sitio", href: tanda.url, target: "_blank", rel: "noreferrer noopener", title: t("comun.marco.abrirSitio", { host: tanda.host ?? tanda.url }) },
@@ -173,6 +194,7 @@ export function montarMarco({ tanda, ruta, navegar }) {
       ),
       el("h1", { class: "marco-titulo", tabindex: "-1", texto: titulo }),
       instruccion,
+      verInstruccion,
       meta,
     ),
     el("nav", { class: "pestanas", "aria-label": t("comun.marco.vistas") }, el("ul", {}, [...enlacesDePestana.values()].map((enlace) => el("li", {}, enlace)))),

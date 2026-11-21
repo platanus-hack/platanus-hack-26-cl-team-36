@@ -28,6 +28,8 @@ let ruta = null;
 /** Vista montada: { tipo, id, ruta, modulo, contenedor, controlador, quitar[], tanda?, tandaId?, marco?, pestana? } */
 let vista = null;
 let turno = 0;
+/** Turno de la navegación que todavía no fija `ruta` (0 si no hay): mientras tanto no se reescribe la URL. */
+let navegando = 0;
 let hashMostrado = null;
 let cambiandoIdiomaDesdeHash = false;
 const desplazamientos = new Map();
@@ -77,6 +79,10 @@ function perfilDeIntento(tanda, intentoId) {
 
 function crearContexto(v) {
   const tandaId = v.tandaId ?? null;
+  const controlador = v.controlador;
+  // Una pantalla ya reemplazada (o a punto de serlo) no toca la URL ni registra atajos: su reloj o una tecla
+  // durante una navegación pendiente escribirían el hash viejo encima del nuevo.
+  const vigente = () => !controlador.signal.aborted && vista === v && v.ruta === ruta && !navegando;
   return {
     ruta: v.ruta,
     parametros: { ...(v.ruta.parametros ?? {}) },
@@ -89,9 +95,10 @@ function crearContexto(v) {
       tandaId ? enlaceATanda(tandaId, pestana, parametros) : hashDe({ tipo: "corridas", parametros }),
     enlaceATanda,
     navegar,
-    actualizarParametros,
+    actualizarParametros: (cambios, opciones) => (vigente() ? actualizarParametros(cambios, opciones) : Promise.resolve()),
     atajos: {
       registrar(mapa) {
+        if (controlador.signal.aborted) return () => {};
         const quitar = registrarAtajos(mapa, { ambito: "pantalla", grupo: v.id });
         v.quitar.push(quitar);
         return quitar;
@@ -103,7 +110,7 @@ function crearContexto(v) {
     t,
     fmt,
     idioma: idioma(),
-    senal: v.controlador.signal,
+    senal: controlador.signal,
   };
 }
 
@@ -290,6 +297,12 @@ async function cargarRuta(nueva) {
 /** Procesa location.hash. `origen`: "inicio" | "navegar" | "historial" | "idioma" | "reintento". */
 async function procesar({ origen = "historial" } = {}) {
   const miTurno = ++turno;
+  navegando = miTurno;
+  const fijarRuta = (nueva, hash) => {
+    ruta = nueva;
+    hashMostrado = hash;
+    if (navegando === miTurno) navegando = 0;
+  };
   let hash = location.hash || "#/";
 
   const { idioma: pedido, hash: sinIdioma } = extraerIdioma(hash);
@@ -335,17 +348,15 @@ async function procesar({ origen = "historial" } = {}) {
     ((nueva.tipo === "corridas" && vista.tipo === "corridas") ||
       (nueva.tipo === "tanda" && vista.tipo === "tanda" && vista.tandaId === nueva.tandaId && vista.pestana === nueva.pestana));
   if (mismaVista) {
-    ruta = nueva;
+    fijarRuta(nueva, hash);
     vista.ruta = nueva;
-    hashMostrado = hash;
     await actualizarPantalla();
     avisarRuta();
     return;
   }
 
   if (nueva.tipo === "desconocida") {
-    ruta = nueva;
-    hashMostrado = hash;
+    fijarRuta(nueva, hash);
     await conTransicion(() => vistaDeEstado(vacio({ titulo: t("comun.estado.pantallaNoExiste"), nivel: 1, accion: { texto: t("comun.accion.irACorridas"), href: "#/" } })), {
       direccion: direccionEntre(anterior, nueva),
     });
@@ -379,8 +390,7 @@ async function procesar({ origen = "historial" } = {}) {
   } catch (error) {
     if (miTurno !== turno) return;
     console.error(error);
-    ruta = nueva;
-    hashMostrado = hash;
+    fijarRuta(nueva, hash);
     vistaDeEstado(errorDeCarga(error, nueva.tipo));
     document.title = t("comun.marca.titulo");
     enfocarDespues({ clave: null, completa: true });
@@ -389,8 +399,7 @@ async function procesar({ origen = "historial" } = {}) {
   }
   if (miTurno !== turno) return;
 
-  ruta = nueva;
-  hashMostrado = hash;
+  fijarRuta(nueva, hash);
 
   if (nueva.tipo === "tanda" && !cargado.tanda) {
     await conTransicion(() => vistaDeEstado(noExisteLaTanda(nueva.tandaId)), { direccion: direccionEntre(anterior, nueva) });
@@ -402,6 +411,8 @@ async function procesar({ origen = "historial" } = {}) {
   }
 
   const montar = async () => {
+    // Otra navegación empezó mientras se esperaba la transición: esa monta lo suyo.
+    if (miTurno !== turno) return;
     if (soloPestana && vista?.marco) {
       desmontarPantalla(vista);
       vista.ruta = nueva;
@@ -423,12 +434,29 @@ async function procesar({ origen = "historial" } = {}) {
     await montarPantalla(vista, cargado.modulo, marco.panel);
   };
 
-  if (remontarTodo) await montar();
-  else await conTransicion(montar, { direccion: soloPestana ? "lado" : direccionEntre(anterior, nueva) });
+  try {
+    if (remontarTodo) await montar();
+    else await conTransicion(montar, { direccion: soloPestana ? "lado" : direccionEntre(anterior, nueva) });
+  } catch (error) {
+    // montarPantalla ya atrapa los errores de la pantalla; esto es el marco u otra falla a medio armar.
+    if (miTurno !== turno) return;
+    console.error("enrutador: no se pudo montar la vista", error);
+    vistaDeEstado(errorDeCarga(error, nueva.tipo));
+    enfocarDespues({ clave: null, completa: true });
+    avisarRuta();
+    return;
+  }
   if (miTurno !== turno) return;
 
-  // Al cambiar de idioma el foco queda en el selector (ES/EN); en una navegación completa va al h1.
-  enfocarDespues({ clave, completa: !soloPestana, panel: vista?.marco?.panel, quedarseEnArmazon: origen === "idioma" });
+  // Al cambiar de idioma el foco queda en el selector (ES/EN); en una navegación completa va al h1. El foco
+  // guardado (data-foco) solo vale en la misma tanda: en otra, "telarana:pagina:n2" es otra estación.
+  const mismaTanda = anterior?.tipo === nueva.tipo && (nueva.tipo !== "tanda" || anterior.tandaId === nueva.tandaId);
+  enfocarDespues({
+    clave: origen === "idioma" || mismaTanda ? clave : null,
+    completa: !soloPestana,
+    panel: vista?.marco?.panel,
+    quedarseEnArmazon: origen === "idioma",
+  });
   desplazarDespues({ origen, completa: !soloPestana, conservar });
   avisarRuta();
 }

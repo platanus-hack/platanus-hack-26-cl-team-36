@@ -79,7 +79,7 @@ export default {
     esperaba: "Esperaba",
     loQuePaso: "Pasó",
     noLoDijo: "No lo dijo.",
-    coincide: "Coincide (estimado)",
+    coincide: "¿Pasó lo que esperaba? (estimado)",
     coincideAyuda: "Lo deduce el backoffice de las señales y del cambio de página; el juez no evalúa cada paso.",
     ruta: "Ruta",
     usuario: "Usuario",

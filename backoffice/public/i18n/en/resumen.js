@@ -44,7 +44,9 @@ export default {
     lleganTitulo: "Reach this page: {nombres}",
     nadieLlega: "No valid attempt reaches this page",
     respuesta: "The answer is here",
-    accionVeces: "{accion} ×{n}",
+    // n = valid attempts that took this action on this leg (tool errors do not count).
+    accionVeces: ({ accion, n }, { plural }) => `${accion} (${n} ${plural(n, { one: "attempt", other: "attempts" })})`,
+    accionVecesTitulo: "How many valid attempts took this action on this leg",
     masAcciones: "+{n}",
     tramoPasos: ({ n }, { plural }) => steps(n, plural),
   },

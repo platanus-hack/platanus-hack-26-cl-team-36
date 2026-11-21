@@ -50,14 +50,26 @@ export function normalizarTecla(especificacion) {
     .join(" ");
 }
 
-function teclaDelEvento(evento) {
+/**
+ * La tecla de un evento en la forma de los registros ("j", "Shift+n", "Mod+k", "[").
+ * En teclados español/latinoamericano "[", "]", "{", "@"… se escriben con Option (Mac) o AltGr (Windows/Linux,
+ * que llega como Ctrl+Alt): en un símbolo esos modificadores ya están en el carácter, como Shift, y no cuentan.
+ * @param {{ key: string, ctrlKey?: boolean, altKey?: boolean, metaKey?: boolean, shiftKey?: boolean,
+ *           getModifierState?: (nombre: string) => boolean }} evento
+ * @param {{ mac?: boolean }} [opciones]   para las pruebas; por defecto, la plataforma del navegador
+ */
+export function teclaDelEvento(evento, { mac = esMac } = {}) {
   const { key } = evento;
-  if (!key || key === "Dead" || key === "Unidentified" || ["Shift", "Control", "Alt", "Meta", "OS"].includes(key)) return null;
+  if (!key || key === "Dead" || key === "Unidentified" || ["Shift", "Control", "Alt", "AltGraph", "Meta", "OS"].includes(key)) return null;
+  const simbolo = key.length === 1 && key !== " " && !esLetra(key);
+  const altGr = simbolo && (evento.getModifierState?.("AltGraph") || (!mac && evento.ctrlKey && evento.altKey));
+  const ctrl = evento.ctrlKey && !altGr;
+  const alt = evento.altKey && !simbolo;
   const modificadores = [];
-  if (esMac ? evento.metaKey : evento.ctrlKey) modificadores.push("Mod");
-  if (esMac && evento.ctrlKey) modificadores.push("Ctrl");
-  if (!esMac && evento.metaKey) modificadores.push("Meta");
-  if (evento.altKey) modificadores.push("Alt");
+  if (mac ? evento.metaKey : ctrl) modificadores.push("Mod");
+  if (mac && ctrl) modificadores.push("Ctrl");
+  if (!mac && evento.metaKey) modificadores.push("Meta");
+  if (alt) modificadores.push("Alt");
   if (evento.shiftKey) modificadores.push("Shift");
   return canonica(modificadores, key);
 }
@@ -353,7 +365,7 @@ export function abrirHojaDeAtajos() {
         onclick: () => dialogo.close(),
       }, icono("cerrar")),
     ),
-    el("p", { class: "hoja-atajos-nota texto-3", texto: t("comun.atajos.nota") }),
+    el("p", { class: "hoja-atajos-nota texto-3", texto: t("comun.atajos.nota", { paleta: teclasVisibles("Mod+k").flat().join(esMac ? "" : "+") }) }),
     el(
       "div",
       { class: "hoja-atajos-grupos" },

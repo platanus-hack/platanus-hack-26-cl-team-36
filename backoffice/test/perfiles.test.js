@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
   destinoDeCelda,
   destinoDeIntento,
+  destinoDeMetrica,
   dominioDe,
   escalaLineal,
   filasDeIntentos,
@@ -199,4 +200,20 @@ test("nota de honestidad: todos los perfiles con a lo sumo 1 intento válido", (
   dos.perfiles[0].validos = 2;
   assert.equal(unoPorPerfil(dos), false);
   assert.equal(unoPorPerfil({ perfiles: [] }), false);
+});
+
+test("cada punto de una métrica abre el paso que la explica, no el último", () => {
+  const intento = {
+    id: "mobile",
+    resultado: "logrado",
+    pasos: Array.from({ length: 12 }, (_, i) => ({ numero: i + 1, senales: i === 3 ? ["no_effect"] : [] })),
+    demoras: [{ desdePaso: 1, pasos: 6 }],
+  };
+  assert.deepEqual(destinoDeMetrica(intento, "tropiezos"), { intento: "mobile", paso: 4 });
+  assert.deepEqual(destinoDeMetrica(intento, "pasos"), { intento: "mobile", paso: 1 });
+  assert.deepEqual(destinoDeMetrica(intento, "tiempo"), { intento: "mobile", paso: 1 });
+  assert.deepEqual(destinoDeMetrica(intento, "hitos"), { intento: "mobile", paso: 12 });
+  assert.deepEqual(destinoDeMetrica({ ...intento, demoras: [], pasos: intento.pasos.map((p) => ({ ...p, senales: [] })) }, "tropiezos"), {
+    intento: "mobile", paso: 12,
+  });
 });

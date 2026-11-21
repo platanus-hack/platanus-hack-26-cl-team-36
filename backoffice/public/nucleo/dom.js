@@ -47,6 +47,16 @@ export function reemplazar(padre, ...hijos) {
   return padre;
 }
 
+/** true si `texto` es una URL http(s): solo esas se vuelven enlaces (una corrida podría traer javascript: o data:). */
+export function esUrlWeb(texto) {
+  try {
+    const { protocol } = new URL(String(texto ?? ""));
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function recortar(texto, largo) {
   const limpio = String(texto ?? "").replace(/\s+/g, " ").trim();
   return limpio.length > largo ? `${limpio.slice(0, Math.max(1, largo - 1)).trimEnd()}…` : limpio;

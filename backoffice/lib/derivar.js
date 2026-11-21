@@ -86,6 +86,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {{ url: string, titulo: string, captura: string | null } | null} inicio
  * @property {string | null} capturaFinal
  * @property {boolean} video
+ * @property {number} videoDesfase     segundos del video antes del inicio del intento (video_offset_s; 0 si no hay)
  * @property {Paso[]} pasos
  * @property {string[]} camino
  * @property {{ pagina: string, alcanzado: boolean, paso: number | null }[]} hitos
@@ -233,6 +234,17 @@ export function errorDelIntento(run) {
 }
 
 const DIRECCIONES = { down: "abajo", up: "arriba", left: "izquierda", right: "derecha" };
+// El evaluador corta el texto de un elemento a 80 caracteres (recording.py), a veces a mitad de palabra.
+const LARGO_DEL_TEXTO_DE_ELEMENTO = 80;
+
+/** El texto de un elemento que el evaluador cortó termina en "…" y en una palabra entera ("… de 65 años o…"). */
+export function textoDeElemento(texto) {
+  const limpio = String(texto ?? "").trim();
+  if (limpio.length < LARGO_DEL_TEXTO_DE_ELEMENTO) return limpio;
+  const espacio = limpio.lastIndexOf(" ");
+  const corte = espacio >= LARGO_DEL_TEXTO_DE_ELEMENTO - 20 ? limpio.slice(0, espacio) : limpio;
+  return `${corte.replace(/[\s,.;:–—-]+$/, "")}…`;
+}
 
 /**
  * La acción de un paso, estructurada (como action_signature del evaluador, pero sin frase).
@@ -243,7 +255,7 @@ export function firmaDelPaso(paso) {
   const [x = null, y = null] = Array.isArray(paso.coordinates) ? paso.coordinates : [];
   const base = { tipo: "otra", objetivo: null, direccion: null, cantidad: null, x, y, original: descripcion };
   const elemento = paso.element ?? {};
-  const etiqueta = String(elemento.text ?? "").trim() || elemento.href || null;
+  const etiqueta = textoDeElemento(elemento.text) || elemento.href || null;
   const entrada = paso.action_input ?? {};
   switch (paso.action) {
     case "left_click":
@@ -450,6 +462,36 @@ function rutaEnPaginas(rutaCruda, paginaDeNodo, ramaPorId) {
   };
 }
 
+/**
+ * Cómo ve la ruta las páginas de un intento. Un intento que parte en otra página de inicio (m.sitio.cl en vez
+ * de sitio.cl, porque el sitio redirige al celular) no eligió dónde partir: esa página hace de inicio de la
+ * ruta. Devuelve la función página → página de la ruta y el camino visto así (sin repetidos seguidos).
+ * @param {string[]} camino
+ * @param {number[]} llegadas
+ * @param {Ruta | null} ruta
+ * @param {Set<string>} inicios   páginas donde parte algún intento (is_start)
+ */
+export function caminoSegunRuta(camino, llegadas, ruta, inicios) {
+  const inicioDeRuta = ruta?.paginas[0] ?? null;
+  const [primera] = camino;
+  const alterno =
+    inicioDeRuta && primera && primera !== inicioDeRuta && inicios.has(primera) && inicios.has(inicioDeRuta) &&
+    !ruta.paginas.includes(primera)
+      ? primera
+      : null;
+  const comoRuta = (pagina) => (alterno && pagina === alterno ? inicioDeRuta : pagina);
+  if (!alterno) return { comoRuta, camino, llegadas };
+  const visto = [];
+  const llegadasVistas = [];
+  camino.forEach((pagina, i) => {
+    const comoLaVe = comoRuta(pagina);
+    if (comoLaVe === visto.at(-1)) return;
+    visto.push(comoLaVe);
+    llegadasVistas.push(llegadas[i]);
+  });
+  return { comoRuta, camino: visto, llegadas: llegadasVistas };
+}
+
 // Hitos alcanzados, aunque el intento se haya salido de la ruta y vuelto: cada hito se busca en el
 // camino desde donde se alcanzó el anterior.
 function hitosDelCamino(camino, llegadas, ruta) {
@@ -506,7 +548,7 @@ function rutaDesde(paginaAntes, pagina, salePagina, ruta) {
   };
 }
 
-function armarPasos(run, ubicacion, ruta) {
+function armarPasos(run, ubicacion, ruta, comoRuta) {
   const enRuta = new Set(ruta?.paginas ?? []);
   return (run.steps ?? []).map((crudo, i) => {
     const pagina = ubicacion.paginas[i];
@@ -543,21 +585,24 @@ function armarPasos(run, ubicacion, ruta) {
       paginaAntes: paginaAntes ?? null,
       pagina: pagina ?? null,
       salePagina,
-      carril: !ruta ? "sin-ruta" : enRuta.has(pagina) ? "en-ruta" : "fuera-de-ruta",
-      rutaAqui: rutaDesde(paginaAntes, pagina, salePagina, ruta),
+      carril: !ruta ? "sin-ruta" : enRuta.has(comoRuta(pagina)) ? "en-ruta" : "fuera-de-ruta",
+      rutaAqui: rutaDesde(comoRuta(paginaAntes), comoRuta(pagina), salePagina, ruta),
     };
   });
 }
 
-function armarIntento({ perfil, run, video }, ubicacion, ruta) {
+function armarIntento({ perfil, run, video }, ubicacion, ruta, inicios) {
   const error = errorDelIntento(run);
   const resultadoJuez = run.verdict?.outcome ?? "abandoned";
   const resultado = error ? "error" : (RESULTADO_DEL_JUEZ[resultadoJuez] ?? "abandonado");
-  const pasos = armarPasos(run, ubicacion, ruta);
   const { camino, llegadas } = ubicacion;
-  const hitos = hitosDelCamino(camino, llegadas, ruta);
+  // Contra la ruta se compara el camino visto desde ella (otra página de inicio cuenta como la de la ruta);
+  // `camino` queda con las páginas reales.
+  const segunRuta = caminoSegunRuta(camino, llegadas, ruta, inicios);
+  const pasos = armarPasos(run, ubicacion, ruta, segunRuta.comoRuta);
+  const hitos = hitosDelCamino(segunRuta.camino, segunRuta.llegadas, ruta);
   const ultimoPaso = pasos.at(-1)?.numero ?? 0;
-  const { sigueLaRuta, seSepara, vuelveALaRuta, vuelveEnPaso } = separacion(camino, llegadas, ruta, ultimoPaso);
+  const { sigueLaRuta, seSepara, vuelveALaRuta, vuelveEnPaso } = separacion(segunRuta.camino, segunRuta.llegadas, ruta, ultimoPaso);
   const [ancho, alto] = String(run.viewport ?? "").split("x").map(Number);
   const duracionDelRun = typeof run.duration_s === "number" && run.duration_s > 0 ? run.duration_s : null;
   const costo = run.token_usage?.equivalent_cost_usd;
@@ -581,6 +626,8 @@ function armarIntento({ perfil, run, video }, ubicacion, ruta) {
     inicio: run.start?.url ? { url: run.start.url, titulo: run.start.title ?? "", captura: run.start.screenshot ?? null } : null,
     capturaFinal: run.final_screenshot || null,
     video: Boolean(video),
+    // El video empieza a grabar antes de que cargue la página: los segundos de cada paso van corridos por esto.
+    videoDesfase: typeof run.video_offset_s === "number" && Number.isFinite(run.video_offset_s) ? run.video_offset_s : 0,
     pasos,
     camino,
     hitos,
@@ -593,7 +640,11 @@ function armarIntento({ perfil, run, video }, ubicacion, ruta) {
   };
   intento.demoras = error
     ? []
-    : demorasDelIntento(intento, ruta, { logrado: resultado === "logrado", paginaFinal: camino.at(-1) ?? null });
+    : demorasDelIntento(intento, ruta, {
+        logrado: resultado === "logrado",
+        paginaFinal: camino.at(-1) ?? null,
+        comoRuta: segunRuta.comoRuta,
+      });
   return intento;
 }
 
@@ -792,7 +843,8 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
   const ramasUnidas = unirRamas(arbol?.branches ?? [], paginaDeNodo, conError);
   const ruta = rutaEnPaginas(arbol?.recommended_route ?? null, paginaDeNodo, new Map(ramasUnidas.map((r) => [r.id, r])));
 
-  const intentos = crudos.map((crudo, i) => armarIntento(crudo, ubicaciones[i], ruta));
+  const inicios = new Set(grupos.filter(({ nodos }) => nodos.some((nodo) => nodo.is_start)).map(({ id }) => id));
+  const intentos = crudos.map((crudo, i) => armarIntento(crudo, ubicaciones[i], ruta, inicios));
   const nodoFinalDe = new Map(intentos.map((intento, i) => [intento.id, ubicaciones[i].nodoFinal]));
   const finalesPorNodo = finalesCorregidos(nodosCrudos, intentos, nodoFinalDe);
   const paginas = armarPaginas(grupos, finalesPorNodo, ruta, ramasUnidas, capturasDePaginas(intentos));

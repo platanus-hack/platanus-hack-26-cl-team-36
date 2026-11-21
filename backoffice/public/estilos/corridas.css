@@ -88,6 +88,7 @@
 .p-corridas .corridas-errores { flex: none; }
 .p-corridas .corridas-titular { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--texto-2); }
 .p-corridas .corridas-titular-icono { color: var(--peligro-texto); width: 14px; height: 14px; }
+.p-corridas .corridas-titular-icono.corridas-titular-dificultad { color: var(--aviso); }
 .p-corridas .corridas-meta-corta { display: none; }
 
 .p-corridas .corridas-host { color: var(--texto-3); font-size: 12px; }
@@ -126,14 +127,15 @@
 }
 .p-corridas .corridas-tarjeta-medidor .corridas-medidor { flex: 1; width: auto; }
 .p-corridas .corridas-tarjeta-cuerpo { display: grid; gap: var(--e-1); align-content: start; padding: var(--e-3); min-width: 0; }
+/* El titular dice si alguien lo pasó mal ("…, pero Apurado tarda 12 pasos"): hasta 2 líneas, no 1. */
 .p-corridas .corridas-instruccion,
-.p-corridas .corridas-tarjeta .corridas-titular .truncar {
+.p-corridas .corridas-titular .truncar {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
   white-space: normal; text-overflow: clip;
 }
 .p-corridas .corridas-instruccion { color: var(--texto-3); font-size: 12px; line-height: 16px; }
-.p-corridas .corridas-tarjeta .corridas-titular { align-items: flex-start; }
-.p-corridas .corridas-tarjeta .corridas-titular-icono { margin-block-start: 3px; }
+.p-corridas .corridas-titular { align-items: flex-start; }
+.p-corridas .corridas-titular-icono { flex: none; margin-block-start: 3px; }
 .p-corridas .corridas-tarjeta-meta { display: flex; flex-wrap: wrap; gap: 0 var(--e-2); color: var(--texto-3); font-size: 12px; margin-block-start: var(--e-1); }
 .p-corridas .corridas-tarjeta-meta > * + *::before { content: "·"; margin-inline-end: var(--e-2); color: var(--texto-4); }
 .p-corridas .corridas-errores-corta .corridas-errores-texto { display: none; }

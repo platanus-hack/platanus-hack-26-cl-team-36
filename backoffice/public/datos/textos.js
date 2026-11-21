@@ -13,13 +13,16 @@ const FLECHAS = { abajo: "↓", arriba: "↑", izquierda: "←", derecha: "→" 
 const ORDEN_DE_CONTEOS = ["clic", "desplazamiento", "texto", "tecla", "otra"];
 
 /**
- * El nombre visible de una página: "Inicio"/"Home" para la de inicio; si no, su título corto.
+ * El nombre visible de una página: "Inicio"/"Home" para la de inicio ("Inicio · m.sitio.cl" si hay varias);
+ * si no, su título corto.
  * @param {{ tituloTipo?: string, tituloCorto?: string | null, titulo?: string, url?: string, id?: string } | null} pagina
  * @param {Traductor} t
  */
 export function nombreDePagina(pagina, t) {
   if (!pagina) return "";
-  if (pagina.tituloTipo === "inicio") return t("datos.pagina.inicio");
+  if (pagina.tituloTipo === "inicio") {
+    return pagina.tituloCorto ? t("datos.pagina.inicioDe", { sitio: pagina.tituloCorto }) : t("datos.pagina.inicio");
+  }
   return pagina.tituloCorto || pagina.titulo || pagina.url || pagina.id || "";
 }
 

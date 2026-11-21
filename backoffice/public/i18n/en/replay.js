@@ -79,7 +79,7 @@ export default {
     esperaba: "Expected",
     loQuePaso: "What happened",
     noLoDijo: "It did not say.",
-    coincide: "Matches (estimated)",
+    coincide: "Did what it expected happen? (estimated)",
     coincideAyuda: "The backoffice infers it from the signals and the page change; the judge does not assess each step.",
     ruta: "Route",
     usuario: "User",

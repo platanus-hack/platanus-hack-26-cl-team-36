@@ -55,6 +55,7 @@ export default {
     copiarEnlace: "Copiar enlace",
     abrirSitio: "Abrir {host} en otra pestaña",
     verInstruccion: "Ver la instrucción completa",
+    ocultarInstruccion: "Ver menos",
     intentos: ({ n }, { plural }) => `${n} ${plural(n, { one: "intento", other: "intentos" })}`,
     llegan: ({ n, de }, { plural }) => `${n}/${de} ${plural(n, { one: "llega", other: "llegan" })}`,
     ningunoValido: "Ningún intento válido",
@@ -145,7 +146,7 @@ export default {
   },
   atajos: {
     titulo: "Atajos de teclado",
-    nota: "No funcionan mientras escribes en un campo, salvo ⌘K y Esc.",
+    nota: "No funcionan mientras escribes en un campo, salvo {paleta} y Esc.",
     enEstaVista: "En esta vista",
     luego: "luego",
     mantener: "mantén",

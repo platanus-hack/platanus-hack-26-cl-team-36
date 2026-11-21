@@ -109,6 +109,19 @@ test("tandaId con caracteres especiales se codifica por segmento", () => {
   assert.equal(parsearHash(hash).tandaId, "tarea con espacio/2026-11-21_07-28-42");
 });
 
+test("un tandaId que armaría otra ruta no es una tanda", () => {
+  for (const hash of [
+    "#/t/..%2F..%2Fx/2026-01-01_00-00-00/resumen",
+    "#/t/../2026-01-01_00-00-00/resumen",
+    "#/t/.oculta/2026-01-01_00-00-00/resumen",
+    "#/t/a%5Cb/2026-01-01_00-00-00/resumen",
+    "#/t/a/b/2026-01-01_00-00-00/resumen",
+  ]) {
+    assert.equal(parsearHash(hash).tipo, "desconocida", hash);
+  }
+  assert.equal(parsearHash("#/t/wom-baja.fibra_2/2026-01-01_00-00-00/resumen").tipo, "tanda");
+});
+
 test("normalizarPaso: vacío, inválido, fuera de rango", () => {
   assert.deepEqual(normalizarPaso(null, 12), { paso: 1, aviso: null });
   assert.deepEqual(normalizarPaso("4", 12), { paso: 4, aviso: null });

@@ -3,7 +3,7 @@
 // por intento), dónde avanza cada perfil (perfiles × hitos de la ruta), métricas (puntos con escala por columna) e
 // intentos (tabla ordenable). Toda marca, celda, punto y fila abre el Replay en un paso con sentido.
 
-import { conservarFoco, el } from "../nucleo/dom.js";
+import { conservarFoco, el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
 import { textoDeTitular } from "../datos/textos.js";
 import { parsearOrden, siguienteOrden, textoDeOrden, unoPorPerfil } from "../perfiles/escalas.js";
@@ -66,6 +66,7 @@ export default {
   async montar(contenedor, ctx) {
     contenedor.classList.add("p-perfiles");
     await ctx.cargarEstilos("estilos/perfiles.css");
+    if (ctx.senal.aborted) return;
     const { tanda, t } = ctx;
 
     if (!tanda?.intentos?.length) {
@@ -84,7 +85,9 @@ export default {
     const puntos = graficoDePuntos(tanda, ctx);
     estado.tabla = tablaDeIntentos(tanda, orden, ctx, ordenar);
 
-    contenedor.append(
+    // reemplazar() omite los bloques que no aplican (append(null) escribiría "null").
+    reemplazar(
+      contenedor,
       el(
         "header",
         { class: "perfiles-cabecera" },

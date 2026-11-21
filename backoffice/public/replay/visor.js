@@ -4,7 +4,7 @@
 // modo no recarga nada. Los valores dinámicos van por CSSOM (--corte, --opacidad, --clic-x, --proporcion…).
 
 import { nombreDePagina } from "../datos/textos.js";
-import { el, recortarAlMedio } from "../nucleo/dom.js";
+import { el, recortarAlMedio, reemplazar } from "../nucleo/dom.js";
 import { posicionDelClic } from "./sincronia.js";
 
 export const MODOS = ["despues", "antes", "deslizar", "superponer"];
@@ -143,7 +143,9 @@ export function crearVisor({ t, fmt, urlDeArchivo, senal }) {
 
     const pagina = (tanda?.telarana?.paginas ?? []).find((cada) => cada.id === paso.pagina) ?? null;
     const crudo = paso.coordenadas ? `${paso.accion} (${paso.coordenadas.join(", ")})` : paso.accion;
-    leyenda.replaceChildren(
+    // reemplazar() omite lo que falta (replaceChildren(null) escribiría "null").
+    reemplazar(
+      leyenda,
       pagina ? el("span", { class: "replay-pagina", texto: nombreDePagina(pagina, t) }) : null,
       paso.url ? el("span", { class: "mono replay-url", title: paso.url, texto: recortarAlMedio(paso.url, 60) }) : null,
       typeof paso.segundos === "number"

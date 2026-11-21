@@ -78,3 +78,20 @@ test("títulos cortos: inicio, sitio, URL y repetidos", () => {
     ["sitio", "Planes · /precios"],
   ]);
 });
+
+test("varias páginas de inicio o mismo título en otro sitio: se distinguen por el sitio", () => {
+  const paginas = titularPaginas([
+    pagina("https://sitio.test/", "Sitio"),
+    pagina("https://m.sitio.test/", "Sitio"),
+    pagina("https://sitio.test/ayuda", "Ayuda"),
+    pagina("https://m.sitio.test/ayuda", "Ayuda"),
+  ]);
+  assert.deepEqual(paginas.map((p) => [p.tituloTipo, p.tituloCorto]), [
+    ["inicio", "sitio.test"],
+    ["inicio", "m.sitio.test"],
+    ["sitio", "Ayuda · sitio.test"],
+    ["sitio", "Ayuda · m.sitio.test"],
+  ]);
+  // Una sola página de inicio sigue sin título corto.
+  assert.equal(titularPaginas([pagina("https://sitio.test/", "Sitio")])[0].tituloCorto, null);
+});

@@ -6,7 +6,7 @@
 // ctx.actualizarParametros y actualizar(ctx) los aplica: una sola fuente de verdad.
 
 import { kbd } from "../nucleo/atajos.js";
-import { conservarFoco, el, recortarAlMedio, reemplazar, svg } from "../nucleo/dom.js";
+import { conservarFoco, el, esUrlWeb, recortarAlMedio, reemplazar, svg } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
 import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
 import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
@@ -25,7 +25,8 @@ import {
   vecindario,
 } from "../telarana/cuentas.js";
 import { RESULTADOS, distribuir, geometria } from "../telarana/distribuir.js";
-import { dibujarEscena } from "../telarana/escena.js";
+import { atascosPorPagina } from "../telarana/atascos.js";
+import { claseDeTramo, dibujarEscena } from "../telarana/escena.js";
 import { crearHistoria } from "../telarana/historia.js";
 
 const ANCHO_VERTICAL = 720;
@@ -69,12 +70,13 @@ function crearPantalla(contenedor, ctx) {
   // ── Textos que la escena necesita ─────────────────────────────────────
   const textos = {
     nombre,
-    ariaDeEstacion(pagina, estacion) {
+    ariaDeEstacion(pagina, estacion, atascos = 0) {
       const partes = [nombre(pagina)];
       if (estacion.tipo === "inicio") partes.push(t("telarana.estacion.inicio"));
       else if (estacion.tipo === "hito") partes.push(t("telarana.estacion.hito", { n: estacion.hito + 1, total: distribucion.tronco.length }));
       partes.push(t("telarana.estacion.visitas", { n: pagina.visitas ?? 0 }));
       if ((pagina.variantes?.length ?? 0) > 1) partes.push(t("telarana.estacion.variantesDeUrl", { n: pagina.variantes.length }));
+      if (atascos) partes.push(t("telarana.atasco.aria", { n: atascos }));
       return partes.join(", ");
     },
     detalleDeVariantes: (n) => t("telarana.estacion.variantes", { n }),
@@ -201,15 +203,17 @@ function crearPantalla(contenedor, ctx) {
         { class: "leyenda-muestra", viewBox: "0 0 28 10", width: 28, height: 10, "aria-hidden": "true" },
         svg("g", { class: `tramo ${clases}` }, svg("path", { class: "tramo-trazo", d: "M2 5 L26 5", "stroke-width": 3 })),
       );
+    // Solo los tipos de tramo que aparecen en esta tanda (el tronco, siempre).
+    const fuera = distribucion.tramos.filter((tramo) => tramo.tipo !== "tronco");
+    const clases = new Set(fuera.map(claseDeTramo));
     const items = [
       ["tramo-tronco", distribucion.troncoEsRuta ? "ruta" : "eje"],
-      ["tramo-exito", "exito"],
-      ["tramo-mixto", "mixto"],
-      ["tramo-fallo", "fallo"],
-      ["tramo-abandono", "abandono"],
-      ["tramo-error", "error"],
-      ["tramo-retroceso tramo-exito", "retroceso"],
-    ];
+      ...[["exito", "exito"], ["mixto", "mixto"], ["fallo", "fallo"], ["abandono", "abandono"], ["error", "error"]]
+        .filter(([clase]) => clases.has(clase))
+        .map(([clase, clave]) => [`tramo-${clase}`, clave]),
+      fuera.some((tramo) => tramo.tipo === "retroceso") ? ["tramo-retroceso tramo-exito", "retroceso"] : null,
+    ].filter(Boolean);
+    const hayAtascos = atascosPorPagina(tanda).size > 0;
     return el(
       "div",
       { class: "telarana-leyenda" },
@@ -217,7 +221,8 @@ function crearPantalla(contenedor, ctx) {
       el(
         "ul",
         { "aria-label": t("telarana.leyenda.titulo") },
-        items.map(([clases, clave]) => el("li", {}, muestra(clases), el("span", { texto: t(`telarana.leyenda.${clave}`) }))),
+        items.map(([clasesDeMuestra, clave]) => el("li", {}, muestra(clasesDeMuestra), el("span", { texto: t(`telarana.leyenda.${clave}`) }))),
+        hayAtascos ? el("li", { class: "leyenda-atasco" }, icono("atasco"), el("span", { texto: t("telarana.leyenda.atasco") })) : null,
         el("li", { class: "leyenda-grosor", texto: t("telarana.leyenda.grosor") }),
       ),
     );
@@ -225,13 +230,36 @@ function crearPantalla(contenedor, ctx) {
 
   // ── Escena y cámara ───────────────────────────────────────────────────
   let camara = null;
-  const tooltipDeEstacion = (pagina) => () =>
-    el(
+  // Dónde se trabaron (con el filtro de perfil actual): marca en la estación y líneas en su globo.
+  const atascosActuales = () => atascosPorPagina(tanda, estado.perfil);
+  const lineaDeAtasco = (atasco) => {
+    const partes = [];
+    if (atasco.demora) partes.push(t("telarana.atasco.demora", { n: atasco.demora }));
+    if (atasco.tropiezos) partes.push(t("telarana.atasco.tropiezos", { n: atasco.tropiezos }));
+    if (atasco.repetidos) partes.push(t("telarana.atasco.repetidos", { n: atasco.repetidos }));
+    return t("telarana.atasco.linea", { nombre: intentos.get(atasco.intento)?.nombrePerfil ?? atasco.intento, detalle: partes.join(", ") });
+  };
+  const tooltipDeEstacion = (pagina) => () => {
+    const atascos = atascosActuales().get(pagina.id) ?? [];
+    return el(
       "span",
       { class: "telarana-globo" },
       el("span", { class: "telarana-globo-titulo", texto: pagina.titulo || nombre(pagina) }),
       pagina.url ? el("span", { class: "mono telarana-globo-url", texto: recortarAlMedio(pagina.url, 80) }) : null,
+      atascos.length
+        ? el(
+            "span",
+            { class: "telarana-globo-atasco" },
+            el("span", { class: "telarana-globo-atasco-titulo" }, icono("atasco"), el("span", { texto: t("telarana.atasco.titulo") })),
+            atascos.map((atasco) => el("span", { texto: lineaDeAtasco(atasco) })),
+          )
+        : null,
     );
+  };
+  const marcarAtascos = () => {
+    const cuantos = new Map([...atascosActuales()].map(([pagina, lista]) => [pagina, lista.length]));
+    estado.dibujo?.marcarAtascos(cuantos);
+  };
 
   const tooltipDeTramo = (tramo) => () => {
     const desde = paginas.get(tramo.origen);
@@ -279,6 +307,7 @@ function crearPantalla(contenedor, ctx) {
       intentos,
       particulas: !reducido(),
     });
+    marcarAtascos();
     for (const [id, boton] of estado.dibujo.estaciones) {
       const pagina = paginas.get(id);
       conGlobo(boton, tooltipDeEstacion(pagina), { senal });
@@ -603,7 +632,8 @@ function crearPantalla(contenedor, ctx) {
         botonQuitar("telarana.panel.quitar", () => ctx.actualizarParametros({ pagina: null }), "telarana:panel:quitar"),
       ),
       pagina.titulo && pagina.titulo !== nombre(pagina) ? el("p", { class: "prosa texto-2", texto: pagina.titulo }) : null,
-      pagina.url
+      pagina.url && !esUrlWeb(pagina.url) ? el("span", { class: "panel-telarana-url mono", texto: recortarAlMedio(pagina.url, 56) }) : null,
+      pagina.url && esUrlWeb(pagina.url)
         ? el(
             "a",
             { class: "panel-telarana-url mono", href: pagina.url, target: "_blank", rel: "noreferrer noopener", title: t("telarana.panel.abrirPagina") },
@@ -792,6 +822,8 @@ function crearPantalla(contenedor, ctx) {
     if (pedida && estado.geo) {
       if (pedida !== estado.historiaId) iniciarHistoria(pedida);
       const total = estado.historia.total;
+      // paso=0 es la pantalla inicial (enlaces de hitos): la historia la muestra en el paso 1, como Replay.
+      if (total && parametros.paso === "0") return reescribir({ paso: "1" });
       if (total) {
         const { paso, aviso } = normalizarPaso(parametros.paso, total);
         if (aviso) {
@@ -811,7 +843,10 @@ function crearPantalla(contenedor, ctx) {
     if (!pedida) estado.historiaColocada = false;
 
     ponerVista3d(parametros.vista === "3d");
-    if (estado.dibujo && cambioDePerfil) estado.dibujo.contarTerminales(totalesDeTerminales(finalesPorPagina(tanda, estado.perfil)));
+    if (estado.dibujo && cambioDePerfil) {
+      estado.dibujo.contarTerminales(totalesDeTerminales(finalesPorPagina(tanda, estado.perfil)));
+      marcarAtascos();
+    }
     aislar();
     pintarPanel();
     reemplazar(zonaDeAvisos, estado.avisos.map((texto) => avisoEnLinea(texto, "atencion")));
@@ -855,6 +890,8 @@ function crearPantalla(contenedor, ctx) {
   return {
     async montar() {
       await ctx.cargarEstilos("estilos/telarana.css");
+      // Si otra navegación reemplazó la vista mientras cargaba el CSS, no se arma ni se registra nada.
+      if (ctx.senal.aborted) return;
       if (!distribucion.estaciones.length) {
         aplicar(ctx.parametros);
         return;

@@ -85,7 +85,7 @@ test("tanda nueva: titular y hallazgos en español e inglés", async () => {
     "Un intento no cuenta: error de la herramienta (Móvil).",
     "Adulto mayor deja la ruta en «Inicio» hacia «Sin titulo · ?x=1» (paso 1) y no vuelve.",
     "Adulto mayor termina en «Sin titulo · ?x=1» tras 3 pasos: se rindió.",
-    "Apurado da 6 pasos seguidos en «Ayuda» (la ruta: 0): 6 desplazamientos.",
+    "Apurado da 7 pasos seguidos en «Ayuda» (la ruta: 1): 6 desplazamientos, 1 clic.",
     "2 pasos con tropiezos: Apurado, paso 4 (sin efecto); Adulto mayor, paso 3 (volvió atrás).",
     "La mediana es de 4 pasos; la ruta recomendada usa 2.",
   ]);
@@ -94,7 +94,7 @@ test("tanda nueva: titular y hallazgos en español e inglés", async () => {
     "One attempt does not count: tool error (Móvil).",
     "Adulto mayor leaves the route at «Home» towards «Sin titulo · ?x=1» (step 1) and does not come back.",
     "Adulto mayor ends at «Sin titulo · ?x=1» after 3 steps: gave up.",
-    "Apurado takes 6 steps in a row on «Ayuda» (the route: 0): 6 scrolls.",
+    "Apurado takes 7 steps in a row on «Ayuda» (the route: 1): 6 scrolls, 1 click.",
     "2 steps with stumbles: Apurado, step 4 (no effect); Adulto mayor, step 3 (went back).",
     "The median is 4 steps; the recommended route takes 2.",
   ]);
@@ -142,10 +142,10 @@ test("las frases de los datos reales, en español e inglés", () => {
   assert.equal(textoDeTitular(dt, WOM, en), "The 2 valid attempts reach the answer by the recommended route.");
   const demora = {
     clave: "datos.hallazgo.demora",
-    vars: { intento: "mobile", pagina: "n1", pasos: 5, rutaPasos: 2, conteos: { clic: 4, desplazamiento: 0, texto: 1, tecla: 0, otra: 0 } },
+    vars: { intento: "mobile", pagina: "n1", pasos: 6, rutaPasos: 3, conteos: { clic: 5, desplazamiento: 0, texto: 1, tecla: 0, otra: 0 } },
   };
-  assert.equal(textoDeHallazgo(demora, WOM, es), "Móvil da 5 pasos seguidos en «Inicio» (la ruta: 2): 4 clics, 1 texto.");
-  assert.equal(textoDeHallazgo(demora, WOM, en), "Móvil takes 5 steps in a row on «Home» (the route: 2): 4 clicks, 1 text entry.");
+  assert.equal(textoDeHallazgo(demora, WOM, es), "Móvil da 6 pasos seguidos en «Inicio» (la ruta: 3): 5 clics, 1 texto.");
+  assert.equal(textoDeHallazgo(demora, WOM, en), "Móvil takes 6 steps in a row on «Home» (the route: 3): 5 clicks, 1 text entry.");
   const tropiezos = { clave: "datos.hallazgo.tropiezos", vars: { pasos: 1, casos: [{ intento: "mobile", paso: 4, senal: "no_effect" }] } };
   assert.equal(textoDeHallazgo(tropiezos, WOM, es), "1 paso con tropiezos: Móvil, paso 4 (sin efecto).");
   const telarana = { clave: "datos.titular.telarana", vars: { hayRuta: true, tramos: 3, pasosIdeales: 8, siguen: 3, validos: 3 } };
@@ -153,12 +153,28 @@ test("las frases de los datos reales, en español e inglés", () => {
   assert.equal(textoDeTitular(telarana, WOM, en), "The recommended route has 3 legs and 8 steps; all 3 follow it.");
   const costo = { clave: "datos.hallazgo.costo", vars: { pasosMediana: 8, pasosIdeales: 5 } };
   assert.equal(textoDeHallazgo(costo, WOM, es), "La mediana es de 8 pasos; la ruta recomendada usa 5.");
+  const vacia = resultado({ total: 0, validos: 0, logrados: 0, errores: 0 });
+  assert.equal(textoDeTitular(vacia, WOM, es), "La tanda no tiene intentos registrados.");
+  assert.equal(textoDeTitular(vacia, WOM, en), "This batch has no recorded attempts.");
   const sinValidos = resultado({ total: 1, validos: 0, logrados: 0, errores: 1 });
   assert.equal(textoDeTitular(sinValidos, WOM, es), "Ningún intento válido: el único intento falló por un error de la herramienta.");
   const otroCamino = resultado({ total: 3, validos: 3, logrados: 3, directos: 1, errores: 0 });
   assert.equal(textoDeTitular(otroCamino, WOM, es), "Los 3 llegan a la respuesta; 2 por otro camino.");
   const perfiles = { clave: "datos.titular.perfiles", vars: { caso: "masPasos", intentos: ["mobile"], pasos: 12, pasosIdeales: 8, perfiles: 3, unoPorPerfil: true } };
   assert.equal(textoDeTitular(perfiles, WOM, es), "Móvil necesita 12 pasos; la ruta, 8 (1 intento por perfil).");
+});
+
+test("titular de una tanda donde todos llegan pero alguien lo pasa mal", () => {
+  const titular = (vars) => ({ clave: "datos.titular.tanda", nivel: "dificultad", vars: { validos: 3, errores: 0, ...vars } });
+  const masPasos = titular({ caso: "masPasos", intento: "hurried", pasos: 12, pasosIdeales: 5 });
+  assert.equal(textoDeTitular(masPasos, WOM, es), "Los 3 llegan a la respuesta, pero Apurado tarda 12 pasos (la ruta: 5).");
+  assert.equal(textoDeTitular(masPasos, WOM, en), "All 3 reach the answer, but Apurado takes 12 steps (the route: 5).");
+  const demora = titular({ caso: "demora", intento: "mobile", pagina: "n1", pasos: 6 });
+  assert.equal(textoDeTitular(demora, WOM, es), "Los 3 llegan a la respuesta, pero Móvil da 6 pasos seguidos en «Inicio».");
+  assert.equal(textoDeTitular(demora, WOM, en), "All 3 reach the answer, but Móvil takes 6 steps in a row on «Home».");
+  const tropiezos = titular({ validos: 2, errores: 1, caso: "tropiezos", pasos: 1 });
+  assert.equal(textoDeTitular(tropiezos, WOM, es), "Los 2 intentos válidos llegan a la respuesta, pero hay 1 paso con tropiezos.");
+  assert.equal(textoDeTitular(tropiezos, WOM, en), "The 2 valid attempts reach the answer, but 1 step has stumbles.");
 });
 
 test("firmas, lo que pasó, conteos, errores y nombres de página", () => {
@@ -187,6 +203,8 @@ test("firmas, lo que pasó, conteos, errores y nombres de página", () => {
   assert.equal(textoDeError(null, es), null);
 
   assert.equal(nombreDePagina({ tituloTipo: "inicio", tituloCorto: null }, en), "Home");
+  assert.equal(nombreDePagina({ tituloTipo: "inicio", tituloCorto: "m.sitio.cl" }, es), "Inicio · m.sitio.cl");
+  assert.equal(nombreDePagina({ tituloTipo: "inicio", tituloCorto: "m.sitio.cl" }, en), "Home · m.sitio.cl");
   assert.equal(nombreDePagina({ tituloTipo: "url", tituloCorto: "Impuesto territorial" }, es), "Impuesto territorial");
   assert.equal(nombreDePagina(null, es), "");
 });

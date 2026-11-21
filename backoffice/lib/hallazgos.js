@@ -20,9 +20,9 @@
  * @typedef {Object} Demora   Pasos seguidos en una misma página, más de los que da la ruta ahí.
  * @property {string} pagina
  * @property {number} desdePaso
- * @property {number} hastaPaso
- * @property {number} pasos
- * @property {number | null} rutaPasos      pasos dentro de esa página que da la ruta recomendada
+ * @property {number} hastaPaso             incluye el paso que deja la página, si lo hay
+ * @property {number} pasos                 acciones hechas en la página, contando la que la deja
+ * @property {number | null} rutaPasos      los pasos del tramo de la ruta que sale de esa página (misma cuenta)
  * @property {Conteos} conteos
  *
  * @typedef {{ clic: number, desplazamiento: number, texto: number, tecla: number, otra: number }} Conteos
@@ -51,44 +51,53 @@ export function contarAcciones(pasos) {
 }
 
 /**
- * Tramos de pasos seguidos que se quedan en una página, cuando son más de lo razonable para la ruta.
+ * Tramos de pasos seguidos en una página, cuando son más de lo razonable para la ruta.
  * No cuenta la página final de un intento logrado (ahí lee la respuesta).
+ *
+ * Los pasos "en una página" son las acciones hechas estando en ella, contando la que la deja: la misma cuenta
+ * que los pasos de un tramo de la ruta (Resumen: "3 pasos" bajo Inicio ↔ "da 6 pasos seguidos en «Inicio» (la
+ * ruta: 3)"). El umbral se calcula con los pasos que se quedan en la página (diseño §2.6), que es lo mismo
+ * con uno menos a cada lado.
  * @param {{ pasos: { numero: number, accion: string, pagina: string | null, salePagina: boolean }[] }} intento
  * @param {{ paginas: string[], tramos: { pasos: number }[] } | null} ruta
- * @param {{ logrado: boolean, paginaFinal: string | null }} opciones
+ * @param {{ logrado: boolean, paginaFinal: string | null, comoRuta?: (pagina: string) => string }} opciones
+ *        `comoRuta`: la página que hace de hito (otra página de inicio cuenta como el inicio de la ruta).
  * @returns {Demora[]}
  */
-export function demorasDelIntento(intento, ruta, { logrado, paginaFinal }) {
+export function demorasDelIntento(intento, ruta, { logrado, paginaFinal, comoRuta = (pagina) => pagina }) {
   const tramos = [];
   let actual = null;
   for (const paso of intento.pasos) {
     if (paso.salePagina || !paso.pagina) {
+      // El paso que deja la página se hizo en ella: cuenta en su tramo.
+      if (actual && paso.salePagina) actual.salida = paso;
       actual = null;
       continue;
     }
     if (!actual || actual.pagina !== paso.pagina) {
-      actual = { pagina: paso.pagina, pasos: [] };
+      actual = { pagina: paso.pagina, pasos: [], salida: null };
       tramos.push(actual);
     }
     actual.pasos.push(paso);
   }
   const demoras = [];
-  for (const { pagina, pasos } of tramos) {
+  for (const { pagina, pasos, salida } of tramos) {
     if (logrado && pagina === paginaFinal) continue;
-    const hito = ruta ? ruta.paginas.indexOf(pagina) : -1;
+    const hito = ruta ? ruta.paginas.indexOf(comoRuta(pagina)) : -1;
     const esHitoIntermedio = hito >= 0 && hito < ruta.paginas.length - 1;
-    const rutaPasos = esHitoIntermedio ? Math.max(0, ruta.tramos[hito].pasos - 1) : null;
-    const umbral = rutaPasos === null
+    const seQuedanEnRuta = esHitoIntermedio ? Math.max(0, ruta.tramos[hito].pasos - 1) : null;
+    const umbral = seQuedanEnRuta === null
       ? UMBRAL_MINIMO_DE_DEMORA
-      : Math.max(UMBRAL_MINIMO_DE_DEMORA, 2 * rutaPasos, rutaPasos + 3);
+      : Math.max(UMBRAL_MINIMO_DE_DEMORA, 2 * seQuedanEnRuta, seQuedanEnRuta + 3);
     if (pasos.length < umbral) continue;
+    const enLaPagina = salida ? [...pasos, salida] : pasos;
     demoras.push({
       pagina,
       desdePaso: pasos[0].numero,
-      hastaPaso: pasos.at(-1).numero,
-      pasos: pasos.length,
-      rutaPasos,
-      conteos: contarAcciones(pasos),
+      hastaPaso: enLaPagina.at(-1).numero,
+      pasos: enLaPagina.length,
+      rutaPasos: esHitoIntermedio ? ruta.tramos[hito].pasos : null,
+      conteos: contarAcciones(enLaPagina),
     });
   }
   return demoras;
@@ -242,11 +251,39 @@ const mediana = (numeros) => {
   return orden.length % 2 ? orden[medio] : (orden[medio - 1] + orden[medio]) / 2;
 };
 
+const TIPOS_DE_DIFICULTAD = new Set(["demora", "costo", "tropiezos"]);
+
+/**
+ * Cuando todos llegan pero alguien lo pasó mal (hay demora, costo o tropiezos), qué contar en el titular: el
+ * intento que más se alejó de la ruta en pasos; si ninguno dio más pasos que la ruta, la demora o los tropiezos.
+ * El hallazgo principal del producto es la distancia entre la ruta y lo que hicieron: el titular no la esconde.
+ * @returns {Record<string, unknown> | null}
+ */
+function dificultad(tanda, lista) {
+  const [resultado] = lista;
+  if (resultado?.nivel !== "bien" || !lista.some((h) => TIPOS_DE_DIFICULTAD.has(h.id.split(":")[0]))) return null;
+  const ruta = tanda.telarana.ruta;
+  const logrados = tanda.intentos.filter((intento) => intento.resultado === "logrado");
+  let peor = null;
+  for (const intento of logrados) {
+    if (!ruta?.pasosIdeales || intento.pasos.length <= ruta.pasosIdeales) continue;
+    if (!peor || intento.pasos.length > peor.pasos.length) peor = intento;
+  }
+  if (peor) return { caso: "masPasos", intento: peor.id, pasos: peor.pasos.length, pasosIdeales: ruta.pasosIdeales };
+  const demora = lista.find((h) => h.id.startsWith("demora:"));
+  if (demora) return { caso: "demora", intento: demora.vars.intento, pagina: demora.vars.pagina, pasos: demora.vars.pasos };
+  const tropiezos = lista.find((h) => h.id === "tropiezos");
+  if (tropiezos) return { caso: "tropiezos", pasos: tropiezos.vars.pasos };
+  return null;
+}
+
 /**
  * Las frases con que abren Resumen (tanda), Telaraña y Perfiles, como clave + variables.
+ * `tanda` lleva además `nivel`: "bien" (todos llegan sin dificultad), "dificultad" (todos llegan, pero alguien
+ * tarda o tropieza: datos.titular.tanda) o el nivel del hallazgo `resultado`.
  * @param {{ intentos: any[], telarana: { ruta: any }, kpis: any, perfiles: any[] }} tanda
  * @param {Hallazgo[]} lista   los hallazgos de la tanda (el primero es `resultado`)
- * @returns {{ tanda: Texto, telarana: Texto, perfiles: Texto }}
+ * @returns {{ tanda: Texto & { nivel: string }, telarana: Texto, perfiles: Texto }}
  */
 export function titulares(tanda, lista) {
   const { kpis, perfiles } = tanda;
@@ -297,8 +334,15 @@ export function titulares(tanda, lista) {
       : { ...base, caso: "parecido" };
   }
 
+  const conDificultad = dificultad(tanda, lista);
   return {
-    tanda: { clave: resultado.clave, vars: resultado.vars },
+    tanda: conDificultad
+      ? {
+          clave: "datos.titular.tanda",
+          nivel: "dificultad",
+          vars: { validos: resultado.vars.validos, errores: resultado.vars.errores, ...conDificultad },
+        }
+      : { clave: resultado.clave, nivel: resultado.nivel, vars: resultado.vars },
     telarana,
     perfiles: { clave: "datos.titular.perfiles", vars },
   };

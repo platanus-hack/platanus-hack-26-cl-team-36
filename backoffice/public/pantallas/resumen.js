@@ -67,8 +67,9 @@ function titular(ctx, c) {
   const { tanda } = c;
   const kpis = tanda.kpis ?? {};
   const resultado = (tanda.hallazgos ?? []).find((hallazgo) => hallazgo.id === "resultado");
-  const nivel = resultado?.nivel ?? (kpis.validos && kpis.logrados === kpis.validos ? "bien" : "atencion");
-  const nombreIcono = !kpis.validos ? "error-herramienta" : nivel === "bien" ? "logrado" : "fallido";
+  // "dificultad": todos llegan, pero alguien tarda o tropieza; no es un check verde.
+  const nivel = tanda.titulares?.tanda?.nivel ?? resultado?.nivel ?? (kpis.validos && kpis.logrados === kpis.validos ? "bien" : "atencion");
+  const nombreIcono = !kpis.validos ? "error-herramienta" : nivel === "bien" ? "logrado" : nivel === "dificultad" ? "dificultad" : "fallido";
   const texto = tanda.titulares?.tanda
     ? textoDeTitular(tanda.titulares.tanda, tanda, ctx.t)
     : resultado
@@ -260,14 +261,17 @@ function hallazgos(ctx, c) {
 
 function accionesDelTramo(ctx, c, tramo) {
   const rama = (c.tanda.telarana?.ramas ?? []).find((r) => r.origen === tramo.origen && r.destino === tramo.destino);
-  const acciones = rama?.acciones?.length ? rama.acciones : [{ accion: tramo.accion, intentos: null }];
-  const visibles = acciones.slice(0, ACCIONES_VISIBLES).map((accion) =>
-    accion.intentos ? ctx.t("resumen.ruta.accionVeces", { accion: accion.accion, n: accion.intentos }) : accion.accion,
-  );
+  // Cuántos intentos válidos hicieron cada acción: los con error de la herramienta no cuentan (como en las cifras).
+  const validos = new Set((c.tanda.intentos ?? []).filter(esValido).map((intento) => intento.perfil ?? intento.id));
+  const acciones = rama?.acciones?.length
+    ? rama.acciones.map((accion) => ({ accion: accion.accion, n: (accion.perfiles ?? []).filter((perfil) => validos.has(perfil)).length }))
+    : [{ accion: tramo.accion, n: 0 }];
+  const texto = (accion) => (accion.n ? ctx.t("resumen.ruta.accionVeces", { accion: accion.accion, n: accion.n }) : accion.accion);
+  const visibles = acciones.slice(0, ACCIONES_VISIBLES).map(texto);
   const resto = acciones.length - visibles.length;
   return {
     texto: [...visibles, resto > 0 ? ctx.t("resumen.ruta.masAcciones", { n: resto }) : null].filter(Boolean).join(" · "),
-    completo: acciones.map((accion) => (accion.intentos ? ctx.t("resumen.ruta.accionVeces", { accion: accion.accion, n: accion.intentos }) : accion.accion)).join("\n"),
+    completo: [ctx.t("resumen.ruta.accionVecesTitulo"), ...acciones.map(texto)].join("\n"),
   };
 }
 
@@ -589,6 +593,8 @@ export default {
 
   async montar(contenedor, ctx) {
     await ctx.cargarEstilos("estilos/resumen.css");
+    // Si otra navegación reemplazó la vista mientras cargaba el CSS, no se arma ni se registra nada.
+    if (ctx.senal.aborted) return;
     contenedor.classList.add("p-resumen");
     estado = { raiz: contenedor };
     const c = contexto(ctx);

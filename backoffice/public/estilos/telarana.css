@@ -119,6 +119,16 @@
   position: absolute; inset: 0; display: grid; place-items: center;
   font-size: 10px; line-height: 1; font-weight: 600; color: var(--acento-fuerte); font-variant-numeric: tabular-nums;
 }
+/* Marca de "alguien se trabó aquí": triángulo de aviso arriba a la derecha del punto, con la cuenta si son varios. */
+.p-telarana .estacion-atasco {
+  position: absolute; left: 14px; bottom: 12px; display: inline-flex; align-items: center; gap: 1px;
+  padding: 1px 3px 1px 2px; border-radius: 999px; background: var(--fondo); box-shadow: 0 0 0 1px var(--aviso);
+  color: var(--aviso); font-size: 10px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.p-telarana .estacion-atasco[hidden] { display: none; }
+.p-telarana .estacion-atasco svg { width: 12px; height: 12px; }
+.p-telarana .estacion-atasco-cuenta:empty { display: none; }
 .p-telarana .estacion:hover .estacion-punto::before, .p-telarana .estacion:focus-visible .estacion-punto::before { transform: scale(1.15); }
 .p-telarana .estacion[aria-pressed="true"] .estacion-punto::before { background: var(--acento); border-color: var(--acento-fuerte); }
 .p-telarana .estacion[aria-pressed="true"] .estacion-numero { color: oklch(0.18 0.03 245); }
@@ -185,6 +195,7 @@
 .p-telarana .telarana-leyenda li { display: inline-flex; align-items: center; gap: 6px; }
 .p-telarana .leyenda-muestra { flex: none; overflow: visible; }
 .p-telarana .leyenda-muestra .tramo-tronco .tramo-trazo { filter: none; }
+.p-telarana .leyenda-atasco svg { width: 12px; height: 12px; color: var(--aviso); }
 
 /* ── Panel ──────────────────────────────────────────────────────────── */
 .p-telarana .panel-telarana { display: grid; gap: var(--e-3); align-content: start; min-width: 0; }
@@ -251,6 +262,9 @@
 .telarana-globo-titulo { font-weight: 600; color: var(--texto-1); }
 .telarana-globo-url { font-size: 11px; color: var(--texto-3); }
 .telarana-globo-accion { display: flex; justify-content: space-between; gap: var(--e-3); }
+.telarana-globo-atasco { display: grid; gap: 2px; margin-block-start: var(--e-1); padding-block-start: var(--e-1); border-top: 1px solid var(--borde-sutil); }
+.telarana-globo-atasco-titulo { display: inline-flex; align-items: center; gap: 4px; color: var(--aviso); font-weight: 600; }
+.telarana-globo-atasco-titulo svg { width: 12px; height: 12px; }
 
 @media (pointer: coarse) {
   .p-telarana .estacion { min-height: 0; }

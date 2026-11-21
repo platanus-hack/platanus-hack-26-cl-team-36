@@ -6,6 +6,10 @@
 //   GET /api/tandas/<tarea>/<fecha-hora>  → la tanda completa, ya derivada para las pantallas
 //   GET /archivos/<tarea>/<fecha-hora>/<perfil>/<step_NN.png | video.webm>
 //   GET /<ruta>.{html,js,css,svg,woff2}   → archivos de public/
+//
+// Solo responde a pedidos dirigidos a este computador (Host localhost, 127.0.0.1 o [::1] con el puerto del
+// servidor): así una página ajena no puede leer las corridas apuntando su dominio a 127.0.0.1 (DNS rebinding).
+// BACKOFFICE_HOSTS="otro.host:8080,…" agrega hosts permitidos (para cuando se sirva detrás de algo con acceso).
 
 import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
@@ -35,7 +39,7 @@ const RUTA_PUBLICA = /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:html|js|css|svg|woff2)$/;
 const CABECERAS_DE_SEGURIDAD = {
   "Content-Security-Policy":
     "default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self' https://fonts.googleapis.com; " +
-    "font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
+    "font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
 };
@@ -90,14 +94,39 @@ async function servirPublico(req, res, ruta) {
   return enviar(req, res, ruta, { cuerpo: createReadStream(ruta), tamano: size, rango: null });
 }
 
+const NOMBRES_LOCALES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
 /**
- * @param {{ fuente?: import("./lib/fuente.js").Fuente, raizCorridas?: string }} opciones
- *        `fuente` de donde leer las corridas; o `raizCorridas`, una carpeta (fuente de archivos).
+ * true si la cabecera Host apunta a este computador en `puerto` (o es uno de `extra`, en minúsculas).
+ * @param {string | undefined} host
+ * @param {number} puerto
+ * @param {Set<string>} [extra]
  */
-export function crearServidor({ fuente, raizCorridas } = {}) {
+export function hostPermitido(host, puerto, extra = new Set()) {
+  const texto = String(host ?? "").trim().toLowerCase();
+  if (!texto) return false;
+  if (extra.has(texto)) return true;
+  const partes = /^(\[[0-9a-f:.]+\]|[^:]+)(?::(\d+))?$/.exec(texto);
+  if (!partes || !NOMBRES_LOCALES.has(partes[1])) return false;
+  return partes[2] === undefined ? puerto === 80 : Number(partes[2]) === puerto;
+}
+
+const hostsDelEntorno = () =>
+  new Set(String(process.env.BACKOFFICE_HOSTS ?? "").split(",").map((host) => host.trim().toLowerCase()).filter(Boolean));
+
+/**
+ * @param {{ fuente?: import("./lib/fuente.js").Fuente, raizCorridas?: string, hostsPermitidos?: string[] }} opciones
+ *        `fuente` de donde leer las corridas; o `raizCorridas`, una carpeta (fuente de archivos).
+ *        `hostsPermitidos`: hosts extra ("otro.host:8080") además de localhost; por defecto, BACKOFFICE_HOSTS.
+ */
+export function crearServidor({ fuente, raizCorridas, hostsPermitidos } = {}) {
   const origen = fuente ?? crearFuente({ tipo: "archivos", raiz: raizCorridas });
+  const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   return createServer(async (req, res) => {
     try {
+      if (!hostPermitido(req.headers.host, req.socket.localPort, extra)) {
+        return responderJson(res, 403, { error: "Host no permitido" });
+      }
       if (req.method !== "GET" && req.method !== "HEAD") {
         return responderJson(res, 405, { error: "Solo lectura" });
       }

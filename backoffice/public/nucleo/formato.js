@@ -78,6 +78,20 @@ export function crearFormatos(idioma) {
       return ingles ? texto.replace(/(\p{L})\.(?=\s|$)/gu, "$1") : texto;
     },
 
+    /** "07:28" (24 h, igual en los dos idiomas). */
+    hora(fechaIso) {
+      const fecha = aFecha(fechaIso);
+      if (!fecha) return "";
+      const p = partes(fechaHora, fecha);
+      return `${p.hour}:${p.minute}`;
+    },
+
+    /** "hace 2 h · 07:28" | "2 hr ago · 07:28": dos tandas de la misma hora relativa se distinguen. */
+    tiempoConHora(fechaIso, ahora = Date.now()) {
+      const relativo = fmt.tiempoRelativo(fechaIso, ahora);
+      return relativo ? `${relativo} · ${fmt.hora(fechaIso)}` : "";
+    },
+
     /** "41 s", "1 min 5 s"; "" si no es número. */
     duracion(segundos) {
       if (typeof segundos !== "number" || !Number.isFinite(segundos)) return "";

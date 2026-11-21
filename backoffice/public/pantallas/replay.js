@@ -109,7 +109,7 @@ function crearReproductor() {
       src: ctx.urlDeArchivo(intento.id, "video.webm"),
       etiqueta: ctx.t("replay.visor.videoEtiqueta", { nombre: intento.nombrePerfil ?? intento.id }),
     });
-    // El desfase del video (video_offset_s) todavía no viene en la API; con 0 los pasos quedan algo antes de tiempo.
+    // desfase = video_offset_s del evaluador: lo que grabó el video antes de que empezara el intento.
     reproductor = crearReproductorDeVideo(partes.visor.video, { desfase: Number(intento.videoDesfase) || 0, senal: ctx.senal, ...comunes });
   } else {
     partes.visor.ponerVideo(false);
@@ -129,8 +129,12 @@ function pintarPaso() {
   const { intento, indice } = estado;
   partes.rail.pintar({ intento, indice, soloSenales: estado.soloSenales });
   partes.visor.mostrar({ intento, indice, tanda: ctx.tanda });
+  // Una señal por tarjeta (atada a la de la vista): al cambiar de paso se sueltan los oyentes del globo anterior.
+  partes.senalDeTarjeta?.abort();
+  partes.senalDeTarjeta = new AbortController();
+  const senal = AbortSignal.any([ctx.senal, partes.senalDeTarjeta.signal]);
   conservarFoco(partes.tarjeta, () =>
-    reemplazar(partes.contenidoTarjeta, contenidoDeTarjeta({ intento, indice, tanda: ctx.tanda, t: ctx.t, senal: ctx.senal })),
+    reemplazar(partes.contenidoTarjeta, contenidoDeTarjeta({ intento, indice, tanda: ctx.tanda, t: ctx.t, senal })),
   );
   partes.linea.marcar(indice);
   const total = intento.pasos?.length ?? 0;
@@ -427,7 +431,9 @@ export default {
   async montar(contenedor, contexto) {
     ctx = contexto;
     contenedor.classList.add("p-replay");
-    await ctx.cargarEstilos("estilos/replay.css");
+    await contexto.cargarEstilos("estilos/replay.css");
+    // Si otra navegación reemplazó la vista mientras cargaba el CSS, no se arma ni se registra nada.
+    if (contexto.senal.aborted || ctx !== contexto) return;
     if (!ctx.tanda?.intentos?.length) {
       contenedor.append(vacio({ titulo: ctx.t("replay.visor.sinPasos") }));
       partes = null;

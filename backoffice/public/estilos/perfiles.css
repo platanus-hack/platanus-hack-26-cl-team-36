@@ -44,8 +44,10 @@
 
 /* ── 2. Perfiles × hitos ────────────────────────────────────────────── */
 .p-perfiles .calor-bloque { display: grid; gap: var(--e-3); min-width: 0; }
+/* position: relative: los textos .visualmente-oculto (position: absolute) de adentro quedan dentro de la caja que
+   desplaza; sin esto se salen y la página entera se ensancha. */
 .p-perfiles .calor-caja {
-  overflow-x: auto; max-width: 100%; border: 1px solid var(--borde-sutil); border-radius: var(--radio-3);
+  position: relative; overflow-x: auto; max-width: 100%; border: 1px solid var(--borde-sutil); border-radius: var(--radio-3);
   background: var(--superficie-1); overscroll-behavior-x: contain;
 }
 .p-perfiles .calor { border-collapse: separate; border-spacing: 4px; width: 100%; min-width: calc(140px + var(--columnas, 4) * 112px); }
@@ -127,7 +129,7 @@
 .p-perfiles .punto.unidad-error .icono { color: var(--texto-2); }
 
 /* ── 4. Intentos ────────────────────────────────────────────────────── */
-.p-perfiles .perfiles-tabla-caja { min-width: 0; }
+.p-perfiles .perfiles-tabla-caja { position: relative; min-width: 0; }
 .p-perfiles .perfiles-tabla td, .p-perfiles .perfiles-tabla th[scope="row"] { white-space: nowrap; }
 .p-perfiles .perfiles-tabla th[scope="row"] {
   padding: var(--e-2) var(--e-3); border-bottom: 1px solid var(--borde-sutil); text-align: start;

@@ -14,6 +14,8 @@ const conNota = (frase, nota) => (nota ? frase.replace(/\.$/, ` ${nota}.`) : fra
 export default {
   pagina: {
     inicio: "Inicio",
+    // Cuando la tanda tiene más de una página de inicio (sitio.cl y m.sitio.cl).
+    inicioDe: "Inicio · {sitio}",
   },
 
   error: {
@@ -73,6 +75,7 @@ export default {
   hallazgo: {
     resultado: ({ total, validos, logrados, directos, errores, intentos }) => {
       const [t, v, l, d, e] = [n(total), n(validos), n(logrados), n(directos), n(errores)];
+      if (t === 0) return "La tanda no tiene intentos registrados.";
       if (v === 0) {
         return `Ningún intento válido: ${t === 1 ? "el único intento falló" : `los ${t} fallaron`} por un error de la herramienta.`;
       }
@@ -116,6 +119,18 @@ export default {
   },
 
   titular: {
+    // Todos llegan, pero alguien lo pasó mal: el titular de Resumen y Corridas no lo esconde.
+    tanda: ({ validos, errores, caso, intento, pagina, pasos: cuenta, pasosIdeales }) => {
+      const [v, e] = [n(validos), n(errores)];
+      const sujeto = v === 1
+        ? (e > 0 ? "El único intento válido llega" : "El único intento llega")
+        : (e > 0 ? `Los ${v} intentos válidos llegan` : `Los ${v} llegan`);
+      if (caso === "masPasos") {
+        return `${sujeto} a la respuesta, pero ${intento ?? ""} tarda ${pasos(n(cuenta))} (la ruta: ${n(pasosIdeales)}).`;
+      }
+      if (caso === "demora") return `${sujeto} a la respuesta, pero ${intento ?? ""} da ${n(cuenta)} pasos seguidos en «${pagina ?? ""}».`;
+      return `${sujeto} a la respuesta, pero hay ${pasos(n(cuenta))} con tropiezos.`;
+    },
     telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos }) => {
       if (!hayRuta) return "Nadie llegó a la respuesta: el eje es el camino más transitado.";
       const [s, v] = [n(siguen), n(validos)];

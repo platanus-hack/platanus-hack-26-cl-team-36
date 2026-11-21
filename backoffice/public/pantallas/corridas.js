@@ -110,16 +110,19 @@ function tiempo(resumen, ctx) {
     datetime: resumen.fechaIso ?? null,
     title: ctx.fmt.fechaLegible(fecha),
     "data-relativo": fecha,
-    texto: ctx.fmt.tiempoRelativo(fecha),
+    // Con la hora: dos tandas de la misma tarea, ambas "hace 2 h", se distinguen (07:16 y 07:28).
+    texto: ctx.fmt.tiempoConHora(fecha),
   });
 }
 
 function titular(resumen, ctx) {
   const falla = tieneProblemas(resumen);
+  const dificultad = !falla && resumen.titular?.nivel === "dificultad";
   return el(
     "span",
     { class: "corridas-titular" },
     falla ? icono("fallido", { clase: "corridas-titular-icono" }) : null,
+    dificultad ? icono("dificultad", { clase: "corridas-titular-icono corridas-titular-dificultad" }) : null,
     el("span", { class: "truncar", texto: resumen.titular ? textoDeTitular(resumen.titular, resumen, ctx.t) : "" }),
   );
 }
@@ -483,7 +486,7 @@ function moverFila(delta) {
 
 function refrescarTiempos(ctx) {
   for (const nodo of estado?.raiz.querySelectorAll("[data-relativo]") ?? []) {
-    nodo.textContent = ctx.fmt.tiempoRelativo(nodo.dataset.relativo);
+    nodo.textContent = ctx.fmt.tiempoConHora(nodo.dataset.relativo);
   }
 }
 
@@ -494,6 +497,8 @@ export default {
 
   async montar(contenedor, ctx) {
     await ctx.cargarEstilos("estilos/corridas.css");
+    // Si otra navegación reemplazó la vista mientras cargaba el CSS, no se arma ni se registra nada.
+    if (ctx.senal.aborted) return;
     contenedor.classList.add("p-corridas");
     const lista = prepararLista(ctx.tandas, ctx.parametros);
     const cuenta = el("span", { class: "corridas-cuenta", "aria-live": "polite" });
