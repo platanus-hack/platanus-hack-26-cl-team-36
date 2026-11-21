@@ -82,7 +82,8 @@
   color: var(--texto-3); font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
 }
 
-.p-corridas .corridas-principal { display: grid; gap: 2px; min-width: 0; }
+/* Una sola columna que nunca crece más que la fila: el titular no se mete bajo «N/8 llegan» en el angosto. */
+.p-corridas .corridas-principal { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; }
 .p-corridas .corridas-linea { display: flex; align-items: center; gap: var(--e-2); min-width: 0; }
 .p-corridas .corridas-tarea { color: var(--texto-1); font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: -0.006em; }
 .p-corridas .corridas-errores { flex: none; }
@@ -96,6 +97,10 @@
 .p-corridas .corridas-puntos { display: grid; grid-template-columns: repeat(4, max-content); gap: 2px; justify-content: start; min-width: 0; }
 .p-corridas .corridas-llegan { display: grid; grid-template-columns: 48px auto; align-items: center; gap: var(--e-2); }
 .p-corridas .corridas-medidor { width: 48px; }
+/* El medidor de la lista es angosto: hasta 12 tramos de ≥ 3 px caben en 48 px (y 8 en los 36 px del angosto), con
+   1 px entre ellos; nunca se sale de su caja, así que no tapa «N/8 llegan». */
+.p-corridas .corridas-llegan .corridas-medidor { gap: 1px; overflow: hidden; }
+.p-corridas .corridas-llegan .medidor-tramo { min-width: 3px; }
 .p-corridas .corridas-llegan-texto { color: var(--texto-2); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .p-corridas .corridas-pasos { color: var(--texto-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .p-corridas .corridas-tiempo { color: var(--texto-3); font-size: 12px; text-align: right; white-space: nowrap; }
