@@ -54,8 +54,8 @@ Hay además dos ejes que cruzan la escala:
 
 ### Nivel 0 · Estilo
 
-**Cómo funciona.** Una hoja CSS inyectada con origen de usuario. Ya funciona en el prototipo
-(`scripting.insertCSS`, [fondo.js](../../prototipo/extension/fondo.js)).
+**Cómo funciona.** Una hoja CSS inyectada con origen de usuario. Funcionaba en el prototipo y
+funciona en la extensión actual (`scripting.insertCSS`, [background/index.js](../../extension/src/background/index.js)).
 
 **Factibilidad.** Alta. Instantáneo al volver a un sitio. Con CSS también se puede ocultar y reordenar dentro de un
 mismo contenedor (`order`, rejilla), pero no crear elementos ni moverlos a otro contenedor.
