@@ -45,6 +45,10 @@ abajo).
   una vez, a mano, y su estado queda en el computador de quien lo aplicó.
 - `app/`: la Lambda, su URL, su rol y su log; el almacén de los agentes (bucket `chameleon-almacen-<cuenta>`,
   privado) y la tabla `chameleon-revisiones` (DynamoDB, `PK`/`SK`). Su estado vive en el bucket del estado.
+  `/revisiones` de la API marca cada página en la tabla y dispara el conductor en el runtime cuyo nombre termina en
+  `runtime_agentes` (`chameleon`); la Lambda `chameleon-backend-proyectora` (`backend/proyectora.js`) recibe los
+  `manifest.json` nuevos del bucket y actualiza el estado de cada revisión. Sin `REVISIONES_TABLA` (en local),
+  `/revisiones` responde 404.
 - `agentcore/`: el Visitante en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime
   `web_evaluator_image`, con su código en `../agents/app/visitor/` y `../agents/` como contexto de la imagen, para que
