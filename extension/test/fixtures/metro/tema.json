@@ -10,116 +10,116 @@
         "componente": "buscador",
         "datos": [
           {
-            "titulo": { "es": "Planificar un viaje", "en": "Plan a trip" },
+            "titulo": { "es": "Planificador de Viajes", "en": "Trip planner" },
             "detalle": { "es": "Ruta y tiempo entre dos estaciones", "en": "Route and travel time between two stations" },
             "enlace": "/el-viaje/planificador",
             "palabras": { "es": ["ruta", "cómo llegar", "origen", "destino", "combinación"], "en": ["route", "directions", "from", "to"] },
-            "grupo": { "es": "El viaje", "en": "The trip" }
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
           },
           {
-            "titulo": { "es": "Horarios y tarifas", "en": "Hours and fares" },
-            "detalle": { "es": "A qué hora abre y cuánto cuesta el pasaje", "en": "Opening hours and ticket prices" },
-            "enlace": "/el-viaje/horarios-y-tarifas",
-            "palabras": { "es": ["precio", "pasaje", "valor", "hora punta", "abre", "cierra"], "en": ["price", "ticket", "cost", "peak", "open", "close"] },
-            "grupo": { "es": "El viaje", "en": "The trip" }
-          },
-          {
-            "titulo": { "es": "Estado de la red", "en": "Network status" },
+            "titulo": { "es": "Estado del Servicio", "en": "Service status" },
             "detalle": { "es": "Si hay problemas o retrasos en las líneas ahora", "en": "Service problems or delays right now" },
             "enlace": "/el-viaje/estado-red",
             "palabras": { "es": ["retraso", "falla", "cerrada", "funcionando", "servicio"], "en": ["delay", "outage", "closed", "running", "service"] },
-            "grupo": { "es": "El viaje", "en": "The trip" }
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
           },
           {
-            "titulo": { "es": "Buscar una estación", "en": "Find a station" },
+            "titulo": { "es": "Estaciones", "en": "Stations" },
             "detalle": { "es": "Accesos, servicios y combinaciones de cada estación", "en": "Entrances, services and transfers for each station" },
             "enlace": "/el-viaje/estaciones",
             "palabras": { "es": ["estación", "salida", "ascensor"], "en": ["station", "exit", "lift", "elevator"] },
-            "grupo": { "es": "El viaje", "en": "The trip" }
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
           },
           {
-            "titulo": { "es": "Plano de la red", "en": "Network map" },
+            "titulo": { "es": "Plano de Red", "en": "Network map" },
             "detalle": { "es": "El mapa completo de las líneas", "en": "The full map of every line" },
             "enlace": "/el-viaje/plano-de-red",
             "palabras": { "es": ["mapa", "líneas"], "en": ["map", "lines"] },
-            "grupo": { "es": "El viaje", "en": "The trip" }
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
           },
           {
-            "titulo": { "es": "Combinar con bus y tren", "en": "Connect with bus and train" },
-            "detalle": { "es": "Intermodalidad con buses, trenes y estacionamientos", "en": "Transfers to buses, trains and park-and-ride" },
-            "enlace": "/el-viaje/intermodalidad",
-            "palabras": { "es": ["bus", "micro", "tren", "intermodal", "transbordo"], "en": ["bus", "train", "transfer", "intermodal"] },
-            "grupo": { "es": "El viaje", "en": "The trip" }
+            "titulo": { "es": "Horarios y Tarifas", "en": "Hours and fares" },
+            "detalle": { "es": "A qué hora abre y cuánto cuesta el pasaje", "en": "Opening hours and ticket prices" },
+            "enlace": "/el-viaje/horarios-y-tarifas",
+            "palabras": { "es": ["precio", "pasaje", "valor", "hora punta", "abre", "cierra"], "en": ["price", "ticket", "cost", "peak", "open", "close"] },
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
           },
           {
-            "titulo": { "es": "Ruta expresa", "en": "Express route" },
-            "detalle": { "es": "Estaciones roja y verde en hora punta", "en": "Red and green stations at peak hours" },
-            "enlace": "/el-viaje/ruta-expresa",
-            "palabras": { "es": ["expreso", "roja", "verde", "hora punta"], "en": ["express", "red", "green", "peak"] },
-            "grupo": { "es": "El viaje", "en": "The trip" }
-          },
-          {
-            "titulo": { "es": "Cargar la bip!", "en": "Top up your bip!" },
+            "titulo": { "es": "Carga tu bip!", "en": "Top up your bip!" },
             "detalle": { "es": "Recarga saldo para viajar", "en": "Add credit to travel" },
             "enlace": "/el-viaje/carga-bip",
             "palabras": { "es": ["recargar", "saldo", "tarjeta", "bip"], "en": ["recharge", "balance", "card", "bip"] },
-            "grupo": { "es": "Tarjeta bip!", "en": "bip! card" }
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
           },
           {
-            "titulo": { "es": "Dónde y cómo cargar", "en": "Where and how to top up" },
+            "titulo": { "es": "Voucher Digital", "en": "Digital voucher" },
+            "detalle": { "es": "Un pasaje en el celular, sin tarjeta", "en": "A ticket on your phone, no card needed" },
+            "enlace": "/voucher-digital",
+            "palabras": { "es": ["qr", "pasaje", "celular", "sin bip"], "en": ["qr", "ticket", "phone", "no card"] },
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
+          },
+          {
+            "titulo": { "es": "Tipos de Carga", "en": "Top-up options" },
             "detalle": { "es": "Tipos de carga: en línea, tótem o boletería", "en": "Top-up options: online, kiosks or ticket office" },
             "enlace": "/el-viaje/tipos-de-carga",
             "palabras": { "es": ["recargar", "saldo", "tarjeta", "bip", "online", "app"], "en": ["recharge", "balance", "card", "bip", "online", "app"] },
-            "grupo": { "es": "Tarjeta bip!", "en": "bip! card" }
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
+          },
+          {
+            "titulo": { "es": "Intermodalidad", "en": "Bus and train connections" },
+            "detalle": { "es": "Intermodalidad con buses, trenes y estacionamientos", "en": "Transfers to buses, trains and park-and-ride" },
+            "enlace": "/el-viaje/intermodalidad",
+            "palabras": { "es": ["bus", "micro", "tren", "intermodal", "transbordo"], "en": ["bus", "train", "transfer", "intermodal"] },
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
+          },
+          {
+            "titulo": { "es": "Ruta Expresa", "en": "Express route" },
+            "detalle": { "es": "Estaciones roja y verde en hora punta", "en": "Red and green stations at peak hours" },
+            "enlace": "/el-viaje/ruta-expresa",
+            "palabras": { "es": ["expreso", "roja", "verde", "hora punta"], "en": ["express", "red", "green", "peak"] },
+            "grupo": { "es": "El Viaje", "en": "The Trip" }
+          },
+          {
+            "titulo": { "es": "Metro Accesible", "en": "Accessible Metro" },
+            "detalle": { "es": "Viajar con discapacidad o movilidad reducida", "en": "Travelling with a disability or reduced mobility" },
+            "enlace": "/guia-del-usuario/metro-accesible",
+            "palabras": { "es": ["discapacidad", "silla de ruedas", "ascensor", "accesibilidad"], "en": ["disability", "wheelchair", "lift", "accessibility"] },
+            "grupo": { "es": "Guía del Usuario", "en": "User Guide" }
+          },
+          {
+            "titulo": { "es": "Tips y Preguntas Frecuentes", "en": "Tips and FAQ" },
+            "detalle": { "es": "Respuestas rápidas sobre viajes y bip!", "en": "Quick answers about trips and bip!" },
+            "enlace": "/guia-del-usuario/tips-y-preguntas-frecuentes",
+            "palabras": { "es": ["dudas", "faq", "ayuda"], "en": ["faq", "help", "questions"] },
+            "grupo": { "es": "Guía del Usuario", "en": "User Guide" }
           },
           {
             "titulo": { "es": "Tarjeta Adulto Mayor", "en": "Senior card" },
             "detalle": { "es": "Pídela para pagar la tarifa rebajada", "en": "Apply for the reduced senior fare" },
             "enlace": "/atencion-cliente/tarjeta-adulto-mayor",
             "palabras": { "es": ["tercera edad", "tarifa", "descuento", "rebaja", "bip"], "en": ["elderly", "fare", "discount", "bip"] },
-            "grupo": { "es": "Tarjeta bip!", "en": "bip! card" }
+            "grupo": { "es": "Atención al Cliente", "en": "Customer Service" }
           },
           {
-            "titulo": { "es": "Voucher digital", "en": "Digital voucher" },
-            "detalle": { "es": "Un pasaje en el celular, sin tarjeta", "en": "A ticket on your phone, no card needed" },
-            "enlace": "/voucher-digital",
-            "palabras": { "es": ["qr", "pasaje", "celular", "sin bip"], "en": ["qr", "ticket", "phone", "no card"] },
-            "grupo": { "es": "Tarjeta bip!", "en": "bip! card" }
-          },
-          {
-            "titulo": { "es": "Metro accesible", "en": "Accessible Metro" },
-            "detalle": { "es": "Viajar con discapacidad o movilidad reducida", "en": "Travelling with a disability or reduced mobility" },
-            "enlace": "/guia-del-usuario/metro-accesible",
-            "palabras": { "es": ["discapacidad", "silla de ruedas", "ascensor", "accesibilidad"], "en": ["disability", "wheelchair", "lift", "accessibility"] },
-            "grupo": { "es": "Ayuda", "en": "Help" }
-          },
-          {
-            "titulo": { "es": "Objetos perdidos", "en": "Lost and found" },
+            "titulo": { "es": "Objetos Perdidos", "en": "Lost and found" },
             "detalle": { "es": "Reporta o recupera algo que dejaste en Metro", "en": "Report or recover something you left behind" },
             "enlace": "/atencion-cliente/objetos-perdidos",
             "palabras": { "es": ["perdí", "olvidé", "encontré"], "en": ["lost", "forgot", "found"] },
-            "grupo": { "es": "Ayuda", "en": "Help" }
+            "grupo": { "es": "Atención al Cliente", "en": "Customer Service" }
           },
           {
-            "titulo": { "es": "Reclamos y sugerencias", "en": "Complaints and suggestions" },
+            "titulo": { "es": "Consultas, Sugerencias y Reclamos", "en": "Questions, suggestions and complaints" },
             "detalle": { "es": "Envía una consulta, sugerencia o reclamo", "en": "Send a question, suggestion or complaint" },
             "enlace": "/atencion-cliente/sugerencias-reclamos",
             "palabras": { "es": ["reclamo", "queja", "felicitar", "consulta"], "en": ["complaint", "feedback", "question"] },
-            "grupo": { "es": "Ayuda", "en": "Help" }
+            "grupo": { "es": "Atención al Cliente", "en": "Customer Service" }
           },
           {
-            "titulo": { "es": "Contactar a Metro", "en": "Contact Metro" },
+            "titulo": { "es": "Canales de Contacto", "en": "Contact channels" },
             "detalle": { "es": "Teléfono, redes y canales de atención", "en": "Phone, social media and support channels" },
             "enlace": "/atencion-cliente/canales-de-contacto",
             "palabras": { "es": ["teléfono", "whatsapp", "ayuda", "atención"], "en": ["phone", "whatsapp", "help", "support"] },
-            "grupo": { "es": "Ayuda", "en": "Help" }
-          },
-          {
-            "titulo": { "es": "Preguntas frecuentes", "en": "Frequently asked questions" },
-            "detalle": { "es": "Respuestas rápidas sobre viajes y bip!", "en": "Quick answers about trips and bip!" },
-            "enlace": "/guia-del-usuario/tips-y-preguntas-frecuentes",
-            "palabras": { "es": ["dudas", "faq", "ayuda"], "en": ["faq", "help", "questions"] },
-            "grupo": { "es": "Ayuda", "en": "Help" }
+            "grupo": { "es": "Atención al Cliente", "en": "Customer Service" }
           }
         ],
         "opciones": {
@@ -128,8 +128,8 @@
           "teclas": true,
           "agrupar": true,
           "textos": {
-            "es": { "boton": "Buscar una tarea en metro.cl…" },
-            "en": { "boton": "Search metro.cl for a task…" }
+            "es": { "boton": "Buscar en metro.cl" },
+            "en": { "boton": "Search metro.cl" }
           }
         }
       },
@@ -140,8 +140,8 @@
         "reemplazar": false,
         "componente": "atajo",
         "datos": [
-          { "nombre": "inicio", "etiqueta": { "es": "Desde", "en": "From" }, "opciones": "#binicio", "requerido": true },
-          { "nombre": "fin", "etiqueta": { "es": "Hasta", "en": "To" }, "opciones": "#fin", "requerido": true },
+          { "nombre": "inicio", "etiqueta": { "es": "Origen", "en": "Origin" }, "opciones": "#binicio", "requerido": true },
+          { "nombre": "fin", "etiqueta": { "es": "Destino", "en": "Destination" }, "opciones": "#fin", "requerido": true },
           { "nombre": "horario", "etiqueta": { "es": "Horario", "en": "Time band" }, "opciones": "#horario" },
           { "nombre": "dia", "etiqueta": { "es": "Día", "en": "Day" }, "opciones": "#dia" }
         ],
@@ -150,14 +150,14 @@
           "invertir": ["inicio", "fin"],
           "textos": {
             "es": {
-              "titulo": "¿A dónde vas?",
-              "subtitulo": "Elige tus estaciones y te mostramos la ruta y el tiempo de viaje.",
+              "titulo": "Planifica tu viaje",
+              "subtitulo": "Elige tu estación de origen y destino.",
               "boton": "Ver ruta",
               "invertir": "Intercambiar origen y destino"
             },
             "en": {
-              "titulo": "Where are you going?",
-              "subtitulo": "Pick your stations and we'll show you the route and travel time.",
+              "titulo": "Plan your trip",
+              "subtitulo": "Choose your origin and destination station.",
               "boton": "See route",
               "invertir": "Swap origin and destination"
             }
@@ -187,17 +187,17 @@
             "enlace": "/el-viaje/estaciones"
           },
           {
-            "titulo": { "es": "Plano de red", "en": "Network map" },
+            "titulo": { "es": "Plano de Red", "en": "Network map" },
             "detalle": { "es": "El mapa completo de las líneas", "en": "The full map of every line" },
             "enlace": "/el-viaje/plano-de-red"
           },
           {
-            "titulo": { "es": "Metro accesible", "en": "Accessible Metro" },
+            "titulo": { "es": "Metro Accesible", "en": "Accessible Metro" },
             "detalle": { "es": "Viajar con discapacidad o movilidad reducida", "en": "Travelling with a disability or reduced mobility" },
             "enlace": "/guia-del-usuario/metro-accesible"
           },
           {
-            "titulo": { "es": "Canales de atención", "en": "Customer service" },
+            "titulo": { "es": "Canales de Contacto", "en": "Contact channels" },
             "detalle": { "es": "Cómo comunicarte con Metro", "en": "How to get in touch with Metro" },
             "enlace": "/atencion-cliente/canales-de-contacto"
           }
@@ -205,8 +205,8 @@
         "opciones": {
           "max": 6,
           "textos": {
-            "es": { "titulo": "Lo más buscado", "subtitulo": "Atajos a lo que más se hace en metro.cl." },
-            "en": { "titulo": "Most wanted", "subtitulo": "Shortcuts to what people do most on metro.cl." }
+            "es": { "titulo": "MetroServicio" },
+            "en": { "titulo": "MetroServicio" }
           }
         }
       }

@@ -36,12 +36,22 @@ _ENLACES = {"a", "al", "como", "con", "cuando", "de", "del", "desde", "donde", "
             "sobre", "su", "sus", "todas", "todos", "tu", "tus", "u", "un", "una", "unos", "unas", "y"}
 _GERUNDIO = re.compile(r"\w{2,}(?:ando|iendo|yendo)$", re.I)
 _RELLENO = re.compile(r"\b(?:informaci[oó]n|detalles|datos) (?:sobre|acerca de) (?=\w)", re.I)
+# «Llega a la página de la Encuesta…», «Ve al sitio de…»: el verbo de navegar no nombra la tarea.
+_NAVEGAR = re.compile(r"^(?:llega|ve|ir|entra|accede|navega)\s+(?:a\s+|al\s+)(?:(?:la|las|el|los)\s+)?"
+                      r"(?:(?:p[aá]gina|sitio|secci[oó]n)\s+(?:de\s+(?:la\s+|las\s+|los\s+|el\s+)?|del\s+))?",
+                      re.I)
+# «Llega a la sala de prensa para leer…»: tras el verbo de navegar, el propósito no es parte del nombre (salvo que
+# el destino sea una sola palabra).
+_PROPOSITO = re.compile(r"\s+para\s+(?=\w+(?:ar|er|ir)\b)", re.I)
+# Una ruta con fecha (/2026/11/06/…): una noticia o comunicado que mañana ya no es lo más reciente.
+_FECHADA = re.compile(r"/(?:19|20)\d{2}/\d{1,2}/")
 _DE_FORMULARIO = {"select", "check", "uncheck", "fill", "type", "press"}
 
 
 @dataclass
 class SelectDePagina:
-    """Un `<select>` de la página abierta: un selector que lo encuentra, su id y name, y sus opciones usables."""
+    """Un `<select>` de la página abierta: un selector que lo encuentra, su id y name, y sus opciones usables; y la
+    voz del sitio a su alrededor: el texto de su opción vacía, el título de su sección y el del botón que lo envía."""
 
     selector: str
     id: str = ""
@@ -49,6 +59,9 @@ class SelectDePagina:
     etiqueta: str = ""
     valores: tuple[str, ...] = ()
     elegido: str = ""
+    vacia: str = ""
+    seccion: str = ""
+    boton: str = ""
 
 
 def mismo_sitio(url: str | None, inicio: str) -> str | None:
@@ -187,12 +200,26 @@ def atajo(objetivo_id: str, route: dict, selects: list[SelectDePagina], inicio: 
     }, ""
 
 
+def _mayuscula(texto: str) -> str:
+    return texto[:1].upper() + texto[1:]
+
+
 def _titulo(descripcion: str) -> str:
-    """La primera frase de la descripción hasta su primer gerundio («ingresando…») y sin «información sobre», en
+    """La primera frase de la descripción (tras la escena que precede a «:») hasta su primer gerundio («ingresando…»),
+    sin «información sobre» ni el verbo de navegar («Llega a la página de…») con su propósito, en
     hasta `_TITULO_PALABRAS` palabras y `_TITULO_MAX` caracteres, sin terminar en preposición, artículo ni
     conjunción."""
-    texto = re.split(r"[.;:(,]", " ".join(descripcion.split()), maxsplit=1)[0].strip()
+    frase = re.split(r"[.;(]", " ".join(descripcion.split()), maxsplit=1)[0]
+    escena, dos_puntos, tarea = frase.partition(":")
+    # «Te contactaron para una encuesta del INE: encuentra la información…»: la tarea va después de la escena.
+    if dos_puntos and tarea.strip()[:1].islower():
+        frase = _mayuscula(tarea.strip())
+    texto = re.split(r"[:,]", frase, maxsplit=1)[0].strip()
     texto = _RELLENO.sub("", texto)
+    if (sin_verbo := _NAVEGAR.sub("", texto)) and sin_verbo != texto:
+        destino, *proposito = _PROPOSITO.split(sin_verbo, maxsplit=1)
+        # «Llega al trámite para iniciar actividades»: un destino de una palabra no dice cuál; lo dice el propósito.
+        texto = _mayuscula(proposito[0] if proposito and len(destino.split()) < 2 else destino)
     palabras = []
     for palabra in texto.split(" "):
         # Tras un artículo o preposición no es gerundio sino sustantivo («el arriendo»).
@@ -232,6 +259,8 @@ def _enlace(goal, rutas: dict[str, dict], inicio: str) -> tuple[str | None, bool
     llego, entrada = mismo_sitio(llegada(route), inicio), mismo_sitio(goal.entry, inicio)
     if llego and "?" in llego and _de_formulario(route):
         llego = urlsplit(llego).path
+    if llego and entrada and _FECHADA.search(urlsplit(llego).path) and not _FECHADA.search(entrada):
+        llego = entrada  # la página estable del tema, no la noticia del día
     for enlace in (llego, entrada):
         if enlace and not (misma_ruta(ruta_de(enlace), ruta_de(inicio)) and "?" not in enlace):
             return enlace, enlace == llego
@@ -242,15 +271,19 @@ def _tarea(goal, enlace: str) -> dict:
     titulo = _titulo(goal.description)
     tarea = {"titulo": {"es": titulo, "en": titulo}, "enlace": enlace}
     detalle = " ".join(goal.description.split()).rstrip(".")
+    detalle = _mayuscula(_NAVEGAR.sub("", detalle)) or detalle  # «Llega a la página de…» no agrega nada al título
     if detalle and detalle != titulo:
         tarea["detalle"] = {"es": detalle[:160], "en": detalle[:160]}
     return tarea
 
 
 def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str],
-               tasas: dict[str, float | None] | None = None) -> list[tuple[str, object]]:
-    """`(enlace, goal)` sin enlaces repetidos, en orden lexicográfico: ruta verificada, menor tasa de llegada (sin
+               tasas: dict[str, float | None] | None = None,
+               a_mano: set[str] | None = None) -> list[tuple[str, object]]:
+    """`(enlace, goal)` sin enlaces repetidos, en orden lexicográfico: no está ya a la vista (`a_mano`: las rutas de
+    los enlaces del primer pantallazo, como los indicadores de la portada), ruta verificada, menor tasa de llegada (sin
     medir cuenta como 0.5), mayor prominencia y el orden del catálogo."""
+    a_mano = {r.rstrip("/") for r in a_mano or ()}
     candidatos = []
     for posicion, goal in enumerate(goals):
         if goal.id in excluir:
@@ -258,7 +291,8 @@ def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[st
         enlace, verificada = _enlace(goal, rutas, inicio)
         if enlace:
             tasa = (tasas or {}).get(goal.id)
-            clave = (not verificada, 0.5 if tasa is None else tasa, _PROMINENCIA.get(goal.prominence, 3), posicion)
+            clave = (ruta_de(enlace).rstrip("/") in a_mano, not verificada, 0.5 if tasa is None else tasa,
+                     _PROMINENCIA.get(goal.prominence, 3), posicion)
             candidatos.append((clave, enlace, goal))
     ordenadas, vistos = [], set()
     for _, enlace, goal in sorted(candidatos, key=lambda c: c[0]):
@@ -269,10 +303,10 @@ def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[st
 
 
 def lanzador(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str],
-             tasas: dict[str, float | None] | None = None) -> dict | None:
+             tasas: dict[str, float | None] | None = None, a_mano: set[str] | None = None) -> dict | None:
     """La vista `lanzador` con los objetivos del catálogo (sin los de `excluir`), o None si ninguno tiene enlace.
     `tasas`: la tasa de llegada del Visitante por objetivo, si se midió."""
-    ordenadas = _ordenadas(goals, rutas, inicio, excluir, tasas=tasas)
+    ordenadas = _ordenadas(goals, rutas, inicio, excluir, tasas=tasas, a_mano=a_mano)
     tareas = [_tarea(goal, enlace) for enlace, goal in ordenadas[:MAX_TAREAS]]
     if not tareas:
         return None
@@ -280,12 +314,13 @@ def lanzador(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str]
             "componente": "lanzador", "datos": tareas, "opciones": {"max": MOSTRAR_TAREAS}}
 
 
-def buscador(goals: list, rutas: dict[str, dict], inicio: str, catalogo: list | None = None) -> dict | None:
+def buscador(goals: list, rutas: dict[str, dict], inicio: str, catalogo: list | None = None,
+             a_mano: set[str] | None = None) -> dict | None:
     """La vista `buscador` con los objetivos de `goals` que tienen enlace, o None si ninguno. `catalogo`: todos los
     objetivos, también los de nivel resumen, para nombrar el grupo de cada uno por su `parent`."""
     grupos = {g.id: _titulo(g.description) for g in catalogo or goals}
     tareas = []
-    for enlace, goal in _ordenadas(goals, rutas, inicio, set())[:MAX_BUSCADOR]:
+    for enlace, goal in _ordenadas(goals, rutas, inicio, set(), a_mano=a_mano)[:MAX_BUSCADOR]:
         tarea = _tarea(goal, enlace)
         if grupo := grupos.get(goal.parent or ""):
             tarea["grupo"] = {"es": grupo, "en": grupo}
@@ -300,8 +335,10 @@ def buscador(goals: list, rutas: dict[str, dict], inicio: str, catalogo: list | 
 
 
 def derivar(goals: list, rutas: dict[str, dict], selects: list[SelectDePagina], inicio: str,
-            tasas: dict[str, float | None] | None = None, catalogo: list | None = None) -> dict:
-    """`{atajos: [{objetivo, vista}], lanzador: vista | None, buscador: vista | None, descartes: [{objetivo, razon}]}`."""
+            tasas: dict[str, float | None] | None = None, catalogo: list | None = None,
+            a_mano: set[str] | None = None) -> dict:
+    """`{atajos: [{objetivo, vista}], lanzador: vista | None, buscador: vista | None, descartes: [{objetivo, razon}]}`.
+    `a_mano`: las rutas que la página ya enlaza en su primer pantallazo; esas tareas van al final."""
     atajos, descartes = [], []
     for goal in goals:
         if goal.id not in rutas:
@@ -311,11 +348,11 @@ def derivar(goals: list, rutas: dict[str, dict], selects: list[SelectDePagina], 
             atajos.append({"objetivo": goal.id, "vista": vista})
         else:
             descartes.append({"objetivo": goal.id, "razon": razon})
-    vista_lanzador = lanzador(goals, rutas, inicio, {a["objetivo"] for a in atajos}, tasas)
+    vista_lanzador = lanzador(goals, rutas, inicio, {a["objetivo"] for a in atajos}, tasas, a_mano)
     if vista_lanzador and atajos:
         # Junto al primer atajo: lo que la página ya muestra para empezar.
         vista_lanzador["contenedor"] = atajos[0]["vista"]["contenedor"]
-    vista_buscador = buscador(goals, rutas, inicio, catalogo)
+    vista_buscador = buscador(goals, rutas, inicio, catalogo, a_mano)
     if vista_buscador and vista_lanzador:
         vista_buscador["contenedor"] = vista_lanzador["contenedor"]
     return {"atajos": atajos, "lanzador": vista_lanzador, "buscador": vista_buscador, "descartes": descartes}

@@ -1,0 +1,37 @@
+{
+  "id": "D",
+  "nombre": "Nativa",
+  "idea": "El mismo sitio, refinado: su paleta, su letra y su forma, con más ritmo y contraste, menos ruido y la tarea al frente.",
+  "nativa": true,
+  "modo": "claro",
+  "neutros": { "tono": [70, 90], "croma": [0.002, 0.006], "fondo": [98.6, 99.4], "paso": [2.5, 3] },
+  "tinta": { "l": [20, 24], "l2": [42, 46], "croma": 0.012 },
+  "acento": { "l": [46, 52], "c": [0.12, 0.17] },
+  "foco": { "tono": 255, "l": 50, "c": 0.17 },
+  "categorias": "marca",
+  "suaves": { "l": [94, 96], "c": [0.02, 0.03] },
+  "tipo": {
+    "familia": "nativa",
+    "escala": [1.18, 1.22],
+    "display": { "peso": [680, 720], "ancho": [100, 100], "caja": "none", "tracking": [-0.015, -0.005], "interlinea": [1.05, 1.1] },
+    "titulo_peso": [660, 700],
+    "display_pasos": 5,
+    "titulo_pasos": 4,
+    "display_min": 34
+  },
+  "forma": { "radio": [6, 10] },
+  "densidad": [0.98, 1.02],
+  "nav": "barra",
+  "panel": "superficie",
+  "disposicion": "apilado",
+  "hero": { "natural": 1 },
+  "orden": "natural",
+  "filete": [1, 1],
+  "recetas": {
+    "fijas": ["cabecera-editorial"],
+    "opcionales": { "comandos-lanzador": 0.55, "filete-secciones": 0.5, "en-vivo": 0.9 },
+    "prohibidas": ["superficie-marca", "bento-lanzador", "vidrio", "aurora", "letrero", "titular-degradado", "franja",
+                   "rebote", "discos-lanzador", "placas-atajo"]
+  },
+  "afinidad": {}
+}

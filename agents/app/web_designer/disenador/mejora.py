@@ -3,7 +3,8 @@
 Lee del almacén las corridas de la misma `revision` (nunca "la última"): el catálogo (`goals.json`), la ruta de
 escritorio de cada objetivo (`route.json`) y la tanda del Visitante (`comparison.json` y `<perfil>/run.json`). Escribe
 `<host>/improver/<run>/` con `tema.css` (saneado), `tema.json` (los componentes del kit, validados), `atajos.json` (lo
-que se derivó de las rutas, sin modelo), `diagnostico.json` (lo que recibió el modelo además del mapa), `vistas/*.png`
+que se derivó de las rutas, sin modelo), `diagnostico.json` (lo que recibió el modelo además del mapa, con los rasgos
+y zonas medidos del sitio), `informe.json` (la composición y la medida completa de `zonas.medir`), `vistas/*.png`
 (la página antes y después del kit, en escritorio y móvil) y `mejora.json` (el resumen usado, lo que decidió el modelo
 y, si salieron las capturas, `vistas`).
 """
@@ -11,6 +12,7 @@ y, si salieron las capturas, `vistas`).
 import asyncio
 import json
 import re
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,26 +22,112 @@ from shared.browser.theme import describir_kit
 from shared.catalog.files import read_catalog
 from shared.nodes.urls import node_key
 
-from disenador import atajos, config, mapa, motor, pagina, tema_json
+from disenador import atajos, config, mapa, motor, pagina, tema_json, voz, zonas
 from disenador.corrida import TemaRechazado
 from disenador.css import sanear
 from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR, Skill, mensaje_de_diseno, prompt_de_sistema
 
 # Lo que la Guía tuvo que sacar del camino (un modal, una encuesta, el aviso de cookies), según su historial.
 _OBSTACULO = re.compile(r"\b(modal|popup|pop-up|encuesta|cookies?)\b|«(close|cerrar|×)»", re.I)
-# Si el ancla de un componente no está en la página, la primera de estas que exista.
-ANCLAS_DE_RESPALDO = ("main", "[role='main']", "body > :has(h1)")
+# Si el ancla de un componente no sirve en la página, la primera de estas que sirva; `None` es el bloque donde empieza
+# el contenido tras la cabecera (`CONTENIDO_JS`), para los sitios sin `<main>`.
+ANCLAS_DE_RESPALDO = ("main", "[role='main']", None, "body > :has(h1)")
+
+# Las cabeceras del sitio: la medida (`zonas`) y las convencionales arriba de la página, fuera de `<main>`.
+_CABECERAS_JS = """const cabeceras = (medidas) => {
+    const lista = [];
+    for (const s of [...medidas, "header", "[role=banner]", "#header", "#Header", "nav"]) {
+      if (!s) continue;
+      let encontrados = [];
+      try { encontrados = [...document.querySelectorAll(s)]; } catch { continue; }
+      for (const el of encontrados) {
+        const r = el.getBoundingClientRect();
+        if (r.height > 0 && r.top + scrollY < 300 && !el.closest("main, [role=main]")) lista.push(el);
+      }
+    }
+    return lista;
+  };"""
+
+# Un ancla sirve si existe y no envuelve la cabecera: el componente va antes de ella, y un `<form>` de ASP.NET o un
+# envoltorio de toda la página lo dejaría sobre la cabecera.
+ANCLA_JS = """([selector, medidas]) => {
+  """ + _CABECERAS_JS + """
+  let ancla = null;
+  try { ancla = document.querySelector(selector); } catch { return false; }
+  if (!ancla || ancla === document.body || ancla === document.documentElement) return false;
+  return !cabeceras(medidas).some((c) => ancla.contains(c));
+}"""
+
+# El bloque donde empieza el contenido: desde el primer título visible fuera de la cabecera, el ancestro más alto que
+# no la contiene y, dentro de él, el bloque del título bajo los envoltorios de un solo hijo. Sale como selector único (por id, o por etiqueta y clases bajo el id más cercano); null si no hay.
+CONTENIDO_JS = """([medidas]) => {
+  """ + _CABECERAS_JS + """
+  const cabs = cabeceras(medidas);
+  const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const inicio = [...document.querySelectorAll("h1, h2, h3")]
+    .find((h) => visible(h) && h.textContent.trim() && !cabs.some((c) => c.contains(h)));
+  if (!inicio) return null;
+  let el = inicio;
+  while (el.parentElement && el.parentElement !== document.body && !cabs.some((c) => el.parentElement.contains(c))) {
+    el = el.parentElement;
+  }
+  if (cabs.some((c) => el.contains(c))) return null;
+  // Dentro de los envoltorios de un solo hijo (el `.container` del sitio), hasta el bloque que tiene el título: así
+  // el componente queda alineado con la grilla del sitio.
+  const util = (c) => visible(c) && !["SCRIPT", "STYLE", "LINK", "NOSCRIPT", "TEMPLATE"].includes(c.tagName);
+  for (;;) {
+    const hijos = [...el.children].filter(util);
+    const conInicio = hijos.find((c) => c.contains(inicio));
+    if (!conInicio) break;
+    el = conInicio;
+    if (hijos.length > 1 || conInicio === inicio) break;
+  }
+  const valido = (t) => /^[A-Za-z][\\w-]*$/.test(t);
+  const unico = (sel) => { try { const l = document.querySelectorAll(sel); return l.length === 1 && l[0] === el; }
+                           catch { return false; } };
+  if (el.id && valido(el.id) && unico("#" + el.id)) return "#" + el.id;
+  let base = "body";
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    if (p.id && valido(p.id)) { base = "#" + p.id; break; }
+  }
+  const propio = el.tagName.toLowerCase() + [...el.classList].filter(valido).slice(0, 3).map((c) => "." + c).join("");
+  for (const sel of [`${base} > ${propio}`, `${base} ${propio}`]) if (sel.length <= 200 && unico(sel)) return sel;
+  return null;
+}"""
 # Las capturas de la propuesta: (dispositivo de mejora.json, viewport de `pagina`, nombre del archivo).
 VISTAS = (("desktop", "revision", "escritorio"), ("mobile", "movil", "movil"))
 
-_SELECTS = """() => [...document.querySelectorAll("select")].map((s) => ({
-  selector: s.id ? "#" + CSS.escape(s.id) : s.name ? `select[name="${CSS.escape(s.name)}"]` : "",
-  id: s.id, name: s.name,
-  etiqueta: ((s.labels && s.labels[0] && s.labels[0].textContent) || s.getAttribute("aria-label") || "")
-    .replace(/\\s+/g, " ").trim().slice(0, 40),
-  valores: [...s.options].filter((o) => o.value && !o.disabled).map((o) => o.value).slice(0, 500),
-  elegido: s.value,
-})).filter((s) => s.selector && s.selector.length <= 200)"""
+# El título de la sección de un `<select>`: el último título antes de él en sus ancestros cercanos (un `.card-title`
+# también cuenta), sin los de la cabecera o el menú; y el texto del botón que envía su formulario.
+_SELECTS = """() => {
+  const limpio = (t, max) => (t || "").replace(/\\s+/g, " ").trim().slice(0, max);
+  const TITULO = "h1, h2, h3, h4, h5, h6, legend, [role=heading], [class*=title], [class*=titulo]";
+  const seccion = (s) => {
+    for (let el = s.form || s, nivel = 0; el.parentElement && el.parentElement !== document.body && nivel < 3;
+         el = el.parentElement, nivel++) {
+      const antes = [...el.parentElement.querySelectorAll(TITULO)]
+        .filter((t) => !t.contains(s) && !t.closest("header, nav, footer, [role=banner], [role=navigation]")
+                && t.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .map((t) => limpio(t.textContent, 80)).filter((t) => t && t.length <= 60);
+      if (antes.length) return antes.at(-1);
+    }
+    return "";
+  };
+  const boton = (s) => {
+    const b = s.form && s.form.querySelector("button[type=submit], button:not([type]), input[type=submit]");
+    return b ? limpio(b.tagName === "INPUT" ? b.value : b.textContent || b.getAttribute("aria-label") || b.title, 40) : "";
+  };
+  return [...document.querySelectorAll("select")].map((s) => ({
+    selector: s.id ? "#" + CSS.escape(s.id) : s.name ? `select[name="${CSS.escape(s.name)}"]` : "",
+    id: s.id, name: s.name,
+    etiqueta: limpio((s.labels && s.labels[0] && s.labels[0].textContent) || s.getAttribute("aria-label"), 40),
+    valores: [...s.options].filter((o) => o.value && !o.disabled).map((o) => o.value).slice(0, 500),
+    elegido: s.value,
+    vacia: s.options[0] && !s.options[0].value ? limpio(s.options[0].textContent, 60) : "",
+    seccion: seccion(s),
+    boton: boton(s),
+  })).filter((s) => s.selector && s.selector.length <= 200);
+}"""
 
 # El bloque original que reemplaza un atajo: el formulario de sus `<select>`, subiendo mientras los hermanos sean solo
 # su título (nada interactivo ni texto largo). Sale como selector único anclado a un id; null si no hay uno seguro.
@@ -274,15 +362,30 @@ async def _selects(page) -> list[atajos.SelectDePagina]:
     return [atajos.SelectDePagina(**{**s, "valores": tuple(s["valores"])}) for s in await page.evaluate(_SELECTS)]
 
 
-async def _existe(page, selector: str) -> bool:
+async def _sirve(page, selector: str, cabeceras: list[str]) -> bool:
+    """Si el ancla existe y no envuelve la cabecera del sitio (`ANCLA_JS`)."""
     try:
-        return await page.evaluate("(s) => document.querySelector(s) !== null", selector)
+        return await page.evaluate(ANCLA_JS, [selector, cabeceras])
     except Exception:  # un selector que el navegador no entiende
         return False
 
 
-def diagnostico(resumen: dict, kit: dict) -> dict:
-    """Lo que el modelo recibe además del mapa: por qué no llegaron, qué sortearon y los componentes propuestos."""
+async def _contenido(page, cabeceras: list[str]) -> str | None:
+    try:
+        return await page.evaluate(CONTENIDO_JS, [cabeceras])
+    except Exception:
+        return None
+
+
+def sitio_para_el_modelo(sitio: motor.Sitio) -> dict:
+    """Lo medido del sitio que orienta la dirección: rasgos, zonas y la probabilidad de cada dirección en `auto`."""
+    return {"carpeta": sitio.carpeta is not None, "rasgos": sitio.rasgos, "zonas": sorted(sitio.zonas),
+            "auto_si_transforma": motor.probabilidades_auto(sitio)}
+
+
+def diagnostico(resumen: dict, kit: dict, sitio: motor.Sitio | None = None, voz_sitio: dict | None = None) -> dict:
+    """Lo que el modelo recibe además del mapa: por qué no llegaron, qué sortearon, los componentes propuestos (con los
+    textos del sitio), la voz del sitio de cada uno y, con `sitio`, lo medido del sitio."""
     mensajes, obstaculos = [], []
     for objetivo in resumen["objetivos"]:
         mensajes += [{"objetivo": objetivo["id"], "perfil": v["perfil"], "llego": v["llego"], "mensaje": v["por_que"]}
@@ -290,27 +393,41 @@ def diagnostico(resumen: dict, kit: dict) -> dict:
         obstaculos += [{"objetivo": objetivo["id"], "paso": paso}
                        for paso in (objetivo["ruta"] or {}).get("obstaculos") or []]
     componentes = [a["vista"] for a in kit["atajos"]] + [v for v in (kit["lanzador"], kit["buscador"]) if v]
-    return {"viewport": config.REVISION, "mensajes_visitante": mensajes, "obstaculos": obstaculos,
-            "componentes": componentes, "sin_atajo": kit["descartes"]}
+    voz_sitio = voz_sitio or {"componentes": {}}
+    componentes = [voz.con_voz(v, voz_sitio["componentes"].get(v["id"])) for v in componentes]
+    diag = {"viewport": config.REVISION, "mensajes_visitante": mensajes, "obstaculos": obstaculos,
+            "componentes": componentes, "sin_atajo": kit["descartes"], "voz_del_sitio": voz_sitio}
+    if sitio is not None:
+        diag["sitio"] = sitio_para_el_modelo(sitio)
+    return diag
 
 
-async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[dict]:
-    """Los componentes con la microcopia del modelo y un ancla que existe en la página abierta (si van en ella)."""
+async def _vistas(page, url: str, componentes: list[dict], propuestas, vocabulario: set[str],
+                  cabeceras: list[str] | None = None) -> tuple[list[dict], list[dict]]:
+    """Los componentes con la microcopia del modelo, sin lo que no tiene la voz del sitio (`voz.verificar`), y un ancla
+    que sirve en la página abierta (si van en ella: existe y no los deja sobre la cabecera; `cabeceras`, los selectores
+    medidos de la cabecera y la navegación); y los textos reemplazados con su razón."""
+    cabeceras = [c for c in cabeceras or [] if c]
     por_id = {p.get("id"): p for p in propuestas or [] if isinstance(p, dict)}
     tareas = tema_json.tareas_propuestas(propuestas)
     en_pagina = atajos.ruta_de(url)
-    vistas = []
+    vistas, reemplazos = [], []
     for vista in componentes:
         propuesta = dict(por_id.get(vista["id"]) or {})
         contenedor = ""
         if any(atajos.misma_ruta(en_pagina, ruta) for ruta in vista["rutas"]):
             for candidato in (str(propuesta.get("contenedor") or "").strip()[:200], vista["contenedor"],
                               *ANCLAS_DE_RESPALDO):
-                if candidato and await _existe(page, candidato):
+                if candidato is None:
+                    candidato = await _contenido(page, cabeceras)
+                if candidato and await _sirve(page, candidato, cabeceras):
                     contenedor = candidato
                     break
-        vistas.append(tema_json.con_propuesta(vista, {**propuesta, "contenedor": contenedor}, tareas))
-    return vistas
+        propuesta = tema_json.con_propuesta(vista, {**propuesta, "contenedor": contenedor}, tareas)
+        verificada, cambios = voz.verificar(propuesta, vista, vocabulario)
+        vistas.append(verificada)
+        reemplazos += cambios
+    return vistas, reemplazos
 
 
 async def _ocultar(page, url: str, vistas: list[dict]) -> list[tuple[str, str]]:
@@ -334,16 +451,27 @@ async def _ocultar(page, url: str, vistas: list[dict]) -> list[tuple[str, str]]:
     return pares
 
 
-def _pedido(datos: dict) -> dict:
+def semilla_de_pagina(semilla: int, pagina: str) -> int:
+    """La semilla del modelo mezclada con la de la página (revisión y URL): determinista, pero distinta por página
+    aunque el modelo repita siempre la misma."""
+    return ((zlib.crc32(pagina.encode()) ^ (semilla * 2654435761)) & 0x7FFFFFFF) or 1
+
+
+def _pedido(datos: dict, pagina: str | None = None) -> dict:
     """La elección del modelo. La semilla queda entera y ≥ 1 aunque llegue como texto o decimal ("3.7" o 3.7 → 3);
-    lo que no es un número finito, 1."""
+    lo que no es un número finito, 1. Con `pagina`, la semilla que se compone es la mezclada (`semilla_de_pagina`) y
+    la del modelo queda en `semilla_modelo`."""
     try:
         semilla = max(1, int(float(datos.get("semilla") or 1)))
     except (TypeError, ValueError, OverflowError):
         semilla = 1
+    extra = {}
+    if pagina:
+        extra = {"semilla_modelo": semilla}
+        semilla = semilla_de_pagina(semilla, pagina)
     ajustes = datos.get("ajustes") if isinstance(datos.get("ajustes"), dict) else {}
     return {"direccion": str(datos.get("direccion") or "auto"), "semilla": semilla, "ajustes": ajustes,
-            "motivo": datos.get("motivo")}
+            "motivo": datos.get("motivo"), **extra}
 
 
 def _componer(sitio: motor.Sitio, pedido: dict, vistas: list[dict], ocultar: list[tuple[str, str]]) -> motor.Tema:
@@ -396,11 +524,22 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                 contexto, page = await pagina.abrir(browser, url, "revision")
                 try:
                     datos_mapa, captura = await mapa.construir_mapa(page), await pagina.capturar(page)
+                    try:
+                        medida = await zonas.medir(page)
+                    except Exception as error:  # sin medida, el sitio sale solo del mapa
+                        medida = None
+                        informe["medida"] = f"sin medida: {type(error).__name__}: {error}"[:300]
+                    sitio = motor.rasgos_del_sitio(store.normalize_host(url), datos_mapa, medida)
+                    if medida is not None:
+                        informe["medida"] = medida
                     titulo = _corto(await page.title(), 300)
                     tasas = {o["id"]: o["tasa_llegada"] for o in resumen["objetivos"]}
-                    kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url, tasas, leida.catalogo)
+                    selects, pagina_voz = await _selects(page), await page.evaluate(voz.VOZ_JS)
+                    kit = atajos.derivar(leida.goals, leida.rutas, selects, url, tasas, leida.catalogo,
+                                         set(pagina_voz.get("a_mano") or ()))
                     _escribir_json(run.workdir / "atajos.json", kit)
-                    diag = diagnostico(resumen, kit)
+                    voz_sitio = voz.de_la_pagina(pagina_voz, selects, kit, leida.catalogo)
+                    diag = diagnostico(resumen, kit, sitio, voz_sitio)
                     _escribir_json(run.workdir / "diagnostico.json", diag)
                     texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"],
                                               mapa.como_texto(datos_mapa), config.REVISION,
@@ -411,20 +550,23 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                     respuesta = await disenador.pedir(prompt_de_sistema(skill, kit=True, con_motor=con_motor),
                                                       ESQUEMA_MOTOR if con_motor else ESQUEMA_KIT, partes, log)
                     # Con la página abierta: el ancla que propone el modelo solo vale si existe.
-                    vistas = await _vistas(page, url, diag["componentes"], respuesta.datos.get("componentes"))
+                    vistas, reemplazos = await _vistas(page, url, diag["componentes"],
+                                                       respuesta.datos.get("componentes"),
+                                                       voz.vocabulario(voz_sitio, leida.catalogo),
+                                                       [(medida or {}).get("zonas", {}).get(z) for z in ("cabecera", "nav")])
                     ocultar = await _ocultar(page, url, vistas)
                 finally:
                     await contexto.close()
                 costo = respuesta.costo_usd
                 informe["ocultar"] = [{"vista": v, "selector": s} for v, s in ocultar]
                 informe["sin_traduccion"] = tema_json.sin_traduccion(vistas)
+                informe["voz"] = {"reemplazos": reemplazos, "fuentes": voz.fuentes(respuesta.datos.get("componentes"))}
                 css = None
                 if con_motor:
-                    pedido = _pedido(respuesta.datos)
+                    pedido = _pedido(respuesta.datos, f"{revision} {url}")
                     salida.update(pedido=pedido, resumen_tema=pedido["motivo"])
                     try:
-                        compuesto = _componer(motor.rasgos_del_sitio(store.normalize_host(url), datos_mapa), pedido,
-                                              vistas, ocultar)
+                        compuesto = _componer(sitio, pedido, vistas, ocultar)
                         css = compuesto.css
                         informe.update(compuesto.informe, modo="motor", pedido=pedido)
                     except Exception as error:

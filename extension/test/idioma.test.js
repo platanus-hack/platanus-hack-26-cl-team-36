@@ -44,6 +44,20 @@ test("ningún texto vacío, y cada traducción usa los mismos parámetros y form
   }
 });
 
+test("los componentes del kit no traen titulares ni frases de app inventadas", () => {
+  for (const idioma of ["es", "en"]) {
+    const claves = Object.keys(TEXTOS[idioma]).filter((clave) => /^(atajo|lanzador|buscador)\./.test(clave));
+    for (const clave of ["atajo.titulo", "atajo.subtitulo", "lanzador.titulo", "lanzador.subtitulo", "buscador.titulo"]) {
+      assert.ok(!claves.includes(clave), `"${clave}" debe venir del tema, con las palabras del sitio`);
+    }
+    for (const clave of claves) {
+      for (const valor of formas(TEXTOS[idioma][clave])) {
+        assert.doesNotMatch(valor, /[¿?]|lo más buscado|most wanted|te llevamos|take you/i, `"${clave}" en ${idioma}: ${valor}`);
+      }
+    }
+  }
+});
+
 test("t: traduce, interpola y formatea números según el idioma", () => {
   assert.equal(t("es", "opinion.enviar"), "Enviar");
   assert.equal(t("en", "opinion.enviar"), "Send");

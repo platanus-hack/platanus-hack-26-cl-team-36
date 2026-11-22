@@ -146,6 +146,15 @@ def test_titulo_derivado_corto_y_sin_cabos_sueltos():
     assert titulos["conocer-linea-a"] == "Conoce el proyecto de la Línea A"
     assert all(len(t.split()) <= 7 and len(t) <= 48 for t in titulos.values())
     assert not any(t.split()[-1] in atajos._ENLACES for t in titulos.values())
+    # «Llega a…» no nombra la tarea: queda el destino, sin el propósito.
+    assert atajos._titulo("Llega a la página de la Encuesta de Presupuestos Familiares.") == \
+        "Encuesta de Presupuestos Familiares"
+    assert atajos._titulo("Llega a la sala de prensa para leer el comunicado del IPC.") == "Sala de prensa"
+    assert atajos._titulo("Llega al Portal de Mapas del INE.") == "Portal de Mapas del INE"
+    assert atajos._titulo("Llega al trámite para iniciar actividades como contribuyente.") == \
+        "Iniciar actividades como contribuyente"
+    assert atajos._titulo("Te contactaron para una encuesta del INE: encuentra la información para personas.") == \
+        "Encuentra la información para personas"
 
 
 def test_lanzador_con_el_catalogo_de_metro():
@@ -334,8 +343,9 @@ def test_las_tareas_del_modelo_tienen_tope():
 
 
 PORTADA = """<!doctype html><meta charset="utf-8"><title>Metro de Santiago</title>
-<body><header><h1>Metro</h1></header>
-<div class="portada"><div class="hero"><video></video></div><div id="home"><form id="formPlanificador" action="/el-viaje/planificador/">
+<body><header><h1>Metro</h1><nav><a href="/el-viaje/carga-bip">Carga tu bip!</a></nav></header>
+<div class="portada"><div class="hero"><video></video></div><div id="home"><div class="card-title">Planifica tu viaje</div>
+<form id="formPlanificador" action="/el-viaje/planificador/">
 <label for="binicio">Origen</label>
 <select id="binicio" name="inicio"><option value="SP">San Pablo</option><option value="EL">Estación Central</option>
 </select>
@@ -429,7 +439,9 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     assert atajo["datos"][0]["etiqueta"] == {"es": "Desde", "en": "From"}
     assert atajo["datos"][1]["etiqueta"]["es"] == "Fin"
     assert atajo["opciones"]["destino"] == "/el-viaje/planificador/" and "fijos" not in atajo["opciones"]
-    assert lanzador["opciones"]["textos"]["en"]["titulo"] == "Most wanted"
+    # «¿A dónde vas?» vuelve al título de la sección del sitio; «Lo más buscado» no tiene uno: el lanzador va sin titular.
+    assert atajo["opciones"]["textos"]["es"] == {"titulo": "Planifica tu viaje", "boton": "Ver ruta"}
+    assert "textos" not in lanzador["opciones"]
     # El buscador también pasa por el modelo; las tareas valen para ambos por enlace.
     buscador = vistas["buscar"]
     assert buscador["contenedor"] == "body > :has(#binicio)" and len(buscador["datos"]) == 8
@@ -440,6 +452,8 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
         assert por_enlace["/el-viaje/estaciones"]["titulo"]["en"] == "Find a station"
 
     diag = backend.read_json(archivos["diagnostico.json"])
+    assert diag["voz_del_sitio"]["componentes"]["planificar-viaje"]["seccion"] == "Planifica tu viaje"
+    assert diag["voz_del_sitio"]["componentes"]["buscar"]["tareas"] == {"/el-viaje/carga-bip": "Carga tu bip!"}
     assert diag["viewport"] == {"width": 1024, "height": 768}
     assert diag["mensajes_visitante"][0]["mensaje"] == MENSAJE
     assert "Close" in diag["obstaculos"][0]["paso"]
@@ -453,13 +467,21 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     # El modelo eligió dirección; el código compuso, recortó el ajuste y ocultó el planificador original.
     assert disenador.llamadas[0]["esquema"] is ESQUEMA_MOTOR and len(disenador.llamadas) == 1
     informe = backend.read_json(archivos["informe.json"])
-    assert informe["modo"] == "motor" and informe["direccion"] == "B" and informe["semilla"] == 4
+    assert informe["modo"] == "motor" and informe["direccion"] == "B" and informe["pedido"]["semilla_modelo"] == 4
+    # La semilla que se compone mezcla la del modelo con la de la página; el sitio medido llega al modelo.
+    assert informe["semilla"] == informe["pedido"]["semilla"] != 4 and isinstance(informe["medida"], dict)
+    diag = backend.read_json(archivos["diagnostico.json"])
+    assert set(diag["sitio"]["auto_si_transforma"]) == {"A", "B", "C"} and "rasgos" in diag["sitio"]
     assert informe["parametros"]["escala"] == 1.27 and any("tipo.escala=2" in a for a in informe["avisos"])
     assert informe["contraste"]["fallas"] == [] and informe["contraste"]["minimo"] >= 4.5 and informe["tokens"]
     assert informe["ocultar"] == [{"vista": "planificar-viaje", "selector": "#home"}]
     # El modelo tradujo el título de estaciones pero no su detalle; carga-bip quedó con lo derivado.
     faltan = {(f["vista"], f["item"]): f["textos"] for f in informe["sin_traduccion"]}
     assert "titulo" in faltan["buscar", "/el-viaje/carga-bip"] and faltan["buscar", "/el-viaje/estaciones"] == ["detalle"]
+    assert {t["enlace"]: t["titulo"]["es"] for t in buscador["datos"]}["/el-viaje/carga-bip"] == "Carga tu bip!"
+    razones = {(r["vista"], r["texto"]): r for r in informe["voz"]["reemplazos"]}
+    assert razones["planificar-viaje", "titulo"]["razon"] == "pregunta retórica a la persona"
+    assert razones["tareas", "titulo"]["despues"] is None and razones["tareas", "titulo"]["razon"] == "«Lo más buscado»"
     tema_css = backend.read_text(archivos["tema.css"])
     assert OCULTAR in tema_css and '[data-mt-vista="tareas"]' in tema_css and "#home :has(> h1)" not in tema_css
 

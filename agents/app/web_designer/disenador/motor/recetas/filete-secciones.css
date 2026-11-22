@@ -1,6 +1,6 @@
 /* Receta «filete»: cada sección empieza con una regla de la tinta, como un letrero. */
-html.mi-tema .mt-lanzador__cabecera,
-html.mi-tema {{z.titulos_seccion}} {
+html.mi-tema .mt-lanzador__cabecera{{#z.titulos_seccion}},
+html.mi-tema {{z.titulos_seccion}}{{/z.titulos_seccion}} {
   padding-top: calc(var(--mt-d) * 18px);
   border-top: var(--mt-filete) solid var(--mt-tinta);
 }

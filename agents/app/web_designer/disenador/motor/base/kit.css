@@ -14,7 +14,7 @@ html.mi-tema body {
   --bs-heading-color: var(--mt-tinta);
   --bs-emphasis-color: var(--mt-tinta);
 }
-html.mi-tema body :where(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h6, p, a, li, label, select, button, .btn, span, .card-title) {
+html.mi-tema body :where(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h6, p, a, li, label, select, button, .btn, span, .card-title):where(:not([class*="icon" i], [class*="fa-" i], [class~="fa" i], [class*="glyph" i], [class*="symbol" i], [class*="material" i], [aria-hidden="true"])) {
   font-family: var(--mt-familia-texto);
 }
 html.mi-tema :focus-visible {
