@@ -77,7 +77,11 @@
   pointer-events: none;
 }
 
-/* ---------- Aura: el espectro difuso detrás del anillo (la única capa con filter) ---------- */
+/* ---------- Aura: el espectro difuso detrás del anillo ----------
+   Difuso con una máscara radial y no con filter: blur(): un blur que gira se vuelve a
+   calcular en cada cuadro, y esto gira mientras el panel está abierto. Lo que gira o late
+   sin parar (aura, anillo, sello, camaleón, punto del estado) lleva will-change: así el
+   navegador lo mueve como una capa ya pintada, sin repintarla. */
 
 .mt-aura {
   inset: 4px;
@@ -90,15 +94,16 @@
 .mt-aura::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -24px; /* lo que el blur derramaba alrededor */
   border-radius: 50%;
   background: var(--mt-espectro-circular);
-  filter: blur(16px);
+  mask-image: radial-gradient(closest-side, #000 45%, rgb(0 0 0 / 0.5) 72%, transparent 100%);
   opacity: 0.6;
   animation:
     mt-girar 10s linear infinite,
     mt-pulso var(--mt-ciclo) ease-in-out infinite;
   animation-play-state: paused;
+  will-change: transform, opacity;
 }
 
 body[data-activo="si"] .mt-aura {
@@ -132,6 +137,7 @@ body[data-activo="no"] .mt-interruptor:is(:hover, :focus-visible) .mt-aura {
   background: var(--mt-espectro-circular);
   mask-image: conic-gradient(#000 var(--mt-barrido), transparent var(--mt-barrido));
   animation: mt-girar 6s linear infinite paused;
+  will-change: transform;
 }
 
 body[data-activo="si"] .mt-anillo::before {
@@ -188,6 +194,7 @@ body[data-activo="si"] .mt-disco {
   width: 100%;
   height: 100%;
   animation: mt-girar 48s linear infinite reverse paused;
+  will-change: transform;
 }
 
 .mt-sello-aro {
@@ -265,6 +272,7 @@ body[data-activo="si"] .mt-interruptor:is(:hover, :focus-visible) .mt-runas {
   width: 86px;
   height: 86px;
   overflow: visible;
+  will-change: transform; /* respira sin parar */
 }
 
 body[data-activo="no"] .mt-camaleon {
@@ -401,6 +409,7 @@ body[data-activo="si"] .mt-estado::before {
   background: var(--mt-turquesa);
   box-shadow: 0 0 10px var(--mt-turquesa);
   animation: mt-latir var(--mt-ciclo) ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 body[data-activo="no"] .mt-estado {
@@ -556,13 +565,16 @@ body[data-activo="no"] .mt-estado {
   }
 }
 
+/* Late con escala y opacidad (la sombra queda fija): animar box-shadow repinta en cada cuadro. */
 @keyframes mt-latir {
   0%,
   100% {
-    box-shadow: 0 0 6px var(--mt-turquesa);
+    transform: scale(0.85);
+    opacity: 0.75;
   }
   50% {
-    box-shadow: 0 0 14px var(--mt-turquesa);
+    transform: scale(1.15);
+    opacity: 1;
   }
 }
 

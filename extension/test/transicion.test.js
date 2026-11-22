@@ -138,7 +138,7 @@ class Elemento {
   removeAttribute(n) { this.atributos.delete(n); }
   getAttribute(n) { return this.atributos.get(n) ?? null; }
   getClientRects() { return this.rect ? [this.rect] : []; }
-  append(hijo) { this.children = [...this.children, hijo]; hijo.padre = this; }
+  append(...hijos) { for (const hijo of hijos) { this.children = [...this.children, hijo]; hijo.padre = this; } }
   remove() { if (this.padre) this.padre.children = this.padre.children.filter((h) => h !== this); }
 }
 
@@ -220,7 +220,7 @@ test("entrada: marca piezas, cambia dentro de la transición y limpia al termina
   transiciones[0].correr();
   assert.equal(aplicado, 1);
   assert.ok(frente(html));
-  assert.deepEqual(frente(html).children.map((h) => h.className), ["mt-brillo"]);
+  assert.deepEqual(frente(html).children.map((h) => h.className), ["mt-destello", "mt-brillo"]);
 
   transiciones[0].terminar();
   await tick();

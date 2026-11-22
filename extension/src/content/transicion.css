@@ -30,22 +30,14 @@
   El frente avanza con easeOutQuad (r = 1 - (1 - t)²): alcanza f en t = 1 - sqrt(1 - f).
   Al desactivar se encoge con easeInQuad (r = 1 - t²): alcanza f en t = sqrt(1 - f), y f
   se mide al punto más lejano de la pieza (el que el frente toca primero al encogerse).
+
+  Rendimiento: en cada cuadro solo cambian transform y opacity, sobre contenido que se
+  dibuja una vez (degradados fijos). Nada de animar propiedades personalizadas que
+  cambien un degradado o una máscara, ni filter o box-shadow con blur: obligan a repintar
+  la pantalla entera en cada cuadro y la transición se traba hasta en una página simple.
+  Los filtros de color de las piezas (sepia, saturate, hue-rotate) son la excepción: una
+  sola pasada por pieza, y son el tinte.
 */
-
-@property --mt-radio {
-  syntax: "<length>";
-  inherits: false;
-  initial-value: 0px;
-}
-
-/* Intensidad del destello de la esquina (fondo de #mt-frente). Se anima esta variable y
-   no la opacidad del frente: la opacidad de #mt-frente apagaría también sus hijos (el
-   brillo final, los rayos y los anillos). */
-@property --mt-destello {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0;
-}
 
 /* ---------- Nombres: solo nuestras piezas y el frente participan ---------- */
 
@@ -201,14 +193,16 @@ html[data-mt-transicion] #mt-frente {
   view-transition-name: mt-frente !important;
 }
 
-/* Rayos: un abanico del espectro que nace en la esquina del botón y gira al abrirse. */
+/* Rayos: un abanico del espectro que nace en la esquina del botón y gira al abrirse. La
+   máscara los apaga a 75vmax del botón: la caja mide justo eso de radio (más grande solo
+   agrega píxeles transparentes que igual se dibujan en cada cuadro). */
 html[data-mt-transicion] #mt-frente::before {
   content: "";
   position: absolute;
-  top: -110vmax;
-  right: -110vmax;
-  width: 220vmax;
-  height: 220vmax;
+  top: -75vmax;
+  right: -75vmax;
+  width: 150vmax;
+  height: 150vmax;
   border-radius: 50%;
   background: repeating-conic-gradient(
     from 0deg,
@@ -223,48 +217,84 @@ html[data-mt-transicion] #mt-frente::before {
     #f472b6 26deg 27.6deg,
     transparent 27.6deg 33deg
   );
-  mask-image: radial-gradient(circle, #000 0, rgb(0 0 0 / 0.7) 12%, rgb(0 0 0 / 0.25) 30%, transparent 48%);
+  /* Los mismos cortes que antes en una caja de 220vmax (18,7 / 46,7 / 74,7 vmax del centro). */
+  mask-image: radial-gradient(circle closest-side, #000 0, rgb(0 0 0 / 0.7) 25%, rgb(0 0 0 / 0.25) 62%, transparent 100%);
   opacity: 0;
+  will-change: transform, opacity;
 }
 
-/* Anillos: tres ondas concéntricas con el espectro según el radio (lima junto al botón,
-   magenta en la esquina opuesta), con estela; el destello vive en el fondo del propio
-   frente. */
+/* Anillos: tres ondas concéntricas del espectro que barren la pantalla desde el botón, la
+   primera con estela (lima en el frente, turquesa y azul detrás; violeta y magenta las
+   otras dos). Se dibujan una vez a su tamaño final, en el cuarto de círculo que cae en
+   la pantalla, y crecen con scale() desde la esquina: así ningún cuadro repinta. Al
+   escalar, el grosor de los anillos crece con ellos. */
 html[data-mt-transicion] #mt-frente::after {
+  --mt-r: calc(hypot(100vw, 100vh) + 220px); /* radio final: pasa la esquina opuesta */
   content: "";
   position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    circle hypot(100vw, 100vh) at 100% 0,
-    #f4ffe0 0%,
-    #b8ff5c 8%,
-    #2ee6c5 28%,
-    #4c8dff 52%,
-    #8b5cf6 76%,
-    #f472b6 100%
-  );
-  mask-image:
+  top: 0;
+  right: 0;
+  width: calc(var(--mt-r) + 16px);
+  height: calc(var(--mt-r) + 16px);
+  transform-origin: 100% 0;
+  transform: scale(0);
+  background:
     radial-gradient(
-      circle at 100% 0,
-      transparent calc(var(--mt-radio) - 200px),
-      rgb(0 0 0 / 0.1) calc(var(--mt-radio) - 120px),
-      rgb(0 0 0 / 0.5) calc(var(--mt-radio) - 24px),
-      #000 calc(var(--mt-radio) - 4px),
-      #000 var(--mt-radio),
-      transparent calc(var(--mt-radio) + 14px)
+      circle var(--mt-r) at 100% 0,
+      transparent calc(var(--mt-r) - 200px),
+      rgb(76 141 255 / 0.1) calc(var(--mt-r) - 120px),
+      rgb(46 230 197 / 0.5) calc(var(--mt-r) - 24px),
+      #b8ff5c calc(var(--mt-r) - 4px),
+      #f4ffe0 var(--mt-r),
+      transparent calc(var(--mt-r) + 14px)
     ),
     radial-gradient(
-      circle at 100% 0,
-      transparent calc(var(--mt-radio) * 0.78 - 5px),
-      rgb(0 0 0 / 0.8) calc(var(--mt-radio) * 0.78),
-      transparent calc(var(--mt-radio) * 0.78 + 6px)
+      circle var(--mt-r) at 100% 0,
+      transparent calc(var(--mt-r) * 0.78 - 5px),
+      rgb(139 92 246 / 0.8) calc(var(--mt-r) * 0.78),
+      transparent calc(var(--mt-r) * 0.78 + 6px)
     ),
     radial-gradient(
-      circle at 100% 0,
-      transparent calc(var(--mt-radio) * 0.58 - 3px),
-      rgb(0 0 0 / 0.55) calc(var(--mt-radio) * 0.58),
-      transparent calc(var(--mt-radio) * 0.58 + 4px)
+      circle var(--mt-r) at 100% 0,
+      transparent calc(var(--mt-r) * 0.58 - 3px),
+      rgb(244 114 182 / 0.55) calc(var(--mt-r) * 0.58),
+      transparent calc(var(--mt-r) * 0.58 + 4px)
     );
+  will-change: transform, opacity;
+}
+
+/* Destello de la esquina: solo la caja de 30vmax donde se ve, y se anima su opacidad. */
+html[data-mt-transicion] #mt-frente > .mt-destello {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30vmax;
+  height: 30vmax;
+  opacity: 0;
+  will-change: opacity;
+}
+
+html[data-mt-transicion="entrada"] #mt-frente > .mt-destello,
+html[data-mt-transicion="ligera"] #mt-frente > .mt-destello {
+  background: radial-gradient(
+    circle at 100% 0,
+    #fff 0,
+    rgb(233 255 208) 4vmax,
+    rgb(184 255 92 / 0.55) 12vmax,
+    transparent 30vmax
+  );
+  animation: mt-destello-esquina 520ms ease-out both;
+}
+
+html[data-mt-transicion="salida"] #mt-frente > .mt-destello {
+  background: radial-gradient(
+    circle at 100% 0,
+    #fff 0,
+    rgb(251 224 255) 4vmax,
+    rgb(244 114 182 / 0.55) 12vmax,
+    transparent 30vmax
+  );
+  animation: mt-destello-esquina 360ms ease-in reverse both;
 }
 
 /* Brillo final: una banda iridiscente del espectro cruza la página desde el botón
@@ -298,18 +328,6 @@ html[data-mt-transicion="entrada"] #mt-frente > .mt-brillo {
   to { opacity: 0; transform: translate(-34%, 34%); }
 }
 
-html[data-mt-transicion="entrada"] #mt-frente,
-html[data-mt-transicion="ligera"] #mt-frente {
-  background: radial-gradient(
-    circle at 100% 0,
-    rgb(255 255 255 / var(--mt-destello)) 0,
-    rgb(233 255 208 / var(--mt-destello)) 4vmax,
-    rgb(184 255 92 / calc(0.55 * var(--mt-destello))) 12vmax,
-    transparent 30vmax
-  );
-  animation: mt-destello-esquina 520ms ease-out both;
-}
-
 html[data-mt-transicion="entrada"] #mt-frente::before,
 html[data-mt-transicion="ligera"] #mt-frente::before {
   animation: mt-rayos-abren 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
@@ -318,19 +336,8 @@ html[data-mt-transicion="ligera"] #mt-frente::before {
 html[data-mt-transicion="entrada"] #mt-frente::after,
 html[data-mt-transicion="ligera"] #mt-frente::after {
   animation:
-    mt-frente-crece 720ms cubic-bezier(0.5, 1, 0.89, 1) both,
+    mt-anillos-crecen 720ms cubic-bezier(0.5, 1, 0.89, 1) both,
     mt-frente-apaga 820ms linear both;
-}
-
-html[data-mt-transicion="salida"] #mt-frente {
-  background: radial-gradient(
-    circle at 100% 0,
-    rgb(255 255 255 / var(--mt-destello)) 0,
-    rgb(251 224 255 / var(--mt-destello)) 4vmax,
-    rgb(244 114 182 / calc(0.55 * var(--mt-destello))) 12vmax,
-    transparent 30vmax
-  );
-  animation: mt-destello-esquina 360ms ease-in reverse both;
 }
 
 html[data-mt-transicion="salida"] #mt-frente::before {
@@ -339,14 +346,14 @@ html[data-mt-transicion="salida"] #mt-frente::before {
 
 html[data-mt-transicion="salida"] #mt-frente::after {
   animation:
-    mt-frente-encoge 440ms cubic-bezier(0.11, 0, 0.5, 0) both,
+    mt-anillos-encogen 440ms cubic-bezier(0.11, 0, 0.5, 0) both,
     mt-frente-apaga-al-final 460ms linear both;
 }
 
 @keyframes mt-destello-esquina {
-  from { --mt-destello: 0; }
-  12% { --mt-destello: 1; }
-  to { --mt-destello: 0; }
+  from { opacity: 0; }
+  12% { opacity: 1; }
+  to { opacity: 0; }
 }
 
 @keyframes mt-rayos-abren {
@@ -361,14 +368,15 @@ html[data-mt-transicion="salida"] #mt-frente::after {
   to { opacity: 0; transform: scale(0.04) rotate(-50deg); }
 }
 
-@keyframes mt-frente-crece {
-  from { --mt-radio: 0px; }
-  to { --mt-radio: calc(hypot(100vw, 100vh) + 220px); }
+@keyframes mt-anillos-crecen {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
 }
 
-@keyframes mt-frente-encoge {
-  from { --mt-radio: calc(hypot(100vw, 100vh) + 40px); }
-  to { --mt-radio: 0px; }
+/* Antes partía de la diagonal + 40px de un radio final de diagonal + 220px: ~0,9. */
+@keyframes mt-anillos-encogen {
+  from { transform: scale(0.9); }
+  to { transform: scale(0); }
 }
 
 @keyframes mt-frente-apaga {
@@ -402,13 +410,15 @@ html[data-mt-transicion="salida"]::view-transition {
   animation: mt-camara-sale 1000ms cubic-bezier(0.3, 0.7, 0.3, 1) both;
 }
 
+/* Solo transform: un filter aquí (antes, saturate y contrast) se aplica a la página entera
+   en cada cuadro. */
 @keyframes mt-camara-entra {
-  0% { transform: perspective(1600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); filter: saturate(1) contrast(1); }
-  12% { transform: perspective(1600px) rotateX(-7deg) rotateY(8deg) rotateZ(-0.6deg) scale(1.15); filter: saturate(1.35) contrast(1.06); }
-  38% { transform: perspective(1600px) rotateX(4deg) rotateY(-5deg) rotateZ(0.4deg) scale(1.13); filter: saturate(1.2) contrast(1.04); }
-  62% { transform: perspective(1600px) rotateX(-1.6deg) rotateY(2deg) rotateZ(-0.15deg) scale(1.06); filter: saturate(1.08) contrast(1.02); }
-  82% { transform: perspective(1600px) rotateX(0.5deg) rotateY(-0.6deg) rotateZ(0deg) scale(1.02); filter: saturate(1) contrast(1); }
-  100% { transform: perspective(1600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); filter: saturate(1) contrast(1); }
+  0% { transform: perspective(1600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
+  12% { transform: perspective(1600px) rotateX(-7deg) rotateY(8deg) rotateZ(-0.6deg) scale(1.15); }
+  38% { transform: perspective(1600px) rotateX(4deg) rotateY(-5deg) rotateZ(0.4deg) scale(1.13); }
+  62% { transform: perspective(1600px) rotateX(-1.6deg) rotateY(2deg) rotateZ(-0.15deg) scale(1.06); }
+  82% { transform: perspective(1600px) rotateX(0.5deg) rotateY(-0.6deg) rotateZ(0deg) scale(1.02); }
+  100% { transform: perspective(1600px) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
 }
 
 @keyframes mt-camara-sale {
@@ -523,10 +533,12 @@ html[data-mt-transicion]::view-transition-new(*.mt-pieza) {
 }
 
 /* Media vuelta: la vieja gira hasta quedar de canto (se tiñe mientras gira, con bordes
-   de neón: magenta a un lado, turquesa al otro, y un halo del tinte) y desaparece; la nueva aparece de canto desde el otro lado, teñida, pasa de largo
-   (18°), vuelve (-7°) y se asienta mientras recupera sus colores.
-   Los bordes son box-shadow y no drop-shadow: cada filtro de sombra obliga a pintar la
-   pieza aparte y con 40 piezas se pierde un tercio de los cuadros. Van en las capturas
+   de neón: magenta a un lado, turquesa al otro) y desaparece; la nueva aparece de canto
+   desde el otro lado, teñida, pasa de largo (18°), vuelve (-7°) y se asienta mientras
+   recupera sus colores.
+   Los bordes son box-shadow duros (sin blur) y no drop-shadow: cada filtro de sombra
+   obliga a pintar la pieza aparte, y una sombra con blur que cambia se vuelve a
+   difuminar en cada cuadro; con 40 piezas se pierden muchos cuadros. Van en las capturas
    (no en el par) para que giren con ellas. */
 @keyframes mt-gira-sale {
   0% {
@@ -534,7 +546,7 @@ html[data-mt-transicion]::view-transition-new(*.mt-pieza) {
     transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, 0deg);
     filter: sepia(0) saturate(1) hue-rotate(0deg) brightness(1);
     border-radius: 0;
-    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 0 0 transparent;
+    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
     animation-timing-function: cubic-bezier(0.45, 0, 0.9, 0.5);
   }
   45% {
@@ -542,14 +554,14 @@ html[data-mt-transicion]::view-transition-new(*.mt-pieza) {
     transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * 89deg));
     filter: sepia(1) saturate(5) hue-rotate(var(--mt-giro-tinte)) brightness(1.15);
     border-radius: 12px;
-    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85), 0 0 34px 4px var(--mt-tinte);
+    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85);
   }
   45.01%, 100% {
     opacity: 0;
     transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * 90deg));
     filter: sepia(1) saturate(5) hue-rotate(var(--mt-giro-tinte)) brightness(1.15);
     border-radius: 12px;
-    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85), 0 0 34px 4px var(--mt-tinte);
+    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85);
   }
 }
 
@@ -559,14 +571,14 @@ html[data-mt-transicion]::view-transition-new(*.mt-pieza) {
     transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * -90deg));
     filter: sepia(1) saturate(5) hue-rotate(var(--mt-giro-tinte)) brightness(1.15);
     border-radius: 12px;
-    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85), 0 0 34px 4px var(--mt-tinte);
+    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85);
   }
   45.01% {
     opacity: 1;
     transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * -89deg));
     filter: sepia(1) saturate(5) hue-rotate(var(--mt-giro-tinte)) brightness(1.15);
     border-radius: 12px;
-    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85), 0 0 34px 4px var(--mt-tinte);
+    box-shadow: 7px 0 0 0 rgb(255 46 170 / 0.85), -7px 0 0 0 rgb(40 255 220 / 0.85);
     animation-timing-function: cubic-bezier(0.1, 0.6, 0.3, 1);
   }
   68% {
@@ -574,7 +586,7 @@ html[data-mt-transicion]::view-transition-new(*.mt-pieza) {
     transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * 18deg));
     filter: sepia(0.45) saturate(2.2) hue-rotate(var(--mt-giro-tinte)) brightness(1.06);
     border-radius: 10px;
-    box-shadow: 3px 0 0 0 rgb(255 46 170 / 0.5), -3px 0 0 0 rgb(40 255 220 / 0.5), 0 0 20px 2px var(--mt-tinte);
+    box-shadow: 3px 0 0 0 rgb(255 46 170 / 0.5), -3px 0 0 0 rgb(40 255 220 / 0.5);
     animation-timing-function: ease-in-out;
   }
   84% {
@@ -582,7 +594,7 @@ html[data-mt-transicion]::view-transition-new(*.mt-pieza) {
     transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, calc(var(--mt-sentido) * -7deg));
     filter: sepia(0.08) saturate(1.2) hue-rotate(0deg) brightness(1.02);
     border-radius: 6px;
-    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 10px 0 color-mix(in srgb, var(--mt-tinte) 55%, transparent);
+    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
     animation-timing-function: ease-in-out;
   }
   100% {
@@ -590,7 +602,7 @@ html[data-mt-transicion]::view-transition-new(*.mt-pieza) {
     transform: perspective(900px) rotate3d(var(--mt-eje-x), var(--mt-eje-y), 0.22, 0deg);
     filter: sepia(0) saturate(1) hue-rotate(0deg) brightness(1);
     border-radius: 0;
-    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent, 0 0 0 0 transparent;
+    box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent;
   }
 }
 

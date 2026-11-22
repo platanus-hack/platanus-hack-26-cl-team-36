@@ -228,9 +228,12 @@
       const frente = documento.createElement("div");
       frente.id = ID_FRENTE;
       frente.setAttribute("aria-hidden", "true");
+      // Capas propias (y no el fondo del frente) para animar solo su opacidad o su posición.
+      const destello = documento.createElement("div");
+      destello.className = "mt-destello";
       const brillo = documento.createElement("div");
       brillo.className = "mt-brillo";
-      frente.append(brillo);
+      frente.append(destello, brillo);
       documento.documentElement.append(frente);
       corrida.frente = frente;
     }
