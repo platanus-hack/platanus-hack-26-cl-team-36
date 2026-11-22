@@ -1,5 +1,4 @@
 import { createServer } from "node:http";
-import { temaParaUrl } from "./temas.js";
 import { crearRevisiones } from "./revisiones.js";
 import { normalizarUrl } from "./urls.js";
 
@@ -14,28 +13,6 @@ async function leerJson(req) {
   let cuerpo = "";
   for await (const trozo of req) cuerpo += trozo;
   return cuerpo ? JSON.parse(cuerpo) : {};
-}
-
-// POST /temas/buscar  { "url": "https://www.youtube.com" }
-// La extensión lo llama en cada página para saber si debe aplicar un tema.
-//   200 { success: true,  tema: "youtube" }  → la extensión aplica ese tema
-//   404 { success: false, error: "..." }     → el sitio no tiene tema
-//   400 { success: false, error: "..." }     → request inválida
-async function buscarTema(req, res) {
-  let url;
-  try {
-    ({ url } = await leerJson(req));
-    if (typeof url !== "string") throw new Error();
-    new URL(url); // valida
-  } catch {
-    return responderJson(res, 400, { success: false, error: 'Se espera { "url": "<url válida>" }' });
-  }
-
-  const tema = temaParaUrl(url);
-  console.log(`${tema ? "✔" : "✖"} ${url}${tema ? ` → tema "${tema}"` : ""}`);
-
-  if (!tema) return responderJson(res, 404, { success: false, error: `Sin tema para ${url}` });
-  responderJson(res, 200, { success: true, tema });
 }
 
 // Sin tabla configurada (en local) no hay revisiones.
@@ -95,10 +72,6 @@ const servidor = createServer(async (req, res) => {
 
   if (req.method === "GET" && pathname === "/") {
     return responderJson(res, 200, { mensaje: "Hola mundo" });
-  }
-
-  if (req.method === "POST" && pathname === "/temas/buscar") {
-    return buscarTema(req, res);
   }
 
   if ((req.method === "POST" || req.method === "GET") && pathname === "/revisiones") {
