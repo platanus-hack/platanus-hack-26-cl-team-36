@@ -10,6 +10,7 @@ import {
   avisoDeTarjeta,
   columnasDePista,
   cuadritosDeTarjeta,
+  destinoDeTarjeta,
   etapasDeTarjeta,
   hayPista,
   idsDePestana,
@@ -468,4 +469,42 @@ test("destino de la tarjeta (contrato §7.1): primer goal con tanda → tanda de
   assert.equal(tandaDeTarjeta(UNILITORAL), null);
   assert.equal(modeloDeTarjeta(MOVILSUR, { ahora: AHORA }).tanda, "movilsur.test/visitor/cobertura-5g/2026-11-22T03-28-29Z");
   assert.equal(modeloDeTarjeta(BANCO, { ahora: AHORA }).tanda, null);
+});
+
+test("destino de una revisión en curso: la hoja del primer goal con Visitante (su tanda o en vivo), nunca la de otra revisión", () => {
+  const visitantes = (...estados) => TIENDA.goals.map((goal, i) => ({ ...goal, visitante: estados[i] ?? "pending" }));
+  // El Visitante de «garantia» corre y el de «despacho» todavía no: la hoja en vivo de «garantia», no la tanda de la captura.
+  assert.deepEqual(destinoDeTarjeta({ ...TIENDA, goals: visitantes("pending", "running") }), { tipo: "vivo", goal: "garantia" });
+  // Uno que cerró sin tanda listada todavía también tiene trazas.
+  assert.deepEqual(destinoDeTarjeta({ ...TIENDA, goals: visitantes("succeeded", "running") }), { tipo: "vivo", goal: "despacho" });
+  // Con su tanda ya listada, la hoja de esa tanda.
+  const conTanda = visitantes("pending", "succeeded");
+  conTanda[1] = { ...conTanda[1], tanda: "tiendavolcan.test/visitor/garantia/2026-11-22T03-31-29Z" };
+  assert.deepEqual(destinoDeTarjeta({ ...TIENDA, goals: conTanda }), { tipo: "tanda", tanda: "tiendavolcan.test/visitor/garantia/2026-11-22T03-31-29Z" });
+  // Ningún Visitante salió (las Guías trazan): el primer goal, en vivo, aunque haya captura de otra revisión.
+  assert.deepEqual(destinoDeTarjeta({ ...TIENDA, goals: visitantes() }), { tipo: "vivo", goal: "despacho" });
+  // Detenida corriendo: igual.
+  assert.deepEqual(destinoDeTarjeta({ ...TIENDA, estado: "stalled", goals: visitantes("running") }), { tipo: "vivo", goal: "despacho" });
+  // Un goal con id que no sigue el layout no arma un enlace.
+  assert.deepEqual(destinoDeTarjeta({ ...TIENDA, goals: [{ goal: "../x", visitante: "running" }], capturas: { desktop: null, mobile: null } }), { tipo: "avance" });
+  // Sin goals todavía (el Catalogador corre): como antes, la tanda de la captura o el avance.
+  assert.deepEqual(destinoDeTarjeta({ ...TIENDA, goals: [] }), { tipo: "tanda", tanda: "movilsur.test/visitor/portabilidad/2026-11-22T03-35-32Z" });
+  assert.deepEqual(destinoDeTarjeta(BANCO), { tipo: "avance" });
+  // Terminadas y fallidas no cambian.
+  assert.ok(tandaDeTarjeta(CLINICA));
+  assert.deepEqual(destinoDeTarjeta(CLINICA), { tipo: "tanda", tanda: tandaDeTarjeta(CLINICA) });
+  assert.deepEqual(destinoDeTarjeta(UNILITORAL), { tipo: "falla" });
+  assert.deepEqual(modeloDeTarjeta({ ...TIENDA, goals: visitantes("pending", "running") }, { ahora: AHORA }).destino, { tipo: "vivo", goal: "garantia" });
+});
+
+test("filas de goal en curso: sin tanda abren su hoja en vivo; con tanda, la tanda; terminada, ninguna en vivo", () => {
+  const { visibles } = medidoresDeTarjeta(TIENDA);
+  assert.deepEqual(visibles.map((m) => m.vivo), [true, true, true]);
+  assert.deepEqual(medidoresDeTarjeta(MOVILSUR).visibles.map((m) => [m.goal, m.vivo]), [
+    ["cobertura-5g", false],
+    ["dar-de-baja", true],
+    ["portabilidad", true],
+  ]);
+  assert.ok(medidoresDeTarjeta(CLINICA).visibles.every((m) => m.vivo === false));
+  assert.ok(medidoresDeTarjeta(EN_COLA).visibles.every((m) => m.vivo === false));
 });

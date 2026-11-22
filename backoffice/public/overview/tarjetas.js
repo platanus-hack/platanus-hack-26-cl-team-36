@@ -2,7 +2,7 @@
 // paginado (páginas de 6) y la pista de arranque vacío. Puro: no toca document ni window. Trabaja sobre
 // /api/overview (contrato §2 y §7); los textos los pone overview/textos.js y el DOM, overview/dom-*.js.
 
-import { partesDeTanda } from "../nucleo/almacen.js";
+import { OBJETIVO, partesDeTanda } from "../nucleo/almacen.js";
 import { ordenarEstados } from "./agentes.js";
 import { esHex } from "./marca.js";
 import { sinAvance, tiempoDeTarjeta } from "./tiempo.js";
@@ -90,6 +90,33 @@ export function tandaDeTarjeta(tarjeta) {
   return tandaValida(tarjeta?.capturas?.desktop?.tanda) ?? tandaValida(tarjeta?.capturas?.mobile?.tanda);
 }
 
+// Una revisión que corre (o se detuvo corriendo): sus goals abren su hoja en vivo, no la tanda de otra revisión.
+const EN_CURSO = new Set(["running", "stalled"]);
+// Un Visitante que ya dejó trazas: corre o cerró.
+const VISITANTE_CON_TRAZAS = new Set(["running", "succeeded", "failed"]);
+
+/** ¿La fila de este goal abre su hoja en vivo? Con la revisión en curso, si su Visitante todavía no tiene tanda listada. */
+const goalEnVivo = (tarjeta, goal) => EN_CURSO.has(estadoDeTarjeta(tarjeta?.estado)) && !tandaDeGoal(goal) && OBJETIVO.test(goal?.goal ?? "");
+
+/**
+ * Adónde lleva el clic en la tarjeta:
+ *  - { tipo: "falla" }: una fallida sin tanda propia (abreLaFalla).
+ *  - En curso (running o stalled), el primer goal con Visitante que ya dejó trazas (corre o cerró) o, si ninguno, el
+ *    primero (su Guía traza la ruta): { tipo: "tanda", tanda } si su tanda ya se lista, si no { tipo: "vivo", goal }
+ *    (la hoja en vivo con lo que ya llegó). Sin goals todavía (el Catalogador corre), como una terminada.
+ *  - Si no, { tipo: "tanda", tanda } con tandaDeTarjeta; sin ninguna, { tipo: "avance" } (el avance de la revisión).
+ */
+export function destinoDeTarjeta(tarjeta) {
+  if (abreLaFalla(tarjeta)) return { tipo: "falla" };
+  if (EN_CURSO.has(estadoDeTarjeta(tarjeta?.estado))) {
+    const goals = (tarjeta?.goals ?? []).filter((goal) => tandaDeGoal(goal) || goalEnVivo(tarjeta, goal));
+    const elegido = goals.find((goal) => tandaDeGoal(goal) || VISITANTE_CON_TRAZAS.has(goal.visitante)) ?? goals[0];
+    if (elegido) return tandaDeGoal(elegido) ? { tipo: "tanda", tanda: tandaDeGoal(elegido) } : { tipo: "vivo", goal: elegido.goal };
+  }
+  const tanda = tandaDeTarjeta(tarjeta);
+  return tanda ? { tipo: "tanda", tanda } : { tipo: "avance" };
+}
+
 /**
  * Medidor de un goal con el filtro: { goal, instruccion, tanda, tramos, texto, tono, logrados, medidos }.
  *  - tramos: un tramo por intento visible, ordenados; "espera" si el goal todavía no tiene intentos.
@@ -112,10 +139,14 @@ export function medidorDeGoal(goal, dispositivo = "all") {
   return { ...base, texto: `${logrados}/${medidos}`, tono: logrados === medidos ? "logrado" : logrados === 0 ? "fallido" : "aviso" };
 }
 
-/** Hasta MAX_GOALS medidores y cuántos goals quedan fuera ("+N"). */
+/**
+ * Hasta MAX_GOALS medidores y cuántos goals quedan fuera ("+N"). `vivo`: la fila abre la hoja en vivo del goal (la
+ * revisión corre y su Visitante todavía no tiene tanda).
+ */
 export function medidoresDeTarjeta(tarjeta, dispositivo = "all", maximo = MAX_GOALS) {
   const goals = tarjeta?.goals ?? [];
-  return { visibles: goals.slice(0, maximo).map((goal) => medidorDeGoal(goal, dispositivo)), mas: Math.max(0, goals.length - maximo) };
+  const visibles = goals.slice(0, maximo).map((goal) => ({ ...medidorDeGoal(goal, dispositivo), vivo: goalEnVivo(tarjeta, goal) }));
+  return { visibles, mas: Math.max(0, goals.length - maximo) };
 }
 
 /**
@@ -180,6 +211,7 @@ export function modeloDeTarjeta(tarjeta, { dispositivo = "all", ahora = null } =
     estado,
     tanda: tandaDeTarjeta(tarjeta),
     falla: abreLaFalla(tarjeta),
+    destino: destinoDeTarjeta(tarjeta),
     capturas: { desktop: captura(tarjeta?.capturas?.desktop), mobile: captura(tarjeta?.capturas?.mobile) },
     cuadritos: cuadritosDeTarjeta(tarjeta, dispositivo),
     etapas: etapasDeTarjeta(tarjeta),
