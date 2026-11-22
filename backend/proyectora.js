@@ -115,7 +115,7 @@ function ultimoPaso({ steps, start }) {
   };
 }
 
-export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMax = 6 }) {
+export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMax = 8 }) {
   const avanzarEtapa = (revision, SK, status, atributos) =>
     db.actualizar(claveRevision(revision, SK), { status, ...atributos }, { previos: previos(ORDEN_ETAPA, status) });
 
@@ -260,7 +260,7 @@ function iniciar() {
   iniciando ??= (async () => {
     const { almacenS3, tablaDynamo } = await import("./aws.js");
     const [db, almacen] = await Promise.all([tablaDynamo(process.env.REVISIONES_TABLA), almacenS3(process.env.ALMACEN_BUCKET)]);
-    return crearProyectora({ db, almacen, goalsMax: Number(process.env.GOALS_MAX) || 6 });
+    return crearProyectora({ db, almacen, goalsMax: Number(process.env.GOALS_MAX) || 8 });
   })().catch((error) => {
     iniciando = undefined;
     throw error;
