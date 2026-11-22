@@ -136,6 +136,7 @@ test("memorizar con { desde }: sirve la lectura guardada solo si empezó despué
 // Con descargas firmadas: GET con node:http para elegir Sec-Fetch-Mode (el fetch de Node siempre manda "cors").
 async function conServidorFirmado(probar) {
   const { objetos } = almacen();
+  objetos[`${ID}/first_time/video.webm`] = Buffer.alloc(1000, 7);
   const cliente = clienteS3Falso(BUCKET, objetos);
   const fuente = crearFuenteS3({ bucket: BUCKET, region: "us-east-2", cliente, comandos: comandosS3, firmar: firmarFalso });
   const servidor = crearServidor({ fuente });
@@ -171,8 +172,7 @@ test("con S3 que firma: una captura validada es un 302 a la URL firmada, sin baj
     assert.ok(!leidas.some((clave) => clave.endsWith(".png")), "la captura no pasa por el servidor");
 
     const video = await pedir(`archivos/${ID}/first_time/video.webm`, { range: "bytes=0-99" });
-    assert.equal(video.estado, 302, "el rango lo atiende el bucket");
-    assert.equal(new URL(video.cabeceras.location).searchParams.get("tipo"), "video/webm");
+    assert.deepEqual([video.estado, video.cabeceras.location, video.bytes.length], [206, undefined, 100], "el video sale del servidor, por rangos");
 
     for (const ruta of [`${ID}/first_time/run.json`, `${ID}/.oculto/step_00.png`, `${EN_CURSO}/first_time/step_00.png`, `${FALLIDA}/first_time/step_00.png`]) {
       const negada = await pedir(`archivos/${ruta}`);

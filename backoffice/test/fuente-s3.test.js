@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { crearFuente } from "../lib/fuente.js";
 import { crearFuenteDeArchivos } from "../lib/fuentes/archivos.js";
 import { ABIERTA_MS, FIRMA_S, VENTANA_S, crearFuenteS3, parsearAlmacen } from "../lib/fuentes/s3.js";
-import { LISTA_MS, idsDeTandas, leerTanda, listarTandas } from "../lib/tandas.js";
+import { idsDeTandas, leerTanda, listarTandas } from "../lib/tandas.js";
 import { crearServidor } from "../servidor.js";
 import { CLAVES_DE_EJEMPLO, CORRIDAS_DE_EJEMPLO } from "./almacen-en-memoria.js";
 import { clienteS3Falso, comandosS3, firmarFalso, objetosDeCarpeta } from "./aws-falso.js";
@@ -129,7 +129,15 @@ test("idsDeTandas: los que piden a la vez comparten una pasada, se guarda LISTA_
   const fresca = await idsDeTandas(fuente, { fresca: true });
   assert.ok(listados() > unaPasada, "fresca: vuelve a listar");
   assert.equal(await idsDeTandas(fuente), fresca, "y queda como la compartida");
-  assert.equal(LISTA_MS, 30_000);
+});
+
+test("leerTanda ve una tanda que terminó después de la lista guardada, aunque la fuente la recuerde abierta", async () => {
+  const { fuente, objetos } = almacen();
+  assert.ok(!(await listarTandas(fuente)).tandas.some((tanda) => tanda.id === EN_CURSO));
+  const manifiesto = JSON.parse(objetos[`${EN_CURSO}/manifest.json`]);
+  objetos[`${EN_CURSO}/manifest.json`] = JSON.stringify({ ...manifiesto, status: "succeeded" });
+  assert.equal((await leerTanda(fuente, EN_CURSO))?.id, EN_CURSO);
+  assert.equal(await leerTanda(fuente, "no/es/un-id"), null);
 });
 
 test("idsDeTandas: un error no se guarda", async () => {
@@ -163,7 +171,6 @@ test("fuente S3: URL firmada con el tipo y el caché pedidos, la misma dentro de
   ahora += 2000;
   assert.notEqual(await pedir(), url.href, "otra ventana, otra firma");
   assert.equal(cliente.llamadas.length, 0, "firmar no llama a S3");
-  assert.ok(FIRMA_S - VENTANA_S >= 300, "a una URL recién dada le queda más que REDIRECCION_INMUTABLE");
 
   const sinFirma = crearFuenteS3({ bucket: BUCKET, cliente, comandos: comandosS3 });
   assert.equal(sinFirma.urlDeDescarga, undefined);

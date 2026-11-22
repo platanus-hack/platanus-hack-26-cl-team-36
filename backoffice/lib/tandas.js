@@ -31,8 +31,8 @@ export const LISTA_MS = 30_000;
 /** fuente → { promesa, hasta }: la última lista (hasta null mientras corre). */
 const listas = new WeakMap();
 
-async function recorrerIds(origen) {
-  const ids = (await origen.listarIds()).filter(esIdValido);
+async function recorrerIds(origen, fresca) {
+  const ids = (await origen.listarIds({ fresca })).filter(esIdValido);
   return Object.freeze(
     [...new Set(ids)].sort((a, b) => (fechaDe(a) < fechaDe(b) ? 1 : fechaDe(a) > fechaDe(b) ? -1 : a < b ? -1 : a > b ? 1 : 0)),
   );
@@ -51,7 +51,7 @@ export function idsDeTandas(fuente, { fresca = false } = {}) {
   const guardada = listas.get(origen);
   if (!fresca && guardada && (guardada.hasta === null || performance.now() < guardada.hasta)) return guardada.promesa;
   const actual = { promesa: null, hasta: null };
-  actual.promesa = recorrerIds(origen).then(
+  actual.promesa = recorrerIds(origen, fresca).then(
     (ids) => {
       actual.hasta = performance.now() + LISTA_MS;
       return ids;
@@ -152,7 +152,10 @@ export async function leerSinVecinas(fuente, id, { guia = null } = {}) {
  */
 export async function leerTanda(fuente, id) {
   const origen = comoFuente(fuente);
-  const ids = await idsDeTandas(origen);
+  if (!esIdValido(id)) return null;
+  let ids = await idsDeTandas(origen);
+  // Una tanda que terminó después de la lista guardada.
+  if (!ids.includes(id)) ids = await idsDeTandas(origen, { fresca: true });
   if (!ids.includes(id)) return null;
   const tanda = await leerSinVecinas(origen, id, { guia: await leerRutaDeLaGuia(origen, id) });
   return { ...tanda, vecinas: vecinasDe(id, ids) };

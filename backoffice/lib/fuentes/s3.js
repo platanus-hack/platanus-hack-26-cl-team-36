@@ -8,8 +8,7 @@ import { resolverRango } from "./rango.js";
 const CERRADA = new Set(["succeeded", "failed"]);
 /** Cuánto se da por abierta una corrida sin cerrar al listar tandas, antes de volver a leer su manifiesto. */
 export const ABIERTA_MS = 30_000;
-// Las descargas firmadas valen FIRMA_S desde el inicio de su ventana de VENTANA_S: dentro de una ventana la URL de un
-// archivo es la misma (el navegador la reutiliza de su caché) y al firmarla le quedan al menos FIRMA_S - VENTANA_S.
+// Firma anclada a ventanas de VENTANA_S (misma URL en cada una); vence a FIRMA_S de la ventana o con la credencial del rol.
 export const VENTANA_S = 300;
 export const FIRMA_S = 900;
 
@@ -93,11 +92,11 @@ export function crearFuenteS3({ bucket, prefijo = "", region, cliente, comandos,
     return info;
   }
 
-  // Al listar tandas, una corrida sin cerrar (en curso, o caída: no se cierra nunca) se vuelve a mirar pasado abiertaMs.
+  // Una corrida sin cerrar (en curso o caída) se vuelve a mirar al listar pasado abiertaMs, o en una lista fresca.
   const abiertas = new Map();
-  async function corridaAlListar(id) {
+  async function corridaAlListar(id, fresca) {
     const vista = abiertas.get(id);
-    if (vista && reloj() < vista.hasta) return vista.info;
+    if (!fresca && vista && reloj() < vista.hasta) return vista.info;
     const info = await corrida(id);
     if (cerradas.has(id)) abiertas.delete(id);
     else abiertas.set(id, { info, hasta: reloj() + abiertaMs });
@@ -126,13 +125,13 @@ export function crearFuenteS3({ bucket, prefijo = "", region, cliente, comandos,
     descripcion: `s3://${bucket}/${prefijo}`,
     ...descargas,
 
-    async listarIds() {
+    async listarIds({ fresca = false } = {}) {
       const porHost = await Promise.all(
         (await subcarpetas("", HOST)).map(async (host) => {
           const porObjetivo = await Promise.all(
             (await subcarpetas(`${host}/${AGENTE}`, OBJETIVO)).map(async (objetivo) => {
               const ids = (await subcarpetas(`${host}/${AGENTE}/${objetivo}`, CORRIDA)).map((run) => idDeTanda(host, objetivo, run));
-              const infos = await Promise.all(ids.map(corridaAlListar));
+              const infos = await Promise.all(ids.map((id) => corridaAlListar(id, fresca)));
               return ids.filter((_, i) => infos[i].estado === "succeeded" && infos[i].archivos.has("route_tree.json"));
             }),
           );

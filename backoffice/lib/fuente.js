@@ -21,9 +21,9 @@ import { crearFuenteS3, parsearAlmacen } from "./fuentes/s3.js";
  *
  * @typedef {Object} Fuente
  * @property {string} descripcion     para el estado vacío: "agents/.runs" (relativa al repo) o una URI
- * @property {() => Promise<string[]>} listarIds
+ * @property {(opciones?: { fresca?: boolean }) => Promise<string[]>} listarIds
  *           ids de tanda "<host>/visitor/<objetivo>/<corrida>" que terminaron bien (manifest.json succeeded) y tienen
- *           route_tree.json, en cualquier orden
+ *           route_tree.json, en cualquier orden; `fresca`: sin reutilizar lo que la fuente guarde de corridas sin cerrar
  * @property {() => Promise<string[]>} listarCorridas
  *           claves de las corridas de los cuatro roles del Overview, terminadas o no, en cualquier orden (ya validadas
  *           con partesDeCorrida; lib/fuentes/corridas.js): "<host>/cataloger/<corrida>",

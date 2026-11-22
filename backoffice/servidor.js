@@ -195,10 +195,9 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
   const propuestas = crearPropuestas(origen);
   const seguridad = cabecerasDeSeguridad(origen.origenDeDescargas);
 
-  // Un archivo de una corrida ya validado: con S3, un 302 a una URL firmada (el navegador lo baja del bucket, no a
-  // través de esta tarea); si no, se envía desde la fuente. false si no existe.
-  async function servirDeCorrida(req, res, clave, relativa, { tipo = tipoDe(relativa), cache = "no-store", redireccion = "no-store", rango } = {}) {
-    if (origen.urlDeDescarga && !pideMismoOrigen(req)) {
+  // Un archivo ya validado: con S3, un 302 a una URL firmada; si no, se envía desde la fuente. false si no existe.
+  async function servirDeCorrida(req, res, clave, relativa, { tipo = tipoDe(relativa), cache = "no-store", redireccion = "no-store", redirigir = true, rango } = {}) {
+    if (redirigir && origen.urlDeDescarga && !pideMismoOrigen(req)) {
       const url = await origen.urlDeDescarga(clave, relativa, { tipo, cache });
       // Vary: un pedido con crossorigin no reutiliza esta redirección guardada.
       res.writeHead(302, { Location: url, "Cache-Control": redireccion, Vary: "Sec-Fetch-Mode", ...CABECERAS_DE_SEGURIDAD });
@@ -278,10 +277,10 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
 
       if (partes[0] === "resultados") {
         const resultado = partesDeResultado(partes.slice(1).join("/"));
-        const archivo = resultado?.archivo;
-        const tipo = resultado && (TIPOS_DE_RESULTADO[path.extname(archivo)] ?? tipoDe(archivo));
-        const servido = resultado && (await servirDeCorrida(req, res, resultado.runKey, archivo, { tipo }));
-        if (!servido) return responderJson(res, 404, { error: "No existe ese resultado" });
+        if (!resultado) return responderJson(res, 404, { error: "No existe ese resultado" });
+        const { runKey, archivo } = resultado;
+        const tipo = TIPOS_DE_RESULTADO[path.extname(archivo)] ?? tipoDe(archivo);
+        if (!(await servirDeCorrida(req, res, runKey, archivo, { tipo }))) return responderJson(res, 404, { error: "No existe ese resultado" });
         return;
       }
 
@@ -294,6 +293,8 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
           (await servirDeCorrida(req, res, pedido.id, `${pedido.perfil}/${pedido.archivo}`, {
             cache: INMUTABLE,
             redireccion: REDIRECCION_INMUTABLE,
+            // El video se pide por rangos durante minutos: una firma podría vencer a mitad de camino.
+            redirigir: pedido.archivo !== "video.webm",
             rango: leerRango(req.headers.range) ?? undefined,
           }));
         if (!servido) return responderJson(res, 404, { error: "No existe ese archivo" });
