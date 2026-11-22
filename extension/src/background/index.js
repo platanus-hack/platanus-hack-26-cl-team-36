@@ -113,7 +113,7 @@ async function inyectarTema(tema, sender, pagina = null) {
   });
 
   const { css, ...resto } = tema;
-  return resto;
+  return pagina ? { ...resto, pagina } : resto;
 }
 
 // ---------- 3. Votos ----------

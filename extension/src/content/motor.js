@@ -31,6 +31,8 @@
   let htmlObservado = null;
   const observadorHtml = new MutationObserver(() => marcarHtml());
 
+  const paginaActual = () => location.origin + location.pathname;
+
   // Idempotente: solo escribe si algo cambió, así no entra en bucle con observadorHtml.
   function marcarHtml() {
     const html = document.documentElement;
@@ -41,8 +43,11 @@
       observadorHtml.observe(html, { attributes: true, attributeFilter: ["class"] });
       htmlObservado = html;
     }
-    if (html.dataset.mtTema !== tema.id) html.dataset.mtTema = tema.id; // lo usa el refresco en modo desarrollo
-    html.classList.toggle("mi-tema", activo); // toggle con segundo argumento no escribe si no cambia
+    // Un tema de revisión (`pagina`) es de esa página: en una SPA no se lleva a las demás.
+    const aplica = !tema.pagina || paginaActual() === tema.pagina;
+    if (!aplica) html.removeAttribute("data-mt-tema");
+    else if (html.dataset.mtTema !== tema.id) html.dataset.mtTema = tema.id; // lo usa el refresco en modo desarrollo
+    html.classList.toggle("mi-tema", activo && aplica); // toggle con segundo argumento no escribe si no cambia
   }
 
   function prepararFeatures() {
@@ -142,9 +147,7 @@
     vigilarCambios(refrescar);
   }
 
-  // Página sin tema empaquetado cuya revisión (un tema generado) está en curso: se vuelve a preguntar
-  // cada `intervaloMs` hasta `topeMs`, mientras sigamos en la misma página (sin query ni hash).
-  const paginaActual = () => location.origin + location.pathname;
+  // Lo maneja el content script y no el background, que Firefox descarga tras un rato sin uso.
   function esperarRevision({ intervaloMs, topeMs }, pagina = paginaActual(), inicio = Date.now()) {
     setTimeout(async () => {
       if (tema || paginaActual() !== pagina || Date.now() - inicio > topeMs) return;
