@@ -149,7 +149,8 @@ def _visita(intento: dict, fila: dict, nodos_ruta: list[str]) -> dict:
     resultado = veredicto.get("outcome")
     # El Visitante nuevo mide el éxito como "llegó a la página final de la ruta"; el anterior, con el veredicto.
     llego = fila.get("reached_final_node")
-    if llego is None and resultado and resultado != "interrupted":
+    # Un intento sin medir (los exploradores no tienen ruta de referencia) no cuenta como que no llegó.
+    if llego is None and resultado and resultado not in ("interrupted", "unmeasured"):
         llego = resultado == "success"
     pasos = intento.get("steps") or []
     ultimo = pasos[-1] if pasos else intento.get("start") or {}
@@ -168,7 +169,8 @@ def _visita(intento: dict, fila: dict, nodos_ruta: list[str]) -> dict:
 
 def _visitas(backend: store.Backend, tanda: store.RunKey, nodos_ruta: list[str]) -> list[dict]:
     comparacion = _leer(backend, tanda.file("comparison.json")) or {}
-    filas = {f.get("profile"): f for f in comparacion.get("runs") or [] if isinstance(f, dict)}
+    # Una fila por intento: `run` es su carpeta (`desktop`, `desktop-2`...); el Visitante anterior solo traía `profile`.
+    filas = {f.get("run") or f.get("profile"): f for f in comparacion.get("runs") or [] if isinstance(f, dict)}
     visitas = []
     try:
         perfiles = backend.list_profiles(tanda)
@@ -180,7 +182,8 @@ def _visitas(backend: store.Backend, tanda: store.RunKey, nodos_ruta: list[str])
         except ValueError:  # una carpeta que no es de perfil
             continue
         if isinstance(intento, dict):
-            visitas.append(_visita(intento, filas.get(intento.get("profile") or perfil, {}), nodos_ruta))
+            fila = filas.get(perfil) or filas.get(intento.get("profile"), {})
+            visitas.append(_visita(intento, fila, nodos_ruta))
     return visitas[:config.MAX_VISITAS]
 
 
@@ -203,6 +206,10 @@ def _objetivo(backend: store.Backend, url: str, revision: str, goal) -> tuple[di
     if tanda:
         entradas.append(tanda)
     medidas = [v["llego"] for v in visitas if v["llego"] is not None]
+    por_perfil: dict[str, list[bool]] = {}
+    for visita in visitas:
+        if visita["llego"] is not None:
+            por_perfil.setdefault(visita["perfil"], []).append(visita["llego"])
     return {
         "id": goal.id,
         "descripcion": _corto(goal.description),
@@ -210,6 +217,9 @@ def _objetivo(backend: store.Backend, url: str, revision: str, goal) -> tuple[di
         "ruta": _ruta(route),
         "visitas": visitas,
         "tasa_llegada": round(sum(medidas) / len(medidas), 2) if medidas else None,
+        # Con más de un perfil medido (escritorio y móvil), la de cada uno: la diferencia dice qué pantalla falla.
+        "tasa_por_perfil": {perfil: round(sum(m) / len(m), 2) for perfil, m in por_perfil.items()}
+        if len(por_perfil) > 1 else None,
     }, entradas, route if isinstance(route, dict) else None
 
 
