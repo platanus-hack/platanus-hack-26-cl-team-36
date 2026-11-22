@@ -28,12 +28,12 @@
 
   const TEXTOS = {
     es: {
-      // Selector de idioma (cabecera del popup)
+      // Selector de idioma (preferencias del popup)
       "idioma.lista": "Idioma",
       "idioma.boton": "Idioma: {nombre}. Cambiar idioma",
 
       // Sección de opinión
-      "opinion.titulo": "Ayúdanos a mejorar tu experiencia",
+      "opinion.titulo": "Compartir opinión",
       "opinion.pregunta": "¿Esta página es mejor para ti que la original?",
       "opinion.mejor": "Mejor",
       "opinion.peor": "Peor",
@@ -78,7 +78,7 @@
       "error.contar": "No se pudieron leer las opiniones guardadas.",
 
       // Interruptor ON/OFF
-      // Interruptor «Efectos» (cabecera del popup)
+      // Interruptor «Efectos» (preferencias del popup)
       "efectos.etiqueta": "Efectos",
       "efectos.ayuda": "Encendido: transición llamativa al encender y apagar. Apagado: un fundido sutil.",
 
@@ -86,10 +86,18 @@
       "interruptor.cargando": "Cargando…",
       "interruptor.encendido": "Encendido",
       "interruptor.apagado": "Apagado",
-      "interruptor.ayudaEncendido": "Haz clic para volver a la página original",
-      "interruptor.ayudaApagado": "Haz clic para aplicar el diseño de Chameleon",
-      "interruptor.ayudaEncendidoSinTema": "Haz clic para apagar Chameleon",
-      "interruptor.ayudaApagadoSinTema": "Haz clic para encender Chameleon",
+      "interruptor.ayudaEncendido": "Clic para apagar",
+      "interruptor.ayudaApagado": "Clic para encender",
+      "interruptor.alcance": "En todos los sitios compatibles",
+      "preferencias.etiqueta": "Preferencias",
+      "pagina.cargando": "Comprobando esta página…",
+      "pagina.privada": "Ventana privada: las opiniones no se guardan.",
+      "pagina.noDisponible": "Chameleon no está disponible en esta pestaña.",
+      "pagina.sinTema": "Este sitio todavía no tiene un tema.",
+      "pagina.conTema": "Tema disponible en esta página.",
+      "pagina.conTemaApagado": "Tema disponible. Chameleon está apagado.",
+      "accion.encendida": "Chameleon Mode: encendido en los sitios compatibles",
+      "accion.apagada": "Chameleon Mode: apagado en todos los sitios",
 
       // Content scripts: feature modo-foco
       "foco.entrar": "🎯 Modo foco",
@@ -109,7 +117,7 @@
       "idioma.lista": "Language",
       "idioma.boton": "Language: {nombre}. Change language",
 
-      "opinion.titulo": "Help us improve your experience",
+      "opinion.titulo": "Share feedback",
       "opinion.pregunta": "Is this page better for you than the original?",
       "opinion.mejor": "Better",
       "opinion.peor": "Worse",
@@ -149,7 +157,7 @@
       "error.guardar": "Couldn't save your feedback. Please try again.",
       "error.contar": "Couldn't read your saved feedback.",
 
-      // «Effects» switch (popup header)
+      // «Effects» switch (popup preferences)
       "efectos.etiqueta": "Effects",
       "efectos.ayuda": "On: an eye-catching transition when turning on and off. Off: a subtle fade.",
 
@@ -157,10 +165,18 @@
       "interruptor.cargando": "Loading…",
       "interruptor.encendido": "On",
       "interruptor.apagado": "Off",
-      "interruptor.ayudaEncendido": "Click to go back to the original page",
-      "interruptor.ayudaApagado": "Click to apply Chameleon's design",
-      "interruptor.ayudaEncendidoSinTema": "Click to turn Chameleon off",
-      "interruptor.ayudaApagadoSinTema": "Click to turn Chameleon on",
+      "interruptor.ayudaEncendido": "Click to turn off",
+      "interruptor.ayudaApagado": "Click to turn on",
+      "interruptor.alcance": "For all supported sites",
+      "preferencias.etiqueta": "Preferences",
+      "pagina.cargando": "Checking this page…",
+      "pagina.privada": "Private window: feedback is not saved.",
+      "pagina.noDisponible": "Chameleon is unavailable in this tab.",
+      "pagina.sinTema": "This site doesn't have a theme yet.",
+      "pagina.conTema": "A theme is available for this page.",
+      "pagina.conTemaApagado": "A theme is available. Chameleon is off.",
+      "accion.encendida": "Chameleon Mode: on for supported sites",
+      "accion.apagada": "Chameleon Mode: off for all sites",
 
       "foco.entrar": "🎯 Focus mode",
       "foco.salir": "🎯 Exit focus mode",

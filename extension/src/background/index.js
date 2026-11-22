@@ -8,6 +8,7 @@
 //   3. Guardar en el equipo los votos del usuario sobre la página con tema (ver votos.js).
 
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
+import { crearActualizadorIndicador } from "./indicador.js";
 import { consultarRevision, consultarTema, pedirRevision } from "./api.js";
 import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
 import { cargarTemaLocal } from "./temas-locales.js";
@@ -25,24 +26,23 @@ async function leerActivo() {
   return activo;
 }
 
-async function pintarBadge(activo) {
-  await browser.action.setBadgeText({ text: activo ? "ON" : "" });
-  // Colores de marca: turquesa del espectro con texto tinta (ver docs/marca/).
-  await browser.action.setBadgeBackgroundColor({ color: "#2EE6C5" });
-  if (browser.action.setBadgeTextColor) await browser.action.setBadgeTextColor({ color: "#0B0B10" });
-}
+const pintarIndicador = crearActualizadorIndicador({ action: browser.action, storage: browser.storage.local });
+const actualizarIndicador = () => pintarIndicador().catch((error) => console.error("[mi-tema] No se pudo pintar el estado:", error));
 
 browser.storage.onChanged.addListener((cambios, area) => {
-  if (area !== "local" || !("activo" in cambios)) return;
-  pintarBadge(cambios.activo.newValue ?? true).catch((error) => console.error("[mi-tema] No se pudo pintar el badge:", error));
+  if (area !== "local" || (!("activo" in cambios) && !("idioma" in cambios))) return;
+  actualizarIndicador();
 });
 
-browser.runtime.onStartup.addListener(async () => pintarBadge(await leerActivo()));
+browser.runtime.onStartup.addListener(actualizarIndicador);
+
+// Los event pages pueden descargarse y volver a arrancar sin onStartup ni onInstalled.
+actualizarIndicador();
 
 // onInstalled se dispara al instalar y cada vez que `npm run dev` recarga la extensión.
 // `temporary` solo es true si la extensión se cargó con web-ext o about:debugging.
 browser.runtime.onInstalled.addListener(async ({ temporary }) => {
-  await pintarBadge(await leerActivo());
+  await actualizarIndicador();
   if (temporary) await refrescarPestanasConTema();
 });
 

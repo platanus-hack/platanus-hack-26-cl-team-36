@@ -54,8 +54,11 @@ extension/
    Si la API responde `success: false` o no responde, no hay tema y el motor no toca la página.
 3. El motor pone la clase `mi-tema` en `<html>` (todo el CSS del tema cuelga de ella) y
    ejecuta las features en cada navegación y cambio del DOM.
-4. El ícono de la barra abre un popup con un interruptor ON/OFF grande, que guarda `activo` en
-   `storage`; el motor anima el cambio y quita/pone la clase. El popup también pide tu opinión
+4. El ícono de la barra abre un panel con el control ON/OFF primero. Guarda `activo` en
+   `storage` para todos los sitios compatibles; el motor anima el cambio y quita/pone la clase.
+   El panel distingue el encendido global de la disponibilidad de tema en la pestaña. La marca
+   permanece a color y el ícono del control pasa a su versión apagada. La sección **Compartir opinión**
+   comienza cerrada; idioma y efectos siguen disponibles como preferencias secundarias. También recoge tu opinión
    sobre la página (Mejor / Peor / comentario), que se guarda solo en tu equipo: con una copia
    limpia de la página si tiene tema, solo el comentario si no lo tiene, y nada en ventanas privadas.
 

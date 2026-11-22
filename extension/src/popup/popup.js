@@ -6,20 +6,18 @@
 // - Opinión: pregunta a la pestaña activa `estado:pagina` (content/captura.js) para decidir
 //   qué mostrar (ver estado.js) y guarda con `voto:guardar` en el background.
 //
-// - Efectos: el interruptor «Efectos» (centrado en la cabecera) guarda `efectos` ("llamativos" | "sutiles",
-//   comun/efectos.js) en storage.local; content/motor.js y el camaleón (interruptor.js, por body[data-efectos])
-//   lo usan desde el próximo encendido o apagado.
-// - Idioma: el selector de la cabecera guarda `idioma` en storage.local. Todos los textos
+// - Efectos: la preferencia secundaria guarda `efectos` ("llamativos" | "sutiles")
+//   para la transición de la página. El popup solo cambia de estado, sin efectos decorativos.
+// - Idioma: el selector de preferencias guarda `idioma` en storage.local. Todos los textos
 //   salen del diccionario (comun/idioma.js): los fijos del HTML con data-mt-texto*, los
-//   demás desde acá. Al cambiar de idioma se anima el cambio (idioma.js); al abrir, no.
+//   demás desde acá. Los textos cambian de inmediato y sin alterar el foco.
 //
 // JS solo pone atributos, clases y textos; todo lo visual está en popup.css e idioma.css.
 
 import "../comun/idioma.js";
 import "../comun/efectos.js";
-import { claveDeAyuda, crearCola, decidirVista, textoPendientes, validarEnvio } from "./estado.js";
-import { animarCambio, crearSelectorIdioma, ponerTexto } from "./idioma.js";
-import "./interruptor.js"; // animación del camaleón del interruptor (solo visual)
+import { claveDeAyuda, claveDePagina, crearCola, decidirVista, textoPendientes, validarEnvio } from "./estado.js";
+import { crearSelectorIdioma, ponerTexto } from "./idioma.js";
 
 const { CLAVE_IDIOMA, IDIOMAS, TEXTOS, IDIOMA_POR_DEFECTO, normalizarIdioma, t } = globalThis.MiTema.idioma;
 const { CLAVE_EFECTOS, EFECTOS_POR_OMISION, normalizarEfectos } = globalThis.MiTema.efectos;
@@ -27,7 +25,6 @@ const { CLAVE_EFECTOS, EFECTOS_POR_OMISION, normalizarEfectos } = globalThis.MiT
 const $ = (id) => document.getElementById(id);
 const el = {
   cuerpo: document.body,
-  panel: document.querySelector(".mt-panel"),
   control: document.querySelector(".mt-control"),
   idioma: $("mt-idioma"),
   idiomaBoton: $("mt-idioma-boton"),
@@ -37,6 +34,7 @@ const el = {
   interruptor: $("mt-interruptor"),
   estado: $("mt-estado"),
   ayuda: $("mt-estado-ayuda"),
+  pagina: $("mt-pagina"),
   opinion: $("mt-opinion"),
   aviso: $("mt-aviso"),
   formulario: $("mt-formulario"),
@@ -87,7 +85,7 @@ function dibujarIdioma() {
 
 function dibujarEfectos() {
   el.efectos.setAttribute("aria-checked", String(estado.efectos === "llamativos"));
-  el.cuerpo.dataset.efectos = estado.efectos; // interruptor.js y interruptor.css eligen la animación del camaleón
+  el.cuerpo.dataset.efectos = estado.efectos;
 }
 
 function dibujarInterruptor() {
@@ -99,6 +97,7 @@ function dibujarInterruptor() {
   ponerTexto(el.estado, tx(activo === null ? "interruptor.cargando" : activo ? "interruptor.encendido" : "interruptor.apagado"));
   const ayuda = claveDeAyuda(estado);
   ponerTexto(el.ayuda, ayuda ? tx(ayuda) : "");
+  ponerTexto(el.pagina, tx(claveDePagina(estado)));
 }
 
 function dibujarOpinion() {
@@ -149,28 +148,12 @@ function dibujar() {
 
 const selector = crearSelectorIdioma({ raiz: el.idioma, alElegir: elegirIdioma });
 
-// Elementos cuyo texto anima el cambio de idioma (el mensaje, región viva, no).
-function elementosConTexto() {
-  return [
-    ...document.querySelectorAll("[data-mt-texto]"),
-    el.idiomaActual,
-    el.aviso,
-    el.pista,
-    el.enviar,
-    el.pendientes,
-    el.privacidad,
-    el.estado,
-    el.ayuda,
-  ];
-}
-
-function aplicarIdioma(idioma, { animar = true } = {}) {
+// Cambiar de idioma conserva foco, selección y formulario; solo actualiza sus textos.
+function aplicarIdioma(idioma) {
   const nuevo = normalizarIdioma(idioma);
   if (nuevo === estado.idioma) return;
-  const primeraVez = estado.idioma === null; // la primera pintura no se anima
   estado.idioma = nuevo;
-  if (primeraVez || !animar) dibujar();
-  else animarCambio({ elementos: elementosConTexto(), aplicar: dibujar, raiz: el.panel });
+  dibujar();
 }
 
 function elegirIdioma(idioma) {
@@ -319,7 +302,7 @@ async function leerIdioma() {
 
 async function iniciar() {
   // El idioma primero: el panel no se muestra hasta tenerlo (idioma.css), así no parpadea en español.
-  aplicarIdioma(await leerIdioma(), { animar: false });
+  aplicarIdioma(await leerIdioma());
   // El interruptor primero, solo con storage: no espera al background ni a IndexedDB (contar
   // las opiniones), que pueden tardar en despertar o colgarse.
   const votos = browser.runtime.sendMessage({ tipo: "votos:estado" }).catch(() => ({ pendientes: null }));

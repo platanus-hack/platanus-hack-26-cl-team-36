@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Chameleon",
+  "name": "Chameleon Mode",
   "version": "0.1.0",
-  "description": "Cambia el diseño de sitios web aplicando el tema que indica la API (CSS + features).",
+  "description": "Adapta la presentación de los sitios compatibles y permite compartir tu opinión sobre la experiencia.",
 
   "icons": {
     "48": "icons/icon-48.png",
@@ -20,11 +20,11 @@
   },
 
   "action": {
-    "default_title": "Chameleon",
+    "default_title": "Chameleon Mode",
     "default_popup": "popup/popup.html",
     "default_icon": {
-      "16": "icons/icon-16.svg",
-      "32": "icons/icon.svg"
+      "16": "icons/extension-on-16.png",
+      "32": "icons/extension-on-32.png"
     }
   },
 
