@@ -156,6 +156,7 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
     Con `tema_script`, todos con ese tema. Con `conocimiento`, los exploradores con nivel leen la tarea de su nivel; el criterio
     y el juez usan `instruction`.
     """
+    cap = asyncio.Semaphore(config.parallel_attempts() or len(slots) or 1)
     async with async_playwright() as playwright:
         browsers = open_browsers(playwright, browser, cdp_url)
         try:
@@ -176,7 +177,8 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
                 )
                 for (key, attempt), user_browser in zip(slots, opened)
             ]
-            attempts = await asyncio.gather(*(user.attempt() for user in users), return_exceptions=True)
+            attempts = await asyncio.gather(*(_with_cap(user.attempt(), cap) for user in users),
+                                            return_exceptions=True)
             criteria = await criteria_task if criteria_task else None
         finally:
             await browsers.close()
@@ -202,6 +204,11 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
         _record_verdict(run, batch_dir / run.folder, references, judge, instruction, criteria) for run in runs
     ))
     return runs, criteria
+
+
+async def _with_cap(attempt, cap: asyncio.Semaphore):
+    async with cap:
+        return await attempt
 
 
 def _without_failed_browsers(opened: list, slots: list[tuple[str, int]], judged: bool) -> tuple[list, list]:

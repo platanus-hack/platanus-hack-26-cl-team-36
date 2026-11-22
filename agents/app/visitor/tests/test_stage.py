@@ -130,6 +130,32 @@ def test_runs_gives_each_profile_its_attempts_in_their_own_folders():
         attempt_slots(["desktop"], 0)
 
 
+def test_agents_visitor_parallel_caps_the_attempts_that_browse_at_once(monkeypatch):
+    from visitor import config
+
+    monkeypatch.setenv(config.PARALLEL_VAR, "2")
+    cap = asyncio.Semaphore(config.parallel_attempts())
+    active = peak = 0
+
+    async def attempt():
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+
+    async def scenario():
+        await asyncio.gather(*(batch._with_cap(attempt(), cap) for _ in range(6)))
+
+    asyncio.run(scenario())
+    assert peak == 2
+    monkeypatch.setenv(config.PARALLEL_VAR, "")
+    assert config.parallel_attempts() == 0
+    monkeypatch.setenv(config.PARALLEL_VAR, "-1")
+    with pytest.raises(ValueError):
+        config.parallel_attempts()
+
+
 def test_a_browser_that_does_not_open_skips_only_its_attempt():
     error = RuntimeError("ThrottlingException")
     slots = [("desktop", 1), ("mobile", 1), ("explorador", 1)]
