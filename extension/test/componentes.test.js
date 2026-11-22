@@ -171,6 +171,15 @@ test("urlMismoSitio: solo enlaces de la misma página, con o sin www", () => {
   assert.equal(urlMismoSitio("https://metro.cl/estaciones"), "https://metro.cl/estaciones");
 });
 
+test("transformar: rechaza patrones largos, inválidos o con cuantificadores anidados", () => {
+  const { transformar } = cargar().plantillas;
+  assert.equal(transformar("watch?v=abc-1", { patron: "v=([\\w-]+)" }), "abc-1");
+  for (const patron of ["(a+)+$", "(a*)*b", "(?:x|y+)+", "(a{1,9})+", "x".repeat(201), "(", 42]) {
+    assert.equal(transformar("aaaaaaaaaaaaaaaaaaaaaaaaaaaa!", { patron }), "", String(patron));
+  }
+  assert.equal(transformar(`${"x".repeat(2000)}FIN`, { patron: "(FIN)" }), "", "solo mira los primeros 2000 caracteres");
+});
+
 // ---------- lanzador ----------
 
 test("lanzador: una tarea por item con su enlace, en el idioma actual y con tope", () => {

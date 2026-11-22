@@ -43,8 +43,25 @@
     }
   }
 
+  // El patrón llega de un tema remoto y corre en cada página: con topes de largo y sin grupos
+  // cuantificados que repiten un cuantificador (`(a+)+`, `(a*)*`), que se cuelgan con texto hostil.
+  const MAX_PATRON = 200;
+  const MAX_TEXTO = 2000;
+  const CUANTIFICADOR_ANIDADO = /[+*}]\)+[+*{]/;
+
+  function expresion(patron) {
+    if (typeof patron !== "string" || patron.length > MAX_PATRON || CUANTIFICADOR_ANIDADO.test(patron)) return null;
+    try {
+      return new RegExp(patron);
+    } catch {
+      return null;
+    }
+  }
+
   function transformar(valor, { patron, formato = "$1" }) {
-    const coincidencia = valor.match(new RegExp(patron));
+    const regex = expresion(patron);
+    if (!regex) return "";
+    const coincidencia = valor.slice(0, MAX_TEXTO).match(regex);
     if (!coincidencia) return "";
     return formato.replace(/\$(\d)/g, (_, i) => coincidencia[Number(i)] ?? "");
   }
