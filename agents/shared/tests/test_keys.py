@@ -1,6 +1,17 @@
 import pytest
 
-from shared.store import InvalidKey, RunPrefix, cataloger, guide, normalize_host, parse_key, summary, visitor
+from shared.store import (
+    InvalidKey,
+    RunPrefix,
+    cataloger,
+    conductor,
+    guide,
+    improver,
+    normalize_host,
+    parse_key,
+    summary,
+    visitor,
+)
 
 RUN = "2026-11-21T10-44-22Z"
 
@@ -45,6 +56,8 @@ def test_prefixes() -> None:
     assert str(guide("wom.cl", "baja-fibra", "mobile")) == "wom.cl/guide/baja-fibra/mobile"
     assert str(visitor("wom.cl", "baja-fibra")) == "wom.cl/visitor/baja-fibra"
     assert str(summary("wom.cl")) == "wom.cl/summary"
+    assert str(improver("https://www.wom.cl/baja")) == "wom.cl/improver"
+    assert str(conductor("wom.cl")) == "wom.cl/conductor"
 
 
 def test_files() -> None:
@@ -59,6 +72,8 @@ def test_files() -> None:
         f"wom.cl/cataloger/{RUN}",
         f"wom.cl/cataloger/{RUN}/goals.json",
         f"wom.cl/summary/{RUN}_02/summary.md",
+        f"wom.cl/improver/{RUN}/tema.css",
+        f"wom.cl/conductor/{RUN}/manifest.json",
         f"localhost:8080/guide/baja-fibra/desktop/{RUN}/step_00.png",
         f"wom.cl/visitor/baja-fibra/{RUN}/route_tree.json",
         f"wom.cl/visitor/baja-fibra/{RUN}/first_time/video.webm",
@@ -91,6 +106,8 @@ def test_parse_parts() -> None:
         "wom.cl/cataloger/2026-13-21T10-44-22Z",
         f"wom.cl/cataloger/{RUN}/first_time/step_00.png",
         f"wom.cl/cataloger/{RUN}/goals",
+        f"wom.cl/improver/baja-fibra/{RUN}",
+        f"wom.cl/conductor/{RUN}/first_time/step_00.png",
         f"wom.cl/visitor/{RUN}/report.md",
         f"wom.cl/visitor/wom.cl-baja/{RUN}",
         f"wom.cl/visitor/Baja_Fibra/{RUN}",

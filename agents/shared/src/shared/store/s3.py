@@ -10,6 +10,7 @@ from shared.store.backend import Backend, workdir_files
 from shared.store.keys import RunKey
 
 CONTENT_TYPES = {
+    ".css": "text/css; charset=utf-8",
     ".json": "application/json",
     ".md": "text/markdown; charset=utf-8",
     ".png": "image/png",

@@ -136,7 +136,11 @@ está definido, `file:///ruta` o `s3://bucket/prefijo`).
   visitor/<goal>/<run>/                  manifest.json criteria.json route_tree.json comparison.json proposals.json report.md
       <profile>/                         run.json step_00.png … video.webm claude_code.log
   summary/<run>/                         manifest.json summary.json summary.md
+  improver/<run>/                        manifest.json tema.css
+  conductor/<run>/                       manifest.json
 ```
+
+Las corridas de una revisión llevan `revision` en el manifiesto; `revision_run` encuentra la de cada etapa.
 
 `<run>` es el instante UTC de inicio y la última corrida es la última clave. Una corrida empieza con `start_run`,
 trabaja en su carpeta y termina con `finish_run` como `succeeded` o `failed`; nunca se sobrescribe. Cada
