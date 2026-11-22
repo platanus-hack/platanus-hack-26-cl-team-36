@@ -20,10 +20,10 @@ flowchart LR
 1. **Se pide la revisión de una página.** La API la anota y lanza a los agentes.
 2. **El Catalogador** lee la página y cataloga los objetivos que ofrece a un visitante («dar de baja la fibra»,
    «consultar la tarifa del sábado»), clasificados.
-3. **La Guía** encuentra, para cada objetivo, la ruta de referencia: el camino más corto que lo logra, verificado.
+3. **La Guía** encuentra, para cada objetivo, la ruta de referencia: un camino que lo logra, verificado repitiéndolo.
 4. **El Visitante** lanza usuarios sintéticos que intentan el mismo objetivo viendo solo capturas de pantalla. Sus
    recorridos se comparan con la ruta de la Guía: dónde se desvían es donde la página confunde.
-5. **El Diseñador** escribe el tema con esa evidencia: una hoja CSS y, si hace falta, comportamientos de la extensión.
+5. **El Diseñador** escribe el tema con esa evidencia: una hoja CSS y accesos directos a las tareas del sitio.
 6. **La extensión** consulta la revisión de cada página que visitas y, si hay un tema listo, lo aplica. Un
    interruptor vuelve a la página original.
 
@@ -51,8 +51,9 @@ cada usuario sintético y qué tema quedó.
 
 - **La extensión no pide revisiones.** Solo consulta las que existen; una página sin revisión queda tal cual. Las
   revisiones se piden con `just aws revision <url>` o `just aws seed`.
-- **Los agentes no envían formularios con consecuencias ni inician sesión.** Un objetivo que termina en un pago o un
-  envío se recorre hasta el paso anterior; los que piden cuenta, datos personales o un captcha quedan fuera.
+- **Los agentes no inician sesión ni completan trámites.** Un objetivo que termina en un pago o un envío se recorre
+  hasta el paso anterior, y el navegador cancela el envío de formularios POST o con contraseña. Los que piden
+  cuenta, datos personales o un captcha quedan fuera.
 - **No demuestra que una página sea más usable para personas.** Los usuarios sintéticos señalan dónde una página
   confunde; no reemplazan una prueba con usuarios.
 

@@ -8,8 +8,8 @@ el backend y el backoffice, en español.
 | Término | Qué significa | En el código |
 |---|---|---|
 | **Tema** | Lo que la extensión aplica sobre una página: una hoja CSS con todas sus reglas bajo `html.mi-tema` y, opcionalmente, la lista de features que se activan. | `tema.css`, `tema.json` |
-| **Feature** | Un comportamiento JS de la extensión que un tema activa y configura con datos, como el modo foco o una vista. | `extension/src/features/` |
-| **Componente** | Una pieza de interfaz de la extensión con la que una vista reemplaza una sección de la página. | `extension/src/componentes/` |
+| **Feature** | Un comportamiento JS de la extensión que un tema activa y configura con datos. Los temas de la API solo traen `vista`. | `extension/src/features/` |
+| **Componente** | La pieza de interfaz con que una vista se dibuja en la página: `atajo`, `lanzador` o `buscador`. | `extension/src/componentes/` |
 | **Revisión** | El trabajo completo de los agentes sobre una página: catálogo, Guía y Visitante por objetivo, y el tema. Es lo que la extensión consulta. | `revision`; tabla `chameleon-revisiones` |
 | **Opinión** | Lo que la persona dice de una página desde el popup (mejor, peor o un comentario). Se guarda solo en su navegador. | `extension/src/popup/` |
 
@@ -24,8 +24,8 @@ el backend y el backoffice, en español.
 | **Ruta de referencia** | El camino más corto que logra un objetivo, entre los que la Guía exploró y verificó repitiéndolo. Con ella se comparan los intentos. | `route.json` |
 | **Nodo** | Una página dentro de una ruta o un recorrido: su URL normalizada más su título. | `node` |
 | **Perfil** | El usuario sintético que hace un intento. Los dos normales, uno por pantalla (escritorio y móvil), hacen la tarea sin imitar un tipo de usuario. | `profile` |
-| **Explorador** | Un perfil que recorre el sitio a propósito por varios caminos y anota hallazgos, con un nivel de conocimiento del tema. No se compara con la ruta. | `--exploradores` |
-| **Intento** | Un perfil tratando de lograr un objetivo una vez. Termina en `success`, `failed` o `abandoned`. | `run.json` |
+| **Explorador** | Un perfil que recorre el sitio a propósito por varios caminos y anota hallazgos, con un nivel de conocimiento del tema. No se compara con la ruta y solo corre en local. | `--exploradores` |
+| **Intento** | Un perfil tratando de lograr un objetivo una vez. Termina en `success`, `failed` (declaró que terminó sin llegar) o `abandoned`; `unmeasured` si no hay ruta ni juez, e `interrupted` si hubo un error técnico. | `run.json` |
 | **Paso** | Una acción dentro de un intento o de una ruta: clic, texto escrito, tecla o desplazamiento. | `step` |
 | **Recorrido** | El registro paso a paso de un intento, con la captura de cada paso. | `run.json`, `step_NN.png` |
 | **Tanda** | Los intentos de varios perfiles sobre un mismo objetivo, lanzados juntos. | una corrida de `visitor` |

@@ -15,8 +15,8 @@ compara un intento del [Visitante](../agents/app/visitor/README.md) con la ruta 
   que el sitio destaca, y el modelo del catálogo estima la **demanda**.
 - **La complejidad sale de las acciones de la ruta de referencia, sin scrolls:** hasta 5 es `easy`, de 6 a 10
   `medium`, 11 o más `hard`.
-- **Para comparar un intento con la ruta bastan cuatro datos de la ruta:** pasos, páginas distintas, nodos y nodos
-  clave. Con ellos se calculan la eficiencia (SPL), la desorientación (*lostness*), la llegada y la similitud.
+- **Para comparar un intento con la ruta bastan cuatro datos de la ruta:** pasos mínimos, páginas distintas, nodos y
+  página final. Con ellos se calculan la eficiencia (SPL), la desorientación (*lostness*), la llegada y la similitud.
 
 ## De dónde sale cada campo
 
@@ -27,7 +27,7 @@ compara un intento del [Visitante](../agents/app/visitor/README.md) con la ruta 
 | `prominence` | Reemplaza a la importancia | Ninguna fuente valida la prominencia como sustituto de Top Tasks. |
 | `complexity` | Bandas por acciones | Hay dos esquemas por pasos humanos: Online-Mind2Web (≤5, 6–10, ≥11) y VisualWebArena (≤3, 4–9, ≥10). Se adopta Online-Mind2Web porque es web abierta y real. |
 | `gates` | Lista, no un valor | Las barreras se combinan: `login`, `personal_data`, `side_effect`, `bot_check`. |
-| `parent`, `reference_route` | Se agregan | Para agrupar bajo un `summary` y calcular las métricas. |
+| `parent` | Se agrega | Para agrupar bajo un `summary`. |
 
 ## El esquema de un objetivo
 
@@ -62,20 +62,16 @@ cinco primeros campos son la forma de una tarea escrita a mano: un objetivo se p
 | `parent` | `id` de un `summary`, o `null` | El `summary` que lo contiene, si existe. |
 | `intent` | `find_info`, `reach_page`, `transact` | Por el final de la ruta. `transact` si el último paso cambia algo en el sitio o en la cuenta (pagar, contratar, recargar, enviar una solicitud o reclamo, dar de baja en línea); enviar una consulta para leer un resultado (buscar, consultar un estado o una deuda, simular, calcular) es `find_info`. `find_info` si el éxito es una respuesta que se lee (hay `expected_answer`). Si no, `reach_page`: llegar a una página o recurso. |
 | `submits_form` | `true`, `false` | `true` si no se cumple sin llenar y enviar un formulario, consultas incluidas. |
-| `prominence` | `primary`, `secondary`, `buried` | Por el primer elemento de la ruta en `start_url`, viewport de escritorio. `primary`: visible en la primera pantalla sin interactuar. `secondary`: está en las tres primeras pantallas o en un menú del encabezado. Si no, `buried`. |
-| `complexity` | `easy`, `medium`, `hard` | Por `reference_route.actions`, sin scrolls: ≤5, 6–10, ≥11. |
+| `prominence` | `primary`, `secondary`, `buried` | Por dónde está el enlace `entry` en la página inicial, viewport de escritorio. `primary`: visible en la primera pantalla. `secondary`: en las tres primeras pantallas o en un menú del encabezado. Si no, o sin `entry`, `buried`. Con una ruta verificada, el resumen la recalcula por el primer elemento que usa la ruta. |
+| `complexity` | `easy`, `medium`, `hard` | Por las acciones de la ruta de referencia (`totals.actions`), sin scrolls: ≤5, 6–10, ≥11. |
 | `gates` | Lista de `login`, `personal_data`, `side_effect`, `bot_check`; vacía = abierto | `login`: un `input type=password` o `autocomplete` `username`, `current-password`, `new-password` u `one-time-code`; o el modelo marca `requires_login`; o la entrada va a un subdominio (`ucampus.`, `mi.`, `sso.`, `login.`, `portal.`…) o ruta (`/login`, `/mi-cuenta`…) de autenticación, o la descripción es sobre datos propios («tus notas», «matricularse», «Mi …»). `personal_data`, solo si `submits_form` o `transact`, en un campo visible que no sea búsqueda ni lista: `autocomplete` de nombre, `email`, `tel`, dirección, `bday` o `cc-*`, o una etiqueta o `name` de RUT, nombre de la persona, teléfono, correo o dirección (muchos formularios no declaran `autocomplete`). `side_effect`: es `transact`. `bot_check`: iframe de reCAPTCHA, hCaptcha o Turnstile. |
 | `instruction` | texto | La tarea que reciben la Guía y el Visitante: `description` más, en `transact`, la orden de llegar hasta el paso anterior al envío sin enviar, y en `reach_page`, la de terminar en esa página. |
 | `exclusion` | texto o `null` | Por qué no se intenta: `nivel …` si no es `user_goal`, `barrera …` si tiene `login`, `personal_data` o `bot_check`. `null` si se intenta. |
 | `demand` | `top`, `common`, `rare` | Cuánta gente viene a la página a hacerlo, según el modelo del catálogo; `top` son sus 3 a 6 tareas principales. |
 | `estimated_steps` | entero | Pasos que el modelo del catálogo estima para lograrlo. Con `demand`, ordena qué objetivos recorre una revisión. |
-| `reference_route.steps` | entero | Pasos de la ruta más corta, contados con las acciones del Visitante: clic, campo escrito, tecla o desplazamiento. Es una cota inferior para quien solo ve la pantalla: un desplazamiento por cada elemento fuera de ella y a lo más uno para leer la respuesta. |
-| `reference_route.actions` | entero | Acciones de la ruta sin los desplazamientos: clic, campo escrito, opción elegida o tecla. Online-Mind2Web y Mind2Web no registran scroll. |
-| `reference_route.pages` | entero | Páginas distintas de la ruta, incluida `start_url`. |
-| `reference_route.nodes` | lista | Nodos con la identidad del árbol de rutas del Visitante: URL normalizada más título. |
-| `reference_route.key_nodes` | lista | Nodos por los que pasa toda ruta que logra el objetivo. Con una ruta, su nodo final; con varias, los nodos comunes a todas. |
 
-`complexity`, la prominencia por ruta y los números de `reference_route` están en `summary.json`; la respuesta, en
+`complexity` y la prominencia por ruta no están en `goals.json`: las calcula el resumen del sitio y quedan en
+`summary.json`. La respuesta que encontró la Guía queda en
 `answer` del `route.json` de la Guía.
 
 Los cortes de `prominence` siguen a NN/g: el 57 % del tiempo de visualización ocurre en la primera pantalla y el 81 %
@@ -92,12 +88,24 @@ reescribe como tarea cerrada o no los incluye.
 
 ## Lo que entrega la ruta de referencia
 
+Del `route.json` de la Guía:
+
+| Campo | Qué es |
+|---|---|
+| `totals.min_steps` | Pasos mínimos, en la unidad del Visitante: un clic o una tecla es 1; escribir o elegir en una lista, 2; cada elemento que estaba fuera de pantalla suma un scroll, y uno más si al final la cita no está en pantalla. |
+| `totals.actions` | Acciones de la ruta, sin contar los scrolls que hacen falta para alcanzar cada elemento. Online-Mind2Web y Mind2Web tampoco los registran. |
+| `totals.distinct_pages` | Páginas distintas de la ruta, incluida la inicial. |
+| `nodes` | Los nodos de la ruta, con la identidad del árbol de rutas del Visitante: URL normalizada más título. |
+| `final_node` | La página donde termina la ruta. |
+
+Y para qué sirve cada uno:
+
 | Dato de la ruta | Para qué |
 |---|---|
-| ℓ = `steps` | Eficiencia (SPL) |
-| R = `pages` | Desorientación |
+| ℓ = `totals.min_steps` | Eficiencia (SPL) |
+| R = `totals.distinct_pages` | Desorientación |
 | `nodes` | Similitud de secuencia |
-| `key_nodes` | Llegada: con una ruta, su página final |
+| `final_node` | Llegada, y con ella el éxito |
 
 Del intento, todo sale del `run.json`: p = pasos dados, T = páginas visitadas en total, N = páginas distintas, la
 secuencia de nodos y s ∈ {0, 1}: si pasó por la página final de la ruta.
