@@ -9,7 +9,7 @@ from shared import store
 from shared.browser.session import open_browser
 from shared.browser.viewports import SCREENS
 from shared.catalog.files import read_catalog
-from shared.catalog.goal import exclusion, instruction_goal_id
+from shared.catalog.goal import Goal, exclusion, instruction_goal_id
 from shared.catalog.tasks import available_tasks, load_task
 from shared.claude.workdir import claude_workdir
 
@@ -77,22 +77,37 @@ def _task_mappings(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
             for key in viewports]
 
 
+def _revision_goal(backend: store.Backend, catalog: store.RunKey | None, args: argparse.Namespace) -> Goal | str:
+    """El objetivo `--goal` del catálogo de la revisión, o por qué no se mapea."""
+    if catalog is None or store.read_manifest(backend, catalog).status != "succeeded":
+        return f"no hay catálogo terminado de la revisión {args.revision} para {args.url}"
+    goal = next((goal for goal in read_catalog(backend, catalog)[1] if goal.id == args.goal), None)
+    if goal is None:
+        return f"el catálogo {catalog} no tiene el objetivo {args.goal}"
+    if exclusion(goal):
+        return f"el objetivo {args.goal} está excluido: {exclusion(goal)}"
+    # La corrida queda bajo el host de la ruta, y el conductor la busca bajo el de --url.
+    if store.normalize_host(goal.start_url) != store.normalize_host(args.url):
+        return f"el objetivo {args.goal} empieza en otro sitio: {goal.start_url}"
+    return goal
+
+
 def _revision_mappings(parser: argparse.ArgumentParser, args: argparse.Namespace, backend: store.Backend) -> list[Mapping]:
-    """El objetivo `--goal` del catálogo de la revisión; sin catálogo, sin el objetivo o excluido, no crea corrida."""
+    """Sin el objetivo, deja una corrida `failed` de la revisión: el conductor espera su manifiesto."""
     if not (args.url and args.goal) or args.task or args.instruction or args.site:
         parser.error("usa --revision con --url y --goal, sin --task, --instruction ni --site")
     try:
         store.validate_revision(args.revision)
+        prefix = store.guide(args.url, args.goal, "desktop")
         catalog = store.revision_run(backend, store.cataloger(args.url), args.revision)
     except ValueError as error:
         parser.error(str(error))
-    if catalog is None or store.read_manifest(backend, catalog).status != "succeeded":
-        parser.error(f"no hay catálogo terminado de la revisión {args.revision} para {args.url}")
-    goal = next((goal for goal in read_catalog(backend, catalog)[1] if goal.id == args.goal), None)
-    if goal is None:
-        parser.error(f"el catálogo {catalog} no tiene el objetivo {args.goal}")
-    if exclusion(goal):
-        parser.error(f"el objetivo {args.goal} está excluido: {exclusion(goal)}")
+    goal = _revision_goal(backend, catalog, args)
+    if isinstance(goal, str):
+        run = store.start_run(backend, prefix, model=args.model, inputs=(catalog,) if catalog else (),
+                              revision=args.revision)
+        store.finish_run(backend, run, "failed")
+        sys.exit(f"{goal}; la corrida {run.key} queda failed")
     return goal_mappings([goal], catalog, args.model, args.effort, args.shorter, revision=args.revision)
 
 

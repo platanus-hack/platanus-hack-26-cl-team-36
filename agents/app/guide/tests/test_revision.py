@@ -114,18 +114,21 @@ def test_a_route_not_found_fails_the_run_and_exits_non_zero(served, backend, scr
     ("rev-a", "otra", "no tiene el objetivo otra"),
     ("rev-a", "login", "excluido: barrera login"),
     ("rev-a", "resumen", "excluido: nivel summary"),
+    ("rev-a", "ajeno", "empieza en otro sitio"),
 ])
-def test_missing_or_excluded_goals_exit_without_a_run(served, backend, scripted, capsys, revision, goal, message):
+def test_a_goal_it_cannot_map_leaves_a_failed_run_of_the_revision(served, backend, scripted, revision, goal, message):
     _catalog(backend, served, "rev-a", [
         _goal("baja", served, "x"),
         _goal("login", served, "x", gates=["login"]),
         _goal("resumen", served, "x", level="summary"),
+        _goal("ajeno", "https://otro.cl/", "x"),
     ])
     _catalog(backend, served, "rev-fallida", [_goal("baja", served, "x")], status="failed")
     with pytest.raises(SystemExit) as exit_info:
         _route("--url", served, "--revision", revision, "--goal", goal)
-    assert exit_info.value.code == 2 and message in capsys.readouterr().err
-    assert _guide_runs(backend, served, goal) == [] and scripted["seen"] == []
+    assert exit_info.value.code != 0 and message in str(exit_info.value.code)
+    run = store.revision_run(backend, store.guide(served, goal, "desktop"), revision)
+    assert store.read_manifest(backend, run).status == "failed" and scripted["seen"] == []
 
 
 @pytest.mark.parametrize("options", [
@@ -152,11 +155,11 @@ def test_without_revision_an_unfound_route_still_succeeds_outside_any_revision(s
     assert backend.read_json(run.file("route.json"))["status"] == "not_found"
 
 
-def test_on_aws_engines_it_does_not_need_the_claude_command(backend, monkeypatch, capsys):
+def test_on_aws_engines_it_does_not_need_the_claude_command(backend, monkeypatch):
     monkeypatch.setenv("AGENTS_ENGINE", "bedrock")
     monkeypatch.setenv("AGENTS_BROWSER", "agentcore")
     monkeypatch.setattr(main.shutil, "which", lambda name: None)
     monkeypatch.setattr(sys, "argv", ["main.py", "route", "--url", "https://sitio.cl/", "--revision", "r1", "--goal", "a"])
     with pytest.raises(SystemExit) as exit_info:
         main.main()
-    assert exit_info.value.code == 2 and "no hay catálogo terminado de la revisión r1" in capsys.readouterr().err
+    assert "no hay catálogo terminado de la revisión r1" in str(exit_info.value.code)

@@ -33,7 +33,7 @@ uv run main.py adopt --goal wom.cl/baja-fibra
 | `--task <host>/<id>` | Una tarea de [`agents/tasks/`](../../tasks/). |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el objetivo es `libre-<palabras>-<hash>` de la instrucción. |
 | `--site <url>` | El último catálogo del sitio, del [Catalogador](../cataloger/README.md): la ruta de sus objetivos sin `exclusion`, primero los menos prominentes, en desktop. |
-| `--url`, `--revision` y `--goal` | El objetivo `--goal` del catálogo de esa revisión, en desktop, en una corrida de la revisión. Sin ese catálogo, o con el objetivo ausente o con `exclusion`, sale con error sin crear corrida; si la ruta no queda `verified`, la corrida termina `failed` y la salida es 1. |
+| `--url`, `--revision` y `--goal` | El objetivo `--goal` del catálogo de esa revisión, en desktop, en una corrida de la revisión. Si no hay catálogo, el objetivo falta, tiene `exclusion` o empieza en otro host, o la ruta no queda `verified`, la corrida termina `failed` y la salida es 1. |
 | `--routes N` | Con `--site`: deja hasta N objetivos con ruta verificada, o todos con `all` (por defecto 0); los que ya tienen una corrida verificada para la misma instrucción cuentan y no se rehacen. |
 | `--rerun` | Con `--site`: rehace también las rutas ya verificadas. |
 | `--viewports` | Viewports separados por coma: `desktop` (1024x768, el de `first_time` y `hurried`) y `mobile` (390x844). Por defecto, `desktop`. |
