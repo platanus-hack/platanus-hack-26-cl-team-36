@@ -4,6 +4,7 @@ import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from playwright.async_api import Error as PlaywrightError
 
@@ -14,7 +15,7 @@ from shared.claude.caller import ClaudeCallError
 from guide import config
 from guide.decider import Decider, Decision
 from guide.locators import record_locators
-from guide.operate import ELEMENT_ACTIONS, ActionRejected, Log, perform_step
+from guide.operate import ELEMENT_ACTIONS, ActionRejected, Log, now, perform_step
 from guide.page_view import PageView, element_for_ref, read_page_view
 from guide.prompts import HistoryEntry, render_turn
 from guide.quote import quote_in_text
@@ -22,16 +23,22 @@ from guide.route import Step, Target
 
 _FINAL_REASONS = {"blocked": "blocked", "give_up": "gave_up"}
 _STEP_LIMIT_OUTCOME = "rechazada: se alcanzó el máximo de acciones; solo puedes terminar con done, blocked o give_up"
+_QUOTE_REJECTED = ("rechazada: la cita no está en el texto visible de la página o es una sola palabra. Copia tal cual"
+                   " una frase corta (una línea) de la sección TEXTO DE LA PÁGINA, no del título de la pestaña, la URL"
+                   " ni la captura; si la respuesta no está en ese texto, ve a la página que la muestra")
+_LEAVES_SITE = ("rechazada: ese enlace lleva a otro sitio y ningún enlace hacia allá se puede seguir. Usa otro enlace"
+                " de este sitio o, si la tarea continúa allá, termina con done citando el texto de ese enlace")
 
 
 @dataclass
 class Exploration:
     start_url: str = ""
+    site_urls: tuple[str, ...] = ()  # la URL pedida y la de llegada: un enlace del sitio de cualquiera es del sitio
     start_title: str = ""
     start_screenshot: bytes = field(default=b"", repr=False)
     steps: list[Step] = field(default_factory=list)
     history: list[HistoryEntry] = field(default_factory=list)
-    # done | blocked | gave_up | step_limit | time_limit | turn_limit | model_error | browser_error
+    # done | blocked | gave_up | step_limit | time_limit | turn_limit | repeated_rejection | model_error | browser_error
     end_reason: str = ""
     message: str = ""
     answer: str = ""
@@ -40,6 +47,9 @@ class Exploration:
     turns: int = 0
     duration_s: float = 0.0
     step_limit_warned: bool = False
+    started: datetime | None = None   # abierta la página inicial: origen de `seconds_since_start` de cada paso
+    last_rejection: tuple[str, str] | None = None   # acción y rechazo del turno anterior
+    repeated_rejections: int = 0
 
 
 Progress = Callable[[Exploration], Awaitable[None]]
@@ -57,10 +67,13 @@ def _describe(decision: Decision, view: PageView) -> str:
         parts.append(f"«{element.name}»")
     if decision.text and decision.action != "click":
         parts.append(f"«{decision.text}»")
+    if decision.action == "done" and decision.quote:
+        parts.append(f"cita «{decision.quote[:150]}»")
     return " ".join(part for part in parts if part)
 
 
-async def _act(session: BrowserSession, decision: Decision, view: PageView) -> Step:
+async def _act(session: BrowserSession, decision: Decision, view: PageView, started: datetime | None = None,
+               decided: datetime | None = None) -> Step:
     element = view.element(decision.ref) if decision.action in ELEMENT_ACTIONS and decision.ref else None
     handle = await element_for_ref(session.page, decision.ref) if element else None
     target = None
@@ -68,7 +81,7 @@ async def _act(session: BrowserSession, decision: Decision, view: PageView) -> S
         locators = await record_locators(session.page, handle, element)
         target = Target(element.tag, element.role, element.name, element.text, element.href, locators)
     reappear_s = config.REAPPEAR_S if element and element.visible else 0.0
-    return await perform_step(session, decision.action, decision.text, handle, target, reappear_s)
+    return await perform_step(session, decision.action, decision.text, handle, target, reappear_s, started, decided)
 
 
 def _exhausted_limit(exploration: Exploration, remaining_s: float) -> str | None:
@@ -78,14 +91,14 @@ def _exhausted_limit(exploration: Exploration, remaining_s: float) -> str | None
 
 
 async def _apply(session: BrowserSession, decision: Decision, view: PageView, exploration: Exploration,
-                 progress: Progress) -> str | None:
+                 progress: Progress, decided: datetime) -> str | None:
     """Aplica una decisión. Devuelve el resultado para el historial, o None si la exploración terminó."""
     if decision.action in _FINAL_REASONS:
         exploration.end_reason, exploration.message = _FINAL_REASONS[decision.action], decision.text or ""
         return None
     if decision.action == "done":
         if not quote_in_text(decision.quote or "", view.text):
-            return "rechazada: la cita no está en el texto visible de la página"
+            return _QUOTE_REJECTED
         exploration.end_reason, exploration.answer, exploration.quote = "done", decision.answer or "", decision.quote
         exploration.final_node = node_key(view.url, view.title)
         return None
@@ -97,10 +110,10 @@ async def _apply(session: BrowserSession, decision: Decision, view: PageView, ex
         exploration.step_limit_warned = True
         return _STEP_LIMIT_OUTCOME
     element = view.element(decision.ref or "")
-    if decision.action == "click" and element and element.leaves_site(exploration.start_url):
-        return "rechazada: ese enlace lleva a otro sitio; usa solo lo que ofrece este"
+    if decision.action == "click" and element and element.leaves_site(exploration.site_urls):
+        return _LEAVES_SITE
     try:
-        step = await _act(session, decision, view)
+        step = await _act(session, decision, view, exploration.started, decided)
     except ActionRejected as error:
         return f"error: {error}"
     except PlaywrightError as error:
@@ -108,6 +121,24 @@ async def _apply(session: BrowserSession, decision: Decision, view: PageView, ex
     exploration.steps.append(step)
     await progress(exploration)
     return f"llegó a «{step.title_after}» {step.url_after}"
+
+
+def _count_rejection(exploration: Exploration, action: str, outcome: str) -> str:
+    """Corta la exploración tras config.MAX_REPEATED_REJECTIONS rechazos iguales seguidos: el modelo no se corrige solo."""
+    if outcome.startswith("llegó"):
+        exploration.last_rejection, exploration.repeated_rejections = None, 0
+        return outcome
+    rejection = (action, outcome)
+    same = rejection == exploration.last_rejection
+    exploration.last_rejection = rejection
+    exploration.repeated_rejections = exploration.repeated_rejections + 1 if same else 1
+    count = exploration.repeated_rejections
+    if count >= config.MAX_REPEATED_REJECTIONS:
+        exploration.end_reason, exploration.message = "repeated_rejection", f"{count} veces seguidas: {outcome}"
+    elif count > 1:
+        outcome += (f" (rechazo igual n.º {count} seguido; al {config.MAX_REPEATED_REJECTIONS}.º la exploración"
+                    " termina: haz otra cosa)")
+    return outcome
 
 
 async def _read_view(session: BrowserSession) -> PageView:
@@ -123,7 +154,7 @@ async def _turn(session: BrowserSession, decider: Decider, instruction: str, exp
                 remaining_s: float, log: Log, progress: Progress) -> None:
     view = await _read_view(session)
     exploration.turns += 1
-    prompt = render_turn(instruction, exploration.history, view)
+    prompt = render_turn(instruction, exploration.history, view, exploration.site_urls)
     try:
         decision = await asyncio.wait_for(decider.decide(prompt, await session.screenshot()), timeout=remaining_s)
     except TimeoutError:
@@ -132,8 +163,9 @@ async def _turn(session: BrowserSession, decider: Decider, instruction: str, exp
     except ClaudeCallError as error:
         exploration.end_reason, exploration.message = "model_error", str(error)
         return
-    outcome = await _apply(session, decision, view, exploration, progress)
+    outcome = await _apply(session, decision, view, exploration, progress, now())
     if outcome is not None:
+        outcome = _count_rejection(exploration, decision.action, outcome)
         exploration.history.append(HistoryEntry(decision.reason or "", _describe(decision, view), outcome))
         log(f"turno {exploration.turns}: {_describe(decision, view)} -> {outcome}")
 
@@ -146,7 +178,9 @@ async def explore(session: BrowserSession, url: str, decider: Decider, instructi
     try:
         await session.open(url)
         exploration.start_url, exploration.start_title = await session.url_and_title()
+        exploration.site_urls = (url, exploration.start_url)
         exploration.start_screenshot = await session.screenshot()
+        exploration.started = now()
         await progress(exploration)
         while not exploration.end_reason:
             remaining_s = config.MAX_SECONDS - (time.monotonic() - started)

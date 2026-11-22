@@ -172,8 +172,13 @@ export function clienteAgentCore({ region = process.env.AWS_REGION, credenciales
   };
 }
 
-// El runtime corre en modo async: responde al aceptar la tarea, sin esperar a que termine.
-export function runtimeAgentes(nombre, { llamar = clienteAgentCore() } = {}) {
+// Sin respuesta (timeout, red) o con un 5xx no se sabe si AgentCore lanzó la tarea; un 4xx dice que no.
+export const invocacionIncierta = (error) => !/^AgentCore4\d\d$/.test(error.name);
+
+// El runtime corre en modo async: responde al aceptar la tarea, sin esperar a que termine. No se reintenta:
+// InvokeAgentRuntime no es idempotente (repetir la sesión vuelve a ejecutar en ella).
+// `timeoutMs` da tiempo al arranque en frío del contenedor (p. ej. tras un despliegue) dentro de los 30 s de la API.
+export function runtimeAgentes(nombre, { llamar = clienteAgentCore(), timeoutMs = 20_000 } = {}) {
   let arn;
 
   // Por nombre y no por ARN: el ARN cambia si el runtime se recrea o se renombra.
@@ -183,6 +188,7 @@ export function runtimeAgentes(nombre, { llamar = clienteAgentCore() } = {}) {
       const respuesta = await llamar("bedrock-agentcore-control", "/runtimes/", {
         cuerpo: JSON.stringify({ maxResults: 100, ...(nextToken && { nextToken }) }),
         cabeceras: { "content-type": "application/json" },
+        timeoutMs: 5_000,
       });
       const pagina = await respuesta.json();
       const runtime = pagina.agentRuntimes?.find((r) => coincideRuntime(r.agentRuntimeName, nombre));
@@ -203,11 +209,12 @@ export function runtimeAgentes(nombre, { llamar = clienteAgentCore() } = {}) {
             accept: "application/json",
             "x-amzn-bedrock-agentcore-runtime-session-id": randomUUID(),
           },
+          timeoutMs,
         });
         await respuesta.body?.cancel();
       } catch (error) {
         arn = undefined;
-        throw error;
+        throw Object.assign(error, { incierta: invocacionIncierta(error) });
       }
     },
   };

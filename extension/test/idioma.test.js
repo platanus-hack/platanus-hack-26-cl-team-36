@@ -49,7 +49,6 @@ test("t: traduce, interpola y formatea números según el idioma", () => {
   assert.equal(t("en", "opinion.enviar"), "Send");
   assert.equal(t("es", "motivo.largo", { max: 2000 }), "El comentario es muy largo (máximo 2.000 caracteres).");
   assert.equal(t("en", "motivo.largo", { max: 2000 }), "Your comment is too long (2,000 characters max).");
-  assert.equal(t("en", "idioma.boton", { nombre: "English" }), "Language: English. Change language");
 });
 
 test("t: plurales con cero, uno y otros", () => {
@@ -64,7 +63,7 @@ test("t: idioma desconocido cae al español; clave desconocida se devuelve tal c
   assert.equal(t("fr", "opinion.enviar"), "Enviar");
   assert.equal(t(undefined, "opinion.enviar"), "Enviar");
   assert.equal(t("en", "no.existe"), "no.existe");
-  assert.equal(t("en", "idioma.boton"), "Language: {nombre}. Change language"); // sin el parámetro queda la marca
+  assert.equal(t("en", "motivo.largo"), "Your comment is too long ({max} characters max)."); // sin el parámetro queda la marca
 });
 
 test("normalizarIdioma: solo acepta idiomas del diccionario", () => {

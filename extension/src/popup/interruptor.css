@@ -2,13 +2,13 @@
  *
  * Estados (los pone popup.js en body[data-activo]):
  * - "cargando": gris y quieto.
- * - "no": dormido. Piel gris, ojo cerrado, respira muy lento; el sello de runas apenas se ve.
+ * - "no": dormido. Piel gris, ojo cerrado, respira muy lento.
  * - "si": despierto. Piel del espectro con un brillo que la recorre de la cabeza a la cola, parpadea,
  *   mira alrededor (o sigue al puntero: --mt-mirar-x/y y .mt-mirando, de interruptor.js), respira,
- *   aura y anillo del espectro girando, sello de runas encendido.
+ *   aura y anillo del espectro girando.
  * Transformaciones (clases temporales en .mt-control que pone interruptor.js; nunca al abrir):
  * - .mt-despertando: se encoge, destello, onda del espectro, chispas que salen, la piel se tiñe de
- *   la cabeza a la cola, el ojo se abre (y parpadea de asombro), el anillo se dibuja, aparece el sello.
+ *   la cabeza a la cola, el ojo se abre (y parpadea de asombro), el anillo se dibuja.
  * - .mt-durmiendo: el ojo se cierra con sueño, la piel se apaga de la cola a la cabeza, las chispas
  *   vuelven hacia adentro, el anillo se borra, el aura se apaga.
  * El logo nunca lleva filtros ni rotación (regla de marca): el brillo y el aura son capas aparte.
@@ -22,7 +22,6 @@
 
 .mt-control {
   --mt-piel-dormida: #5f5f73;
-  --mt-tinta-runa: #3b3b4d;
   --mt-ciclo: 3.2s; /* respiración, pulso del aura y del punto de estado, juntos */
 
   display: flex;
@@ -168,81 +167,12 @@ body[data-activo="si"] .mt-disco {
     radial-gradient(circle at 50% 35%, var(--mt-superficie-alta), var(--mt-tinta));
 }
 
-.mt-sello,
 .mt-destello,
 .mt-cuerpo {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-}
-
-/* ---------- Sello de runas ---------- */
-
-.mt-sello {
-  opacity: 0.55;
-  transition: opacity 500ms ease;
-}
-
-.mt-sello-giro {
-  width: 100%;
-  height: 100%;
-  animation: mt-girar 48s linear infinite reverse paused;
-}
-
-.mt-sello-aro {
-  stroke: var(--mt-borde);
-  stroke-width: 0.6;
-}
-
-.mt-sello-aro-interior {
-  stroke-dasharray: 0.8 3.2;
-  stroke-linecap: round;
-}
-
-.mt-runas {
-  opacity: 0.8;
-  transition: opacity 300ms ease;
-}
-
-.mt-runa {
-  stroke: var(--mt-tinta-runa);
-  stroke-width: 0.75;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.mt-runa-punto {
-  fill: var(--mt-tinta-runa);
-}
-
-body[data-activo="no"] .mt-interruptor:is(:hover, :focus-visible) .mt-sello {
-  opacity: 0.85;
-}
-
-body[data-activo="si"] .mt-sello {
-  opacity: 1;
-}
-
-body[data-activo="si"] .mt-sello-giro {
-  animation-play-state: running;
-}
-
-body[data-activo="si"] .mt-sello-aro {
-  stroke: url(#mt-sello-tinta);
-  opacity: 0.45;
-}
-
-body[data-activo="si"] .mt-runa {
-  stroke: url(#mt-sello-tinta);
-}
-
-body[data-activo="si"] .mt-runa-punto {
-  fill: url(#mt-sello-tinta);
-}
-
-body[data-activo="si"] .mt-interruptor:is(:hover, :focus-visible) .mt-runas {
-  opacity: 1;
 }
 
 /* ---------- Destello del despertar ---------- */
@@ -465,14 +395,6 @@ body[data-activo="no"] .mt-estado {
   animation: mt-aura-encender 1300ms ease-out 150ms both;
 }
 
-.mt-control.mt-despertando .mt-sello {
-  animation: mt-sello-aparecer 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) 200ms both;
-}
-
-.mt-control.mt-despertando .mt-runa {
-  animation: mt-runa-arder 650ms ease-out calc(380ms + var(--mt-i, 0) * 45ms) both;
-}
-
 .mt-control.mt-despertando .mt-estado,
 .mt-control.mt-durmiendo .mt-estado {
   animation: mt-texto-entrar 500ms ease-out 150ms both;
@@ -516,26 +438,6 @@ body[data-activo="no"] .mt-estado {
 
 .mt-control.mt-durmiendo .mt-aura {
   animation: mt-aura-apagar 800ms ease-in both;
-}
-
-.mt-control.mt-durmiendo .mt-sello-giro {
-  animation-play-state: running;
-}
-
-/* Las runas siguen encendidas mientras el sello se apaga; el gris dormido aparece después. */
-@media (prefers-reduced-motion: no-preference) {
-  .mt-control.mt-durmiendo .mt-runa,
-  .mt-control.mt-durmiendo .mt-sello-aro {
-    stroke: url(#mt-sello-tinta);
-  }
-
-  .mt-control.mt-durmiendo .mt-runa-punto {
-    fill: url(#mt-sello-tinta);
-  }
-}
-
-.mt-control.mt-durmiendo .mt-sello {
-  animation: mt-sello-apagar 1000ms ease-in-out both;
 }
 
 /* ---------- Keyframes ---------- */
@@ -873,48 +775,6 @@ body[data-activo="no"] .mt-estado {
   }
 }
 
-@keyframes mt-sello-aparecer {
-  0% {
-    opacity: 0;
-    transform: scale(1.35) rotate(-120deg);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(0.97) rotate(6deg);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) rotate(0);
-  }
-}
-
-@keyframes mt-sello-apagar {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  55%,
-  100% {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-}
-
-@keyframes mt-runa-arder {
-  0% {
-    opacity: 0;
-    stroke-width: 0.75;
-  }
-  35% {
-    opacity: 1;
-    stroke-width: 1.4;
-  }
-  100% {
-    opacity: 1;
-    stroke-width: 0.75;
-  }
-}
-
 @keyframes mt-dormir-cuerpo {
   0%,
   100% {
@@ -950,7 +810,7 @@ body[data-activo="no"] .mt-estado {
 
 /* ---------- Efectos «sutiles»: en vez de despertar o dormirse, el camaleón se funde de un estado al otro ---------- */
 
-.mt-control.mt-cambio-sutil :is(.mt-cuerpo, .mt-sello) {
+.mt-control.mt-cambio-sutil .mt-cuerpo {
   animation: mt-fundido 320ms ease-out both;
 }
 
@@ -984,7 +844,7 @@ body[data-activo="no"] .mt-estado {
     transform: translate(1.04px, 1.41px);
   }
 
-  .mt-control:is(.mt-despertando, .mt-durmiendo, .mt-cambio-sutil) :is(.mt-cuerpo, .mt-sello) {
+  .mt-control:is(.mt-despertando, .mt-durmiendo, .mt-cambio-sutil) .mt-cuerpo {
     animation: mt-fundido 320ms ease-out both !important;
   }
 }
