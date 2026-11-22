@@ -18,6 +18,7 @@ export function fuenteSSE(revision, goal, { alRuta = () => {}, alEstado = () => 
   const vistos = new Set();
   let oyente = null;
   let ruta = null;
+  let textoDeRuta = null;
   let estado = null;
   let avisarListo;
   const listo = new Promise((resolver) => (avisarListo = resolver));
@@ -51,12 +52,15 @@ export function fuenteSSE(revision, goal, { alRuta = () => {}, alEstado = () => 
     recibidos.push(evento);
     oyente?.(evento);
   });
+  // Cada conexión (también una reconexión) vuelve a mandar la ruta: solo se avisa si cambió.
   conexion.addEventListener("ruta", (mensaje) => {
+    if (mensaje.data === textoDeRuta) return;
     try {
       ruta = JSON.parse(mensaje.data);
     } catch {
       return;
     }
+    textoDeRuta = mensaje.data;
     alRuta(ruta);
   });
   conexion.addEventListener("listo", () => avisarListo());

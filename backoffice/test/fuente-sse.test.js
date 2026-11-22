@@ -100,12 +100,13 @@ test("deduplica por id: lo que reenvía una reconexión no se repite", () => {
   assert.equal(es2.cerrada, true);
 });
 
-test("`ruta` avisa con la lista de páginas y queda a mano en fuente.ruta", () => {
+test("`ruta` avisa con la lista de páginas cuando cambia y queda a mano en fuente.ruta", () => {
   const rutas = [];
   const { fuente, es } = abrir({ alRuta: (ruta) => rutas.push(ruta) });
   const ruta = [{ url: "https://ejemplo.test/", title: "Inicio" }, { url: "https://ejemplo.test/ayuda", title: "Ayuda" }];
   es.con("ruta", ruta);
-  assert.deepEqual(rutas, [ruta]);
+  es.con("ruta", ruta);
+  assert.deepEqual(rutas, [ruta], "la misma ruta de una reconexión no avisa otra vez");
   assert.deepEqual(fuente.ruta, ruta);
   fuente.cerrar();
 });
