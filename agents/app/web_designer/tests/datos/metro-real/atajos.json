@@ -1,0 +1,547 @@
+{
+  "atajos": [],
+  "lanzador": {
+    "id": "tareas",
+    "rutas": [
+      "/"
+    ],
+    "contenedor": "main",
+    "reemplazar": false,
+    "componente": "lanzador",
+    "datos": [
+      {
+        "titulo": {
+          "es": "Planifica tu viaje en metro ingresando",
+          "en": "Planifica tu viaje en metro ingresando"
+        },
+        "enlace": "/el-viaje/planificador/?inicio=SP&fin=NP&horario=VALLE&dia=DL",
+        "detalle": {
+          "es": "Planifica tu viaje en metro ingresando la estación de origen, destino, hora y día",
+          "en": "Planifica tu viaje en metro ingresando la estación de origen, destino, hora y día"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta información de transparencia activa",
+          "en": "Consulta información de transparencia activa"
+        },
+        "enlace": "/transparencia-activa/",
+        "detalle": {
+          "es": "Consulta información de transparencia activa del metro",
+          "en": "Consulta información de transparencia activa del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta el estado actual del servicio de todas",
+          "en": "Consulta el estado actual del servicio de todas"
+        },
+        "enlace": "/el-viaje/estado-red",
+        "detalle": {
+          "es": "Consulta el estado actual del servicio de todas las líneas de metro",
+          "en": "Consulta el estado actual del servicio de todas las líneas de metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Encuentra información sobre las estaciones",
+          "en": "Encuentra información sobre las estaciones"
+        },
+        "enlace": "/el-viaje/estaciones",
+        "detalle": {
+          "es": "Encuentra información sobre las estaciones del metro",
+          "en": "Encuentra información sobre las estaciones del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Visualiza el plano de la red de metro",
+          "en": "Visualiza el plano de la red de metro"
+        },
+        "enlace": "/el-viaje/plano-de-red",
+        "detalle": {
+          "es": "Visualiza el plano de la red de metro de Santiago",
+          "en": "Visualiza el plano de la red de metro de Santiago"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta los horarios de funcionamiento",
+          "en": "Consulta los horarios de funcionamiento"
+        },
+        "enlace": "/el-viaje/horarios-y-tarifas",
+        "detalle": {
+          "es": "Consulta los horarios de funcionamiento y tarifas del metro",
+          "en": "Consulta los horarios de funcionamiento y tarifas del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Carga saldo a tu tarjeta BIP desde el sitio web",
+          "en": "Carga saldo a tu tarjeta BIP desde el sitio web"
+        },
+        "enlace": "/el-viaje/carga-bip"
+      },
+      {
+        "titulo": {
+          "es": "Obtén un voucher digital de viajes",
+          "en": "Obtén un voucher digital de viajes"
+        },
+        "enlace": "/voucher-digital"
+      }
+    ],
+    "opciones": {
+      "max": 6
+    }
+  },
+  "buscador": {
+    "id": "buscar",
+    "rutas": [
+      "/"
+    ],
+    "contenedor": "main",
+    "reemplazar": false,
+    "componente": "buscador",
+    "datos": [
+      {
+        "titulo": {
+          "es": "Consulta información de transparencia activa",
+          "en": "Consulta información de transparencia activa"
+        },
+        "enlace": "/transparencia-activa/",
+        "detalle": {
+          "es": "Consulta información de transparencia activa del metro",
+          "en": "Consulta información de transparencia activa del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta el estado actual del servicio de todas",
+          "en": "Consulta el estado actual del servicio de todas"
+        },
+        "enlace": "/el-viaje/estado-red",
+        "detalle": {
+          "es": "Consulta el estado actual del servicio de todas las líneas de metro",
+          "en": "Consulta el estado actual del servicio de todas las líneas de metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Planifica tu viaje en metro ingresando",
+          "en": "Planifica tu viaje en metro ingresando"
+        },
+        "enlace": "/el-viaje/planificador",
+        "detalle": {
+          "es": "Planifica tu viaje en metro ingresando la estación de origen, destino, hora y día",
+          "en": "Planifica tu viaje en metro ingresando la estación de origen, destino, hora y día"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Encuentra información sobre las estaciones",
+          "en": "Encuentra información sobre las estaciones"
+        },
+        "enlace": "/el-viaje/estaciones",
+        "detalle": {
+          "es": "Encuentra información sobre las estaciones del metro",
+          "en": "Encuentra información sobre las estaciones del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Visualiza el plano de la red de metro",
+          "en": "Visualiza el plano de la red de metro"
+        },
+        "enlace": "/el-viaje/plano-de-red",
+        "detalle": {
+          "es": "Visualiza el plano de la red de metro de Santiago",
+          "en": "Visualiza el plano de la red de metro de Santiago"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta los horarios de funcionamiento",
+          "en": "Consulta los horarios de funcionamiento"
+        },
+        "enlace": "/el-viaje/horarios-y-tarifas",
+        "detalle": {
+          "es": "Consulta los horarios de funcionamiento y tarifas del metro",
+          "en": "Consulta los horarios de funcionamiento y tarifas del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Carga saldo a tu tarjeta BIP desde el sitio web",
+          "en": "Carga saldo a tu tarjeta BIP desde el sitio web"
+        },
+        "enlace": "/el-viaje/carga-bip"
+      },
+      {
+        "titulo": {
+          "es": "Obtén un voucher digital de viajes",
+          "en": "Obtén un voucher digital de viajes"
+        },
+        "enlace": "/voucher-digital"
+      },
+      {
+        "titulo": {
+          "es": "Conoce los diferentes tipos de carga disponibles",
+          "en": "Conoce los diferentes tipos de carga disponibles"
+        },
+        "enlace": "/el-viaje/tipos-de-carga",
+        "detalle": {
+          "es": "Conoce los diferentes tipos de carga disponibles para tu tarjeta BIP",
+          "en": "Conoce los diferentes tipos de carga disponibles para tu tarjeta BIP"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta información sobre conexiones",
+          "en": "Consulta información sobre conexiones"
+        },
+        "enlace": "/el-viaje/intermodalidad",
+        "detalle": {
+          "es": "Consulta información sobre conexiones intermodales disponibles",
+          "en": "Consulta información sobre conexiones intermodales disponibles"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta información sobre la Ruta Expresa",
+          "en": "Consulta información sobre la Ruta Expresa"
+        },
+        "enlace": "/el-viaje/ruta-expresa",
+        "detalle": {
+          "es": "Consulta información sobre la Ruta Expresa de metro",
+          "en": "Consulta información sobre la Ruta Expresa de metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Aprende cómo mejorar tu experiencia al viajar",
+          "en": "Aprende cómo mejorar tu experiencia al viajar"
+        },
+        "enlace": "/guia-del-usuario/experiencia-de-viaje",
+        "detalle": {
+          "es": "Aprende cómo mejorar tu experiencia al viajar en metro",
+          "en": "Aprende cómo mejorar tu experiencia al viajar en metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta información sobre accesibilidad",
+          "en": "Consulta información sobre accesibilidad"
+        },
+        "enlace": "/guia-del-usuario/metro-accesible",
+        "detalle": {
+          "es": "Consulta información sobre accesibilidad en las estaciones y servicios del metro",
+          "en": "Consulta información sobre accesibilidad en las estaciones y servicios del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Conoce los servicios que ofrece metro más allá",
+          "en": "Conoce los servicios que ofrece metro más allá"
+        },
+        "enlace": "/guia-del-usuario/nuestros-servicios",
+        "detalle": {
+          "es": "Conoce los servicios que ofrece metro más allá del transporte",
+          "en": "Conoce los servicios que ofrece metro más allá del transporte"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Lee las preguntas frecuentes y tips",
+          "en": "Lee las preguntas frecuentes y tips"
+        },
+        "enlace": "/guia-del-usuario/tips-y-preguntas-frecuentes",
+        "detalle": {
+          "es": "Lee las preguntas frecuentes y tips para viajeros",
+          "en": "Lee las preguntas frecuentes y tips para viajeros"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Aprende qué hacer en caso de contingencia",
+          "en": "Aprende qué hacer en caso de contingencia"
+        },
+        "enlace": "/guia-del-usuario/que-hacer-en-casos-de-contingencia",
+        "detalle": {
+          "es": "Aprende qué hacer en caso de contingencia en el metro",
+          "en": "Aprende qué hacer en caso de contingencia en el metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta información sobre el seguro",
+          "en": "Consulta información sobre el seguro"
+        },
+        "enlace": "/guia-del-usuario/seguro-de-accidentes",
+        "detalle": {
+          "es": "Consulta información sobre el seguro de accidentes de metro",
+          "en": "Consulta información sobre el seguro de accidentes de metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Accede a información sobre la línea de atención",
+          "en": "Accede a información sobre la línea de atención"
+        },
+        "enlace": "/1488",
+        "detalle": {
+          "es": "Accede a información sobre la línea de atención 1488",
+          "en": "Accede a información sobre la línea de atención 1488"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Encuentra las oficinas de atención al cliente",
+          "en": "Encuentra las oficinas de atención al cliente"
+        },
+        "enlace": "/atencion-cliente/oficinas",
+        "detalle": {
+          "es": "Encuentra las oficinas de atención al cliente de metro",
+          "en": "Encuentra las oficinas de atención al cliente de metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Obtén los canales de contacto disponibles",
+          "en": "Obtén los canales de contacto disponibles"
+        },
+        "enlace": "/atencion-cliente/canales-de-contacto",
+        "detalle": {
+          "es": "Obtén los canales de contacto disponibles para comunicarte con metro",
+          "en": "Obtén los canales de contacto disponibles para comunicarte con metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Envía una consulta, sugerencia o reclamo a metro",
+          "en": "Envía una consulta, sugerencia o reclamo a metro"
+        },
+        "enlace": "/atencion-cliente/sugerencias-reclamos"
+      },
+      {
+        "titulo": {
+          "es": "Reporta un objeto que perdiste en el metro",
+          "en": "Reporta un objeto que perdiste en el metro"
+        },
+        "enlace": "/atencion-cliente/objetos-perdidos"
+      },
+      {
+        "titulo": {
+          "es": "Obtén información sobre la tarjeta de adulto",
+          "en": "Obtén información sobre la tarjeta de adulto"
+        },
+        "enlace": "/atencion-cliente/tarjeta-adulto-mayor",
+        "detalle": {
+          "es": "Obtén información sobre la tarjeta de adulto mayor de metro",
+          "en": "Obtén información sobre la tarjeta de adulto mayor de metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Accede a la red de clientes de metro",
+          "en": "Accede a la red de clientes de metro"
+        },
+        "enlace": "/red-clientes/"
+      },
+      {
+        "titulo": {
+          "es": "Accede a información sobre espacios gratuitos",
+          "en": "Accede a información sobre espacios gratuitos"
+        },
+        "enlace": "/metro-comunidad/espacios-gratuitos",
+        "detalle": {
+          "es": "Accede a información sobre espacios gratuitos en el metro",
+          "en": "Accede a información sobre espacios gratuitos en el metro"
+        },
+        "grupo": {
+          "es": "Descubre las iniciativas de MetroComunidad y sus",
+          "en": "Descubre las iniciativas de MetroComunidad y sus"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Conoce el programa Mercado a un Metro",
+          "en": "Conoce el programa Mercado a un Metro"
+        },
+        "enlace": "/metro-comunidad/mercado-a-un-metro",
+        "grupo": {
+          "es": "Descubre las iniciativas de MetroComunidad y sus",
+          "en": "Descubre las iniciativas de MetroComunidad y sus"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Accede a información sobre las Ventanas",
+          "en": "Accede a información sobre las Ventanas"
+        },
+        "enlace": "/metro-comunidad/ventanas-ciudadanas",
+        "detalle": {
+          "es": "Accede a información sobre las Ventanas Ciudadanas",
+          "en": "Accede a información sobre las Ventanas Ciudadanas"
+        },
+        "grupo": {
+          "es": "Descubre las iniciativas de MetroComunidad y sus",
+          "en": "Descubre las iniciativas de MetroComunidad y sus"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Lee las publicaciones de Metroinforma",
+          "en": "Lee las publicaciones de Metroinforma"
+        },
+        "enlace": "/metro-comunidad/metroinforma",
+        "grupo": {
+          "es": "Descubre las iniciativas de MetroComunidad y sus",
+          "en": "Descubre las iniciativas de MetroComunidad y sus"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Descubre historias relacionadas con el metro",
+          "en": "Descubre historias relacionadas con el metro"
+        },
+        "enlace": "/historias-de-metro"
+      },
+      {
+        "titulo": {
+          "es": "Conoce el patrimonio histórico y artístico",
+          "en": "Conoce el patrimonio histórico y artístico"
+        },
+        "enlace": "/metroarte/patrimonio",
+        "detalle": {
+          "es": "Conoce el patrimonio histórico y artístico del metro",
+          "en": "Conoce el patrimonio histórico y artístico del metro"
+        },
+        "grupo": {
+          "es": "Explora las obras artísticas y patrimonio",
+          "en": "Explora las obras artísticas y patrimonio"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta la programación de difusión cultural",
+          "en": "Consulta la programación de difusión cultural"
+        },
+        "enlace": "/metroarte/difusion",
+        "detalle": {
+          "es": "Consulta la programación de difusión cultural del metro",
+          "en": "Consulta la programación de difusión cultural del metro"
+        },
+        "grupo": {
+          "es": "Explora las obras artísticas y patrimonio",
+          "en": "Explora las obras artísticas y patrimonio"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Explora el mapa patrimonial del metro",
+          "en": "Explora el mapa patrimonial del metro"
+        },
+        "enlace": "/metroarte/mapa-patrimonial",
+        "grupo": {
+          "es": "Explora las obras artísticas y patrimonio",
+          "en": "Explora las obras artísticas y patrimonio"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Conoce la historia del metro de Santiago",
+          "en": "Conoce la historia del metro de Santiago"
+        },
+        "enlace": "/gobierno-corporativo/historia"
+      },
+      {
+        "titulo": {
+          "es": "Conoce el propósito, misión, visión y valores",
+          "en": "Conoce el propósito, misión, visión y valores"
+        },
+        "enlace": "/gobierno-corporativo/proposito#proposito",
+        "detalle": {
+          "es": "Conoce el propósito, misión, visión y valores del metro",
+          "en": "Conoce el propósito, misión, visión y valores del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta los compromisos de sostenibilidad",
+          "en": "Consulta los compromisos de sostenibilidad"
+        },
+        "enlace": "/metro-sostenible/nuestros-compromisos",
+        "detalle": {
+          "es": "Consulta los compromisos de sostenibilidad del metro",
+          "en": "Consulta los compromisos de sostenibilidad del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Consulta las iniciativas ambientales del metro",
+          "en": "Consulta las iniciativas ambientales del metro"
+        },
+        "enlace": "/metro-sostenible/metroambiente"
+      },
+      {
+        "titulo": {
+          "es": "Conoce las políticas de diversidad, equidad e",
+          "en": "Conoce las políticas de diversidad, equidad e"
+        },
+        "enlace": "/metro-sostenible/diversidad-equidad-inclusion",
+        "detalle": {
+          "es": "Conoce las políticas de diversidad, equidad e inclusión del metro",
+          "en": "Conoce las políticas de diversidad, equidad e inclusión del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Conoce la Corporación Cultural MetroArte",
+          "en": "Conoce la Corporación Cultural MetroArte"
+        },
+        "enlace": "/metro-sostenible/corporacion-cultural"
+      },
+      {
+        "titulo": {
+          "es": "Consulta la memoria integrada y reporte",
+          "en": "Consulta la memoria integrada y reporte"
+        },
+        "enlace": "/metro-sostenible/reporte-sostenibilidad",
+        "detalle": {
+          "es": "Consulta la memoria integrada y reporte de sostenibilidad del metro",
+          "en": "Consulta la memoria integrada y reporte de sostenibilidad del metro"
+        }
+      },
+      {
+        "titulo": {
+          "es": "Conoce el marco de financiamiento verde",
+          "en": "Conoce el marco de financiamiento verde"
+        },
+        "enlace": "/metro-sostenible/marco-de-bonos-verdes",
+        "detalle": {
+          "es": "Conoce el marco de financiamiento verde del metro",
+          "en": "Conoce el marco de financiamiento verde del metro"
+        }
+      }
+    ],
+    "opciones": {
+      "max": 8,
+      "sugeridas": 6,
+      "agrupar": true
+    }
+  },
+  "descartes": [
+    {
+      "objetivo": "planificar-viaje",
+      "razon": "la ruta no tiene elecciones antes de llegar"
+    },
+    {
+      "objetivo": "consultar-estado-servicio",
+      "razon": "la ruta no termina en una URL con consulta del mismo sitio"
+    },
+    {
+      "objetivo": "consultar-transparencia-activa",
+      "razon": "la ruta no tiene elecciones antes de llegar"
+    }
+  ]
+}

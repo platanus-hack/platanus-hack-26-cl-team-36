@@ -217,10 +217,39 @@ def _par(es, en) -> dict | None:
     return {"es": es, "en": en} if es and en else None
 
 
-def con_propuesta(vista: dict, propuesta: dict | None) -> dict:
-    """La vista con la microcopia y el ancla que propuso el modelo; lo vacío o desconocido deja lo derivado."""
+MAX_TAREAS_PROPUESTAS = 40
+
+
+def tareas_propuestas(propuestas) -> dict[str, dict]:
+    """Las tareas que escribió el modelo, por `enlace`, de todos los componentes: una tarea del lanzador que también
+    está en el buscador se escribe una vez."""
+    tareas: dict[str, dict] = {}
+    for propuesta in propuestas or []:
+        lista = propuesta.get("tareas") if isinstance(propuesta, dict) else None
+        for tarea in (lista if isinstance(lista, list) else [])[:MAX_TAREAS_PROPUESTAS]:
+            if isinstance(tarea, dict) and isinstance(tarea.get("enlace"), str):
+                tareas.setdefault(tarea["enlace"], tarea)
+    return tareas
+
+
+def sin_traduccion(vistas: list[dict]) -> list[dict]:
+    """Los textos que quedaron con el español en ambos idiomas (el modelo no los tradujo): el esquema exige los dos."""
+    faltan = []
+    for vista in vistas:
+        for item in vista.get("datos") or []:
+            claves = ("etiqueta",) if vista.get("componente") == "atajo" else ("titulo", "detalle")
+            textos = [c for c in claves if isinstance(item.get(c), dict) and item[c].get("es") == item[c].get("en")]
+            if textos:
+                faltan.append({"vista": vista.get("id"), "item": item.get("enlace") or item.get("nombre"),
+                               "textos": textos})
+    return faltan
+
+
+def con_propuesta(vista: dict, propuesta: dict | None, tareas: dict[str, dict] | None = None) -> dict:
+    """La vista con la microcopia y el ancla que propuso el modelo; lo vacío o desconocido deja lo derivado.
+    `tareas`: las de todos los componentes por enlace (`tareas_propuestas`); sin ellas, solo las de `propuesta`."""
     if not isinstance(propuesta, dict):
-        return vista
+        propuesta = {}
     vista = {**vista, "opciones": dict(vista["opciones"]), "datos": [dict(item) for item in vista["datos"]]}
     if str(propuesta.get("contenedor") or "").strip():
         vista["contenedor"] = propuesta["contenedor"].strip()
@@ -241,7 +270,7 @@ def con_propuesta(vista: dict, propuesta: dict | None) -> dict:
         for campo in vista["datos"]:
             campo["etiqueta"] = etiquetas.get(campo["nombre"]) or campo["etiqueta"]
     else:
-        tareas = {t.get("enlace"): t for t in propuesta.get("tareas") or [] if isinstance(t, dict)}
+        tareas = tareas_propuestas([propuesta]) if tareas is None else tareas
         for item in vista["datos"]:
             tarea = tareas.get(item["enlace"]) or {}
             item["titulo"] = _par(tarea.get("titulo_es"), tarea.get("titulo_en")) or item["titulo"]

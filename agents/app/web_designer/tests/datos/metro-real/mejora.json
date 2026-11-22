@@ -1,0 +1,134 @@
+{
+  "resumen": {
+    "revision": "mwrjk3iv-2a6e2e",
+    "url": "https://www.metro.cl/",
+    "objetivos": [
+      {
+        "id": "planificar-viaje",
+        "descripcion": "Planifica tu viaje en metro ingresando la estación de origen, destino, hora y día.",
+        "entrada": "https://www.metro.cl/el-viaje/planificador",
+        "ruta": {
+          "estado": "verified",
+          "pasos_minimos": 2,
+          "pasos": [
+            "click → «Planificación viaje San Pablo L1 - Neptuno - El Viaje - Metro de Santiago» https://www.metro.cl/el-viaje/planificador/?inicio=SP&fin=NP&horario=VALLE&dia=DL"
+          ],
+          "llega_a": "https://www.metro.cl/el-viaje/planificador/?inicio=SP&fin=NP&horario=VALLE&dia=DL",
+          "obstaculos": [
+            "click e11 — error: El navegador no pudo hacer la acción: ElementHandle.click: Timeout 5000ms exceeded. (<div tabindex=\"-1\" role=\"dialog\" id=\"mensajeModal\" aria-modal=\"true\" class=\"modal fade show\" ar…",
+            "click e50 «Close» — llegó a «Metro de Santiago» https://www.metro.cl/ (razón: Cerrar el modal de feedback que está tapando el botón de planificación, para poder acceder al formulario de viaje.)",
+            "click e11 — llegó a «Planificación viaje San Pablo L1 - Neptuno - El Viaje - Metro de Santiago» https://www.metro.cl/el-viaje/planificador/?inicio=SP&fin=NP&horario=VALLE&dia=DL (razón: Presionar el …"
+          ]
+        },
+        "visitas": [
+          {
+            "perfil": "desktop",
+            "llego": false,
+            "resultado": "abandoned",
+            "pasos": 15,
+            "fin": "step_limit",
+            "se_detuvo_en": "«Metro de Santiago» https://www.metro.cl/",
+            "se_desvio_en": "clic en (642, 69) → «Libro Metroarte - Metro de Santiago» https://www.metro.cl/librometroarte/",
+            "por_que": "Se detuvo sin llegar a la página final de la ruta de la Guía."
+          }
+        ],
+        "tasa_llegada": 0.0
+      },
+      {
+        "id": "consultar-estado-servicio",
+        "descripcion": "Consulta el estado actual del servicio de todas las líneas de metro.",
+        "entrada": "https://www.metro.cl/el-viaje/estado-red",
+        "ruta": {
+          "estado": "verified",
+          "pasos_minimos": 5,
+          "pasos": [
+            "click → «Estado del servicio - El Viaje - Metro de Santiago» https://www.metro.cl/el-viaje/estado-red",
+            "scroll «down» → «Estado del servicio - El Viaje - Metro de Santiago» https://www.metro.cl/el-viaje/estado-red",
+            "scroll «down» → «Estado del servicio - El Viaje - Metro de Santiago» https://www.metro.cl/el-viaje/estado-red",
+            "scroll «up» → «Estado del servicio - El Viaje - Metro de Santiago» https://www.metro.cl/el-viaje/estado-red"
+          ],
+          "llega_a": "https://www.metro.cl/el-viaje/estado-red",
+          "obstaculos": []
+        },
+        "visitas": [
+          {
+            "perfil": "desktop",
+            "llego": true,
+            "resultado": "success",
+            "pasos": 6,
+            "fin": "done",
+            "se_detuvo_en": "«Estado del servicio - El Viaje - Metro de Santiago» https://www.metro.cl/el-viaje/estado-red",
+            "se_desvio_en": null,
+            "por_que": "Consulté exitosamente el estado actual del servicio de todas las líneas de metro. Todas las líneas (Línea 1, 2, 3, 4, 4A, 5 y 6) están disponibles. La información se encuentra en la página de \"Estado…"
+          }
+        ],
+        "tasa_llegada": 1.0
+      },
+      {
+        "id": "consultar-transparencia-activa",
+        "descripcion": "Consulta información de transparencia activa del metro.",
+        "entrada": "https://www.metro.cl/transparencia-activa/",
+        "ruta": {
+          "estado": "verified",
+          "pasos_minimos": 1,
+          "pasos": [
+            "click «Transparencia Activa» → «Transparencia Activa - Metro de Santiago» https://www.metro.cl/transparencia-activa/"
+          ],
+          "llega_a": "https://www.metro.cl/transparencia-activa/",
+          "obstaculos": []
+        },
+        "visitas": [
+          {
+            "perfil": "desktop",
+            "llego": true,
+            "resultado": "success",
+            "pasos": 13,
+            "fin": "done",
+            "se_detuvo_en": "«Informes Financieros - Gobierno Corporativo - Metro de Santiago» https://www.metro.cl/gobierno-corporativo/informes-financieros",
+            "se_desvio_en": null,
+            "por_que": "He consultado exitosamente información de transparencia activa del Metro de Santiago. Accedí a tres secciones principales: (1) Marco Normativo con información legal sobre la Ley Nº 18.772 y estatutos…"
+          }
+        ],
+        "tasa_llegada": 1.0
+      }
+    ]
+  },
+  "tarea": {
+    "id": "planificar-viaje",
+    "descripcion": "Planifica tu viaje en metro ingresando la estación de origen, destino, hora y día."
+  },
+  "gustos": "Legible y con buen contraste, sin distracciones; que lo que lleva a la tarea se destaque y se encuentre a la primera.",
+  "modo": "motor",
+  "pedido": {
+    "direccion": "A",
+    "semilla": 1847,
+    "ajustes": {
+      "tinta.l": 97,
+      "acento.l": 55,
+      "acento.c": 0.2,
+      "tipo.escala": 1.32,
+      "tipo.display.peso": 790,
+      "densidad": 0.98,
+      "forma.radio": 6,
+      "hero": "ocultar",
+      "recetas": {
+        "agregar": [
+          "letrero"
+        ],
+        "quitar": []
+      }
+    },
+    "motivo": "Sitio institucional claro requiere alto contraste y claridad: dirección \"Señalética viva\" con paleta de alto contraste oscura. El planificador de viaje es la tarea principal y debe destacarse sin ambigüedad. Un modal sobrepuesto interferirá en el acceso, así que se minimiza cualquier distracción."
+  },
+  "resumen_tema": "Sitio institucional claro requiere alto contraste y claridad: dirección \"Señalética viva\" con paleta de alto contraste oscura. El planificador de viaje es la tarea principal y debe destacarse sin ambigüedad. Un modal sobrepuesto interferirá en el acceso, así que se minimiza cualquier distracción.",
+  "modelo": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "costo_usd": 0.0,
+  "rechazos": [],
+  "kit": {
+    "vistas": [
+      "tareas",
+      "buscar"
+    ],
+    "descartes": []
+  }
+}

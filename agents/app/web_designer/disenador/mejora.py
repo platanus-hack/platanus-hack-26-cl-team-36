@@ -283,7 +283,7 @@ def diagnostico(resumen: dict, kit: dict) -> dict:
                      for v in objetivo["visitas"] if v["por_que"]]
         obstaculos += [{"objetivo": objetivo["id"], "paso": paso}
                        for paso in (objetivo["ruta"] or {}).get("obstaculos") or []]
-    componentes = [a["vista"] for a in kit["atajos"]] + ([kit["lanzador"]] if kit["lanzador"] else [])
+    componentes = [a["vista"] for a in kit["atajos"]] + [v for v in (kit["lanzador"], kit["buscador"]) if v]
     return {"viewport": config.REVISION, "mensajes_visitante": mensajes, "obstaculos": obstaculos,
             "componentes": componentes, "sin_atajo": kit["descartes"]}
 
@@ -291,6 +291,7 @@ def diagnostico(resumen: dict, kit: dict) -> dict:
 async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[dict]:
     """Los componentes con la microcopia del modelo y un ancla que existe en la página abierta (si van en ella)."""
     por_id = {p.get("id"): p for p in propuestas or [] if isinstance(p, dict)}
+    tareas = tema_json.tareas_propuestas(propuestas)
     en_pagina = atajos.ruta_de(url)
     vistas = []
     for vista in componentes:
@@ -302,7 +303,7 @@ async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[d
                 if candidato and await _existe(page, candidato):
                     contenedor = candidato
                     break
-        vistas.append(tema_json.con_propuesta(vista, {**propuesta, "contenedor": contenedor}))
+        vistas.append(tema_json.con_propuesta(vista, {**propuesta, "contenedor": contenedor}, tareas))
     return vistas
 
 
@@ -404,14 +405,13 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                     respuesta = await disenador.pedir(prompt_de_sistema(skill, kit=True, con_motor=con_motor),
                                                       ESQUEMA_MOTOR if con_motor else ESQUEMA_KIT, partes, log)
                     # Con la página abierta: el ancla que propone el modelo solo vale si existe.
-                    # El buscador no pasa por el modelo (son hasta 40 tareas): va con sus textos y un ancla verificada.
-                    vistas = await _vistas(page, url, diag["componentes"] + [kit["buscador"]] * bool(kit["buscador"]),
-                                           respuesta.datos.get("componentes"))
+                    vistas = await _vistas(page, url, diag["componentes"], respuesta.datos.get("componentes"))
                     ocultar = await _ocultar(page, url, vistas)
                 finally:
                     await contexto.close()
                 costo = respuesta.costo_usd
                 informe["ocultar"] = [{"vista": v, "selector": s} for v, s in ocultar]
+                informe["sin_traduccion"] = tema_json.sin_traduccion(vistas)
                 css = None
                 if con_motor:
                     pedido = _pedido(respuesta.datos)
