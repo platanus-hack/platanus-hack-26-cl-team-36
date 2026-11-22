@@ -124,6 +124,16 @@ test("una revisión done sin un tema.css del improver responde running, sin leer
   }
 });
 
+test("tema listo y conductor failed después: done con css y un POST no la reemplaza", async () => {
+  const { db, agentes, api } = escenario({ archivos: { [CSS_KEY]: "a{}" } });
+  await api.solicitar(URL_PAGINA);
+  await db.actualizar(claveRevision("rev-1"), { status: "failed", css_key: CSS_KEY });
+  const esperado = { estado: 200, datos: { success: true, revision: "rev-1", status: "done", css: "a{}" } };
+  assert.deepEqual(await api.consultar(URL_PAGINA), esperado);
+  assert.deepEqual(await api.solicitar(URL_PAGINA), esperado);
+  assert.equal(agentes.invocaciones.length, 1);
+});
+
 test("una revisión done sin tema pasados 10 minutos responde failed y un POST la reemplaza", async () => {
   const { db, agentes, api } = escenario();
   await api.solicitar(URL_PAGINA);

@@ -37,12 +37,11 @@ export function crearRevisiones({
     return { revision: marca.revision, meta: (await db.obtener(claveRevision(marca.revision))) ?? {} };
   }
 
-  // El tema listo es done para el cliente aunque el conductor siga con los goals; META no cambia, así la revisión
-  // sigue contando para el tope y force no la duplica.
+  // El tema listo es done para el cliente aunque el conductor siga con los goals o falle después; META no cambia,
+  // así la revisión sigue contando para el tope y force no la duplica.
   function estadoVisible(meta) {
-    const status = meta.status ?? "queued";
-    if (status === "failed") return status;
     if (CSS.test(meta.css_key ?? "")) return "done";
+    const status = meta.status ?? "queued";
     if (status !== "done") return status;
     const desde = new Date(ahora().getTime() - VENTANA_SIN_TEMA_MS).toISOString();
     return (meta.updated_at ?? "") < desde ? "failed" : "running";
