@@ -1,7 +1,6 @@
 // Una tanda terminada como fuente de eventos v1 para la telaraña viva: cada intento es un agente que parte en su
 // página de inicio, da sus pasos y termina con su resultado. Sin reproducir, entrega todo de una vez (el estado
-// final); reproduciendo, cada evento a su hora real desde el inicio de la tanda o, comprimida, la tanda entera en
-// unos segundos (horarioComprimido). Puro salvo los temporizadores.
+// final); reproduciendo, la tanda entera en unos segundos (horarioComprimido). Puro salvo los temporizadores.
 
 const FINAL_DEL_RESULTADO = { logrado: "success", fallido: "failed", abandonado: "abandoned", sin_medir: "unmeasured", error: "error" };
 
@@ -77,10 +76,10 @@ export function horarioComprimido(eventos, { duracion = DURACION_COMPRIMIDA_MS, 
 
 /**
  * @param {object} tanda   la tanda de GET /api/tandas/<id>
- * @param {{ reproducir?: boolean, comprimida?: boolean, ahora?: () => number }} opciones
- * @returns {{ suscribir(cb: (evento: object) => void): { cerrar(): void, velocidad?(v: number): void, terminada?(): boolean, comprimida?: boolean } }}
+ * @param {{ reproducir?: boolean, ahora?: () => number }} opciones
+ * @returns {{ suscribir(cb: (evento: object) => void): { cerrar(): void, velocidad?(v: number): void, terminada?(): boolean, comprimida?: true } }}
  */
-export function fuenteDeTanda(tanda, { reproducir = false, comprimida = false, ahora = () => performance.now() } = {}) {
+export function fuenteDeTanda(tanda, { reproducir = false, ahora = () => performance.now() } = {}) {
   const eventos = eventosDeTanda(tanda);
   return {
     suscribir(cb) {
@@ -88,8 +87,7 @@ export function fuenteDeTanda(tanda, { reproducir = false, comprimida = false, a
         for (const evento of eventos) cb(evento);
         return { cerrar() {} };
       }
-      const cero = eventos.length ? Date.parse(eventos[0].ts) : 0;
-      const horas = comprimida ? horarioComprimido(eventos) : eventos.map((ev) => Date.parse(ev.ts) - cero);
+      const horas = horarioComprimido(eventos);
       let i = 0;
       let reloj = 0;
       let vel = 1;
@@ -117,7 +115,7 @@ export function fuenteDeTanda(tanda, { reproducir = false, comprimida = false, a
           vel = v;
         },
         terminada: () => i >= eventos.length,
-        comprimida,
+        comprimida: true,
       };
     },
   };

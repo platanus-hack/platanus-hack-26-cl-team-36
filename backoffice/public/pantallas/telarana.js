@@ -64,7 +64,7 @@ function crearPantalla(contenedor, ctx) {
   reemplazar(contenedor, zonaDeAvisos, el("div", { class: "tanda-columnas" }, riel.nodo, centro));
 
   function montarVista(armado) {
-    const armar = () => fuenteDeTanda(tanda, { reproducir: true, comprimida: true });
+    const armar = () => fuenteDeTanda(tanda, { reproducir: true });
     const final = () => fuenteDeTanda(tanda);
     estado.vista = montarTelaranaViva(centro, {
       ruta: rutaDeTanda(tanda),

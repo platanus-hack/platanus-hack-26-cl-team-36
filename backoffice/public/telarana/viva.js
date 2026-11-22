@@ -33,7 +33,7 @@ const nombrePorDefecto = (n) => {
  * @param {{
  *   ruta?: { url: string, title?: string }[],
  *   titulo?: string | null,
- *   fuente: { suscribir(cb: (evento: object) => void): { cerrar(): void, velocidad?(v: number): void } },
+ *   fuente: { suscribir(cb: (evento: object) => void): { cerrar(): void, velocidad?(v: number): void, terminada?(): boolean, comprimida?: boolean } },
  *   i18n?: { t: Function },
  *   nombre?: (pagina: { clave: string, url: string, titulo: string }) => string,
  *   nombreDeIntento?: (run: string, perfil: string) => string,
@@ -112,6 +112,8 @@ export function montarTelaranaViva(contenedor, opciones) {
   reemplazar(contenedor, raiz);
 
   // ── Estado de la vista ──────────────────────────────────────────────
+  // Lo elegido desde afuera antes de que exista (una reproducción a medias): se aplica cuando llega.
+  let pendiente = null;
   const K = leerColores(raiz);
   // El backoffice hoy es solo oscuro; si cambia el esquema, los colores de WebGL se releen de los tokens.
   globalThis.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.(
@@ -130,6 +132,7 @@ export function montarTelaranaViva(contenedor, opciones) {
     W: 1,
     H: 1,
     anim: 0,
+    paso: PASO_S,
     sim: 0,
     vel: 1,
     pausado: false,
@@ -246,8 +249,6 @@ export function montarTelaranaViva(contenedor, opciones) {
     camara.encuadrar(a ? [...a.visitados] : null);
   }
 
-  // Lo elegido desde afuera antes de que exista (una reproducción a medias): se aplica cuando llega.
-  let pendiente = null;
   function aplicarPendiente() {
     const p = pendiente;
     if (p?.run && E.m.agentes.has(p.run)) elegirAgente(p.run, p.grupo);
@@ -274,7 +275,7 @@ export function montarTelaranaViva(contenedor, opciones) {
     }
     sincronizar(E, { instantaneo, agentes: tocados });
     const elegido = E.elegido && E.m.agentes.get(E.elegido);
-    if (elegido && E.V.marco && tocados.has(elegido)) E.V.marco = new Set(elegido.visitados);
+    if (reproduciendo() && elegido && E.V.marco && tocados.has(elegido)) E.V.marco = new Set(elegido.visitados);
     aplicarPendiente();
   }
 

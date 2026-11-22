@@ -242,29 +242,6 @@ test("fuenteDeTanda: las variantes de URL de una página son el mismo nodo", asy
   assert.deepEqual(titulos, ["Ayuda", "Cómo dar de baja", "Inicio", "Planes"]);
 });
 
-test("fuenteDeTanda: reproduciendo, cada evento llega a su hora y la velocidad se puede cambiar", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
-  let reloj = 0;
-  const tanda = await leer(TANDA);
-  const total = eventosDeTanda(tanda).length;
-  const llegados = [];
-  const suscripcion = fuenteDeTanda(tanda, { reproducir: true, ahora: () => reloj }).suscribir((ev) => llegados.push(ev));
-  const correr = (ms) => {
-    for (let i = 0; i < ms / 50; i++) {
-      reloj += 50;
-      t.mock.timers.tick(50);
-    }
-  };
-  const iniciales = llegados.length;
-  assert.ok(iniciales > 0 && llegados.every((ev) => ev.type === "start"));
-  correr(2_500);
-  assert.ok(llegados.length > iniciales && llegados.length < total);
-  suscripcion.velocidad(4);
-  correr(3_000);
-  assert.equal(llegados.length, total, "×4: los 10 s de la tanda llegan en menos de 6 s");
-  suscripcion.cerrar();
-});
-
 const enMs = (...ms) => ms.map((m) => ({ ts: new Date(Date.UTC(2026, 10, 22) + m).toISOString() }));
 
 test("horarioComprimido: la tanda dura lo previsto, en orden, con su ritmo y sin pausas largas", () => {
@@ -288,7 +265,7 @@ test("horarioComprimido: vacía, de un evento y nunca más lenta que la real", (
   assert.deepEqual(horarioComprimido(enMs(0, 100, 300)), [0, 100, 300]);
 });
 
-test("fuenteDeTanda comprimida: se arma en ~8 s, con pausa y velocidad, y termina igual que el estado final", async (t) => {
+test("fuenteDeTanda reproduciendo: se arma en ~8 s, con pausa y velocidad, y termina igual que el estado final", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   let reloj = 0;
   const tanda = await leer(TANDA);
@@ -298,7 +275,7 @@ test("fuenteDeTanda comprimida: se arma en ~8 s, con pausa y velocidad, y termin
   const final = crearModelo({ ruta: rutaDeTanda(tandaLenta) });
   fuenteDeTanda(tandaLenta).suscribir((ev) => aplicar(final, ev));
   let llegados = 0;
-  const suscripcion = fuenteDeTanda(tandaLenta, { reproducir: true, comprimida: true, ahora: () => reloj }).suscribir((ev) => {
+  const suscripcion = fuenteDeTanda(tandaLenta, { reproducir: true, ahora: () => reloj }).suscribir((ev) => {
     llegados++;
     aplicar(armado, ev);
   });

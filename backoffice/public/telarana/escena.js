@@ -410,7 +410,7 @@ export function sincronizar(E, { instantaneo = false, agentes = [] } = {}) {
     if (instantaneo) {
       v.mv = null;
       if (a.final) E.vis.agentes.delete(a.run);
-    } else v.mv = { tramo: a.mov, t0: E.anim, dur: (E.paso ?? PASO_S) / Math.sqrt(E.vel), sx: v.x, sy: v.y };
+    } else v.mv = { tramo: a.mov, t0: E.anim, dur: E.paso / Math.sqrt(E.vel), sx: v.x, sy: v.y };
   }
 }
 
