@@ -113,7 +113,7 @@ const tipoDe = (nombre) => TIPOS[path.extname(nombre)] ?? "application/octet-str
 // ningún caché compartido (pueden mostrar datos de quien corrió la prueba). Todo lo demás, no-store.
 const INMUTABLE = "private, max-age=31536000, immutable";
 // La redirección a una URL firmada (lib/fuentes/s3.js) se guarda menos de lo que le queda de validez a la firma.
-const REDIRECCION_INMUTABLE = "private, max-age=300";
+const REDIRECCION_INMUTABLE = "private, max-age=60";
 
 // Una captura que la página lee con canvas (el color de marca del Overview, con crossorigin) sigue llegando por aquí:
 // del bucket, sin CORS, quedaría inleíble.

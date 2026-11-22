@@ -166,7 +166,7 @@ test("con S3 que firma: una captura validada es un 302 a la URL firmada, sin baj
     assert.equal(destino.pathname, `/${ID}/first_time/step_01.png`);
     assert.equal(destino.searchParams.get("tipo"), "image/png");
     assert.equal(destino.searchParams.get("cache"), "private, max-age=31536000, immutable", "el bucket la responde inmutable");
-    assert.equal(respuesta.cabeceras["cache-control"], "private, max-age=300");
+    assert.equal(respuesta.cabeceras["cache-control"], "private, max-age=60");
     assert.equal(respuesta.cabeceras.vary, "Sec-Fetch-Mode");
     const leidas = cliente.llamadas.filter((c) => c.constructor.name !== "ListObjectsV2Command").map((c) => c.input.Key);
     assert.ok(!leidas.some((clave) => clave.endsWith(".png")), "la captura no pasa por el servidor");
