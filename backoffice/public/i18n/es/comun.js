@@ -25,13 +25,6 @@ export default {
       return errores ? `${base}, ${errores} con error de la herramienta` : base;
     },
   },
-  proximamente: {
-    titulo: "Próximamente",
-    gatillar: "Gatillar recorridos desde aquí. Hoy, en la terminal:",
-    inventario: "02 Inventario de acciones",
-    happyPath: "03 Happy path con DOM (mientras no exista, el eje es la ruta recomendada)",
-    propuestas: "05 Propuestas de módulos",
-  },
   idioma: {
     es: "Español",
     en: "English",

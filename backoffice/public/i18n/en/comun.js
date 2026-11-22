@@ -26,13 +26,6 @@ export default {
       return errores ? `${base}, ${errores} with a tool error` : base;
     },
   },
-  proximamente: {
-    titulo: "Coming soon",
-    gatillar: "Trigger runs from here. Today, in the terminal:",
-    inventario: "02 Action inventory",
-    happyPath: "03 Happy path from the DOM (until it exists, the axis is the recommended route)",
-    propuestas: "05 Module proposals",
-  },
   idioma: {
     es: "Español",
     en: "English",

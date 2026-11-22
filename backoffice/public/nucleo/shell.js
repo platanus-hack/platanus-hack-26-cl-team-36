@@ -1,5 +1,5 @@
 // Armazón (diseño §5.11, §10.1): barra lateral (escritorio), barra superior y cajón (móvil, < 820 px). La barra
-// lateral tiene marca, buscador (abre la paleta), Corridas, tandas recientes con su estado, "Próximamente",
+// lateral tiene marca, buscador (abre la paleta), Corridas, tandas recientes con su estado,
 // atajos e idioma. Se redibuja al cambiar de idioma; al cambiar de ruta solo se actualiza aria-current.
 
 import { abrirHojaDeAtajos, kbd } from "./atajos.js";
@@ -93,22 +93,6 @@ function listaDeRecientes() {
   );
 }
 
-function proximamente() {
-  return el(
-    "details",
-    { class: "lateral-proximamente" },
-    el("summary", { class: "lateral-enlace" }, icono("proximamente"), el("span", { texto: t("comun.proximamente.titulo") })),
-    el(
-      "ul",
-      {},
-      el("li", {}, el("span", { texto: t("comun.proximamente.gatillar") }), " ", el("code", { texto: 'just local visit <url> "<tarea>"' })),
-      el("li", { texto: t("comun.proximamente.inventario") }),
-      el("li", { texto: t("comun.proximamente.happyPath") }),
-      el("li", { texto: t("comun.proximamente.propuestas") }),
-    ),
-  );
-}
-
 /** Contenido de la barra lateral (también va dentro del cajón móvil). */
 function contenidoLateral({ enCajon = false } = {}) {
   return [
@@ -156,7 +140,6 @@ function contenidoLateral({ enCajon = false } = {}) {
     el(
       "div",
       { class: "lateral-pie" },
-      proximamente(),
       el(
         "button",
         { type: "button", class: "lateral-enlace", "data-foco": "shell:atajos", onclick: () => abrirHojaDeAtajos() },
