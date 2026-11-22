@@ -2,7 +2,8 @@
 // (el mismo árbol en un bucket) implementan esta interfaz, así derivar.js, la API y la página no saben de dónde leen.
 //
 // Una fuente no valida nada: lib/tandas.js solo le pide ids que ella misma listó y nombres de perfil y
-// de archivo que ya pasaron por NOMBRE_SEGURO y ARCHIVO_DE_PERFIL.
+// de archivo que ya pasaron por NOMBRE_SEGURO y ARCHIVO_DE_PERFIL; lib/indice.js y lib/panel.js, claves que ella
+// listó con listarCorridas o run_key de la tabla que pasaron por partesDeCorrida con el rol y el goal esperados.
 
 import { crearFuenteDeArchivos } from "./fuentes/archivos.js";
 import { crearFuenteS3, parsearAlmacen } from "./fuentes/s3.js";
@@ -21,13 +22,21 @@ import { crearFuenteS3, parsearAlmacen } from "./fuentes/s3.js";
  * @typedef {Object} Fuente
  * @property {string} descripcion     para el estado vacío: "agents/.runs" (relativa al repo) o una URI
  * @property {() => Promise<string[]>} listarIds
- *           ids de tanda "<host>/visitor/<objetivo>/<corrida>" que tienen route_tree.json, en cualquier orden
+ *           ids de tanda "<host>/visitor/<objetivo>/<corrida>" que terminaron bien (manifest.json succeeded) y tienen
+ *           route_tree.json, en cualquier orden
+ * @property {() => Promise<string[]>} listarCorridas
+ *           claves de las corridas de los cuatro roles del Overview, terminadas o no, en cualquier orden (ya validadas
+ *           con partesDeCorrida; lib/fuentes/corridas.js): "<host>/cataloger/<corrida>",
+ *           "<host>/guide/<goal>/<viewport>/<corrida>", "<host>/visitor/<goal>/<corrida>", "<host>/improver/<corrida>"
  * @property {(id: string) => Promise<string[]>} listarPerfiles
- *           subcarpetas de una tanda (nombres sin validar)
+ *           subcarpetas de una tanda o de cualquier corrida (nombres sin validar)
  * @property {(id: string, relativa: string) => Promise<object | null>} leerJson
- *           "route_tree.json", "desktop/run.json"; null si no existe o no es JSON
+ *           "route_tree.json", "desktop/run.json"; null si no existe o no es JSON. `id` puede ser la clave de una
+ *           corrida de cualquier agente ("<host>/cataloger/<corrida>", "goals.json")
  * @property {(id: string, relativa: string) => Promise<{ datos: object | null, estado: "ok" | "falta" | "danado" }>} leerJsonDetallado
  *           como leerJson, pero dice si el archivo falta o está dañado (no es JSON); avisa en la consola de un dañado
+ * @property {(id: string, relativa: string) => Promise<string | null>} leerTexto
+ *           un archivo de texto de una corrida ("tema.css" del improver), o null si no existe
  * @property {(id: string, relativa: string) => Promise<boolean>} existe
  *           "desktop/video.webm"
  * @property {(id: string, relativa: string, rango?: RangoPedido) => Promise<ArchivoAbierto | null>} abrirArchivo

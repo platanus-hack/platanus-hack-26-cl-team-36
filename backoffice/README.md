@@ -1,10 +1,10 @@
 # Backoffice
 
-Visor de solo lectura de las corridas del Visitante en el almacén (`agents/.runs/`). Parte de
-[la especificación del backoffice](../.specs/backoffice-v0.md): muestra cada tanda (los intentos de los perfiles
-sobre una misma tarea) y responde qué pasó, por dónde fueron y dónde se separaron de la ruta. No gatilla nada ni
-llama a Claude. Sin build: Node 22 o superior, `node:http` y módulos ES en el navegador; el SDK de AWS solo para leer
-de AWS.
+Visor de solo lectura de los agentes y sus corridas en el almacén (`agents/.runs/`). Parte de
+[la especificación del backoffice](../.specs/backoffice-v0.md): el inicio (Overview) muestra cuántos agentes
+corrieron por rol y cómo les fue, y las revisiones con la página revisada; cada tanda (los intentos de los perfiles
+sobre una misma tarea) responde qué pasó, por dónde fueron y dónde se separaron de la ruta. No gatilla nada ni llama a
+Claude. Sin build: Node 22 o superior, `node:http` y módulos ES en el navegador; el SDK de AWS solo para leer de AWS.
 
 ## Cómo se usa
 
@@ -26,7 +26,9 @@ Abre <http://localhost:4848/backoffice/>. Para tener algo que ver, primero hay q
 | `AWS_PROFILE`, `AWS_REGION` | región `us-east-2` | Con `s3`: credenciales por la cadena estándar de AWS. |
 | `BACKOFFICE_HOSTS` | (vacío) | Valores extra aceptados en la cabecera `Host` (con puerto, p. ej. `otro.host:8080`), separados por coma. Por defecto solo `localhost`, `127.0.0.1` y `[::1]`. En AWS, el dominio (`chameleonmode.app`). |
 
-Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
+Solo tema oscuro, con la paleta de la marca ([`docs/marca/chameleonmode-v1`](../docs/marca/chameleonmode-v1/README.md)):
+todos los colores son tokens de `public/estilos/tokens.css` (el turquesa es lo interactivo y lo en vivo, nunca
+"logrado"; los resultados tienen sus `--resultado-*`). La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 
 ### Con datos de prueba (mucho volumen, solo local)
 
@@ -42,7 +44,8 @@ abandonos, errores de la herramienta, desvíos, vueltas atrás y búsquedas. `ro
 `build_route_tree` del Visitante y las capturas son wireframes donde cada clic cae sobre lo que se cliqueó. Las
 revisiones (en cola, en curso, una atascada, terminadas y fallidas) quedan en `.mock/revisiones.json`; el Diseñador
 de cada una deja `tema.css`, `mejora.json` y capturas antes/después de las páginas de la ruta (pestaña Propuesta), y
-`mock/servir.js` las sirve en memoria al mismo servidor, en vez de leer la tabla. No hay video. Con `--semilla` se
+`mock/servir.js` las sirve en memoria al mismo servidor, en vez de leer la tabla, con el reloj fijo en el momento en
+que se generaron (`generado`): así el Overview ve en curso lo que estaba en curso. No hay video. Con `--semilla` se
 repiten los mismos datos, y `BACKOFFICE_MOCK_LATENCIA_MS=400` demora la lectura de las revisiones para ver los
 estados de carga.
 
@@ -53,10 +56,10 @@ npm --prefix backoffice install    # el SDK de AWS; la fuente local no lo necesi
 BACKOFFICE_FUENTE=s3 BACKOFFICE_ALMACEN=s3://chameleon-almacen-<account_id> AWS_PROFILE=<perfil> npm run backoffice
 ```
 
-Lee las corridas del bucket (mismo árbol que `agents/.runs/`) y suma la pantalla **Revisiones** (`#/revisiones`): las
-revisiones de la tabla y, por revisión, el avance por etapa y por goal, con enlaces a lo que dejó cada corrida
-terminada. La página vuelve a pedir cada 2,5 s. Solo lee: el perfil necesita `s3:ListBucket`, `s3:GetObject`,
-`dynamodb:Query` y `dynamodb:Scan`.
+Lee las corridas del bucket (mismo árbol que `agents/.runs/`) y suma lo que sale de la tabla de revisiones: la
+sección Reviews del Overview, los agentes en cola y la pantalla **Revisiones** (`#/revisiones`), con el avance de cada
+revisión por etapa y por goal y enlaces a lo que dejó cada corrida terminada. Sin tabla, el Overview muestra solo los
+agentes. Solo lee: el perfil necesita `s3:ListBucket`, `s3:GetObject`, `dynamodb:Query` y `dynamodb:Scan`.
 
 ### En AWS: https://chameleonmode.app/backoffice/
 
@@ -77,9 +80,27 @@ conozca la ruta entra.
 
 ## Pantallas
 
-**Corridas** (`#/`) lista las tandas, más nuevas primero y agrupadas por día. Cada fila abre la tanda y dice solo qué
-tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor), los errores de la herramienta si los hay y
-cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
+La barra superior lleva la marca, la píldora "N running" (las revisiones en curso; lleva a la pestaña Live) y el
+buscador ⌘K. No tiene navegación: a Corridas y Revisiones se llega con la paleta ⌘K, los atajos (`g o`, `g c`) y los
+enlaces de cada pantalla.
+
+**Overview** (`#/`, el inicio) tiene dos bloques. Arriba, los agentes: un solo total dividido por rol en el orden del
+flujo (Cataloger → Guide → Visitors → Designer), con un cuadrito por corrida y el % de éxito de cada rol. Abajo, las
+revisiones en tarjetas con la página revisada (captura de escritorio y teléfono), sus cuatro etapas (Catalog, Routes,
+Visits, Theme), un medidor por goal y un cuadrito por agente; pestañas Recent, Live, Delivered y Failed (hasta 6
+tarjetas cada una, con "View all" a Revisiones filtrada) y la cola ("Up next"). Una tarjeta lleva directo a la
+telaraña de su primer goal con tanda terminada (cada goal, a la suya); si todavía no hay, al avance de la revisión.
+El filtro de dispositivo (All · Desktop · Mobile) cambia los visitantes, las capturas, los medidores y los cuadritos
+de cada tarjeta. El dispositivo y la pestaña quedan en la URL (`#/?dispositivo=mobile&pestana=failed`); la página
+vuelve a pedir cada 5 s mientras la pestaña del navegador está visible.
+
+**Corridas** (`#/corridas`; los enlaces viejos `#/?q=…` llevan aquí) lista las tandas, más nuevas primero y agrupadas
+por día. Cada fila abre la tanda y dice solo qué tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el
+medidor), los errores de la herramienta si los hay y cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla
+quedan en la URL.
+
+**Revisiones** (`#/revisiones`, con `?estado=live|done|failed` para filtrar) lista las revisiones de la tabla y abre
+el avance de cada una por etapa y por goal.
 
 Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene una cabecera mínima, común a sus pestañas:
 la tarea (con tanda anterior/siguiente y copiar enlace) y, debajo, sitio, fecha y cuántos llegan. Debajo, tres
@@ -155,11 +176,34 @@ del DOM, sin agregar una dependencia más pesada que todo el front.
 - **Estado de un paso: estimado.** El juez no evalúa cada paso. *Coincide* es "no" si el paso trae `no_effect`,
   `went_back` o `visible_error`; "sí" si cambió la página o al menos el 5 % de la captura; si no, "incierto".
 
+### Las cifras del Overview
+
+- **Un agente es una corrida; un visitante, un intento.** Cataloger, Guide y Designer (la etapa `improver`) cuentan
+  un `manifest.json` por corrida (`succeeded` logrado, `failed` fallido, `running` en curso); Visitors cuenta un
+  `run.json` por intento, clasificado igual que en las tandas (logrado, fallido, abandonó, sin medir, error de la
+  herramienta). El total es la suma de las filas que se ven.
+- **% de éxito:** visitantes, logrados / (logrados + fallidos + abandonó); los demás, logrados / (logrados + fallidos).
+  Verde desde 70 %, naranja desde 60 %, rojo bajo eso. Con 5 casos medidos o menos va el conteo (`x/y`), como en todo
+  el backoffice; sin casos, "—".
+- **Dispositivo:** sale del `viewport` del run.json (ancho < 700 px es móvil, el resto escritorio), nunca del nombre
+  del perfil. Un intento en curso (solo `trace.json`, sin viewport) es móvil si su perfil es `mobile`. Con un filtro
+  cambian los visitantes y lo de las tarjetas; Cataloger, Guide y Designer no, porque sirven a los dos.
+- **En cola** (contorno, sin contar en las cifras): los agentes que todavía no parten en revisiones que corren. Un
+  Visitante en cola es un solo cuadrito, sin dispositivo, porque todavía no se sabe cuántos intentos hará.
+- **Detenida:** una revisión `running` sin cambios en 30 min (`UMBRAL_DETENIDA_MS`, `lib/tarjeta.js`). Su motivo dice
+  hace cuánto; una fallida dice si fue por límite de AgentCore (429), el catalogador, la Guía o el diseñador.
+- **La hora de referencia es la del servidor:** `/api/resumen` y `/api/overview` traen `ahora`, y "detenida",
+  "12 min" y "5 hr ago" se calculan contra ese valor, no contra el reloj del navegador (`reloj` de `crearServidor`;
+  el servidor de los datos de prueba lo fija en el momento en que se generaron).
+- **Capturas:** la página de inicio (`step_00.png`) de un intento de escritorio y uno móvil de la revisión; si todavía
+  no tiene visitantes, de la tanda más nueva del mismo host y ruta; si no hay, un bloque con el color de marca (el
+  píxel (4, 4) de la captura, o uno derivado del host). El nombre del sitio sale del título de su página de inicio.
+
 ## Idiomas (es / en)
 
-Español por defecto e inglés. El idioma se elige en el menú lateral o con `idioma=en` en el hash de la URL (`#/?idioma=en`), y se guarda en
-`localStorage`. Los datos de la corrida (títulos de páginas, expectativas del agente, justificaciones, criterios)
-nunca se traducen.
+Inglés por defecto y español. No hay selector en la barra: el idioma se cambia con la acción de la paleta ⌘K o con
+`idioma=` en el hash de la URL (`#/?idioma=es`), y se guarda en `localStorage`. Los datos de la corrida (títulos de
+páginas, instrucciones de los goals, expectativas del agente, justificaciones, criterios) nunca se traducen.
 
 - Cada texto de la interfaz pasa por `t("<sección>.<clave>", vars)`. Hay un diccionario por sección y por idioma:
   `public/i18n/{es,en}/<sección>.js` (`comun`, `datos` y uno por pantalla). Un valor es un texto con `{variables}` o
@@ -178,7 +222,8 @@ el resto.
 
 | Dónde | Teclas |
 |---|---|
-| Siempre | `⌘K` paleta de comandos · `?` atajos · `g c` ir a Corridas · `/` paleta (en Corridas, el buscador) |
+| Siempre | `⌘K` paleta de comandos · `?` atajos · `g o` ir al Overview · `g c` ir a Corridas · `/` paleta (en Corridas, el buscador) |
+| Overview | `←` `→` `Inicio` `Fin` en las fichas de dispositivo y en las pestañas de revisiones |
 | Corridas | `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
 | Tanda | `1` `2` `3` Mapa de caminos, Replay, Propuesta · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
 | Mapa de caminos | `+` `-` acercar / alejar · `0` ajustar · `Esc` cerrar (con el foco en el mapa, las flechas lo mueven) |
@@ -187,8 +232,9 @@ el resto.
 ## Fuente de corridas
 
 Todo lo que se lee de las corridas pasa por una interfaz chica, `Fuente`, documentada en `lib/fuente.js`:
-`descripcion`, `listarIds()`, `listarPerfiles(id)`, `leerJson(id, relativa)`, `existe(id, relativa)` y
-`abrirArchivo(id, relativa, rango)`. La implementan `lib/fuentes/archivos.js` y `lib/fuentes/s3.js`. La validación
+`descripcion`, `listarIds()` (las tandas del Visitante terminadas), `listarCorridas()` (las corridas de los cuatro
+agentes, terminadas o no, para el Overview), `listarPerfiles(id)`, `leerJson(id, relativa)`, `leerTexto(id, relativa)`
+(el `tema.css` del diseñador), `existe(id, relativa)` y `abrirArchivo(id, relativa, rango)`. La implementan `lib/fuentes/archivos.js` y `lib/fuentes/s3.js`. La validación
 (nombres seguros, ids que la fuente listó, solo capturas y video) vive en `lib/tandas.js`, así que una fuente nunca
 recibe una ruta sin validar. `derivar.js` y las pantallas no saben de dónde vienen los datos.
 
@@ -201,20 +247,34 @@ delante.
 
 ```
 backoffice/
-├── servidor.js          ← node:http: la página, /api/tandas, /api/tandas/<host>/visitor/<objetivo>/<corrida>, /api/propuestas/…, /archivos/… y /propuestas/…
+├── servidor.js          ← node:http: la página, /api/tandas, /api/tandas/<host>/visitor/<objetivo>/<corrida>,
+│                          /api/resumen, /api/overview, /api/revisiones, /api/propuestas/…, /archivos/… y
+│                          /propuestas/… (la lista completa, en su cabecera)
 ├── lib/                 ← lado del servidor, lógica pura salvo la fuente
 │   ├── tandas.js        ← lista y lee tandas a través de la fuente; valida todo lo que llega de afuera
-│   ├── fuente.js        ← la interfaz Fuente y crearFuente(); fuentes/archivos.js (node:fs) y fuentes/s3.js
+│   ├── fuente.js        ← la interfaz Fuente y crearFuente(); fuentes/archivos.js (node:fs), fuentes/s3.js y
+│   │                      fuentes/corridas.js (el recorrido de las corridas de todos los agentes, común a las dos)
 │   ├── revisiones.js    ← lee la tabla de revisiones y deriva el avance por etapa y goal; aws.js carga el SDK
+│   ├── panel.js         ← arma /api/resumen y /api/overview: lee el almacén (indice.js) y la tabla, con caché de lo
+│   │                      cerrado y una sola lectura compartida por pedidos que llegan juntos
+│   ├── indice.js        ← el índice del almacén: corridas por rol y estado, intentos con resultado y dispositivo
+│   ├── overview.js      ← cifras del resumen, cuentas, pestañas y cola (puro)
+│   ├── tarjeta.js       ← una tarjeta: detenida, etapas, agentes, goals, motivo, capturas (puro)
+│   ├── clasificar.js    ← dispositivo por viewport y estado de un intento o de un manifest (puro)
+│   ├── sitio.js         ← host, ruta, nombre del sitio y acento del tema (puro)
 │   ├── propuestas.js    ← la propuesta del Diseñador para una tanda: tema.css → cambios y paleta, mejora.json, vistas
 │   ├── derivar.js       ← de route_tree.json + run.json + criteria.json a la tanda que dibujan las pantallas
 │   ├── paginas.js       ← une nodos en páginas y les da un título corto
 │   ├── hallazgos.js     ← hallazgos y titulares (clave + vars)
 │   └── url.js           ← normalize_url de shared.nodes.urls, en JavaScript
 ├── public/
-│   ├── index.html, app.js   ← arranque: idioma, menú, paleta, atajos globales, enrutador
-│   ├── nucleo/          ← enrutador por hash, marco de la tanda, atajos, paleta ⌘K, i18n, formatos, estados, íconos
-│   ├── pantallas/       ← una por vista: corridas, telarana, replay, propuesta
+│   ├── index.html, app.js   ← arranque: idioma, barra superior, paleta, atajos globales, enrutador
+│   ├── marca/           ← el logo y el símbolo de la marca (copias de docs/marca)
+│   ├── nucleo/          ← enrutador por hash, barra superior, marco de la tanda, atajos, paleta ⌘K, i18n, formatos,
+│   │                      estados, íconos
+│   ├── pantallas/       ← una por vista: overview, corridas, revisiones, telarana, replay, propuesta
+│   ├── overview/        ← piezas del Overview: las puras (agentes, tarjetas, tiempo, marca, textos) y las que arman
+│   │                      DOM (dom-*.js; capturas.js guarda los <img> para no volver a pedirlos al refrescar)
 │   ├── corridas/ telarana/ replay/ propuesta/   ← piezas de cada pantalla (las puras se prueban con node:test)
 │   ├── datos/           ← textos.js convierte { clave, vars } de la API en texto; nombres.js, el nivel de cada perfil
 │   ├── i18n/{es,en}/    ← diccionarios por sección
@@ -249,6 +309,10 @@ Las corridas muestran páginas de terceros y a veces datos de quien corrió la p
 `npm test` (aquí) o `npm run check` (desde la raíz, con el resto del repo). Prueban la derivación, las páginas
 fusionadas, los hallazgos, la fuente (incluida una fuente falsa en memoria), el servidor, los módulos puros de las
 pantallas y los diccionarios.
+
+Las cifras del Overview tienen dos pruebas de aceptación: `test/aceptacion.test.js` arma en memoria un almacén y una
+tabla con las cifras de referencia (1,286 agentes: 82 · 213 · 922 · 69; móvil 214) y `test/aceptacion-mock.test.js`
+las verifica sobre los datos de prueba de `backoffice/.mock` (se salta si esa carpeta no está, como en CI).
 
 Las tandas de `test/fixtures/corridas/demo.cl/visitor/tarea-demo/` son sintéticas, con la forma de `agents/.runs/`; la
 fuente solo lista las corridas cuyo `manifest.json` dice `succeeded`, y el fixture trae una fallida y una en curso. El

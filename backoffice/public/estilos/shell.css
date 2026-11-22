@@ -1,112 +1,97 @@
-/* Armazón (diseño §10.1): barra lateral en escritorio; barra superior de 48 px y cajón bajo 820 px.
-   El documento es el que se desplaza (no main): las filas fijas usan position: sticky contra la ventana. */
+/* Armazón (diseño §10.1, contrato §6): una barra superior fija de 56 px, sin navegación, y el contenido centrado con
+   ancho máximo. El documento es el que se desplaza (no main): las filas fijas de las pantallas usan position: sticky
+   con top: var(--alto-barra), para quedar bajo la barra. */
 
-.armazon {
-  display: grid;
-  grid-template-columns: var(--ancho-lateral) minmax(0, 1fr);
-  grid-template-areas: "lateral contenido";
-  min-height: 100dvh;
-}
+.armazon { min-height: 100dvh; }
 
 #contenido {
-  grid-area: contenido;
-  min-width: 0;
+  width: 100%;
+  max-width: calc(var(--ancho-max) + 2 * var(--e-6));
+  margin-inline: auto;
   padding: var(--e-6);
   container: contenido / inline-size;
 }
-#contenido > * { max-width: var(--ancho-max); }
 
 /* ── Saltar al contenido ─────────────────────────────────────────────── */
 .saltar {
   position: fixed; z-index: 100; top: var(--e-2); left: var(--e-2);
   padding: var(--e-2) var(--e-3); border: 0; border-radius: var(--radio-2);
-  background: var(--acento); color: oklch(0.18 0.03 245); font-weight: 500;
+  background: var(--acento); color: var(--sobre-acento); font-weight: 500;
   transform: translateY(-200%);
 }
 .saltar:focus { transform: none; }
 
-/* ── Barra lateral ───────────────────────────────────────────────────── */
-.lateral {
-  grid-area: lateral;
-  position: sticky; top: 0; height: 100dvh; overflow-y: auto; overscroll-behavior: contain;
-  border-inline-end: 1px solid var(--borde-sutil); background: var(--fondo);
+/* ── Barra superior: marca · revisiones en curso · buscador · idioma ── */
+.barra-superior {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: var(--e-5);
+  height: var(--alto-barra); padding: 0 var(--e-6);
+  /* El fondo al 88 % de la maqueta; el desenfoque evita que el texto que pasa por debajo se lea a través. */
+  background: color-mix(in srgb, var(--fondo) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(1.2);
+  border-bottom: 1px solid var(--borde-sutil);
 }
-.lateral, .cajon-contenido {
-  display: flex; flex-direction: column; gap: var(--e-3);
-  padding: var(--e-4) var(--e-3);
-}
-.lateral-cabecera { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); padding-inline: var(--e-2); }
 
-.marca { display: inline-flex; align-items: center; gap: var(--e-2); min-height: 32px; color: var(--texto-1); text-decoration: none; }
+/* La firma horizontal al mínimo de la marca (180 px de ancho, ≈ 47 px de alto), centrada en la barra; nunca más chica.
+   El SVG trae su propio margen libre (1/8 del símbolo), así que el hueco visible con la insignia es mayor que `gap`. */
+.marca { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--texto-1); text-decoration: none; }
 .marca:hover { color: var(--texto-1); text-decoration: none; }
-.marca-icono { color: var(--acento); }
-.marca-nombre { font-size: 14px; font-weight: 600; letter-spacing: -0.006em; }
-.marca-producto { font-size: 12px; color: var(--texto-3); }
+.marca picture { display: block; flex: none; }
+.marca-logo { display: block; width: 180px; max-width: none; height: auto; }
+/* La insignia, en proporción con la palabra "chameleon" del logo (≈ 17 px) y con su línea base. */
+.marca-insignia {
+  margin-block-start: 3px; padding: 2px 8px; border: 1px solid var(--borde-medio); border-radius: var(--radio-2);
+  color: var(--texto-3); font-size: 13px; line-height: 18px; font-weight: 500; letter-spacing: 0; white-space: nowrap;
+}
 
-.lateral-buscar {
-  display: flex; align-items: center; gap: var(--e-2); width: 100%; min-height: 32px; padding: 0 6px 0 var(--e-2);
-  border: 1px solid var(--borde-sutil); border-radius: var(--radio-2); background: var(--superficie-1);
+.barra-acciones { display: flex; align-items: center; gap: var(--e-2); flex: none; margin-inline-start: auto; }
+
+/* Revisiones en curso: turquesa, con el punto que pulsa; lleva a la pestaña Live del Overview. */
+.barra-en-curso {
+  display: inline-flex; align-items: center; gap: var(--e-2); height: 28px; padding: 0 10px;
+  border-radius: var(--radio-pildora); background: color-mix(in srgb, var(--acento) 10%, transparent);
+  color: var(--acento); font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap;
+  font-variant-numeric: tabular-nums; text-decoration: none;
+  transition: background-color var(--dur-1);
+}
+.barra-en-curso:hover { background: color-mix(in srgb, var(--acento) 16%, transparent); color: var(--acento); text-decoration: none; }
+
+.barra-buscar {
+  display: inline-flex; align-items: center; gap: var(--e-2); min-width: 240px; height: 32px; padding: 0 6px 0 10px;
+  border: 1px solid var(--borde); border-radius: var(--radio-2); background: var(--superficie-1);
   color: var(--texto-3); text-align: start;
   transition: border-color var(--dur-1), color var(--dur-1);
 }
-.lateral-buscar:hover { border-color: var(--borde); color: var(--texto-2); }
-.lateral-buscar-texto { flex: 1; }
+.barra-buscar:hover { border-color: var(--borde-fuerte); color: var(--texto-2); }
+.barra-buscar .icono { width: 14px; height: 14px; }
+.barra-buscar-texto { flex: 1; }
+.barra-buscar-tecla { height: auto; padding: 0 5px; line-height: 16px; }
 
-.lateral-nav { display: grid; gap: 2px; }
-.lateral-enlace {
-  display: flex; align-items: center; gap: var(--e-2); width: 100%; min-height: 30px; padding: 0 var(--e-2);
-  border: 0; border-radius: var(--radio-2); background: transparent;
-  color: var(--texto-3); font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: -0.006em;
-  text-align: start; text-decoration: none; cursor: pointer;
-  transition: background-color var(--dur-1), color var(--dur-1);
-}
-.lateral-enlace:hover { background: var(--superficie-1); color: var(--texto-1); text-decoration: none; }
-.lateral-enlace[aria-current="page"] { background: var(--superficie-2); color: var(--texto-1); }
-.lateral-enlace > .teclas, .lateral-cuenta { margin-inline-start: auto; }
-.lateral-cuenta { color: var(--texto-4); font-size: 12px; font-variant-numeric: tabular-nums; }
-
-.lateral-subtitulo { margin: var(--e-4) var(--e-2) var(--e-1); }
-.lateral-vacio { padding: 0 var(--e-2); font-size: 12px; }
-.lateral-recientes { display: grid; gap: 1px; }
-.lateral-tanda {
-  display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: var(--e-2);
-  min-height: 30px; padding: 0 var(--e-2); border-radius: var(--radio-2);
-  color: var(--texto-2); font-size: 13px; text-decoration: none;
-}
-.lateral-tanda:hover { background: var(--superficie-1); color: var(--texto-1); text-decoration: none; }
-.lateral-tanda[aria-current="page"] { background: var(--superficie-2); color: var(--texto-1); }
-.lateral-tanda-estado { display: inline-grid; }
-.lateral-tanda-fecha { color: var(--texto-4); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.estado-logrado { color: var(--exito); }
-.estado-fallido { color: var(--peligro); }
-.estado-error, .estado-sin_medir { color: var(--neutro); }
-
-.lateral-pie { display: grid; gap: 2px; margin-block-start: auto; padding-block-start: var(--e-3); }
-.lateral-idioma { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); min-height: 36px; padding: 0 var(--e-2); }
-
-/* ── Barra superior y cajón (móvil) ─────────────────────────────────── */
-.barra-superior { display: none; }
-.cajon {
-  margin: 0; inset: 0 auto 0 0; width: min(300px, 86vw); height: 100dvh; max-height: 100dvh; padding: 0;
-  border: 0; border-inline-end: 1px solid var(--borde); background: var(--fondo); color: inherit;
-  transition: transform var(--dur-3) var(--curva-salida), display var(--dur-3) allow-discrete, overlay var(--dur-3) allow-discrete;
-}
-.cajon:not([open]) { transform: translateX(-100%); }
-@starting-style { .cajon[open] { transform: translateX(-100%); } }
-.cajon::backdrop { background: oklch(0 0 0 / 0.5); }
-.cajon-contenido { min-height: 100%; }
-
+/* Bajo 820 px: gutter de 16 px y el buscador en una lupa (su nombre sigue ahí para el lector de pantalla). */
 @media (max-width: 819px) {
-  .armazon { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "barra" "contenido"; }
-  .lateral { display: none; }
-  .barra-superior {
-    grid-area: barra; position: sticky; top: 0; z-index: 20;
-    display: flex; align-items: center; gap: var(--e-1); height: var(--alto-barra); padding: 0 var(--e-2);
-    background: oklch(0.145 0.004 275 / 0.85); backdrop-filter: blur(12px) saturate(1.2);
-    border-bottom: 1px solid var(--borde-sutil);
+  .barra-superior { gap: var(--e-2); padding: 0 var(--e-4); }
+  .barra-buscar { justify-content: center; width: 32px; min-width: 0; padding: 0; border-color: transparent; background: transparent; color: var(--texto-2); }
+  .barra-buscar:hover { background: var(--superficie-2); color: var(--texto-1); }
+  .barra-buscar .icono { width: 16px; height: 16px; }
+  .barra-buscar-tecla { display: none; }
+  .barra-buscar-texto {
+    position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
   }
-  .barra-superior .marca { flex: 1; }
   #contenido { padding: var(--e-4); }
+}
+/* Angosto (medido: logo 180 + insignia 84 + píldora 90–103 + lupa 32 + huecos y gutter). Entre 370 y 459 px la
+   insignia no cabe junto a la firma horizontal y se oculta. Bajo 370 px tampoco cabe la firma, que nunca baja de
+   180 px: queda el símbolo a color (36 px, sobre el mínimo de 32 px de la marca) y, junto a él, la insignia vuelve a
+   caber (≈ 310 px en total aun con "12 en curso"). El <picture> de la marca cambia de imagen en el mismo ancho
+   (MARCA.soloSimbolo en nucleo/shell.js). */
+@media (min-width: 370px) and (max-width: 459px) {
+  .marca-insignia { display: none; }
+}
+@media (max-width: 369px) {
+  .marca { gap: var(--e-2); }
+  .marca-logo { width: 36px; height: 36px; }
+  .marca-insignia { margin-block-start: 0; }
 }
 
 /* ── Paleta ⌘K (sin animación: se usa a cada rato) ──────────────────── */
@@ -116,7 +101,7 @@
   box-shadow: var(--sombra-flotante), var(--brillo-superior); overflow: hidden;
 }
 .paleta[open] { display: flex; flex-direction: column; }
-.paleta::backdrop, .hoja-atajos::backdrop { background: oklch(0 0 0 / 0.45); }
+.paleta::backdrop, .hoja-atajos::backdrop { background: var(--velo); }
 .paleta-cabecera { display: flex; align-items: center; gap: 10px; padding: 0 var(--e-4); border-bottom: 1px solid var(--borde-sutil); color: var(--texto-3); }
 .paleta-entrada {
   flex: 1; min-width: 0; height: 52px; border: 0; background: transparent; color: var(--texto-1);
@@ -129,7 +114,7 @@
   display: grid; grid-template-columns: 16px minmax(0, max-content) minmax(0, 1fr); align-items: center; gap: 10px;
   min-height: 36px; padding: 0 10px; border-radius: var(--radio-2); color: var(--texto-2); cursor: pointer;
 }
-.paleta-opcion[aria-selected="true"] { background: oklch(1 0 0 / 0.07); color: var(--texto-1); }
+.paleta-opcion[aria-selected="true"] { background: color-mix(in srgb, var(--blanco) 7%, transparent); color: var(--texto-1); }
 .paleta-opcion-icono { display: inline-grid; color: var(--texto-3); }
 .paleta-opcion[aria-selected="true"] .paleta-opcion-icono { color: var(--acento); }
 .paleta-opcion-subtitulo { color: var(--texto-3); font-size: 12px; }
@@ -139,8 +124,9 @@
   border-top: 1px solid var(--borde-sutil); color: var(--texto-3); font-size: 12px;
 }
 .paleta-pista { display: inline-flex; align-items: center; gap: 6px; }
-:is(.paleta, .lateral, .cajon) .icono-logrado { color: var(--exito); }
-:is(.paleta, .lateral, .cajon) .icono-fallido { color: var(--peligro); }
+/* El estado de una tanda en la paleta: verde si llegan, rojo si no (aunque la opción esté elegida). */
+.paleta .icono-logrado { color: var(--exito); }
+.paleta .icono-fallido { color: var(--peligro); }
 @media (max-width: 640px) {
   .paleta { margin-top: var(--e-2); max-height: calc(100dvh - 16px); }
   .paleta-pie { display: none; }
@@ -186,5 +172,5 @@
 .icono-recorte { stroke: var(--fondo); }
 
 @media (pointer: coarse) {
-  .lateral-buscar .teclas, .lateral-enlace .teclas { display: none; }
+  .barra-buscar-tecla { display: none; }
 }

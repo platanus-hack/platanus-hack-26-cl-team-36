@@ -13,6 +13,11 @@
 //   GET /backoffice/archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<step_NN.png | video.webm>
 //   GET /backoffice/api/revisiones        → { disponible, revisiones } (DynamoDB; solo con BACKOFFICE_FUENTE=s3)
 //   GET /backoffice/api/revisiones/<revision>  → el avance de una revisión por etapa y por goal
+//   GET /backoffice/api/resumen           → { ahora, roles }: las corridas de los cuatro agentes por rol y estado, y los
+//                                           visitantes por dispositivo (lib/panel.js; contrato del Overview v3, §1)
+//   GET /backoffice/api/overview          → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, cola, tarjetas }:
+//                                           las revisiones del Overview, cada tarjeta con todo lo que dibuja (§2);
+//                                           sin tabla, { ahora, disponible: false }
 //   GET /backoffice/resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
 //   GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>  → la propuesta del Diseñador para esa tanda
 //   GET /backoffice/propuestas/<host>/improver/<corrida>/vistas/<nombre>.png  → una captura antes/después del tema
@@ -23,6 +28,10 @@
 // servidor): así una página ajena no puede leer las corridas apuntando su dominio a 127.0.0.1 (DNS rebinding).
 // BACKOFFICE_HOSTS="otro.host:8080,…" agrega hosts permitidos (en AWS, el dominio: infra/app/backoffice.tf).
 // Escucha en 127.0.0.1; BACKOFFICE_ESCUCHA="0.0.0.0" lo abre a la red (en el contenedor).
+//
+// `ahora` de /api/resumen y /api/overview sale del reloj del servidor (`reloj` de crearServidor, por defecto la
+// hora real): contra él se decide qué revisión está detenida, y la página calcula "12 min" y "5 h ago" contra ese
+// valor, nunca contra su propio reloj. El servidor de los datos de prueba lo fija en el momento en que se generaron.
 
 import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
@@ -31,9 +40,10 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { crearFuente } from "./lib/fuente.js";
+import { crearPanel } from "./lib/panel.js";
 import { ARCHIVO_DE_VISTA, crearPropuestas } from "./lib/propuestas.js";
 import { crearRevisiones, partesDeResultado } from "./lib/revisiones.js";
-import { abrirArchivoDeIntento, idsDeTandas, leerTanda, listarTandas } from "./lib/tandas.js";
+import { abrirArchivoDeIntento, leerTanda, listarTandas } from "./lib/tandas.js";
 import { partesDeCorrida, partesDeTanda } from "./public/nucleo/almacen.js";
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
@@ -148,13 +158,16 @@ const hostsDelEntorno = () =>
 
 /**
  * @param {{ fuente?: import("./lib/fuente.js").Fuente, raizCorridas?: string, hostsPermitidos?: string[],
- *           revisiones?: ReturnType<typeof crearRevisiones> | null }} opciones
+ *           revisiones?: ReturnType<typeof crearRevisiones> | null, reloj?: () => Date }} opciones
  *        `fuente` de donde leer las corridas; o `raizCorridas`, una carpeta (fuente de archivos).
  *        `hostsPermitidos`: hosts extra ("otro.host:8080") además de localhost; por defecto, BACKOFFICE_HOSTS.
- *        `revisiones`: la tabla de revisiones (lib/revisiones.js); sin ella, /api/revisiones dice que no está disponible.
+ *        `revisiones`: la tabla de revisiones (lib/revisiones.js); sin ella, /api/revisiones y /api/overview dicen que
+ *        no está disponible y /api/resumen cuenta 0 en cola.
+ *        `reloj`: la hora de referencia del Overview (`ahora`); por defecto, la real.
  */
-export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisiones = null } = {}) {
+export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisiones = null, reloj = () => new Date() } = {}) {
   const origen = fuente ?? crearFuente({ tipo: "archivos", raiz: raizCorridas });
+  const panel = crearPanel({ fuente: origen, revisiones, reloj });
   const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   const propuestas = crearPropuestas(origen);
   return createServer(async (req, res) => {
@@ -198,9 +211,12 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
         return avance ? responderJson(res, 200, avance) : responderJson(res, 404, { error: "No existe esa revisión" });
       }
 
+      if (partes[0] === "api" && partes.length === 2 && partes[1] === "resumen") return responderJson(res, 200, await panel.resumen());
+      if (partes[0] === "api" && partes.length === 2 && partes[1] === "overview") return responderJson(res, 200, await panel.overview());
+
       if (partes[0] === "api" && partes[1] === "propuestas") {
         const id = partes.slice(2).join("/");
-        if (!partesDeTanda(id) || !(await idsDeTandas(origen)).includes(id)) return responderJson(res, 404, { error: "No existe esa tanda" });
+        if (!partesDeTanda(id) || !(await panel.esTandaListada(id))) return responderJson(res, 404, { error: "No existe esa tanda" });
         return responderJson(res, 200, await propuestas.deTanda(id));
       }
 
@@ -222,12 +238,12 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
 
       if (partes[0] === "archivos" && partes.length >= 4) {
         const archivo = partes.at(-1);
-        const abierto = await abrirArchivoDeIntento(origen, {
-          id: partes.slice(1, -2).join("/"),
-          perfil: partes.at(-2),
-          archivo,
-          rango: leerRango(req.headers.range) ?? undefined,
-        });
+        // Solo de tandas listadas, con la lista que comparte el Overview (~2 s; si el id no está, se vuelve a listar).
+        const abierto = await abrirArchivoDeIntento(
+          origen,
+          { id: partes.slice(1, -2).join("/"), perfil: partes.at(-2), archivo, rango: leerRango(req.headers.range) ?? undefined },
+          { esListada: panel.esTandaListada },
+        );
         return abierto ? enviar(req, res, archivo, abierto) : responderJson(res, 404, { error: "No existe ese archivo" });
       }
 
