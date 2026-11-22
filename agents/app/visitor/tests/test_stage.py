@@ -251,22 +251,22 @@ def test_runs_two_repeats_the_attempt_in_the_same_run(tmp_path, site):
     assert [row["run"] for row in comparison["runs"]] == ["desktop", "desktop-2"]
 
 
-def test_without_a_verified_route_of_the_revision_it_fails_without_calling_the_model(tmp_path, site, monkeypatch):
+def test_without_a_verified_route_of_the_revision_the_users_run_with_the_judge(tmp_path, site, monkeypatch):
     backend = store.LocalBackend(tmp_path / "almacen")
     goal = _goal(site)
-    _catalog(backend, site, REVISION, goal, 0)
+    catalog = _catalog(backend, site, REVISION, goal, 0)
     _route(backend, site, REVISION, goal, 1, status="unverified")
     _route(backend, site, OTHER, goal, 2)  # verificada, pero de otra revisión
+    calls = []
 
-    async def no_batch(*args, **kwargs):
-        raise AssertionError("no debía correr la tanda")
+    async def batch(*args, **kwargs):
+        calls.append((args, kwargs))
+        return "corrida"
 
-    monkeypatch.setattr("visitor.stage.run_batch", no_batch)
-    with pytest.raises(MissingInput, match="ruta verificada"):
-        _stage(backend, site)
-    failed = store.revision_run(backend, store.visitor(site, "horario"), REVISION)
-    assert store.read_manifest(backend, failed).status == "failed"
-    assert "No se corrió" in backend.read_text(failed.file("report.md"))
+    monkeypatch.setattr("visitor.stage.run_batch", batch)
+    assert _stage(backend, site) == "corrida"
+    (args, kwargs), = calls
+    assert args[5] == {} and kwargs["judge"] is True and kwargs["inputs"] == (catalog,)
 
 
 def test_a_goal_starting_on_another_site_fails_where_the_conductor_waits(tmp_path, site):
