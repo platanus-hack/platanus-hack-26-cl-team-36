@@ -1,23 +1,21 @@
 // Pestaña Telaraña (diseño §10.5): un grafo dirigido de izquierda a derecha, con el inicio a la izquierda, la meta a
 // la derecha y las demás páginas en columnas según los pasos desde el inicio; la ruta recomendada es una fila recta.
-// Panel de detalle, cámara (pan, zoom, ajuste) y modo historia ligado a Replay.
+// Panel de detalle y cámara (pan, zoom, ajuste).
 //
-// El estado de la vista vive en el hash: pagina=, historia=, paso=. Los clics escriben parámetros con
+// El estado de la vista vive en el hash: pagina=. Los clics escriben parámetros con
 // ctx.actualizarParametros y actualizar(ctx) los aplica: una sola fuente de verdad.
 
 import { kbd } from "../nucleo/atajos.js";
 import { conservarFoco, el, esUrlWeb, recortarAlMedio, reemplazar, svg } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
 import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
-import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
-import { normalizarPaso } from "../nucleo/rutas.js";
-import { nombreDePagina, textoDeAccion, textoDeFirma, textoDeTitular } from "../datos/textos.js";
-import { altoDeFilaPara, altoDelLienzo, crearCamara, franjaConMasEstaciones, zoomLegible } from "../telarana/camara.js";
+import { icono, insignia } from "../nucleo/iconos.js";
+import { nombreDePagina, textoDeAccion, textoDeTitular } from "../datos/textos.js";
+import { altoDeFilaPara, altoDelLienzo, crearCamara, zoomLegible } from "../telarana/camara.js";
 import {
   finalesPorPagina,
   hitosDeRuta,
   intentosPorPagina,
-  recorridoDeHistoria,
   salidasDePagina,
   totalesDeTerminales,
   vecindario,
@@ -25,23 +23,17 @@ import {
 import { ALTO_FILA, RESULTADOS, distribuir, geometria } from "../telarana/distribuir.js";
 import { atascosPorPagina } from "../telarana/atascos.js";
 import { claseDeTramo, dibujarEscena } from "../telarana/escena.js";
-import { crearHistoria } from "../telarana/historia.js";
 import { etiquetasDeEstaciones } from "../telarana/nombres.js";
 import { nombreConNivel } from "../datos/nombres.js";
 
 const PASO_DE_PAN = 60;
 /** Las acciones de una rama, las de la gente primero y los saltos del explorador al final. */
 const accionesEnOrden = (rama) => [...(rama?.acciones ?? [])].sort((a, b) => Number(!!a.salto) - Number(!!b.salto));
-const MARGEN_DE_FRANJA = 40; // px de escena sobre y bajo la franja encuadrada (el punto y la etiqueta)
-const MARGEN_BAJO_EL_LIENZO = 16; // px entre la leyenda (o el lienzo) y el borde de abajo de la ventana
 const reducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 // Holgura para las etiquetas fuera de la caja de la geometría (la mitad del nombre del inicio a la izquierda, debajo
 // de las estaciones y a la derecha de las terminales).
-// Arriba, lo que ocupan los botones de zoom: una fila pegada al borde de arriba (la ruta, con su terminal a la derecha)
-// no queda debajo de ellos.
-const HOLGURA = { izquierda: 50, derecha: 180, arriba: 48, abajo: 40 };
-const ALTO_DE_LOS_CONTROLES = 48; // px de pantalla bajo el borde de arriba del lienzo: los botones de zoom y su margen
+const HOLGURA = { izquierda: 50, derecha: 180, abajo: 40 };
 // Ajuste a la vista (en plano): el mapa entra a lo ancho (el inicio a la izquierda y la meta a la derecha) y las filas
 // se estiran lo que pida el nombre de una estación con ese zoom, para que no se monte sobre el punto o la marca de
 // atasco de la de abajo. Un mapa más alto que el lienzo agranda el lienzo (hasta el 80 % de la ventana) y, si aun así
@@ -57,14 +49,16 @@ function crearPantalla(contenedor, ctx) {
   const nombre = (pagina) => nombreDePagina(pagina, t);
   // Lo que se ve en cada estación: si varias empiezan igual, lo que las distingue va adelante (telarana/nombres.js).
   const etiquetas = etiquetasDeEstaciones(tanda.telarana?.paginas ?? [], nombre, { primeras: tanda.telarana?.ruta?.paginas ?? [] });
-  const distribucion = distribuir(tanda.telarana ?? {});
-  const tramosExistentes = new Set(distribucion.tramos.map((tramo) => tramo.id));
+  // El grosor de los tramos y el eje (el camino más transitado) cuentan las veces que se pasó por cada tramo
+  // (rama.pasadas), como en el mapa del PR #62; el ×N del panel y de los globos sigue contando intentos distintos.
+  const distribucion = distribuir({
+    ...(tanda.telarana ?? {}),
+    ramas: (tanda.telarana?.ramas ?? []).map((rama) => ({ ...rama, intentos: rama.pasadas ?? rama.intentos })),
+  });
 
   const estado = {
     seleccion: null,
     resaltado: null, // Set de ids resaltados por puntero o foco
-    historiaId: null,
-    historia: null,
     geo: null,
     altoFila: null, // alto de fila con que se dibujó (depende del ancho del lienzo)
     altoDelLienzo: null, // px: lo que queda de la ventana bajo el lienzo
@@ -101,32 +95,6 @@ function crearPantalla(contenedor, ctx) {
   contenedor.classList.add("p-telarana");
   const titular = el("h2", { class: "telarana-titular", tabindex: "-1", "data-foco-inicial": "", texto: textoDeTitular(tanda.titulares?.telarana, tanda, t) });
   const zonaDeAvisos = el("div", { class: "telarana-avisos" });
-
-  const selectorDeHistoria = el(
-    "select",
-    { class: "telarana-intento", "aria-label": t("telarana.historia.intento"), "data-foco": "telarana:historia:intento" },
-    [...intentos.values()].map((intento) => el("option", { value: intento.id, texto: [intento.nombrePerfil ?? intento.id, t(`comun.resultado.${intento.resultado}`)].join(" · ") })),
-  );
-  selectorDeHistoria.addEventListener(
-    "change",
-    () => {
-      if (estado.historiaId) ctx.actualizarParametros({ historia: selectorDeHistoria.value, paso: null, pagina: null });
-    },
-    { signal: senal },
-  );
-  const botonDeHistoria = el(
-    "button",
-    { type: "button", class: "boton boton-secundario telarana-boton-historia", "aria-pressed": "false", "aria-keyshortcuts": "h", "data-foco": "telarana:historia" },
-    icono("historia"),
-    el("span", { texto: t("telarana.historia.boton") }),
-    el("span", { class: "telarana-pista", "aria-hidden": "true" }, kbd("h")),
-  );
-  botonDeHistoria.addEventListener("click", () => alternarHistoria(), { signal: senal });
-  const herramientas = el(
-    "div",
-    { class: "telarana-herramientas", role: "toolbar", "aria-label": t("telarana.herramientas") },
-    el("div", { class: "telarana-historia-control" }, botonDeHistoria, intentos.size ? selectorDeHistoria : null),
-  );
 
   const escena = el("div", { class: "escena" });
   const idInstrucciones = "telarana-instrucciones";
@@ -171,7 +139,7 @@ function crearPantalla(contenedor, ctx) {
 
   reemplazar(
     contenedor,
-    el("header", { class: "telarana-cabecera" }, titular, zonaDeAvisos, herramientas),
+    el("header", { class: "telarana-cabecera" }, titular, zonaDeAvisos),
     distribucion.estaciones.length
       ? el("div", { class: "telarana-cuerpo" }, el("div", { class: "telarana-columna" }, mapa, leyenda), panel)
       : vacio({ titulo: t(tanda.arbol === "danado" ? "telarana.lienzo.arbolDanado" : tanda.arbol === "falta" ? "telarana.lienzo.arbolFalta" : "telarana.lienzo.vacio") }),
@@ -272,7 +240,7 @@ function crearPantalla(contenedor, ctx) {
 
   function cajaVisible() {
     const { caja } = estado.geo;
-    return { x: caja.x - HOLGURA.izquierda, y: caja.y - HOLGURA.arriba, ancho: caja.ancho + HOLGURA.izquierda + HOLGURA.derecha, alto: caja.alto + HOLGURA.arriba + HOLGURA.abajo };
+    return { x: caja.x - HOLGURA.izquierda, y: caja.y, ancho: caja.ancho + HOLGURA.izquierda + HOLGURA.derecha, alto: caja.alto + HOLGURA.abajo };
   }
 
   /** Zoom con que se ve el mapa entero a lo ancho del lienzo. */
@@ -307,7 +275,6 @@ function crearPantalla(contenedor, ctx) {
     estado.dibujo.marcarEleccion(estado.seleccion);
     estado.dibujo.contarTerminales(totalesDeTerminales(finalesPorPagina(tanda)));
     aislar();
-    estado.historia?.reubicar(estado.dibujo, estado.geo.posiciones);
   }
 
   function ajustar() {
@@ -320,21 +287,11 @@ function crearPantalla(contenedor, ctx) {
     const { clientWidth: ancho, clientHeight: alto } = lienzo;
     if (caja.ancho * encuadre.k > ancho) encuadre.tx = -caja.x * encuadre.k;
     if (caja.alto * encuadre.k > alto) {
-      // La franja que deja dentro más estaciones (el inicio, la meta y las terminales valen por diez), sin vacío arriba ni
-      // abajo del mapa.
       const arriba = -caja.y * encuadre.k;
       const abajo = alto - (caja.y + caja.alto) * encuadre.k;
-      const margenArriba = Math.max(MARGEN_DE_FRANJA, ALTO_DE_LOS_CONTROLES / encuadre.k);
-      const ty = franjaConMasEstaciones(puntosParaEncuadrar(), alto / encuadre.k, MARGEN_DE_FRANJA, margenArriba);
-      encuadre.ty = Math.min(arriba, Math.max(abajo, ty === null ? alto / 2 : ty * encuadre.k));
+      encuadre.ty = Math.min(arriba, Math.max(abajo, alto / 2));
     }
     camara.poner(encuadre);
-  }
-
-  /** Alturas (px de escena) de las estaciones y terminales, con su peso para el encuadre. */
-  function puntosParaEncuadrar() {
-    const importantes = new Set([distribucion.tronco[0], distribucion.tronco.at(-1), ...distribucion.terminales.map((t) => t.id)]);
-    return [...distribucion.estaciones, ...distribucion.terminales].map(({ id }) => ({ y: estado.geo.posiciones.get(id).y, peso: importantes.has(id) ? 10 : 1 }));
   }
 
   function acercar() {
@@ -367,15 +324,10 @@ function crearPantalla(contenedor, ctx) {
     });
   }
 
-  /**
-   * El lienzo llena lo que queda de la ventana bajo su borde de arriba (con la página sin desplazar), dejando lugar
-   * debajo para la leyenda: sin ella no se leen los colores ni el grosor en la primera vista.
-   */
+  /** El lienzo llena lo que queda de la ventana bajo su borde de arriba (con la página sin desplazar). */
   function dimensionarLienzo() {
-    const caja = lienzo.getBoundingClientRect();
-    const arriba = caja.top + window.scrollY;
-    const bajoElLienzo = Math.max(0, leyenda.getBoundingClientRect().bottom - caja.bottom);
-    const alto = altoDelLienzo(window.innerHeight, arriba, MARGEN_BAJO_EL_LIENZO + bajoElLienzo);
+    const arriba = lienzo.getBoundingClientRect().top + window.scrollY;
+    const alto = altoDelLienzo(window.innerHeight, arriba);
     if (alto === estado.altoDelLienzo) return false;
     estado.altoDelLienzo = alto;
     contenedor.style.setProperty("--alto-del-lienzo", `${alto}px`);
@@ -405,18 +357,13 @@ function crearPantalla(contenedor, ctx) {
     if (primera && estado.montado) aplicar(estado.ctx.parametros);
   }
 
-  // ── Aislamiento: resaltado > historia > elección ──────────────────────
+  // ── Aislamiento: resaltado > elección ─────────────────────────────────
   function aislar() {
     if (!estado.dibujo) return;
     let ids = null;
-    if (estado.resaltado && !estado.historia) ids = estado.resaltado;
-    else if (estado.historia) ids = estado.historiaIds;
+    if (estado.resaltado) ids = estado.resaltado;
     else if (estado.seleccion) ids = vecindario(distribucion, estado.seleccion);
     estado.dibujo.aislar(ids);
-    // En la historia, las partículas de los demás intentos se apagan.
-    for (const particula of escena.querySelectorAll(".particula")) {
-      particula.classList.toggle("particula-fuera", !!estado.historiaId && particula.dataset.intento !== estado.historiaId);
-    }
   }
 
   function resaltar(objetivo) {
@@ -458,7 +405,6 @@ function crearPantalla(contenedor, ctx) {
       const flechas = { ArrowLeft: [PASO_DE_PAN, 0], ArrowRight: [-PASO_DE_PAN, 0], ArrowUp: [0, PASO_DE_PAN], ArrowDown: [0, -PASO_DE_PAN] };
       const movimiento = flechas[evento.key];
       if (!movimiento || !camara) return;
-      if (estado.historia && (evento.key === "ArrowLeft" || evento.key === "ArrowRight")) return; // la historia manda
       evento.preventDefault();
       camara.mover(...movimiento);
     },
@@ -467,66 +413,7 @@ function crearPantalla(contenedor, ctx) {
 
   // ── Elegir una página ─────────────────────────────────────────────────
   function elegir(id) {
-    if (estado.historia) {
-      ctx.actualizarParametros({ historia: null, paso: null, pagina: id });
-      return;
-    }
     ctx.actualizarParametros({ pagina: estado.seleccion === id ? null : id });
-  }
-
-  // ── Historia ──────────────────────────────────────────────────────────
-  function intentoPorDefecto() {
-    const candidatos = [...intentos.values()];
-    const elegido = candidatos.find((intento) => intento.id === selectorDeHistoria.value) ?? candidatos.find((intento) => intento.resultado !== "error") ?? candidatos[0];
-    return elegido?.id ?? null;
-  }
-
-  function alternarHistoria() {
-    if (estado.historiaId) ctx.actualizarParametros({ historia: null, paso: null });
-    else {
-      const id = intentoPorDefecto();
-      if (id) ctx.actualizarParametros({ historia: id, paso: null, pagina: null });
-    }
-  }
-
-  let quitarAtajosDeHistoria = null;
-  function iniciarHistoria(id) {
-    detenerHistoria();
-    const intento = intentos.get(id);
-    const recorrido = recorridoDeHistoria(intento, tramosExistentes);
-    estado.historiaId = id;
-    estado.historiaIds = recorrido.ids;
-    estado.historia = crearHistoria({
-      recorrido,
-      pasosDelIntento: intento.pasos ?? [],
-      dibujo: estado.dibujo,
-      posiciones: estado.geo.posiciones,
-      camara,
-      reducido,
-      alCambiar: (paso, { reproduciendo }) => {
-        pintarPanel();
-        const pagina = paginas.get(recorrido.pasos[paso - 1]?.pagina);
-        ctx.anunciar(t("telarana.historia.anuncio", { nombre: intento.nombrePerfil ?? id, paso, total: recorrido.pasos.length, pagina: pagina ? nombre(pagina) : "" }));
-        if (!reproduciendo) ctx.actualizarParametros({ paso: String(paso) });
-      },
-    });
-    selectorDeHistoria.value = id;
-    botonDeHistoria.setAttribute("aria-pressed", "true");
-    quitarAtajosDeHistoria = ctx.atajos.registrar({
-      Space: { descripcion: () => t("comun.atajos.desc.historiaPasos"), accion: () => { estado.historia?.alternar(); pintarPanel(); } },
-      ArrowLeft: { descripcion: () => t("comun.atajos.desc.historiaPasos"), accion: () => estado.historia?.mover(-1) },
-      ArrowRight: { descripcion: () => t("comun.atajos.desc.historiaPasos"), accion: () => estado.historia?.mover(1) },
-    });
-  }
-
-  function detenerHistoria() {
-    estado.historia?.destruir();
-    estado.historia = null;
-    estado.historiaId = null;
-    estado.historiaIds = null;
-    botonDeHistoria.setAttribute("aria-pressed", "false");
-    quitarAtajosDeHistoria?.();
-    quitarAtajosDeHistoria = null;
   }
 
   // ── Panel ─────────────────────────────────────────────────────────────
@@ -695,65 +582,10 @@ function crearPantalla(contenedor, ctx) {
     ];
   }
 
-  function panelDeHistoria() {
-    const intento = intentos.get(estado.historiaId);
-    const historia = estado.historia;
-    const numero = historia.paso;
-    const paso = intento.pasos?.[numero - 1] ?? null;
-    const control = (clave, nombreIcono, accion, extra = {}) => {
-      const boton = el("button", { type: "button", class: "boton boton-icono", "aria-label": t(`telarana.historia.${clave}`), title: t(`telarana.historia.${clave}`), "data-foco": `telarana:historia:${clave}`, ...extra }, nombreIcono.map((n) => icono(n)));
-      boton.addEventListener("click", accion);
-      return boton;
-    };
-    const reproduciendo = historia.reproduciendo;
-    const captura = paso?.captura ? ctx.urlDeArchivo(intento.id, paso.captura) : null;
-    return [
-      el(
-        "div",
-        { class: "panel-telarana-cabecera" },
-        el("div", {}, encabezado(t("telarana.historia.titulo", { nombre: intento.nombrePerfil ?? intento.id })), historia.total ? el("p", { class: "texto-3 num", texto: t("telarana.historia.pasoDe", { paso: numero, total: historia.total }) }) : null),
-        botonQuitar("telarana.historia.quitar", () => ctx.actualizarParametros({ historia: null, paso: null }), "telarana:historia:quitar"),
-      ),
-      intento.resultado === "error" ? avisoEnLinea(t("telarana.historia.error"), "atencion") : null,
-      historia.total
-        ? el(
-            "div",
-            { class: "panel-telarana-controles", role: "group", "aria-label": t("telarana.historia.controles") },
-            control("primero", ["anterior", "anterior"], () => historia.extremo(false)),
-            control("anterior", ["anterior"], () => historia.mover(-1)),
-            control(reproduciendo ? "pausar" : "reproducir", [reproduciendo ? "pausar" : "reproducir"], () => {
-              historia.alternar();
-              pintarPanel();
-            }, { "data-foco": "telarana:historia:reproducir", "aria-keyshortcuts": "Space" }),
-            control("siguiente", ["siguiente"], () => historia.mover(1)),
-            control("ultimo", ["siguiente", "siguiente"], () => historia.extremo(true)),
-          )
-        : el("p", { class: "texto-3", texto: t("telarana.historia.sinPasos") }),
-      paso
-        ? [
-            el("p", { class: "panel-telarana-firma" }, el("span", { texto: textoDeFirma(paso.firma, t) }), (paso.senales ?? []).map((senal) => marcaDeSenal(senal, { compacta: false }))),
-            captura
-              ? el("img", { class: "panel-telarana-captura", src: captura, alt: t("telarana.historia.captura", { n: numero }) })
-              : el("p", { class: "texto-3", texto: t("telarana.historia.sinCaptura") }),
-            paso.expectativa
-              ? el("div", { class: "panel-telarana-esperaba" }, el("span", { class: "etiqueta-micro", texto: t("telarana.historia.esperaba") }), el("p", { class: "prosa texto-2", texto: paso.expectativa }))
-              : null,
-            el(
-              "a",
-              { class: "boton boton-secundario panel-telarana-abrir", href: ctx.enlace("replay", { intento: intento.id, paso: numero }), "data-foco": "telarana:historia:replay" },
-              el("span", { texto: t("telarana.historia.abrirEnReplay") }),
-              icono("siguiente"),
-            ),
-          ]
-        : null,
-    ];
-  }
-
   function pintarPanel() {
     if (!panel.isConnected) return;
     conservarFoco(panel, () => {
-      if (estado.historia) reemplazar(panel, panelDeHistoria());
-      else if (estado.seleccion && paginas.has(estado.seleccion)) reemplazar(panel, panelDePagina(estado.seleccion));
+      if (estado.seleccion && paginas.has(estado.seleccion)) reemplazar(panel, panelDePagina(estado.seleccion));
       else reemplazar(panel, panelGeneral());
     });
   }
@@ -786,36 +618,6 @@ function crearPantalla(contenedor, ctx) {
     estado.seleccion = nuevaSeleccion;
     estado.dibujo?.marcarEleccion(estado.seleccion);
 
-    // historia= y paso=
-    const pedida = parametros.historia ?? null;
-    if (pedida && !intentos.has(pedida)) {
-      const respaldo = intentoPorDefecto();
-      estado.avisos.push(t("telarana.historia.noExiste", { intento: pedida, nombre: intentos.get(respaldo)?.nombrePerfil ?? respaldo ?? "" }));
-      return reescribir({ historia: respaldo, paso: null });
-    }
-    if (pedida && estado.geo) {
-      if (pedida !== estado.historiaId) iniciarHistoria(pedida);
-      const total = estado.historia.total;
-      // paso=0 es la pantalla inicial (enlaces de hitos): la historia la muestra en el paso 1, como Replay.
-      if (total && parametros.paso === "0") return reescribir({ paso: "1" });
-      if (total) {
-        const { paso, aviso } = normalizarPaso(parametros.paso, total);
-        if (aviso) {
-          estado.avisos.push(t(aviso.clave, aviso.vars));
-          return reescribir({ paso: String(paso) });
-        }
-        if (paso !== estado.historia.paso || !estado.historiaColocada) {
-          // Al montar, el mapa ya está ajustado entero: la cámara no se mueve hasta que la historia avance.
-          estado.historia.irA(paso, { conCamara: !!estado.montado });
-          estado.historiaColocada = true;
-        }
-      }
-    } else if (!pedida && estado.historiaId) {
-      detenerHistoria();
-      estado.historiaColocada = false;
-    }
-    if (!pedida) estado.historiaColocada = false;
-
     aislar();
     pintarPanel();
     reemplazar(zonaDeAvisos, estado.avisos.map((texto) => avisoEnLinea(texto, "atencion")));
@@ -833,13 +635,11 @@ function crearPantalla(contenedor, ctx) {
     "+": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => acercar() },
     "-": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => alejar() },
     0: { descripcion: () => t("comun.atajos.desc.ajustar"), accion: () => ajustar() },
-    h: { descripcion: () => t("comun.atajos.desc.historia"), accion: () => alternarHistoria() },
     Escape: {
       descripcion: () => t("comun.atajos.desc.cerrar"),
       accion: () => {
         if (ocultarGlobo()) return;
-        if (estado.historiaId) ctx.actualizarParametros({ historia: null, paso: null });
-        else if (estado.seleccion) {
+        if (estado.seleccion) {
           const id = estado.seleccion;
           ctx.actualizarParametros({ pagina: null });
           estado.dibujo?.estaciones.get(id)?.focus({ preventScroll: true });
@@ -862,7 +662,7 @@ function crearPantalla(contenedor, ctx) {
         reducido,
         puedeArrastrar: (evento) => !evento.target.closest?.(".estacion, button, a, select"),
         alTocarFondo: () => {
-          if (estado.seleccion && !estado.historia) ctx.actualizarParametros({ pagina: null });
+          if (estado.seleccion) ctx.actualizarParametros({ pagina: null });
         },
       });
       // Primer dibujo con el ancho real; después, al cambiar de tamaño.
@@ -879,9 +679,7 @@ function crearPantalla(contenedor, ctx) {
       estado.ctx = nuevo;
       return aplicar(nuevo.parametros) !== false;
     },
-    desmontar() {
-      detenerHistoria();
-    },
+    desmontar() {},
   };
 }
 

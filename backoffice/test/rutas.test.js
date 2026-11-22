@@ -30,8 +30,8 @@ test("los valores por defecto y los vacíos no se escriben", () => {
 test("orden estable de parámetros, sin importar el orden de entrada", () => {
   const a = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { z: "1", paso: "4", intento: "mobile" } });
   assert.equal(a, `#/t/${CON_TAREA}/replay?intento=mobile&paso=4&z=1`);
-  const b = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: { paso: "2", historia: "mobile", pagina: "n2", z: "1", a: "2" } });
-  assert.equal(b, `#/t/${CON_TAREA}/telarana?pagina=n2&historia=mobile&paso=2&a=2&z=1`);
+  const b = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: { pagina: "n2", z: "1", a: "2" } });
+  assert.equal(b, `#/t/${CON_TAREA}/telarana?pagina=n2&a=2&z=1`);
 });
 
 test("cada pestaña, con y sin tarea, va y vuelve", () => {

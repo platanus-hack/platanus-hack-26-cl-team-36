@@ -82,7 +82,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         grupo.append(
           svg(
             "circle",
-            { class: `particula particula-${resultado}`, r: 2.5, "data-intento": intentoId },
+            { class: `particula particula-${resultado}`, r: 2.5 },
             svg(
               "animateMotion",
               { dur: `${duracion}s`, begin: `${((indice * duracion) / Math.max(1, ids.length)).toFixed(2)}s`, repeatCount: "indefinite", rotate: "auto" },
@@ -96,8 +96,6 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
     tramos.set(tramo.id, grupo);
     elementos.set(tramo.id, grupo);
   }
-  // El cometa de la historia va en HTML, encima de las estaciones (en el SVG quedaría tapado por ellas).
-  const cometa = el("div", { class: "cometa", "aria-hidden": "true" });
 
   // ── Estaciones ────────────────────────────────────────────────────────
   const nodos = [];
@@ -166,11 +164,10 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
     nodos.push(nodo);
   }
 
-  escena.replaceChildren(lienzoSvg, ...nodos, cometa);
+  escena.replaceChildren(lienzoSvg, ...nodos);
 
   return {
     svg: lienzoSvg,
-    cometa,
     estaciones,
     tramos,
     terminales,

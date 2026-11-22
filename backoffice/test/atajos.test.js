@@ -55,11 +55,11 @@ test("atajos de la tanda y de la telaraña: un juego chico, sin restos de lo que
   const atajos = fuente("nucleo/atajos.js");
   assert.doesNotMatch(atajos, /CATALOGO/, "la hoja no tiene una lista escrita a mano que pueda desviarse");
   assert.doesNotMatch(atajos, /"perfiles"/);
-  // Las teclas que registra la telaraña: + − 0, h (historia) y Esc.
+  // Las teclas que registra el mapa de caminos: + − 0 y Esc.
   const telarana = fuente("pantallas/telarana.js");
   const bloque = telarana.slice(telarana.indexOf("ctx.atajos.registrar({"));
   const teclas = [...bloque.matchAll(/^ {4}("[^"]+"|\w+): \{/gm)].map((m) => m[1].replaceAll('"', ""));
-  assert.deepEqual(teclas, ["+", "-", "0", "h", "Escape"]);
+  assert.deepEqual(teclas, ["+", "-", "0", "Escape"]);
   // La tanda: 1 mapa, 2 Replay (sin Resumen ni Perfiles), [ ] y c; sin j/k de hallazgos.
   assert.deepEqual((await import("../public/nucleo/rutas.js")).PESTANAS, ["telarana", "replay"]);
   assert.doesNotMatch(atajos, /"resumen"/);
