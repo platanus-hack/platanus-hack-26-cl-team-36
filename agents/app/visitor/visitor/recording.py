@@ -142,6 +142,7 @@ class Run:
     conocimiento: str | None = None
     tarea_coloquial: bool | None = None
     terminos_rechazados: list[str] = field(default_factory=list)
+    acciones_sin_expectativa: int = 0  # acciones ejecutadas sin la herramienta `expectation` antes (Haiku 4.5)
 
     def to_dict(self) -> dict:
         return asdict(self)

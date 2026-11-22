@@ -1,9 +1,11 @@
 """Motor de la API de Anthropic con la herramienta de computer use (ANTHROPIC_API_KEY o Bedrock)."""
 
+import asyncio
 import re
 import struct
 from pathlib import Path
 
+from shared.claude.bedrock import backoff_s
 from shared.claude.process import png_image_block
 
 from visitor import config
@@ -24,6 +26,15 @@ EXPECTATION_TOOL = {
         "additionalProperties": False,
     },
 }
+
+# Bedrock responde 500, 503 o 429 (Throttling, ModelNotReady) de vez en cuando; los demás 4xx no se arreglan solos.
+MAX_ATTEMPTS = 4
+
+
+def _transient(error: Exception) -> bool:
+    status = getattr(error, "status_code", None)
+    return status is None or status == 429 or status >= 500  # sin status: error de conexión o timeout
+
 
 _FINAL_TEXT_PATTERN = re.compile(
     r"^\s*(TERMINADO|BLOQUEADO|ME RINDO)\s*:\s*(.*)$", re.IGNORECASE | re.MULTILINE | re.DOTALL
@@ -51,8 +62,9 @@ def _with_cache_breakpoint(messages: list[dict]) -> list[dict]:
 class ApiEngine:
     name = "api"
 
-    def __init__(self, client, model: str, effort: str):
+    def __init__(self, client, model: str, effort: str, sleep=asyncio.sleep):
         self.client = client
+        self.sleep = sleep
         self.model = model
         self.effort = effort
         self.legacy_computer = legacy_computer(model)  # (tipo, beta) de la herramienta `computer`, o None
@@ -79,13 +91,17 @@ class ApiEngine:
         }
         if config.accepts_effort(self.model):
             request["output_config"] = {"effort": self.effort}
-        try:
-            if self.legacy_computer:
-                response = await self.client.beta.messages.create(**request, betas=[self.legacy_computer[1]])
-            else:
-                response = await self.client.messages.create(**request)
-        except (anthropic.APIStatusError, anthropic.APIConnectionError) as error:
-            raise AttemptEnded("api_error", str(error)[:300])
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                if self.legacy_computer:
+                    response = await self.client.beta.messages.create(**request, betas=[self.legacy_computer[1]])
+                else:
+                    response = await self.client.messages.create(**request)
+                break
+            except (anthropic.APIStatusError, anthropic.APIConnectionError) as error:
+                if not _transient(error) or attempt == MAX_ATTEMPTS - 1:
+                    raise AttemptEnded("api_error", str(error)[:300])
+                await self.sleep(backoff_s(attempt))
         for key in self.usage:
             self.usage[key] += getattr(response.usage, key, 0) or 0
         self.messages.append({"role": "assistant", "content": response.content})

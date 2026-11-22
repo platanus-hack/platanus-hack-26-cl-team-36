@@ -206,7 +206,10 @@ La sesión del navegador, la red de seguridad de formularios, el proceso de Clau
   coordenadas, usar el teclado y hacer scroll. Zoom, arrastre, hover y el resto de acciones están desactivados. El DOM
   se lee únicamente para el registro.
 - **Expectativa:** cada acción va acompañada de una frase con lo que el agente espera que pase (campo obligatorio en
-  `claude-code`, herramienta `expectation` en `api`). Una acción sin expectativa no se ejecuta.
+  `claude-code`, herramienta `expectation` en `api`). Una acción sin expectativa se ejecuta igual (Haiku 4.5 casi nunca
+  la declara) y se cuenta en `acciones_sin_expectativa` del `run.json`, no como incidencia del sitio.
+- **Errores transitorios de la API:** 429 y 5xx (en Bedrock: Throttling, ServiceUnavailable, InternalServer,
+  ModelNotReady) se reintentan con backoff (2, 4, 8 s con jitter), hasta 4 llamadas, dentro del tiempo del intento.
 - **Límites:** 15 acciones y 3 minutos por intento (los exploradores, 30 acciones y 7 minutos); al agotarse, el resultado es
   `abandoned`. Los envíos de formularios POST o con contraseña se cancelan como red de seguridad.
 - **Capturas:** si Chromium responde `Unable to capture screenshot` (pasa a veces a media navegación), la captura se

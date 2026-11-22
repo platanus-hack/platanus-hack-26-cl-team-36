@@ -59,14 +59,16 @@ def _site(tmp_path):
     return (tmp_path / "one.html").as_uri()
 
 
-def _attempt(tmp_path, record_video: bool):
+def _attempt(tmp_path, record_video: bool, engine=None):
     url = _site(tmp_path)
 
     async def scenario():
         async with async_playwright() as playwright:
             browser = await connect_browser(playwright)
             try:
-                user = SyntheticUser(ScriptedEngine(), browser, DESKTOP, url, "Ir a dos", tmp_path / "run", record_video)
+                user = SyntheticUser(
+                    engine or ScriptedEngine(), browser, DESKTOP, url, "Ir a dos", tmp_path / "run", record_video
+                )
                 return await user.attempt()
             finally:
                 await browser.close()
@@ -121,3 +123,13 @@ def test_failure_closing_the_browser_keeps_the_result(tmp_path, monkeypatch):
     assert any("disco lleno" in incident for incident in run.incidents)
     saved = (tmp_path / "run" / "run.json").read_text(encoding="utf-8")
     assert '"end_reason": "done"' in saved and "disco lleno" in saved
+
+
+def test_action_without_expectation_runs_and_is_counted(tmp_path):
+    """Haiku 4.5 hace clic sin la herramienta `expectation`: el paso se da igual y la falta no es incidencia del sitio."""
+    engine = ScriptedEngine(think_s=0)
+    engine.turns[0].requests.pop(0)
+    run = _attempt(tmp_path, record_video=False, engine=engine)
+    assert run.end_reason == "done"
+    assert [step.title for step in run.steps] == ["Dos"] and run.steps[0].expectation == ""
+    assert run.acciones_sin_expectativa == 1 and run.incidents == []
