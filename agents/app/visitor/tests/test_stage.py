@@ -130,6 +130,18 @@ def test_runs_gives_each_profile_its_attempts_in_their_own_folders():
         attempt_slots(["desktop"], 0)
 
 
+def test_a_browser_that_does_not_open_skips_only_its_attempt():
+    error = RuntimeError("ThrottlingException")
+    slots = [("desktop", 1), ("mobile", 1), ("explorador", 1)]
+    assert batch._without_failed_browsers(["b1", error, "b3"], slots, False) == (
+        ["b1", "b3"], [("desktop", 1), ("explorador", 1)])
+    assert batch._without_failed_browsers(["b1", error, "criterio"], slots[:2], True) == (["b1", "criterio"], [slots[0]])
+    with pytest.raises(RuntimeError):
+        batch._without_failed_browsers([error, error], slots[:2], False)
+    with pytest.raises(RuntimeError):
+        batch._without_failed_browsers(["b1", error], slots[:1], True)
+
+
 def test_arana_gives_16_users_loaded_to_the_explorers():
     keys, runs = expand_profiles("arana")
     slots = attempt_slots(keys, 1, runs)

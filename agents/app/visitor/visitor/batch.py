@@ -160,7 +160,9 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
         browsers = open_browsers(playwright, browser, cdp_url)
         try:
             # Uno por usuario y, con juez, uno para el criterio (en local, todos son el mismo Chromium).
-            opened = await asyncio.gather(*(browsers.open() for _ in range(len(slots) + (judge is not None))))
+            opened = await asyncio.gather(*(browsers.open() for _ in range(len(slots) + (judge is not None))),
+                                          return_exceptions=True)
+            opened, slots = _without_failed_browsers(opened, slots, judge is not None)
             if tema_script is not None:
                 opened = [NavegadorConTema(item, tema_script) for item in opened]
             criteria_task = (
@@ -200,6 +202,22 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
         _record_verdict(run, batch_dir / run.folder, references, judge, instruction, criteria) for run in runs
     ))
     return runs, criteria
+
+
+def _without_failed_browsers(opened: list, slots: list[tuple[str, int]], judged: bool) -> tuple[list, list]:
+    """Los navegadores abiertos y sus intentos: uno que no abrió se salta; si no abrió ninguno (o el del criterio), lanza."""
+    failed = [item for item in opened if isinstance(item, BaseException)]
+    if judged and isinstance(opened[-1], BaseException):
+        raise opened[-1]
+    users = list(zip(slots, opened))
+    kept = [(slot, item) for slot, item in users if not isinstance(item, BaseException)]
+    if not kept:
+        raise failed[0]
+    for slot, item in users:
+        if isinstance(item, BaseException):
+            print(f"[{attempt_folder(*slot)}] se salta: no se abrió su navegador ({type(item).__name__}: {item})",
+                  flush=True)
+    return [item for _, item in kept] + opened[len(slots):], [slot for slot, _ in kept]
 
 
 async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, profile_keys: list[str], runs: int,
