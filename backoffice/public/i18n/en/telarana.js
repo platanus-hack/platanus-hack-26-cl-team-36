@@ -59,6 +59,12 @@ export default {
     clic: "click on «{destino}»",
     atras: "go back",
     fin: "ended",
+    desplazar: "scroll",
+    escribir: "type",
+    tecla: "press a key",
+    navegar: "go to an address",
+    salto: "return to a page already seen",
+    otra: "another action",
   },
   panel: {
     etiqueta: "Where people go",

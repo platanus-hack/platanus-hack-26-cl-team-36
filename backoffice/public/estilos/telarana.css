@@ -100,6 +100,8 @@
 
 /* ── Panel: estructura fija, cifras con ancho estable ───────────────── */
 .telarana-viva .tv-panel { display: grid; gap: 18px; align-content: start; min-width: 0; padding: var(--e-4); }
+/* Con una página o un tramo fijados las listas crecen con los datos: alto fijo y scroll interno. */
+.telarana-viva .tv-panel:is([data-modo="n"], [data-modo="e"]) { height: clamp(440px, 66vh, 760px); overflow: auto; }
 .telarana-viva .tv-panel .num { font-variant-numeric: tabular-nums; }
 .telarana-viva .tv-seccion { display: grid; gap: 6px; min-width: 0; }
 .telarana-viva .tv-h {

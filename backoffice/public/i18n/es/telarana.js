@@ -59,6 +59,12 @@ export default {
     clic: "clic en «{destino}»",
     atras: "volver atrás",
     fin: "terminó",
+    desplazar: "desplazarse",
+    escribir: "escribir",
+    tecla: "presionar una tecla",
+    navegar: "ir a una dirección",
+    salto: "volver a una página ya vista",
+    otra: "otra acción",
   },
   panel: {
     etiqueta: "Dónde se va la gente",

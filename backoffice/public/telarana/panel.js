@@ -9,9 +9,10 @@ import { el, reemplazar } from "../nucleo/dom.js";
 import { icono } from "../nucleo/iconos.js";
 import { RESULTADO_DE_FINAL, cifras, detalleDePagina, detalleDeTramo, dondeSeVan, enCurso } from "./modelo.js";
 
-export const ORDEN_MS = 5000;
+const ORDEN_MS = 5000;
 const DONDE = 3;
 const MAX_INTENTOS = 12;
+const ACCIONES = { go_back: "atras", end: "fin", scroll: "desplazar", type: "escribir", key: "tecla", navigate: "navegar", volver_a_nodo: "salto" };
 
 const ponerTexto = (nodo, valor) => {
   const texto = String(valor);
@@ -76,8 +77,9 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
     const ins = el("span", { class: "tv-ins", texto: insignia });
     return { nodo: el("div", { class: "tv-cab" }, el("div", { class: "tv-cab-texto" }, b, ins), cerrar), b, ins };
   };
+  // Las acciones del evaluador con su texto; una desconocida se muestra con un texto genérico, nunca su valor interno.
   const nombreDeAccion = (accion, destino) =>
-    accion === "go_back" ? t("telarana.accion.atras") : accion === "end" ? t("telarana.accion.fin") : /click$/.test(accion) ? t("telarana.accion.clic", { destino }) : accion;
+    /click$/.test(accion) ? t("telarana.accion.clic", { destino }) : t(`telarana.accion.${ACCIONES[accion] ?? "otra"}`);
   const accionMasComun = (e) => {
     const [accion, n] = Object.entries(e.acciones).sort((a, b) => b[1] - a[1])[0] ?? [];
     return accion ? t("telarana.panel.accion", { accion: nombreDeAccion(accion, nombre(e.b)), n }) : "";
@@ -232,7 +234,8 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
     p.terminan.hidden = !d.finales.length;
     ponerTexto(p.terminan.firstChild, t("telarana.panel.terminanAqui", { lista: d.finales.map((e) => `${t(`comun.resultado.${RESULTADO_DE_FINAL[e.term]}`)} ${e.n}`).join(", ") }));
     p.vacios.porque.hidden = !!(d.nodo.atascos || d.finales.length);
-    const intentos = d.intentos.reverse().slice(0, MAX_INTENTOS).filter((i) => enlaceAReplay(i.run, i.paso ?? 0));
+    // Los primeros en llegar, en orden de llegada: la lista solo crece hasta el tope y nunca se reordena.
+    const intentos = d.intentos.filter((i) => enlaceAReplay(i.run, i.paso ?? 0)).slice(0, MAX_INTENTOS);
     listaEstable(p.chips, intentos, filaDeIntento(m), ahora);
     p.vacios.chips.hidden = intentos.length > 0;
   }
@@ -309,7 +312,7 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
   raiz.addEventListener("pointerover", (ev) => {
     encima = true;
     const fila = ev.target.closest?.(".tv-fila[data-k]");
-    if (fila) alApuntar({ t: "n", k: fila.dataset.k });
+    alApuntar(fila ? { t: "n", k: fila.dataset.k } : null);
   });
   raiz.addEventListener("pointerleave", () => {
     encima = false;
@@ -334,6 +337,7 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
         raiz.scrollTop = 0;
         partes = agente ? armarAgente(m, agente) : pagina ? armarPagina(m, pagina) : tramo ? armarTramo(m, tramo) : armarGeneral(m);
         partes.tipo = nuevo[0];
+        raiz.dataset.modo = partes.tipo;
       }
       if (partes.tipo === "a") pintarAgente(m, partes);
       else if (partes.tipo === "n") pintarPagina(m, partes, ahora);
