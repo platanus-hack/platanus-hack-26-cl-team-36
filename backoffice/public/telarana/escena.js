@@ -8,19 +8,13 @@ import { icono } from "../nucleo/iconos.js";
 const CLASE_DE_RAMA = { exito: "exito", mixto: "mixto", fallo: "fallo", abandono: "abandono", error: "error" };
 const CLASE_DE_FINAL = { logrado: "exito", fallido: "fallo", abandonado: "abandono", error: "error" };
 const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", error: "error-herramienta" };
-const ORDEN_DE_CAPA = { retroceso: 0, lateral: 0, avance: 1, final: 1, tronco: 2 };
-/** Tramos secundarios (vueltas atrás y pasos laterales): finos, tenues y sin partículas, para no tapar el avance. */
-const SECUNDARIOS = new Set(["retroceso", "lateral"]);
+const ORDEN_DE_CAPA = { retroceso: 0, avance: 1, final: 1, tronco: 2 };
 
 /** Id de DOM seguro para un tramo (para <mpath href="#…">). */
 export const idDomDeTramo = (id) => `telarana-tramo-${String(id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
-/** Ancho del trazo: 1.5 + 1.25·intentos (el de error, fino; los secundarios, más finos para no tapar el avance). */
-export function anchoDeTramo(tramo) {
-  if (claseDeTramo(tramo) === "error") return 1.5;
-  const intentos = Math.max(0, tramo.intentos ?? 0);
-  return SECUNDARIOS.has(tramo.tipo) ? 1.25 + 0.5 * intentos : 1.5 + 1.25 * intentos;
-}
+/** Ancho del trazo: 1.5 + 1.25·intentos (el de error, fino). */
+export const anchoDeTramo = (tramo) => (claseDeTramo(tramo) === "error" ? 1.5 : 1.5 + 1.25 * Math.max(0, tramo.intentos ?? 0));
 
 export function claseDeTramo(tramo) {
   if (tramo.tipo === "final") return CLASE_DE_FINAL[tramo.resultado] ?? "exito";
@@ -29,9 +23,8 @@ export function claseDeTramo(tramo) {
 
 /**
  * @param {{ escena: HTMLElement, distribucion, geo, paginas: Map<string, object>, ramas: Map<string, object>,
- *   textos: { nombre(pagina), etiqueta?(pagina) (lo que se ve: lo que distingue a la página, adelante),
- *             ariaDeEstacion(pagina, estacion, atascos), detalleDeVariantes(n), visitas(n),
- *             etiquetaDeResultado(r), ariaDeTerminal(r, n) },
+ *   textos: { nombre(pagina), ariaDeEstacion(pagina, estacion, atascos), detalleDeVariantes(n), visitas(n),
+ *             etiquetaDeResultado(r), ariaDeTerminal(r, n), anillo?(n) (etiqueta del anillo n: «paso n») },
  *   urlDeCaptura: (captura) => string | null, intentos: Map<string, object>, particulas: boolean }} opciones
  */
 export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, textos, urlDeCaptura, intentos, particulas }) {
@@ -52,6 +45,20 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
     focusable: "false",
     estilo: { "--x": `${caja.x}px`, "--y": `${caja.y}px` },
   });
+  // Guías de la telaraña radial: los anillos (un paso desde el inicio cada uno) como hebras y los rayos.
+  let guias = null;
+  if (geo.anillos?.length) {
+    const e = geo.extension;
+    guias = svg(
+      "svg",
+      { class: "telarana-guias", viewBox: `${-e} ${-e} ${2 * e} ${2 * e}`, width: 2 * e, height: 2 * e, "aria-hidden": "true", focusable: "false", estilo: { "--x": `${-e}px`, "--y": `${-e}px` } },
+      geo.rayos.map((d) => svg("path", { class: "guia-rayo", d })),
+      geo.anillos.map((anillo) => svg("path", { class: "guia-anillo", d: anillo.d })),
+      geo.anillos
+        .filter((anillo) => anillo.etiqueta)
+        .map((anillo) => svg("text", { class: "guia-etiqueta", x: anillo.etiqueta.x + 6, y: anillo.etiqueta.y - 6, texto: textos.anillo?.(anillo.capa) ?? String(anillo.capa) })),
+    );
+  }
   const ordenados = [...distribucion.tramos].sort((a, b) => ORDEN_DE_CAPA[a.tipo] - ORDEN_DE_CAPA[b.tipo]);
   for (const tramo of ordenados) {
     const d = geo.caminos.get(tramo.id);
@@ -66,7 +73,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
       svg("path", { class: "tramo-golpe", d, tabindex: "-1", focusable: "false" }),
     );
     // Partículas: una por intento que recorrió la rama, del color de cómo terminó ese intento.
-    if (particulas && tramo.tipo !== "final" && !SECUNDARIOS.has(tramo.tipo)) {
+    if (particulas && tramo.tipo !== "final" && tramo.tipo !== "retroceso") {
       const ids = ramas.get(tramo.id)?.intentosIds ?? [];
       const duracion = 2.6;
       ids.forEach((intentoId, indice) => {
@@ -110,6 +117,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         "data-foco": `telarana:pagina:${estacion.id}`,
         "aria-pressed": "false",
         "aria-label": textos.ariaDeEstacion(pagina, estacion, 0),
+        "data-ancla": geo.anclas?.get(estacion.id) ?? null,
         estilo: { "--x": `${posicion.x}px`, "--y": `${posicion.y}px` },
       },
       el(
@@ -122,7 +130,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         "span",
         { class: "estacion-etiqueta", "aria-hidden": "true" },
         captura ? el("img", { class: "estacion-miniatura", src: captura, alt: "", loading: "lazy", decoding: "async", width: 120, height: 75 }) : null,
-        el("span", { class: "estacion-nombre", texto: textos.etiqueta?.(pagina) ?? textos.nombre(pagina) }),
+        el("span", { class: "estacion-nombre", texto: textos.nombre(pagina) }),
         variantes > 1 ? el("span", { class: "estacion-detalle", texto: textos.detalleDeVariantes(variantes) }) : null,
         pagina.url ? el("span", { class: "estacion-url mono", texto: recortarAlMedio(pagina.url.replace(/^https?:\/\//, ""), 36) }) : null,
         el("span", { class: "estacion-visitas", texto: textos.visitas(pagina.visitas ?? 0) }),
@@ -146,6 +154,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         "data-terminal": terminal.id,
         role: "img",
         "aria-label": textos.ariaDeTerminal(terminal.resultado, terminal.total),
+        "data-ancla": geo.anclas?.get(terminal.id) ?? null,
         estilo: { "--x": `${posicion.x}px`, "--y": `${posicion.y}px` },
       },
       el("span", { class: "terminal-punto", "aria-hidden": "true" }, icono(ICONO_DE_RESULTADO[terminal.resultado])),
@@ -156,7 +165,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
     nodos.push(nodo);
   }
 
-  escena.replaceChildren(lienzoSvg, ...nodos);
+  escena.replaceChildren(...(guias ? [guias] : []), lienzoSvg, ...nodos);
 
   return {
     svg: lienzoSvg,
