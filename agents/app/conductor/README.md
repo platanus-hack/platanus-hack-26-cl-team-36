@@ -16,7 +16,7 @@ Desde la raíz, `just local revision <url>` hace lo mismo con una revisión nuev
 
 | Opción | Qué hace |
 |---|---|
-| `--goals-max` | Objetivos evaluables que se recorren (por defecto 8, o `CONDUCTOR_GOALS_MAX`): sin `exclusion`, primero los que no salen del sitio ni tienen barreras, los más demandados (`demand`) y prominentes; un tercio largos y otro medianos según `estimated_steps` (`for_revision`, el mismo criterio de la proyectora). |
+| `--goals-max` | Objetivos evaluables que se recorren (por defecto 8, o `CONDUCTOR_GOALS_MAX`): sin `exclusion`, primero los que no salen del sitio ni tienen barreras, los más demandados (`demand`) y prominentes; la mitad largos y un cuarto medianos según `estimated_steps` (`for_revision`, el mismo criterio de la proyectora). |
 | `--profiles`, `--runs` | Van al Visitante: perfiles e intentos por perfil, todos a la vez (por defecto `desktop,mobile,explorador,explorador_buscador` y 2, o `CONDUCTOR_PROFILES` y `CONDUCTOR_RUNS`): 8 usuarios por objetivo. |
 | `--concurrency` | Objetivos a la vez (por defecto 6, o `CONDUCTOR_CONCURRENCY`). |
 

@@ -9,8 +9,8 @@ const META_DE = { running: "running", succeeded: "done", failed: "failed" };
 
 // Misma selección que el conductor (agents/shared, catalog/goal.py `for_revision`): user_goal
 // sin barreras que lo excluyan, ordenados: primero los que no salen del sitio, luego sin barreras,
-// los más demandados, los más prominentes y en el orden del catálogo. Hasta `goalsMax`, un tercio
-// largos y otro tercio medianos (lo que falte de un nivel lo completa el siguiente) y el resto, los primeros.
+// los más demandados, los más prominentes y en el orden del catálogo. Hasta `goalsMax`, la mitad
+// largos y un cuarto medianos (los largos que falten los completan medianos) y el resto, los primeros.
 const BARRERAS = ["login", "personal_data", "bot_check"];
 const PROMINENCIA = ["buried", "secondary", "primary"];
 const DEMANDA = ["top", "common", "rare"];
@@ -51,9 +51,9 @@ export function goalsElegidos(goals, goalsMax) {
     .sort((a, b) => comparar(a.clave, b.clave))
     .map(({ goal }) => goal);
   if (!(goalsMax < candidatos.length)) return candidatos.map((goal) => goal.id);
-  const cuota = Math.floor(goalsMax / 3);
+  const largos = Math.floor(goalsMax / 2);
   const elegidos = new Set();
-  for (const [nivel, quiero] of [["long", cuota], ["medium", 2 * cuota]]) {
+  for (const [nivel, quiero] of [["long", largos], ["medium", largos + Math.floor(goalsMax / 4)]]) {
     const faltan = quiero - elegidos.size;
     candidatos.filter((goal) => profundidad(goal) === nivel).slice(0, Math.max(faltan, 0)).forEach((goal) => elegidos.add(goal));
   }

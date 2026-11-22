@@ -63,6 +63,16 @@ test("goalsElegidos elige lo mismo que el conductor ante un catálogo real", () 
   }
 });
 
+test("con 8 goals: 4 largos, 2 medianos y 2 de los primeros, como for_revision", () => {
+  const goal = (id, demand, estimated_steps) => ({ id, level: "user_goal", start_url: "https://ejemplo.cl/", demand, prominence: "secondary", estimated_steps });
+  const goals = [
+    ...[0, 1, 2, 3].map((n) => goal(`top-corto-${n}`, "top", 1)),
+    ...[0, 1, 2].map((n) => goal(`medio-${n}`, "common", 3)),
+    ...[0, 1, 2, 3, 4].map((n) => goal(`largo-${n}`, "rare", 6)),
+  ];
+  assert.deepEqual(goalsElegidos(goals, 8), ["top-corto-0", "top-corto-1", "medio-0", "medio-1", "largo-0", "largo-1", "largo-2", "largo-3"]);
+});
+
 test("profundidad: por pasos estimados o formulario, como depth de goal.py", () => {
   const pasos = [undefined, 1, 2, 3, 4, 5];
   assert.deepEqual(pasos.map((estimated_steps) => profundidad({ estimated_steps })), [null, "short", "short", "medium", "medium", "long"]);
