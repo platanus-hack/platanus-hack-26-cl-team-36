@@ -271,8 +271,8 @@ test("tanda nueva: el error de la herramienta se marca y no cuenta", async () =>
   const inicioAyuda = tanda.telarana.ramas.find((r) => r.id === "n1>n2");
   assert.deepEqual([inicioAyuda.exitos, inicioAyuda.fallos, inicioAyuda.errores, inicioAyuda.intentos], [2, 0, 1, 3]);
   assert.deepEqual(inicioAyuda.acciones, [
-    { accion: "clic «Ayuda»", intentos: 2, perfiles: ["hurried", "mobile"] },
-    { accion: "clic «Buscar»", intentos: 1, perfiles: ["first_time"] },
+    { accion: "clic «Ayuda»", intentos: 2, perfiles: ["hurried", "mobile"], salto: false },
+    { accion: "clic «Buscar»", intentos: 1, perfiles: ["first_time"], salto: false },
   ]);
   assert.equal(inicioAyuda.accion, "clic «Ayuda»");
   const ayuda = tanda.telarana.paginas.find((p) => p.id === "n2");
@@ -625,4 +625,30 @@ test("un explorador que vuelve a una página con volver_a_nodo no tropieza (ni s
   const conClics = conSaltos("left_click");
   assert.ok(conClics.intentos.find((intento) => intento.id === "hurried").pasos.every((paso) => paso.estado === "no_cumplida"));
   assert.ok(conClics.hallazgos.find((h) => h.id === "tropiezos").vars.pasos > (tropiezos?.vars.pasos ?? 0));
+});
+
+test("firma de un salto del explorador: «volver a «X»», con su propio tipo (se traduce)", () => {
+  const salto = { action: "volver_a_nodo", action_input: { nodo: "p1", url: "https://www.ine.gob.cl/", titulo: "Inicio" }, description: "volver a «Inicio»" };
+  assert.deepEqual({ tipo: firmaDelPaso(salto).tipo, objetivo: firmaDelPaso(salto).objetivo }, { tipo: "volver", objetivo: "Inicio" });
+  assert.equal(firmaDelPaso({ action: "volver_a_nodo", description: "volver a «Mapa del sitio»" }).objetivo, "Mapa del sitio");
+});
+
+test("tarjeta de la ruta: las acciones humanas primero; un «volver a …» nunca la encabeza", async () => {
+  const { accionesDelTramo } = await import("../public/pantallas/resumen.js");
+  const ctx = { t: (clave, vars = {}) => (clave === "resumen.ruta.accionVeces" ? `${vars.accion} (${vars.n})` : clave === "resumen.ruta.masAcciones" ? `+${vars.n}` : clave) };
+  const c = {
+    tanda: {
+      intentos: ["a", "b", "c"].map((id) => ({ id, perfil: id, resultado: "logrado" })),
+      telarana: {
+        ramas: [{
+          origen: "n1", destino: "n2",
+          acciones: [
+            { accion: "volver a «Agenda»", perfiles: ["a", "b", "c"], salto: true },
+            { accion: "clic «Horarios»", perfiles: ["a", "b"], salto: false },
+          ],
+        }],
+      },
+    },
+  };
+  assert.equal(accionesDelTramo(ctx, c, { origen: "n1", destino: "n2", accion: "" }).texto, "clic «Horarios» (2) · volver a «Agenda» (3)");
 });

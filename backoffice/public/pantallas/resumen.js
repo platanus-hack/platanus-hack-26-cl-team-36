@@ -259,12 +259,16 @@ function hallazgos(ctx, c) {
 
 // ── Ruta recomendada ────────────────────────────────────────────────────────
 
-function accionesDelTramo(ctx, c, tramo) {
+/** Las acciones con que se recorrió un tramo de la ruta (texto de la tarjeta y su globo). */
+export function accionesDelTramo(ctx, c, tramo) {
   const rama = (c.tanda.telarana?.ramas ?? []).find((r) => r.origen === tramo.origen && r.destino === tramo.destino);
   // Cuántos intentos válidos hicieron cada acción: los con error de la herramienta no cuentan (como en las cifras).
   const validos = new Set((c.tanda.intentos ?? []).filter(esValido).map((intento) => intento.perfil ?? intento.id));
+  // Los «volver a …» del explorador (un salto que ningún humano puede dar) van después de las acciones humanas.
   const acciones = rama?.acciones?.length
-    ? rama.acciones.map((accion) => ({ accion: accion.accion, n: (accion.perfiles ?? []).filter((perfil) => validos.has(perfil)).length }))
+    ? rama.acciones
+        .map((accion) => ({ accion: accion.accion, salto: !!accion.salto, n: (accion.perfiles ?? []).filter((perfil) => validos.has(perfil)).length }))
+        .sort((a, b) => a.salto - b.salto)
     : [{ accion: tramo.accion, n: 0 }];
   const texto = (accion) => (accion.n ? ctx.t("resumen.ruta.accionVeces", { accion: accion.accion, n: accion.n }) : accion.accion);
   const visibles = acciones.slice(0, ACCIONES_VISIBLES).map(texto);

@@ -122,7 +122,8 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} id
  * @property {string} origen
  * @property {string} destino
- * @property {{ accion: string, intentos: number, perfiles: string[] }[]} acciones
+ * @property {{ accion: string, intentos: number, perfiles: string[], salto: boolean }[]} acciones  salto: un
+ *   «volver a …» del explorador (no lo hace un humano)
  * @property {string} accion
  * @property {number} exitos  pasadas que el evaluador marcó en camino a la página final
  * @property {number} fallos  pasadas que no (desvíos, saltos, vueltas)
@@ -286,6 +287,8 @@ export function firmaDelPaso(paso) {
     }
     case "type":
       return { ...base, tipo: "escribir", objetivo: entrada.text ?? /^escribir «(.*)»$/s.exec(descripcion)?.[1] ?? "" };
+    case SALTO_DEL_EXPLORADOR:
+      return { ...base, tipo: "volver", objetivo: entrada.titulo ?? /^volver a «(.*)»$/s.exec(descripcion)?.[1] ?? null };
     case "key":
       if (descripcion === "atrás" || (paso.signals ?? []).includes("went_back")) return { ...base, tipo: "atras" };
       return { ...base, tipo: "tecla", objetivo: entrada.text ?? descripcion.replace(/^tecla\s*/, "") };
@@ -412,7 +415,7 @@ function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
       accion.intentos += perfiles.length;
       for (const perfil of perfiles) if (!accion.perfiles.includes(perfil)) accion.perfiles.push(perfil);
     } else {
-      rama.acciones.push({ accion: texto, intentos: perfiles.length, perfiles: [...new Set(perfiles)] });
+      rama.acciones.push({ accion: texto, intentos: perfiles.length, perfiles: [...new Set(perfiles)], salto: esVolver(texto) });
     }
   }
   return [...porPar.values()].map(({ tiempos, pasos, ...rama }) => {

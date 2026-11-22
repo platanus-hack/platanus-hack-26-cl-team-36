@@ -48,6 +48,7 @@ export default {
     desplazar: ({ flecha, cantidad }) => ["desplazar", flecha, cantidad ? `×${cantidad}` : ""].filter(Boolean).join(" "),
     escribir: "escribir «{objetivo}»",
     atras: "volver atrás",
+    volver: ({ objetivo }) => (objetivo ? `volver a «${objetivo}»` : "volver a una página ya vista"),
     tecla: "tecla {objetivo}",
     otra: ({ original }) => String(original ?? "") || "otra acción",
   },

@@ -154,3 +154,14 @@ test("las pantallas no escriben textos visibles a mano", () => {
   }
   assert.deepEqual(hallados, [], `textos a mano (usa t()):\n${hallados.join("\n")}`);
 });
+
+test("cada señal que el evaluador puede escribir en un paso tiene su texto en español y en inglés", async () => {
+  // Las señales salen de signals.append(…) en el arnés del evaluador (agents/app/web_evaluator/harness.py).
+  const arnes = readFileSync(fileURLToPath(new URL("../../agents/app/web_evaluator/harness.py", import.meta.url)), "utf8");
+  const senales = new Set([...arnes.matchAll(/signals\.append\(([^)]*)\)/g)].flatMap(([, dentro]) => [...dentro.matchAll(/"(\w+)"/g)].map(([, s]) => s)));
+  for (const s of ["no_effect", "went_back", "visible_error", "security_block", "revisit"]) assert.ok(senales.has(s), `el arnés escribe ${s}`);
+  for (const idioma of IDIOMAS) {
+    const { default: comun } = await cargar(idioma, "comun.js");
+    for (const senal of senales) assert.equal(typeof comun.senal?.[senal], "string", `${idioma}: comun.senal.${senal}`);
+  }
+});
