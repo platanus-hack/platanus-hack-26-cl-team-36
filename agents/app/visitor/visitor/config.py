@@ -4,13 +4,13 @@ import os
 from pathlib import Path
 
 # Modelos en local: los usuarios sintéticos navegan con Sonnet; el juez (solo con --judge) es Opus.
-# En AWS, los de bedrock_model() (más abajo).
+# En AWS (motor bedrock), los usuarios usan el modelo rápido y el juez el fuerte (shared.claude.engines.bedrock_model).
 USER_MODEL = "claude-sonnet-5-5"
 JUDGE_MODEL = "claude-opus-5-5"
 USER_EFFORT = "medium"
 JUDGE_EFFORT = "medium"
 USER_MAX_TOKENS = 10_000
-JUDGE_MAX_TOKENS = 4_000
+JUDGE_MAX_TOKENS = 8_000   # los 5.x pueden razonar antes del JSON
 
 # Límites de cada intento.
 MAX_STEPS = 15      # acciones ejecutadas en la página
@@ -42,16 +42,6 @@ NO_EFFECT_THRESHOLD = 0.005  # fracción de píxeles que deben cambiar para que 
 # AWS: el motor `bedrock`, el navegador `agentcore` y el Visitante desplegado en AgentCore Runtime.
 # El proyecto vive en us-east-2 (ver infra/README.md).
 AWS_REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-2"
-# En AWS (motor bedrock, incluido AgentCore Runtime) los usuarios y el juez usan AGENTS_MODEL, por defecto Haiku 4.5 por
-# el perfil de inferencia de EE.UU.: los modelos 5.x no responden en la cuenta del proyecto. Todos los que responden
-# ahí son anteriores a Opus 4.7 y usan la herramienta de computer use anterior al toolset (ver actions.py).
-BEDROCK_MODEL_VAR = "AGENTS_MODEL"
-BEDROCK_DEFAULT_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-
-
-def bedrock_model() -> str:
-    return os.environ.get(BEDROCK_MODEL_VAR) or BEDROCK_DEFAULT_MODEL
-
 
 # Haiku 4.5 responde 400 si la petición lleva `output_config.effort`: con él, el esfuerzo no se envía.
 _SIN_ESFUERZO = ("claude-haiku-4-5",)

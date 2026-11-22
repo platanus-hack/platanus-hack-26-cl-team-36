@@ -37,7 +37,7 @@ uv run main.py --site https://www.metro.cl/ --goal planificar-viaje --tema ../..
 | `--profiles` | Perfiles separados por coma: `desktop` (por defecto: hace la tarea sin imitar un tipo de usuario), `mobile` (la misma, en un teléfono) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido` (y los 8 [con nivel de conocimiento](#exploradores-con-nivel-de-conocimiento)), que solo corren si se piden. |
 | `--exploradores [CONJUNTO]` | Suma un conjunto de exploradores: `base` (los 4 de siempre) o `conocimiento` (los 8 con nivel de conocimiento). Sin nombre, el de `config.CONJUNTO_EXPLORADORES` (`conocimiento`, el estándar). Sin `--profiles`, corren solo ellos. |
 | `--engine` | `claude-code` (por defecto, o `AGENTS_ENGINE`), `api`, `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS) o `fake` (un usuario guionizado, sin Claude, que repite los pasos de la ruta de la Guía y declara que terminó: para probar la etapa de punta a punta). |
-| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `AGENTS_MODEL` o Haiku 4.5, que no acepta esfuerzo: no se envía). |
+| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `AGENTS_MODEL` o Haiku 5.5; Haiku 4.5 no acepta esfuerzo: con él no se envía). |
 | `--browser` | `local` (Chromium, por defecto, o `AGENTS_BROWSER`) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 | `--record-video` | Graba un video `.webm` de cada intento (al tamaño del viewport), además de las capturas de cada paso. El reporte enlaza el video y marca en qué minuto ocurre cada paso. |
@@ -131,13 +131,15 @@ La imagen hace falta porque el driver de Playwright es un binario de Node que ne
 AgentCore usa para el código en zip no la trae: sin ella, cada tanda termina a los 2 s con *Connection closed while
 reading from the driver*. La imagen no instala Chromium, porque en AWS el navegador es AgentCore Browser.
 
-En AWS los usuarios sintéticos (y el juez, si se pide) usan `AGENTS_MODEL`, por defecto Claude Haiku 4.5
-(`us.anthropic.claude-haiku-4-5-20251001-v1:0`, `config.bedrock_model()`); el pedido no puede cambiarlo. La cuenta del
-proyecto no tiene acceso en Bedrock a los modelos 5.x. Se llama por el endpoint `bedrock-runtime` con el perfil de
-inferencia de EE.UU., que reparte entre us-east-1, us-east-2 y us-west-2.
+En AWS los usuarios sintéticos usan `AGENTS_MODEL`, por defecto Claude Haiku 5.5 (`us.anthropic.claude-haiku-5-5`), y
+el juez, si se pide, `AGENTS_MODEL_FUERTE`, por defecto Sonnet 5.5 (`shared.claude.engines.bedrock_model`); el pedido no
+puede cambiarlos. Se llama por el endpoint `bedrock-runtime` con el perfil de inferencia de EE.UU., que reparte entre
+us-east-1, us-east-2 y us-west-2. Los 5.x pueden devolver bloques de razonamiento antes de las acciones: quedan en el
+historial y no cuentan como acción ni como mensaje final.
 
-Esos modelos no aceptan el toolset de computer use (`computer_toolset_20260801`, desde Opus 4.7), así que `ApiEngine`
-declara la herramienta anterior de cada uno (`LEGACY_COMPUTER_TOOLS` en `actions.py`): Haiku 4.5, `computer_20250124`
+En una cuenta sin los 5.x (`AGENTS_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0`), esos modelos no aceptan el
+toolset de computer use (`computer_toolset_20260801`, desde Opus 4.7), así que `ApiEngine` declara la herramienta
+anterior de cada uno (`LEGACY_COMPUTER_TOOLS` en `actions.py`): Haiku 4.5, `computer_20250124`
 con la beta `computer-use-2025-01-24`; Sonnet 4.6, `computer_20251124` con `computer-use-2025-11-24`. Le da el tamaño
 de la pantalla a partir de la primera captura. Haiku 4.5 no acepta `output_config.effort`, así que con él no se envía.
 El endpoint no acepta la caché automática, así que `ApiEngine` marca el punto de caché a mano. Ojo: un modelo más chico

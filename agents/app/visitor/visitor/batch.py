@@ -15,6 +15,7 @@ from shared import store
 from shared.browser.session import BrowserSession, create_context
 from shared.browser.theme import NavegadorConTema, describir_kit, describir_tema, script_de_tema
 from shared.browser.viewports import SCREENS
+from shared.claude import engines
 from shared.claude.workdir import claude_workdir
 
 from visitor import config, outcome, report
@@ -112,11 +113,11 @@ async def _record_verdict(run: Run, run_dir: Path, references: References, judge
 
 
 def models_for(engine: str, user_model: str | None = None) -> tuple[str, str]:
-    """Los modelos (usuarios, juez). En AWS (bedrock), config.bedrock_model(); en local, Sonnet y Opus (config.py)."""
+    """Los modelos (usuarios, juez). En AWS (bedrock), el rápido y el fuerte; en local, Sonnet y Opus (config.py)."""
     if engine == SCRIPTED:
         return SCRIPTED, SCRIPTED
     if engine == "bedrock":
-        return user_model or config.bedrock_model(), config.bedrock_model()
+        return user_model or engines.bedrock_model(), engines.bedrock_model(strong=True)
     return user_model or config.USER_MODEL, config.JUDGE_MODEL
 
 

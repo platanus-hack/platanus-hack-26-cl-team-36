@@ -34,8 +34,8 @@ COMPUTER_TOOLSET = {
 
 # Los modelos anteriores a Claude Opus 4.7 no aceptan el toolset: usan la herramienta `computer` de una pieza, con
 # beta y el tamaño de la pantalla. La acción va en `input.action` y no se pueden desactivar miembros: si el modelo
-# pide uno que no está en UI_ACTIONS, se responde con error, igual que con el toolset. Son los que la cuenta de AWS
-# del proyecto puede usar en Bedrock (ver config.bedrock_model). Por modelo: (tipo de la herramienta, beta).
+# pide uno que no está en UI_ACTIONS, se responde con error, igual que con el toolset. Por modelo: (tipo de la
+# herramienta, beta).
 LEGACY_COMPUTER_TOOLS = {
     "claude-sonnet-4-6": ("computer_20251124", "computer-use-2025-11-24"),
     "claude-opus-4-6": ("computer_20251124", "computer-use-2025-11-24"),
