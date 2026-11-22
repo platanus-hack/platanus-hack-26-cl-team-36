@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  segmentoDePestana,
   DISPOSITIVOS,
   ESTADOS_DE_REVISIONES,
   PESTANAS,
@@ -153,18 +154,19 @@ test("orden estable de parámetros, sin importar el orden de entrada", () => {
   const a = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { z: "1", paso: "4", intento: "mobile" } });
   assert.equal(a, `#/t/${CON_TAREA}/replay?intento=mobile&paso=4&z=1`);
   const b = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: { pagina: "n2", z: "1", a: "2" } });
-  assert.equal(b, `#/t/${CON_TAREA}/telarana?pagina=n2&a=2&z=1`);
+  assert.equal(b, `#/t/${CON_TAREA}/path-map?pagina=n2&a=2&z=1`);
 });
 
 test("cada pestaña, con y sin tarea, va y vuelve", () => {
   for (const tandaId of [CON_TAREA]) {
     for (const pestana of PESTANAS) {
       const hash = enlaceATanda(tandaId, pestana);
-      assert.equal(hash, `#/t/${tandaId}/${pestana}`);
+      assert.equal(hash, `#/t/${tandaId}/${segmentoDePestana(pestana)}`);
       assert.deepEqual(parsearHash(hash), { tipo: "tanda", tandaId, pestana, parametros: {} });
     }
   }
   assert.deepEqual(PESTANAS, ["telarana", "replay", "propuesta"]);
+  assert.equal(segmentoDePestana("telarana"), "path-map");
   // Perfiles ya no existe: su pestaña y su enlace de la v0 son rutas desconocidas.
   assert.equal(parsearHash(`#/t/${CON_TAREA}/perfiles`).tipo, "desconocida");
   assert.equal(parsearHash(`#/perfiles?t=${CON_TAREA}`).tipo, "desconocida");
@@ -173,16 +175,16 @@ test("cada pestaña, con y sin tarea, va y vuelve", () => {
 test("#/t/<id> sin pestaña abre el mapa; un enlace viejo a /resumen también", () => {
   const ruta = parsearHash(`#/t/${CON_TAREA}`);
   assert.deepEqual(ruta, { tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: {} });
-  assert.equal(hashDe(ruta), `#/t/${CON_TAREA}/telarana`);
+  assert.equal(hashDe(ruta), `#/t/${CON_TAREA}/path-map`);
   const vieja = parsearHash(`#/t/${CON_TAREA}/resumen?x=1`);
   assert.deepEqual(vieja, { tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: {} });
-  assert.equal(hashDe(vieja), `#/t/${CON_TAREA}/telarana`);
+  assert.equal(hashDe(vieja), `#/t/${CON_TAREA}/path-map`);
   assert.equal(parsearHash("#/t/2026-11-21_07-28-42").tipo, "desconocida");
 });
 
 test("alias dentro de una tanda: perfil= en Replay e nodo= en la Telaraña", () => {
   assert.deepEqual(parsearHash(`#/t/${CON_TAREA}/replay?perfil=mobile&paso=2`).parametros, { intento: "mobile", paso: "2" });
-  assert.deepEqual(parsearHash(`#/t/${CON_TAREA}/telarana?nodo=n5`).parametros, { pagina: "n5" });
+  assert.deepEqual(parsearHash(`#/t/${CON_TAREA}/path-map?nodo=n5`).parametros, { pagina: "n5" });
   assert.deepEqual(parsearHash(`#/t/${CON_TAREA}/replay?perfil=a&intento=b`).parametros, { intento: "b" });
   assert.equal(hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { perfil: "mobile" } }), `#/t/${CON_TAREA}/replay?intento=mobile`);
 });
@@ -198,7 +200,7 @@ test("pestaña desconocida, tanda sin fecha o ruta inventada → desconocida", (
 
 test("enlaces de la v0 se traducen a la tanda", () => {
   assert.deepEqual(traducirLegado(`#/telarana?t=${CON_TAREA}&perfil=hurried`), {
-    destino: `#/t/${CON_TAREA}/telarana?perfil=hurried`,
+    destino: `#/t/${CON_TAREA}/path-map?perfil=hurried`,
     aviso: null,
   });
   assert.deepEqual(traducirLegado("#/replay?t=dt.gob.cl/visitor/reclamo-despido/2026-11-21T07-28-42Z&perfil=mobile&paso=3"), {
@@ -232,22 +234,22 @@ test("idioma= se separa del hash y nunca vuelve a escribirse", () => {
 
 test("tandaId con caracteres especiales se codifica por segmento", () => {
   const hash = enlaceATanda("localhost:8080/visitor/baja/2026-11-21T07-28-42Z");
-  assert.equal(hash, "#/t/localhost%3A8080/visitor/baja/2026-11-21T07-28-42Z/telarana");
+  assert.equal(hash, "#/t/localhost%3A8080/visitor/baja/2026-11-21T07-28-42Z/path-map");
   assert.equal(parsearHash(hash).tandaId, "localhost:8080/visitor/baja/2026-11-21T07-28-42Z");
 });
 
 test("un tandaId que armaría otra ruta no es una tanda", () => {
   for (const hash of [
-    "#/t/..%2F..%2Fx/visitor/a/2026-01-01T00-00-00Z/telarana",
-    "#/t/../visitor/a/2026-01-01T00-00-00Z/telarana",
-    "#/t/s.cl/visitor/.oculta/2026-01-01T00-00-00Z/telarana",
-    "#/t/s.cl/visitor/a%5Cb/2026-01-01T00-00-00Z/telarana",
-    "#/t/s.cl/guide/a/2026-01-01T00-00-00Z/telarana",
+    "#/t/..%2F..%2Fx/visitor/a/2026-01-01T00-00-00Z/path-map",
+    "#/t/../visitor/a/2026-01-01T00-00-00Z/path-map",
+    "#/t/s.cl/visitor/.oculta/2026-01-01T00-00-00Z/path-map",
+    "#/t/s.cl/visitor/a%5Cb/2026-01-01T00-00-00Z/path-map",
+    "#/t/s.cl/guide/a/2026-01-01T00-00-00Z/path-map",
   ]) {
     assert.equal(parsearHash(hash).tipo, "desconocida", hash);
   }
-  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra-2/2026-01-01T00-00-00Z_01/telarana").tipo, "tanda");
-  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra/2026-01-01T00-00-00Z_00/telarana").tipo, "desconocida");
+  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra-2/2026-01-01T00-00-00Z_01/path-map").tipo, "tanda");
+  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra/2026-01-01T00-00-00Z_00/path-map").tipo, "desconocida");
 });
 
 test("normalizarPaso: vacío, inválido, fuera de rango", () => {
@@ -277,5 +279,12 @@ test("la hoja vuelve a la vista de la que vino; por enlace directo, al Overview"
 test("al cambiar de pestaña sigue solo la traza elegida", () => {
   assert.deepEqual(parametrosQueSiguen({ intento: "mobile", paso: "3", pagina: "n2" }), { intento: "mobile" });
   assert.deepEqual(parametrosQueSiguen({}), {});
-  assert.equal(enlaceATanda(CON_TAREA, "telarana", { pagina: "n2", intento: "mobile" }), `#/t/${CON_TAREA}/telarana?intento=mobile&pagina=n2`);
+  assert.equal(enlaceATanda(CON_TAREA, "telarana", { pagina: "n2", intento: "mobile" }), `#/t/${CON_TAREA}/path-map?intento=mobile&pagina=n2`);
+});
+
+test("el segmento anterior /telarana sigue abriendo el path map y su hash canónico es /path-map", () => {
+  const vieja = parsearHash(`#/t/${CON_TAREA}/telarana?nodo=n5`);
+  assert.deepEqual(vieja, { tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: { pagina: "n5" } });
+  assert.equal(hashDe(vieja), `#/t/${CON_TAREA}/path-map?pagina=n5`);
+  assert.deepEqual(parsearHash(`#/t/${CON_TAREA}/path-map`), { tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: {} });
 });
