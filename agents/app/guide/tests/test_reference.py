@@ -7,12 +7,14 @@ from datetime import datetime
 from playwright.async_api import async_playwright
 
 from shared.browser.session import connect_browser
+from shared.claude.caller import CACHE_POINT
 from shared.claude.fake import FakeCaller
 
 from guide import config, reference
 from guide.decider import ClaudeDecider, Decision, scripted_decision
 from guide.explore import Exploration, _act
 from guide.page_view import read_page_view
+from guide.prompts import TurnPrompt
 from guide.reference import Mapping, map_reference
 from guide.replay import Replay, Verification
 from guide.route import Step
@@ -87,6 +89,14 @@ def test_scripted_engine_verifies_the_start_page_citing_its_first_line(site, tmp
     document, _, _ = _map(site, tmp_path, None, decider=decider)
     assert document["status"] == "verified" and document["steps"] == []
     assert document["quote_found"] and document["quote"] == document["answer"]
+
+
+def test_claude_decider_sends_the_page_before_the_history_with_cache_points():
+    caller = FakeCaller("guion", "low", lambda *args: {"action": "give_up", "text": "no"})
+    caller.caches_prompts = True
+    prompt = TurnPrompt("TAREA: x\n\nPÁGINA ACTUAL\nURL: u", "HISTORIAL\n1. click e1 — llegó")
+    asyncio.run(ClaudeDecider("sistema", caller).decide(prompt, b"png"))
+    assert caller.calls[0]["parts"] == [prompt.page, CACHE_POINT, b"png", CACHE_POINT, prompt.history]
 
 
 def test_scripted_engine_gives_up_without_text():

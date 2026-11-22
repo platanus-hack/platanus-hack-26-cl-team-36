@@ -56,7 +56,7 @@ def scripted(monkeypatch):
         original = scripted_decider.decide
 
         async def decide(text, screenshot):
-            state["seen"].append(text)
+            state["seen"].append(str(text))
             return await original(text, screenshot)
 
         scripted_decider.decide = decide
