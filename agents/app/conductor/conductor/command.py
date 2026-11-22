@@ -52,7 +52,8 @@ def run(parser: argparse.ArgumentParser, args: argparse.Namespace) -> bool:
     log(f"revisión {args.revision} de {args.url}: {conductor_run.key}")
     report: dict = {"url": args.url, "revision": args.revision, "status": "failed"}
     try:
-        options = Options(args.goals_max, args.profiles, args.runs, args.concurrency, config.timeouts())
+        options = Options(args.goals_max, args.profiles, args.runs, args.concurrency, config.timeouts(),
+                          config.improver_grace_s())
         invoker = make_invoker(backend, conductor_run.workdir)
         report = asyncio.run(conduct(backend, invoker, args.url, args.revision, options, log))
     except Exception as error:

@@ -24,7 +24,8 @@ Desde la raíz, `just local revision <url>` hace lo mismo con una revisión nuev
 |---|---|
 | `CONDUCTOR_INVOKER` | `local` (por defecto): cada etapa es `uv run --locked main.py ...` en `agents/app/<app>/`. `agentcore`: InvokeAgentRuntime con una sesión nueva por etapa y payload `{stage, revision, url, ...}`; espera leyendo el manifiesto de la etapa de esa revisión. |
 | `CONDUCTOR_RUNTIME_ARN` | Con `agentcore`, el runtime. |
-| `CONDUCTOR_POLL_S` | Con `agentcore`, cada cuánto lee el manifiesto (por defecto 10 s). |
+| `CONDUCTOR_POLL_S` | Con `agentcore`, el tope entre lecturas del manifiesto: empiezan cada 1 s y crecen ×1,5 hasta él (por defecto 5 s). |
+| `CONDUCTOR_IMPROVER_GRACE_S` | Tras el primer Visitante exitoso, cuánto espera la mejora a los demás objetivos antes de partir con lo que haya (por defecto 45 s; 0, sin esperar). Sin ningún Visitante exitoso espera a todos. |
 | `CONDUCTOR_TIMEOUT_<ETAPA>_S` | Tiempo máximo de `CATALOG`, `GUIDE`, `VISITOR` e `IMPROVER` (por defecto 900, 1200, 1800 y 900 s). Con `local`, al vencer se mata el proceso y su corrida queda `failed`. |
 
 Las etapas leen `AGENTS_STORE`, `AGENTS_ENGINE`, `AGENTS_BROWSER`, `AGENTS_MODEL` y `AGENTS_MODEL_FUERTE` del mismo entorno.

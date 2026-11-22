@@ -11,12 +11,7 @@ AgentCore desde `agentcore/`, en el mismo repo personal.
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
 Actions, con el plan de Terraform, quedarían a la vista. El repo personal es privado y es una copia de `main` de este.
 
-**La cuenta de AWS.** Todo corre en una subcuenta de desarrollo de la organización de AWS de Unholster, en
-`us-east-2` (Ohio). Sus cuotas alcanzan para unos 100 agentes a la vez: 10.000 llamadas por minuto a Claude Haiku 4.5,
-1.000 navegadores de AgentCore y 1.000 Lambdas simultáneas. Responden también los modelos 5.x.
-
-Antes corría en un "proyecto" de AWS (*Sign up for AWS (new)*), con 50 llamadas por minuto, sin modelos 5.x y
-con el equipo invitado por AWS Builder ID.
+Todo corre en una sola cuenta de AWS, en `us-east-2` (Ohio).
 
 ## Cómo llega un cambio a AWS
 
@@ -73,8 +68,7 @@ abajo).
 
 ## Acceso del equipo
 
-Quien tiene acceso por SSO a la cuenta entra con `aws sso login`. El resto del equipo tiene un usuario IAM propio,
-con `PowerUserAccess` (todo menos administrar IAM) e `IAMReadOnlyAccess`, y una llave de acceso que le entrega quien
+Cada persona del equipo tiene un usuario IAM propio, con `PowerUserAccess` (todo menos administrar IAM) e `IAMReadOnlyAccess`, y una llave de acceso que le entrega quien
 administra la cuenta, por un canal seguro. Alcanza para `just aws …`, Bedrock y `terraform plan`; crear o cambiar
 roles queda para los workflows del repo personal.
 

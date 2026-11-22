@@ -6,14 +6,24 @@
 // Responsabilidades:
 //   1. Ícono y badge sincronizados con `activo` en storage (el interruptor está en el popup).
 //   2. Consultarle a la API la revisión de cada página (el tema que generaron los agentes, ver revisiones.js)
-//      e inyectar su CSS cuando esté lista. No dispara revisiones (ver el TODO en revisarPagina).
+//      e inyectar su CSS cuando esté lista. No dispara revisiones (ver el TODO en consultarYAplicar). El último tema de
+//      cada página queda guardado (cache-temas.js) y se aplica al cargar mientras se revalida con la API.
 //   3. Guardar en el equipo los votos del usuario sobre la página con tema (ver votos.js).
 
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
 import { consultarRevision } from "./api.js";
-import { recargadaEnDesarrollo } from "./config.js";
+import { crearCacheTemas } from "./cache-temas.js";
+import { recargadaEnDesarrollo, urlDeLaApi } from "./config.js";
 import { HOJA_FUENTES, hojaConUrlsAbsolutas, inyectarCssDeTema } from "./fuentes.js";
-import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
+import {
+  FACTOR_INTERVALO_REVISION,
+  INTERVALO_MAXIMO_REVISION_MS,
+  INTERVALO_REVISION_MS,
+  TOPE_REVISION_MS,
+  resolverRevision,
+  temaDeRevision,
+  urlDePagina,
+} from "./revisiones.js";
 import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
 
 // ---------- 1. Estado ON/OFF y badge ----------
@@ -85,23 +95,71 @@ async function refrescarPestanasConTema() {
 // scripting.insertCSS (no le afecta la CSP de la página) y le devolvemos al
 // content script solo lo que necesita para las features.
 //
-// `tema:aplicar` y `tema:revision` → tema (sin css) | null | { esperarRevision: { intervaloMs, topeMs } }.
+// `tema:aplicar` y `tema:revision` → tema (sin css) | null | { esperarRevision: { intervaloMs, maximoMs, factor, topeMs } }.
+const ESPERAR_REVISION = {
+  esperarRevision: {
+    intervaloMs: INTERVALO_REVISION_MS,
+    maximoMs: INTERVALO_MAXIMO_REVISION_MS,
+    factor: FACTOR_INTERVALO_REVISION,
+    topeMs: TOPE_REVISION_MS,
+  },
+};
+
+const cacheTemas = crearCacheTemas(browser.storage.local);
+
+// Con la API en la clave, cambiar a la local (`apiLocal`) no mezcla sus temas con los de AWS.
+const claveCache = async (pagina) => `${await urlDeLaApi()} ${pagina}`;
+
 async function aplicarTema(sender) {
   if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen: new URL(sender.url).origin, temaId: null, css: "" });
-  return revisarPagina(sender);
+  if (!(await puedeConsultarRevision(sender))) return null;
+  const pagina = urlDePagina(sender.url);
+  const clave = await claveCache(pagina);
+  const guardado = await cacheTemas.leer(clave);
+  // Se sanea en cada uso: si las reglas de css-remoto.js cambiaron, lo guardado pasa por las nuevas.
+  const tema = guardado && temaDeRevision(guardado.revision, guardado.css, guardado.tema);
+  if (!tema) {
+    if (guardado) cacheTemas.olvidar(clave);
+    return consultarYAplicar(sender);
+  }
+  const respuesta = await inyectarTema(tema, sender, pagina);
+  revalidarTema({ guardado, tema, clave }, sender, pagina).catch((error) =>
+    console.warn("[mi-tema] No se pudo revalidar el tema:", error),
+  );
+  return respuesta;
+}
+
+// Un error pasajero o una revisión nueva en curso (o fallida) dejan el tema guardado; un 404 o una revisión sin CSS
+// aplicable lo olvidan. Si la API trae otro tema, se cambia el CSS en la página; sus features llegan en la próxima carga.
+async function revalidarTema({ guardado, tema, clave }, sender, pagina) {
+  const resultado = await resolverRevision(sender.url, { consultar: consultarRevision });
+  if (resultado.estado === "sin-revision" || resultado.estado === "inaplicable") return cacheTemas.olvidar(clave);
+  if (resultado.estado !== "listo" || JSON.stringify(resultado.cruda) === JSON.stringify(guardado)) return;
+  await cacheTemas.guardar(clave, resultado.cruda);
+  const actual = temaPorPestana.get(sender.tab.id);
+  if (actual?.pagina !== pagina || actual.temaId !== tema.id) return; // la pestaña ya navegó
+  if (resultado.tema.css === tema.css) return;
+  await inyectarTema(resultado.tema, sender, pagina);
+  // Después de inyectar el nuevo, para que la página no quede un instante sin tema.
+  await browser.scripting.removeCSS({ target: { tabId: sender.tab.id, frameIds: [sender.frameId] }, css: tema.css });
+}
+
+// `esperando`: lo pide el motor mientras sondea; un error pasajero no corta la espera.
+async function revisarPagina(sender, { esperando = false } = {}) {
+  return (await puedeConsultarRevision(sender)) ? consultarYAplicar(sender, { esperando }) : null;
 }
 
 // TODO: la extensión no dispara revisiones: solo consulta (GET) la de la página, y una página sin revisión queda tal
 // cual. Cada revisión corre agentes en AWS y cuesta; por ahora se piden con `just aws revision <url>` o
 // `just aws seed`. Para volver a dispararlas al entrar a una página nueva, usar pedirRevision (POST, api.js) en vez de
 // consultarRevision cuando el GET responda que no existe, idealmente con un límite por usuario o a pedido desde el popup.
-async function revisarPagina(sender) {
-  if (!(await puedeConsultarRevision(sender))) return null;
+async function consultarYAplicar(sender, { esperando = false } = {}) {
   const resultado = await resolverRevision(sender.url, { consultar: consultarRevision });
-  if (resultado.estado === "esperando") {
-    return { esperarRevision: { intervaloMs: INTERVALO_REVISION_MS, topeMs: TOPE_REVISION_MS } };
-  }
-  return resultado.estado === "listo" ? inyectarTema(resultado.tema, sender, urlDePagina(sender.url)) : null;
+  if (resultado.estado === "esperando" || (esperando && resultado.estado === "error")) return ESPERAR_REVISION;
+  if (resultado.estado !== "listo") return null;
+  const pagina = urlDePagina(sender.url);
+  claveCache(pagina).then((clave) => cacheTemas.guardar(clave, resultado.cruda));
+  return inyectarTema(resultado.tema, sender, pagina);
 }
 
 // En ventanas privadas no se envía la URL a nadie, y con el interruptor apagado tampoco: se consultará en la próxima
@@ -269,7 +327,7 @@ browser.runtime.onMessage.addListener((mensaje, sender) => {
     case "tema:aplicar":
       return aplicarTema(sender);
     case "tema:revision":
-      return revisarPagina(sender);
+      return revisarPagina(sender, { esperando: true });
     case "voto:guardar":
       return guardarVoto(mensaje, sender);
     case "votos:estado":
