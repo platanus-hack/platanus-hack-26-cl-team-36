@@ -199,3 +199,8 @@ kbd {
 /* ── Íconos ──────────────────────────────────────────────────────────── */
 .icono { width: 16px; height: 16px; flex: none; }
 .globo-con-tecla { display: inline-flex; align-items: center; gap: var(--e-2); }
+
+/* Filas de fichas que se desplazan de lado (nucleo/fila.js): se desvanecen en el borde donde quedan fichas ocultas. */
+.fila-desplazable[data-mas-derecha] { mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.fila-desplazable[data-mas-izquierda] { mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+.fila-desplazable[data-mas-izquierda][data-mas-derecha] { mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }

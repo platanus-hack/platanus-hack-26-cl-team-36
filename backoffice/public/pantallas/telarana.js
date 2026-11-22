@@ -9,6 +9,7 @@
 import { kbd } from "../nucleo/atajos.js";
 import { conservarFoco, el, esUrlWeb, recortarAlMedio, reemplazar, svg } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
+import { mostrarEnFila, seguirBordes } from "../nucleo/fila.js";
 import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
 import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
@@ -113,10 +114,11 @@ function crearPantalla(contenedor, ctx) {
   };
   const grupoDePerfiles = el(
     "div",
-    { class: "telarana-perfiles", role: "group", "aria-label": t("telarana.perfiles.grupo") },
+    { class: "telarana-perfiles fila-desplazable", role: "group", "aria-label": t("telarana.perfiles.grupo") },
     chip(null, t("telarana.perfiles.todos")),
     perfiles.map((perfil) => chip(perfil.id, perfil.nombre)),
   );
+  seguirBordes(grupoDePerfiles, senal);
 
   const selectorDeHistoria = el(
     "select",
@@ -622,7 +624,8 @@ function crearPantalla(contenedor, ctx) {
               "button",
               { type: "button", class: "panel-telarana-hito", "data-foco": `telarana:ruta:${id}` },
               el("span", { class: "panel-telarana-numero", "aria-hidden": "true", texto: String(indice + 1) }),
-              el("span", { class: "truncar", texto: nombre(pagina) }),
+              // Lo que distingue a la página adelante (como en su estación); el nombre completo, al pasar el puntero.
+              el("span", { class: "truncar", title: nombre(pagina), texto: textos.etiqueta(pagina) }),
               hito?.de ? el("span", { class: "num texto-3", "aria-label": t("telarana.panel.conteoAria", hito), texto: t("telarana.panel.conteo", hito) }) : null,
             );
             boton.addEventListener("click", () => elegir(id));
@@ -821,6 +824,8 @@ function crearPantalla(contenedor, ctx) {
     const cambioDePerfil = perfil !== estado.perfil;
     estado.perfil = perfil;
     for (const [id, boton] of chips) boton.setAttribute("aria-pressed", String(id === perfil));
+    // El perfil elegido (clic, p/P o la URL) siempre a la vista en su fila.
+    requestAnimationFrame(() => mostrarEnFila(grupoDePerfiles, chips.get(perfil)));
 
     // pagina= (con los alias de páginas fusionadas)
     let pagina = parametros.pagina ?? null;
