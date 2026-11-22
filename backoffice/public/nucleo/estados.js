@@ -34,13 +34,12 @@ export function tarjetaEsqueleto() {
 }
 
 const FORMAS = {
-  // El inicio: el título, el bloque de agentes (total, fichas de dispositivo, cuatro roles) y Reviews con sus
-  // pestañas y 6 tarjetas.
+  // El inicio: el bloque de agentes (total, fichas de dispositivo, cuatro roles) y Reviews con sus filtros y 6
+  // tarjetas. El título "Overview" va en la barra superior.
   overview: () => [
     el(
       "div",
       { class: "esqueleto-ov-grupo" },
-      el("div", { class: "esqueleto-ov-cabecera" }, bloque("esqueleto-ov-titulo")),
       el(
         "div",
         { class: "esqueleto-ov-agentes" },

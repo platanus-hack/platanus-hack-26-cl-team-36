@@ -29,6 +29,8 @@
 //                                           (§2); una página de 6 ids por pestaña: la 1, o la `pagina` pedida en la
 //                                           pestaña pedida (§7.4); con `link`, solo las revisiones cuyo link calza; sin
 //                                           tabla, { ahora, disponible: false }
+//   GET /backoffice/api/tarjetas/<revision>  → { ahora, tarjeta }: la tarjeta del Overview de una revisión (§2), esté
+//                                           o no en una pestaña; la usa la hoja de una revisión fallida
 //   GET /backoffice/api/vivo/<revision>/<goal>  → los pasos de los agentes del goal en vivo (SSE, lib/transmision.js)
 //   GET /backoffice/resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
 //   GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>  → la propuesta del Diseñador para esa tanda
@@ -409,6 +411,10 @@ export function crearServidor({
       }
 
       if (partes[0] === "api" && partes.length === 2 && partes[1] === "resumen") return responderJson(res, 200, await panel.resumen());
+      if (partes[0] === "api" && partes[1] === "tarjetas" && partes.length === 3) {
+        const tarjeta = await panel.tarjeta(partes[2]);
+        return tarjeta ? responderJson(res, 200, { ahora: reloj().toISOString(), tarjeta }) : responderJson(res, 404, { error: "No existe esa revisión" });
+      }
       if (partes[0] === "api" && partes.length === 2 && partes[1] === "overview") {
         const consulta = new URLSearchParams(search);
         return responderJson(res, 200, await panel.overview({ pestana: consulta.get("pestana"), pagina: consulta.get("pagina"), link: consulta.get("link") }));

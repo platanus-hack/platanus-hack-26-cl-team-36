@@ -46,7 +46,7 @@ export default {
   },
   pestanas: "Revisiones por estado",
   pestana: {
-    recent: "Recientes",
+    recent: "Todas",
     live: "En vivo",
     delivered: "Entregadas",
     failed: "Fallidas",
