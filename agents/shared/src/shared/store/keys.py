@@ -29,6 +29,8 @@ _GOAL = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _PROFILE = re.compile(r"[a-z0-9]+(?:[_-][a-z0-9]+)*")
 # Un archivo siempre lleva extensión y un perfil nunca: así no se confunden dentro de una corrida.
 _FILE = re.compile(r"[a-z0-9][a-z0-9_-]*\.[a-z0-9]+")
+# Las carpetas fijas de una corrida que no es del Visitante (en visitor, cada carpeta es un perfil).
+_FOLDERS: dict[str, frozenset[str]] = {"improver": frozenset({"vistas"})}
 
 
 class InvalidKey(ValueError):
@@ -117,13 +119,15 @@ class RunKey:
         return f"{self.prefix}/{self.run_id}"
 
     def file(self, name: str, profile: str | None = None) -> str:
-        """Clave de un archivo de la corrida; `profile` solo existe en visitor."""
+        """Clave de un archivo de la corrida; `profile` es un perfil en visitor o una de `_FOLDERS` en otro agente."""
         validate_file_name(name)
         if profile is None:
             return f"{self}/{name}"
-        if self.prefix.agent != "visitor":
-            raise InvalidKey(f"{self.prefix.agent} no tiene carpetas de perfil")
-        return f"{self}/{validate_profile(profile)}/{name}"
+        if self.prefix.agent == "visitor":
+            return f"{self}/{validate_profile(profile)}/{name}"
+        if profile not in _FOLDERS.get(self.prefix.agent, ()):
+            raise InvalidKey(f"{self.prefix.agent} no tiene la carpeta {profile!r}")
+        return f"{self}/{profile}/{name}"
 
 
 @dataclass(frozen=True)

@@ -10,7 +10,8 @@
 //   tanda de su Visitante en esta revisión si /archivos/ la sirve (la tarjeta lleva a su telaraña).
 // - motivo: por qué está detenida o falló, ver motivoDe(). El texto lo pone la página (i18n); aquí va el tipo y el
 //   error crudo.
-// - capturas: la de inicio de un intento desktop y de uno mobile, ver elegirCapturas().
+// - capturas: la de inicio de un intento desktop y de uno mobile, ver elegirCapturas(); con la propuesta del
+//   Diseñador, su captura «después» encima, ver conPropuesta().
 // - anteriores: cuántas revisiones de la misma página reemplazó esta, la vigente (quedan en #/revisiones?estado=historial).
 
 import { hostDeRevision, rutaDeUrl } from "./sitio.js";
@@ -273,6 +274,24 @@ export function elegirCapturas(grupos) {
     return null;
   };
   return { desktop: elegir("desktop"), mobile: elegir("mobile") };
+}
+
+/**
+ * Las capturas de la tarjeta con la propuesta del Diseñador: si su corrida (succeeded) dejó en mejora.json una vista
+ * con la captura «después» de un dispositivo, va en `despues` (clave "<corrida>/vistas/<nombre>.png", la sirve
+ * /propuestas/) y la tarjeta muestra esa. La del Visitante (tanda, carpeta, archivo) queda de respaldo y para el
+ * enlace; si no hay, esos tres van en null.
+ * @param {ReturnType<typeof elegirCapturas>} capturas
+ * @param {{ capturas: Record<"desktop" | "mobile", { despues: string | null }> }[]} vistas   de vistasDeMejora()
+ *        (lib/propuestas.js): rutas ya validadas
+ */
+export function conPropuesta(capturas, vistas = []) {
+  const con = (dispositivo) => {
+    const despues = vistas.map((vista) => vista?.capturas?.[dispositivo]?.despues).find(Boolean);
+    const respaldo = capturas?.[dispositivo] ?? null;
+    return despues ? { ...(respaldo ?? { tanda: null, carpeta: null, archivo: null }), despues } : respaldo;
+  };
+  return { desktop: con("desktop"), mobile: con("mobile") };
 }
 
 /**

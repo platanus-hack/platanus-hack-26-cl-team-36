@@ -334,6 +334,15 @@ test("modelo de tarjeta: key revisión + dispositivo, tiempo contra `ahora`, ace
   assert.equal(modeloDeTarjeta({ ...MOVILSUR, estado: "otro" }, { ahora: AHORA }).estado, "queued");
   assert.deepEqual([3, 0, -1, "2", undefined].map((anteriores) => modeloDeTarjeta({ ...MOVILSUR, anteriores }).anteriores), [3, 0, 0, 0, 0]);
   assert.deepEqual(modeloDeTarjeta({ ...MOVILSUR, capturas: { desktop: { tanda: "x" }, mobile: null } }).capturas, { desktop: null, mobile: null });
+  // La «después» del Diseñador va con la del Visitante de respaldo; una clave que no es de vistas/ no sale.
+  const despues = "movilsur.test/improver/2026-11-22T03-40-00Z/vistas/escritorio-despues.png";
+  const conDespues = modeloDeTarjeta({ ...MOVILSUR, capturas: { desktop: { ...MOVILSUR.capturas.desktop, despues }, mobile: { tanda: null, carpeta: null, archivo: null, despues } } });
+  assert.equal(conDespues.capturas.desktop.despues, despues);
+  assert.equal(conDespues.capturas.desktop.carpeta, "desktop");
+  assert.deepEqual(conDespues.capturas.mobile, { tanda: null, carpeta: null, archivo: null, despues });
+  const ajena = modeloDeTarjeta({ ...MOVILSUR, capturas: { desktop: { ...MOVILSUR.capturas.desktop, despues: "movilsur.test/improver/x/tema.css" }, mobile: { despues: "../../etc/passwd.png" } } });
+  assert.equal(ajena.capturas.desktop.despues, undefined);
+  assert.equal(ajena.capturas.mobile, null);
   assert.equal(modeloDeTarjeta({ ...BANCO, sitio: "" }).sitio, "bancoandino.test");
 });
 

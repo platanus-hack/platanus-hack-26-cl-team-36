@@ -144,9 +144,19 @@ export function avisoDeTarjeta(tarjeta, ahora) {
   return null;
 }
 
-/** Captura { tanda, carpeta, archivo } válida o null. */
-const captura = (valor) =>
-  valor && typeof valor.tanda === "string" && typeof valor.carpeta === "string" && typeof valor.archivo === "string" ? valor : null;
+const DESPUES = /^[^/]+\/improver\/[^/]+\/vistas\/[a-z0-9][a-z0-9-]{0,80}\.png$/;
+
+/**
+ * Captura válida o null: la del Visitante { tanda, carpeta, archivo } y, si el Diseñador dejó la suya, `despues` (la
+ * clave para urlDePropuesta, que se muestra en vez de la del Visitante). Con solo `despues`, los otros tres en null.
+ */
+const captura = (valor) => {
+  if (!valor) return null;
+  const visitante = typeof valor.tanda === "string" && typeof valor.carpeta === "string" && typeof valor.archivo === "string";
+  const despues = typeof valor.despues === "string" && DESPUES.test(valor.despues) ? valor.despues : null;
+  if (!despues) return visitante ? { tanda: valor.tanda, carpeta: valor.carpeta, archivo: valor.archivo } : null;
+  return visitante ? { tanda: valor.tanda, carpeta: valor.carpeta, archivo: valor.archivo, despues } : { tanda: null, carpeta: null, archivo: null, despues };
+};
 
 /**
  * Modelo de una tarjeta para un filtro de dispositivo (sin textos ni DOM). `key` = revisión + dispositivo: es la

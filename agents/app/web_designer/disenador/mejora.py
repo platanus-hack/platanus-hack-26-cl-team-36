@@ -3,10 +3,12 @@
 Lee del almacén las corridas de la misma `revision` (nunca "la última"): el catálogo (`goals.json`), la ruta de
 escritorio de cada objetivo (`route.json`) y la tanda del Visitante (`comparison.json` y `<perfil>/run.json`). Escribe
 `<host>/improver/<run>/` con `tema.css` (saneado), `tema.json` (los componentes del kit, validados), `atajos.json` (lo
-que se derivó de las rutas, sin modelo), `diagnostico.json` (lo que recibió el modelo además del mapa) y `mejora.json`
-(el resumen usado y lo que decidió el modelo).
+que se derivó de las rutas, sin modelo), `diagnostico.json` (lo que recibió el modelo además del mapa), `vistas/*.png`
+(la página antes y después del kit, en escritorio y móvil) y `mejora.json` (el resumen usado, lo que decidió el modelo
+y, si salieron las capturas, `vistas`).
 """
 
+import asyncio
 import json
 import re
 from dataclasses import dataclass, field
@@ -14,6 +16,7 @@ from pathlib import Path
 
 from shared import store
 from shared.browser.session import open_browser
+from shared.browser.theme import describir_kit
 from shared.catalog.files import read_catalog
 from shared.nodes.urls import node_key
 
@@ -26,6 +29,8 @@ from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR, Skill, mensaje_de_disen
 _OBSTACULO = re.compile(r"\b(modal|popup|pop-up|encuesta|cookies?)\b|«(close|cerrar|×)»", re.I)
 # Si el ancla de un componente no está en la página, la primera de estas que exista.
 ANCLAS_DE_RESPALDO = ("main", "[role='main']", "body > :has(h1)")
+# Las capturas de la propuesta: (dispositivo de mejora.json, viewport de `pagina`, nombre del archivo).
+VISTAS = (("desktop", "revision", "escritorio"), ("mobile", "movil", "movil"))
 
 _SELECTS = """() => [...document.querySelectorAll("select")].map((s) => ({
   selector: s.id ? "#" + CSS.escape(s.id) : s.name ? `select[name="${CSS.escape(s.name)}"]` : "",
@@ -343,6 +348,29 @@ def _componer(sitio: motor.Sitio, pedido: dict, vistas: list[dict], ocultar: lis
     return tema
 
 
+async def _capturar_vistas(browser, url: str, carpeta: Path, antes_escritorio: bytes, titulo: str) -> list[dict]:
+    """La página sin y con el kit completo (`tema.css` y los componentes de `tema.json`), en el primer pantallazo de
+    escritorio y móvil. Escribe `vistas/<nombre>-<antes|despues>.png` solo si salen las cuatro; devuelve las vistas de
+    `mejora.json`, con rutas relativas a la corrida."""
+    script, _ = describir_kit(carpeta / "tema.json", config.EXTENSION_SRC)
+    imagenes, capturas = {"vistas/escritorio-antes.png": antes_escritorio}, {}
+    for dispositivo, viewport, nombre in VISTAS:
+        rutas = {momento: f"vistas/{nombre}-{momento}.png" for momento in ("antes", "despues")}
+        for momento, kit in (("antes", None), ("despues", script)):
+            if rutas[momento] in imagenes:
+                continue
+            contexto, page = await pagina.abrir(browser, url, viewport, kit)
+            try:
+                imagenes[rutas[momento]] = await pagina.capturar(page)
+            finally:
+                await contexto.close()
+        capturas[dispositivo] = rutas
+    (carpeta / "vistas").mkdir(exist_ok=True)
+    for ruta, datos in imagenes.items():
+        (carpeta / ruta).write_bytes(datos)
+    return [{"url": url, "titulo": titulo, "capturas": capturas}]
+
+
 async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill | None, disenador, modelo: str,
                   cdp_url: str | None = None, modo: str = config.MODO_TEMA) -> store.Manifest:
     """Una corrida de improver: `succeeded` con un `tema.css` no vacío; si no, `failed` y lanza.
@@ -361,6 +389,7 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                 contexto, page = await pagina.abrir(browser, url, "revision")
                 try:
                     datos_mapa, captura = await mapa.construir_mapa(page), await pagina.capturar(page)
+                    titulo = _corto(await page.title(), 300)
                     tasas = {o["id"]: o["tasa_llegada"] for o in resumen["objetivos"]}
                     kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url, tasas, leida.catalogo)
                     _escribir_json(run.workdir / "atajos.json", kit)
@@ -413,10 +442,16 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                 if violaciones:
                     salida["violaciones_navegador"] = violaciones
                     raise TemaRechazado(f"el navegador rechazó el CSS saneado: {violaciones[0]['motivo']}")
-            tema, descartes = tema_json.armar(f"{store.normalize_host(url)} — kit de la revisión {revision}", vistas)
-            salida["kit"] = {"vistas": [v["id"] for v in tema["features"]["vista"]], "descartes": descartes}
-            (run.workdir / "tema.css").write_text(saneado.css, encoding="utf-8")
-            _escribir_json(run.workdir / "tema.json", tema)
+                tema, descartes = tema_json.armar(f"{store.normalize_host(url)} — kit de la revisión {revision}", vistas)
+                salida["kit"] = {"vistas": [v["id"] for v in tema["features"]["vista"]], "descartes": descartes}
+                (run.workdir / "tema.css").write_text(saneado.css, encoding="utf-8")
+                _escribir_json(run.workdir / "tema.json", tema)
+                # Sin capturas la mejora vale igual: el motivo queda en el informe.
+                try:
+                    salida["vistas"] = await asyncio.wait_for(
+                        _capturar_vistas(browser, url, run.workdir, captura, titulo), config.CAPTURAS_TIMEOUT_S)
+                except Exception as error:
+                    informe["vistas"] = f"sin capturas: {type(error).__name__}: {error}"[:300]
         except Exception as error:
             salida["error"] = f"{type(error).__name__}: {error}"[:300]
             raise

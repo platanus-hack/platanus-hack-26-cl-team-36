@@ -23,6 +23,7 @@
 
 import { REVISION } from "../public/nucleo/almacen.js";
 import { LISTADO_MS, crearIndice } from "./indice.js";
+import { vistasDeMejora } from "./propuestas.js";
 import { contarResumen, idsConTarjeta, listasDelOverview, parametrosDelOverview } from "./overview.js";
 import { claveDeCorridaDelItem, claveDelTema, revisionesVigentes } from "./revisiones.js";
 import { acentoDelTema, hostDeRevision, nombreDelSitio, nombreDeHost, rutaComparable } from "./sitio.js";
@@ -31,6 +32,7 @@ import {
   UMBRAL_DETENIDA_MS,
   actualizadaDe,
   armarTarjeta,
+  conPropuesta,
   elegirCapturas,
   enColaDeRevision,
   estaDetenida,
@@ -178,6 +180,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
   const itemsCerrados = new Map();
   const catalogos = new Map();
   const acentos = new Map();
+  const vistasDeDisenador = new Map();
   const paginas = new Map();
   // Lo de cada host se arma una vez por pasada del índice (el mismo objeto mientras dura la memoria).
   const deHostPorPasada = new WeakMap();
@@ -208,6 +211,13 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     return css === null ? null : recordar(acentos, clave, acentoDelTema(css));
   }
 
+  // Las vistas (capturas antes/después) del mejora.json de un improver que terminó bien: no cambian más.
+  async function vistasDe(clave) {
+    if (vistasDeDisenador.has(clave)) return vistasDeDisenador.get(clave);
+    const mejora = await fuente.leerJson(clave, "mejora.json");
+    return mejora ? recordar(vistasDeDisenador, clave, vistasDeMejora(mejora, clave)) : [];
+  }
+
   // Estado de tarjeta de cada META, con los ítems de las que corren (para "detenida").
   function estadosDeLaTabla(tabla, ahora) {
     return tabla.metas.map((meta) => {
@@ -222,11 +232,13 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     const { catalogo: itemCatalogo, improver, goals } = itemsPorEtapa(items);
 
     const claveCatalogo = itemCatalogo?.status === "succeeded" ? claveDeCorridaDelItem(itemCatalogo, "cataloger") : null;
-    const claveTema = (improver?.status === "succeeded" ? claveDeCorridaDelItem(improver, "improver") : null) ?? claveDelTema(meta.css_key);
+    const claveDisenador = improver?.status === "succeeded" ? claveDeCorridaDelItem(improver, "improver") : null;
+    const claveTema = claveDisenador ?? claveDelTema(meta.css_key);
     const tandas = new Map();
-    const [catalogo, acento] = await Promise.all([
+    const [catalogo, acento, vistas] = await Promise.all([
       claveCatalogo ? catalogoDe(claveCatalogo) : null,
       claveTema ? acentoDe(claveTema) : null,
+      claveDisenador ? vistasDe(claveDisenador) : [],
       ...[...goals].map(async ([goal, { visitor }]) => {
         const clave = claveDeCorridaDelItem(visitor, "visitor", goal);
         // Una run_key que el índice todavía no conoce (recién creada, antes del próximo listado) se lee por su clave.
@@ -239,10 +251,10 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     const ruta = rutaComparable(meta.url);
     // Solo tandas que /archivos/ sirve (las que idsDeTandas lista: CorridaDelIndice.listada).
     const comoGrupo = (lista) => lista.filter((tanda) => tanda.listada).map((tanda) => ({ tanda: tanda.clave, intentos: tanda.intentos }));
-    const capturas = elegirCapturas([
-      comoGrupo([...tandas.values()].sort(masNuevaPrimero)),
-      comoGrupo(host && ruta ? deHost.tandasDe(host, ruta) : []),
-    ]);
+    const capturas = conPropuesta(
+      elegirCapturas([comoGrupo([...tandas.values()].sort(masNuevaPrimero)), comoGrupo(host && ruta ? deHost.tandasDe(host, ruta) : [])]),
+      vistas,
+    );
     return armarTarjeta({
       meta,
       items,

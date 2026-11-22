@@ -5,6 +5,7 @@ import {
   actualizadaDe,
   agentesYGoals,
   armarTarjeta,
+  conPropuesta,
   elegirCapturas,
   enColaDeRevision,
   estaDetenida,
@@ -229,6 +230,20 @@ test("capturas: de las tandas de la revisión (sin error primero) y, si no hay d
   });
   assert.deepEqual(elegirCapturas([[propias[0]], []]).desktop, { tanda: "h/visitor/b/2026-11-22T03-35-00Z", carpeta: "desktop", archivo: "step_00.png" }, "si solo hay errores, un error");
   assert.deepEqual(elegirCapturas([[], []]), { desktop: null, mobile: null });
+});
+
+test("capturas con propuesta: la «después» del Diseñador encima y la del Visitante de respaldo", () => {
+  const visitante = { tanda: "h/visitor/a/2026-11-22T03-30-00Z", carpeta: "desktop", archivo: "step_00.png" };
+  const corrida = "h/improver/2026-11-22T03-40-00Z";
+  const vistas = [{ capturas: { desktop: { antes: `${corrida}/vistas/escritorio-antes.png`, despues: `${corrida}/vistas/escritorio-despues.png` },
+                                mobile: { antes: null, despues: `${corrida}/vistas/movil-despues.png` } } }];
+  assert.deepEqual(conPropuesta({ desktop: visitante, mobile: null }, vistas), {
+    desktop: { ...visitante, despues: `${corrida}/vistas/escritorio-despues.png` },
+    mobile: { tanda: null, carpeta: null, archivo: null, despues: `${corrida}/vistas/movil-despues.png` },
+  });
+  assert.deepEqual(conPropuesta({ desktop: visitante, mobile: null }, []), { desktop: visitante, mobile: null }, "sin vistas, la del Visitante");
+  const sinDespues = [{ capturas: { desktop: { antes: `${corrida}/vistas/escritorio-antes.png`, despues: null }, mobile: { antes: null, despues: null } } }];
+  assert.deepEqual(conPropuesta({ desktop: visitante, mobile: null }, sinDespues), { desktop: visitante, mobile: null });
 });
 
 test("armarTarjeta: la forma del contrato, en ese orden", () => {

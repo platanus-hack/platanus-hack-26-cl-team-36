@@ -1,8 +1,9 @@
 # Imagen del runtime chameleon de AgentCore: todas las apps de agents/app/, cada una con su entorno, y la entrada
 # agentcore_app.py, que corre el CLI de cada etapa como subproceso. La CLI de AgentCore (infra/agentcore/) la construye
 # en CodeBuild, en arm64, con la raíz del repo como contexto: así entra .claude/skills/ (el skill del diseñador) sin
-# copiarlo; Dockerfile.dockerignore deja pasar solo lo necesario. libatomic1 la pide el driver de Playwright; el
-# navegador es AgentCore Browser y Claude va por Bedrock, así que no hay Chromium ni Claude Code.
+# copiarlo, y extension/src/ (los componentes que el diseñador monta en sus capturas); Dockerfile.dockerignore deja
+# pasar solo lo necesario. libatomic1 la pide el driver de Playwright; el navegador es AgentCore Browser y Claude va
+# por Bedrock, así que no hay Chromium ni Claude Code.
 FROM public.ecr.aws/docker/library/python:3.12-slim-trixie
 
 RUN apt-get update \
