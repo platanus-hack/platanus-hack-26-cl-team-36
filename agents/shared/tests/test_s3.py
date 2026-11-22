@@ -38,6 +38,26 @@ def test_publish_uploads_with_content_types_and_cleans_workdir() -> None:
     assert sorted(client.uploaded) == sorted(key for (_, key) in client.objects if not key.endswith("manifest.json"))
 
 
+def test_only_videos_carry_the_expiration_tag() -> None:
+    client = FakeS3()
+    backend = S3Backend("bucket", "", client)
+    run = start_run(backend, visitor("wom.cl", "baja-fibra"), model="haiku", clock=lambda: MOMENT)
+    (run.workdir / "first_time").mkdir()
+    (run.workdir / "first_time" / "video.webm").write_bytes(b"webm")
+    (run.workdir / "first_time" / "video-2.webm").write_bytes(b"webm")
+    (run.workdir / "first_time" / "step_00.png").write_bytes(b"png")
+    finish_run(backend, run, "succeeded")
+    written = run.key.file("video-3.webm", "first_time")
+    backend.write_bytes(written, b"webm")
+    backend.write_text(run.key.file("report.md"), "# Reporte\n")
+
+    assert client.tags == {
+        ("bucket", run.key.file("video.webm", "first_time")): "tipo=video",
+        ("bucket", run.key.file("video-2.webm", "first_time")): "tipo=video",
+        ("bucket", written): "tipo=video",
+    }
+
+
 def test_latest_lists_with_delimiter_across_pages() -> None:
     client = FakeS3(page_size=2)
     backend = S3Backend("bucket", "", client)

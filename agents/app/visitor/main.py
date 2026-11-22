@@ -158,7 +158,7 @@ def _run_site(parser: argparse.ArgumentParser, args: argparse.Namespace, backend
     if catalog is None:
         parser.error(f"no hay catálogo de {args.site}: corre el Catalogador primero")
     planned = plan(backend, read_catalog(backend, catalog)[1], profile_keys, args.goal, args.limit, args.rerun,
-                   tema)
+                   tema, args.exploradores)
     asyncio.run(run_planned(backend, planned, catalog, profile_keys=profile_keys, **options))
     print("\nListo.")
 

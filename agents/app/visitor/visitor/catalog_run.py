@@ -21,9 +21,9 @@ class Planned:
 
 
 def plan(backend: store.Backend, goals: list[Goal], profile_keys: list[str], only: list[str], limit: int | None,
-         rerun: bool, tema: str | None = None) -> list[Planned]:
+         rerun: bool, tema: str | None = None, conjunto_exploradores: str | None = None) -> list[Planned]:
     """Corre cada objetivo pedido, sin exclusión, con ruta verificada para algún perfil y sin corrida previa con el
-    mismo tema (`tema` = sha256 corto, o None para el sitio tal cual)."""
+    mismo tema (`tema` = sha256 corto, o None para el sitio tal cual) y el mismo conjunto de exploradores."""
     planned: list[Planned] = []
     for goal in goals:
         running = sum(item.skip is None for item in planned)
@@ -34,7 +34,8 @@ def plan(backend: store.Backend, goals: list[Goal], profile_keys: list[str], onl
             skip = goal.exclusion
         elif not references:
             skip = "sin ruta verificada"
-        elif not rerun and current_visit(backend, goal.start_url, goal.id, goal.instruction, tema):
+        elif not rerun and current_visit(backend, goal.start_url, goal.id, goal.instruction, tema,
+                                          conjunto_exploradores):
             skip = "ya evaluado (--rerun para repetirlo)"
         elif limit is not None and running >= limit:
             skip = "límite"

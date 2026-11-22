@@ -52,6 +52,9 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
   `tema.css` y su `route_tree.json` lo registra en `tema` (`archivo`, `sha256` corto, `bytes`); sin tema, `tema` es
   `null`. Una de summary con `--css` registra el sha256 en `tema` de `summary.json`. La vigente se elige por tema como
   por instrucción: una corrida con tema nunca es la vigente sin tema, ni al revés.
+- Una corrida de visitor con `--exploradores` registra el conjunto en `conjunto_exploradores` de `route_tree.json`
+  (sin él, `null` o ausente). La vigente se elige también por conjunto: la de un conjunto nunca es la vigente sin
+  conjunto ni la de otro.
 - Una tarea de `agents/tasks/<host>/<goal>.json` es un objetivo de su host con su propio id. Un objetivo libre, que
   solo tiene instrucción, se llama `libre-<primeras palabras>-<8 hex del sha256 de la instrucción>`; el catálogo y las
   tareas no aceptan ese prefijo.
@@ -95,6 +98,18 @@ archivos ocultos (`.DS_Store`) no se publican.
 La clave `wom.cl/cataloger/2026-11-21T10-44-22Z/goals.json` es `agents/.runs/wom.cl/cataloger/…/goals.json` en disco
 y `s3://bucket/prefijo/wom.cl/cataloger/…/goals.json` en S3. Como el árbol es el mismo, copiar de uno a otro es
 `aws s3 sync agents/.runs/ s3://bucket/prefijo/`.
+
+En S3 cada video (`video/*`) se sube con la etiqueta `tipo=video`, que la regla de ciclo de vida del bucket usa
+para expirarlo: S3 no filtra por extensión. Escribirla pide `s3:PutObjectTagging` además de `s3:PutObject`.
+
+### Corridas sin manifiesto
+
+`scripts/migrate_runs.py` copia a un almacén las corridas de `agents/.runs/` escritas sin `shared.store` (tandas
+`<tarea>/<fecha-hora>/`, rutas `reference/<viewport>/`, catálogos `<host>/goals/`) como corridas `succeeded` con sus
+instantes en UTC, o `failed` si todos los intentos se interrumpieron. No toca la fuente, omite con su motivo lo que no
+sabe ubicar y repetirla no copia nada nuevo. Sin `--write` solo muestra el plan:
+`just local migrate-runs file:///ruta [--write]`, o desde `agents/shared`,
+`uv run scripts/migrate_runs.py --to <almacén> [--from <carpeta>] [--write]`.
 
 ## Instalación
 

@@ -17,21 +17,30 @@ class FakeS3:
 
     def __init__(self, page_size: int = 2) -> None:
         self.objects: dict[tuple[str, str], tuple[bytes, str]] = {}
+        self.tags: dict[tuple[str, str], str] = {}
+        """Etiquetas de cada objeto, como `tipo=video`; reemplazar el objeto las borra, como en S3."""
         self.page_size = page_size
         self.uploaded: list[str] = []
         self.conflicts: set[str] = set()
         """Claves cuya escritura condicional choca con otra en curso (409)."""
 
-    def put_object(self, Bucket: str, Key: str, Body: bytes, ContentType: str, IfNoneMatch: str | None = None) -> None:
+    def put_object(self, Bucket: str, Key: str, Body: bytes, ContentType: str, IfNoneMatch: str | None = None,
+                   Tagging: str | None = None) -> None:
         if IfNoneMatch == "*" and Key in self.conflicts:
             raise ClientError("ConditionalRequestConflict")
         if IfNoneMatch == "*" and (Bucket, Key) in self.objects:
             raise ClientError("PreconditionFailed")
-        self.objects[(Bucket, Key)] = (Body, ContentType)
+        self._store(Bucket, Key, Body, ContentType, Tagging)
 
     def upload_file(self, Filename: str, Bucket: str, Key: str, ExtraArgs: dict[str, str]) -> None:
         self.uploaded.append(Key)
-        self.objects[(Bucket, Key)] = (Path(Filename).read_bytes(), ExtraArgs["ContentType"])
+        self._store(Bucket, Key, Path(Filename).read_bytes(), ExtraArgs["ContentType"], ExtraArgs.get("Tagging"))
+
+    def _store(self, bucket: str, key: str, body: bytes, content_type: str, tagging: str | None) -> None:
+        self.objects[(bucket, key)] = (body, content_type)
+        self.tags.pop((bucket, key), None)
+        if tagging is not None:
+            self.tags[(bucket, key)] = tagging
 
     def get_object(self, Bucket: str, Key: str) -> dict[str, Any]:
         if (Bucket, Key) not in self.objects:
