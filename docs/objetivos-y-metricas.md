@@ -1,52 +1,24 @@
-# Niveles de tarea: cómo clasificar los objetivos de un sitio
+# Objetivos y métricas
 
-**Qué es este documento.** Una investigación para el **Catalogador** (`cataloger`), el agente que lee el DOM de un
-sitio y descubre todos los objetivos que ofrece a sus visitantes, y para la **Guía** (`guide`), que para cada uno
-busca la **ruta de referencia**: el camino más corto que lo logra. Responde si la práctica de UX, la investigación en HCI y los benchmarks de agentes web
-clasifican tareas por niveles, qué clasificación adopta nuestro catálogo de objetivos y con qué regla se asigna cada
-valor sin analítica ni personas reales. Es para quien construye esos agentes y para quien compara sus rutas con los
-intentos del Visitante ([diseño](evaluador.md)). Los términos están en el [glosario](../glosario.md). Fecha: 2026-11-21.
+Cómo clasifica el [Catalogador](../agents/app/cataloger/README.md) los objetivos de un sitio y con qué métricas se
+compara un intento del [Visitante](../agents/app/visitor/README.md) con la ruta de referencia de la
+[Guía](../agents/app/guide/README.md). El esquema está en
+[`shared.catalog.goal`](../agents/shared/src/shared/catalog/goal.py) y las métricas, en
+[`visitor/comparison.py`](../agents/app/visitor/visitor/comparison.py). Los términos están en el
+[glosario](glosario.md).
 
-## Resumen
+## En breve
 
-- **No hay una clasificación única; hay cuatro ejes independientes.** Jerarquía (Cockburn, HTA, GOMS), importancia
-  (Top Tasks, red routes, CUJ), tipo de intención (Broder, Rose y Levinson, Kellar, WebArena) y dificultad (bandas
-  por pasos de Online-Mind2Web). Ninguna fuente los combina; el catálogo toma uno de cada eje.
-- **Sin personas se puede calcular** el nivel, la intención, la complejidad y las barreras. **No se puede** calcular
-  la importancia: Top Tasks necesita votos, las red routes frecuencia de uso y los CUJ indicadores de negocio. El DOM
-  da la **prominencia**, que mide lo que el sitio destaca, no lo que el visitante necesita.
-- **Solo los objetivos `user_goal` van al Visitante.** Los `summary` agrupan; los `subfunction` (iniciar sesión,
-  buscar) son tramos de otros.
+- **Solo los objetivos `user_goal` sin barreras excluyentes van a la Guía y al Visitante.** Los `summary` agrupan;
+  los `subfunction` (iniciar sesión, buscar) son tramos de otros.
+- **Sin personas reales no se puede medir la importancia de una tarea.** El DOM da la **prominencia**, que mide lo
+  que el sitio destaca, y el modelo del catálogo estima la **demanda**.
 - **La complejidad sale de las acciones de la ruta de referencia, sin scrolls:** hasta 5 es `easy`, de 6 a 10
   `medium`, 11 o más `hard`.
 - **Para comparar un intento con la ruta bastan cuatro datos de la ruta:** pasos, páginas distintas, nodos y nodos
-  clave. Con ellos se calculan la eficiencia (SPL), la desorientación (*lostness*), el avance y la similitud.
+  clave. Con ellos se calculan la eficiencia (SPL), la desorientación (*lostness*), la llegada y la similitud.
 
-## 1. Qué clasificaciones existen
-
-| Marco | Qué clasifica | Niveles o valores | Qué necesita | ¿Sin personas? |
-|---|---|---|---|---|
-| Cockburn | Casos de uso | `summary` (varias sesiones), `user goal` (una, 2–20 min), `subfunction` | Objetivo y ruta | **Sí** |
-| HTA | Tareas | Objetivo, subobjetivos, operaciones y planes, en árbol | Análisis experto | Sin niveles con nombre |
-| GOMS / KLM | Conducta experta | Objetivos, métodos, operadores con tiempo (K, P, H, M) | Acciones | Sí; tiempo experto |
-| Teoría de la actividad | Actividad | Actividad (motivo), acción (meta), operación (condiciones) | Observación | Sin reglas |
-| Top Tasks | Tareas de un sitio | Ranking por votos de una lista de hasta 100 tareas | Encuesta | **No** |
-| Red routes | Rutas de un producto | Matriz: cuántas personas la hacen × con qué frecuencia | Uso real | **No** |
-| CUJ (Google) | Recorridos | Objetivo con pasos, priorizado por indicadores de negocio | KPIs | **No** |
-| Broder | Búsquedas web | Navegacional, informacional, transaccional | La consulta | Definida para consultas a un buscador |
-| Rose y Levinson | Búsquedas web | Navegacional; informacional (cerrada, abierta, sin dirección...); recurso | La consulta | Parcial |
-| Kellar y otros | Tareas web | Buscar un dato, recolectar, navegar sin meta, transacción | Diario de uso | Sí, por el final |
-| WebArena | Tareas | Búsqueda de información, navegación, operación de contenido y configuración | Verificación | **Sí** |
-| Online-Mind2Web | Tareas | `easy` ≤5 pasos, `medium` 6–10, `hard` ≥11, sobre la ruta humana | Ruta | **Sí** |
-| VisualWebArena | Tareas | `easy` ≤3 pasos, `medium` 4–9, `hard` ≥10, sobre la ruta humana | Ruta | **Sí** |
-| AssistantBench | Tareas | Por acierto de modelos sin navegador | Modelos | Mide otra cosa |
-
-Mind2Web, WebVoyager y WebLINX agrupan por sitio, sin niveles. Sobre barreras: WebVoyager omite los sitios con login
-o CAPTCHA; Online-Mind2Web quita los que tienen CAPTCHA; Mind2Web pide no escribir datos personales y registra sin
-ejecutar las acciones que cambian estado (*Click (Fake)*); ST-WebAgentBench evalúa políticas por tarea, entre ellas
-pedir confirmación antes de operaciones irreversibles (borrar, comprar) o de enviar formularios.
-
-## 2. Qué se adopta de cada eje
+## De dónde sale cada campo
 
 | Campo | Decisión | Por qué |
 |---|---|---|
@@ -57,10 +29,10 @@ pedir confirmación antes de operaciones irreversibles (borrar, comprar) o de en
 | `gates` | Lista, no un valor | Las barreras se combinan: `login`, `personal_data`, `side_effect`, `bot_check`. |
 | `parent`, `reference_route` | Se agregan | Para agrupar bajo un `summary` y calcular las métricas. |
 
-## 3. El esquema de un objetivo
+## El esquema de un objetivo
 
-Ejemplo de un objetivo de `goals.json` sobre la tarea de WOM de [`agents/tasks/wom.cl/`](../../agents/tasks/wom.cl/). Se
-conservan los campos de [formas de datos](../formas-de-datos.md), sección 5.
+Ejemplo de un objetivo de `goals.json`, sobre la tarea de WOM de [`agents/tasks/wom.cl/`](../agents/tasks/wom.cl/). Los
+cinco primeros campos son la forma de una tarea escrita a mano: un objetivo se promueve a tarea copiándolo.
 
 ```json
 {
@@ -78,7 +50,9 @@ conservan los campos de [formas de datos](../formas-de-datos.md), sección 5.
   "prominence": "buried",
   "gates": [],
   "instruction": "Encuentra cómo dar de baja tu servicio de Internet Fibra.",
-  "exclusion": null
+  "exclusion": null,
+  "demand": "common",
+  "estimated_steps": 4
 }
 ```
 
@@ -91,6 +65,10 @@ conservan los campos de [formas de datos](../formas-de-datos.md), sección 5.
 | `prominence` | `primary`, `secondary`, `buried` | Por el primer elemento de la ruta en `start_url`, viewport de escritorio. `primary`: visible en la primera pantalla sin interactuar. `secondary`: está en las tres primeras pantallas o en un menú del encabezado. Si no, `buried`. |
 | `complexity` | `easy`, `medium`, `hard` | Por `reference_route.actions`, sin scrolls: ≤5, 6–10, ≥11. |
 | `gates` | Lista de `login`, `personal_data`, `side_effect`, `bot_check`; vacía = abierto | `login`: un `input type=password` o `autocomplete` `username`, `current-password`, `new-password` u `one-time-code`; o el modelo marca `requires_login`; o la entrada va a un subdominio (`ucampus.`, `mi.`, `sso.`, `login.`, `portal.`…) o ruta (`/login`, `/mi-cuenta`…) de autenticación, o la descripción es sobre datos propios («tus notas», «matricularse», «Mi …»). `personal_data`, solo si `submits_form` o `transact`, en un campo visible que no sea búsqueda ni lista: `autocomplete` de nombre, `email`, `tel`, dirección, `bday` o `cc-*`, o una etiqueta o `name` de RUT, nombre de la persona, teléfono, correo o dirección (muchos formularios no declaran `autocomplete`). `side_effect`: es `transact`. `bot_check`: iframe de reCAPTCHA, hCaptcha o Turnstile. |
+| `instruction` | texto | La tarea que reciben la Guía y el Visitante: `description` más, en `transact`, la orden de llegar hasta el paso anterior al envío sin enviar, y en `reach_page`, la de terminar en esa página. |
+| `exclusion` | texto o `null` | Por qué no se intenta: `nivel …` si no es `user_goal`, `barrera …` si tiene `login`, `personal_data` o `bot_check`. `null` si se intenta. |
+| `demand` | `top`, `common`, `rare` | Cuánta gente viene a la página a hacerlo, según el modelo del catálogo; `top` son sus 3 a 6 tareas principales. |
+| `estimated_steps` | entero | Pasos que el modelo del catálogo estima para lograrlo. Con `demand`, ordena qué objetivos recorre una revisión. |
 | `reference_route.steps` | entero | Pasos de la ruta más corta, contados con las acciones del Visitante: clic, campo escrito, tecla o desplazamiento. Es una cota inferior para quien solo ve la pantalla: un desplazamiento por cada elemento fuera de ella y a lo más uno para leer la respuesta. |
 | `reference_route.actions` | entero | Acciones de la ruta sin los desplazamientos: clic, campo escrito, opción elegida o tecla. Online-Mind2Web y Mind2Web no registran scroll. |
 | `reference_route.pages` | entero | Páginas distintas de la ruta, incluida `start_url`. |
@@ -105,33 +83,33 @@ en las tres primeras (2018, pantalla de 1920×1080). Equiparar abrir un menú co
 
 **Qué hace el Visitante con cada barrera.** Sin barreras, evalúa entero. Con `side_effect`, hasta el paso anterior al
 envío: el éxito es llegar a la confirmación sin enviar, como el *Click (Fake)* de Mind2Web; el harness ya cancela el
-envío de formularios `method=post` o con contraseña; no bloquea `fetch`/XHR. Con `login` o `personal_data`, queda
-fuera salvo que haya cuenta de prueba. Con `bot_check`, queda fuera.
+envío de formularios `method=post` o con contraseña; no bloquea `fetch`/XHR. Con `login`, `personal_data` o
+`bot_check`, queda fuera (`exclusion`).
 
 **Qué se descarta.** Los objetivos de final abierto (recolectar y navegar sin meta en Kellar, la búsqueda sin
 dirección de Rose y Levinson). NN/g exige una sola interpretación y un final claro para medir éxito. El Catalogador los
 reescribe como tarea cerrada o no los incluye.
 
-## 4. Lo que la ruta de referencia tiene que entregar
+## Lo que entrega la ruta de referencia
 
 | Dato de la ruta | Para qué |
 |---|---|
 | ℓ = `steps` | Eficiencia (SPL) |
 | R = `pages` | Desorientación |
 | `nodes` | Similitud de secuencia |
-| `key_nodes` | Avance y etapa donde se detuvo un fracaso |
+| `key_nodes` | Llegada: con una ruta, su página final |
 
 Del intento, todo sale del `run.json`: p = pasos dados, T = páginas visitadas en total, N = páginas distintas, la
-secuencia de nodos y s ∈ {0, 1}, el veredicto del juez.
+secuencia de nodos y s ∈ {0, 1}: si pasó por la página final de la ruta.
 
-## 5. Métricas: un intento contra la ruta de referencia
+## Métricas: un intento contra la ruta de referencia
 
 | Métrica | Fórmula | Lectura | Fuente |
 |---|---|---|---|
-| Éxito | s ∈ {0, 1} | Lo decide el juez | — |
+| Éxito | s ∈ {0, 1} | Lo decide el programa: llegó a la página final de la ruta | — |
 | Eficiencia | e = s · ℓ / max(p, ℓ); por tanda, SPL = promedio de e | 1 = logró por la ruta óptima; 0,5 = con el doble de pasos | Anderson y otros, 2018 |
 | Desorientación | L = √((N/T − 1)² + (R/N − 1)²) | 0 = sin desorientación; umbrales en las notas | Smith, 1996 |
-| Avance | k / K: nodos clave alcanzados sobre el total | En un fracaso, el primer nodo no alcanzado es la etapa | WebCanvas, 2024 |
+| Llegada | Pasó por la página final de la ruta (`reached_final_node`) | Es el nodo clave de la ruta; de él sale el éxito | WebCanvas, 2024 |
 | Similitud | \|LCS(intento, referencia)\| / \|intento\|, sobre nodos | Cerca de 1 = siguió la ruta óptima | Gwizdka y Spence, 2005 |
 
 - **SPL** viene de navegación de robots (ℓ: camino más corto; p: camino recorrido). Sus autores la llaman estricta y
@@ -152,21 +130,6 @@ secuencia de nodos y s ∈ {0, 1}, el veredicto del juez.
 - **El tiempo no se compara.** KLM da tiempo experto (P = 1,1 s, M = 1,35 s, K = 0,20 s a 55 palabras por minuto),
   pero el tiempo del agente lo domina la latencia del modelo. Los pasos sí son comparables.
 
-## 6. Lo que queda abierto
-
-- **La importancia real.** Sin votos ni analítica no se sabe cuáles son las Top Tasks. Una baja de servicio
-  `buried` es un hallazgo, no una tarea menor; las salvaguardas del glosario suelen ser poco prominentes.
-- **El límite de acciones del Visitante.** Con 15 acciones, un `hard` deja poco margen: falta fijar `max_steps` en
-  función de ℓ.
-- **La fórmula original de la desorientación** (definición de R, umbral), hasta leer Smith 1996.
-- **Rutas más cortas que la de la Guía.** La ruta de referencia es la más corta verificada entre las exploradas, no
-  la mínima del sitio: la Guía busca una más corta después de la primera. Si un intento usa menos pasos que ℓ, e
-  vale 1 por el max(p, ℓ); se registra el caso para corregir la ruta: queda como propuesta que la Guía verifica
-  antes de adoptarla. Falta saber cuántas exploraciones extra bastan y si la ruta es estable entre corridas.
-- **Escritorio y móvil.** La prominencia y la ruta cambian con el viewport; `mobile` necesitaría su propia ruta.
-- **El acuerdo del modelo en `level` e `intent`.** Clasificar a mano los objetivos de los tres sitios de
-  [tareas en sitios chilenos](../tareas-sitios-chilenos.md) y medir cuántos coinciden con el Catalogador.
-
 ## Fuentes
 
 Leídas (al menos en parte):
@@ -178,19 +141,13 @@ Leídas (al menos en parte):
   <https://wiki.eecs.yorku.ca/course_archive/2009-10/W/4461/_media/kellar07.pdf>
 - McGovern. *What Really Matters: Focusing on Top Tasks.* A List Apart.
   <https://alistapart.com/article/what-really-matters-focusing-on-top-tasks/>
-- GOV.UK. *Benchmarking and performance measurement of content transformation.* 2017.
-  <https://insidegovuk.blog.gov.uk/2017/09/22/benchmarking-and-performance-measurement-of-content-transformation/>
-- Google SRE. *Product-Focused Reliability for SRE.*
-  <https://sre.google/resources/practices-and-processes/product-focused-reliability-for-sre/>
-- The Decision Lab. *Red Route Usability.* <https://thedecisionlab.com/reference-guide/design/red-route-usability>
 - NN/g. *Writing Tasks for Quantitative and Qualitative Usability Studies*.
   <https://www.nngroup.com/articles/test-tasks-quant-qualitative/>; *Scrolling and Attention*, 2018.
   <https://www.nngroup.com/articles/scrolling-and-attention/>
 - Xue y otros. *An Illusion of Progress?* (Online-Mind2Web). 2025. <https://arxiv.org/abs/2504.01382>
 - Deng y otros, *Mind2Web*, 2023, arXiv 2306.06070. Zhou y otros, *WebArena*, 2023, arXiv 2307.13854.
-- He y otros, *WebVoyager*, 2024, arXiv 2401.13919. Yoran y otros, *AssistantBench*, 2024, arXiv 2407.15711.
-- Pan y otros, *WebCanvas*, 2024, arXiv 2406.12373. Levy y otros, *ST-WebAgentBench*, 2024, arXiv 2410.06703.
-- Lù y otros, *WebLINX*, 2024, arXiv 2402.05930. Koh y otros, *VisualWebArena*, 2024, arXiv 2401.13649.
+- Pan y otros, *WebCanvas*, 2024, arXiv 2406.12373.
+- Koh y otros, *VisualWebArena*, 2024, arXiv 2401.13649.
 - Anderson y otros. *On Evaluation of Embodied Navigation Agents.* 2018. <https://arxiv.org/abs/1807.06757>
 - Gwizdka y Spence. *Predicting Outcomes of Web Navigation.* WWW 2005.
   <https://archives.iw3c2.org/www2005/proceedings/docs/p892.pdf>
@@ -200,11 +157,9 @@ Leídas (al menos en parte):
   <https://educationandscience.ted.org.tr/article/download/1008/993>
 - MeasuringU. *Lostness.* <https://measuringu.com/lostness/>
 - UXtweak. *Lostness metric.* <https://uxtweak.com/help/website-testing-results/analysis-lostness-metric>
-- Wikipedia: *Keystroke-level model*, *GOMS*, *Hierarchical task analysis*, *Activity theory*. MDN: `autocomplete`.
+- Wikipedia: *Keystroke-level model*. MDN: `autocomplete`.
 
 Solo citadas por otras fuentes:
 
 - Broder. *A taxonomy of web search.* SIGIR Forum, 2002. El PDF no respondió; definiciones vía Rose y Levinson.
 - Smith. *Towards a practical measure of hypertext usability.* 1996. Card, Moran y Newell, sobre KLM. CACM, 1980.
-- Travis, sobre red routes (la página de Userfocus no respondió). Jobs To Be Done, vía Google SRE. Google SRE
-  Workbook, *Implementing SLOs*, para la definición textual de CUJ.

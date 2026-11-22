@@ -1,81 +1,61 @@
 # Glosario
 
-**Qué es este documento.** Los términos que usan [la propuesta](index.md), [el plan](plan.md) y
-[formas de datos](formas-de-datos.md), para consultar cuando alguno no quede claro.
+Los términos del proyecto y cómo se llaman en el código. Los agentes y sus datos usan nombres en inglés; la extensión,
+el backend y el backoffice, en español.
 
-Los documentos van en español. El código y los datos usan nombres en inglés; la última columna dice cuál corresponde
-a cada término. En el texto solo se dejan en inglés *soul*, *spike*, *PR* y *script*.
-
-Dos palabras se usan siempre con un solo sentido:
-
-- **Persona** es quien usa el producto. Nunca un agente.
-- **Equipo** somos nosotros, el equipo 36. La máquina de la persona es su **computador**.
-
-## La idea
+## El producto
 
 | Término | Qué significa | En el código |
 |---|---|---|
-| **Página original** | El sitio tal como lo sirve su dueño. No se modifica. | `source page` |
-| **Optimización** | Un parche aceptado tras un experimento, porque mejora una tarea para cualquiera. | `optimization` |
-| **Soul** | Las preferencias de una persona. No salen de su computador. No es la personalidad de un agente. | `soul` |
-| **Preferencia** | Una frase de la soul: "prefiere texto grande". | `preference` |
+| **Tema** | Lo que la extensión aplica sobre una página: una hoja CSS con todas sus reglas bajo `html.mi-tema` y, opcionalmente, la lista de features que se activan. | `tema.css`, `tema.json` |
+| **Feature** | Un comportamiento JS de la extensión que un tema activa y configura con datos, como el modo foco o una vista. | `extension/src/features/` |
+| **Componente** | Una pieza de interfaz de la extensión con la que una vista reemplaza una sección de la página. | `extension/src/componentes/` |
+| **Revisión** | El trabajo completo de los agentes sobre una página: catálogo, Guía y Visitante por objetivo, y el tema. Es lo que la extensión consulta. | `revision`; tabla `chameleon-revisiones` |
+| **Opinión** | Lo que la persona dice de una página desde el popup (mejor, peor o un comentario). Se guarda solo en su navegador. | `extension/src/popup/` |
 
-## Los parches
-
-| Término | Qué significa | En el código |
-|---|---|---|
-| **Parche** | Lista de cambios a una página, escritos como datos y no como código. Es de optimización o de soul. | `patch` |
-| **Cambio** | Una operación dentro de un parche: cambiar un estilo, ocultar o renombrar. | `change` |
-| **Localizador** | La forma de señalar un elemento: qué es (un botón, un enlace) y cómo se llama. | `element` |
-| **Elemento protegido** | Lo que ningún parche puede ocultar, mover ni renombrar: salir, cancelar, rechazar, precios, texto legal. | `protected element` |
-| **Comprobación de seguridad** | Verificar, después de aplicar parches, que los elementos protegidos siguen visibles y se pueden pulsar. | `safety check` |
-| **Variante** | Un conjunto ordenado de parches de optimización sobre una página. Es lo que se mide. | `variant` |
-| **Control** | La página original, sin parches. Es con lo que se compara una variante. | `control` |
-
-## La evaluación
+## Lo que miden los agentes
 
 | Término | Qué significa | En el código |
 |---|---|---|
-| **Agente** | Un Claude que intenta una tarea en una página, paso a paso. | `agent` |
-| **Perfil de agente** | La conducta que se le pide a un agente: impaciente, lector cuidadoso, etc. | `agent_profile` |
-| **Página de prueba** | La página sobre la que se evalúa. La elige quien la construye; el plan dice qué debe cumplir. | `test page` |
-| **Tarea** | Lo que se intenta lograr en una página, con una condición que el programa puede comprobar. La PR #6 la llama "misión". | `task` |
-| **Etapa** | Un tramo reconocible de una tarea. | `stage` |
-| **Salvaguarda** | Una tarea contraria que no debe volverse más difícil, como cancelar o rechazar un extra. | `guardrail` |
-| **Intento** | Un agente tratando de completar una tarea una vez. | `run` |
-| **Paso** | Una acción de un agente dentro de un intento. | `step` |
-| **Recorrido** | El registro paso a paso de un intento. Solo de agentes. | archivo del almacén (`agents/.runs/` o S3) |
-| **Objetivo** | Algo que un sitio ofrece a un visitante, escrito como tarea cerrada y clasificado según [niveles de tarea](agents/niveles-de-tarea.md). Un objetivo se promueve a tarea copiándolo. | `goal` |
-| **Catálogo de objetivos** | Todos los objetivos que el Catalogador descubre en un sitio. | `goals.json` |
-| **Ruta de referencia** | El camino más corto que cumple una tarea entre los que la Guía exploró y verificó. Con ella se comparan los recorridos. | `reference route` |
-| **Tanda** | Varios intentos lanzados juntos, con un tope de gasto. | `batch` |
-| **Grafo de navegación** | El resumen de muchos recorridos: etapas, por dónde se sigue y dónde se abandona. | `navigation graph` |
-| **Experimento** | La comparación de una variante contra el control para una tarea. Termina en aceptada, rechazada o no concluyente. | `experiment` |
-| **Comprobación de azar** | Comparar el control consigo mismo, para saber cuánta diferencia aparece sin haber cambiado nada. | `noise_check` |
+| **Objetivo** | Algo que un sitio ofrece a un visitante, escrito como tarea cerrada y [clasificado](objetivos-y-metricas.md). | `goal` |
+| **Catálogo** | Todos los objetivos que el Catalogador descubre en un sitio. | `goals.json` |
+| **Tarea** | Un objetivo escrito a mano, con su propio id. | `agents/tasks/<host>/<id>.json` |
+| **Barrera** | Lo que impide intentar un objetivo entero: inicio de sesión, datos personales, un efecto real o un captcha. | `gates` |
+| **Ruta de referencia** | El camino más corto que logra un objetivo, entre los que la Guía exploró y verificó repitiéndolo. Con ella se comparan los intentos. | `route.json` |
+| **Nodo** | Una página dentro de una ruta o un recorrido: su URL normalizada más su título. | `node` |
+| **Perfil** | El usuario sintético que hace un intento. Los dos normales, uno por pantalla (escritorio y móvil), hacen la tarea sin imitar un tipo de usuario. | `profile` |
+| **Explorador** | Un perfil que recorre el sitio a propósito por varios caminos y anota hallazgos, con un nivel de conocimiento del tema. No se compara con la ruta. | `--exploradores` |
+| **Intento** | Un perfil tratando de lograr un objetivo una vez. Termina en `success`, `failed` o `abandoned`. | `run.json` |
+| **Paso** | Una acción dentro de un intento o de una ruta: clic, texto escrito, tecla o desplazamiento. | `step` |
+| **Recorrido** | El registro paso a paso de un intento, con la captura de cada paso. | `run.json`, `step_NN.png` |
+| **Tanda** | Los intentos de varios perfiles sobre un mismo objetivo, lanzados juntos. | una corrida de `visitor` |
+| **Árbol de rutas** | Los recorridos de una tanda unidos por las páginas que comparten: por dónde fue cada uno y dónde se separaron. | `route_tree.json` |
+| **Propuesta** | Un intento que logró el objetivo con menos pasos que la ruta de referencia. La Guía lo verifica antes de adoptarlo. | `proposals.json`, `guide adopt` |
 
 ## Las piezas
 
 | Término | Qué significa | En el código |
 |---|---|---|
-| **Puente** | Programa local que conecta la extensión con Claude Code. | `bridge` |
-| **Extensión** | Lo que la persona instala en el navegador. | `extension` |
-| **Motor de parches** | Aplica, deshace y comprueba parches. Lo usan la extensión y el Visitante. | `patch engine` |
-| **Catalogador** | Lee el DOM de un sitio y cataloga sus objetivos, clasificados. | `cataloger` |
+| **Extensión** | Lo que la persona instala en Firefox o Chrome. | `extension/` |
+| **API** | Responde qué tema corresponde a una página y recibe los pedidos de revisión. | `backend/` |
+| **Catalogador** | Lee el DOM de un sitio y cataloga sus objetivos. | `cataloger`; etapa `catalog` |
 | **Guía** | Encuentra y verifica la ruta de referencia de un objetivo, leyendo el DOM y capturas. | `guide` |
-| **Visitante** | Lanza usuarios sintéticos que intentan un objetivo viendo solo capturas, y guarda sus recorridos. Su diseño está en [evaluador](agents/evaluador.md). | `visitor` |
-| **Diseñador** | En la última etapa de una revisión, escribe el tema (una hoja CSS) a partir de lo que midieron el Catalogador, la Guía y el Visitante. El backoffice lo muestra como Diseñador (Designer), nunca como `improver`. | `web_designer`; su etapa y su carpeta en el almacén, `improver` |
-| **Resumen del sitio** | Compara, por objetivo, la ruta de la Guía con los intentos del Visitante. | `summary` |
-| **Optimizador** | Propone parches a partir de lo que deja el Visitante y decide cuál se acepta. | `optimizer` (se propone `web_optimizer`) |
-| **Harness** | El programa que controla el ciclo de un agente: le entrega la captura, recibe su acción y la hace ejecutar. Es parte del Visitante. | `harness` |
-| **Ejecutor** | La parte del harness que realiza en el navegador la acción que pidió el agente y toma la captura siguiente. | `executor` |
-| **Juez** | La parte del Visitante que decide, con las condiciones de la tarea, si un intento se logró y en qué etapa va. Es lo único que lee la URL y el DOM. | `judge` |
-| **Almacén local** | Los archivos donde se guarda lo aprendido de cada sitio. | `local store` |
+| **Visitante** | Lanza usuarios sintéticos que intentan un objetivo viendo solo capturas, y guarda sus recorridos. | `visitor` |
+| **Diseñador** | Escribe el tema con lo que midieron los demás. El backoffice lo muestra como Diseñador, nunca como `improver`. | `web_designer`; etapa y carpeta `improver` |
+| **Conductor** | Corre las etapas de una revisión en orden y espera a cada una. | `conductor`; etapa `revision` |
+| **Resumen** | Compara, por objetivo de un sitio, la ruta de la Guía con los intentos del Visitante. | `summary` |
+| **Harness** | La parte del Visitante que controla el ciclo de un intento: entrega la captura, recibe la acción y la ejecuta en el navegador. | `visitor/harness.py` |
+| **Juez** | Un modelo que decide si un intento logró su objetivo cuando no hay ruta de referencia. Con ruta, lo decide el programa. | `visitor/judge.py`, `--judge` |
+| **Runtime** | El único runtime de AgentCore donde corren los agentes en AWS: una imagen con todas las apps. | `chameleon`; `agents/app/runtime/` |
+| **Proyectora** | La Lambda que lee lo que los agentes dejan en el almacén y actualiza el estado de cada revisión. | `backend/proyectora.js` |
+| **Backoffice** | El visor de solo lectura de las revisiones y las corridas. | `backoffice/` |
 
-## El trabajo
+## Los datos
 
-| Término | Qué significa |
-|---|---|
-| **Prototipo** | La primera extensión de Firefox y su puente, de la carpeta `prototipo/`. Se retiró en la PR #13; la extensión actual está en `extension/`. |
-| **Spike** | Una prueba corta para contestar una pregunta. Deja un script y un informe; no es código que se conserve. |
-| **Script** | Un programa de un solo archivo. |
-| **PR** | Un cambio de código que se revisa y se integra por separado. |
+| Término | Qué significa | En el código |
+|---|---|---|
+| **Almacén** | Donde los agentes dejan sus salidas, con el mismo árbol en disco y en S3. | `shared.store`; `agents/.runs/` o el bucket `chameleon-almacen-<cuenta>` |
+| **Corrida** | Una ejecución de un agente: una carpeta del almacén que nunca se sobrescribe. | `<run>`, el instante UTC de inicio |
+| **Manifiesto** | El archivo que dice qué es una corrida, cómo terminó y de qué otras corridas viene. | `manifest.json` |
+| **Etapa** | Cada parte de una revisión: `catalog`, `guide`, `visitor` e `improver`. | `shared.stages` |
+| **Viewport** | El tamaño de pantalla de una ruta o un perfil. | `desktop`, `mobile` |

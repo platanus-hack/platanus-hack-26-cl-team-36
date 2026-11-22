@@ -29,7 +29,7 @@ que todo lo que el modelo necesita tiene que estar ahí.
   claro) da contraste ≥ 5:1 contra los fondos de las paletas y con su `acento-texto` (medido para los 8 tonos de la tabla, con recorte a sRGB) sin que Haiku tenga que calcular nada. Firefox soporta `oklch()` desde
   la versión 113.
 - **No mover nodos.** `display`, `position`, `order` y anchos sobre nodos de un framework (React, Vue) pueden romper la
-  página o deshacerse en el siguiente render (`docs/agents/niveles-de-cambio.md`, niveles 0–2). El énfasis de la tarea
+  página o deshacerse en el siguiente render. El énfasis de la tarea
   se hace con color, peso, tamaño y relleno, sin cambiar el lugar.
 - **No ocultar alternativas.** Los menús adaptativos que escondían opciones fracasaron (Office 2000); la tarea se
   facilita resaltando la acción y el camino (olor de información), atenuando lo secundario.
