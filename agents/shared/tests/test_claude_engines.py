@@ -71,6 +71,7 @@ def no_engine_env(monkeypatch):
     monkeypatch.delenv(engines.ENGINE_VAR, raising=False)
     monkeypatch.delenv(engines.MODEL_VAR, raising=False)
     monkeypatch.delenv(engines.STRONG_MODEL_VAR, raising=False)
+    monkeypatch.delenv(engines.GUIDE_MODEL_VAR, raising=False)
 
 
 def test_the_default_engine_is_claude_code_with_the_agents_model(no_engine_env, tmp_path):
@@ -99,6 +100,15 @@ def test_bedrock_has_a_fast_and_a_strong_model(no_engine_env, monkeypatch):
     assert engines.model_for("m", strong=True) == "us.anthropic.claude-opus-5-5"
     monkeypatch.delenv(engines.ENGINE_VAR)
     assert engines.model_for("claude-opus-5-5", strong=True) == "claude-opus-5-5"
+
+
+def test_bedrock_guide_uses_opus_unless_overridden(no_engine_env, monkeypatch):
+    monkeypatch.setenv(engines.ENGINE_VAR, "bedrock")
+    assert engines.model_for("claude-opus-5-5", guide=True) == "us.anthropic.claude-opus-5-5"
+    monkeypatch.setenv(engines.MODEL_VAR, "us.anthropic.claude-haiku-4-5-20251001-v1:0")
+    assert engines.model_for("m", guide=True) == "us.anthropic.claude-haiku-4-5-20251001-v1:0"  # la cuenta vieja
+    monkeypatch.setenv(engines.GUIDE_MODEL_VAR, "us.anthropic.claude-sonnet-5-5")
+    assert engines.model_for("m", guide=True) == "us.anthropic.claude-sonnet-5-5"
 
 
 def test_fake_engine_and_unknown_engine(no_engine_env, monkeypatch, tmp_path):

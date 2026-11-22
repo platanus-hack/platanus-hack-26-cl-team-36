@@ -35,7 +35,7 @@ def main() -> None:
     args = parser.parse_args()
     if engines.needs_claude_cli() and not shutil.which("claude"):
         parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión")
-    args.model = engines.model_for(args.model)
+    args.model = engines.model_for(args.model, guide=True)
     COMMANDS[args.command].run(parser, args)
 
 
