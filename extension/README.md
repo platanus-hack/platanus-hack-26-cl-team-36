@@ -34,6 +34,7 @@ extension/
 │   │   └── vista.js/.css     ← reemplaza una sección por una vista hecha con un componente
 │   ├── componentes/          ← catálogo de piezas de interfaz que usan las vistas
 │   │   └── cartelera.js/.css
+│   ├── fuentes/              ← fuentes variables (OFL) que un tema usa nombrando "MT Inter", "MT Geist"…
 │   └── icons/
 ├── scripts/                  ← herramientas de desarrollo (no se empaquetan)
 │   └── clonar-perfil.js      ← `npm run perfil:clonar`
@@ -119,6 +120,14 @@ sitio tenga tema. La extensión **no** pide revisiones (cada una corre agentes y
 TODO en `background/index.js`): se piden desde la raíz con `just aws revision <url>` o
 `just aws seed <url>...`. Una revisión vale solo para esa página (la URL sin query ni hash, y
 sin `www.`).
+
+**Fuentes:** el CSS de un tema no puede declarar `@font-face` ni `url()`, pero puede usar las
+fuentes variables que trae la extensión (`src/fuentes/`, OFL 1.1) solo nombrándolas:
+`font-family: "MT Inter", "MT Inter Fallback", Inter, system-ui, sans-serif`. Hay `"MT Inter"`
+(wght, opsz), `"MT Source Serif"` (wght, opsz), `"MT Archivo"` (wght, wdth), `"MT Geist"` y
+`"MT Geist Mono"` (wght), cada una con su `"… Fallback"` (una fuente del sistema con sus
+métricas). El background inyecta `fuentes/fuentes.css` solo si el tema nombra alguna, y el
+navegador descarga cada archivo solo si un texto lo usa.
 
 Un tema (`normalizarTema` en `background/temas.js`) también puede traer `features` y
 `eventosNavegacion`, pero hoy la API solo manda CSS:
