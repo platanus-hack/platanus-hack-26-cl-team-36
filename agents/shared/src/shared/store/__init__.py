@@ -29,6 +29,7 @@ from shared.store.manifest import (
     running,
     runs_with_status,
     start_run,
+    validate_revision,
 )
 from shared.store.run_ids import Clock, format_run_id, parse_run_id, sort_run_ids, utc_now
 from shared.store.s3 import S3Backend
@@ -67,6 +68,7 @@ __all__ = [
     "sort_run_ids",
     "start_run",
     "summary",
+    "validate_revision",
     "utc_now",
     "visitor",
 ]

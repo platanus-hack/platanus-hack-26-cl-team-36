@@ -61,8 +61,9 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
   terminó bien y es de esa instrucción (`shared.catalog.routes`). `runs_with_status` las recorre de la más nueva a la
   más vieja y salta las de manifiesto ilegible.
 - `start_run(..., revision=...)` agrupa las corridas de las etapas de una revisión (`[a-z0-9]+(-[a-z0-9]+)*`, máx.
-  40); sin ella el manifiesto no lleva el campo. `revision_run(store, prefix, revision)` es la más nueva de esa
-  revisión, con cualquier estado: las etapas encuentran así sus entradas y el conductor sabe si una terminó.
+  40, `validate_revision`); sin ella el manifiesto no lleva el campo. `revision_run(store, prefix, revision)` es la más
+  nueva de esa revisión, con cualquier estado: las etapas encuentran así sus entradas y el conductor sabe si una
+  terminó. Con `since=` no lee las corridas anteriores a ese instante; quien sondea debe pasarlo.
 
 ### Uso
 

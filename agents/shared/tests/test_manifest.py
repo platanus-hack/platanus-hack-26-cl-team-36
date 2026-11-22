@@ -208,3 +208,19 @@ def test_running_passes_the_revision(tmp_path: Path) -> None:
     with running(backend, cataloger("wom.cl"), model=None, revision="a1") as run:
         pass
     assert read_manifest(backend, run.key).revision == "a1"
+
+
+def test_revision_run_does_not_read_runs_older_than_since() -> None:
+    client = FakeS3()
+    backend = S3Backend("bucket", "runs", client)
+    prefix = conductor("wom.cl")
+    old = [start_run(backend, prefix, model=None, revision="a1", clock=clock_at(i)) for i in range(5)]
+    newest = start_run(backend, prefix, model=None, revision="b2", clock=clock_at(60))
+    reads: list[str] = []
+    get_object = client.get_object
+    client.get_object = lambda **args: reads.append(args["Key"]) or get_object(**args)  # type: ignore[method-assign]
+
+    assert revision_run(backend, prefix, "a1") == old[-1].key
+    assert revision_run(backend, prefix, "a1", since=MOMENT + timedelta(seconds=30)) is None
+    assert revision_run(backend, prefix, "b2", since=MOMENT + timedelta(seconds=60, microseconds=5)) == newest.key
+    assert len(reads) == 2 + 1 + 1

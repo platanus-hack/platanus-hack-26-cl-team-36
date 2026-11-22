@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from shared.store.backend import Backend, json_bytes
 from shared.store.keys import Agent, RunKey, RunPrefix, Viewport
-from shared.store.run_ids import MAX_SEQUENCE, Clock, candidate_run_ids, utc_now
+from shared.store.run_ids import MAX_SEQUENCE, Clock, candidate_run_ids, format_run_id, utc_now
 
 SCHEMA_VERSION = 1
 MANIFEST = "manifest.json"
@@ -54,7 +54,6 @@ class Manifest:
 
     def to_dict(self) -> dict[str, Any]:
         data = {**asdict(self), "inputs": list(self.inputs)}
-        # Sin revisión, el manifiesto queda igual que antes del campo.
         if self.revision is None:
             del data["revision"]
         return data
@@ -162,9 +161,14 @@ def read_manifest(backend: Backend, run: RunKey) -> Manifest:
     return Manifest.from_dict(backend.read_json(run.file(MANIFEST)))
 
 
-def _manifests(backend: Backend, prefix: RunPrefix) -> Iterator[tuple[RunKey, Manifest]]:
-    """Las corridas legibles de `prefix` con su manifiesto, de la más nueva a la más vieja."""
+def _manifests(
+    backend: Backend, prefix: RunPrefix, since: datetime | None = None
+) -> Iterator[tuple[RunKey, Manifest]]:
+    """Las corridas legibles de `prefix` con su manifiesto, de la más nueva a la más vieja hasta `since`."""
+    oldest = format_run_id(since) if since is not None else ""
     for run in reversed(backend.list_runs(prefix)):
+        if run.run_id < oldest:
+            return
         try:
             manifest = read_manifest(backend, run)
         except (OSError, ValueError, KeyError, TypeError):
@@ -182,7 +186,13 @@ def latest_run(backend: Backend, prefix: RunPrefix, status: Status = "succeeded"
     return next(runs_with_status(backend, prefix, status), None)
 
 
-def revision_run(backend: Backend, prefix: RunPrefix, revision: str) -> RunKey | None:
-    """Última corrida de `prefix` de la revisión `revision`, con cualquier estado."""
+def revision_run(
+    backend: Backend, prefix: RunPrefix, revision: str, *, since: datetime | None = None
+) -> RunKey | None:
+    """Última corrida de `prefix` de la revisión `revision`, con cualquier estado.
+
+    Con `since` no lee los manifiestos de las corridas que empezaron antes: en S3 cada uno es un GET.
+    """
     validate_revision(revision)
-    return next((run for run, manifest in _manifests(backend, prefix) if manifest.revision == revision), None)
+    runs = _manifests(backend, prefix, since)
+    return next((run for run, manifest in runs if manifest.revision == revision), None)
