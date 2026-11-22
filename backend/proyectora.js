@@ -241,10 +241,8 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
       case "guide":
       case "visitor":
         if (typeof goal !== "string" || !goal) break;
+        // Una Guía fallida no salta al Visitante: el conductor lo corre igual, con juez.
         await avanzarEtapa(revision, `GOAL#${goal}#${agent}`, status, { run_key, updated_at });
-        if (agent === "guide" && status === "failed") {
-          await db.actualizar(claveRevision(revision, `GOAL#${goal}#visitor`), { status: "skipped", updated_at }, { previos: ["pending"] });
-        }
         break;
     }
     await guardarResumen(revision);

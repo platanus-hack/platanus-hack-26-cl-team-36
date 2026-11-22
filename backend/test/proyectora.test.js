@@ -469,30 +469,15 @@ test("resumen: revisión fallida", async () => {
   assert.equal(item("META").status, "failed");
 });
 
-test("Guía fallida: su Visitante queda skipped, aunque el manifiesto llegue antes que el catálogo", async () => {
-  for (const catalogoAntes of [true, false]) {
-    const { evento, resumen, item } = conTrazas();
-    if (catalogoAntes) await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
-    await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
-    await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
-    if (!catalogoAntes) await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
-    assert.equal(item("GOAL#buscar-precio#visitor").status, "skipped");
-    assert.equal(item("GOAL#ver-contacto#visitor").status, "pending");
-    assert.deepEqual(resumen().fases.visitor, { pending: 1, running: 0, succeeded: 0, failed: 0, skipped: 1 });
-  }
-});
-
-test("Guía fallida no toca un Visitante que ya salió de pending", async () => {
-  const { evento, item } = conTrazas();
+test("Guía fallida: su Visitante sigue pending y corre igual", async () => {
+  const { evento, resumen, item } = conTrazas();
   await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
-  await evento(VISITA, { agent: "visitor", goal: "buscar-precio", status: "running" });
   await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
-  assert.equal(item("GOAL#buscar-precio#visitor").status, "running");
-  // skipped es final: un manifiesto tardío del Visitante no lo reabre.
-  const { evento: otro, item: otroItem } = conTrazas();
-  await otro(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
-  await otro(VISITA, { agent: "visitor", goal: "buscar-precio", status: "running" });
-  assert.equal(otroItem("GOAL#buscar-precio#visitor").status, "skipped");
+  assert.equal(item("GOAL#buscar-precio#visitor").status, "pending");
+  await evento(VISITA, { agent: "visitor", goal: "buscar-precio", status: "running" });
+  await evento(VISITA, { agent: "visitor", goal: "buscar-precio", status: "succeeded" });
+  assert.equal(item("GOAL#buscar-precio#visitor").status, "succeeded");
+  assert.deepEqual(resumen().fases.visitor, { pending: 1, running: 0, succeeded: 1, failed: 0, skipped: 0 });
 });
 
 test("eventos repetidos y desordenados dejan el mismo resultado final", async () => {

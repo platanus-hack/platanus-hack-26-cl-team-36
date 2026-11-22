@@ -16,7 +16,7 @@
 //   Los archivos leídos no viajan (leerGoal() sí los da, para lib/eventos.js). La telaraña tiene ids estables entre
 //   refrescos (URL sin consulta + título); con el Visitante terminado es la de la tanda (lib/vivo.js).
 //   progreso: { cerrados, total, goalsConocidos }
-//   estado de un paso: pending | running | succeeded | failed | skipped (Visitante no lanzado: su Guía no verificó la ruta).
+//   estado de un paso: pending | running | succeeded | failed | skipped (Visitante no lanzado porque su Guía falló, solo en revisiones viejas).
 
 import { REVISION, partesDeCorrida } from "../public/nucleo/almacen.js";
 import { leerSinVecinas } from "./tandas.js";

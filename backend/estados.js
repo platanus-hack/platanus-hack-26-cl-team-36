@@ -2,7 +2,7 @@
 // avanza, porque los eventos de S3 llegan repetidos y desordenados.
 
 export const ORDEN_META = { queued: 0, running: 1, done: 2, failed: 2 };
-// `skipped`: el Visitante de un goal cuya Guía falló, que no va a correr.
+// `skipped`: el Visitante de un goal cuya Guía falló, en revisiones anteriores a que corriera igual (ya no se escribe).
 export const ORDEN_ETAPA = { pending: 0, running: 1, succeeded: 2, failed: 2, skipped: 2 };
 
 // Estados desde los que se puede pasar a `estado`.
