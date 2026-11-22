@@ -274,7 +274,7 @@ export function kbd(especificacion, { mantener = false } = {}) {
 
 // Orden y título de los grupos. La hoja muestra solo los atajos registrados ahora (los de todas partes, los de la
 // tanda y los de la pantalla abierta): así nunca anuncia una tecla que no hace nada, ni calla una que sí.
-const GRUPOS = ["global", "tanda", "corridas", "telarana", "replay"];
+const GRUPOS = ["global", "overview", "tanda", "corridas", "telarana", "replay"];
 
 /**
  * Los grupos de la hoja a partir de listarAtajos(): en el orden de GRUPOS (los desconocidos, al final) y, dentro de

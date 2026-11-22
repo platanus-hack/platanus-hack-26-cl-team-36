@@ -1,0 +1,104 @@
+// Sección "overview" (el inicio: agentes y revisiones). Mismo árbol de claves que i18n/en/overview.js.
+// Los términos que ya existen viven en "comun" (comun.resultado.*, comun.shell.revisiones).
+
+export default {
+  agentes: {
+    unidad: ({ n }, { plural }) => plural(n, { one: "agente", other: "agentes" }),
+    etiqueta: "Agentes por rol",
+  },
+  rol: {
+    cataloger: "Catalogador",
+    guide: "Guía",
+    visitor: "Visitantes",
+    improver: "Diseñador",
+  },
+  dispositivo: {
+    etiqueta: "Dispositivo",
+    all: "Todos",
+    desktop: "Escritorio",
+    mobile: "Móvil",
+    visitantes: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "visitante", other: "visitantes" })}`,
+  },
+  leyenda: {
+    escala: ({ k, cifra }, { plural }) => `1 cuadrito = ${cifra} ${plural(k, { one: "corrida", other: "corridas" })}`,
+  },
+  resumen: {
+    fila: ({ sujeto, detalle, exito }) => `${sujeto}: ${detalle}. ${exito}`,
+    rol: {
+      cataloger: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "corrida", other: "corridas" })} del catalogador`,
+      guide: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "corrida", other: "corridas" })} de la guía`,
+      visitor: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "visitante", other: "visitantes" })}`,
+      improver: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "corrida", other: "corridas" })} del diseñador`,
+    },
+    estado: {
+      logrado: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "logrado", other: "logrados" })}`,
+      fallido: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "fallido", other: "fallidos" })}`,
+      abandonado: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "abandonó", other: "abandonaron" })}`,
+      sin_medir: ({ cifra }) => `${cifra} sin medir`,
+      error: ({ cifra }) => `${cifra} con error de la herramienta`,
+      detenido: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "detenido", other: "detenidos" })}`,
+      en_curso: ({ cifra }) => `${cifra} en curso`,
+      en_cola: ({ cifra }) => `${cifra} en cola`,
+    },
+    exito: ({ texto }) => `${texto} logrados.`,
+    sinMedidos: "Todavía nada medido.",
+    ninguna: "todavía sin corridas",
+  },
+  pestanas: "Revisiones por estado",
+  pestana: {
+    recent: "Recientes",
+    live: "En vivo",
+    delivered: "Entregadas",
+    failed: "Fallidas",
+  },
+  verTodas: ({ cifra }) => `Ver las ${cifra}`,
+  vacio: "Nada por aquí todavía.",
+  noDisponible: "Esta fuente no tiene la tabla de revisiones.",
+  errorAlRefrescar: "No se pudo refrescar; se reintenta solo.",
+  estado: {
+    running: "En curso",
+    stalled: "Detenida",
+    queued: "En cola",
+    delivered: "Entregada",
+    failed: "Fallida",
+  },
+  etapa: {
+    catalog: "Catálogo",
+    guide: "Rutas",
+    visitor: "Visitas",
+    improver: "Tema",
+  },
+  tarjeta: {
+    etiqueta: ({ sitio, direccion, estado, tiempo }) => `${sitio} · ${direccion} · ${estado} · ${tiempo}`,
+    agentes: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "agente", other: "agentes" })}`,
+    capturaEscritorio: "Captura de escritorio de {sitio}",
+    capturaMovil: "Captura móvil de {sitio}",
+    masGoals: ({ n }, { plural }) => `+${n} ${plural(n, { one: "goal", other: "goals" })}`,
+    tema: "tema",
+  },
+  aviso: {
+    sin_avance: "Sin avance hace {duracion}",
+    limite: "Límite de uso · AgentCore 429",
+    catalogador: "Falló el catalogador",
+    guia: "Falló la guía",
+    disenador: "Falló el diseñador",
+    error: "La revisión falló",
+  },
+  duracion: {
+    min: "{n} min",
+    h: "{n} h",
+    d: "{n} d",
+  },
+  tiempo: {
+    menosDeUnMinuto: "<1 min",
+    minutos: "{n} min",
+    horas: "{h} h {min} min",
+  },
+  cola: {
+    titulo: "Próximas",
+    mas: "+{n} más",
+  },
+  pista: {
+    titulo: "Las revisiones parten desde la extensión del navegador",
+  },
+};
