@@ -294,6 +294,44 @@ def test_la_propuesta_del_modelo_pone_las_palabras():
     assert tema_json.armar("metro", [atajo, lanzador])[1] == []
 
 
+TAREAS_DEL_MODELO = [
+    {"enlace": "/el-viaje/estado-red", "titulo_es": "Ver el estado de la red", "titulo_en": "Check network status",
+     "detalle_es": "Cómo funcionan hoy todas las líneas.", "detalle_en": "How every line is running today."},
+    {"enlace": "/el-viaje/estaciones", "titulo_es": "Buscar una estación", "titulo_en": "Find a station",
+     "detalle_es": "Servicios y accesos de cada estación.", "detalle_en": "Services and entrances of each station."},
+    {"enlace": "/transparencia-activa/", "titulo_es": "Revisar transparencia", "titulo_en": "Review transparency",
+     "detalle_es": "x" * 300, "detalle_en": "y" * 300},
+]
+
+
+def test_los_titulos_del_modelo_valen_para_lanzador_y_buscador():
+    kit = atajos.derivar(_goals_reales(), {"planificar-viaje": _real("route.json")}, SELECTS, INICIO)
+    # Las tareas van en la propuesta del lanzador; el buscador las toma por enlace.
+    propuestas = [{"id": "tareas", "tareas": TAREAS_DEL_MODELO[:2]}, {"id": "buscar", "tareas": TAREAS_DEL_MODELO[2:]}]
+    tareas = tema_json.tareas_propuestas(propuestas)
+    lanzador = tema_json.con_propuesta(kit["lanzador"], propuestas[0], tareas)
+    buscador = tema_json.con_propuesta(kit["buscador"], propuestas[1], tareas)
+    for vista in (lanzador, buscador):
+        por_enlace = {t["enlace"]: t for t in vista["datos"]}
+        assert por_enlace["/el-viaje/estado-red"]["titulo"] == {"es": "Ver el estado de la red",
+                                                                "en": "Check network status"}
+        assert por_enlace["/el-viaje/estaciones"]["detalle"]["en"] == "Services and entrances of each station."
+        assert len(por_enlace["/transparencia-activa/"]["detalle"]["es"]) == 160
+    # Lo que el modelo no escribió queda con el título derivado y anotado sin traducción.
+    faltan = tema_json.sin_traduccion([lanzador, buscador])
+    enlaces = {(f["vista"], f["item"]) for f in faltan}
+    assert ("tareas", "/el-viaje/estado-red") not in enlaces and ("buscar", "/el-viaje/carga-bip") in enlaces
+    assert tema_json.armar("metro", [kit["atajos"][0]["vista"], lanzador, buscador])[1] == []
+
+
+def test_las_tareas_del_modelo_tienen_tope():
+    muchas = [{"enlace": f"/t{i}", "titulo_es": "a", "titulo_en": "b", "detalle_es": "", "detalle_en": ""}
+              for i in range(50)]
+    assert len(tema_json.tareas_propuestas([{"tareas": muchas}, None, {"tareas": "x"}])) == 40
+    esquema = ESQUEMA_MOTOR["properties"]["componentes"]["items"]["properties"]["tareas"]
+    assert esquema["maxItems"] == 40 and esquema["items"]["properties"]["titulo_en"]["maxLength"] == 160
+
+
 PORTADA = """<!doctype html><meta charset="utf-8"><title>Metro de Santiago</title>
 <body><header><h1>Metro</h1></header>
 <div class="portada"><div class="hero"><video></video></div><div id="home"><form id="formPlanificador" action="/el-viaje/planificador/">
@@ -356,7 +394,15 @@ COMPONENTES = [
         {"id": "tareas", "contenedor": "main",
          "textos": {"es": {"titulo": "Lo más buscado", "subtitulo": "", "boton": ""},
                     "en": {"titulo": "Most wanted", "subtitulo": "", "boton": ""}},
-         "etiquetas": [], "tareas": []},
+         "etiquetas": [], "tareas": [
+             {"enlace": "/el-viaje/estado-red", "titulo_es": "Ver el estado de la red",
+              "titulo_en": "Check network status", "detalle_es": "", "detalle_en": ""}]},
+        {"id": "buscar", "contenedor": "",
+         "textos": {"es": {"titulo": "Busca", "subtitulo": "", "boton": "Buscar"},
+                    "en": {"titulo": "Search", "subtitulo": "", "boton": "Search"}},
+         "etiquetas": [], "tareas": [
+             {"enlace": "/el-viaje/estaciones", "titulo_es": "Buscar una estación", "titulo_en": "Find a station",
+              "detalle_es": "", "detalle_en": ""}]},
 ]
 OCULTAR = 'html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar-viaje"]) #home'
 
@@ -383,10 +429,14 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     assert atajo["datos"][1]["etiqueta"]["es"] == "Fin"
     assert atajo["opciones"]["destino"] == "/el-viaje/planificador/" and "fijos" not in atajo["opciones"]
     assert lanzador["opciones"]["textos"]["en"]["titulo"] == "Most wanted"
-    # El buscador no pasa por el modelo: va con su ancla derivada, que existe en la página.
+    # El buscador también pasa por el modelo; las tareas valen para ambos por enlace.
     buscador = vistas["buscar"]
     assert buscador["contenedor"] == "body > :has(#binicio)" and len(buscador["datos"]) == 8
-    assert "buscar" not in texto_del_modelo(disenador)
+    assert '"buscar"' in texto_del_modelo(disenador) and buscador["opciones"]["textos"]["en"]["boton"] == "Search"
+    for vista in (lanzador, buscador):
+        por_enlace = {t["enlace"]: t for t in vista["datos"]}
+        assert por_enlace["/el-viaje/estado-red"]["titulo"]["en"] == "Check network status"
+        assert por_enlace["/el-viaje/estaciones"]["titulo"]["en"] == "Find a station"
 
     diag = backend.read_json(archivos["diagnostico.json"])
     assert diag["viewport"] == {"width": 1024, "height": 768}
@@ -406,6 +456,9 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     assert informe["parametros"]["escala"] == 1.27 and any("tipo.escala=2" in a for a in informe["avisos"])
     assert informe["contraste"]["fallas"] == [] and informe["contraste"]["minimo"] >= 4.5 and informe["tokens"]
     assert informe["ocultar"] == [{"vista": "planificar-viaje", "selector": "#home"}]
+    # El modelo tradujo el título de estaciones pero no su detalle; carga-bip quedó con lo derivado.
+    faltan = {(f["vista"], f["item"]): f["textos"] for f in informe["sin_traduccion"]}
+    assert "titulo" in faltan["buscar", "/el-viaje/carga-bip"] and faltan["buscar", "/el-viaje/estaciones"] == ["detalle"]
     tema_css = backend.read_text(archivos["tema.css"])
     assert OCULTAR in tema_css and '[data-mt-vista="tareas"]' in tema_css and "#home :has(> h1)" not in tema_css
 

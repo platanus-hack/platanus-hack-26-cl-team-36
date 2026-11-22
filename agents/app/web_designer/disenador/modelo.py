@@ -33,9 +33,14 @@ ESQUEMA_TEMA = {
     "additionalProperties": False,
 }
 
-def _cadenas(*claves: str) -> dict:
-    return {"type": "object", "properties": {c: {"type": "string"} for c in claves}, "required": list(claves),
+def _cadenas(*claves: str, max_largo: int | None = None) -> dict:
+    cadena = {"type": "string", **({"maxLength": max_largo} if max_largo else {})}
+    return {"type": "object", "properties": {c: cadena for c in claves}, "required": list(claves),
             "additionalProperties": False}
+
+
+MAX_TAREAS_MODELO = 40
+MAX_TEXTO_TAREA = 160
 
 
 # El modo kit (`--revision`): el tema más la microcopia y el ancla de los componentes que propone el diagnóstico.
@@ -55,8 +60,9 @@ ESQUEMA_KIT = {
                                                                 "en": _cadenas("titulo", "subtitulo", "boton")},
                                "required": ["es", "en"], "additionalProperties": False},
                     "etiquetas": {"type": "array", "items": _cadenas("nombre", "es", "en")},
-                    "tareas": {"type": "array", "items": _cadenas("enlace", "titulo_es", "titulo_en", "detalle_es",
-                                                                  "detalle_en")},
+                    "tareas": {"type": "array", "maxItems": MAX_TAREAS_MODELO,
+                               "items": _cadenas("enlace", "titulo_es", "titulo_en", "detalle_es", "detalle_en",
+                                                 max_largo=MAX_TEXTO_TAREA)},
                 },
                 "required": ["id", "contenedor", "textos", "etiquetas", "tareas"],
                 "additionalProperties": False,
@@ -143,12 +149,15 @@ Respondes solo el JSON pedido, con:
 - `decisiones`: una lista corta, una frase por decisión de diseño.
 """
 
-CONTRATO_KIT = """- `componentes`: uno por cada componente del diagnóstico (`atajo` o `lanzador`), con su mismo `id`; la
-  extensión los dibuja con los datos del diagnóstico y tú pones las palabras y el lugar:
+CONTRATO_KIT = """- `componentes`: uno por cada componente del diagnóstico (`atajo`, `lanzador` o `buscador`), con su mismo `id`;
+  la extensión los dibuja con los datos del diagnóstico y tú pones las palabras y el lugar:
   - `textos`: en `es` y `en`, `titulo` (≤ 6 palabras, lo que la persona quiere hacer), `subtitulo` (una frase corta)
-    y `boton` (solo el atajo: el verbo de la acción; en el lanzador, vacío).
+    y `boton` (el verbo de la acción en el atajo; el que abre la búsqueda en el buscador; en el lanzador, vacío).
   - `etiquetas`: en el atajo, una por campo (`nombre` del campo), corta y en ambos idiomas ("Desde" / "From").
-  - `tareas`: en el lanzador, una por tarea (mismo `enlace`), con título de ≤ 5 palabras y detalle de una frase.
+  - `tareas`: en el lanzador y el buscador, una por tarea (mismo `enlace`, hasta 40). `titulo_es` y `titulo_en`: de 2
+    a 5 palabras, verbo y objeto ("Planificar un viaje" / "Plan a trip"), no la descripción recortada; `detalle_es`
+    y `detalle_en`: una frase breve (≤ 160 caracteres). El inglés es la traducción, nunca una copia del español.
+    Una tarea que está en ambos componentes basta escribirla en uno.
   - `contenedor`: un selector del mapa (un `id` o etiqueta, ≤ 200 caracteres) del bloque antes del cual va el
     componente, arriba y a la vista; vacío para dejar el propuesto. Si no existe en la página, queda el propuesto.
 """
