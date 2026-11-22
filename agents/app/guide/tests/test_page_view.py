@@ -1,6 +1,6 @@
 from guide.operate import perform_step
-from guide.page_view import Element, element_for_ref, page_text, read_page_view
-from guide.prompts import render_view
+from guide.page_view import Element, PageView, element_for_ref, page_text, read_page_view
+from guide.prompts import HistoryEntry, render_turn, render_view
 
 
 def _by_name(view, name):
@@ -114,3 +114,11 @@ def test_links_of_the_site_are_shown_and_allowed_after_a_redirect_to_a_subdomain
         assert link(href).site_href(sii) == href and not link(href).leaves_site(sii)
     assert link("https://www.gob.cl/").leaves_site(sii) and link("https://www.gob.cl/").site_href(sii) is None
     assert not link("javascript:void(0)").leaves_site(sii) and not link("mailto:a@sii.cl").leaves_site(sii)
+
+
+def test_the_turn_keeps_the_page_identical_while_only_the_history_grows():
+    view = PageView("https://a.cl/", "Inicio", 0, 900, ["h1 Inicio"], [], 0, "Hola", 0)
+    entry = HistoryEntry("porque", "done", "rechazada: la cita no está en el texto visible de la página")
+    first, second = render_turn("Busca algo", [], view, ()), render_turn("Busca algo", [entry], view, ())
+    assert first.page == second.page and first.page.startswith("TAREA: Busca algo") and "HISTORIAL" not in first.page
+    assert second.history.startswith("HISTORIAL\n1. done") and str(second).endswith("¿Cuál es tu siguiente acción?")
