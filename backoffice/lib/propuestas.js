@@ -2,7 +2,8 @@
 // midieron los visitantes, por qué y cómo se ven las páginas antes y después. Solo lectura, como todo el backoffice.
 //
 // La corrida del Diseñador es <host>/improver/<corrida>/ y su manifest.json lista en `inputs` las tandas del
-// Visitante que leyó: la propuesta de una tanda es la corrida más nueva que la lista. De ahí se lee:
+// Visitante que leyó: la propuesta de una tanda es la corrida más nueva que la lista o, si ninguna la lista (la mejora
+// partió antes de que terminara), la de su misma revisión (`revision` del manifest.json de ambas). De ahí se lee:
 //   tema.css     el tema saneado (agents/app/web_designer)
 //   mejora.json  { resumen_tema, decisiones, tarea, modelo, error, vistas? }
 //   vistas/*.png capturas antes y después del tema, si el Diseñador las dejó (`vistas` en mejora.json):
@@ -243,12 +244,22 @@ function recordar(mapa, clave, valor) {
 export function crearPropuestas(fuente) {
   const manifiestos = new Map(); // corridas cerradas: runKey → manifest.json
   const armadas = new Map(); // corridas cerradas: runKey → Propuesta
+  const revisiones = new Map(); // tanda → revision
 
   async function manifiesto(runKey) {
     if (manifiestos.has(runKey)) return manifiestos.get(runKey);
     const datos = await fuente.leerJson(runKey, MANIFIESTO);
     if (datos && CERRADA.has(datos.status)) recordar(manifiestos, runKey, datos);
     return datos;
+  }
+
+  /** La revisión a la que pertenece una tanda, según su manifest.json (no cambia: se guarda una vez leída). */
+  async function revisionDe(tanda) {
+    if (revisiones.has(tanda)) return revisiones.get(tanda);
+    const datos = await fuente.leerJson(tanda, MANIFIESTO);
+    const revision = textoONulo(datos?.revision, 60);
+    if (revision) recordar(revisiones, tanda, revision);
+    return revision;
   }
 
   async function leer(runKey, datos) {
@@ -263,19 +274,31 @@ export function crearPropuestas(fuente) {
   }
 
   return {
-    /** La propuesta de una tanda (id ya validado), o SIN_PROPUESTA si ninguna corrida del Diseñador la leyó. */
+    /**
+     * La propuesta de una tanda (id ya validado): la corrida del Diseñador más nueva que la leyó o, si ninguna la leyó
+     * (la mejora partió antes de que terminara, ver CONDUCTOR_IMPROVER_GRACE_S), la de su misma revisión. Sin ninguna
+     * de las dos, SIN_PROPUESTA.
+     */
     async deTanda(id) {
       const { host, corrida } = partesDeTanda(id);
       const carpeta = `${host}/improver`;
-      // Solo las corridas posteriores a la tanda pueden haberla leído; de la más nueva a la más vieja.
+      // De la más nueva a la más vieja.
       const corridas = (await fuente.listarPerfiles(carpeta))
-        .filter((run) => CORRIDA.test(run) && run >= corrida && partesDeCorrida(`${carpeta}/${run}`))
+        .filter((run) => CORRIDA.test(run) && partesDeCorrida(`${carpeta}/${run}`))
         .sort()
         .reverse();
-      for (const run of corridas) {
+      // Solo las corridas posteriores a la tanda pueden haberla leído.
+      for (const run of corridas.filter((cada) => cada >= corrida)) {
         const runKey = `${carpeta}/${run}`;
         const datos = await manifiesto(runKey);
         if (Array.isArray(datos?.inputs) && datos.inputs.includes(id)) return leer(runKey, datos);
+      }
+      const revision = await revisionDe(id);
+      if (!revision) return SIN_PROPUESTA;
+      for (const run of corridas) {
+        const runKey = `${carpeta}/${run}`;
+        const datos = await manifiesto(runKey);
+        if (datos?.revision === revision) return leer(runKey, datos);
       }
       return SIN_PROPUESTA;
     },

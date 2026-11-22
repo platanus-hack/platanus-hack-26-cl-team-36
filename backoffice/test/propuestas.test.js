@@ -127,3 +127,23 @@ test("sin una corrida del Diseñador que la lea (o con corridas anteriores a la 
   });
   assert.deepEqual(await crearPropuestas(fuente).deTanda(TANDA), SIN_PROPUESTA);
 });
+
+test("si la mejora partió antes de que terminara la tanda, la propuesta es la corrida de su misma revisión", async () => {
+  const tarde = "movilsur.test/visitor/planificar/2026-11-21T16-20-00Z";
+  const fuente = fuenteFalsa({
+    [`${tarde}/manifest.json`]: { status: "succeeded", revision: "mwqlv44v-08a4d6" },
+    // Anterior a la tanda y sin listarla: igual es de su revisión.
+    "movilsur.test/improver/2026-11-21T16-18-52Z/manifest.json": { status: "succeeded", inputs: [TANDA], revision: "mwqlv44v-08a4d6" },
+    "movilsur.test/improver/2026-11-21T16-18-52Z/tema.css": TEMA,
+    "movilsur.test/improver/2026-11-22T03-36-47Z/manifest.json": { status: "succeeded", inputs: [], revision: "otra-000000" },
+  });
+  const propuestas = crearPropuestas(fuente);
+  const propuesta = await propuestas.deTanda(tarde);
+  assert.equal(propuesta.estado, "succeeded");
+  assert.equal(propuesta.corrida, "movilsur.test/improver/2026-11-21T16-18-52Z");
+
+  // La revisión de la tanda se lee una vez.
+  fuente.leidos.length = 0;
+  await propuestas.deTanda(tarde);
+  assert.ok(!fuente.leidos.includes(`${tarde}/manifest.json`));
+});

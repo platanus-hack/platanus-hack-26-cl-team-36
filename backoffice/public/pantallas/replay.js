@@ -238,8 +238,9 @@ function aplicar(parametros) {
     estado.indice = pedido.indice;
     pintarIntento();
     pintarPaso();
-    // El Replay parte reproduciendo (al abrirlo y al cambiar de intento), salvo con movimiento reducido.
-    if (!movimientoReducido()) alternarReproduccion();
+    // El Replay parte reproduciendo (al abrirlo y al cambiar de intento), salvo con movimiento reducido o si la URL
+    // pide un paso: un link a un paso (desde el Mapa o un hito) se queda en ese paso.
+    if (!movimientoReducido() && parametros.paso === undefined) alternarReproduccion();
   } else if (pedido.indice !== estado.indice) irA(pedido.indice, { desdeUrl: true });
   if (Object.keys(pedido.cambios).length) ctx.actualizarParametros(pedido.cambios);
 }

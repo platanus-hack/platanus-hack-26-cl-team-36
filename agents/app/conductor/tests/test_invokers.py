@@ -208,7 +208,7 @@ def test_timeouts_from_the_environment(monkeypatch):
 
 def test_improver_grace_from_the_environment(monkeypatch):
     monkeypatch.delenv(config.GRACE_VAR, raising=False)
-    assert config.improver_grace_s() == 45
+    assert config.improver_grace_s() == 600
     monkeypatch.setenv(config.GRACE_VAR, "0")
     assert config.improver_grace_s() == 0
     monkeypatch.setenv(config.GRACE_VAR, "-1")
