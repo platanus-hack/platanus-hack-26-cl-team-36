@@ -91,7 +91,8 @@ enlaces de cada pantalla.
 
 **Overview** (`#/`, el inicio) tiene dos bloques. Arriba, los agentes: un solo total dividido por rol en el orden del
 flujo (Cataloger → Guide → Visitors → Designer), con un cuadrito por corrida y el % de éxito de cada rol. Abajo, las
-revisiones en tarjetas con la página revisada (captura de escritorio y teléfono), sus cuatro etapas (Catalog, Routes,
+revisiones en tarjetas con la página revisada (captura de escritorio y teléfono; si el Diseñador terminó y dejó
+capturas, la del después de su tema, y si no, la de inicio de un visitante), sus cuatro etapas (Catalog, Routes,
 Visits, Theme), un medidor por goal y un cuadrito por agente; pestañas Recent (todas, también las en cola), Live (en
 curso, detenidas y en cola), Delivered y Failed. Cada pestaña muestra 6 tarjetas y "Show 10 more" suma las siguientes
 abajo, paginadas en el servidor (`/api/overview?pestana=…&limite=…`). Una tarjeta lleva directo a Path map / Replay: la

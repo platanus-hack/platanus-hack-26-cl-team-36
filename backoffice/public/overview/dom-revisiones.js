@@ -4,7 +4,7 @@
 // sumar más, se reconcilia la grilla por tarjeta (key = revisión + dispositivo): las que siguen se actualizan por
 // partes y no se mueven, las que salen sueltan sus <img> y las nuevas se suman abajo.
 
-import { urlDeArchivo } from "../nucleo/datos.js";
+import { urlDeArchivo, urlDePropuesta } from "../nucleo/datos.js";
 import { conservarFoco, el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea } from "../nucleo/estados.js";
 import { icono24 } from "../nucleo/iconos.js";
@@ -29,8 +29,8 @@ import { cifra } from "./textos.js";
 
 const ICONO_DE_ETAPA = { catalog: "catalogo", guide: "ruta", visitor: "visitantes", improver: "tema" };
 
-/** URL de una captura { tanda, carpeta, archivo } (o null). */
-const src = (captura) => (captura ? urlDeArchivo(captura.tanda, captura.carpeta, captura.archivo) : null);
+/** URL de una captura (o null): la «después» del Diseñador si está; si no, { tanda, carpeta, archivo } del Visitante. */
+const src = (captura) => (captura?.despues ? urlDePropuesta(captura.despues) : captura ? urlDeArchivo(captura.tanda, captura.carpeta, captura.archivo) : null);
 
 /**
  * Color de marca de una revisión: el leído de su captura de escritorio; si no hay captura o no se pudo leer, el de
