@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { FUENTES, HOJA_FUENTES, usaFuentes } from "../src/background/fuentes.js";
+import { FUENTES, HOJA_FUENTES, inyectarCssDeTema, usaFuentes } from "../src/background/fuentes.js";
 import { sanearCss } from "../src/background/css-remoto.js";
 
 const ruta = (archivo) => new URL(`../src/${archivo}`, import.meta.url);
@@ -71,15 +71,38 @@ test("usaFuentes: solo si el tema nombra una fuente empaquetada", () => {
 });
 
 test("un tema saneado conserva el nombre de la familia", () => {
-  const { css } = sanearCss('html.mi-tema body { font-family: "MT Source Serif", "MT Source Serif Fallback", serif; }');
+  const { css } = sanearCss('html.mi-tema body { font-family: "MT Serif", "MT Serif Fallback", serif; }');
   assert.ok(usaFuentes(css));
 });
 
-test("el background inyecta fuentes.css solo al inyectar un tema que las nombra", () => {
-  const fuente = leer("background/index.js");
-  const inyectarTema = fuente.slice(fuente.indexOf("async function inyectarTema"), fuente.indexOf("// ---------- 3."));
-  assert.match(inyectarTema, /inyectarFuentes\(tema\.css, target\)/);
-  const inyectarFuentes = fuente.slice(fuente.indexOf("async function inyectarFuentes"));
-  assert.match(inyectarFuentes, /^[^]*?if \(!usaFuentes\(css\)\) return;[^]*?files: \[HOJA_FUENTES\]/);
-  assert.equal(fuente.split("HOJA_FUENTES").length - 1, 2, "solo el import y inyectarFuentes usan la hoja");
+test("inyectarCssDeTema: agrega fuentes.css solo si el tema nombra una fuente", async () => {
+  const target = { tabId: 1, frameIds: [0] };
+  const conFuente = 'html.mi-tema body { font-family: "MT Inter", sans-serif; }';
+  const sinFuente = "html.mi-tema body { color: red; }";
+  const llamadas = [];
+  const insertCSS = async (detalles) => { llamadas.push(detalles); };
+
+  await inyectarCssDeTema(conFuente, target, insertCSS);
+  assert.deepEqual(llamadas, [{ target, css: conFuente }, { target, files: [HOJA_FUENTES] }]);
+
+  llamadas.length = 0;
+  await inyectarCssDeTema(sinFuente, target, insertCSS);
+  assert.deepEqual(llamadas, [{ target, css: sinFuente }]);
+});
+
+test("inyectarCssDeTema: si fuentes.css falla, el tema queda inyectado sin error", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const temas = [];
+  const insertCSS = async (detalles) => {
+    if (detalles.files) throw new Error("sin permiso");
+    temas.push(detalles.css);
+  };
+  await inyectarCssDeTema('html.mi-tema p { font-family: "MT Geist"; }', { tabId: 1 }, insertCSS);
+  assert.equal(temas.length, 1);
+  assert.equal(console.warn.mock.callCount(), 1);
+});
+
+test("inyectarCssDeTema: si el CSS del tema falla, el error sube", async () => {
+  const insertCSS = async (detalles) => { if (detalles.css) throw new Error("pestaña cerrada"); };
+  await assert.rejects(inyectarCssDeTema('html.mi-tema p { font-family: "MT Geist"; }', { tabId: 1 }, insertCSS), /pestaña cerrada/);
 });

@@ -9,7 +9,7 @@
 
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
 import { consultarRevision } from "./api.js";
-import { HOJA_FUENTES, usaFuentes } from "./fuentes.js";
+import { inyectarCssDeTema } from "./fuentes.js";
 import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
 import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
 
@@ -112,24 +112,10 @@ async function inyectarTema(tema, sender, pagina) {
   console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${pagina}`);
 
   const target = { tabId: sender.tab.id, frameIds: [sender.frameId] };
-  await Promise.all([
-    browser.scripting.insertCSS({ target, css: tema.css }),
-    inyectarFuentes(tema.css, target),
-  ]);
+  await inyectarCssDeTema(tema.css, target, (detalles) => browser.scripting.insertCSS(detalles));
 
   const { css, ...resto } = tema;
   return { ...resto, pagina };
-}
-
-// Las @font-face de las fuentes empaquetadas (ver fuentes.js) van en un archivo y no en un string: sus url() se
-// resuelven contra la hoja (moz-extension://<uuid>/fuentes/). Si falla, el tema queda con sus fuentes de respaldo.
-async function inyectarFuentes(css, target) {
-  if (!usaFuentes(css)) return;
-  try {
-    await browser.scripting.insertCSS({ target, files: [HOJA_FUENTES] });
-  } catch (error) {
-    console.warn("[mi-tema] No se pudieron inyectar las fuentes del tema:", error);
-  }
 }
 
 // ---------- 3. Votos ----------

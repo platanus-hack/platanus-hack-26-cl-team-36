@@ -11,6 +11,7 @@
  *   archivo.woff2       Archivo (Omnibus-Type/Archivo)       wght 100–900, wdth 62–125
  *   geist.woff2         Geist (vercel/geist-font)            wght 100–900
  *   geist-mono.woff2    Geist Mono (vercel/geist-font)       wght 100–900
+ * Source Serif se llama "MT Serif" porque su OFL reserva el nombre «Source».
  *
  * Las caras "… Fallback" son una fuente local con las métricas de la variable (size-adjust y overrides
  * calculados con fontTools), para que el texto no salte al terminar de cargar (font-display: swap).
@@ -27,7 +28,7 @@
 }
 
 @font-face {
-  font-family: "MT Source Serif";
+  font-family: "MT Serif";
   src: url("source-serif.woff2") format("woff2-variations"), url("source-serif.woff2") format("woff2");
   font-weight: 200 900;
   font-stretch: 100%;
@@ -78,7 +79,7 @@
 }
 
 @font-face {
-  font-family: "MT Source Serif Fallback";
+  font-family: "MT Serif Fallback";
   src: local("Times New Roman"), local("TimesNewRomanPSMT"), local("Liberation Serif");
   size-adjust: 111.99%;
   ascent-override: 92.51%;
