@@ -151,7 +151,17 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; font-featu
 .t5 span { color: rgba(245, 245, 247, .28); }
 .pct .big { font: 600 9cqw/.9 var(--sans); letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
 .pct .big small { font-size: .45em; font-weight: 500; color: var(--muted); margin-left: .1em; }
-.pct .lab5 { font-size: 1.1cqw; color: var(--muted); margin-bottom: .8cqw; }
+.pct .lab5, .pasos .lab5 { font-size: 1.1cqw; color: var(--muted); margin-bottom: .8cqw; }
+/* pasos hasta «Enviar»: una mini-ruta (Inicio hueco, Enviar turquesa) que pierde los pasos que se funden y se acorta */
+.pasos { position: absolute; left: 5.6cqw; top: 49cqh; }
+.fp { display: flex; align-items: center; gap: 2.6cqw; }
+.np { position: relative; font: 600 4.6cqw/1 var(--sans); letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.np em { position: absolute; left: calc(100% + .35cqw); top: -.2cqw; font-size: 1.15cqw; font-style: normal; letter-spacing: 0; color: var(--turq); }
+.pips { position: relative; width: 13.6cqw; height: 1cqw; }
+.pips b { position: absolute; left: .5cqw; top: calc(50% - 1px); width: 12.6cqw; height: 2px; background: rgba(245, 245, 247, .28); transform-origin: 0 50%; }
+.pips i { position: absolute; top: 0; left: calc(var(--k) * 1.8cqw); width: 1cqw; height: 1cqw; border-radius: 50%; background: var(--ink); }
+.pips i:first-of-type { background: var(--bg); border: 2px solid rgba(245, 245, 247, .6); }
+.pips i:last-of-type { background: var(--turq); }
 .words { margin-top: 2cqw; font-size: 1.35cqw; color: var(--faint); display: flex; gap: .9cqw; }
 .words span { color: rgba(245, 245, 247, .3); }
 .words em { font-style: normal; color: rgba(245, 245, 247, .2); }
@@ -238,6 +248,13 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; font-featu
     <section class="slide s5" aria-label="Refinamiento">
       <div class="tag m">visión</div>
       <h1 class="t t--m t5"><span>Mide</span> ·<br><span>rediseña</span> ·<br><span>repite</span></h1>
+      <div class="pasos">
+        <div class="lab5 m">pasos</div>
+        <div class="fp">
+          <div class="np"><span id="p5">7</span><em class="m">−2</em><em class="m">−1</em></div>
+          <div class="pips"><b></b><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i><i style="--k:5"></i><i style="--k:6"></i><i style="--k:7"></i></div>
+        </div>
+      </div>
       <div class="pct">
         <div class="lab5 m">llegan</div>
         <div class="fila5">
