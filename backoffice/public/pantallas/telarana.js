@@ -625,7 +625,7 @@ function crearPantalla(contenedor, ctx) {
     const hitos = new Map(hitosDeRuta(tanda, estado.perfil).map((hito) => [hito.pagina, hito]));
     return [
       el("p", { class: "panel-telarana-prompt", texto: t("telarana.panel.elegir") }),
-      distribucion.troncoEsRuta ? null : avisoEnLinea(t("telarana.panel.sinRuta")),
+      distribucion.troncoEsRuta ? null : avisoEnLinea(t(tanda.telarana?.rutaEnInicio ? "telarana.panel.rutaEnInicio" : "telarana.panel.sinRuta")),
       el(
         "section",
         { class: "panel-telarana-seccion" },

@@ -16,6 +16,7 @@ export default {
     errores: "Tool errors",
     rutaPasos: "route, {n}",
     sinRuta: "no recommended route",
+    rutaEnInicio: "the route never leaves the start page",
     sinEfecto: "{n} no effect",
     noCumplidas: ({ n }, { plural }) => `${n} ${plural(n, { one: "unmet", other: "unmet" })}`,
     ninguno: "none",

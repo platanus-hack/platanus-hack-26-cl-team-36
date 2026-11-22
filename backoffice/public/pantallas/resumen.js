@@ -107,6 +107,7 @@ function cifras(ctx, c) {
     noCumplidas ? ctx.t("resumen.cifra.noCumplidas", { n: noCumplidas }) : null,
   ].filter(Boolean);
   const hayRuta = !!c.tanda.telarana?.ruta;
+  const sinRuta = ctx.t(c.tanda.telarana?.rutaEnInicio ? "resumen.cifra.rutaEnInicio" : "resumen.cifra.sinRuta");
   return el(
     "dl",
     { class: "fila-cifras resumen-cifras" },
@@ -114,8 +115,8 @@ function cifras(ctx, c) {
     cifra(
       ctx.t("resumen.cifra.siguen"),
       sinValidos || !hayRuta ? "—" : ctx.fmt.conteo({ n: kpis.siguenLaRuta ?? 0, de: validos }),
-      hayRuta ? null : ctx.t("resumen.cifra.sinRuta"),
-      { titulo: sinValidos ? noAplica : !hayRuta ? ctx.t("resumen.cifra.sinRuta") : null },
+      hayRuta ? null : sinRuta,
+      { titulo: sinValidos ? noAplica : !hayRuta ? sinRuta : null },
     ),
     cifra(
       ctx.t("resumen.cifra.pasos"),

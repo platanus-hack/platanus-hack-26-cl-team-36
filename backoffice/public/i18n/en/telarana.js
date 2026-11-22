@@ -74,6 +74,7 @@ export default {
     ruta: "Route",
     eje: "Most travelled path",
     sinRuta: "This batch has no recommended route: the axis is the most travelled path.",
+    rutaEnInicio: "According to the evaluator, the task is solved without leaving the start page: the axis is the most travelled path.",
     conteo: "{n}/{de}",
     conteoAria: ({ n, de }) => `${n} of ${de} reach it`,
     terminaron: "How they ended",

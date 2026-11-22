@@ -14,6 +14,7 @@ const conNota = (frase, nota) => (nota ? frase.replace(/\.$/, ` ${nota}.`) : fra
 export default {
   pagina: {
     inicio: "Inicio",
+    error: "Página de error del navegador",
     // Cuando la tanda tiene más de una página de inicio (sitio.cl y m.sitio.cl).
     inicioDe: "Inicio · {sitio}",
   },
@@ -134,7 +135,8 @@ export default {
       if (caso === "demora") return `${sujeto} a la respuesta, pero ${intento ?? ""} da ${n(cuenta)} pasos seguidos en «${pagina ?? ""}».`;
       return `${sujeto} a la respuesta, pero hay ${pasos(n(cuenta))} con tropiezos.`;
     },
-    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos, logrados }) => {
+    telarana: ({ hayRuta, enInicio, probabilidad, tramos, pasosIdeales, siguen, validos, logrados }) => {
+      if (!hayRuta && enInicio) return `La tarea se resuelve en la página de inicio${probabilidad == null ? "" : ` (el evaluador lo estima en un ${Math.round(probabilidad * 100)} %)`}: el eje es el camino más transitado.`;
       if (!hayRuta && n(logrados) > 0) return "No hay una ruta recomendada que seguir: el eje es el camino más transitado.";
       if (!hayRuta) return "Nadie llegó a la respuesta: el eje es el camino más transitado.";
       const [s, v] = [n(siguen), n(validos)];

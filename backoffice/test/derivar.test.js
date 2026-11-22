@@ -486,7 +486,9 @@ test("una ruta recomendada vacía (0 pasos) es «sin ruta»: las cifras de la ru
   }
   for (const intento of tanda.intentos) assert.equal(intento.logro, null);
   // El titular no dice que nadie llegó (2 llegaron) ni cuenta quiénes siguen una ruta que no hay.
-  assert.deepEqual(tanda.titulares.telarana.vars, { hayRuta: false, tramos: 0, pasosIdeales: null, siguen: null, validos: 3, logrados: 2 });
+  assert.deepEqual(tanda.titulares.telarana.vars, { hayRuta: false, enInicio: true, probabilidad: null, tramos: 0, pasosIdeales: null, siguen: null, validos: 3, logrados: 2 });
+  // Sigue sin ruta que seguir, pero no «sin ruta»: la tarea se resuelve en la página de inicio (C4-5).
+  assert.ok(tanda.telarana.rutaEnInicio?.pagina);
   assert.equal(tanda.hallazgos[0].vars.directos, null);
 });
 

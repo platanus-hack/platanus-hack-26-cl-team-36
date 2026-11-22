@@ -11,6 +11,7 @@ const conNota = (frase, nota) => (nota ? frase.replace(/\.$/, ` ${nota}.`) : fra
 export default {
   pagina: {
     inicio: "Home",
+    error: "Browser error page",
     // Cuando la tanda tiene más de una página de inicio (sitio.cl y m.sitio.cl).
     inicioDe: "Home · {sitio}",
   },
@@ -131,7 +132,8 @@ export default {
       if (caso === "demora") return `${sujeto} the answer, but ${intento ?? ""} takes ${n(cuenta)} steps in a row on «${pagina ?? ""}».`;
       return `${sujeto} the answer, but ${pasos(n(cuenta))} ${segun(n(cuenta), "has", "have")} stumbles.`;
     },
-    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos, logrados }) => {
+    telarana: ({ hayRuta, enInicio, probabilidad, tramos, pasosIdeales, siguen, validos, logrados }) => {
+      if (!hayRuta && enInicio) return `The task is solved on the start page${probabilidad == null ? "" : ` (the evaluator estimates ${Math.round(probabilidad * 100)}%)`}: the axis is the busiest path.`;
       if (!hayRuta && n(logrados) > 0) return "There is no recommended route to follow: the axis is the busiest path.";
       if (!hayRuta) return "Nobody reached the answer: the axis is the busiest path.";
       const [s, v] = [n(siguen), n(validos)];

@@ -74,6 +74,7 @@ export default {
     ruta: "Ruta",
     eje: "Camino más transitado",
     sinRuta: "Esta tanda no tiene ruta recomendada: el eje es el camino más transitado.",
+    rutaEnInicio: "Según el evaluador, la tarea se resuelve sin salir de la página de inicio: el eje es el camino más transitado.",
     conteo: "{n}/{de}",
     conteoAria: ({ n, de }) => `${n} de ${de} llegan`,
     terminaron: "Cómo terminaron",

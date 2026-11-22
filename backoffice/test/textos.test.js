@@ -210,3 +210,14 @@ test("firmas, lo que pasó, conteos, errores y nombres de página", () => {
   assert.equal(nombreDePagina({ tituloTipo: "url", tituloCorto: "Impuesto territorial" }, es), "Impuesto territorial");
   assert.equal(nombreDePagina(null, es), "");
 });
+
+test("página de error y ruta que no sale de la página de inicio, en ES y EN (C4-5)", () => {
+  const tEs = (clave, vars) => (clave === "datos.pagina.error" ? datosEs.pagina.error : clave === "datos.titular.telarana" ? datosEs.titular.telarana(vars) : clave);
+  const tEn = (clave, vars) => (clave === "datos.pagina.error" ? datosEn.pagina.error : clave === "datos.titular.telarana" ? datosEn.titular.telarana(vars) : clave);
+  assert.equal(nombreDePagina({ tituloTipo: "error", url: "chrome-error://chromewebdata/" }, tEs), "Página de error del navegador");
+  assert.equal(nombreDePagina({ tituloTipo: "error", url: "chrome-error://chromewebdata/" }, tEn), "Browser error page");
+  const vars = { hayRuta: false, enInicio: true, probabilidad: 0.57, tramos: 0, logrados: 3, validos: 8 };
+  assert.match(datosEs.titular.telarana(vars), /^La tarea se resuelve en la página de inicio \(el evaluador lo estima en un 57 %\)/);
+  assert.match(datosEn.titular.telarana(vars), /^The task is solved on the start page \(the evaluator estimates 57%\)/);
+  assert.doesNotMatch(datosEs.titular.telarana(vars), /No hay una ruta/);
+});

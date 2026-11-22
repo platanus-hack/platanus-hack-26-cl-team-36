@@ -106,7 +106,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} id
  * @property {string} titulo
  * @property {string | null} tituloCorto
- * @property {"sitio" | "inicio" | "url"} tituloTipo
+ * @property {"sitio" | "inicio" | "url" | "error"} tituloTipo
  * @property {string} url
  * @property {{ nodo: string, url: string, consulta: string, visitas: number, perfiles: string[] }[]} variantes
  * @property {number} visitas
@@ -543,6 +543,18 @@ export function rutaEnPaginas(rutaCruda, paginaDeNodo, ramaPorId) {
 }
 
 /**
+ * Una ruta del evaluador sin tramos que termina donde empieza: la tarea se resuelve en la página de inicio.
+ * → { pagina, probabilidad } o null (no hay ruta, o sí tiene tramos).
+ */
+export function rutaEnLaPaginaDeInicio(rutaCruda, paginaDeNodo) {
+  const inicio = rutaCruda ? paginaDeNodo.get(rutaCruda.start_node) : null;
+  if (!inicio) return null;
+  const fin = paginaDeNodo.get(rutaCruda.end_node ?? rutaCruda.start_node) ?? inicio;
+  const sale = (rutaCruda.steps ?? []).some((paso) => (paginaDeNodo.get(paso.target) ?? inicio) !== inicio);
+  return fin === inicio && !sale ? { pagina: inicio, probabilidad: rutaCruda.estimated_probability ?? null } : null;
+}
+
+/**
  * Cómo ve la ruta las páginas de un intento. Un intento que parte en otra página de inicio (m.sitio.cl en vez
  * de sitio.cl, porque el sitio redirige al celular) no eligió dónde partir: esa página hace de inicio de la
  * ruta. Devuelve la función página → página de la ruta y el camino visto así (sin repetidos seguidos).
@@ -967,7 +979,7 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArb
     // sus pasos no dicen cuánto le cuesta el sitio a alguien.
     exploradores: Boolean(arbol?.conjunto_exploradores) || (intentos.length > 0 && intentos.every((intento) => intento.perfil.startsWith("explorador"))),
     intentos,
-    telarana: { paginas, ramas, ruta, alias },
+    telarana: { paginas, ramas, ruta, rutaEnInicio: ruta ? null : rutaEnLaPaginaDeInicio(arbol?.recommended_route ?? null, paginaDeNodo), alias },
     kpis: armarKpis(intentos, ruta),
     perfiles: armarPerfiles(intentos, ruta),
     porConocimiento: porConocimiento(intentos),

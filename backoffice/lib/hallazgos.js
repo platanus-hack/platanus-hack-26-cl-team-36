@@ -321,6 +321,8 @@ export function titulares(tanda, lista) {
     clave: "datos.titular.telarana",
     vars: {
       hayRuta: Boolean(ruta),
+      enInicio: Boolean(tanda.telarana.rutaEnInicio),
+      probabilidad: tanda.telarana.rutaEnInicio?.probabilidad ?? null,
       tramos: ruta?.tramos.length ?? 0,
       pasosIdeales: ruta?.pasosIdeales ?? null,
       siguen: kpis.siguenLaRuta,

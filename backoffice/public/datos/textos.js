@@ -20,6 +20,7 @@ const ORDEN_DE_CONTEOS = ["clic", "desplazamiento", "texto", "tecla", "otra"];
  */
 export function nombreDePagina(pagina, t) {
   if (!pagina) return "";
+  if (pagina.tituloTipo === "error") return t("datos.pagina.error");
   if (pagina.tituloTipo === "inicio") {
     return pagina.tituloCorto ? t("datos.pagina.inicioDe", { sitio: pagina.tituloCorto }) : t("datos.pagina.inicio");
   }
