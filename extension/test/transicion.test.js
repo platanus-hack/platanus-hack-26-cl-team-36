@@ -371,3 +371,9 @@ test("el CSS tiene un nombre y un grupo por índice y todo va bajo html[data-mt-
   assert.ok(selectores.length > 20);
   for (const selector of selectores) assert.ok(selector.startsWith("html[data-mt-transicion"), selector);
 });
+
+test("la transición no registra --mt-radio: es el token de esquinas del tema y debe heredarse a los componentes", () => {
+  assert.doesNotMatch(css, /@property\s+--mt-radio\s*\{/);
+  assert.doesNotMatch(css, /var\(--mt-radio\)/);
+  assert.match(css, /@property\s+--mt-frente-radio\s*\{/);
+});
