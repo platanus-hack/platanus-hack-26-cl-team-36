@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { avanceDeRevision, crearRevisiones, paginaDeRevision, partesDeResultado, revisionesVigentes } from "../lib/revisiones.js";
 import { coincide } from "../lib/etiqueta.js";
+import { esperaDe, revisionTerminada } from "../public/pantallas/revisiones.js";
 import { crearServidor } from "../servidor.js";
 import { clienteDynamoFalso, comandosDynamo } from "./aws-falso.js";
 
@@ -214,6 +215,20 @@ test("/api/revisiones con ETag: el mismo cuerpo con If-None-Match da 304 sin cue
   }
   assert.equal(coincide(`"a", W/"b"`, '"b"'), true);
   assert.equal(coincide(null, '"b"'), false);
+});
+
+test("sondeo: el detalle para con META cerrada y nada corriendo; la lista mira solo las vigentes", () => {
+  const lista = avanceDeRevision(LISTA);
+  assert.equal(revisionTerminada(lista), true);
+  assert.equal(esperaDe({ revision: "lista", datos: lista }), null);
+  const atrasada = { ...lista, goals: lista.goals.map((g) => ({ ...g, visitor: { ...g.visitor, estado: "running" } })) };
+  assert.equal(revisionTerminada(atrasada), false, "META done antes que la última etapa");
+  assert.equal(esperaDe({ revision: "lista", datos: atrasada }), 2500);
+  assert.equal(esperaDe({ revision: "lista", datos: lista, error: true }), 2500);
+  const enCurso = { revisiones: [{ estado: "running" }], historial: [] };
+  const quieta = { revisiones: [{ estado: "done" }], historial: [{ estado: "running" }] };
+  assert.equal(esperaDe({ revision: null, datos: enCurso }), 10000);
+  assert.equal(esperaDe({ revision: null, datos: quieta }), 60000, "una vieja del historial que quedó running no cuenta");
 });
 
 test("/resultados funciona también con la fuente local", async () => {

@@ -213,7 +213,7 @@ function vistaDeRevision(ctx, revision, avance) {
       el("span", { class: "texto-2", texto: t(progreso.goalsConocidos ? "revisiones.progreso" : "revisiones.progresoParcial", progreso) }),
       avance.css ? el("a", { class: "boton boton-secundario", href: urlDeResultado(avance.css), target: "_blank", rel: "noreferrer", texto: t("revisiones.verTema") }) : null,
     ),
-    TERMINADA.has(avance.estado) ? null : el("p", { class: "texto-3 t-pequeno", texto: t("revisiones.enVivo") }),
+    revisionTerminada(avance) ? null : el("p", { class: "texto-3 t-pequeno", texto: t("revisiones.enVivo") }),
     seccion(ctx, "catalogo", paso(ctx, avance.catalogo)),
     seccion(ctx, "goals", tablaDeGoals(ctx, revision, avance.goals)),
     seccion(ctx, "improver", paso(ctx, avance.improver)),
@@ -222,12 +222,20 @@ function vistaDeRevision(ctx, revision, avance) {
 
 // ── Montaje y sondeo ───────────────────────────────────────────────────────
 
-// Una revisión terminada no cambia más: deja de sondear. La lista sondea más lento si nada está en curso.
-function esperaDe(actual) {
+// La proyectora puede anotar META antes que la última etapa: terminada es META cerrada y ninguna etapa corriendo.
+export function revisionTerminada(avance) {
+  if (!TERMINADA.has(avance?.estado)) return false;
+  const pasos = [avance.catalogo, avance.improver, ...(avance.goals ?? []).flatMap((goal) => [goal.guide, goal.visitor])];
+  return pasos.every((paso) => paso?.estado !== "running");
+}
+
+// Una revisión terminada no cambia más: deja de sondear. La lista (solo las vigentes, como la barra) sondea más lento
+// si ninguna está en curso.
+export function esperaDe(actual) {
   if (actual.error) return actual.revision ? INTERVALO_REVISION : INTERVALO_LISTA;
-  if (actual.revision) return TERMINADA.has(actual.datos?.estado) ? null : INTERVALO_REVISION;
-  const todas = [...(actual.datos?.revisiones ?? []), ...(actual.datos?.historial ?? [])];
-  return todas.some((revision) => !TERMINADA.has(revision.estado)) ? INTERVALO_LISTA : INTERVALO_LISTA_QUIETA;
+  if (actual.revision) return revisionTerminada(actual.datos) ? null : INTERVALO_REVISION;
+  const enCurso = (actual.datos?.revisiones ?? []).some((revision) => !TERMINADA.has(revision.estado));
+  return enCurso ? INTERVALO_LISTA : INTERVALO_LISTA_QUIETA;
 }
 
 function dibujar(actual) {

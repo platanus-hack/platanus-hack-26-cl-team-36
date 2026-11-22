@@ -265,14 +265,18 @@ function recordar(mapa, clave, valor) {
 }
 
 const MEMORIA_MS = 2000;
+// El SDK no tiene plazos: una lectura colgada se comparte a lo más este tiempo; después, quien llega empieza otra.
+const EN_VUELO_MS = 15_000;
 
 /** Por clave, una sola lectura en vuelo y su resultado compartido `ms` después de llegar (pestañas y sondeos a la vez). */
 function memorizarPorClave(fn, ms = MEMORIA_MS) {
   const guardadas = new Map();
+  const vigente = (guardada, ahora) => (guardada.hasta === null ? ahora - guardada.desde < EN_VUELO_MS : ahora < guardada.hasta);
   return (clave) => {
-    const guardada = guardadas.get(clave);
-    if (guardada && (guardada.hasta === null || performance.now() < guardada.hasta)) return guardada.promesa;
-    const actual = { promesa: null, hasta: null };
+    const ahora = performance.now();
+    for (const [otra, guardada] of guardadas) if (!vigente(guardada, ahora)) guardadas.delete(otra);
+    if (guardadas.has(clave)) return guardadas.get(clave).promesa;
+    const actual = { promesa: null, desde: ahora, hasta: null };
     actual.promesa = fn(clave).then(
       (valor) => {
         actual.hasta = performance.now() + ms;
@@ -283,7 +287,7 @@ function memorizarPorClave(fn, ms = MEMORIA_MS) {
         throw error;
       },
     );
-    recordar(guardadas, clave, actual);
+    guardadas.set(clave, actual);
     return actual.promesa;
   };
 }
@@ -429,7 +433,7 @@ export function crearRevisiones({ tabla, cliente, comandos, fuente = null, memor
   const items = async (revision) =>
     esRevision(revision) ? todas(QueryCommand, { KeyConditionExpression: "PK = :pk", ExpressionAttributeValues: { ":pk": `REV#${revision}` } }) : [];
   const avanceDe = async (revision) => (esRevision(revision) ? avanceDeRevision(await items(revision)) : null);
-  const listar = memorizarPorClave(async () => {
+  const listaMemorizada = memorizarPorClave(async () => {
     const { metas, punteros } = await metasYPunteros();
     const { vigentes, anteriores } = revisionesVigentes(metas, punteros);
     const resumenes = metas.map(resumenDeMeta).sort(porFecha);
@@ -438,7 +442,7 @@ export function crearRevisiones({ tabla, cliente, comandos, fuente = null, memor
       historial: resumenes.filter((r) => !vigentes.has(r.revision)),
     };
   }, memoriaMs);
-  const leer = memorizarPorClave(async (revision) => {
+  const avanceMemorizado = memorizarPorClave(async (revision) => {
     const avance = await avanceDe(revision);
     if (!avance || !lector) return avance;
     return { ...avance, goals: await Promise.all(avance.goals.map(lector.completarGoal)) };
@@ -447,10 +451,10 @@ export function crearRevisiones({ tabla, cliente, comandos, fuente = null, memor
     descripcion: `dynamodb://${tabla}`,
 
     /** Resúmenes de las vigentes y del historial, de la más nueva a la más vieja. */
-    listar: () => listar(""),
+    listar: () => listaMemorizada("lista"),
 
     /** El avance de una revisión, o null si no existe. */
-    leer: (revision) => (esRevision(revision) ? leer(revision) : Promise.resolve(null)),
+    leer: (revision) => (esRevision(revision) ? avanceMemorizado(revision) : Promise.resolve(null)),
 
     /**
      * Un goal de la revisión con lo leído de sus agentes y sin telaraña (lo que sigue lib/eventos.js), o null si la
