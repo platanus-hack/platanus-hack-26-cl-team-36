@@ -1,15 +1,17 @@
-// Línea de tiempo del Replay (abajo, a todo el ancho): reproducir/pausar, una barra para recorrer los pasos con una
+// Línea de tiempo del Replay (abajo, a todo el ancho): reproducir/pausar, la velocidad, una barra para recorrer los pasos con una
 // marca por paso (coloreada si tiene señal o sale de la ruta) y "Paso n de N". La barra avanza por pasos, no por
 // segundos: cada posición es la captura de un paso.
 
 import { el, reemplazar } from "../nucleo/dom.js";
 import { icono } from "../nucleo/iconos.js";
+import { VELOCIDADES } from "./animacion.js";
 import { tonoDelPaso } from "./paso.js";
 
 /**
- * @param {{ t: Function, senal: AbortSignal, elegir: (indice: number) => void, alternar: () => void }} opciones
+ * @param {{ t: Function, fmt: object, senal: AbortSignal, elegir: (indice: number) => void, alternar: () => void,
+ *           velocidad: (valor: number) => void }} opciones
  */
-export function crearLineaDeTiempo({ t, senal, elegir, alternar }) {
+export function crearLineaDeTiempo({ t, fmt, senal, elegir, alternar, velocidad }) {
   let total = 0;
 
   const botonReproducir = el(
@@ -24,6 +26,21 @@ export function crearLineaDeTiempo({ t, senal, elegir, alternar }) {
     icono("reproducir"),
   );
   botonReproducir.addEventListener("click", () => alternar(), { signal: senal });
+
+  // Velocidad: un <select> nativo con aspecto de botón, pegado a reproducir (teclas , y .).
+  const textoVelocidad = (valor) => t("replay.linea.velocidadValor", { v: fmt.numero(valor) });
+  const selectorVelocidad = el(
+    "select",
+    {
+      class: "replay-velocidad num",
+      "aria-label": t("replay.linea.velocidad"),
+      "aria-keyshortcuts": ", .",
+      title: t("replay.linea.velocidadAyuda"),
+      "data-foco": "replay:velocidad",
+    },
+    VELOCIDADES.map((valor) => el("option", { value: String(valor), texto: textoVelocidad(valor) })),
+  );
+  selectorVelocidad.addEventListener("change", () => velocidad(Number(selectorVelocidad.value)), { signal: senal });
 
   const barra = el("input", {
     type: "range",
@@ -42,6 +59,7 @@ export function crearLineaDeTiempo({ t, senal, elegir, alternar }) {
     "section",
     { class: "replay-linea", "aria-label": t("replay.linea.etiqueta") },
     botonReproducir,
+    selectorVelocidad,
     el("div", { class: "replay-pista" }, marcas, barra),
     posicion,
   );
@@ -80,5 +98,9 @@ export function crearLineaDeTiempo({ t, senal, elegir, alternar }) {
     botonReproducir.classList.toggle("activo", activo);
   }
 
-  return { nodo, pintar, marcar, ponerReproduciendo };
+  function ponerVelocidad(valor) {
+    selectorVelocidad.value = String(valor);
+  }
+
+  return { nodo, pintar, marcar, ponerReproduciendo, ponerVelocidad };
 }

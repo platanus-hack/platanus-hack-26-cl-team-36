@@ -70,7 +70,7 @@ pestañas (la primera es la de por defecto; los enlaces viejos a `/resumen` llev
 | Pestaña | Qué pregunta responde | De dónde sale |
 |---|---|---|
 | **Mapa de caminos** | ¿Por dónde fueron? Una telaraña: el inicio al centro, un anillo por paso y la ruta recomendada como eje recto; las demás rutas salen como ramas curvas (arriba las que vuelven o llegan, abajo las que fallan). Grosor = intentos, color = cómo terminaron (leyenda abajo); cada camino termina en su resultado (logrado, fallido, abandonado, error) y unas partículas lo recorren. Panel por página (quién pasó, adónde fue, cómo terminó, con enlace al paso en Replay) y marcas donde alguien se trabó. En pantallas más altas que anchas el eje apunta hacia abajo. | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
-| **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que se puede reproducir. | `<perfil>/run.json` y `step_NN.png` |
+| **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que parte reproduciendo (salvo con movimiento reducido), con velocidad de 0,25× a 4× (1× es un 15 % más rápido que el ritmo original; queda guardada en el navegador). | `<perfil>/run.json` y `step_NN.png` |
 
 ### Animaciones del Replay
 
@@ -138,7 +138,7 @@ el resto.
 | Corridas | `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
 | Tanda | `1` `2` Mapa de caminos, Replay · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
 | Mapa de caminos | `+` `-` acercar / alejar · `0` ajustar · `Esc` cerrar (con el foco en el mapa, las flechas lo mueven) |
-| Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `↑` `↓` en la lista de pasos |
+| Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `,` `.` más lento / más rápido · `↑` `↓` en la lista de pasos |
 
 ## Fuente de corridas
 

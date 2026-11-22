@@ -57,5 +57,8 @@ export default {
     reproducir: "Play",
     pausar: "Pause",
     posicion: "Step {n} of {total}",
+    velocidad: "Speed",
+    velocidadAyuda: "Playback speed (slower / faster)",
+    velocidadValor: "{v}×",
   },
 };

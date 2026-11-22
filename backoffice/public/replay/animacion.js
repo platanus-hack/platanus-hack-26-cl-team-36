@@ -11,6 +11,39 @@ export const DURACIONES = {
   corto: { viaje: 260, pulso: 300, escribirPorLetra: 18, escribirMax: 450, tecla: 300, desplazar: 380, cambio: 380, fundido: 180 },
 };
 
+/** Velocidades de reproducción que se pueden elegir (las de antes de simplificar el Replay). */
+export const VELOCIDADES = [0.25, 0.5, 0.75, 1, 1.5, 2, 4];
+
+/** Velocidad con la que parte el Replay si el visitante no eligió otra. */
+export const VELOCIDAD_POR_DEFECTO = 1;
+
+/** Ritmo de 1×: un 15 % más rápido que DURACIONES y la pausa entre pasos tal como están escritas. */
+export const RITMO_BASE = 1.15;
+
+/** Factor por el que se multiplican las duraciones al reproducir a `velocidad` (2× → la mitad del tiempo). */
+export const factorDeTiempo = (velocidad) => 1 / ((velocidadValida(velocidad) || VELOCIDAD_POR_DEFECTO) * RITMO_BASE);
+
+/** Las duraciones de `modo`; las de "completo" (al reproducir) escaladas a la velocidad elegida. */
+export function duracionesA(modo, velocidad) {
+  const base = DURACIONES[modo] ?? DURACIONES.corto;
+  if (modo !== "completo") return base;
+  const factor = factorDeTiempo(velocidad);
+  return Object.fromEntries(Object.entries(base).map(([clave, ms]) => [clave, Math.round(ms * factor)]));
+}
+
+/** Velocidad siguiente (direccion 1) o anterior (-1) en VELOCIDADES; se queda en los extremos. */
+export function cambiarVelocidad(actual, direccion) {
+  const valor = velocidadValida(actual);
+  if (direccion < 0) return [...VELOCIDADES].reverse().find((v) => v < valor) ?? VELOCIDADES[0];
+  return VELOCIDADES.find((v) => v > valor) ?? VELOCIDADES[VELOCIDADES.length - 1];
+}
+
+/** Una velocidad (texto o número) → la misma si está en VELOCIDADES; si no, VELOCIDAD_POR_DEFECTO. */
+export function velocidadValida(valor) {
+  const leido = typeof valor === "string" && valor.trim() !== "" ? Number(valor) : valor;
+  return VELOCIDADES.includes(leido) ? leido : VELOCIDAD_POR_DEFECTO;
+}
+
 const CLICS = { left_click: "clic", double_click: "doble_clic", triple_click: "doble_clic" };
 
 /**
