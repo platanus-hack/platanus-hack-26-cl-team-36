@@ -30,8 +30,12 @@ _ELECCIONES = {"select", "check", "uncheck"}
 _ROLES_ELECCION = {"combobox", "listbox", "option", "radio", "checkbox"}
 _ID_CSS = re.compile(r"^#([A-Za-z][\w-]*)$")
 _TITULO_MAX = 48
-_ENLACES = {"a", "al", "con", "de", "del", "el", "en", "la", "las", "los", "o", "para", "por", "su", "tu", "un",
-            "una", "y"}
+_TITULO_PALABRAS = 6
+_ENLACES = {"a", "al", "como", "con", "cuando", "de", "del", "desde", "donde", "e", "el", "en", "entre", "hacia",
+            "hasta", "la", "las", "lo", "los", "mediante", "mi", "mis", "ni", "o", "para", "por", "que", "según", "sin",
+            "sobre", "su", "sus", "todas", "todos", "tu", "tus", "u", "un", "una", "unos", "unas", "y"}
+_GERUNDIO = re.compile(r"\w{2,}(?:ando|iendo|yendo)$", re.I)
+_RELLENO = re.compile(r"\b(?:informaci[oó]n|detalles|datos) (?:sobre|acerca de) (?=\w)", re.I)
 _DE_FORMULARIO = {"select", "check", "uncheck", "fill", "type", "press"}
 
 
@@ -184,14 +188,25 @@ def atajo(objetivo_id: str, route: dict, selects: list[SelectDePagina], inicio: 
 
 
 def _titulo(descripcion: str) -> str:
-    """La primera frase de la descripción, sin el punto; si es larga, cortada en una palabra que no sea de enlace."""
-    texto = re.split(r"[.;:(]", " ".join(descripcion.split()), maxsplit=1)[0].strip().rstrip(",")
-    if len(texto) <= _TITULO_MAX:
-        return texto
-    palabras = texto[:_TITULO_MAX + 1].split(" ")[:-1]
-    while len(palabras) > 1 and palabras[-1].lower() in _ENLACES:
+    """La primera frase de la descripción hasta su primer gerundio («ingresando…») y sin «información sobre», en
+    hasta `_TITULO_PALABRAS` palabras y `_TITULO_MAX` caracteres, sin terminar en preposición, artículo ni
+    conjunción."""
+    texto = re.split(r"[.;:(,]", " ".join(descripcion.split()), maxsplit=1)[0].strip()
+    texto = _RELLENO.sub("", texto)
+    palabras = []
+    for palabra in texto.split(" "):
+        # Tras un artículo o preposición no es gerundio sino sustantivo («el arriendo»).
+        gerundio = palabras and palabras[-1].lower() not in _ENLACES and _GERUNDIO.match(palabra)
+        # «Línea 7», «Línea A»: el nombre propio no se corta antes de su número o letra.
+        nombre = (palabras and palabras[-1][:1].isupper() and len(palabra) <= 3
+                  and (palabra.isdigit() or palabra.isupper()))
+        if gerundio or (not nombre and len(palabras) >= _TITULO_PALABRAS) \
+                or len(" ".join([*palabras, palabra])) > _TITULO_MAX:
+            break
+        palabras.append(palabra)
+    while len(palabras) > 1 and palabras[-1].lower() in _ENLACES and not palabras[-1].isupper():
         palabras.pop()
-    return " ".join(palabras).rstrip(",")
+    return " ".join(palabras) or texto[:_TITULO_MAX]
 
 
 def llegada(route: dict | None) -> str | None:

@@ -137,6 +137,16 @@ def test_el_lanzador_no_enlaza_el_viaje_que_eligio_la_guia():
     assert enlace == "/noticias/?pagina=2"
 
 
+def test_titulo_derivado_corto_y_sin_cabos_sueltos():
+    titulos = {g.id: atajos._titulo(g.description) for g in _goals_reales()}
+    assert titulos["planificar-viaje"] == "Planifica tu viaje en metro"
+    assert titulos["encontrar-informacion-estacion"] == "Encuentra las estaciones del metro"
+    assert titulos["gestionar-arriendo-terrenos"] == "Gestiona el arriendo de terrenos"
+    assert titulos["conocer-linea-a"] == "Conoce el proyecto de la Línea A"
+    assert all(len(t.split()) <= 7 and len(t) <= 48 for t in titulos.values())
+    assert not any(t.split()[-1] in atajos._ENLACES for t in titulos.values())
+
+
 def test_lanzador_con_el_catalogo_de_metro():
     kit = atajos.derivar(_goals(), {"planificar-viaje": _route()}, SELECTS, INICIO)
     assert [a["objetivo"] for a in kit["atajos"]] == ["planificar-viaje"] and kit["descartes"] == []
@@ -148,7 +158,7 @@ def test_lanzador_con_el_catalogo_de_metro():
     assert all(e.startswith("/") and not e.startswith("//") for e in enlaces)
     assert len(enlaces) == len(set(enlaces)) <= atajos.MAX_TAREAS and lanzador["opciones"]["max"] == 6
     estaciones = next(t for t in lanzador["datos"] if t["enlace"] == "/el-viaje/estaciones")
-    assert estaciones["titulo"]["es"] == "Encuentra información sobre una estación"
+    assert estaciones["titulo"]["es"] == "Encuentra una estación específica del Metro"
     assert estaciones["detalle"]["es"] == "Encuentra información sobre una estación específica del Metro"
     assert lanzador["contenedor"] == kit["atajos"][0]["vista"]["contenedor"]
 
