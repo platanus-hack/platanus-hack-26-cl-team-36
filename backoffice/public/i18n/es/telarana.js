@@ -2,6 +2,9 @@
 const plural = (n, ayudas, uno, otros) => `${n} ${ayudas.plural(n, { one: uno, other: otros })}`;
 
 export default {
+  anillo: {
+    paso: "paso {n}",
+  },
   lienzo: {
     etiqueta: "Mapa de caminos",
     instrucciones: "Arrastra para mover el mapa; ⌘ o Ctrl + rueda para acercar. Con el foco en el mapa, las flechas lo mueven.",
@@ -26,9 +29,8 @@ export default {
     sin_medir: "Sin medir (sin ruta de la Guía ni juez)",
     error: "Error de la herramienta",
     retroceso: "Volvió atrás",
-    lateral: "Paso lateral (misma columna)",
     grosor: "Grosor = intentos",
-    columnas: "Columnas = pasos desde el inicio; la meta, a la derecha",
+    anillo: "Cada anillo = un paso desde el inicio",
     atasco: "Alguien se trabó aquí",
   },
   // Páginas donde alguien se trabó: pasos seguidos de más, tropiezos o la misma acción repetida.
