@@ -9,7 +9,7 @@
 #   5. just local guide <host>/<goal>        guide: reference route of a task (calls Claude)
 #   6. just local visit <url> "<task>"       visitor: synthetic users (calls Claude)
 #      just local visit-tasks [prefix]       visitor on the tasks in agents/tasks/ (calls Claude)
-#   7. just local backoffice                 viewer of the visitor runs, at http://localhost:4848
+#   7. just local backoffice                 viewer of the visitor runs, at http://localhost:4848/backoffice/
 #   8. just local site <url> [goals]         catalog, guide and visitor per goal, and summary (calls Claude)
 #      just local summary <url>              a new summary from the latest runs in the store
 #      just local revision <url>             one page as in AWS: catalog, guide and visitor per goal, tema.css (calls Claude)
@@ -274,10 +274,10 @@ _ready:
 
 # ── 7. Backoffice ─────────────────────────────────────────────────────────
 
-# Read-only viewer of the runs in agents/.runs/ at http://localhost:4848 (Ctrl+C to stop)
+# Read-only viewer of the runs in agents/.runs/ at http://localhost:4848/backoffice/ (Ctrl+C to stop)
 [group('7. Backoffice · see the visitor runs')]
 backoffice:
-    @echo "Backoffice at http://localhost:4848 · Ctrl+C to stop"
+    @echo "Backoffice at http://localhost:4848/backoffice/ · Ctrl+C to stop"
     npm --prefix backoffice start
 
 # ── 8. Site ───────────────────────────────────────────────────────────────
