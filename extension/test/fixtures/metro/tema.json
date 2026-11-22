@@ -5,12 +5,12 @@
       {
         "id": "planificar",
         "rutas": ["/"],
-        "contenedor": "body > div.container.position-relative",
+        "contenedor": "body > div:has(> #home)",
         "reemplazar": false,
         "componente": "atajo",
         "datos": [
-          { "nombre": "inicio", "etiqueta": { "es": "Desde", "en": "From" }, "opciones": "#binicio" },
-          { "nombre": "fin", "etiqueta": { "es": "Hasta", "en": "To" }, "opciones": "#fin" },
+          { "nombre": "inicio", "etiqueta": { "es": "Desde", "en": "From" }, "opciones": "#binicio", "requerido": true },
+          { "nombre": "fin", "etiqueta": { "es": "Hasta", "en": "To" }, "opciones": "#fin", "requerido": true },
           { "nombre": "horario", "etiqueta": { "es": "Horario", "en": "Time band" }, "opciones": "#horario" },
           { "nombre": "dia", "etiqueta": { "es": "Día", "en": "Day" }, "opciones": "#dia" }
         ],
@@ -36,7 +36,7 @@
       {
         "id": "tareas",
         "rutas": ["/"],
-        "contenedor": "body > div.container.pt-4",
+        "contenedor": "body > div:has(#carouselBanners)",
         "reemplazar": false,
         "componente": "lanzador",
         "datos": [

@@ -106,28 +106,32 @@ html.mi-tema #menu a.nav-link.rounded-pill {
 }
 
 /* ---------- 4. Portada: el planificador del sitio cede su lugar al atajo ---------- */
-/* Solo si el atajo se dibujó: si falla, queda la portada original. */
-html.mi-tema:has(.mt-atajo) #home .col-12:has(#formPlanificador) {
+/* Solo si el atajo se dibujó y no se pidió ver el original: si no, queda la portada del sitio.
+   Anclado a los ids del sitio (#home, #formPlanificador, #video-home), no a sus clases de Bootstrap. */
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar"]) #home :has(> * > * > #formPlanificador) {
   display: none !important;
 }
 /* El video promocional (1116 px de alto) empujaba todo lo útil bajo el pliegue. */
-html.mi-tema:has(.mt-atajo) body > .container.position-relative > .row:not(#home) {
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar"]) body > :has(> #home) > :has(#video-home) {
   display: none !important;
 }
-html.mi-tema:has(.mt-atajo) #home {
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar"]) #home {
   position: static !important;
   margin: 0 !important;
   padding: 0 !important;
 }
-html.mi-tema:has(.mt-atajo) #home > .container {
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar"]) #home > * {
   padding: 0 !important;
 }
-html.mi-tema:has(.mt-atajo) #home :is(.col-xl-6, .col-12.col-lg-6.col-xl-8) {
+/* La columna del estado de la red y la tarjeta que la envuelve, a todo el ancho. */
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar"]) #home > * > * > :has(.background-color-gris),
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar"]) #home :has(> .background-color-gris) {
   width: 100% !important;
   max-width: none !important;
   flex: 1 1 100% !important;
 }
-html.mi-tema:has(.mt-atajo) #home .col-md-6.margin-top-30 {
+/* El título blanco sobre el video, que ya no está. */
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar"]) #home :has(> h1) {
   display: none !important;
 }
 
@@ -199,10 +203,10 @@ html.mi-tema #home .card.background-color-gris > .card-body > .row > :last-child
 
 /* ---------- 6. Accesos destacados del sitio ---------- */
 /* El lanzador ya lleva estas tareas (y más): los botones rojos quedan repetidos. */
-html.mi-tema:has(.mt-lanzador) body > .container.pt-4 .col-md-4.d-grid {
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="tareas"]) body > :has(#carouselBanners) > * > :not(:has(#carouselBanners)) {
   display: none !important;
 }
-html.mi-tema body > .container.pt-4 .ticker {
+html.mi-tema body > :has(#carouselBanners) .ticker {
   background: var(--mt-tinta) !important;
 }
 
