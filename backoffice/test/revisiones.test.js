@@ -2,6 +2,8 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { avanceDeRevision, crearRevisiones, paginaDeRevision, partesDeResultado, revisionesVigentes } from "../lib/revisiones.js";
+import { coincide } from "../lib/etiqueta.js";
+import { esperaDe, revisionTerminada } from "../public/pantallas/revisiones.js";
 import { crearServidor } from "../servidor.js";
 import { clienteDynamoFalso, comandosDynamo } from "./aws-falso.js";
 
@@ -195,6 +197,38 @@ test("/api/revisiones: lista y avance; sin tabla dice que no está disponible", 
 
   assert.deepEqual(await (await fetch(`${base(sinTabla)}/api/revisiones`)).json(), { disponible: false, revisiones: [], historial: [] });
   assert.equal((await fetch(`${base(sinTabla)}/api/revisiones/lista`)).status, 404);
+});
+
+test("/api/revisiones con ETag: el mismo cuerpo con If-None-Match da 304 sin cuerpo", async () => {
+  for (const ruta of ["api/revisiones", "api/revisiones/lista"]) {
+    const primera = await fetch(`${base(servidor)}/${ruta}`);
+    const etiqueta = primera.headers.get("etag");
+    assert.match(etiqueta, /^"[\w-]+"$/, ruta);
+    await primera.json();
+    const igual = await fetch(`${base(servidor)}/${ruta}`, { headers: { "If-None-Match": etiqueta } });
+    assert.equal(igual.status, 304, ruta);
+    assert.equal(await igual.text(), "");
+    assert.equal(igual.headers.get("etag"), etiqueta);
+    const otra = await fetch(`${base(servidor)}/${ruta}`, { headers: { "If-None-Match": '"otra"' } });
+    assert.equal(otra.status, 200, ruta);
+    assert.equal(otra.headers.get("etag"), etiqueta, "el mismo cuerpo, la misma etiqueta");
+  }
+  assert.equal(coincide(`"a", W/"b"`, '"b"'), true);
+  assert.equal(coincide(null, '"b"'), false);
+});
+
+test("sondeo: el detalle para con META cerrada y nada corriendo; la lista mira solo las vigentes", () => {
+  const lista = avanceDeRevision(LISTA);
+  assert.equal(revisionTerminada(lista), true);
+  assert.equal(esperaDe({ revision: "lista", datos: lista }), null);
+  const atrasada = { ...lista, goals: lista.goals.map((g) => ({ ...g, visitor: { ...g.visitor, estado: "running" } })) };
+  assert.equal(revisionTerminada(atrasada), false, "META done antes que la última etapa");
+  assert.equal(esperaDe({ revision: "lista", datos: atrasada }), 2500);
+  assert.equal(esperaDe({ revision: "lista", datos: lista, error: true }), 2500);
+  const enCurso = { revisiones: [{ estado: "running" }], historial: [] };
+  const quieta = { revisiones: [{ estado: "done" }], historial: [{ estado: "running" }] };
+  assert.equal(esperaDe({ revision: null, datos: enCurso }), 10000);
+  assert.equal(esperaDe({ revision: null, datos: quieta }), 60000, "una vieja del historial que quedó running no cuenta");
 });
 
 test("/resultados funciona también con la fuente local", async () => {

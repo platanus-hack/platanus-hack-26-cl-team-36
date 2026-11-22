@@ -43,6 +43,7 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
+import { responderJsonConEtiqueta } from "./lib/etiqueta.js";
 import { crearFuente } from "./lib/fuente.js";
 import { crearPanel } from "./lib/panel.js";
 import { ARCHIVO_DE_VISTA, crearPropuestas } from "./lib/propuestas.js";
@@ -245,10 +246,11 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
 
       if (partes[0] === "api" && partes[1] === "revisiones" && partes.length <= 3) {
         if (partes.length === 2) {
-          return responderJson(res, 200, revisiones ? { disponible: true, ...(await revisiones.listar()) } : { disponible: false, revisiones: [], historial: [] });
+          const lista = revisiones ? { disponible: true, ...(await revisiones.listar()) } : { disponible: false, revisiones: [], historial: [] };
+          return responderJsonConEtiqueta(req, res, lista, CABECERAS_DE_SEGURIDAD);
         }
         const avance = revisiones ? await revisiones.leer(partes[2]) : null;
-        return avance ? responderJson(res, 200, avance) : responderJson(res, 404, { error: "No existe esa revisión" });
+        return avance ? responderJsonConEtiqueta(req, res, avance, CABECERAS_DE_SEGURIDAD) : responderJson(res, 404, { error: "No existe esa revisión" });
       }
 
       if (partes[0] === "api" && partes[1] === "vivo" && partes.length === 4) {
