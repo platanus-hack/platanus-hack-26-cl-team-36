@@ -1,0 +1,151 @@
+/*
+  Componente "lanzador" (componentes/lanzador.js).
+  Toma los tokens del tema (--mt-*) con valores neutros de respaldo, así sirve en cualquier sitio.
+*/
+
+.mt-lanzador {
+  --mt-l-superficie: var(--mt-superficie, #fff);
+  --mt-l-texto: var(--mt-texto, #1b1b1b);
+  --mt-l-texto-2: var(--mt-texto-2, #5a5a5a);
+  --mt-l-borde: var(--mt-borde, #e3e3e3);
+  --mt-l-acento: var(--mt-acento, #0b57d0);
+  --mt-l-radio: var(--mt-radio, 16px);
+  color: var(--mt-l-texto);
+  font-family: var(--mt-fuente, system-ui, sans-serif);
+  container-type: inline-size;
+}
+
+.mt-lanzador__encabezado {
+  margin: 0;
+  color: inherit;
+  font: 650 22px/28px var(--mt-fuente, system-ui, sans-serif);
+  letter-spacing: -0.01em;
+}
+.mt-lanzador__bajada {
+  margin: 4px 0 0;
+  color: var(--mt-l-texto-2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.mt-lanzador__lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.mt-lanzador__lista > li {
+  margin: 0;
+  padding: 0;
+}
+
+.mt-lanzador__tarea {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 100%;
+  min-height: 76px;
+  padding: 16px 18px;
+  border: 1px solid var(--mt-l-borde);
+  border-radius: var(--mt-l-radio);
+  background: var(--mt-l-superficie);
+  box-shadow: var(--mt-sombra-1, none);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.mt-lanzador__tarea:hover {
+  border-color: color-mix(in oklch, var(--mt-l-acento) 40%, var(--mt-l-borde));
+  box-shadow: var(--mt-sombra-2, 0 8px 24px -12px rgb(0 0 0 / 0.25));
+  transform: translateY(-1px);
+}
+.mt-lanzador__tarea:focus-visible {
+  outline: 3px solid var(--mt-foco, var(--mt-l-acento));
+  outline-offset: 2px;
+}
+
+.mt-lanzador__icono {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+.mt-lanzador__textos {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mt-lanzador__titulo {
+  font-size: 16px;
+  font-weight: 620;
+  line-height: 22px;
+}
+.mt-lanzador__detalle {
+  color: var(--mt-l-texto-2);
+  font-size: 14px;
+  line-height: 20px;
+}
+.mt-lanzador__insignia {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--mt-l-acento) 9%, var(--mt-l-superficie));
+  color: var(--mt-l-acento);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 16px;
+}
+.mt-lanzador__flecha {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-right: 4px;
+  border-top: 2px solid var(--mt-l-acento);
+  border-right: 2px solid var(--mt-l-acento);
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+.mt-lanzador__tarea:hover .mt-lanzador__flecha {
+  transform: translateX(3px) rotate(45deg);
+}
+
+/* Angosto: una sola tarjeta con filas, más compacta que tarjetas sueltas. */
+@container (max-width: 520px) {
+  .mt-lanzador__lista {
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--mt-l-borde);
+    border-radius: var(--mt-l-radio);
+    background: var(--mt-l-superficie);
+  }
+  .mt-lanzador__lista > li + li {
+    border-top: 1px solid var(--mt-l-borde);
+  }
+  .mt-lanzador__tarea {
+    min-height: 64px;
+    padding: 12px 16px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .mt-lanzador__tarea:hover {
+    box-shadow: none;
+    transform: none;
+  }
+  .mt-lanzador__tarea:focus-visible {
+    outline-offset: -3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mt-lanzador__tarea,
+  .mt-lanzador__flecha {
+    transition: none;
+  }
+  .mt-lanzador__tarea:hover {
+    transform: none;
+  }
+}

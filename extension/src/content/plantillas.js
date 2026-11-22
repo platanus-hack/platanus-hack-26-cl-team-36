@@ -1,6 +1,7 @@
 // Utilidades para las plantillas (que son datos, no código) y para dibujar componentes.
 //
 //   MiTema.plantillas.leerCampos(elemento, campos) → { campo: "valor" }
+//   MiTema.plantillas.textosDe(prefijo, claves, propios) → textos de un componente en el idioma actual
 //   MiTema.dom.crear(tag, props, hijos)            → Element, sin innerHTML
 //
 // Una regla de campo dice de dónde sacar un valor dentro de un elemento de la página:
@@ -80,6 +81,22 @@
     return el;
   }
 
-  MiTema.plantillas = { leer, leerCampos, transformar, urlSegura };
+  // Un dato del tema que puede venir por idioma: "texto" o { es: "…", en: "…" }.
+  function enIdioma(valor, idioma) {
+    if (valor == null) return "";
+    if (typeof valor !== "object") return String(valor);
+    return valor[idioma] ?? valor.es ?? Object.values(valor)[0] ?? "";
+  }
+
+  // Textos de un componente: los genéricos del diccionario (`<prefijo>.<clave>`), reemplazados
+  // por los del tema, que vienen por idioma ({ es: {…}, en: {…} }) o planos para todos.
+  function textosDe(prefijo, claves, propios = {}, idioma = MiTema.idioma.actual()) {
+    const genericos = Object.fromEntries(claves.map((clave) => [clave, MiTema.idioma.t(idioma, `${prefijo}.${clave}`)]));
+    const porIdioma = propios[idioma];
+    const planos = Object.values(propios).every((valor) => typeof valor === "string") ? propios : {};
+    return { ...genericos, ...planos, ...(porIdioma && typeof porIdioma === "object" ? porIdioma : {}) };
+  }
+
+  MiTema.plantillas = { leer, leerCampos, transformar, urlSegura, enIdioma, textosDe };
   MiTema.dom = { crear };
 })();

@@ -104,6 +104,14 @@
       "cartelera.lista": "Más",
       "cartelera.original": "Ver original",
       "cartelera.volver": "Volver a la vista nueva",
+
+      // Content scripts: componentes lanzador y atajo (el tema puede reemplazarlos)
+      "lanzador.titulo": "Lo más buscado",
+      "lanzador.subtitulo": "Ve directo a lo que viniste a hacer.",
+      "atajo.titulo": "Ir directo",
+      "atajo.subtitulo": "Elige y te llevamos al resultado.",
+      "atajo.boton": "Ver resultado",
+      "atajo.invertir": "Intercambiar",
     },
 
     en: {
@@ -174,6 +182,13 @@
       "cartelera.lista": "More",
       "cartelera.original": "View original",
       "cartelera.volver": "Back to the new view",
+
+      "lanzador.titulo": "Most wanted",
+      "lanzador.subtitulo": "Go straight to what you came to do.",
+      "atajo.titulo": "Go direct",
+      "atajo.subtitulo": "Choose and we take you to the result.",
+      "atajo.boton": "See result",
+      "atajo.invertir": "Swap",
     },
   };
 

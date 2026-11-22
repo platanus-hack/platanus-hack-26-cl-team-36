@@ -1,0 +1,203 @@
+/*
+  Componente "atajo" (componentes/atajo.js).
+  Toma los tokens del tema (--mt-*) con valores neutros de respaldo. Cada campo lleva
+  data-mt-campo="<nombre>" para que el tema ajuste anchos sin tocar el componente.
+  16px en los <select>: con menos, Safari en iOS hace zoom al tocarlos.
+*/
+
+.mt-atajo {
+  --mt-a-superficie: var(--mt-superficie, #fff);
+  --mt-a-campo: var(--mt-superficie-2, #f3f3f3);
+  --mt-a-texto: var(--mt-texto, #1b1b1b);
+  --mt-a-texto-2: var(--mt-texto-2, #5a5a5a);
+  --mt-a-borde: var(--mt-borde, #e3e3e3);
+  --mt-a-acento: var(--mt-acento, #0b57d0);
+  --mt-a-acento-texto: var(--mt-acento-texto, #fff);
+  --mt-a-radio: var(--mt-radio, 16px);
+  --mt-a-alto: 52px;
+  padding: clamp(16px, 4vw, 24px);
+  border: 1px solid var(--mt-a-borde);
+  border-radius: calc(var(--mt-a-radio) + 4px);
+  background: var(--mt-a-superficie);
+  box-shadow: var(--mt-sombra-2, 0 8px 24px -12px rgb(0 0 0 / 0.25));
+  color: var(--mt-a-texto);
+  font-family: var(--mt-fuente, system-ui, sans-serif);
+  container-type: inline-size;
+}
+
+.mt-atajo__titulo {
+  margin: 0;
+  color: inherit;
+  font: 700 28px/34px var(--mt-fuente, system-ui, sans-serif);
+  letter-spacing: -0.02em;
+}
+.mt-atajo__bajada {
+  margin: 4px 0 0;
+  color: var(--mt-a-texto-2);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.mt-atajo__campos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.mt-atajo__campo {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+.mt-atajo__etiqueta {
+  color: var(--mt-a-texto-2);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.mt-atajo__control {
+  position: relative;
+  display: block;
+}
+.mt-atajo__control::after {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  width: 7px;
+  height: 7px;
+  margin-top: -6px;
+  border-right: 2px solid var(--mt-a-texto-2);
+  border-bottom: 2px solid var(--mt-a-texto-2);
+  transform: rotate(45deg);
+  content: "";
+  pointer-events: none;
+}
+.mt-atajo__select {
+  display: block;
+  width: 100%;
+  height: var(--mt-a-alto);
+  margin: 0;
+  padding: 0 40px 0 14px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: calc(var(--mt-a-radio) - 4px);
+  background: var(--mt-a-campo);
+  color: var(--mt-a-texto);
+  font: 500 16px/1.2 var(--mt-fuente, system-ui, sans-serif);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.mt-atajo__select:hover {
+  border-color: var(--mt-a-borde);
+}
+.mt-atajo__select:focus-visible,
+.mt-atajo__invertir:focus-visible,
+.mt-atajo__ir:focus-visible {
+  outline: 3px solid var(--mt-foco, var(--mt-a-acento));
+  outline-offset: 2px;
+}
+
+.mt-atajo__invertir {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: 0 -4px 6px;
+  padding: 0;
+  border: 1px solid var(--mt-a-borde);
+  border-radius: 50%;
+  background: var(--mt-a-superficie);
+  color: var(--mt-a-texto);
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.15s;
+}
+.mt-atajo__invertir:hover {
+  border-color: var(--mt-a-acento);
+  transform: rotate(180deg);
+}
+.mt-atajo__invertir-icono::before {
+  font-size: 18px;
+  line-height: 1;
+  content: "⇄";
+}
+
+.mt-atajo__ir {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: var(--mt-a-alto);
+  padding: 0 24px;
+  border-radius: calc(var(--mt-a-radio) - 4px);
+  background: var(--mt-a-acento);
+  color: var(--mt-a-acento-texto);
+  font-size: 16px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+.mt-atajo__ir:hover {
+  background: color-mix(in oklch, var(--mt-a-acento) 82%, black);
+  color: var(--mt-a-acento-texto);
+}
+.mt-atajo__flecha {
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+.mt-atajo__ir:hover .mt-atajo__flecha {
+  transform: translateX(3px) rotate(45deg);
+}
+
+/* Angosto: un campo por fila (la consulta mira a .mt-atajo, así que solo aplica a sus hijos), el botón de intercambiar flota entre los dos que intercambia. */
+@container (max-width: 640px) {
+  .mt-atajo__titulo {
+    font-size: 24px;
+    line-height: 30px;
+  }
+  .mt-atajo__campos {
+    --mt-a-alto: 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .mt-atajo__campo,
+  .mt-atajo__ir {
+    grid-column: 1 / -1;
+  }
+  .mt-atajo__invertir {
+    position: relative;
+    z-index: 1;
+    grid-column: 1 / -1;
+    justify-self: end;
+    margin: -32px 12px -32px 0;
+    transform: rotate(90deg);
+  }
+  .mt-atajo__invertir:hover {
+    transform: rotate(270deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mt-atajo__select,
+  .mt-atajo__invertir,
+  .mt-atajo__ir,
+  .mt-atajo__flecha {
+    transition: none;
+  }
+}

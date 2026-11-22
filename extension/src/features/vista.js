@@ -9,7 +9,9 @@
 //   id          nombre único de la vista
 //   rutas       pathnames donde aplica (sin `rutas`, en todas)
 //   contenedor  selector de la sección original: se oculta y la vista va justo antes
+//   reemplazar  false para sumar la vista sin ocultar el contenedor (que queda como ancla)
 //   items       selector de cada elemento de la sección (relativo al contenedor)
+//   datos       o los items ya hechos, en el tema (p. ej. las tareas que midieron los agentes)
 //   campos      { campo: regla } para leer cada elemento (ver content/plantillas.js)
 //   accion      { selector } del elemento original a clickear al abrir un item
 //   componente  id del componente del catálogo
@@ -45,7 +47,8 @@
     alternarOriginal: () => html().classList.toggle(CLASE_ORIGINAL),
   };
 
-  function leerItems(contenedor, { items, campos, accion }) {
+  function leerItems(contenedor, { datos, items, campos, accion }) {
+    if (datos) return [].concat(datos);
     return [...contenedor.querySelectorAll(items)]
       .map((el) => ({
         ...MiTema.plantillas.leerCampos(el, campos),
@@ -55,7 +58,7 @@
   }
 
   function actualizarVista(vista) {
-    const { id, rutas, contenedor: selector, componente, opciones = {} } = vista;
+    const { id, rutas, contenedor: selector, componente, opciones = {}, reemplazar = true } = vista;
     const enRuta = !rutas || rutas.includes(location.pathname);
     const contenedor = enRuta ? document.querySelector(selector) : null;
     const dibujante = MiTema.componentes.get(componente);
@@ -76,16 +79,31 @@
     }
 
     const nodo = dibujante.dibujar(items, opciones, contexto);
+    // El componente puede negarse (p. ej. no encontró en la página los datos que necesita).
+    if (!nodo) return quitar(id);
     nodo.classList.add("mt-vista");
     nodo.dataset.mtVista = id;
     if (previo?.nodo.isConnected) previo.nodo.replaceWith(nodo);
     else contenedor.before(nodo);
     if (previo && previo.contenedor !== contenedor) previo.contenedor.removeAttribute("data-mt-oculto");
-    contenedor.setAttribute("data-mt-oculto", "");
+    if (reemplazar) contenedor.setAttribute("data-mt-oculto", "");
     estado.set(id, { firma, nodo, contenedor, items });
   }
 
+  let esperandoCarga = false;
+
   function actualizar(vistas = []) {
+    // A mitad del parseo una sección puede estar incompleta (un <select> con la mitad de sus opciones).
+    if (document.readyState === "loading") {
+      if (!esperandoCarga) {
+        esperandoCarga = true;
+        document.addEventListener("DOMContentLoaded", () => {
+          esperandoCarga = false;
+          actualizar(vistas);
+        }, { once: true });
+      }
+      return;
+    }
     for (const vista of [].concat(vistas)) {
       try {
         actualizarVista(vista);
