@@ -160,25 +160,42 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
     async with async_playwright() as playwright:
         browsers = open_browsers(playwright, browser, cdp_url)
         try:
-            # Uno por usuario y, con juez, uno para el criterio (en local, todos son el mismo Chromium).
-            opened = await asyncio.gather(*(browsers.open() for _ in range(len(slots) + (judge is not None))),
-                                          return_exceptions=True)
-            opened, slots = _without_failed_browsers(opened, slots, judge is not None)
-            if tema_script is not None:
-                opened = [NavegadorConTema(item, tema_script) for item in opened]
-            criteria_task = (
-                asyncio.create_task(_criteria_for(judge, opened[-1], url, instruction)) if judge is not None else None
-            )
-            users = [
-                SyntheticUser(
-                    make_engine(key), user_browser, PROFILES[key], url, instruction,
-                    batch_dir / attempt_folder(key, attempt), record_video, conocimiento=conocimiento, attempt=attempt,
-                    trace=live(attempt_folder(key, attempt), key) if live else None,
-                )
-                for (key, attempt), user_browser in zip(slots, opened)
-            ]
-            attempts = await asyncio.gather(*(_with_cap(user.attempt(), cap) for user in users),
-                                            return_exceptions=True)
+            # El navegador del criterio se abre al principio; el de cada usuario, recién cuando le toca navegar (dentro
+            # del tope), y se cierra al terminar: así una tanda nunca tiene abiertas más sesiones que el tope.
+            criteria_task = None
+            if judge is not None:
+                criteria_browser = await browsers.open()
+                if tema_script is not None:
+                    criteria_browser = NavegadorConTema(criteria_browser, tema_script)
+                criteria_task = asyncio.create_task(_criteria_for(judge, criteria_browser, url, instruction))
+
+            async def run_slot(key: str, attempt: int):
+                async with cap:
+                    try:
+                        opened = await browsers.open()
+                    except Exception as error:   # cuota o sesión que no abre: se salta solo este intento
+                        print(f"[{attempt_folder(key, attempt)}] se salta: no se abrió su navegador"
+                              f" ({type(error).__name__}: {error})", flush=True)
+                        return None, None
+                    user = SyntheticUser(
+                        make_engine(key), NavegadorConTema(opened, tema_script) if tema_script is not None else opened,
+                        PROFILES[key], url, instruction, batch_dir / attempt_folder(key, attempt), record_video,
+                        conocimiento=conocimiento, attempt=attempt,
+                        trace=live(attempt_folder(key, attempt), key) if live else None,
+                    )
+                    try:
+                        result = await user.attempt()
+                    except BaseException as error:   # noqa: BLE001 — se registra como error interno del intento
+                        result = error
+                    finally:
+                        await browsers.release(opened)
+                    return user, result
+
+            results = await asyncio.gather(*(run_slot(key, attempt) for key, attempt in slots))
+            users = [user for user, _ in results if user is not None]
+            attempts = [result for user, result in results if user is not None]
+            if slots and not users:
+                raise RuntimeError("no se abrió el navegador de ningún usuario de la tanda")
             criteria = await criteria_task if criteria_task else None
         finally:
             await browsers.close()
@@ -205,26 +222,6 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
     ))
     return runs, criteria
 
-
-async def _with_cap(attempt, cap: asyncio.Semaphore):
-    async with cap:
-        return await attempt
-
-
-def _without_failed_browsers(opened: list, slots: list[tuple[str, int]], judged: bool) -> tuple[list, list]:
-    """Los navegadores abiertos y sus intentos: uno que no abrió se salta; si no abrió ninguno (o el del criterio), lanza."""
-    failed = [item for item in opened if isinstance(item, BaseException)]
-    if judged and isinstance(opened[-1], BaseException):
-        raise opened[-1]
-    users = list(zip(slots, opened))
-    kept = [(slot, item) for slot, item in users if not isinstance(item, BaseException)]
-    if not kept:
-        raise failed[0]
-    for slot, item in users:
-        if isinstance(item, BaseException):
-            print(f"[{attempt_folder(*slot)}] se salta: no se abrió su navegador ({type(item).__name__}: {item})",
-                  flush=True)
-    return [item for _, item in kept] + opened[len(slots):], [slot for slot, _ in kept]
 
 
 async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, profile_keys: list[str], runs: int,

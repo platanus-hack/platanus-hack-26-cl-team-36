@@ -130,42 +130,57 @@ def test_runs_gives_each_profile_its_attempts_in_their_own_folders():
         attempt_slots(["desktop"], 0)
 
 
-def test_agents_visitor_parallel_caps_the_attempts_that_browse_at_once(monkeypatch):
+def test_agents_visitor_parallel_caps_the_open_browsers_and_skips_one_that_fails(monkeypatch, tmp_path):
+    from contextlib import asynccontextmanager
+
     from visitor import config
 
+    class Browsers:
+        def __init__(self):
+            self.abiertos = self.pico = self.pedidos = 0
+
+        async def open(self):
+            self.pedidos += 1
+            if self.pedidos == 2:
+                raise RuntimeError("ThrottlingException")
+            self.abiertos += 1
+            self.pico = max(self.pico, self.abiertos)
+            return object()
+
+        async def release(self, browser):
+            self.abiertos -= 1
+
+        async def close(self):
+            pass
+
+    creados = []
+
+    class Usuario:
+        def __init__(self, *args, **kwargs):
+            self.run = type("Run", (), {"start": None, "save": lambda self, path: None})()
+            self.run_dir, self.trace = tmp_path, None
+            creados.append(self)
+
+        async def attempt(self):
+            await asyncio.sleep(0.01)
+
+    @asynccontextmanager
+    async def playwright():
+        yield None
+
+    browsers = Browsers()
     monkeypatch.setenv(config.PARALLEL_VAR, "2")
-    cap = asyncio.Semaphore(config.parallel_attempts())
-    active = peak = 0
-
-    async def attempt():
-        nonlocal active, peak
-        active += 1
-        peak = max(peak, active)
-        await asyncio.sleep(0.01)
-        active -= 1
-
-    async def scenario():
-        await asyncio.gather(*(batch._with_cap(attempt(), cap) for _ in range(6)))
-
-    asyncio.run(scenario())
-    assert peak == 2
-    monkeypatch.setenv(config.PARALLEL_VAR, "")
-    assert config.parallel_attempts() == 0
+    monkeypatch.setattr(batch, "open_browsers", lambda *args: browsers)
+    monkeypatch.setattr(batch, "async_playwright", playwright)
+    monkeypatch.setattr(batch, "SyntheticUser", Usuario)
+    slots = [("desktop", i) for i in range(1, 7)]
+    asyncio.run(batch._attempts(None, lambda key: None, slots, {}, "https://x.cl/", "tarea", tmp_path, "agentcore",
+                                None, False, None, None))
+    assert browsers.pico == 2 and browsers.abiertos == 0
+    assert len(creados) == 5   # el segundo navegador no abrió: se salta solo ese intento
     monkeypatch.setenv(config.PARALLEL_VAR, "-1")
     with pytest.raises(ValueError):
         config.parallel_attempts()
-
-
-def test_a_browser_that_does_not_open_skips_only_its_attempt():
-    error = RuntimeError("ThrottlingException")
-    slots = [("desktop", 1), ("mobile", 1), ("explorador", 1)]
-    assert batch._without_failed_browsers(["b1", error, "b3"], slots, False) == (
-        ["b1", "b3"], [("desktop", 1), ("explorador", 1)])
-    assert batch._without_failed_browsers(["b1", error, "criterio"], slots[:2], True) == (["b1", "criterio"], [slots[0]])
-    with pytest.raises(RuntimeError):
-        batch._without_failed_browsers([error, error], slots[:2], False)
-    with pytest.raises(RuntimeError):
-        batch._without_failed_browsers(["b1", error], slots[:1], True)
 
 
 def test_arana_gives_30_users_loaded_to_the_explorers():

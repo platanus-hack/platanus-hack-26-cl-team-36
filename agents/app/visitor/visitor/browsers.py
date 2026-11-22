@@ -29,6 +29,9 @@ class SharedBrowser:
                 self._browser = await connect_browser(self._playwright, self._cdp_url)
         return self._browser
 
+    async def release(self, browser: Browser) -> None:
+        """El Chromium es compartido: se cierra recién con la tanda."""
+
     async def close(self) -> None:
         if self._browser is not None:
             await self._browser.close()

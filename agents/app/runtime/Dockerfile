@@ -25,6 +25,7 @@ ENV PYTHONUNBUFFERED=1 \
     AGENTS_MODEL_FUERTE=us.anthropic.claude-sonnet-5-5 \
     AGENTS_MODEL_GUIA=us.anthropic.claude-opus-5-5 \
     AGENTS_VISITOR_PARALLEL=6 \
+    CONDUCTOR_TIMEOUT_VISITOR_S=2700 \
     WEB_DESIGNER_SKILL=/chameleon/.claude/skills/disenar-tema/SKILL.md
 
 # Las mismas rutas que en el repo: los uv.lock nombran a shared como ../../shared.

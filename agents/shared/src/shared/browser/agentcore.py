@@ -63,6 +63,19 @@ class AgentCoreBrowsers:
         self._browsers.append(browser)
         return browser
 
+    async def release(self, browser: Browser) -> None:
+        """Cierra un navegador y detiene su sesión apenas termina su intento, sin esperar al resto de la tanda."""
+        if browser not in self._browsers:
+            return
+        index = self._browsers.index(browser)
+        client = self._clients.pop(index)
+        self._browsers.pop(index)
+        try:
+            await browser.close()
+        except PlaywrightError:
+            pass
+        await asyncio.to_thread(client.stop)
+
     async def close(self) -> None:
         for browser in self._browsers:
             try:
