@@ -31,7 +31,7 @@ function prefijar(svg, pre) {
     .replace(/id="([^"]+)"/g, `id="${pre}$1"`)
     .replace(/url\(#([^)]+)\)/g, `url(#${pre}$1)`);
 }
-const logo = read(path.join(marca, 'logo.svg'));
+const logo = read(path.join(kit, 'sources/logo.svg'));
 const wordmark = read(path.join(kit, 'assets/wordmark-on-dark.svg'));
 
 const fonts = `

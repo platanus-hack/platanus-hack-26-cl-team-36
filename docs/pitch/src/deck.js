@@ -30,11 +30,11 @@ function nodo(o) { o.i = nodes.length; o.al = 1; o.el = 1; o.heat = 0; o.x = 0; 
 function arista(a, b, kind) { edges.push({ a, b, kind }); }
 
 const I = nodo({ k: 'I', ring: 0, u: UC, rm: 0, rw: 0, route: 1, rs: 0 });
-const S = nodo({ k: 'S', ring: 1, u: UC, rm: 166, rw: 64, route: 1, rs: 0 });
+const S = nodo({ k: 'S', ring: 1, u: UC, rm: 166, rw: 100, route: 1, rs: 0 });
 arista(I, S, 'route');
 const CATS = [];
 for (let c = 0; c < 19; c++) {
-  const n = nodo({ k: 'C' + c, ring: 2, u: (c + 0.5) / 19, rm: c === RUTA_CAT ? 344 : 336 + (c % 2 ? 20 : 0), rw: 132, route: c === RUTA_CAT ? 1 : 0, cat: c, rs: 165 });
+  const n = nodo({ k: 'C' + c, ring: 2, u: (c + 0.5) / 19, rm: c === RUTA_CAT ? 344 : 336 + (c % 2 ? 20 : 0), rw: 205, route: c === RUTA_CAT ? 1 : 0, cat: c, rs: 240 });
   CATS.push(n);
   arista(S, n, c === RUTA_CAT ? 'route' : 'cat');
 }
@@ -45,22 +45,22 @@ for (let c = 0; c < 19; c++) {
     const isF = c === RUTA_CAT && j === 6, isD = c === RUTA_CAT && j === 2;
     const n = nodo({
       k: 'L' + c + '_' + j, ring: 3, u: isD ? UC - 0.045 : (c + (j + 0.5) / NCAT[c]) / 19,
-      rm: isF ? 560 : isD ? 590 : 502 + (j % 4) * 27, rw: isF ? 200 : isD ? 212 : 184 + (j % 4) * 14,
-      route: isF ? 1 : 0, cat: c, parent: CATS[c], dj: isD ? 1 : 0, rs: 165,
+      rm: isF ? 560 : isD ? 590 : 502 + (j % 4) * 27, rw: isF ? 312 : isD ? 334 : 290 + (j % 4) * 24,
+      route: isF ? 1 : 0, cat: c, parent: CATS[c], dj: isD ? 1 : 0, rs: 240,
     });
     if (isF) F22 = n; if (isD) DJ = n;
     LINKS.push(n);
     arista(CATS[c], n, isF ? 'route' : 'link');
   }
 }
-const K = nodo({ k: 'K', ring: 4, u: UC, rm: 718, rw: 282, route: 1, rs: 268 });
-const A = nodo({ k: 'A', ring: 5, u: UC, rm: 858, rw: 336, route: 1, rs: 368 });
-const P = nodo({ k: 'P', ring: 6, u: UC, rm: 998, rw: 390, route: 1, rs: 368 });
-const E = nodo({ k: 'E', ring: 7, u: UC, rm: 1138, rw: 444, route: 1, rs: 452 });
+const K = nodo({ k: 'K', ring: 4, u: UC, rm: 718, rw: 430, route: 1, rs: 380 });
+const A = nodo({ k: 'A', ring: 5, u: UC, rm: 858, rw: 490, route: 1, rs: 500 });
+const P = nodo({ k: 'P', ring: 6, u: UC, rm: 998, rw: 550, route: 1, rs: 500 });
+const E = nodo({ k: 'E', ring: 7, u: UC, rm: 1138, rw: 610, route: 1, rs: 610 });
 arista(F22, K, 'route'); arista(K, A, 'route'); arista(A, P, 'route'); arista(P, E, 'route');
 const C3 = CATS[3], C8 = CATS[8], C12 = CATS[RUTA_CAT];
 const ROUTE = [I, S, C12, F22, K, A, P, E];
-const RINGS_W = [64, 132, 205, 282, 336, 390, 444];
+const RINGS_W = [100, 205, 326, 430, 490, 550, 610];
 
 // Línea de vistas del SII (S1): cada pantalla termina como miniatura en su ranura; en S3 se contrae a su nodo.
 const ROW_Y = 330, SLOT0 = -777, SLOT_DX = 222, TW = 176, TH = 110;
@@ -79,17 +79,24 @@ const VIEWS = [
 function slotXY(V) { return V.slot < 0 ? [SLOT0 + 1.5 * SLOT_DX, ROW_Y - 182] : [SLOT0 + V.slot * SLOT_DX, ROW_Y]; }
 for (const V of VIEWS) { const p = slotXY(V); V.n.lx = p[0]; V.n.ly = p[1]; }
 for (const n of nodes) if (n.lx === undefined) { n.lx = S.lx; n.ly = S.ly; }
-// Otro sitio (S5, tercera vuelta): la misma telaraña se reorganiza con otra forma.
-(function () { const R = rng(91); for (const n of nodes) { n.u2 = n.route ? n.u : (n.u + 0.15 + R() * 0.7) % 1; n.k2 = 0.82 + R() * 0.4; } })();
 
 // Encuadres (mundo de diseño 1920×1080, y hacia abajo, origen al centro).
 const OM = [-790, 362], THM = -0.36, SPM = 1.6;
-const OW = [262, 22], THW = -0.42, SPW = TAU;
-const ORBIT_R = 444;
+const OW = [262, 22], THW = -0.55, SPW = TAU;
+const ORBIT_R = 448;
+// Al abrirse, la telaraña da un giro: los anillos de adentro rotan más y se desenrollan al llegar.
+const SWIRL = -1.25;
+// Cámara sobre la telaraña (agentes y refinamiento) y la del plano antes/después (sus etiquetas HTML asumen esta).
+const CAMW = { camX: 62, camY: -6, zoom: 1.1 };
+const CAMP = { camX: 20, camY: 0, zoom: 1.08 };
+// Halo de calor (px) según cuántos agentes se perdieron en el nodo.
+const HALO = (h) => 44 + 170 * h;
+// Halo de llegada en «Enviar» (px) según la fracción de agentes que llega.
+const META = (f) => 36 + 200 * f;
 
 // ─────────────────────────────────────────────── estado de escena (todo lo anima GSAP)
 const BASE = {
-  spot: 0, open: 0, alt: 0, v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0, v8: 0, thumbK: 0, rowA: 0, lin: 1, routeA: 0, djRed: 0, curX: 300, curY: 120, curA: 0, clk: 0,
+  spot: 0, open: 0, ringK: 1, ping: 0, g3: 0, g1: 0, g2: 0, v0: 0, v1: 0, v2: 0, v3: 0, v4: 0, v5: 0, v6: 0, v7: 0, v8: 0, thumbK: 0, rowA: 0, lin: 1, routeA: 0, djRed: 0, curX: 300, curY: 120, curA: 0, clk: 0,
   camX: 0, camY: 0, zoom: 1, morph: 0, graphA: 0, dimG: 1, trace: 1e3, traceA: 0, labA: 0, labW: 0, ringsA: 0,
   c3: 0, a3: 0, h3: 0, r1: 0, a1: 0, h1: 0, r2: 0, a2: 0, h2: 0, simp: 0, orbA: 0, orb: 0, planeA: 0, wipe: 0, breathe: 0,
 };
@@ -153,18 +160,23 @@ function agentes(opts) {
   });
   list.sort((a, b) => a.t0 - b.t0);
   let end = 0; for (const a of list) end = Math.max(end, a.t0 + a.d * (a.path.length - 1) + (a.ok ? a.d * 2.2 : 0.6));
-  return { list, end };
+  // Resultado final de la vuelta: perdidos por nodo y fracción que llega (para dejar su marca en la siguiente).
+  const lost = new Map(); let ok = 0;
+  for (const a of list) { if (a.ok) ok++; else lost.set(a.end, (lost.get(a.end) || 0) + 1); }
+  return { list, end, lost, okF: ok / list.length };
 }
+// Tres revisiones del mismo sitio: 31 % → 64 % → 88 % llegan.
 const SET3 = agentes({ seed: 7, bursts: 8, gap: 0.72, spread: 0.32, dur: 0.3, route: ROUTE,
   mix: [['ok', 159], ['C3', 44], ['C8', 40], ['DJ', 104], [K, 94], [P, 71]] });
 const SET1 = agentes({ seed: 11, bursts: 4, gap: 0.42, spread: 0.22, dur: 0.21, route: ROUTE,
   mix: [['ok', 164], [K, 52], [P, 30], [A, 10]] });
 const SET2 = agentes({ seed: 23, bursts: 3, gap: 0.32, spread: 0.16, dur: 0.19, route: [I, F22, K, P, E],
   mix: [['ok', 169], [K, 15], [P, 8]] });
+// c: reloj de la vuelta · a: agentes visibles · h: su calor · g: su marca fantasma (lo que dejó la vuelta anterior).
 const SETS = [
-  { s: SET3, c: 'c3', a: 'a3', h: 'h3' },
-  { s: SET1, c: 'r1', a: 'a1', h: 'h1' },
-  { s: SET2, c: 'r2', a: 'a2', h: 'h2' },
+  { s: SET3, c: 'c3', a: 'a3', h: 'h3', g: 'g3' },
+  { s: SET1, c: 'r1', a: 'a1', h: 'h1', g: 'g1' },
+  { s: SET2, c: 'r2', a: 'a2', h: 'h2', g: 'g2' },
 ];
 
 // ─────────────────────────────────────────────── three.js
@@ -484,25 +496,26 @@ function layout(time) {
   const th = lerp(THM, THW, m), sp = lerp(SPM, SPW, m);
   const br = 1 + G.breathe * 0.012 * Math.sin(time * 0.9);
   const sc = (1 - 0.06 * s2) * br;
+  const sw = SWIRL * 4 * m * (1 - m);
   for (const n of nodes) {
     let r = lerp(n.rm, n.rw, m), u = n.u, al = 1, el = 1;
     if (s1 > 0 || s2 > 0) {
+      // s1: se pliegan los callejones sin salida · s2: la ruta se acorta (de 7 pasos a 4) y la telaraña se aquieta.
       if (n.route) {
         r = lerp(r, n.rs, s2);
         if (n === S || n === C12 || n === A) al = 1 - s2;
       } else if (n === C3 || n === C8 || n.dj) {
         u = lerp(u, UC, sstep(0, 1, s1) * 0.85); al = 1 - sstep(0.15, 1, s1); el = al;
       } else if (n.ring === 2) {
-        al = (1 - 0.55 * s1) * (1 - s2); el = al;
+        al = (1 - 0.55 * s1) * (1 - 0.3 * s2); el = al;
       } else {
         const hot = n.parent === C3 || n.parent === C8;
-        r = lerp(r, n.parent.rw + 26, s1 * 0.55 + s2 * 0.45);
-        al = (hot ? 1 - s1 : 1 - 0.6 * s1) * (1 - s2); el = al;
+        r = lerp(r, n.parent.rw + 40, s1 * 0.4 + s2 * 0.2);
+        al = (hot ? 1 - s1 : 1 - 0.5 * s1) * (1 - 0.3 * s2); el = al;
       }
     }
-    if (G.alt > 0 && !n.route) { u = lerp(u, n.u2, G.alt); r *= lerp(1, n.k2, G.alt); }
     r *= sc;
-    n.r = r; n.a = th + (u - UC) * sp + G.alt * 1.15; n.al = al; n.el = el;
+    n.r = r; n.a = th + (u - UC) * sp + sw * (1 - n.ring / 8); n.al = al; n.el = el;
     n.px = OX + r * Math.cos(n.a); n.py = OY + r * Math.sin(n.a);
     n.x = lerp(n.px, n.lx, G.lin); n.y = lerp(n.py, n.ly, G.lin);
   }
@@ -526,19 +539,24 @@ function muestrear(A2, B, f0, f1, n) {
   for (let i = 0; i <= n; i++) { curva(A2, B, f0 + (f1 - f0) * (i / n), PT); SEGS[i * 2] = PT[0]; SEGS[i * 2 + 1] = PT[1]; }
   return n + 1;
 }
-function nseg(A2, B) { return A2.ring <= 1 ? 22 : B.ring === 3 && !B.route ? 6 : 10; }
+function nseg(A2, B) { return A2.ring <= 1 ? 22 : B.ring === 3 && !B.route ? 8 : 12; }
 
 // Calor: cuántos agentes perdidos llegaron a cada nodo (cada set pesa según su alfa de calor).
+// Llegada: fracción del set que alcanzó «Enviar». Fantasma: el resultado final de una vuelta anterior.
+let META_F = 0, META_G = 0;
 function calor() {
-  for (const n of nodes) n.heat = 0;
+  for (const n of nodes) { n.heat = 0; n.ghost = 0; }
+  META_F = 0; META_G = 0;
   for (const S2 of SETS) {
+    const gw = G[S2.g];
+    if (gw > 0) { for (const [n, k] of S2.s.lost) n.ghost += gw * k / 105; META_G += gw * S2.s.okF; }
     const w = G[S2.h]; if (w <= 0) continue;
-    const clock = G[S2.c];
+    const clock = G[S2.c], tot = S2.s.list.length;
     for (const a of S2.s.list) {
-      if (a.ok) continue;
       const tArr = a.t0 + a.d * (a.path.length - 1);
       if (clock < tArr) continue;
-      a.end.heat += w * sstep(0, 0.5, clock - tArr) / 105;
+      const k = sstep(0, 0.5, clock - tArr);
+      if (a.ok) META_F += w * k / tot; else a.end.heat += w * k / 105;
     }
   }
 }
@@ -560,7 +578,7 @@ function render(time) {
     const base = 0.034 + 0.01 * Math.sin(time * 0.6);
     for (let k = 0; k < 15; k++) {
       const R = (90 + k * 92) * res;
-      const a = base * (R < 470 ? 1 - G.ringsA : 1) * (1 - 0.6 * G.planeA);
+      const a = base * (R < 640 ? 1 - G.ringsA : 1) * (1 - 0.6 * G.planeA);
       if (a < 0.003) continue;
       for (let h = 0; h < 2; h++) {
         for (let i = 0; i <= 79; i++) { const t = (h * 79 + i) / 158 * TAU; SEGS[i * 2] = ox + R * Math.cos(t); SEGS[i * 2 + 1] = oy + R * Math.sin(t); }
@@ -576,7 +594,7 @@ function render(time) {
   // hilos de la telaraña
   const ringA = G.ringsA * G.dimG * (0.075 + G.breathe * 0.03 * Math.sin(time * 1.1));
   if (ringA > 0.002) {
-    const sc = (1 - 0.06 * clamp(G.simp - 1, 0, 1)) * (1 + G.breathe * 0.012 * Math.sin(time * 0.9));
+    const sc = (1 - 0.06 * clamp(G.simp - 1, 0, 1)) * (1 + G.breathe * 0.012 * Math.sin(time * 0.9)) * lerp(0.3, 1, G.ringK);
     for (const R0 of RINGS_W) {
       const R = R0 * sc;
       // dos mitades de 79 segmentos (SEGS guarda 80 puntos)
@@ -660,8 +678,16 @@ function render(time) {
     for (const n of nodes) {
       const h = clamp(n.heat, 0, 1);
       if (h > 0.01) {
-        const hc = h < 0.5 ? mix3(C.amber, C.red, 0) : mix3(C.amber, C.red, (h - 0.5) * 2);
-        punto(PTS_A, n.x, n.y, hc, gA * 0.55 * sstep(0, 0.4, h) * Math.max(n.al, 0.25), 34 + 120 * h, 1);
+        const hc = h < 0.5 ? C.amber : mix3(C.amber, C.red, (h - 0.5) * 2);
+        punto(PTS_A, n.x, n.y, hc, gA * 0.62 * sstep(0, 0.4, h) * Math.max(n.al, 0.25), HALO(h), 1);
+        // «Mide»: un pulso sale de cada foco
+        if (G.ping > 0 && G.ping < 1) punto(PTS_B, n.x, n.y, hc, gA * 0.9 * (1 - G.ping) * sstep(0.05, 0.3, h) * n.al, HALO(h) * (0.45 + 0.9 * G.ping), 2);
+      }
+      // marca de la vuelta anterior: el borde del foco que había; el foco nuevo se ve más chico adentro
+      const gh = clamp(n.ghost, 0, 1);
+      if (gh > 0.01) {
+        const gc = gh < 0.5 ? C.amber : mix3(C.amber, C.red, (gh - 0.5) * 2);
+        punto(PTS_A, n.x, n.y, gc, gA * 0.5 * sstep(0, 0.25, gh) * n.al, HALO(gh) * 0.62, 2);
       }
       if (n.route) continue;
       const isLink = n.ring === 3;
@@ -673,6 +699,12 @@ function render(time) {
     }
   }
   if (gR > 0.002) {
+    // llegada: halo turquesa en «Enviar» que crece con la fracción que llega; el anillo marca la vuelta anterior
+    if (META_F > 0.003) {
+      punto(PTS_A, E.x, E.y, C.turq, gA * 0.42 * sstep(0, 0.12, META_F), META(META_F), 1);
+      if (G.ping > 0 && G.ping < 1) punto(PTS_B, E.x, E.y, C.turq, gA * 0.9 * (1 - G.ping), META(META_F) * (0.45 + 0.9 * G.ping), 2);
+    }
+    if (META_G > 0.003) punto(PTS_A, E.x, E.y, C.turq, gA * 0.55 * sstep(0, 0.12, META_G), META(META_G) * 0.62, 2);
     for (const n of ROUTE) {
       const h = clamp(n.heat, 0, 1);
       const lit = LIT.has(n) || G.morph > 0.5;
@@ -701,17 +733,17 @@ function render(time) {
         const q = s - L;
         if (a.ok) {
           const al = 1 - q / 2.2; if (al <= 0) continue;
-          punto(PTS_B, a.end.x + a.jx * 0.6 * q, a.end.y + a.jy * 0.6 * q, a.col, av * al, 4, 0);
+          punto(PTS_B, a.end.x + a.jx * 0.6 * q, a.end.y + a.jy * 0.6 * q, a.col, av * al, 4.8, 0);
         } else {
           const k = sstep(0, 1.2, q);
-          punto(PTS_B, a.end.x + a.jx * k, a.end.y + a.jy * k, a.col, av * 0.9 * Math.max(a.end.al, 0.15), 3.6, 0);
+          punto(PTS_B, a.end.x + a.jx * 1.3 * k, a.end.y + a.jy * 1.3 * k, a.col, av * 0.9 * Math.max(a.end.al, 0.15), 4.4, 0);
         }
         continue;
       }
       for (let tr = 3; tr >= 0; tr--) {
         const ss = Math.max(0, s - tr * 0.09), k = Math.min(L - 1, Math.floor(ss)), f = ss - k;
         curva(a.path[k], a.path[k + 1], Math.min(1, f), PT);
-        punto(PTS_B, PT[0], PT[1], a.col, av * (tr ? 0.5 - tr * 0.13 : 1), tr ? 4 - tr * 0.6 : 4.6, 0);
+        punto(PTS_B, PT[0], PT[1], a.col, av * (tr ? 0.5 - tr * 0.13 : 1), tr ? 4.8 - tr * 0.7 : 5.8, 0);
       }
     }
   }
@@ -927,9 +959,10 @@ const BUILD = [
     tl.to(G, { routeA: 1, traceA: 1, duration: 0.5 }, 0.6);
     tl.to(G, { rowA: 0, duration: 0.5 }, 1.6);
     tl.to(G, { lin: 0, graphA: 1, duration: 1.5, ease: 'power3.inOut' }, 1.6);
-    tl.to(G, { morph: 1, camX: 20, camY: 0, zoom: 1.08, duration: 2.0, ease: 'power3.inOut' }, 2.8);
+    tl.to(G, Object.assign({ morph: 1, duration: 2.0, ease: 'power3.inOut' }, CAMW), 2.8);
     tl.to(G, { traceA: 0.5, duration: 1.0 }, 3.6);
     tl.to(G, { ringsA: 1, duration: 1.2, ease: 'power2.out' }, 3.8);
+    tl.fromTo(G, { ringK: 0 }, { ringK: 1, duration: 1.8, ease: 'expo.out' }, 3.8);
     tl.to(G, { labW: 1, duration: 0.6 }, 4.4);
     entra(tl, $('.ctr', s), 4.2, { y: 10 });
     tl.set(G, { a3: 1, h3: 1 }, 4.5);
@@ -943,7 +976,7 @@ const BUILD = [
     const pinta = () => { const n = Math.round(v.n); num.textContent = n; dots.forEach((d, i) => { if (i < n) d.setAttribute('data-on', ''); else d.removeAttribute('data-on'); }); };
     tl.set(v, { n: 3, onComplete: pinta }, 0);
     entra(tl, $('.t', s), 0.1);
-    tl.to(G, { dimG: 0.13, duration: 0.8, ease: 'power2.inOut' }, 0);
+    tl.to(G, Object.assign({ dimG: 0.13, duration: 0.8, ease: 'power2.inOut' }, CAMP), 0);
     tl.to(G, { planeA: 1, duration: 0.8, ease: 'power3.out' }, 0.1);
     tl.fromTo('#tagA', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4 }, 0.4);
     tl.to(G, { wipe: 1, duration: 1.8, ease: 'power2.inOut' }, 1.0);
@@ -963,48 +996,66 @@ const BUILD = [
     tl.fromTo($('.note', s), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 8.0);
     return tl;
   },
-  // 5 · mide · rediseña · repite: dos vueltas en el SII y la tercera en otro sitio; la telaraña se reorganiza sola.
+  // 5 · mide · rediseña · repite: tres revisiones del mismo sitio. Parte de lo que midieron los agentes (revisión 1)
+  // y cada vuelta deja la marca de la anterior: los focos se achican dentro de su borde viejo y la llegada crece.
   function (s) {
     const tl = gsap.timeline({ paused: true });
     const num = $('#m5', s), w = $$('.t5 span', s), v = { n: 31 };
+    const revs = $$('.rev', s), barra = revs.map((r) => $('i', r)), val = revs.map((r) => $('b', r)), dif = revs.map((r) => $('em', r));
     const pinta = () => { num.textContent = Math.round(v.n); };
-    const DIM = 'rgba(245,245,247,.28)';
+    const DIM = 'rgba(245,245,247,.28)', VIEJA = 'rgba(245,245,247,.2)';
     tl.set(v, { n: 31, onComplete: pinta }, 0);
     tl.set(w, { color: DIM }, 0);
-    tl.to(G, { planeA: 0, dimG: 1, duration: 0.6, ease: 'power2.inOut' }, 0);
+    tl.set(revs.concat(val, dif.filter(Boolean)), { autoAlpha: 0 }, 0);
+    tl.set(barra, { scaleY: 0 }, 0);
+    tl.to(G, Object.assign({ planeA: 0, dimG: 1, duration: 0.7, ease: 'power2.inOut' }, CAMW), 0);
     entra(tl, [$('.tag', s), $('.t', s)], 0.05, { stagger: 0.08 });
     entra(tl, $('.pct', s), 0.2, { y: 16 });
     entra(tl, $('.sitio-a', s), 0.3, { y: 8 });
     tl.to(G, { orbA: 1, duration: 0.6 }, 0.1);
+    tl.to(G, { orb: TAU, duration: 4.0, ease: 'none' }, 0);
+    tl.to(G, { orb: TAU * 2, duration: 3.1, ease: 'none' }, 4.0);
     const on = (i, at) => { tl.to(w, { color: (k) => (k === i ? '#F5F5F7' : DIM), duration: 0.2 }, at); };
-    on(0, 0.3);
-    on(1, 0.7); tl.to(G, { simp: 1, h3: 0, a3: 0, duration: 0.8, ease: 'power2.inOut' }, 0.7);
-    on(2, 1.5);
-    const d1 = 1.7;
-    tl.set(G, { a1: 1, h1: 1 }, 1.55);
-    tl.to(G, { r1: SET1.end, duration: d1, ease: 'none' }, 1.6);
-    tl.to(v, { n: 64, duration: d1 - 0.3, ease: 'power1.inOut', onUpdate: pinta }, 1.7);
-    on(0, 1.6);
-    tl.to(G, { orb: TAU * 2, duration: 3.3, ease: 'none' }, 0);
-    // otro sitio: misma idea, otra forma
-    const t3 = 1.6 + d1;
-    on(1, t3);
-    tl.fromTo($('.sitio-a', s), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.3, immediateRender: false }, t3);
-    entra(tl, $('.sitio-b', s), t3 + 0.15, { y: 8, d: 0.6 });
-    tl.to(G, { alt: 1, h1: 0, a1: 0, duration: 0.9, ease: 'power3.inOut' }, t3);
-    const t4 = t3 + 0.95;
-    on(2, t4);
-    tl.set(G, { a2: 1, h2: 1 }, t4 - 0.05);
-    tl.to(G, { r2: SET2.end, duration: 1.5, ease: 'none' }, t4);
-    tl.to(G, { orb: TAU * 3, duration: 1.5 + 0.95, ease: 'none' }, t3);
-    tl.to(v, { n: 88, duration: 1.2, ease: 'power1.inOut', onUpdate: pinta, onComplete: pinta }, t4 + 0.2);
-    tl.to(w, { color: '#F5F5F7', duration: 0.4 }, t4 + 1.5);
+    const mide = (at) => { tl.fromTo(G, { ping: 0 }, { ping: 1, duration: 0.9, ease: 'power1.out', immediateRender: false }, at); };
+    // La barra de cada revisión sube con el contador; la anterior queda atenuada al lado para comparar.
+    const revision = (i, at, d) => {
+      tl.to(revs[i], { autoAlpha: 1, duration: 0.25 }, at);
+      tl.to(barra[i], { scaleY: 1, duration: d, ease: 'power1.inOut' }, at);
+      tl.to(val[i], { autoAlpha: 1, duration: 0.3 }, at + d - 0.15);
+      if (dif[i]) tl.fromTo(dif[i], { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'back.out(2)', immediateRender: false }, at + d - 0.05);
+      if (i > 0) {
+        tl.to(barra[i - 1], { backgroundColor: VIEJA, duration: 0.4 }, at);
+        tl.to(val[i - 1], { color: 'rgba(245,245,247,.5)', duration: 0.4 }, at);
+        if (dif[i - 1]) tl.to(dif[i - 1], { autoAlpha: 0, duration: 0.3 }, at);
+      }
+    };
+    // revisión 1: lo que dejaron los agentes en la lámina anterior (focos, «se pierden», 31 %)
+    revision(0, 0.35, 0.6);
+    on(0, 0.3); mide(0.6);
+    // rediseña: se pliegan los callejones sin salida; el foco viejo queda como borde
+    on(1, 1.45); tl.to(G, { simp: 1, h3: 0, g3: 1, a3: 0, duration: 0.9, ease: 'power2.inOut' }, 1.45);
+    // repite: revisión 2
+    on(2, 2.35);
+    tl.set(G, { a1: 1, h1: 1 }, 2.3);
+    tl.to(G, { r1: SET1.end, duration: 1.7, ease: 'none' }, 2.35);
+    tl.to(v, { n: 64, duration: 1.4, ease: 'power1.inOut', onUpdate: pinta, onComplete: pinta }, 2.45);
+    revision(1, 2.45, 1.4);
+    on(0, 4.05); mide(4.1);
+    // rediseña: la ruta se acorta de 7 pasos a 4
+    on(1, 4.7); tl.to(G, { simp: 2, h1: 0, g1: 1, g3: 0, a1: 0, duration: 0.9, ease: 'power2.inOut' }, 4.7);
+    // repite: revisión 3
+    on(2, 5.6);
+    tl.set(G, { a2: 1, h2: 1 }, 5.55);
+    tl.to(G, { r2: SET2.end, duration: 1.5, ease: 'none' }, 5.6);
+    tl.to(v, { n: 88, duration: 1.2, ease: 'power1.inOut', onUpdate: pinta, onComplete: pinta }, 5.7);
+    revision(2, 5.7, 1.2);
+    tl.to(w, { color: '#F5F5F7', duration: 0.4 }, 7.0);
     return tl;
   },
   // 6 · cierre: la telaraña respira, muy tenue.
   function (s) {
     const tl = gsap.timeline({ paused: true });
-    tl.to(G, { dimG: 0.3, graphA: 0, routeA: 0, orbA: 0, a2: 0, h2: 0, traceA: 0, labW: 0, camX: OW[0], camY: OW[1], zoom: 1.08, breathe: 1, duration: 1.6, ease: 'power2.inOut' }, 0);
+    tl.to(G, { dimG: 0.3, graphA: 0, routeA: 0, orbA: 0, a2: 0, h2: 0, g1: 0, traceA: 0, labW: 0, camX: OW[0], camY: OW[1], zoom: 1.08, breathe: 1, duration: 1.6, ease: 'power2.inOut' }, 0);
     const sym = $('.sym', s), wm = $('.wm', s), tg = $('.tagline', s), url = $('.url', s);
     entra(tl, sym, 0.3, { y: 12 });
     entra(tl, wm, 0.5, { y: 12 });
@@ -1021,10 +1072,10 @@ const BUILD = [
     {},
     { v0: 2, v1: 2, v2: 2, v3: 2, v4: 2, v5: 2, v6: 2, v7: 2, v8: 2, rowA: 1, curA: 0, clk: 1, djRed: 0 },
     { dimG: 0.3 },
-    { thumbK: 1, rowA: 0, lin: 0, routeA: 1, graphA: 1, morph: 1, camX: 20, camY: 0, zoom: 1.08, dimG: 1, traceA: 0.5, ringsA: 1, labW: 1, a3: 1, h3: 1, c3: SET3.end },
-    { dimG: 0.13, planeA: 1, wipe: 1, open: 1, curA: 0, clk: 1 },
-    { planeA: 0, dimG: 1, orbA: 1, orb: TAU * 3, simp: 1, alt: 1, a3: 0, h3: 0, a1: 0, h1: 0, r1: SET1.end, a2: 1, h2: 1, r2: SET2.end },
-    { dimG: 0.3, graphA: 0, routeA: 0, orbA: 0, a2: 0, h2: 0, traceA: 0, labW: 0, camX: OW[0], camY: OW[1], zoom: 1.08, breathe: 1 },
+    { thumbK: 1, rowA: 0, lin: 0, routeA: 1, graphA: 1, morph: 1, ...CAMW, dimG: 1, traceA: 0.5, ringsA: 1, labW: 1, a3: 1, h3: 1, c3: SET3.end },
+    { dimG: 0.13, ...CAMP, planeA: 1, wipe: 1, open: 1, curA: 0, clk: 1 },
+    { planeA: 0, dimG: 1, ...CAMW, orbA: 1, orb: TAU * 2, simp: 2, ping: 1, a3: 0, h3: 0, g3: 0, a1: 0, h1: 0, g1: 1, r1: SET1.end, a2: 1, h2: 1, r2: SET2.end },
+    { dimG: 0.3, graphA: 0, routeA: 0, orbA: 0, a2: 0, h2: 0, g1: 0, traceA: 0, labW: 0, camX: OW[0], camY: OW[1], zoom: 1.08, breathe: 1 },
   ];
   for (const d of deltas) { st = Object.assign({}, st, d); END.push(st); }
 })();
@@ -1038,7 +1089,7 @@ function go(i, modo) {
   const s = slides[i];
   s.setAttribute('data-reset', '');
   gsap.killTweensOf(s.querySelectorAll('*'));
-  gsap.set(s.querySelectorAll('*'), { clearProps: 'opacity,visibility,transform,translate,color' });
+  gsap.set(s.querySelectorAll('*'), { clearProps: 'opacity,visibility,transform,translate,color,backgroundColor' });
   tl = BUILD[i](s);
   if (modo === 'full' || REDUCED) tl.progress(1); else { tl.progress(0); tl.play(); }
   void s.offsetWidth;

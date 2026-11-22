@@ -10,7 +10,7 @@ const here = path.dirname(new URL(import.meta.url).pathname);
 const dir = path.join(here, 'video-tmp');
 const W = +(process.argv[2] || 1920), H = +(process.argv[3] || 1080);
 // Portada, pregunta (pausa del narrador), problema, nace, agentes, antes/después, refinamiento, cierre.
-const tiempos = (process.argv[4] || '2,4,13,4,13,12,7,8').split(',').map(Number);
+const tiempos = (process.argv[4] || '2,4,13,4,13,12,8,8').split(',').map(Number);
 const b = await chromium.launch({ args: (process.env.GLARGS || '--use-angle=metal,--ignore-gpu-blocklist').split(',') });
 const ctx = await b.newContext({ viewport: { width: W, height: H }, recordVideo: { dir, size: { width: W, height: H } } });
 const pg = await ctx.newPage();
