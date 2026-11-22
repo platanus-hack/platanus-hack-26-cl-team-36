@@ -249,6 +249,41 @@ test("páginas: cada una con sus 6 tarjetas, sin mezclarse en la memoria; lo cer
   assert.equal(await panel.overview({ pestana: "otra", pagina: "2" }), primera);
   assert.notEqual(await panel.overview({ pestana: "delivered", pagina: "3" }), segunda);
 });
+test("servidor: ?link= deja solo las revisiones cuyo link calza, en cifras y pestañas, y dice qué buscó", async () => {
+  const items = [
+    meta("metro", "done", { url: "https://www.metro.cl/", created_at: "2026-11-22T03:00:00.000Z" }),
+    meta("metro-horarios", "failed", { url: "https://www.metro.cl/horarios", created_at: "2026-11-22T02:00:00.000Z" }),
+    meta("dt", "done", { url: "https://www.dt.gob.cl/portal/1626/w3-channel.html", created_at: "2026-11-22T01:00:00.000Z" }),
+  ];
+  const { fuente } = armar();
+  const conLinks = crearServidor({
+    fuente,
+    revisiones: crearRevisiones({ tabla: TABLA, cliente: clienteDynamoFalso(TABLA, items), comandos: comandosDynamo }),
+    reloj: RELOJ,
+  });
+  await new Promise((listo) => conLinks.listen(0, "127.0.0.1", listo));
+  try {
+    const pedir = async (consulta) => (await fetch(`${base(conLinks)}/api/overview${consulta}`)).json();
+    const todas = await pedir("");
+    assert.deepEqual([todas.busqueda, todas.cuentas.total], [null, 3]);
+    const metro = await pedir("?link=Metro");
+    assert.equal(metro.busqueda, "metro", "normalizada");
+    assert.deepEqual(metro.pestanas.recent.ids, ["metro", "metro-horarios"]);
+    assert.deepEqual([metro.cuentas.total, metro.cuentas.delivered, metro.cuentas.failed], [2, 1, 1]);
+    assert.deepEqual(Object.keys(metro.tarjetas).sort(), ["metro", "metro-horarios"]);
+    // Pegar el link entero, con protocolo y www, también lo encuentra; con varias palabras, cada una debe estar.
+    assert.deepEqual((await pedir(`?link=${encodeURIComponent("https://www.metro.cl/horarios/")}`)).pestanas.recent.ids, ["metro-horarios"]);
+    assert.deepEqual((await pedir("?link=portal%201626")).pestanas.recent.ids, ["dt"]);
+    assert.deepEqual((await pedir("?link=nada")).pestanas.recent, { ids: [], total: 0, pagina: 1, paginas: 1 });
+    // La búsqueda y la página van juntas: la página pedida es de lo que calza.
+    assert.deepEqual((await pedir("?link=metro&pestana=failed&pagina=1")).pestanas.failed.ids, ["metro-horarios"]);
+    // Solo espacios es sin búsqueda.
+    assert.equal((await pedir("?link=%20%20")).busqueda, null);
+  } finally {
+    conLinks.close();
+  }
+});
+
 test("servidor: ?pestana=&pagina= da esa página de 6 de la pestaña pedida (la 1 si es inválida; más allá, la última)", async () => {
   const { fuente } = armar();
   const conViejas = crearServidor({
@@ -292,7 +327,8 @@ after(() => {
 test("servidor: /api/resumen y /api/overview solo con GET o HEAD, con ahora del reloj", async () => {
   const overview = await (await fetch(`${base(servidor)}/api/overview`)).json();
   assert.equal(overview.ahora, AHORA);
-  assert.deepEqual(Object.keys(overview), ["ahora", "disponible", "umbralDetenidaMin", "cuentas", "pestanas", "tarjetas"]);
+  assert.deepEqual(Object.keys(overview), ["ahora", "disponible", "umbralDetenidaMin", "busqueda", "cuentas", "pestanas", "tarjetas"]);
+  assert.equal(overview.busqueda, null, "sin búsqueda");
   for (const ruta of ["/api/resumen", "/api/overview"]) {
     assert.equal((await fetch(`${base(servidor)}${ruta}`, { method: "HEAD" })).status, 200, ruta);
     for (const method of ["POST", "PUT", "DELETE"]) assert.equal((await fetch(`${base(servidor)}${ruta}`, { method })).status, 405, `${method} ${ruta}`);

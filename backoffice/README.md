@@ -85,17 +85,21 @@ conozca la ruta entra.
 
 ## Pantallas
 
-La barra superior lleva la marca, la píldora "N running" (las revisiones en curso; lleva a la pestaña Live) y el
-buscador ⌘K. No tiene navegación: a Corridas y Revisiones se llega con la paleta ⌘K, los atajos (`g o`, `g c`) y los
-enlaces de cada pantalla.
+La barra superior lleva la marca y la píldora "N running" (las revisiones en curso; lleva a la pestaña Live). No tiene
+navegación ni buscador: cada vista busca lo suyo (el Overview, sus revisiones por link; Corridas, sus tandas). A
+Corridas y Revisiones se llega con los atajos (`g o`, `g c`) y los enlaces de cada pantalla.
 
 **Overview** (`#/`, el inicio) tiene dos bloques. Arriba, los agentes: un solo total dividido por rol en el orden del
 flujo (Cataloger → Guide → Visitors → Designer), con un cuadrito por corrida y el % de éxito de cada rol. Abajo, las
 revisiones en tarjetas con la página revisada (captura de escritorio y teléfono; si el Diseñador terminó y dejó
 capturas, la del después de su tema, y si no, la de inicio de un visitante), sus cuatro etapas (Catalog, Routes,
 Visits, Theme), un medidor por goal y un cuadrito por agente; pestañas Recent (todas, también las en cola), Live (en
-curso, detenidas y en cola), Delivered y Failed. Cada pestaña muestra páginas de 6 tarjetas, paginadas en el servidor
-(`/api/overview?pestana=…&pagina=…`), con un paginador abajo (el rango que se ve y `‹ 1 … 4 5 6 … 11 ›`). Mientras
+curso, detenidas y en cola), Delivered y Failed. Junto al título, un buscador filtra las revisiones por su link
+(`/api/overview?link=…`): sin protocolo, sin `www.` y sin mayúsculas, así que sirve escribir `metro`, `metro.cl/horarios`
+o pegar el link entero; con varias palabras, cada una tiene que estar. Filtra en el servidor (las cifras de las
+pestañas también), vuelve a la página 1 y queda en la URL (`&link=metro`); Esc lo vacía y `/` lo enfoca. Cada pestaña
+muestra páginas de 6 tarjetas, paginadas en el servidor (`/api/overview?pestana=…&pagina=…`), con un paginador abajo
+(el rango que se ve y `‹ 1 … 4 5 6 … 11 ›`). Mientras
 llega otra página, la grilla muestra tarjetas esqueleto. Si la página pedida ya no existe, el servidor da la última y la
 URL se corrige. Otra pestaña empieza en su página 1, que ya llegó con la primera respuesta. Una tarjeta lleva directo
 a Path map / Replay: la telaraña de su primer goal con tanda terminada (cada goal, a la suya); si la revisión todavía
@@ -215,8 +219,8 @@ del DOM, sin agregar una dependencia más pesada que todo el front.
 
 ## Idiomas (es / en)
 
-Inglés por defecto y español. No hay selector en la barra: el idioma se cambia con la acción de la paleta ⌘K o con
-`idioma=` en el hash de la URL (`#/?idioma=es`), y se guarda en `localStorage` (`backoffice:idioma:v2`; lo que guardó
+Inglés por defecto y español. No hay selector en la barra: el idioma se cambia con `idioma=` en el hash de la URL
+(`#/?idioma=es`, y `?idioma=en` para volver), y se guarda en `localStorage` (`backoffice:idioma:v2`; lo que guardó
 el selector ES | EN de antes ya no se lee). Los datos de la corrida (títulos de páginas, instrucciones de los goals,
 expectativas del agente, justificaciones, criterios) nunca se traducen.
 
@@ -241,9 +245,9 @@ el resto.
 
 | Dónde | Teclas |
 |---|---|
-| Siempre | `⌘K` paleta de comandos · `?` atajos · `g o` ir al Overview · `g c` ir a Corridas · `/` paleta (en Corridas, el buscador) |
-| Overview | `←` `→` `Inicio` `Fin` en las fichas de dispositivo y en las pestañas de revisiones |
-| Corridas | `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
+| Siempre | `?` atajos · `g o` ir al Overview · `g c` ir a Corridas |
+| Overview | `/` buscar links · `←` `→` `Inicio` `Fin` en las fichas de dispositivo y en las pestañas de revisiones |
+| Corridas | `/` buscar · `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
 | Tanda | `1` `2` `3` Mapa de caminos, Replay, Propuesta · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
 | Mapa de caminos | `+` `-` acercar / alejar · `0` ajustar · `Esc` cerrar (con el foco en el mapa, las flechas lo mueven) |
 | Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `,` `.` más lento / más rápido · `↑` `↓` en la lista de pasos |
@@ -287,10 +291,10 @@ backoffice/
 │   ├── hallazgos.js     ← hallazgos y titulares (clave + vars)
 │   └── url.js           ← normalize_url de shared.nodes.urls, en JavaScript
 ├── public/
-│   ├── index.html, app.js   ← arranque: idioma, barra superior, paleta, atajos globales, enrutador
+│   ├── index.html, app.js   ← arranque: idioma, barra superior, atajos globales, enrutador
 │   ├── marca/           ← el logo y el símbolo de la marca (copias de docs/marca)
-│   ├── nucleo/          ← enrutador por hash, barra superior, marco de la tanda, atajos, paleta ⌘K, i18n, formatos,
-│   │                      estados, íconos
+│   ├── nucleo/          ← enrutador por hash, barra superior, marco de la tanda, atajos, i18n, formatos, estados,
+│   │                      íconos, links.js (buscar por link: lo comparten la página y lib/overview.js)
 │   ├── pantallas/       ← una por vista: overview, corridas, revisiones, telarana, replay, propuesta
 │   ├── overview/        ← piezas del Overview: las puras (agentes, tarjetas, tiempo, marca, textos) y las que arman
 │   │                      DOM (dom-*.js; capturas.js guarda los <img> para no volver a pedirlos al refrescar)

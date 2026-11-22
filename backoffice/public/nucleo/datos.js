@@ -81,13 +81,15 @@ export async function sondearRevisiones(revision, etiqueta = null) {
 /** → { ahora, roles: { cataloger, guide, visitor: { all, desktop, mobile }, improver } } (contrato §1) | null (404) */
 export const pedirResumen = () => pedirJson("api/resumen");
 /**
- * → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, tarjetas } (contrato §2 y §7) | null (404). Cada
- * pestaña trae una página de 6 ids: la 1, o `pagina` en `pestana` (paginado, contrato §7.4).
+ * → { ahora, disponible, umbralDetenidaMin, busqueda, cuentas, pestanas, tarjetas } (contrato §2 y §7) | null (404).
+ * Cada pestaña trae una página de 6 ids: la 1, o `pagina` en `pestana` (paginado, contrato §7.4). Con `link`, solo las
+ * revisiones cuyo link calza.
  */
-export function pedirOverview({ pestana = null, pagina = null } = {}) {
+export function pedirOverview({ pestana = null, pagina = null, link = null } = {}) {
   const consulta = new URLSearchParams();
   if (pestana) consulta.set("pestana", pestana);
   if (pagina > 1) consulta.set("pagina", String(pagina));
+  if (link) consulta.set("link", link);
   const texto = consulta.toString();
   return pedirJson(`api/overview${texto ? `?${texto}` : ""}`);
 }

@@ -67,9 +67,8 @@ test("atajos globales: g o lleva al Overview (#/) y g c a Corridas (#/corridas)"
   const { hashDe } = await import("../public/nucleo/rutas.js");
   assert.equal(hashDe({ tipo: "overview" }), "#/");
   assert.equal(hashDe({ tipo: "corridas" }), "#/corridas");
-  // La paleta ya no lee las tandas del armazón (que no las lista): usa la caché de pedirTandas().
-  assert.doesNotMatch(app, /tandasDelShell/);
-  assert.match(app, /pedirTandas\(\)/);
+  // Sin paleta ⌘K: ni su atajo ni un "/" global (cada vista registra el suyo para su buscador).
+  assert.doesNotMatch(app, /paleta|Paleta|"Mod\+k"|"\/":/);
 });
 
 test("atajos de la tanda y de la telaraña: un juego chico, sin restos de lo que se sacó", async () => {

@@ -4,11 +4,13 @@
 // GET /api/resumen → { ahora, roles }: todas las corridas del almacén por rol y estado (un agente = una corrida; un
 //   visitante = un intento), con los visitantes por dispositivo. `en_cola` sale de la tabla (enColaDeRevision en
 //   lib/tarjeta.js) y no entra en las cifras visibles: la página la usa solo para dibujar contornos.
-// GET /api/overview[?pestana=<p>&pagina=<n>] → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, tarjetas }:
+// GET /api/overview[?pestana=<p>&pagina=<n>&link=<texto>] → { ahora, disponible, umbralDetenidaMin, busqueda, cuentas,
+//   pestanas, tarjetas }: con `link`, solo las revisiones cuyo link calza (public/nucleo/links.js), en cifras y pestañas;
 //   listasDelOverview() arma cuentas y pestañas (paginadas en el servidor: parametrosDelOverview); las tarjetas salen
 //   de lib/tarjeta.js. Solo entran las revisiones vigentes, una por página (lib/panel.js): si la vigente corre, la tarjeta
 //   dice que corre aunque una anterior se haya entregado; las reemplazadas no cuentan en ninguna cifra ni pestaña.
 
+import { calzaLink, normalizarBusqueda } from "../public/nucleo/links.js";
 import { estadoDeCorrida } from "./clasificar.js";
 
 /** Tarjetas por página: cada pestaña trae una página de 6 (la primera, o la pedida en la pestaña pedida). */
@@ -60,17 +62,18 @@ const compararTexto = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const masNuevaPrimero = (a, b) => tiempo(b.creada) - tiempo(a.creada) || compararTexto(a.revision, b.revision);
 
 /**
- * Los parámetros de GET /api/overview, normalizados: `pestana` una de PESTANAS (si no, ninguna) y `pagina` un entero
- * desde 1 hasta PAGINA_MAXIMA (uno que no es entero positivo vale 1). Sin pestaña o en la página 1, la respuesta es la
- * de siempre: { pestana: null, pagina: 1 }.
- * @param {{ pestana?: unknown, pagina?: unknown }} [crudos]  tal como llegan en la URL
- * @returns {{ pestana: string | null, pagina: number }}
+ * Los parámetros de GET /api/overview, normalizados: `pestana` una de PESTANAS (si no, ninguna), `pagina` un entero
+ * desde 1 hasta PAGINA_MAXIMA (uno que no es entero positivo vale 1) y `link` la búsqueda normalizada (null si no
+ * hay). Sin pestaña o en la página 1, la página es la de siempre: { pestana: null, pagina: 1 }.
+ * @param {{ pestana?: unknown, pagina?: unknown, link?: unknown }} [crudos]  tal como llegan en la URL
+ * @returns {{ pestana: string | null, pagina: number, link: string | null }}
  */
-export function parametrosDelOverview({ pestana, pagina } = {}) {
+export function parametrosDelOverview({ pestana, pagina, link } = {}) {
   const valida = PESTANAS.includes(pestana) ? pestana : null;
   const pedida = /^\d{1,9}$/.test(String(pagina ?? "")) ? Number(pagina) : 1;
   const acotada = Math.min(PAGINA_MAXIMA, Math.max(1, pedida));
-  return valida && acotada > 1 ? { pestana: valida, pagina: acotada } : { pestana: null, pagina: 1 };
+  const busqueda = normalizarBusqueda(link) || null;
+  return valida && acotada > 1 ? { pestana: valida, pagina: acotada, link: busqueda } : { pestana: null, pagina: 1, link: busqueda };
 }
 
 /**
@@ -80,10 +83,12 @@ export function parametrosDelOverview({ pestana, pagina } = {}) {
  * - pestañas (por creada descendente, desempate por id): recent, todas (también las en cola); live, running + stalled
  *   + queued; delivered; failed. Cada una con los ids de una página de POR_PAGINA (la 1, o `pagina` en la pedida,
  *   acotada a la última que existe), su número, cuántas páginas hay y el total.
- * @param {{ revision: string, creada: string | null, estado: "running" | "stalled" | "queued" | "delivered" | "failed" }[]} revisiones
- * @param {{ pestana?: string | null, pagina?: number }} [pedida]  ya normalizada (parametrosDelOverview)
+ * - con `link`, todo (cifras y pestañas) cuenta solo las revisiones cuyo link calza.
+ * @param {{ revision: string, creada: string | null, url?: string | null, estado: "running" | "stalled" | "queued" | "delivered" | "failed" }[]} todas
+ * @param {{ pestana?: string | null, pagina?: number, link?: string | null }} [pedida]  ya normalizada (parametrosDelOverview)
  */
-export function listasDelOverview(revisiones, { pestana = null, pagina = 1 } = {}) {
+export function listasDelOverview(todas, { pestana = null, pagina = 1, link = null } = {}) {
+  const revisiones = link ? todas.filter((revision) => calzaLink(revision.url, link)) : todas;
   const ordenadas = [...revisiones].sort(masNuevaPrimero);
   const de = (...estados) => ordenadas.filter((revision) => estados.includes(revision.estado));
   const enPestana = (nombre, lista) => {

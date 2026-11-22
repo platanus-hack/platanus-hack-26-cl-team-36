@@ -1,5 +1,5 @@
-// Sección Reviews del Overview (spec §3.5, contrato §7): "Reviews" con sus pestañas (Recent, Live, Delivered,
-// Failed), la grilla de tarjetas (páginas de 6), el paginador y la pista de arranque vacío. Las revisiones en cola son
+// Sección Reviews del Overview (spec §3.5, contrato §7): "Reviews" con el buscador por link y sus pestañas (Recent,
+// Live, Delivered, Failed), la grilla de tarjetas (páginas de 6), el paginador y la pista de arranque vacío. Las revisiones en cola son
 // tarjetas como las demás (píldora "Queued"). Se arma una vez; al refrescar o al cambiar de pestaña, dispositivo o
 // página se reconcilia la grilla por tarjeta (key = revisión + dispositivo): las que siguen se actualizan por partes y
 // no se mueven, las que salen sueltan sus <img> y las nuevas entran en su lugar. Mientras llega otra página, la
@@ -24,6 +24,7 @@ import {
   insigniaDePestana,
   modeloDeTarjeta,
   numerosDePaginas,
+  busquedaDe,
   paginacionDePestana,
   tarjetasDePestana,
   tonoDeInsignia,
@@ -31,6 +32,8 @@ import {
 import { cifra } from "./textos.js";
 
 const ICONO_DE_ETAPA = { catalog: "catalogo", guide: "ruta", visitor: "visitantes", improver: "tema" };
+/** Cuánto se espera después de la última tecla para buscar. */
+const ESPERA_DE_BUSQUEDA = 250;
 
 // El color del texto claro de la inicial, de tokens.css (--texto-1): contra él se decide si la inicial va clara u
 // oscura. Se lee una vez, cuando ya cargaron los estilos.
@@ -129,11 +132,59 @@ function paginador({ pagina, paginas, total, desde, hasta }, enlace, { t, fmt })
 }
 
 /**
- * Arma la sección. `imagenes`: el banco de <img> de capturas.js; `alElegirPestana(valor)` al elegir una pestaña;
- * `enlaceAPagina(n)`: el hash de la página n de la pestaña activa. → { nodo, actualizar({ overview, dispositivo,
- * pestana, error, esperando }), esperarPagina({ pagina, paginas, total }), subirAlInicio(), soltar() }
+ * El buscador: un campo que filtra las revisiones por su link. Busca un rato después de la última tecla (o al
+ * apretar Enter); Esc lo vacía. `alBuscar(texto)` recibe lo escrito.
  */
-export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlaceAPagina }) {
+function buscador({ t, senal }, alBuscar) {
+  const entrada = el("input", {
+    type: "search",
+    id: "ov-buscar",
+    class: "ov-buscar-entrada",
+    placeholder: t("overview.buscar.marcador"),
+    autocomplete: "off",
+    spellcheck: "false",
+    enterkeyhint: "search",
+    "aria-keyshortcuts": "/",
+    "data-foco": "overview:buscar",
+  });
+  let reloj = 0;
+  const buscar = () => {
+    clearTimeout(reloj);
+    alBuscar(entrada.value);
+  };
+  entrada.addEventListener("input", () => {
+    clearTimeout(reloj);
+    reloj = setTimeout(buscar, ESPERA_DE_BUSQUEDA);
+  }, { signal: senal });
+  entrada.addEventListener("keydown", (evento) => {
+    if (evento.key === "Escape" && entrada.value) {
+      evento.preventDefault();
+      evento.stopPropagation();
+      entrada.value = "";
+      buscar();
+    } else if (evento.key === "Enter") {
+      evento.preventDefault();
+      buscar();
+    }
+  }, { signal: senal });
+  senal.addEventListener("abort", () => clearTimeout(reloj));
+  const nodo = el(
+    "div",
+    { class: "ov-buscador", role: "search" },
+    el("label", { for: "ov-buscar", class: "visualmente-oculto", texto: t("overview.buscar.etiqueta") }),
+    icono("buscar", { clase: "ov-buscar-icono" }),
+    entrada,
+  );
+  return { nodo, entrada };
+}
+
+/**
+ * Arma la sección. `imagenes`: el banco de <img> de capturas.js; `alElegirPestana(valor)` al elegir una pestaña;
+ * `enlaceAPagina(n)`: el hash de la página n de la pestaña activa; `alBuscar(texto)` cuando se escribe en el buscador.
+ * → { nodo, actualizar({ overview, dispositivo, pestana, error, esperando, busqueda }), esperarPagina({ pagina,
+ * paginas, total }), subirAlInicio(), enfocarBusqueda(), soltar() }
+ */
+export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlaceAPagina, alBuscar }) {
   const { t, fmt } = ctx;
 
   const pestanas = PESTANAS.map((id) => {
@@ -164,12 +215,13 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlac
   const vacio = el("p", { class: "ov-vacio", hidden: true, texto: t("overview.vacio") });
   const paginas = el("div", { class: "ov-paginas-caja", hidden: true });
   const panel = el("div", { id: "ov-panel", class: "ov-panel", role: "tabpanel" }, grilla, vacio, paginas);
+  const busca = buscador({ t, senal: ctx.senal }, alBuscar);
   const noDisponible = el("div", { class: "ov-no-disponible", hidden: true }, avisoEnLinea(t("overview.noDisponible")));
 
   const nodo = el(
     "section",
     { class: "ov-revisiones", "aria-labelledby": "ov-revisiones-titulo" },
-    el("div", { class: "ov-cabecera" }, el("h2", { id: "ov-revisiones-titulo", class: "ov-titulo", texto: t("comun.shell.revisiones") }), lista),
+    el("div", { class: "ov-cabecera" }, el("h2", { id: "ov-revisiones-titulo", class: "ov-titulo", texto: t("comun.shell.revisiones") }), busca.nodo, lista),
     aviso,
     noDisponible,
     panel,
@@ -228,6 +280,8 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlac
     });
     while (grilla.children.length > nodos.length) grilla.lastElementChild.remove();
     grilla.removeAttribute("aria-busy");
+    const buscado = busquedaDe(overview);
+    ponerTexto(vacio, buscado ? t("overview.buscar.sinResultados", { link: buscado }) : t("overview.vacio"));
     vacio.hidden = nodos.length > 0;
     grilla.hidden = nodos.length === 0;
     ponerPaginador(paginacionDePestana(overview, pestana));
@@ -239,7 +293,9 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlac
     paginas.hidden = !datos;
   }
 
-  function actualizar({ overview, dispositivo, pestana, error, esperando = false }) {
+  function actualizar({ overview, dispositivo, pestana, error, esperando = false, busqueda = "" }) {
+    // Lo escrito manda mientras el campo tiene el foco; si no (atrás, adelante, un enlace), el campo dice lo buscado.
+    if (document.activeElement !== busca.entrada && busca.entrada.value !== busqueda) busca.entrada.value = busqueda;
     if (conError !== error) {
       conError = error;
       reemplazar(aviso, error ? avisoEnLinea(t("overview.errorAlRefrescar"), "atencion") : null);
@@ -248,6 +304,7 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlac
     }
     const disponible = overview?.disponible === true;
     lista.hidden = !disponible;
+    busca.nodo.hidden = !disponible;
     noDisponible.hidden = disponible;
     panel.hidden = !disponible;
     if (!disponible) {
@@ -289,5 +346,11 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlac
     tarjetas.clear();
   }
 
-  return { nodo, actualizar, esperarPagina, subirAlInicio, soltar };
+  /** El atajo "/": al buscador, con lo escrito seleccionado. */
+  function enfocarBusqueda() {
+    busca.entrada.focus();
+    busca.entrada.select();
+  }
+
+  return { nodo, actualizar, esperarPagina, subirAlInicio, enfocarBusqueda, soltar };
 }

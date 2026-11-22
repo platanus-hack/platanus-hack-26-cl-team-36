@@ -322,7 +322,7 @@ export function abrirHojaDeAtajos() {
         onclick: () => dialogo.close(),
       }, icono("cerrar")),
     ),
-    el("p", { class: "hoja-atajos-nota texto-3", texto: t("comun.atajos.nota", { paleta: teclasVisibles("Mod+k").flat().join(esMac ? "" : "+") }) }),
+    el("p", { class: "hoja-atajos-nota texto-3", texto: t("comun.atajos.nota") }),
     el(
       "div",
       { class: "hoja-atajos-grupos" },

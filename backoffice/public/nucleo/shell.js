@@ -1,19 +1,16 @@
-// Armazón (diseño §5.11, §10.1, contrato §6): una barra superior fija de 56 px, sin navegación, sin selector de idioma
-// y sin barra lateral. En orden: la marca (logo horizontal a 180 px, o el símbolo solo donde no cabe), las revisiones
-// en curso (lleva a la pestaña Live del Overview) y el buscador (abre la paleta). A
-// Reviews y Batches se llega por la paleta ⌘K, los atajos g o / g c y los enlaces de las pantallas; al español, por la
-// acción de la paleta o con `?idioma=es`. Se redibuja al cambiar de idioma.
+// Armazón (diseño §5.11, §10.1, contrato §6): una barra superior fija de 56 px, sin navegación, sin selector de idioma,
+// sin buscador y sin barra lateral. En orden: la marca (logo horizontal a 180 px, o el símbolo solo donde no cabe) y
+// las revisiones en curso (lleva a la pestaña Live del Overview). Se busca en cada vista: el Overview busca sus
+// revisiones por link y Corridas, sus tandas. A Reviews y Batches se llega por los atajos g o / g c y los enlaces de
+// las pantallas; al español, con `?idioma=es`. Se redibuja al cambiar de idioma.
 
-import { esMac, teclasVisibles } from "./atajos.js";
 import { pedirRevisiones } from "./datos.js";
 import { conservarFoco, el, reemplazar } from "./dom.js";
 import { EVENTO_IDIOMA, t } from "./i18n.js";
-import { icono } from "./iconos.js";
-import { abrirPaleta } from "./paleta.js";
 import { hashDe } from "./rutas.js";
 
 // La marca (copias sin cambios de docs/marca/chameleonmode-v1/assets): la firma horizontal nunca baja de su mínimo
-// (180 px de ancho); donde no cabe junto a la píldora y la lupa (bajo 370 px, con margen para "12 en curso"), el
+// (180 px de ancho); donde no cabe junto a la píldora (bajo 370 px, con margen para "12 en curso"), el
 // símbolo a color solo. El mismo corte está en estilos/shell.css.
 export const MARCA = Object.freeze({
   logo: { src: "marca/logo.svg", ancho: 492, alto: 128 },
@@ -58,23 +55,6 @@ function pildoraEnCurso() {
   );
 }
 
-function buscador() {
-  return el(
-    "button",
-    {
-      type: "button",
-      class: "barra-buscar",
-      "data-foco": "shell:buscar",
-      "aria-haspopup": "dialog",
-      "aria-keyshortcuts": esMac ? "Meta+K" : "Control+K",
-      onclick: () => abrirPaleta(),
-    },
-    icono("buscar"),
-    el("span", { class: "barra-buscar-texto", texto: t("comun.shell.buscar") }),
-    el("kbd", { class: "barra-buscar-tecla", "aria-hidden": "true", texto: teclasVisibles("Mod+k").flat().join(esMac ? "" : "+") }),
-  );
-}
-
 /** Pone la cifra en la píldora sin redibujar la barra (no mueve el foco). Con 0 o sin tabla, se oculta. */
 function pintarEnCurso() {
   for (const pildora of barra?.querySelectorAll(".barra-en-curso") ?? []) {
@@ -106,7 +86,7 @@ function dibujar() {
   const saltar = document.querySelector(".saltar");
   if (saltar) saltar.textContent = t("comun.shell.saltar");
   conservarFoco(barra, () =>
-    reemplazar(barra, marca(), el("div", { class: "barra-acciones" }, pildoraEnCurso(), buscador())),
+    reemplazar(barra, marca(), el("div", { class: "barra-acciones" }, pildoraEnCurso())),
   );
 }
 
