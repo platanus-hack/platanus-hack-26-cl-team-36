@@ -2,7 +2,7 @@
 
 El esquema es un subconjunto de JSON Schema (type, properties, required, additionalProperties, pattern, maxLength,
 minLength, items, minItems, maxItems, maxProperties, propertyNames, minimum, maximum, enum, anyOf) que valida
-`_errores`. Solo admite los componentes `atajo` y `lanzador`, enlaces relativos del mismo sitio y nada que cargue
+`_errores`. Solo admite los componentes `atajo`, `lanzador` y `buscador`, enlaces relativos del mismo sitio y nada que cargue
 recursos (sin `imagen`). Lo que no valida se descarta con su razón: un item malo deja la vista sin ese item, una vista
 mala no entra. `sanearTema` (`extension/src/background/tema-remoto.js`) es su espejo exacto: mismos esquemas,
 patrones y topes. Si cambian aquí, cambian allá (lo vigila `tests/test_contrato.py`).
@@ -10,8 +10,9 @@ patrones y topes. Si cambian aquí, cambian allá (lo vigila `tests/test_contrat
 
 import re
 
-COMPONENTES = ("atajo", "lanzador")
+COMPONENTES = ("atajo", "lanzador", "buscador")
 MAX_VISTAS = 6
+MAX_PALABRAS = 12
 
 _TEXTO_CORTO = {"type": "string", "maxLength": 160}
 TEXTO = {"type": "object", "properties": {"es": _TEXTO_CORTO, "en": _TEXTO_CORTO}, "required": ["es", "en"],
@@ -56,7 +57,19 @@ ITEM = {
         "additionalProperties": False,
     },
 }
-MAX_ITEMS = {"atajo": 8, "lanzador": 12}
+ITEM["buscador"] = {
+    "type": "object",
+    "properties": {
+        "titulo": TEXTO, "detalle": TEXTO, "grupo": TEXTO, "enlace": RUTA,
+        "palabras": {"type": "object", "properties": {
+            idioma: {"type": "array", "maxItems": MAX_PALABRAS, "items": _TEXTO_CORTO} for idioma in ("es", "en")},
+            "additionalProperties": False},
+    },
+    "required": ["titulo", "enlace"],
+    "additionalProperties": False,
+}
+# El buscador abarca el catálogo del sitio, no solo lo destacado.
+MAX_ITEMS = {"atajo": 8, "lanzador": 12, "buscador": 40}
 
 OPCIONES = {
     "atajo": {
@@ -77,6 +90,18 @@ OPCIONES = {
                        "textos": _textos(("titulo", "subtitulo"))},
         "additionalProperties": False,
     },
+}
+OPCIONES["buscador"] = {
+    "type": "object",
+    "properties": {
+        "max": {"type": "integer", "minimum": 1, "maximum": 12},
+        "sugeridas": {"type": "integer", "minimum": 1, "maximum": MAX_ITEMS["buscador"]},
+        "agrupar": {"type": "boolean"},
+        "teclas": {"type": "boolean"},
+        "textos": _textos(("boton", "titulo", "campo", "sugerencias", "sin-resultados", "sin-resultados-ayuda",
+                           "cerrar", "mover", "abrir", "atajo", "atajo-mac")),
+    },
+    "additionalProperties": False,
 }
 
 

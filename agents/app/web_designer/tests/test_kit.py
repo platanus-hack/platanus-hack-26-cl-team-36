@@ -122,6 +122,14 @@ def test_el_atajo_hecho_a_mano_valida():
     assert tema_json.validar_vista(atajo) == (atajo, [])
 
 
+def test_el_buscador_hecho_a_mano_valida():
+    fixture = Path(__file__).parents[4] / "extension" / "test" / "fixtures" / "metro" / "tema.json"
+    vistas = json.loads(fixture.read_text(encoding="utf-8"))["features"]["vista"]
+    buscador = next(v for v in vistas if v["componente"] == "buscador")
+    assert len(buscador["datos"]) > tema_json.MAX_ITEMS["lanzador"]
+    assert tema_json.validar_vista(buscador) == (buscador, [])
+
+
 @pytest.mark.parametrize("enlace", ["//evil.com/x", "/\\evil.com", "https://evil.com/", "javascript:alert(1)",
                                     "/con espacio", "relativa"])
 def test_enlaces_fuera_del_sitio_se_descartan(enlace):

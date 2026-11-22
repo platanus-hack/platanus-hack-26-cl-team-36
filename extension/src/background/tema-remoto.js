@@ -7,11 +7,12 @@
 // cambian acá: agents/app/web_designer/tests/test_contrato.py pasa por `sanearTema` lo que arma el improver y
 // exige cero rechazos y las mismas vistas.
 //
-// Solo la feature `vista`, con los componentes que emite el improver y sus `datos`: los enlaces son rutas relativas
+// Solo la feature `vista`, con los componentes que emite el improver (`atajo`, `lanzador` y `buscador`) y sus `datos`: los enlaces son rutas relativas
 // (`/…`, nunca `//host` ni `/\host`) y nada carga recursos de otro host (sin imágenes).
 
-export const COMPONENTES = ["atajo", "lanzador"];
+export const COMPONENTES = ["atajo", "lanzador", "buscador"];
 export const MAX_VISTAS = 6;
+export const MAX_PALABRAS = 12;
 export const MAX_CADENA = 200;
 
 const TEXTO_CORTO = { type: "string", maxLength: 160 };
@@ -59,7 +60,24 @@ const ITEM = {
     additionalProperties: false,
   },
 };
-export const MAX_ITEMS = { atajo: 8, lanzador: 12 };
+ITEM.buscador = {
+  type: "object",
+  properties: {
+    titulo: TEXTO,
+    detalle: TEXTO,
+    grupo: TEXTO,
+    enlace: RUTA,
+    palabras: {
+      type: "object",
+      properties: Object.fromEntries(["es", "en"].map((idioma) => [idioma, { type: "array", maxItems: MAX_PALABRAS, items: TEXTO_CORTO }])),
+      additionalProperties: false,
+    },
+  },
+  required: ["titulo", "enlace"],
+  additionalProperties: false,
+};
+// El buscador abarca el catálogo del sitio, no solo lo destacado.
+export const MAX_ITEMS = { atajo: 8, lanzador: 12, buscador: 40 };
 
 const OPCIONES = {
   atajo: {
@@ -78,6 +96,17 @@ const OPCIONES = {
     properties: { max: { type: "integer", minimum: 1, maximum: 12 }, textos: textos(["titulo", "subtitulo"]) },
     additionalProperties: false,
   },
+};
+OPCIONES.buscador = {
+  type: "object",
+  properties: {
+    max: { type: "integer", minimum: 1, maximum: 12 },
+    sugeridas: { type: "integer", minimum: 1, maximum: MAX_ITEMS.buscador },
+    agrupar: { type: "boolean" },
+    teclas: { type: "boolean" },
+    textos: textos(["boton", "titulo", "campo", "sugerencias", "sin-resultados", "sin-resultados-ayuda", "cerrar", "mover", "abrir", "atajo", "atajo-mac"]),
+  },
+  additionalProperties: false,
 };
 
 function esquemaVista(componente) {
