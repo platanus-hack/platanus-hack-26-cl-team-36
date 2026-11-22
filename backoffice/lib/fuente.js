@@ -41,12 +41,17 @@ import { crearFuenteS3, parsearAlmacen } from "./fuentes/s3.js";
  *           "desktop/video.webm"
  * @property {(id: string, relativa: string, rango?: RangoPedido) => Promise<ArchivoAbierto | null>} abrirArchivo
  *           null si no existe
+ * @property {(id: string, relativa: string, cabeceras: { tipo?: string, cache?: string }) => Promise<string>} [urlDeDescarga]
+ *           solo S3: una URL firmada para bajar el archivo directo del almacén, que responde con ese Content-Type y
+ *           Cache-Control (no mira si existe)
+ * @property {string} [origenDeDescargas]  el origen de esas URLs ("https://<bucket>.s3.<region>.amazonaws.com"), para la CSP
  */
 
 /**
  * La fuente configurada. `tipo` sale de BACKOFFICE_FUENTE: "archivos" (`raiz`) o "s3" (`almacen`, "s3://bucket/prefijo",
- * y `s3`, el cliente y los comandos de lib/aws.js).
- * @param {{ tipo?: string, raiz?: string, almacen?: string, s3?: { cliente: object, comandos: object } }} [opciones]
+ * y `s3`, el cliente, los comandos y, para las descargas firmadas, `firmar` y `region` de lib/aws.js).
+ * @param {{ tipo?: string, raiz?: string, almacen?: string,
+ *           s3?: { cliente: object, comandos: object, firmar?: Function, region?: string } }} [opciones]
  * @returns {Fuente}
  */
 export function crearFuente({ tipo = process.env.BACKOFFICE_FUENTE ?? "archivos", raiz, almacen, s3 } = {}) {

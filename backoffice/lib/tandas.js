@@ -25,15 +25,44 @@ const tareaDe = (id) => {
   return `${host}/${AGENTE}/${objetivo}`;
 };
 
-/**
- * Ids de las tandas, de la más nueva a la más vieja: "wom.cl/visitor/baja-fibra/2026-11-21T07-16-33Z".
- * @param {Fuente | string} fuente
- */
-export async function idsDeTandas(fuente) {
-  const ids = (await comoFuente(fuente).listarIds()).filter(esIdValido);
-  return [...new Set(ids)].sort((a, b) =>
-    fechaDe(a) < fechaDe(b) ? 1 : fechaDe(a) > fechaDe(b) ? -1 : a < b ? -1 : a > b ? 1 : 0,
+/** Cuánto se reutiliza la lista de tandas de una fuente: en S3, recorrerla cuesta un LIST por carpeta. */
+export const LISTA_MS = 30_000;
+
+/** fuente → { promesa, hasta }: la última lista (hasta null mientras corre). */
+const listas = new WeakMap();
+
+async function recorrerIds(origen) {
+  const ids = (await origen.listarIds()).filter(esIdValido);
+  return Object.freeze(
+    [...new Set(ids)].sort((a, b) => (fechaDe(a) < fechaDe(b) ? 1 : fechaDe(a) > fechaDe(b) ? -1 : a < b ? -1 : a > b ? 1 : 0)),
   );
+}
+
+/**
+ * Ids de las tandas, de la más nueva a la más vieja: "wom.cl/visitor/baja-fibra/2026-11-21T07-16-33Z". La lista se
+ * comparte entre los que la piden a la vez y se reutiliza LISTA_MS; `fresca` recorre la fuente de nuevo (y deja esa
+ * como la compartida).
+ * @param {Fuente | string} fuente
+ * @param {{ fresca?: boolean }} [opciones]
+ * @returns {Promise<readonly string[]>}
+ */
+export function idsDeTandas(fuente, { fresca = false } = {}) {
+  const origen = comoFuente(fuente);
+  const guardada = listas.get(origen);
+  if (!fresca && guardada && (guardada.hasta === null || performance.now() < guardada.hasta)) return guardada.promesa;
+  const actual = { promesa: null, hasta: null };
+  actual.promesa = recorrerIds(origen).then(
+    (ids) => {
+      actual.hasta = performance.now() + LISTA_MS;
+      return ids;
+    },
+    (error) => {
+      if (listas.get(origen) === actual) listas.delete(origen);
+      throw error;
+    },
+  );
+  listas.set(origen, actual);
+  return actual.promesa;
 }
 
 /** Tandas vecinas en la lista global (de la más nueva a la más vieja) y las otras de la misma tarea. */
@@ -149,17 +178,26 @@ export async function listarTandas(fuente) {
 }
 
 /**
- * Abre una captura o el video de un perfil, o null si lo pedido no es un archivo servible de una tanda.
+ * true si lo pedido es una captura o el video de un perfil de una tanda listada.
  * @param {Fuente | string} fuente
- * @param {{ id: string, perfil: string, archivo: string, rango?: import("./fuente.js").RangoPedido }} pedido
+ * @param {{ id: string, perfil: string, archivo: string }} pedido
  * @param {{ esListada?: (id: string) => Promise<boolean> }} [opciones]
  *        `esListada`: si idsDeTandas de esta misma fuente lista el id, con una lista compartida (servidor.js pasa la del
  *        Overview, esTandaListada de lib/panel.js, que vuelve a listar si el id no está). Sin ella, se lista aquí.
  */
-export async function abrirArchivoDeIntento(fuente, { id, perfil, archivo, rango }, { esListada } = {}) {
-  if (!NOMBRE_SEGURO.test(perfil) || !ARCHIVO_DE_PERFIL.test(archivo)) return null;
+export async function esArchivoDeIntento(fuente, { id, perfil, archivo }, { esListada } = {}) {
+  if (!NOMBRE_SEGURO.test(perfil) || !ARCHIVO_DE_PERFIL.test(archivo)) return false;
+  return esListada ? esListada(id) : (await idsDeTandas(fuente)).includes(id);
+}
+
+/**
+ * Abre una captura o el video de un perfil, o null si lo pedido no es un archivo servible de una tanda.
+ * @param {Fuente | string} fuente
+ * @param {{ id: string, perfil: string, archivo: string, rango?: import("./fuente.js").RangoPedido }} pedido
+ * @param {{ esListada?: (id: string) => Promise<boolean> }} [opciones]  como en esArchivoDeIntento
+ */
+export async function abrirArchivoDeIntento(fuente, { id, perfil, archivo, rango }, opciones = {}) {
   const origen = comoFuente(fuente);
-  const listada = esListada ? await esListada(id) : (await idsDeTandas(origen)).includes(id);
-  if (!listada) return null;
+  if (!(await esArchivoDeIntento(origen, { id, perfil, archivo }, opciones))) return null;
   return origen.abrirArchivo(id, `${perfil}/${archivo}`, rango);
 }

@@ -90,6 +90,17 @@ export function clienteS3Falso(bucket, objetos, { porPagina = 2 } = {}) {
   };
 }
 
+/** getSignedUrl falso: la URL virtual-hosted del bucket con lo firmado a la vista. */
+export async function firmarFalso(cliente, comando, { expiresIn, signingDate }) {
+  const { input } = comando;
+  const url = new URL(`https://${input.Bucket}.s3.us-east-2.amazonaws.com/${input.Key}`);
+  if (input.ResponseContentType) url.searchParams.set("tipo", input.ResponseContentType);
+  if (input.ResponseCacheControl) url.searchParams.set("cache", input.ResponseCacheControl);
+  url.searchParams.set("vence", String(expiresIn));
+  url.searchParams.set("firmada", signingDate.toISOString());
+  return url.href;
+}
+
 /** DynamoDB falso (lib-dynamodb: ítems planos) con Query por PK y Scan por SK, paginados. */
 export function clienteDynamoFalso(tabla, items, { porPagina = 2 } = {}) {
   const llamadas = [];

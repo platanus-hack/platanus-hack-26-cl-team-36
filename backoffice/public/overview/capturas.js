@@ -54,7 +54,8 @@ function pedirColor(img, src) {
 }
 
 function nuevo(src) {
-  const img = el("img", { src, alt: "", decoding: "async", draggable: "false" });
+  // crossorigin: el servidor la manda desde su origen en vez de redirigir al bucket, y el canvas puede leerla.
+  const img = el("img", { crossorigin: "anonymous", src, alt: "", decoding: "async", draggable: "false" });
   img.addEventListener("load", () => {
     if (img.hasAttribute("data-color")) anotarColor(img, src);
   });

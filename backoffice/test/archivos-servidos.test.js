@@ -2,13 +2,14 @@
 // ventana cuestan una sola pasada de listado, una tanda que aparece después se sirve igual (si el id no está, se
 // vuelve a listar) y la validación no cambia (NOMBRE_SEGURO, ARCHIVO_DE_PERFIL y solo ids listados). Los LIST se
 // cuentan con el S3 falso.
+import { get } from "node:http";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { crearFuenteS3 } from "../lib/fuentes/s3.js";
 import { crearPanel, memorizar } from "../lib/panel.js";
 import { crearServidor } from "../servidor.js";
-import { clienteS3Falso, comandosS3, objetosDeCarpeta } from "./aws-falso.js";
+import { clienteS3Falso, comandosS3, firmarFalso, objetosDeCarpeta } from "./aws-falso.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
 const BUCKET = "chameleon-almacen-000000000000";
@@ -130,4 +131,98 @@ test("memorizar con { desde }: sirve la lectura guardada solo si empezó despué
   assert.deepEqual([a, b], [2, 2], "más vieja que la pregunta: una nueva, compartida");
   assert.equal(await leer(), 2, "la nueva quedó como la guardada");
   assert.equal(await leer({ desde: pregunta }), 2, "ya empezó después de la pregunta");
+});
+
+// Con descargas firmadas: GET con node:http para elegir Sec-Fetch-Mode (el fetch de Node siempre manda "cors").
+async function conServidorFirmado(probar) {
+  const { objetos } = almacen();
+  const cliente = clienteS3Falso(BUCKET, objetos);
+  const fuente = crearFuenteS3({ bucket: BUCKET, region: "us-east-2", cliente, comandos: comandosS3, firmar: firmarFalso });
+  const servidor = crearServidor({ fuente });
+  await new Promise((listo) => servidor.listen(0, "127.0.0.1", listo));
+  const pedir = (ruta, cabeceras = {}) =>
+    new Promise((resolver, rechazar) => {
+      const opciones = { host: "127.0.0.1", port: servidor.address().port, path: `/backoffice/${ruta}`, headers: { "sec-fetch-mode": "no-cors", ...cabeceras } };
+      get(opciones, (respuesta) => {
+        const partes = [];
+        respuesta.on("data", (parte) => partes.push(parte));
+        respuesta.on("end", () => resolver({ estado: respuesta.statusCode, cabeceras: respuesta.headers, bytes: Buffer.concat(partes) }));
+      }).on("error", rechazar);
+    });
+  try {
+    await probar(pedir, { cliente, fuente });
+  } finally {
+    servidor.close();
+  }
+}
+
+test("con S3 que firma: una captura validada es un 302 a la URL firmada, sin bajarla por el servidor", async () => {
+  await conServidorFirmado(async (pedir, { cliente }) => {
+    const respuesta = await pedir(`archivos/${ID}/first_time/step_01.png`);
+    assert.equal(respuesta.estado, 302);
+    const destino = new URL(respuesta.cabeceras.location);
+    assert.equal(destino.origin, `https://${BUCKET}.s3.us-east-2.amazonaws.com`);
+    assert.equal(destino.pathname, `/${ID}/first_time/step_01.png`);
+    assert.equal(destino.searchParams.get("tipo"), "image/png");
+    assert.equal(destino.searchParams.get("cache"), "private, max-age=31536000, immutable", "el bucket la responde inmutable");
+    assert.equal(respuesta.cabeceras["cache-control"], "private, max-age=300");
+    assert.equal(respuesta.cabeceras.vary, "Sec-Fetch-Mode");
+    const leidas = cliente.llamadas.filter((c) => c.constructor.name !== "ListObjectsV2Command").map((c) => c.input.Key);
+    assert.ok(!leidas.some((clave) => clave.endsWith(".png")), "la captura no pasa por el servidor");
+
+    const video = await pedir(`archivos/${ID}/first_time/video.webm`, { range: "bytes=0-99" });
+    assert.equal(video.estado, 302, "el rango lo atiende el bucket");
+    assert.equal(new URL(video.cabeceras.location).searchParams.get("tipo"), "video/webm");
+
+    for (const ruta of [`${ID}/first_time/run.json`, `${ID}/.oculto/step_00.png`, `${EN_CURSO}/first_time/step_00.png`, `${FALLIDA}/first_time/step_00.png`]) {
+      const negada = await pedir(`archivos/${ruta}`);
+      assert.deepEqual([negada.estado, negada.cabeceras.location], [404, undefined], ruta);
+    }
+  });
+});
+
+test("con S3 que firma: un pedido con crossorigin (Sec-Fetch-Mode: cors) se sirve aquí, inmutable", async () => {
+  await conServidorFirmado(async (pedir, { fuente }) => {
+    const respuesta = await pedir(`archivos/${ID}/first_time/step_01.png`, { "sec-fetch-mode": "cors" });
+    assert.equal(respuesta.estado, 200);
+    assert.equal(respuesta.cabeceras["cache-control"], "private, max-age=31536000, immutable");
+    const original = await fuente.abrirArchivo(ID, "first_time/step_01.png");
+    assert.equal(respuesta.bytes.length, original.tamano);
+    original.cuerpo.destroy();
+  });
+});
+
+test("con S3 que firma: /resultados redirige con el tipo de texto del tema y sin caché; la CSP admite el bucket", async () => {
+  await conServidorFirmado(async (pedir) => {
+    const tema = await pedir("resultados/demo.cl/improver/2026-11-21T14-00-00Z/tema.css");
+    assert.equal(tema.estado, 302);
+    const destino = new URL(tema.cabeceras.location);
+    assert.equal(destino.searchParams.get("tipo"), "text/plain; charset=utf-8", "un tema no se abre como hoja de estilos");
+    assert.equal(destino.searchParams.get("cache"), "no-store");
+    assert.equal(tema.cabeceras["cache-control"], "no-store");
+    assert.equal((await pedir("resultados/demo.cl/cataloger/2026-11-21T09-00-00Z/outline.json")).estado, 404, "no es un archivo de resultado");
+
+    const csp = (await pedir("")).cabeceras["content-security-policy"];
+    const bucket = `https://${BUCKET}.s3.us-east-2.amazonaws.com`;
+    assert.ok(csp.includes(`img-src 'self' data: ${bucket};`), csp);
+    assert.ok(csp.includes(`media-src 'self' ${bucket};`), csp);
+    assert.ok(csp.includes("connect-src 'self';"), csp);
+  });
+});
+
+test("sin firma (S3 sin presigner o la fuente de archivos): se sigue enviando desde el servidor, con la CSP de siempre", async () => {
+  const { fuente } = almacen();
+  const servidor = crearServidor({ fuente });
+  await new Promise((listo) => servidor.listen(0, "127.0.0.1", listo));
+  try {
+    const base = `http://127.0.0.1:${servidor.address().port}/backoffice`;
+    const respuesta = await fetch(`${base}/archivos/${ID}/first_time/step_01.png`, { redirect: "manual" });
+    assert.equal(respuesta.status, 200);
+    assert.equal(respuesta.headers.get("vary"), null);
+    await respuesta.arrayBuffer();
+    const csp = (await fetch(`${base}/`)).headers.get("content-security-policy");
+    assert.ok(csp.includes("img-src 'self' data:; media-src 'self';"), csp);
+  } finally {
+    servidor.close();
+  }
 });

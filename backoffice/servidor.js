@@ -47,7 +47,7 @@ import { crearFuente } from "./lib/fuente.js";
 import { crearPanel } from "./lib/panel.js";
 import { ARCHIVO_DE_VISTA, crearPropuestas } from "./lib/propuestas.js";
 import { crearRevisiones, partesDeResultado } from "./lib/revisiones.js";
-import { abrirArchivoDeIntento, leerTanda, listarTandas } from "./lib/tandas.js";
+import { esArchivoDeIntento, leerTanda, listarTandas } from "./lib/tandas.js";
 import { partesDeCorrida, partesDeTanda } from "./public/nucleo/almacen.js";
 import { crearTransmisor } from "./lib/transmision.js";
 
@@ -76,14 +76,17 @@ const RUTA_PUBLICA =
 const RUTA_DE_PORTADA = /^[a-z0-9-]+\.(?:html|css|svg)$/;
 
 // Las capturas muestran páginas de terceros y a veces datos de quien corrió la prueba: la página
-// solo carga lo propio (más las fuentes de Google) y nada de lo leído de una corrida se ejecuta.
-const CABECERAS_DE_SEGURIDAD = {
+// solo carga lo propio (más las fuentes de Google y, con S3, las capturas y videos firmados del bucket) y nada de lo
+// leído de una corrida se ejecuta.
+const cabecerasDeSeguridad = (descargas = "") => ({
   "Content-Security-Policy":
-    "default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
+    `default-src 'self'; img-src 'self' data:${descargas && ` ${descargas}`}; media-src 'self'${descargas && ` ${descargas}`}; ` +
+    "style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; " +
+    "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
-};
+});
+const CABECERAS_DE_SEGURIDAD = cabecerasDeSeguridad();
 
 function responder(res, estado, tipo, cuerpo) {
   res.writeHead(estado, { "Content-Type": tipo, "Cache-Control": "no-store", ...CABECERAS_DE_SEGURIDAD });
@@ -109,10 +112,16 @@ const tipoDe = (nombre) => TIPOS[path.extname(nombre)] ?? "application/octet-str
 // el navegador la guarda en vez de volver a pedirla al cambiar de paso o de intento. `private`: solo ese navegador,
 // ningún caché compartido (pueden mostrar datos de quien corrió la prueba). Todo lo demás, no-store.
 const INMUTABLE = "private, max-age=31536000, immutable";
+// La redirección a una URL firmada (lib/fuentes/s3.js) se guarda menos de lo que le queda de validez a la firma.
+const REDIRECCION_INMUTABLE = "private, max-age=300";
+
+// Una captura que la página lee con canvas (el color de marca del Overview, con crossorigin) sigue llegando por aquí:
+// del bucket, sin CORS, quedaría inleíble.
+const pideMismoOrigen = (req) => req.headers["sec-fetch-mode"] === "cors";
 
 // Envía un archivo abierto (de una fuente o de public/), con 206 si se pidió un rango.
-async function enviar(req, res, nombre, { cuerpo, tamano, rango }, { tipo = tipoDe(nombre), cache = "no-store" } = {}) {
-  const cabeceras = { "Content-Type": tipo, "Cache-Control": cache, "Accept-Ranges": "bytes", ...CABECERAS_DE_SEGURIDAD };
+async function enviar(req, res, nombre, { cuerpo, tamano, rango }, { tipo = tipoDe(nombre), cache = "no-store", seguridad = CABECERAS_DE_SEGURIDAD } = {}) {
+  const cabeceras = { "Content-Type": tipo, "Cache-Control": cache, "Accept-Ranges": "bytes", ...seguridad };
   if (!cuerpo) {
     res.writeHead(416, { ...CABECERAS_DE_SEGURIDAD, "Content-Range": `bytes */${tamano}` });
     return res.end();
@@ -133,11 +142,11 @@ async function enviar(req, res, nombre, { cuerpo, tamano, rango }, { tipo = tipo
   }
 }
 
-async function servirPublico(req, res, ruta) {
+async function servirPublico(req, res, ruta, seguridad) {
   const info = await stat(ruta);
   if (!info.isFile()) return responderJson(res, 404, { error: "No encontrado" });
   const size = info.size;
-  return enviar(req, res, ruta, { cuerpo: createReadStream(ruta), tamano: size, rango: null });
+  return enviar(req, res, ruta, { cuerpo: createReadStream(ruta), tamano: size, rango: null }, { seguridad });
 }
 
 // La portada de la raíz: index.html y los archivos que pide, nada más.
@@ -184,6 +193,24 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
   const transmitir = crearTransmisor({ revisiones, cabeceras: CABECERAS_DE_SEGURIDAD, ...vivo });
   const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   const propuestas = crearPropuestas(origen);
+  const seguridad = cabecerasDeSeguridad(origen.origenDeDescargas);
+
+  // Un archivo de una corrida ya validado: con S3, un 302 a una URL firmada (el navegador lo baja del bucket, no a
+  // través de esta tarea); si no, se envía desde la fuente. false si no existe.
+  async function servirDeCorrida(req, res, clave, relativa, { tipo = tipoDe(relativa), cache = "no-store", redireccion = "no-store", rango } = {}) {
+    if (origen.urlDeDescarga && !pideMismoOrigen(req)) {
+      const url = await origen.urlDeDescarga(clave, relativa, { tipo, cache });
+      // Vary: un pedido con crossorigin no reutiliza esta redirección guardada.
+      res.writeHead(302, { Location: url, "Cache-Control": redireccion, Vary: "Sec-Fetch-Mode", ...CABECERAS_DE_SEGURIDAD });
+      res.end();
+      return true;
+    }
+    const abierto = await origen.abrirArchivo(clave, relativa, rango);
+    if (!abierto) return false;
+    await enviar(req, res, relativa, abierto, { tipo, cache });
+    return true;
+  }
+
   return createServer(async (req, res) => {
     try {
       // El balanceador revisa la tarea con su IP privada como Host: esta ruta no pasa por el chequeo y no lee nada.
@@ -251,28 +278,32 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
 
       if (partes[0] === "resultados") {
         const resultado = partesDeResultado(partes.slice(1).join("/"));
-        const abierto = resultado ? await origen.abrirArchivo(resultado.runKey, resultado.archivo) : null;
-        if (!abierto) return responderJson(res, 404, { error: "No existe ese resultado" });
-        const archivo = resultado.archivo;
-        return enviar(req, res, archivo, abierto, { tipo: TIPOS_DE_RESULTADO[path.extname(archivo)] ?? tipoDe(archivo) });
+        const archivo = resultado?.archivo;
+        const tipo = resultado && (TIPOS_DE_RESULTADO[path.extname(archivo)] ?? tipoDe(archivo));
+        const servido = resultado && (await servirDeCorrida(req, res, resultado.runKey, archivo, { tipo }));
+        if (!servido) return responderJson(res, 404, { error: "No existe ese resultado" });
+        return;
       }
 
       if (partes[0] === "archivos" && partes.length >= 4) {
-        const archivo = partes.at(-1);
+        const pedido = { id: partes.slice(1, -2).join("/"), perfil: partes.at(-2), archivo: partes.at(-1) };
         // Solo de tandas listadas (esTandaListada: las ya vistas en la lista no se vuelven a listar; si el id no está,
         // se busca en una lista nueva).
-        const abierto = await abrirArchivoDeIntento(
-          origen,
-          { id: partes.slice(1, -2).join("/"), perfil: partes.at(-2), archivo, rango: leerRango(req.headers.range) ?? undefined },
-          { esListada: panel.esTandaListada },
-        );
-        return abierto ? enviar(req, res, archivo, abierto, { cache: INMUTABLE }) : responderJson(res, 404, { error: "No existe ese archivo" });
+        const servido =
+          (await esArchivoDeIntento(origen, pedido, { esListada: panel.esTandaListada })) &&
+          (await servirDeCorrida(req, res, pedido.id, `${pedido.perfil}/${pedido.archivo}`, {
+            cache: INMUTABLE,
+            redireccion: REDIRECCION_INMUTABLE,
+            rango: leerRango(req.headers.range) ?? undefined,
+          }));
+        if (!servido) return responderJson(res, 404, { error: "No existe ese archivo" });
+        return;
       }
 
       const relativa = partes.length === 0 ? "index.html" : partes.join("/");
       if (RUTA_PUBLICA.test(relativa)) {
         const ruta = path.join(PUBLICO, relativa);
-        if (ruta.startsWith(PUBLICO + path.sep) && existsSync(ruta)) return servirPublico(req, res, ruta);
+        if (ruta.startsWith(PUBLICO + path.sep) && existsSync(ruta)) return servirPublico(req, res, ruta, seguridad);
       }
       return responderJson(res, 404, { error: "No encontrado" });
     } catch (error) {
