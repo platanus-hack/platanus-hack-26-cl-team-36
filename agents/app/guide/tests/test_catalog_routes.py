@@ -48,10 +48,11 @@ def _run_route(monkeypatch, tmp_path, goals: list[Goal], *options):
 
 
 def test_a_failed_goal_route_does_not_stop_the_others_and_each_run_names_the_catalog(tmp_path, monkeypatch, capsys):
-    async def fake_map_reference(browser, mapping, decider, out_dir):
+    async def fake_map_reference(browser, mapping, decider, out_dir, progress):
         if mapping.goal == "roto":
             raise RuntimeError("se cayó")
-        return {"status": "verified", "totals": {"min_steps": 7}}
+        return {"status": "verified", "totals": {"min_steps": 7},
+                "start": {"url": START, "title": "Inicio", "screenshot": None}, "steps": []}
 
     monkeypatch.setattr(reference, "map_reference", fake_map_reference)
     goals = [_goal("info"), _goal("roto"), _goal("pagina", intent="reach_page")]

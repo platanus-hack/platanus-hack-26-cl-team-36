@@ -34,6 +34,7 @@ from shared.store.manifest import (
 from shared.store.run_ids import Clock, format_run_id, parse_run_id, sort_run_ids, utc_now
 from shared.store.s3 import S3Backend
 from shared.store.selection import ENV_VAR, open_backend
+from shared.store.trace import TRACE, LiveTrace
 
 __all__ = [
     "ENV_VAR",
@@ -42,6 +43,7 @@ __all__ = [
     "Clock",
     "InvalidKey",
     "KeyParts",
+    "LiveTrace",
     "LocalBackend",
     "Manifest",
     "Run",
@@ -49,6 +51,7 @@ __all__ = [
     "RunPrefix",
     "S3Backend",
     "Status",
+    "TRACE",
     "Viewport",
     "cataloger",
     "conductor",

@@ -115,8 +115,13 @@ nueva de guide cuyos `inputs` son la ruta anterior y la corrida del Visitante. C
 ├── route.json        estado, respuesta, cita, totales, pasos, exploración, verificación y búsqueda
 ├── route.md
 ├── step_NN.png       la pantalla después de cada paso (step_00 es el inicio)
+├── trace.json        el avance en vivo; al terminar, la ruta de route.json con el estado final
 └── claude_code.log
 ```
+
+Mientras explora, cada paso sube al almacén su `step_NN.png` y `trace.json` (`steps` con la forma de route.json), sin
+esperar al final. Con `--shorter`, trace.json sigue la exploración en curso: al empezar otra vuelve a cero pasos. Al
+terminar, trace.json pasa a la ruta de route.json y se quitan las capturas de la exploración que la ruta no usa.
 
 La respuesta que encontró la ruta queda en `answer` de route.json: es la que va en `expected_answer` al promover un
 objetivo a tarea.

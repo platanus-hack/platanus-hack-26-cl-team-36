@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from playwright.async_api import Error as PlaywrightError
@@ -41,6 +42,14 @@ class Exploration:
     step_limit_warned: bool = False
 
 
+Progress = Callable[[Exploration], Awaitable[None]]
+"""Se llama al abrir la página inicial y tras cada paso ejecutado."""
+
+
+async def no_progress(exploration: Exploration) -> None:
+    pass
+
+
 def _describe(decision: Decision, view: PageView) -> str:
     element = view.element(decision.ref or "")
     parts = [decision.action, decision.ref]
@@ -68,7 +77,8 @@ def _exhausted_limit(exploration: Exploration, remaining_s: float) -> str | None
     return "time_limit" if remaining_s <= 0 else None
 
 
-async def _apply(session: BrowserSession, decision: Decision, view: PageView, exploration: Exploration) -> str | None:
+async def _apply(session: BrowserSession, decision: Decision, view: PageView, exploration: Exploration,
+                 progress: Progress) -> str | None:
     """Aplica una decisión. Devuelve el resultado para el historial, o None si la exploración terminó."""
     if decision.action in _FINAL_REASONS:
         exploration.end_reason, exploration.message = _FINAL_REASONS[decision.action], decision.text or ""
@@ -96,6 +106,7 @@ async def _apply(session: BrowserSession, decision: Decision, view: PageView, ex
     except PlaywrightError as error:
         return f"error: {error.message.splitlines()[0]}"
     exploration.steps.append(step)
+    await progress(exploration)
     return f"llegó a «{step.title_after}» {step.url_after}"
 
 
@@ -109,7 +120,7 @@ async def _read_view(session: BrowserSession) -> PageView:
 
 
 async def _turn(session: BrowserSession, decider: Decider, instruction: str, exploration: Exploration,
-                remaining_s: float, log: Log) -> None:
+                remaining_s: float, log: Log, progress: Progress) -> None:
     view = await _read_view(session)
     exploration.turns += 1
     prompt = render_turn(instruction, exploration.history, view)
@@ -121,13 +132,14 @@ async def _turn(session: BrowserSession, decider: Decider, instruction: str, exp
     except ClaudeCallError as error:
         exploration.end_reason, exploration.message = "model_error", str(error)
         return
-    outcome = await _apply(session, decision, view, exploration)
+    outcome = await _apply(session, decision, view, exploration, progress)
     if outcome is not None:
         exploration.history.append(HistoryEntry(decision.reason or "", _describe(decision, view), outcome))
         log(f"turno {exploration.turns}: {_describe(decision, view)} -> {outcome}")
 
 
-async def explore(session: BrowserSession, url: str, decider: Decider, instruction: str, log: Log = print) -> Exploration:
+async def explore(session: BrowserSession, url: str, decider: Decider, instruction: str, log: Log = print,
+                  progress: Progress = no_progress) -> Exploration:
     """Abre `url` y explora hasta que el modelo termina, se agota un límite o falla el navegador."""
     exploration = Exploration()
     started = time.monotonic()
@@ -135,11 +147,12 @@ async def explore(session: BrowserSession, url: str, decider: Decider, instructi
         await session.open(url)
         exploration.start_url, exploration.start_title = await session.url_and_title()
         exploration.start_screenshot = await session.screenshot()
+        await progress(exploration)
         while not exploration.end_reason:
             remaining_s = config.MAX_SECONDS - (time.monotonic() - started)
             exploration.end_reason = _exhausted_limit(exploration, remaining_s) or ""
             if not exploration.end_reason:
-                await _turn(session, decider, instruction, exploration, remaining_s, log)
+                await _turn(session, decider, instruction, exploration, remaining_s, log, progress)
     except PlaywrightError as error:
         exploration.end_reason, exploration.message = "browser_error", error.message.splitlines()[0]
     exploration.duration_s = round(time.monotonic() - started, 1)

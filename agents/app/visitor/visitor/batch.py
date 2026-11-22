@@ -5,6 +5,7 @@ El resultado de cada intento lo decide la ruta de la Guía (outcome.py); el juez
 
 import asyncio
 import json
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -31,6 +32,9 @@ from visitor.route_tree import build_route_tree
 from visitor.scripted_engine import NAME as SCRIPTED, RouteEngine
 
 _CRITERIA_SCREEN = SCREENS["desktop"]
+LiveTraces = Callable[[str, str], store.LiveTrace]
+"""El trace.json de un intento: recibe su carpeta y su perfil."""
+
 _EXHAUSTED_REASONS = {
     "step_limit": "Se agotaron las acciones disponibles",
     "time_limit": "Se agotó el tiempo disponible",
@@ -142,7 +146,8 @@ def _judge(engine: str, client, judge_model: str, claude_cwd: Path):
 
 async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references: References, url: str,
                     instruction: str, batch_dir: Path, browser: str, cdp_url: str | None, record_video: bool,
-                    css: str | None, conocimiento: ConocimientoDeTarea | None) -> tuple[list[Run], dict | None]:
+                    css: str | None, conocimiento: ConocimientoDeTarea | None,
+                    live: LiveTraces | None = None) -> tuple[list[Run], dict | None]:
     """Los intentos que cargaron la página, con su resultado, y el criterio del juez (None sin juez).
 
     Con `css`, todos con ese tema. Con `conocimiento`, los exploradores con nivel leen la tarea de su nivel; el criterio
@@ -162,6 +167,7 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
                 SyntheticUser(
                     make_engine(key), user_browser, PROFILES[key], url, instruction,
                     batch_dir / attempt_folder(key, attempt), record_video, conocimiento=conocimiento, attempt=attempt,
+                    trace=live(attempt_folder(key, attempt), key) if live else None,
                 )
                 for (key, attempt), user_browser in zip(slots, opened)
             ]
@@ -182,6 +188,11 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
             continue  # ni siquiera cargó la página: no aporta al árbol
         runs.append(run)
 
+    for user in users:
+        if user.trace is not None and user.run.start:
+            interrupted = user.run.end_reason in outcome.INTERRUPTED_REASONS
+            user.trace.write("failed" if interrupted else "succeeded", user.run.start, user.run.to_dict()["steps"])
+
     await asyncio.gather(*(
         _record_verdict(run, batch_dir / run.folder, references, judge, instruction, criteria) for run in runs
     ))
@@ -191,7 +202,8 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
 async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, profile_keys: list[str], runs: int,
                        references: References, judge: bool, engine: str, user_model: str, judge_model: str,
                        effort: str, cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None,
-                       conocimiento: ConocimientoDeTarea | None, conjunto_exploradores: str | None) -> int:
+                       conocimiento: ConocimientoDeTarea | None, conjunto_exploradores: str | None,
+                       live: LiveTraces | None = None) -> int:
     """Escribe la tanda en `batch_dir` y devuelve cuántos intentos no se interrumpieron."""
     css, tema = describir_tema(tema_css) if tema_css else (None, None)
     if css is not None:
@@ -205,7 +217,7 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
         judge_agent = _judge(engine, client, judge_model, claude_cwd) if judged else None
         attempts, criteria = await _attempts(judge_agent, make_engine, attempt_slots(profile_keys, runs), references,
                                              url, instruction, batch_dir, browser, cdp_url, record_video, css,
-                                             conocimiento)
+                                             conocimiento, live)
 
     run_dicts = [run.to_dict() for run in attempts]
     # El árbol y la ruta recomendada solo usan intentos reales; los interrumpidos quedan en el reporte.
@@ -288,7 +300,8 @@ async def run_batch(
                        inputs=(*inputs, *(key for key, _ in references.values()))) as run:
         finished = await _write_batch(run.workdir, prefix.goal, url, instruction, profile_keys, runs, references,
                                       judge, engine, user_model, judge_model, effort, cdp_url, browser, record_video,
-                                      tema_css, conocimiento, conjunto_exploradores)
+                                      tema_css, conocimiento, conjunto_exploradores,
+                                      lambda folder, profile: store.LiveTrace(backend, run, "visitor", profile, folder))
         if not finished:
             raise BatchInterrupted(run.key)
     return run.key

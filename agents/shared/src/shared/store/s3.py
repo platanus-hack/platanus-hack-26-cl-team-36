@@ -70,6 +70,12 @@ class S3Backend(Backend):
         shutil.rmtree(workdir)
         self._workdirs.pop(run, None)
 
+    def _publish_file(self, key: str, path: Path) -> None:
+        if path.is_file():
+            self.client.upload_file(str(path), self.bucket, self.prefix + key, ExtraArgs=object_args(key))
+        else:
+            self.client.delete_object(Bucket=self.bucket, Key=self.prefix + key)
+
     def _put(self, key: str, data: bytes, **extra: str) -> None:
         self.client.put_object(Bucket=self.bucket, Key=self.prefix + key, Body=data, **object_args(key), **extra)
 

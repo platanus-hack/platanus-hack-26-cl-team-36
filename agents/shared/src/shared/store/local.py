@@ -24,6 +24,15 @@ class LocalBackend(Backend):
             raise ValueError(f"{workdir} no es la carpeta de la corrida {run}")
         workdir_files(run, workdir)
 
+    def _publish_file(self, key: str, path: Path) -> None:
+        target = self.root / key
+        if path.resolve() == target.resolve():
+            return
+        if path.is_file():
+            self._put(key, path.read_bytes())
+        else:
+            target.unlink(missing_ok=True)
+
     def _put(self, key: str, data: bytes) -> None:
         temporary = self._temporary(key, data)
         os.replace(temporary, self.root / key)

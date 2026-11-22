@@ -1,6 +1,7 @@
 """Interfaz común de los backends: toda clave pasa por `parse_key` antes de tocar el almacén."""
 
 import json
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from pathlib import Path
@@ -8,6 +9,8 @@ from typing import Any
 
 from shared.store.keys import InvalidKey, RunKey, RunPrefix, parse_key
 from shared.store.run_ids import sort_run_ids
+
+_log = logging.getLogger(__name__)
 
 
 def json_bytes(value: Any) -> bytes:
@@ -73,6 +76,21 @@ class Backend(ABC):
     @abstractmethod
     def publish(self, run: RunKey, workdir: Path) -> None:
         """Deja en el almacén los archivos de la carpeta de trabajo."""
+
+    def publish_file(self, run: RunKey, workdir: Path, name: str, profile: str | None = None) -> None:
+        """Deja al momento en el almacén un archivo de la carpeta de trabajo de una corrida en curso.
+
+        Si el archivo ya no está, quita el publicado. Un fallo queda como aviso en el log y no se propaga: lo que se
+        publica al momento es para mirar la corrida, y `publish` vuelve a subir todo al final.
+        """
+        try:
+            key = run.file(name, profile)
+            self._publish_file(key, workdir / profile / name if profile else workdir / name)
+        except Exception as error:
+            _log.warning("no se pudo publicar %s/%s: %s: %s", run, name, type(error).__name__, error)
+
+    @abstractmethod
+    def _publish_file(self, key: str, path: Path) -> None: ...
 
     @abstractmethod
     def _put(self, key: str, data: bytes) -> None: ...

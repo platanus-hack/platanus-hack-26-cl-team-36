@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from playwright.async_api import Browser
 from playwright.async_api import Error as PlaywrightError
 
 from shared.browser.pixels import screen_change_ratio
+from shared import store
 from shared.browser.session import BrowserSession, blocked_form_count, create_context
 from shared.nodes.urls import node_key, normalize_url
 
@@ -52,6 +54,7 @@ class SyntheticUser:
         record_video: bool = False,
         conocimiento: ConocimientoDeTarea | None = None,
         attempt: int = 1,
+        trace: store.LiveTrace | None = None,
     ):
         self.engine = engine
         self.browser = browser
@@ -64,6 +67,7 @@ class SyntheticUser:
         self.terminos_vistos: set[str] = set()
         self.run_dir = run_dir
         self.record_video = record_video
+        self.trace = trace  # trace.json del intento, publicado tras cada paso
         self.session: BrowserSession | None = None
         self.run = Run(
             profile=profile.key,
@@ -132,6 +136,7 @@ class SyntheticUser:
             run.video_offset_s = round(self.started_at - self.session.opened_at, 2)
         self.last_step_end_s = 0.0
         await self._anotar_terminos_vistos()
+        await self._publish_trace(run.start["screenshot"])
         self._log(f"inicio en {url} — {title!r}")
 
         try:
@@ -438,8 +443,14 @@ class SyntheticUser:
         ))
         run.final_screenshot = screenshot_file
         self.last_step_end_s = elapsed_s
+        await self._publish_trace(screenshot_file)
         target = f" sobre «{element.get('text')}»" if element and element.get("text") else ""
         self._log(f"paso {number}: {executed.description}{target} -> {title!r} {signals or ''}")
+
+    async def _publish_trace(self, screenshot: str) -> None:
+        if self.trace is not None:
+            steps = [asdict(step) for step in self.run.steps]
+            await asyncio.to_thread(self.trace.write, "running", dict(self.run.start), steps, [screenshot])
 
     def _elapsed(self) -> float:
         return round(time.monotonic() - self.started_at, 2)
