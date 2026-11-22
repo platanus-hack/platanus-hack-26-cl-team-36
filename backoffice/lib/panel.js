@@ -141,7 +141,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
   // route_tree.json (la misma regla de Fuente.listarIds; ver CorridaDelIndice.listada).
   const leerListadas = memorizar(async () => new Set((await leerIndice()).corridas.filter((corrida) => corrida.listada).map((c) => c.clave)), memoriaMs);
   // idsDeTandas en el momento, solo cuando un id no está en la del índice (una tanda que terminó después del listado).
-  const leerFrescas = memorizar(async () => new Set(await idsDeTandas(fuente)), memoriaMs);
+  const leerFrescas = memorizar(async () => new Set(await idsDeTandas(fuente, { fresca: true })), memoriaMs);
   let frescas = new Set();
 
   // Las tandas que ya aparecieron en una lista. Una tanda listada es una corrida que terminó bien y no deja de serlo:

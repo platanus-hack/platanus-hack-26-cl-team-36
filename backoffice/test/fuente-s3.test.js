@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { crearFuente } from "../lib/fuente.js";
 import { crearFuenteDeArchivos } from "../lib/fuentes/archivos.js";
-import { crearFuenteS3, parsearAlmacen } from "../lib/fuentes/s3.js";
-import { leerTanda, listarTandas } from "../lib/tandas.js";
+import { ABIERTA_MS, FIRMA_S, VENTANA_S, crearFuenteS3, parsearAlmacen } from "../lib/fuentes/s3.js";
+import { idsDeTandas, leerTanda, listarTandas } from "../lib/tandas.js";
 import { crearServidor } from "../servidor.js";
 import { CLAVES_DE_EJEMPLO, CORRIDAS_DE_EJEMPLO } from "./almacen-en-memoria.js";
-import { clienteS3Falso, comandosS3, objetosDeCarpeta } from "./aws-falso.js";
+import { clienteS3Falso, comandosS3, firmarFalso, objetosDeCarpeta } from "./aws-falso.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
 const BUCKET = "chameleon-almacen-000000000000";
@@ -91,20 +91,90 @@ test("fuente S3: perfiles, JSON, existe, archivos y rangos", async (t) => {
   assert.equal(consola.mock.callCount(), 1);
 });
 
-test("fuente S3: lo de una corrida cerrada se lee una vez; una en curso se vuelve a mirar hasta que termina", async () => {
-  const { fuente, cliente, objetos } = almacen();
+test("fuente S3: lo de una corrida cerrada se lee una vez; una en curso se vuelve a mirar pasado ABIERTA_MS", async () => {
+  const { cliente, objetos } = almacen();
+  let ahora = 0;
+  const fuente = crearFuenteS3({ bucket: BUCKET, cliente, comandos: comandosS3, reloj: () => ahora });
   await listarTandas(fuente);
   const desde = cliente.llamadas.length;
   await listarTandas(fuente);
-  const nuevas = cliente.llamadas.slice(desde);
-  const leidas = nuevas.filter((c) => c.constructor.name !== "ListObjectsV2Command").map((c) => c.input.Key);
-  assert.deepEqual(leidas, [`${EN_CURSO}/manifest.json`], "solo el manifiesto de la corrida en curso");
-  assert.ok(nuevas.some((c) => c.constructor.name === "ListObjectsV2Command"), "vuelve a listar: puede haber corridas nuevas");
+  assert.equal(cliente.llamadas.length, desde, "dentro de LISTA_MS: la lista guardada y lo leído de las cerradas");
 
-  // La corrida en curso termina bien: aparece.
+  const leidasAlListar = async () => {
+    const antes = cliente.llamadas.length;
+    const ids = await fuente.listarIds();
+    const nuevas = cliente.llamadas.slice(antes);
+    return { ids, leidas: nuevas.filter((c) => c.constructor.name !== "ListObjectsV2Command").map((c) => c.input.Key) };
+  };
+  assert.deepEqual((await leidasAlListar()).leidas, [], "la en curso, dentro de ABIERTA_MS: sin releer su manifiesto");
+  ahora += ABIERTA_MS;
+  assert.deepEqual((await leidasAlListar()).leidas, [`${EN_CURSO}/manifest.json`], "pasado el plazo: solo el manifiesto de la en curso");
+
+  // La corrida en curso termina bien: aparece pasado el plazo.
   const manifiesto = JSON.parse(objetos[`${EN_CURSO}/manifest.json`]);
   objetos[`${EN_CURSO}/manifest.json`] = JSON.stringify({ ...manifiesto, status: "succeeded" });
+  assert.ok(!(await fuente.listarIds()).includes(EN_CURSO));
+  ahora += ABIERTA_MS;
   assert.ok((await fuente.listarIds()).includes(EN_CURSO));
+});
+
+test("idsDeTandas: los que piden a la vez comparten una pasada, se guarda LISTA_MS y `fresca` vuelve a listar", async () => {
+  const { fuente, cliente } = almacen();
+  const listados = () => cliente.contar("ListObjectsV2Command");
+  const [a, b] = await Promise.all([idsDeTandas(fuente), idsDeTandas(fuente)]);
+  assert.equal(a, b, "la misma lista");
+  const unaPasada = listados();
+  assert.deepEqual(await idsDeTandas(fuente), a);
+  assert.equal(listados(), unaPasada, "guardada");
+  const fresca = await idsDeTandas(fuente, { fresca: true });
+  assert.ok(listados() > unaPasada, "fresca: vuelve a listar");
+  assert.equal(await idsDeTandas(fuente), fresca, "y queda como la compartida");
+});
+
+test("leerTanda ve una tanda que terminó después de la lista guardada, aunque la fuente la recuerde abierta", async () => {
+  const { fuente, objetos } = almacen();
+  assert.ok(!(await listarTandas(fuente)).tandas.some((tanda) => tanda.id === EN_CURSO));
+  const manifiesto = JSON.parse(objetos[`${EN_CURSO}/manifest.json`]);
+  objetos[`${EN_CURSO}/manifest.json`] = JSON.stringify({ ...manifiesto, status: "succeeded" });
+  assert.equal((await leerTanda(fuente, EN_CURSO))?.id, EN_CURSO);
+  assert.equal(await leerTanda(fuente, "no/es/un-id"), null);
+});
+
+test("idsDeTandas: un error no se guarda", async () => {
+  let fallar = true;
+  const fuente = {
+    async listarIds() {
+      if (fallar) throw new Error("caído");
+      return [ID];
+    },
+  };
+  await assert.rejects(idsDeTandas(fuente), /caído/);
+  fallar = false;
+  assert.deepEqual(await idsDeTandas(fuente), [ID]);
+});
+
+test("fuente S3: URL firmada con el tipo y el caché pedidos, la misma dentro de una ventana de VENTANA_S", async () => {
+  const { cliente } = almacen("corridas/");
+  let ahora = Date.UTC(2026, 10, 22, 10, 0, 1);
+  const fuente = crearFuenteS3({ bucket: BUCKET, prefijo: "corridas/", region: "us-east-2", cliente, comandos: comandosS3, firmar: firmarFalso, reloj: () => ahora });
+  assert.equal(fuente.origenDeDescargas, `https://${BUCKET}.s3.us-east-2.amazonaws.com`);
+  const pedir = () => fuente.urlDeDescarga(ID, "first_time/step_01.png", { tipo: "image/png", cache: "private, max-age=1" });
+  const url = new URL(await pedir());
+  assert.equal(url.origin, fuente.origenDeDescargas);
+  assert.equal(url.pathname, `/corridas/${ID}/first_time/step_01.png`);
+  assert.deepEqual(
+    Object.fromEntries(url.searchParams),
+    { tipo: "image/png", cache: "private, max-age=1", vence: String(FIRMA_S), firmada: "2026-11-22T10:00:00.000Z" },
+  );
+  ahora += (VENTANA_S - 2) * 1000;
+  assert.equal(await pedir(), url.href, "dentro de la ventana: la misma URL");
+  ahora += 2000;
+  assert.notEqual(await pedir(), url.href, "otra ventana, otra firma");
+  assert.equal(cliente.llamadas.length, 0, "firmar no llama a S3");
+
+  const sinFirma = crearFuenteS3({ bucket: BUCKET, cliente, comandos: comandosS3 });
+  assert.equal(sinFirma.urlDeDescarga, undefined);
+  assert.equal(sinFirma.origenDeDescargas, undefined);
 });
 
 test("fuente S3: una corrida de otro agente se abre por su clave (resultados de una revisión)", async () => {

@@ -53,8 +53,9 @@ function pedirColor(img, src) {
   if (img.complete && img.naturalWidth) anotarColor(img, src);
 }
 
-function nuevo(src) {
-  const img = el("img", { src, alt: "", decoding: "async", draggable: "false" });
+function nuevo(src, color) {
+  // crossorigin: el servidor la manda desde su origen en vez de redirigir al bucket, y el canvas puede leerla.
+  const img = el("img", { crossorigin: color ? "anonymous" : null, src, alt: "", decoding: "async", draggable: "false" });
   img.addEventListener("load", () => {
     if (img.hasAttribute("data-color")) anotarColor(img, src);
   });
@@ -74,12 +75,14 @@ function nuevo(src) {
  */
 function tomar(src, { alt = "", color = false } = {}) {
   const lista = sueltos.get(src);
-  let img = lista?.pop();
-  if (img) {
+  const i = lista ? lista.findLastIndex((suelto) => suelto.hasAttribute("crossorigin") === color) : -1;
+  let img;
+  if (i >= 0) {
+    [img] = lista.splice(i, 1);
     cuantos--;
     if (!lista.length) sueltos.delete(src);
   } else {
-    img = nuevo(src);
+    img = nuevo(src, color);
   }
   img.alt = alt;
   if (color) pedirColor(img, src);
