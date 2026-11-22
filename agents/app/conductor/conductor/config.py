@@ -5,7 +5,7 @@ from pathlib import Path
 
 GOALS_MAX = 6
 RUNS = 1
-CONCURRENCY = 3
+CONCURRENCY = int(os.environ.get("CONDUCTOR_CONCURRENCY") or 6)   # 6: todos los goals de una revisión a la vez
 
 INVOKER_VAR = "CONDUCTOR_INVOKER"           # local (por defecto) o agentcore
 RUNTIME_ARN_VAR = "CONDUCTOR_RUNTIME_ARN"   # con agentcore: el runtime que corre cada etapa
