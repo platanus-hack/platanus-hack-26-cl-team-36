@@ -16,6 +16,7 @@ export default {
     sinTanda: "The goal finished without a Visitor batch.",
     verTanda: "Open the batch",
   },
+  guiaTrazando: "The Guide is tracing the route… Visitors start once it finishes.",
   sinConexion: "The live stream was cut.",
   noExiste: "Goal «{goal}» doesn't exist in review «{revision}».",
   volver: "Back to the review",

@@ -12,3 +12,7 @@
 .p-vivo .vivo-latiendo .icono { animation: vivo-latido 1.6s var(--curva-salida, ease-out) infinite; }
 @keyframes vivo-latido { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .p-vivo .vivo-latiendo .icono { animation: none; } }
+
+/* En la hoja (marco de montarMarcoEnVivo): la cabecera es la del marco; el panel lleva su propio margen. */
+.p-vivo.p-vivo-hoja { padding: var(--e-3) var(--e-5) var(--e-5); }
+.p-vivo .vivo-guia { color: var(--texto-2); }

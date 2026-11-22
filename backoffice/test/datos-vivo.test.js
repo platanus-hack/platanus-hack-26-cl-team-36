@@ -1,7 +1,7 @@
 // Cuándo un goal ofrece su telaraña en vivo y qué dice su indicador (public/datos/vivo.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RECIENTE_MS, estadoDelVivo, goalEnVivo, tandaDelGoal } from "../public/datos/vivo.js";
+import { RECIENTE_MS, estadoDelVivo, goalEnVivo, guiaTrazando, tandaDelGoal } from "../public/datos/vivo.js";
 
 const AHORA = Date.parse("2026-11-22T12:00:00Z");
 const hace = (ms) => new Date(AHORA - ms).toISOString();
@@ -32,4 +32,13 @@ test("el indicador sigue a la transmisión, salvo que la revisión ya diga que e
   assert.equal(estadoDelVivo("terminado", corriendo), "terminado");
   assert.equal(estadoDelVivo("error", goal(etapa("succeeded"), etapa("succeeded"))), "terminado", "un 204 al reconectar a un goal cerrado");
   assert.equal(estadoDelVivo("error", corriendo), "error");
+});
+
+test("la Guía traza la ruta: mientras el Visitante no sale (y la Guía no falló)", () => {
+  assert.equal(guiaTrazando(goal(etapa("running"), etapa("pending"))), true);
+  assert.equal(guiaTrazando(goal(etapa("pending"), null)), true);
+  assert.equal(guiaTrazando(goal(etapa("succeeded"), etapa("running"))), false);
+  assert.equal(guiaTrazando(goal(etapa("succeeded"), etapa("succeeded"))), false);
+  assert.equal(guiaTrazando(goal(etapa("failed"), etapa("pending"))), false);
+  assert.equal(guiaTrazando(null), false);
 });

@@ -14,7 +14,8 @@
 //
 // Una tanda se abre en una hoja sobre la vista de la que vino, que queda montada debajo (nucleo/hoja.js): la hoja
 // aparece al instante con el título y un esqueleto, y volver a esa vista cierra la hoja sin remontar nada. Una
-// revisión fallida (#/f/<revision>) se abre igual, con la misma cabecera y la pantalla de la falla en el panel.
+// revisión fallida (#/f/<revision>) se abre igual, con la misma cabecera y la pantalla de la falla en el panel, y un
+// goal en vivo (#/revisiones/<revision>/<goal>, mientras su tanda no se lista) con la telaraña en vivo en el panel.
 
 import { avisar, anunciar } from "./avisos.js";
 import { pedirTanda, pedirTandas, urlDeArchivo } from "./datos.js";
@@ -24,7 +25,7 @@ import { EVENTO_IDIOMA, IDIOMAS, cambiarIdioma, cargarSeccion, fmt, idioma, t } 
 import { registrarAtajos } from "./atajos.js";
 import { abrirHoja } from "./hoja.js";
 import { recargarUnaVez } from "./recarga.js";
-import { montarMarco, montarMarcoDeFallo } from "./marco-tanda.js";
+import { montarMarco, montarMarcoDeFallo, montarMarcoEnVivo } from "./marco-tanda.js";
 import { NOMBRES_DE_PESTANA, enlaceATanda, extraerIdioma, hashDe, origenDeHoja, parsearHash } from "./rutas.js";
 import { ponerTituloDeVista } from "./shell.js";
 import { conTransicion } from "./transiciones.js";
@@ -46,7 +47,7 @@ const ESPERAN_LA_LISTA = new Set(["corridas"]);
 // Vistas cuyos parámetros cambian sin remontar (actualizarParametros → actualizar(ctx) de la pantalla).
 const CON_PARAMETROS = new Set(["overview", "corridas", "tanda", "revisiones"]);
 // Las vistas que se abren en una hoja, sobre la vista de la que vinieron.
-const EN_HOJA = new Set(["tanda", "fallo"]);
+const EN_HOJA = new Set(["tanda", "fallo", "vivo"]);
 const enHoja = (v) => EN_HOJA.has(v?.tipo);
 // Título de respaldo de una vista sin título propio.
 const TITULO_DE_VISTA = { overview: "comun.shell.overview", corridas: "comun.shell.corridas", revisiones: "comun.shell.revisiones" };
@@ -131,6 +132,8 @@ function crearContexto(v) {
     carpeta: listaDeTandas.carpeta,
     tanda: v.tanda ?? null,
     pestana: v.pestana ?? null,
+    // En una hoja, su marco (la pantalla en vivo pone ahí la pastilla y el título).
+    marco: v.marco ?? null,
     urlDeArchivo: (intentoId, archivo) => urlDeArchivo(tandaId, carpetaDeIntento(v.tanda, intentoId), archivo),
     // En una tanda, el enlace a una de sus pestañas; fuera de ella, a esta misma vista con otros parámetros.
     enlace: (pestana, parametros = {}) =>
@@ -487,6 +490,7 @@ async function procesar({ origen = "historial" } = {}) {
   }
 
   if (nueva.tipo === "fallo") return abrirFallo(nueva, hash, { miTurno, fijarRuta, origen });
+  if (nueva.tipo === "vivo") return abrirVivo(nueva, hash, { miTurno, fijarRuta, origen });
 
   // Solo cambia la pestaña: el marco se queda.
   const soloPestana = !remontarTodo && nueva.tipo === "tanda" && vista?.tipo === "tanda" && vista.tandaId === nueva.tandaId && !!vista.tanda;
@@ -690,6 +694,36 @@ async function abrirFallo(nueva, hash, { miTurno, fijarRuta, origen }) {
   if (miTurno !== turno || vista !== v) return;
   fijarRuta(nueva, hash);
   if (cargado.datos?.cabecera) marco.ponerRevision(cargado.datos.cabecera);
+  await montarPantalla(v, cargado.modulo, marco.panel, cargado.datos);
+  if (miTurno !== turno) return;
+  avisarRuta();
+}
+
+/**
+ * Abre un goal en vivo en la hoja: al instante la cabecera (Mapa de caminos actual, Replay y Propuesta apagadas) y un
+ * esqueleto; la pantalla (pantallas/vivo.js) conecta el SSE y pone la pastilla y la tarea en el marco.
+ */
+async function abrirVivo(nueva, hash, { miTurno, fijarRuta, origen }) {
+  prepararHoja(origen);
+  const marco = montarMarcoEnVivo({ revision: nueva.revision, goal: nueva.goal, alVolver: volverDesdeLaHoja, escapar: () => vista?.modulo?.escapar?.() === true });
+  mostrarEnHoja(marco);
+  const v = { tipo: "vivo", id: "vivo", ruta: nueva, marco, quitar: [] };
+  vista = v;
+  enfocar(marco.titulo);
+
+  let cargado;
+  try {
+    cargado = await cargarRuta(nueva);
+  } catch (error) {
+    if (miTurno !== turno) return;
+    console.error(error);
+    fijarRuta(nueva, hash);
+    reemplazar(marco.panel, errorDeCarga(error, "vivo"));
+    avisarRuta();
+    return;
+  }
+  if (miTurno !== turno || vista !== v) return;
+  fijarRuta(nueva, hash);
   await montarPantalla(v, cargado.modulo, marco.panel, cargado.datos);
   if (miTurno !== turno) return;
   avisarRuta();

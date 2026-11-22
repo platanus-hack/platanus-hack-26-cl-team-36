@@ -1,10 +1,11 @@
 // En vivo (#/revisiones/<revision>/<goal>): la telaraña viva (public/telarana/viva.js) de un goal mientras corre su
-// revisión, alimentada por el SSE de api/vivo (telarana/fuente-sse.js). Se monta cuando llegó lo conocido al
+// revisión, alimentada por el SSE de api/vivo (telarana/fuente-sse.js). Se abre en la hoja (el enrutador le da el
+// marco de montarMarcoEnVivo: ahí van la pastilla y la tarea del goal; sin marco arma su propia cabecera). Se monta cuando llegó lo conocido al
 // conectar (o al tope de fuenteSSE), así el histórico se dibuja de una vez y solo se anima lo nuevo. Al terminar el
 // Visitante ofrece su tanda. "No existe" solo cuando la revisión respondió y el goal no está; un corte de la
 // transmisión deja la vista con un aviso y «Reintentar».
 
-import { pedirRevision } from "../nucleo/datos.js";
+import { pedirRevision, pedirTarjeta } from "../nucleo/datos.js";
 import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, esqueleto, vacio } from "../nucleo/estados.js";
 import { ocultarGlobo } from "../nucleo/globo.js";
@@ -12,13 +13,14 @@ import { cargarSeccion } from "../nucleo/i18n.js";
 import { icono } from "../nucleo/iconos.js";
 import { enlaceARevision, enlaceATanda } from "../nucleo/rutas.js";
 import { nombreConNivel } from "../datos/nombres.js";
-import { estadoDelVivo, tandaDelGoal } from "../datos/vivo.js";
+import { estadoDelVivo, guiaTrazando, tandaDelGoal } from "../datos/vivo.js";
 import { fuenteSSE } from "../telarana/fuente-sse.js";
 import { montarTelaranaViva } from "../telarana/viva.js";
 
 // Tras `fin`, la proyectora tarda unos segundos en anotar la tanda: se vuelve a leer la revisión hasta tenerla.
 const REINTENTO_MS = 3000;
 const REINTENTOS = 10;
+const SONDEO_DE_LA_GUIA_MS = 10000;
 const INDICADOR = {
   conectando: { tono: "neutro", icono: "proximamente", clave: "conectando" },
   "en-vivo": { tono: "acento", icono: "reproducir", clave: "enVivo" },
@@ -30,7 +32,7 @@ const INDICADOR = {
 function crearPantalla(contenedor, ctx) {
   const { t } = ctx;
   const { revision, goal } = ctx.ruta;
-  const estado = { fuente: null, vista: null, avance: null, reloj: null, reintentos: 0, vivo: true };
+  const estado = { fuente: null, vista: null, avance: null, reloj: null, sondeo: null, reintentos: 0, vivo: true };
   const delGoal = () => estado.avance?.goals?.find((g) => g.goal === goal) ?? null;
 
   contenedor.classList.add("p-vivo");
@@ -38,23 +40,40 @@ function crearPantalla(contenedor, ctx) {
   const meta = el("p", { class: "vivo-meta texto-3" });
   const zonaDeFin = el("div", { class: "vivo-fin" });
   const cuerpo = el("div", { class: "vivo-cuerpo" }, esqueleto("lienzo"));
+  // En la hoja, la cabecera es la del marco: el indicador va en su pastilla.
+  const marco = ctx.marco ?? null;
   const cabecera = el("header", { class: "vivo-cabecera" }, el("h1", { tabindex: "-1", "data-foco-inicial": "", texto: t("vivo.titulo", { goal }) }), indicador);
-  reemplazar(
-    contenedor,
-    el("nav", { class: "vivo-migas", "aria-label": t("comun.shell.revisiones") }, el("a", { href: enlaceARevision(), texto: t("comun.shell.revisiones") }), " / ", el("a", { class: "mono", href: enlaceARevision(revision), texto: revision })),
-    cabecera,
-    meta,
-    zonaDeFin,
-    cuerpo,
-  );
+  if (marco) {
+    contenedor.classList.add("p-vivo-hoja");
+    marco.ponerInsignia(indicador);
+    reemplazar(contenedor, meta, zonaDeFin, cuerpo);
+  } else {
+    reemplazar(
+      contenedor,
+      el("nav", { class: "vivo-migas", "aria-label": t("comun.shell.revisiones") }, el("a", { href: enlaceARevision(), texto: t("comun.shell.revisiones") }), " / ", el("a", { class: "mono", href: enlaceARevision(revision), texto: revision })),
+      cabecera,
+      meta,
+      zonaDeFin,
+      cuerpo,
+    );
+  }
 
   function pintarMeta() {
-    reemplazar(meta, estado.avance?.host ? el("span", { texto: estado.avance.host }) : null, el("code", { texto: `${revision} / ${goal}` }), el("span", { texto: t("vivo.subtitulo") }));
+    // Sin Visitante todavía, la telaraña muestra solo el camino de la Guía: se dice por qué.
+    const sinVisitante = estado.fuente?.estado !== "terminado" && guiaTrazando(delGoal());
+    if (sinVisitante) esperarAlVisitante();
+    reemplazar(
+      meta,
+      !marco && estado.avance?.host ? el("span", { texto: estado.avance.host }) : null,
+      el("code", { texto: `${revision} / ${goal}` }),
+      el("span", { class: sinVisitante ? "vivo-guia" : null, texto: t(sinVisitante ? "vivo.guiaTrazando" : "vivo.subtitulo") }),
+    );
   }
 
   function pintarEstado() {
     const actual = estadoDelVivo(estado.fuente?.estado, delGoal());
     const { tono, icono: nombre, clave } = INDICADOR[actual];
+    if (estado.vista) pintarMeta();
     indicador.className = `vivo-indicador insignia insignia-${tono}${actual === "en-vivo" ? " vivo-latiendo" : ""}`;
     reemplazar(indicador, icono(nombre), el("span", { texto: t(`vivo.estado.${clave}`) }));
     pintarFin(actual);
@@ -115,6 +134,21 @@ function crearPantalla(contenedor, ctx) {
     }, REINTENTO_MS);
   }
 
+  // Mientras la Guía traza, se vuelve a leer la revisión de vez en cuando para saber cuándo sale el Visitante.
+  function esperarAlVisitante() {
+    if (estado.sondeo || !estado.vivo) return;
+    estado.sondeo = setTimeout(async () => {
+      try {
+        const avance = await pedirRevision(revision);
+        if (avance) estado.avance = avance;
+      } catch {
+        // Se reintenta en la próxima vuelta.
+      }
+      estado.sondeo = null;
+      if (estado.vivo) pintarEstado();
+    }, SONDEO_DE_LA_GUIA_MS);
+  }
+
   function conectar() {
     // fuenteSSE avisa «conectando» antes de devolver la fuente; los avisos de una fuente reemplazada se ignoran.
     const vigente = () => !estado.fuente || estado.fuente === fuente;
@@ -166,6 +200,15 @@ function crearPantalla(contenedor, ctx) {
     async montar() {
       // Se conecta mientras cargan los estilos y la revisión: lo que llegue antes de montar se dibuja sin animar.
       const fuente = conectar();
+      if (marco) {
+        pedirTarjeta(revision)
+          .then((respuesta) => {
+            const tarjeta = respuesta?.tarjeta;
+            const delGoalEnTarjeta = tarjeta?.goals?.find((g) => g.goal === goal);
+            if (estado.vivo && tarjeta) marco.ponerGoal({ instruccion: delGoalEnTarjeta?.instruccion ?? null, sitio: tarjeta.sitio, host: tarjeta.host, url: tarjeta.url });
+          })
+          .catch(() => {});
+      }
       const [lectura] = await Promise.all([
         pedirRevision(revision).then(
           (avance) => ({ avance }),
@@ -188,13 +231,14 @@ function crearPantalla(contenedor, ctx) {
           vacio({ titulo: t("vivo.noExiste", { goal, revision }), nivel: 1, accion: { texto: t("vivo.volver"), href: enlaceARevision(revision) } }),
         );
       }
-      pintarMeta();
       montarVista(estado.fuente);
+      pintarMeta();
       pintarEstado();
     },
     desmontar() {
       estado.vivo = false;
       clearTimeout(estado.reloj);
+      clearTimeout(estado.sondeo);
       estado.vista?.desmontar();
       estado.fuente?.cerrar();
       estado.vista = null;

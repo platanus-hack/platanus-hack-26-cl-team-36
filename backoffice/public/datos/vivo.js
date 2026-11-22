@@ -24,3 +24,9 @@ export function estadoDelVivo(estadoDeLaFuente, goal) {
   if (estadoDeLaFuente === "terminado" || CERRADO.has(goal?.visitor?.estado)) return "terminado";
   return estadoDeLaFuente ?? "conectando";
 }
+
+/** El Visitante todavía no sale: la Guía traza la ruta (o espera su turno). No si la Guía falló. */
+export function guiaTrazando(goal) {
+  const visitante = goal?.visitor?.estado;
+  return !!goal && (!visitante || visitante === "pending") && goal.guide?.estado !== "failed";
+}

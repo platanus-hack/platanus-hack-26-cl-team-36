@@ -8,6 +8,9 @@
 //     ponerTanda() completa el título, la pastilla y los datos de las pestañas.
 //   - montarMarcoDeFallo: una revisión que falló antes de tener tanda. Las tres pestañas se ven apagadas (con un globo
 //     que dice qué falta) y el panel muestra la cadena de etapas (pantallas/fallo.js).
+//   - montarMarcoEnVivo: un goal de una revisión que corre, antes de que su tanda se liste. El Mapa de caminos es la
+//     telaraña en vivo (pantallas/vivo.js); Replay y Propuesta, apagadas hasta que terminen el Visitante y el
+//     Diseñador. Un enlace secundario lleva al avance técnico de la revisión.
 // Los atajos (1–3, Esc) van en el globo de cada botón.
 
 import { kbd, registrarAtajos } from "./atajos.js";
@@ -18,7 +21,7 @@ import { esqueleto } from "./estados.js";
 import { conGlobo, ocultarGlobo } from "./globo.js";
 import { fmt, t } from "./i18n.js";
 import { icono, icono24 } from "./iconos.js";
-import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda, parametrosQueSiguen } from "./rutas.js";
+import { NOMBRES_DE_PESTANA, PESTANAS, enlaceARevision, enlaceATanda, enlaceAVivo, parametrosQueSiguen } from "./rutas.js";
 import { limpiarTitulos } from "../tanda/titulos.js";
 
 /** El ícono de cada pestaña: el camino (como la Guía), reproducir y la paleta del Diseñador (como en el Overview). */
@@ -277,6 +280,66 @@ export function montarMarcoDeFallo({ revision, alVolver, escapar = () => false }
       reemplazar(cabecera.sitio, sitioDe({ url, host }));
       const texto = etapa ? t("comun.marco.detenidaEn", { etapa: t(`comun.etapa.${etapa}`) }) : t("comun.marco.fallida");
       reemplazar(cabecera.insignia, el("span", { class: "insignia insignia-fallido" }, icono("fallido"), el("span", { texto })));
+    },
+    desmontar() {
+      controlador.abort();
+      quitarAtajos();
+    },
+  };
+}
+
+/**
+ * Arma el marco de la hoja en vivo de un goal: la misma cabecera, con el Mapa de caminos como pestaña actual y las
+ * demás apagadas. La pantalla pone la pastilla (el indicador en vivo) y el título cuando sabe la tarea.
+ * → { raiz, panel, titulo, ponerGoal({ instruccion, sitio, host, url }), ponerInsignia(nodo), desmontar() }.
+ * @param {{ revision: string, goal: string, alVolver: () => void, escapar?: () => boolean }} opciones
+ */
+export function montarMarcoEnVivo({ revision, goal, alVolver, escapar = () => false }) {
+  const controlador = new AbortController();
+  const senal = controlador.signal;
+  const cabecera = armarCabecera({
+    textoDelTitulo: goal,
+    pestanas: PESTANAS.map((id, indice) =>
+      id === "telarana"
+        ? { id, href: enlaceAVivo(revision, goal), tecla: String(indice + 1) }
+        : { id, href: null, porque: t("comun.marco.alTerminar", { etapa: t(`comun.etapa.${NECESITA[id]}`) }) },
+    ),
+    alCerrar: alVolver,
+    senal,
+  });
+  cabecera.enlaces.get("telarana")?.setAttribute("aria-current", "page");
+  cabecera.nodo.querySelector(".pestanas")?.setAttribute("aria-label", t("comun.marco.enVivo"));
+  const avance = el("a", { class: "marco-sitio marco-avance", href: enlaceARevision(revision), "data-foco": "marco:avance", texto: t("comun.marco.avanceTecnico") });
+  cabecera.insignia.after(avance);
+  const panel = el("section", { id: "panel-tanda", class: "panel-tanda panel-vivo", tabindex: "-1" }, esqueleto("hoja"));
+  const raiz = el("div", { class: "marco-tanda marco-vivo" }, cabecera.nodo, panel);
+  panel.setAttribute("aria-label", t(NOMBRES_DE_PESTANA.telarana));
+
+  const quitarAtajos = registrarAtajos(
+    {
+      Escape: {
+        descripcion: t("comun.atajos.desc.cerrarTanda"),
+        accion: () => {
+          if (ocultarGlobo() || escapar()) return;
+          alVolver();
+        },
+      },
+    },
+    { ambito: "pantalla", grupo: "tanda" },
+  );
+
+  return {
+    raiz,
+    panel,
+    titulo: cabecera.titulo,
+    /** La tarea del goal como título (con el id en el globo) y el sitio ↗. */
+    ponerGoal({ instruccion, sitio, host, url }) {
+      cabecera.titulo.textContent = instruccion || goal;
+      cabecera.titulo.title = [instruccion, sitio].filter(Boolean).join(" · ") || goal;
+      reemplazar(cabecera.sitio, sitioDe({ url, host }));
+    },
+    ponerInsignia(nodo) {
+      reemplazar(cabecera.insignia, nodo);
     },
     desmontar() {
       controlador.abort();
