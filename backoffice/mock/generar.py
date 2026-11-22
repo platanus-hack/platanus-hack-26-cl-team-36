@@ -3,7 +3,8 @@
 Escribe en backoffice/.mock/ (fuera de git):
 
     corridas/         el mismo árbol que agents/.runs/ o el bucket: tandas del Visitante y las corridas de cataloger,
-                      guide e improver que enlazan las revisiones
+                      guide e improver que enlazan las revisiones (la del Diseñador, con tema.css, mejora.json y las
+                      capturas antes/después del tema de cada página de la ruta en vistas/)
     capturas/         una captura por estado de página; los step_NN.png de cada intento son enlaces duros a ellas
     revisiones.json   los ítems de la tabla chameleon-revisiones (los sirve mock/servir.js)
 
@@ -673,7 +674,7 @@ def disenar(sitio: Sitio, estado: Estado, vista: str) -> Diseno:
     return Diseno(W, H, hh, max(H, y + alto_pie), fijos, doc, ubicados)
 
 
-def png(ancho: int, alto: int, rects: list) -> bytes:
+def png(ancho: int, alto: int, rects: list, fondo: tuple[int, int, int] = FONDO) -> bytes:
     """PNG RGB de rectángulos de color pintados en orden, sobre el fondo."""
     recortados = []
     for x0, y0, x1, y1, color in rects:
@@ -684,7 +685,7 @@ def png(ancho: int, alto: int, rects: list) -> bytes:
     cortes = sorted({0, alto, *(r[1] for r in recortados), *(r[3] for r in recortados)})
     crudo = bytearray()
     for a, b in zip(cortes, cortes[1:]):
-        fila = bytearray(bytes(FONDO) * ancho)
+        fila = bytearray(bytes(fondo) * ancho)
         for x0, y0, x1, y1, color in recortados:
             if y0 <= a and y1 >= b:
                 fila[x0 * 3:x1 * 3] = color * (x1 - x0)
@@ -1218,7 +1219,10 @@ class Almacen:
         base = self.raiz.joinpath(*partes, run_id)
         base.mkdir(parents=True)
         for nombre, contenido in archivos.items():
-            if isinstance(contenido, str):
+            (base / nombre).parent.mkdir(parents=True, exist_ok=True)
+            if isinstance(contenido, bytes):
+                (base / nombre).write_bytes(contenido)
+            elif isinstance(contenido, str):
                 (base / nombre).write_text(contenido, encoding="utf-8")
             else:
                 escribir_json(base / nombre, contenido)
@@ -1286,17 +1290,152 @@ def tema_css(sitio: Sitio, revision: str) -> str:
             "html.mi-tema button, html.mi-tema [role=\"button\"] { min-height: 44px !important; }\n")
 
 
-def ruta_de_guia(sitio: Sitio, objetivo: Objetivo, inicio: str) -> dict:
+def camino_de_guia(sitio: Sitio, objetivo: Objetivo, inicio: str) -> list[tuple[str, Enlace | None]]:
+    """Las páginas de la ruta más corta al destino, cada una con el enlace que lleva a ella (None en la primera)."""
     destino = sitio.destinos[objetivo.id]
     dist = sitio.distancias(destino)
-    camino, actual = [Estado(inicio)], inicio
-    pasos = []
-    while actual != destino and len(pasos) < 10:
+    camino, actual = [(inicio, None)], inicio
+    while actual != destino and len(camino) <= 10:
         e = min((e for e in sitio.enlaces(Estado(actual)) if e.destino in dist), key=lambda e: dist[e.destino])
-        camino.append(Estado(e.destino))
-        pasos.append({"source": f"n{len(pasos) + 1}", "target": f"n{len(pasos) + 2}", "action": f"clic «{e.etiqueta}»",
-                      "url": sitio.url(Estado(e.destino)), "title": sitio.titulo(Estado(e.destino))})
+        camino.append((e.destino, e))
         actual = e.destino
+    return camino
+
+
+# ── Lo que deja el Diseñador: tema, mejora.json y vistas antes/después ───────────────────────────────────────────
+
+TEMA_FONDO = (251, 250, 247)
+TEMA_TEXTO_GRIS = (151, 161, 173)
+
+
+def acento_del_tema(sitio: Sitio) -> tuple[int, int, int]:
+    return oscurecer(sitio.color, 0.1)
+
+
+def tematizar(d: Diseno, sitio: Sitio) -> tuple[list, list]:
+    """Los rectángulos de una página con el tema de tema_css() aplicado, sin mover nada (las marcas valen para las dos
+    capturas): texto más oscuro y grueso, enlaces del color de acento y subrayados, el botón de la cabecera a 44 px."""
+    acento = acento_del_tema(sitio)
+    enlaces = {ENLACE, aclarar(ENLACE, 0.35)}
+    boton = oscurecer(sitio.color, 0.3)
+    doc = []
+    for x0, y0, x1, y1, c in d.doc:
+        # Enlaces sueltos, migas y el título de cada tarjeta (la tarjeta entera es un enlace).
+        if c in enlaces or (c == TEXTO and y1 - y0 == 12):
+            doc += [(x0, y0, x1, y1, acento), (x0, y1 + 3, x1, y1 + 5, acento)]
+        elif c == GRIS and y1 - y0 <= 10:
+            margen = 16 if d.ancho < 600 else 32
+            doc.append((x0, y0 - 1, max(x1, min(d.ancho - margen, x0 + int((x1 - x0) * 1.06))), y1 + 1, TEMA_TEXTO_GRIS))
+        else:
+            doc.append((x0, y0, x1, y1, c))
+    fijos = []
+    for x0, y0, x1, y1, c in d.fijos:
+        if c == boton:
+            medio = (y0 + y1) // 2
+            fijos.append((x0, medio - 22, x1, medio + 22, c))
+        else:
+            fijos.append((x0, y0, x1, y1, c))
+    return doc, fijos
+
+
+def marcas_de_la_vista(d: Diseno, siguiente: str | None, vista: str) -> list[dict]:
+    """Dónde va cada nota sobre la captura (fracciones del viewport): el enlace al paso siguiente de la ruta, el primer
+    bloque de texto y el botón de la cabecera."""
+    def fraccion(caja):
+        x0, y0, x1, y1 = caja
+        return [round(max(0, x0) / d.ancho, 4), round(max(0, y0) / d.alto, 4),
+                round(min(d.ancho, x1) / d.ancho, 4), round(min(d.alto, y1) / d.alto, 4)]
+
+    marcas = []
+    if siguiente:
+        candidatos = [u for u in d.ubicados if u.destino == siguiente and d.visible(u, 0)]
+        u = next((u for u in candidatos if u.lugar == "contenido"), candidatos[0] if candidatos else None)
+        if u:
+            marcas.append({"tipo": "siguiente", "dispositivo": vista, "caja": fraccion(u.caja)})
+    texto = next(((x0, y0, x1, y1) for x0, y0, x1, y1, c in d.doc
+                  if c == GRIS and y1 - y0 <= 10 and y1 < d.alto - 40 and y0 > d.cabecera), None)
+    if texto:
+        marcas.append({"tipo": "texto", "dispositivo": vista, "caja": fraccion((texto[0], texto[1] - 4, texto[2], texto[3] + 44))})
+    boton = d.buscar("cabecera", "/ingresar") if vista == "desktop" else d.buscar("hamburguesa")
+    if boton:
+        marcas.append({"tipo": "objetivos", "dispositivo": vista, "caja": fraccion(boton.caja)})
+    return marcas
+
+
+def vistas_del_tema(sitio: Sitio, camino: list[tuple[str, Enlace | None]], dibujar: bool) -> tuple[dict, list]:
+    """Capturas antes/después de cada página de la ruta, en escritorio y móvil, y su lista para mejora.json."""
+    archivos, vistas = {}, []
+    for i, (pagina, _) in enumerate(camino, 1):
+        estado = Estado(pagina)
+        siguiente = camino[i][0] if i < len(camino) else None
+        capturas, marcas = {}, []
+        for vista in VISTAS:
+            d = disenar(sitio, estado, vista)
+            nombre = f"vistas/{i:02d}-{vista}"
+            if dibujar:
+                doc, fijos = tematizar(d, sitio)
+                archivos[f"{nombre}-antes.png"] = png(d.ancho, d.alto, d.doc + d.fijos)
+                archivos[f"{nombre}-despues.png"] = png(d.ancho, d.alto, doc + fijos, TEMA_FONDO)
+            else:
+                archivos[f"{nombre}-antes.png"] = archivos[f"{nombre}-despues.png"] = png(1, 1, [])
+            capturas[vista] = {"antes": f"{nombre}-antes.png", "despues": f"{nombre}-despues.png"}
+            marcas += marcas_de_la_vista(d, siguiente, vista)
+        vistas.append({"url": sitio.url(estado), "titulo": sitio.titulo(estado), "capturas": capturas, "marcas": marcas})
+    return archivos, vistas
+
+
+def mejora_json(sitio: Sitio, revision: str, url: str, por_goal: dict[str, tuple[Objetivo, list]], inicio: str,
+                vistas: list, status: str) -> dict:
+    """mejora.json como lo escribe agents/app/web_designer/disenador/mejora.py, más `vistas`. El relato sale de lo que
+    pasó: dónde se quedaron los que no llegaron y qué enlace de la ruta no vieron."""
+    def tasa(intentos):
+        medidos = [r["verdict"].get("outcome") == "success" for _, r, _, _ in intentos]
+        return sum(medidos) / len(medidos) if medidos else 1.0
+
+    peor = min(por_goal.values(), key=lambda par: tasa(par[1]), default=None)
+    datos = {"resumen": {"revision": revision, "url": url}, "gustos": "Legible y con buen contraste, sin distracciones; "
+             "que lo que lleva a la tarea se destaque y se encuentre a la primera.",
+             "tarea": {"id": peor[0].id, "descripcion": peor[0].instruccion} if peor else None,
+             "modelo": "us.anthropic.claude-sonnet-4-6"}
+    if status != "succeeded":
+        return {**datos, "error": "TemaRechazado: el navegador rechazó el CSS saneado: selector fuera de html.mi-tema"}
+    resumen = "Letra más grande, interlineado amplio y enlaces subrayados: que lo que lleva a la tarea se vea a la primera."
+    siguiente_etiqueta = None
+    if peor:
+        objetivo, intentos = peor
+        camino = camino_de_guia(sitio, objetivo, inicio)
+        fallidos = [estados[-1].pagina for _, r, estados, _ in intentos if r["verdict"].get("outcome") != "success" and estados]
+        if fallidos:
+            parada = max(set(fallidos), key=fallidos.count)
+            n = fallidos.count(parada)
+            paginas = [pagina for pagina, _ in camino]
+            if parada in paginas[:-1]:
+                siguiente_etiqueta = camino[paginas.index(parada) + 1][1].etiqueta
+                quien = f"Los {n} visitantes llegaron" if n > 1 else "El visitante llegó"
+                resumen = (f"{quien} a «{sitio.nombre(Estado(parada))}» y "
+                           f"{'dieron' if n > 1 else 'dio'} la tarea por hecha: el enlace a «{siguiente_etiqueta}» "
+                           "no se veía como el siguiente paso.")
+            else:
+                resumen = (f"{n} de {len(intentos)} visitantes se desviaron antes de «{sitio.nombre(Estado(paginas[-1]))}»: "
+                           "el camino tiene que destacarse más que el resto del menú.")
+    acento = "#{:02x}{:02x}{:02x}".format(*acento_del_tema(sitio))
+    decisiones = [
+        f"Subrayar los enlaces con el acento {acento}" + (f" para que «{siguiente_etiqueta}» se vea como el siguiente paso."
+                                                          if siguiente_etiqueta else "."),
+        "Letra 12 % más grande e interlineado 1,6 para leer sin esfuerzo.",
+        "Botones de al menos 44 px de alto, fáciles de tocar en el celular.",
+        "Fondo cálido #fbfaf7 y texto #1f2933 para más contraste.",
+    ]
+    return {**datos, "resumen_tema": resumen, "decisiones": decisiones, "costo_usd": 0.0412, "rechazos": [],
+            "vistas": vistas}
+
+
+def ruta_de_guia(sitio: Sitio, objetivo: Objetivo, inicio: str) -> dict:
+    destino = sitio.destinos[objetivo.id]
+    pasos = []
+    for pagina, e in camino_de_guia(sitio, objetivo, inicio)[1:]:
+        pasos.append({"source": f"n{len(pasos) + 1}", "target": f"n{len(pasos) + 2}", "action": f"clic «{e.etiqueta}»",
+                      "url": sitio.url(Estado(pagina)), "title": sitio.titulo(Estado(pagina))})
     final = Estado(destino)
     return {"url": sitio.url(Estado(inicio)), "goal": objetivo.id, "viewport": "desktop",
             "instruction": objetivo.instruccion, "verified": True,
@@ -1391,6 +1530,7 @@ def revision(almacen: Almacen, sitio: Sitio, rng: random.Random, creada: datetim
     t = c1
     pendientes = {o.id: {"guide": None, "visitor": None} for o in goals}
     claves_visitor = []
+    por_goal: dict[str, tuple[Objetivo, list]] = {}  # los intentos de cada tanda terminada, para el Diseñador
     for o in goals:
         g0 = t + timedelta(seconds=rng.uniform(1, 4))
         g1 = g0 + timedelta(seconds=rng.uniform(60, 200))
@@ -1430,6 +1570,7 @@ def revision(almacen: Almacen, sitio: Sitio, rng: random.Random, creada: datetim
             clave = almacen.tanda(sitio, o, v0, intentos, meta_tanda, None, [clave_guia], rev)
             pendientes[o.id]["visitor"] = ("succeeded", clave, v0, v1)
             claves_visitor.append(clave)
+            por_goal[o.id] = (o, intentos)
         t = v1
 
     for o in goals:
@@ -1448,7 +1589,18 @@ def revision(almacen: Almacen, sitio: Sitio, rng: random.Random, creada: datetim
         if ocurrio(i0):
             i_termina = ocurrio(i1)
             i_status = ("failed" if fallo == "mejorador" else "succeeded") if i_termina else "running"
-            archivos = {"tema.css": tema_css(sitio, rev)} if i_status == "succeeded" else {}
+            archivos = {}
+            if i_status != "running":
+                vistas = []
+                if i_status == "succeeded" and por_goal:
+                    peor = min(por_goal.values(), key=lambda par: sum(r["verdict"].get("outcome") == "success"
+                                                                       for _, r, _, _ in par[1]) / max(1, len(par[1])))
+                    capturas_tema, vistas = vistas_del_tema(sitio, camino_de_guia(sitio, peor[0], inicio),
+                                                            almacen.capturas.dibujar)
+                    archivos.update(capturas_tema)
+                if i_status == "succeeded":
+                    archivos["tema.css"] = tema_css(sitio, rev)
+                archivos["mejora.json"] = mejora_json(sitio, rev, url, por_goal, inicio, vistas, i_status)
             clave_imp = almacen.corrida("improver", sitio, None, None, i0, i1, i_status,
                                         "us.anthropic.claude-sonnet-4-6", archivos, [clave_cat, *claves_visitor], rev)
             etapa("STAGE#improver", i0, i1, i_status, clave_imp)
