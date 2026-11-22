@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from disenador.motor.color import Color, Srgb, a_srgb, componer, contraste, fijo, luminancia, mejor_tinta, ok
 
 BLANCO = ok(0.995, 0, 0)
+LUCES_MARCA = (0.5, 0.62, 0.42, 0.7, 0.56, 0.66)
 
 
 def construir(p: dict, sitio) -> dict[str, Color]:
@@ -59,8 +60,12 @@ def construir(p: dict, sitio) -> dict[str, Color]:
     col["marca-boton-texto"] = BLANCO
 
     clara, oscura = ok(0.99, 0, 0), ok(0.17, 0.01, h)
+    # Con categorías derivadas, Nativa no inventa colores: son luces del tono de la marca.
+    monocromas = p["categorias"] == "marca" and getattr(sitio, "categorias_derivadas", False)
     for i, categoria in enumerate(sitio.categorias, start=1):
         l0, c0, h0 = categoria["color"]
+        if monocromas:
+            l0, c0, h0 = LUCES_MARCA[(i - 1) % len(LUCES_MARCA)], min(c0, mc), mh
         base = ok(max(l0, 0.66) if p["categorias"] == "aclaradas" else l0, c0, h0)
         col[f"c{i}"] = base
         col[f"c{i}-tinta"] = mejor_tinta(base, clara, oscura)

@@ -17,7 +17,7 @@ METRO = motor.rasgos_del_sitio("www.metro.cl")
 SEMILLAS = range(1, 201)
 
 
-@pytest.mark.parametrize("direccion", ["A", "B", "C", "auto"])
+@pytest.mark.parametrize("direccion", ["A", "B", "C", "D", "auto"])
 def test_barrido_de_semillas_sin_rechazos_ni_fallas_aa(direccion):
     vistas_recetas = set()
     for semilla in SEMILLAS:
@@ -44,7 +44,7 @@ def test_mismo_resultado_que_el_prototipo():
                       4.51),
     }
     for (direccion, semilla), (elegida, recetas, minimo) in esperado.items():
-        informe = motor.componer(METRO, direccion, semilla).informe
+        informe = motor.componer(METRO, direccion, semilla, fidelidad=0).informe
         assert (informe["direccion"], informe["recetas"], informe["contraste"]["minimo"]) == (elegida, recetas, minimo)
 
 
@@ -69,19 +69,18 @@ MAPA = {"botones_destacados": [{"fondo": "rgb(0, 102, 51)"}], "colores_de_enlace
 
 @pytest.mark.parametrize("direccion", ["A", "B", "C", "auto"])
 def test_sitio_sin_carpeta(direccion):
+    """Solo con el mapa: sin zonas, con tonos derivados de la marca; entran las recetas que no piden zonas."""
     sitio = motor.rasgos_del_sitio("www.ejemplo.invalid", MAPA)
-    assert sitio.carpeta is None and sitio.zonas == {} and sitio.categorias == []
+    assert sitio.carpeta is None and sitio.zonas == {} and len(sitio.categorias) == 6
     assert 140 < sitio.marca["h"] < 170  # el verde del botón
+    assert sitio.categorias[0]["color"][2] == sitio.marca["h"]
     for semilla in range(1, 31):
         tema = motor.componer(sitio, direccion, semilla)
         assert tema.ok and tema.informe["saneador"]["fuera_de_ambito"] == []
         assert "#home" not in tema.css and "{{" not in tema.css
-        recetas = tema.informe["recetas"]
-        # Sin zonas ni categorías no entran las recetas que las piden.
-        assert not set(recetas) & {"letrero", "en-vivo", "vidrio", "placas-atajo", "discos-lanzador", "franja",
-                                   "bento-lanzador", "rebote", "filete-secciones"}
+        assert not set(tema.informe["recetas"]) & {"en-vivo"}
         assert tema.informe["parametros"]["hero"] is None
-    assert any("zonas del sitio" in a or "requiere categorías" in a for a in tema.informe["avisos"])
+    assert any("zonas del sitio" in a for a in tema.informe["avisos"])
 
 
 def test_ajustes_fuera_de_rango_se_recortan():
@@ -253,4 +252,4 @@ def test_orden_del_lanzador_verificada_tasa_y_prominencia():
 def test_las_hojas_del_motor_solo_usan_marcadores_conocidos():
     for ruta in RAIZ.rglob("*.css"):
         for marcador in re.findall(r"\{\{([^}]*)\}\}", ruta.read_text(encoding="utf-8")):
-            assert re.fullmatch(r"[#/](cats|lanz)|(i|c|nombre|num|sep|ncats)|[zv]\.\w+", marcador), (ruta, marcador)
+            assert re.fullmatch(r"[#/](cats|lanz|z\.\w+)|(i|c|nombre|num|sep|ncats)|[zv]\.\w+", marcador), (ruta, marcador)

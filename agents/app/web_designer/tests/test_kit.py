@@ -453,7 +453,11 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     # El modelo eligió dirección; el código compuso, recortó el ajuste y ocultó el planificador original.
     assert disenador.llamadas[0]["esquema"] is ESQUEMA_MOTOR and len(disenador.llamadas) == 1
     informe = backend.read_json(archivos["informe.json"])
-    assert informe["modo"] == "motor" and informe["direccion"] == "B" and informe["semilla"] == 4
+    assert informe["modo"] == "motor" and informe["direccion"] == "B" and informe["pedido"]["semilla_modelo"] == 4
+    # La semilla que se compone mezcla la del modelo con la de la página; el sitio medido llega al modelo.
+    assert informe["semilla"] == informe["pedido"]["semilla"] != 4 and isinstance(informe["medida"], dict)
+    diag = backend.read_json(archivos["diagnostico.json"])
+    assert set(diag["sitio"]["auto_si_transforma"]) == {"A", "B", "C"} and "rasgos" in diag["sitio"]
     assert informe["parametros"]["escala"] == 1.27 and any("tipo.escala=2" in a for a in informe["avisos"])
     assert informe["contraste"]["fallas"] == [] and informe["contraste"]["minimo"] >= 4.5 and informe["tokens"]
     assert informe["ocultar"] == [{"vista": "planificar-viaje", "selector": "#home"}]

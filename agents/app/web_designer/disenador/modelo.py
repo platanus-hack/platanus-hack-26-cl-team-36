@@ -80,12 +80,14 @@ _LISTA_DE_RECETAS = {"type": "array", "items": {"enum": list(recetas_meta())}}
 ESQUEMA_MOTOR = {
     "type": "object",
     "properties": {
-        "direccion": {"enum": [*DIRECCIONES, "auto"]},
+        "direccion": {"enum": ["auto", *DIRECCIONES],
+                      "description": "`auto` salvo una razón fuerte del sitio para fijar una."},
         "semilla": {"type": "integer", "minimum": 1, "maximum": 2_147_483_647},
         "ajustes": {
             "type": "object",
             "properties": {
                 **{ruta: {"type": "number"} for ruta in AJUSTES_NUMERICOS},
+                "fidelidad": {"type": "number", "minimum": 0, "maximum": 1},
                 "hero": {"enum": ["ocultar", "atmosfera"]},
                 "disposicion": {"enum": ["apilado", "mosaico"]},
                 "orden": {"enum": ["natural", "tareas-primero"]},
@@ -124,10 +126,13 @@ def contrato_motor() -> str:
 
 No escribes CSS: eliges una dirección de arte y el código compone el tema, lo sanea y verifica el contraste AA.
 Respondes solo el JSON pedido, con:
-- `direccion`: una de estas, o `auto` para que el código la elija según los rasgos del sitio:
+- `direccion`: `auto` por omisión: casi siempre sale `D` (Nativa: el mismo sitio, con su paleta, su letra y su forma,
+  refinado) y a veces una expresiva elegida con los rasgos medidos (en el diagnóstico, `sitio`). Fija `A`, `B` o `C`
+  solo si se pide un cambio de carácter o el sitio da una razón fuerte; "legible" no es razón: todas pasan AA.
 {_direcciones_para_el_modelo()}
-- `semilla`: un entero ≥ 1; la misma semilla da el mismo tema, otra semilla otra variante dentro de la dirección.
-- `ajustes`: opcional, para acercar el tema a los gustos. Un número fija ese parámetro dentro del rango de la
+- `semilla`: un entero ≥ 1; se combina con la de la página: otra semilla da otra variante dentro de la dirección.
+- `ajustes`: opcional, para acercar el tema a los gustos. `fidelidad` (0 a 1, 0,8 por omisión) es cuánto refina
+  `auto` en vez de transformar: 1 siempre Nativa, 0 siempre una expresiva. Un número fija ese parámetro dentro del rango de la
   dirección (fuera del rango se recorta); `hero`, `disposicion` y `orden` eligen una variante del sitio, si la tiene;
   `recetas.agregar` y `recetas.quitar` suman o sacan bloques: {recetas}. Una receta que no calza con la dirección
   o el sitio se ignora con un aviso.

@@ -45,6 +45,7 @@ html.mi-tema .mt-atajo__invertir {
 html.mi-tema .mt-atajo__ir {
   box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.22), 0 10px 30px -10px var(--mt-acento);
 }
+{{#z.nav}}
 html.mi-tema {{z.nav}} {
   border: 1px solid var(--mt-vidrio-linea) !important;
   background: var(--mt-vidrio) !important;
@@ -52,6 +53,8 @@ html.mi-tema {{z.nav}} {
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   backdrop-filter: blur(18px) saturate(160%);
 }
+{{/z.nav}}
+{{#z.panel}}
 html.mi-tema {{z.panel}} {
   border: 1px solid var(--mt-vidrio-linea) !important;
   background: var(--mt-vidrio) !important;
@@ -63,13 +66,14 @@ html.mi-tema {{z.panel_celda}} {
   background: var(--mt-vidrio-campo) !important;
   box-shadow: inset 0 0 0 1px var(--mt-vidrio-linea);
 }
+{{/z.panel}}
 @container (max-width: 640px) {
   html.mi-tema .mt-atajo__campos {
     padding: 16px;
   }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  html.mi-tema :is(.mt-atajo__campos, {{z.nav}}, {{z.panel}}) {
+  html.mi-tema :is(.mt-atajo__campos{{#z.nav}}, {{z.nav}}{{/z.nav}}{{#z.panel}}, {{z.panel}}{{/z.panel}}) {
     background: var(--mt-superficie) !important;
   }
 }
