@@ -7,7 +7,6 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { crearFuenteS3 } from "../lib/fuentes/s3.js";
 import { crearPanel, memorizar } from "../lib/panel.js";
-import { idsDeTandas } from "../lib/tandas.js";
 import { crearServidor } from "../servidor.js";
 import { clienteS3Falso, comandosS3, objetosDeCarpeta } from "./aws-falso.js";
 
@@ -47,17 +46,14 @@ async function conServidor(fuente, probar) {
 }
 
 test("N capturas pedidas dentro de la ventana: una sola pasada de listado", async () => {
-  // Lo que cuesta una pasada de idsDeTandas en frío, sobre el mismo almacén.
-  const referencia = almacen();
-  await idsDeTandas(referencia.fuente);
-  const unaPasada = listados(referencia.cliente);
-  assert.ok(unaPasada > 0);
-
   const { cliente, fuente } = almacen();
   await conServidor(fuente, async (pedir) => {
+    assert.equal(await pedir(`${ID}/${CAPTURAS[0]}`), 200);
+    const unaPasada = listados(cliente);
+    assert.ok(unaPasada > 0);
     assert.deepEqual(await Promise.all(CAPTURAS.map((captura) => pedir(`${ID}/${captura}`))), CAPTURAS.map(() => 200), "a la vez");
     for (const captura of CAPTURAS) assert.equal(await pedir(`${ID}/${captura}`), 200, `una por una: ${captura}`);
-    assert.equal(listados(cliente), unaPasada, `${2 * CAPTURAS.length} capturas, una pasada`);
+    assert.equal(listados(cliente), unaPasada, `${2 * CAPTURAS.length + 1} capturas, una pasada`);
   });
 });
 

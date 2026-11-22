@@ -11,7 +11,9 @@
 // - Tabla: un Scan de los META y una Query por cada revisión que corre (para en_cola y "detenida"). En /api/overview,
 //   además, una Query por cada revisión con tarjeta (6 por pestaña, hasta LIMITE_MAXIMO en la pedida); los ítems de
 //   las cerradas (done, failed) se guardan, así una página más larga solo consulta las que se suman.
-// - Almacén: el índice relee solo lo abierto. goals.json y el acento del tema.css de corridas cerradas se leen una vez.
+// - Almacén: el índice lista el almacén entero a lo más cada LISTADO_MS (30 s) y en cada pasada relee solo lo abierto.
+//   goals.json y el acento del tema.css de corridas cerradas se leen una vez. Las tandas que se listan (capturas,
+//   `tanda`, /archivos/) salen del índice, sin listar; un id que no está ahí se busca en un listado fresco.
 //
 // Seguridad: el almacén solo se lee con claves que listó la fuente o con run_key / css_key de la tabla validadas con
 // partesDeCorrida para el rol y el goal esperados (claveDeCorridaDelItem, claveDelTema). Las capturas solo apuntan a
@@ -19,7 +21,7 @@
 // acento sale solo si es un hex.
 
 import { REVISION } from "../public/nucleo/almacen.js";
-import { crearIndice } from "./indice.js";
+import { LISTADO_MS, crearIndice } from "./indice.js";
 import { contarResumen, idsConTarjeta, listasDelOverview, parametrosDelOverview } from "./overview.js";
 import { claveDeCorridaDelItem, claveDelTema } from "./revisiones.js";
 import { acentoDelTema, hostDeRevision, nombreDelSitio, nombreDeHost, rutaComparable } from "./sitio.js";
@@ -125,29 +127,40 @@ function porHost(corridas) {
 /**
  * @param {{ fuente: import("./fuente.js").Fuente,
  *           revisiones?: ReturnType<typeof import("./revisiones.js").crearRevisiones> | null,
- *           reloj?: () => Date, memoriaMs?: number }} opciones
- *        sin `revisiones`, /api/overview dice que no está disponible y en_cola es 0; `memoriaMs` solo para pruebas
+ *           reloj?: () => Date, memoriaMs?: number, listadoMs?: number }} opciones
+ *        sin `revisiones`, /api/overview dice que no está disponible y en_cola es 0; `memoriaMs` y `listadoMs` (cada
+ *        cuánto se vuelve a listar el almacén, LISTADO_MS) solo para pruebas
  */
-export function crearPanel({ fuente, revisiones = null, reloj = () => new Date(), memoriaMs = MEMORIA_MS }) {
-  const indice = crearIndice(fuente);
+export function crearPanel({ fuente, revisiones = null, reloj = () => new Date(), memoriaMs = MEMORIA_MS, listadoMs = LISTADO_MS }) {
+  const indice = crearIndice(fuente, { listadoMs });
   const leerIndice = memorizar(() => indice.leer(), memoriaMs);
-  const leerListadas = memorizar(async () => new Set(await idsDeTandas(fuente)), memoriaMs);
+  // Las tandas que lista idsDeTandas, sin volver a listar el almacén: las del índice que terminaron bien y tienen
+  // route_tree.json (la misma regla de Fuente.listarIds; ver CorridaDelIndice.listada).
+  const leerListadas = memorizar(async () => new Set((await leerIndice()).corridas.filter((corrida) => corrida.listada).map((c) => c.clave)), memoriaMs);
+  // idsDeTandas en el momento, solo cuando un id no está en la del índice (una tanda que terminó después del listado).
+  const leerFrescas = memorizar(async () => new Set(await idsDeTandas(fuente)), memoriaMs);
+  let frescas = new Set();
 
   // Las tandas que ya aparecieron en una lista. Una tanda listada es una corrida que terminó bien y no deja de serlo:
   // no se vuelve a listar por ella (sin esto, cada captura pedida después de MEMORIA_MS costaba una pasada entera).
   const confirmadas = new Set();
 
   /**
-   * ¿idsDeTandas de esta fuente lista la tanda? Una ya confirmada, sin leer nada. Si no, mira la lista compartida (la
-   * misma de las capturas de las tarjetas) y, si el id no está, una que empezó después de la pregunta, que queda como
-   * la compartida: una tanda recién terminada se sirve igual y N capturas seguidas cuestan una sola pasada de listado.
-   * Lo usa /archivos/ (servidor.js).
+   * ¿idsDeTandas de esta fuente lista la tanda? Una ya confirmada, sin leer nada. Si no, mira la lista del índice (sin
+   * listar el almacén) y la última fresca; si el id no está en ninguna, una fresca que empezó después de la pregunta
+   * (compartida entre los que preguntan a la vez y guardada para los siguientes): una tanda recién terminada se sirve
+   * igual, antes del 404. La que aparece en una lista queda confirmada. Lo usan /archivos/ y /api/propuestas/
+   * (servidor.js).
    * @param {string} id
    */
   async function esTandaListada(id) {
     if (confirmadas.has(id)) return true;
     const pregunta = performance.now();
-    const listada = (await leerListadas()).has(id) || (await leerListadas({ desde: pregunta })).has(id);
+    let listada = (await leerListadas()).has(id) || frescas.has(id);
+    if (!listada) {
+      frescas = await leerFrescas({ desde: pregunta });
+      listada = frescas.has(id);
+    }
     if (listada) confirmadas.add(id);
     return listada;
   }
@@ -200,21 +213,19 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     });
   }
 
-  async function tarjetaDe(meta, { tabla, ahora, listadas, almacen, deHost }) {
+  async function tarjetaDe(meta, { tabla, ahora, almacen, deHost }) {
     const items = await itemsDe(meta, tabla);
     const { catalogo: itemCatalogo, improver, goals } = itemsPorEtapa(items);
 
     const claveCatalogo = itemCatalogo?.status === "succeeded" ? claveDeCorridaDelItem(itemCatalogo, "cataloger") : null;
     const claveTema = (improver?.status === "succeeded" ? claveDeCorridaDelItem(improver, "improver") : null) ?? claveDelTema(meta.css_key);
     const tandas = new Map();
-    // La tanda del Visitante de cada goal en esta revisión (nunca otra del mismo goal), si /archivos/ la sirve.
-    const listadaDe = new Map();
     const [catalogo, acento] = await Promise.all([
       claveCatalogo ? catalogoDe(claveCatalogo) : null,
       claveTema ? acentoDe(claveTema) : null,
       ...[...goals].map(async ([goal, { visitor }]) => {
         const clave = claveDeCorridaDelItem(visitor, "visitor", goal);
-        if (clave && listadas.has(clave)) listadaDe.set(goal, clave);
+        // Una run_key que el índice todavía no conoce (recién creada, antes del próximo listado) se lee por su clave.
         const tanda = clave ? (almacen.porClave.get(clave) ?? (await indice.corrida(clave))) : null;
         if (tanda) tandas.set(goal, tanda);
       }),
@@ -222,8 +233,8 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
 
     const host = hostDeRevision(meta);
     const ruta = rutaComparable(meta.url);
-    const comoGrupo = (lista) =>
-      lista.filter((tanda) => listadas.has(tanda.clave)).map((tanda) => ({ tanda: tanda.clave, intentos: tanda.intentos }));
+    // Solo tandas que /archivos/ sirve (las que idsDeTandas lista: CorridaDelIndice.listada).
+    const comoGrupo = (lista) => lista.filter((tanda) => tanda.listada).map((tanda) => ({ tanda: tanda.clave, intentos: tanda.intentos }));
     const capturas = elegirCapturas([
       comoGrupo([...tandas.values()].sort(masNuevaPrimero)),
       comoGrupo(host && ruta ? deHost.tandasDe(host, ruta) : []),
@@ -234,7 +245,8 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
       ahora,
       catalogo,
       intentosDe: (goal) => tandas.get(goal)?.intentos ?? [],
-      tandaDe: (goal) => listadaDe.get(goal) ?? null,
+      // La tanda del Visitante de cada goal en esta revisión (nunca otra del mismo goal), si /archivos/ la sirve.
+      tandaDe: (goal) => (tandas.get(goal)?.listada ? tandas.get(goal).clave : null),
       capturas,
       acento,
       sitio: host ? deHost.sitioDe(host) : nombreDeHost(""),
@@ -257,12 +269,12 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
   async function armarOverview(pagina) {
     const ahora = reloj();
     if (!revisiones) return { ahora: ahora.toISOString(), disponible: false };
-    const [tabla, almacen, listadas] = await Promise.all([leerTabla(), leerIndice(), leerListadas()]);
+    const [tabla, almacen] = await Promise.all([leerTabla(), leerIndice()]);
     const estados = estadosDeLaTabla(tabla, ahora);
     const { cuentas, pestanas } = listasDelOverview(estados, pagina);
     const ids = idsConTarjeta({ pestanas });
     const porId = new Map(estados.map((estado) => [estado.revision, estado.meta]));
-    const contexto = { tabla, ahora, listadas, almacen, deHost: deHostDe(almacen) };
+    const contexto = { tabla, ahora, almacen, deHost: deHostDe(almacen) };
     const tarjetas = await Promise.all(ids.map((id) => tarjetaDe(porId.get(id), contexto)));
     return {
       ahora: ahora.toISOString(),
@@ -296,8 +308,8 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
       const tabla = await leerTabla();
       const meta = tabla.metas.find((otra) => idDe(otra) === revision);
       if (!meta) return null;
-      const [almacen, listadas] = await Promise.all([leerIndice(), leerListadas()]);
-      return tarjetaDe(meta, { tabla, ahora, listadas, almacen, deHost: deHostDe(almacen) });
+      const almacen = await leerIndice();
+      return tarjetaDe(meta, { tabla, ahora, almacen, deHost: deHostDe(almacen) });
     },
   };
 }

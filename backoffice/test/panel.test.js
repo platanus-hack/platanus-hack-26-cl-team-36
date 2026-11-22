@@ -150,7 +150,7 @@ test("lecturas: dos pedidos juntos comparten la misma; luego solo se consulta lo
   cliente.llamadas.length = 0;
   await panel.overview();
   assert.deepEqual(consultas().sort(), ["Query REV#corre", "Query REV#espera", "Scan"].sort(), "las cerradas quedaron guardadas");
-  assert.equal(llamadas.listarCorridas, 2);
+  assert.equal(llamadas.listarCorridas, 1, "dentro de LISTADO_MS no se vuelve a listar el almacén");
 });
 
 test("memorizar: comparte la promesa mientras corre y por un rato después; un error no se guarda", async () => {

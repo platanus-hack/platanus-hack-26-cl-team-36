@@ -122,6 +122,20 @@ for (const prefijo of ["", "corridas/"]) {
   });
 }
 
+test("fuente S3: existe de un archivo suelto de una corrida cerrada sale de su carpeta ya listada, sin HEAD", async () => {
+  const { fuente, cliente } = almacen();
+  const cabezas = () => cliente.contar("HeadObjectCommand");
+  await fuente.listarPerfiles(ID); // corrida cerrada: su carpeta queda guardada
+  assert.deepEqual([await fuente.existe(ID, "route_tree.json"), await fuente.existe(ID, "no-existe.json")], [true, false]);
+  assert.equal(cabezas(), 0);
+  assert.equal(await fuente.existe(ID, "first_time/step_01.png"), true, "dentro de un perfil, con HEAD");
+  assert.equal(cabezas(), 1);
+  await fuente.listarPerfiles(EN_CURSO);
+  assert.equal(await fuente.existe(EN_CURSO, "route_tree.json"), true);
+  assert.equal(await fuente.existe(EN_CURSO, "route_tree.json"), true);
+  assert.equal(cabezas(), 3, "una en curso se vuelve a mirar");
+});
+
 test("fuente S3: leerTexto guarda el de una corrida cerrada y vuelve a leer el de una en curso", async () => {
   const objetos = { ...CORRIDAS_DE_EJEMPLO, "demo.cl/improver/2026-11-21T15-00-00Z/tema.css": "html.mi-tema { --mi-acento: #123; }" };
   const cliente = clienteS3Falso(BUCKET, objetos);

@@ -3,6 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   colorDeRespaldo,
   contraste,
@@ -13,6 +14,9 @@ import {
   luminancia,
   textoSobre,
 } from "../public/overview/marca.js";
+
+// --texto-1 de tokens.css: la página lo lee de ahí y se lo pasa a textoSobre.
+const CLARO = "#F5F5F7";
 
 test("píxel → hex en minúsculas; uno casi transparente no da color", () => {
   assert.equal(hexDePixel(Uint8ClampedArray.from([235, 96, 10, 255])), "#eb600a");
@@ -43,16 +47,17 @@ test("contraste WCAG: blanco sobre negro 21, igual consigo mismo 1", () => {
 
 test("inicial clara mientras llegue a 3:1 (los colores de marca de la maqueta), oscura sobre colores claros", () => {
   for (const marca of ["#EB600A", "#C41E24", "#005493", "#0B4F8A", "#008C95", "#D6286E", "#1E78C8", "#1F7A4D", "#5B2A86", "#2C3E50"]) {
-    assert.equal(textoSobre(marca), "claro", marca);
+    assert.equal(textoSobre(marca, CLARO), "claro", marca);
   }
-  assert.equal(textoSobre("#ffffff"), "oscuro");
-  assert.equal(textoSobre("#f3d34a"), "oscuro");
-  assert.equal(textoSobre("#2ee6c5"), "oscuro");
-  assert.equal(textoSobre("no-es-color"), "claro");
+  assert.equal(textoSobre("#ffffff", CLARO), "oscuro");
+  assert.equal(textoSobre("#f3d34a", CLARO), "oscuro");
+  assert.equal(textoSobre("#2ee6c5", CLARO), "oscuro");
+  assert.equal(textoSobre("no-es-color", CLARO), "claro");
+  assert.equal(textoSobre("#ffffff"), "claro", "sin color de texto con que comparar, clara");
   // El respaldo de cualquier host es legible con una de las dos.
   for (const host of ["a.test", "b.test", "movilsur.test", "zz.cl"]) {
     const fondo = colorDeRespaldo(host);
-    const letra = textoSobre(fondo) === "claro" ? "#f5f5f7" : "#0b0b10";
+    const letra = textoSobre(fondo, CLARO) === "claro" ? CLARO : "#0b0b10";
     assert.ok(contraste(fondo, letra) >= 3, `${host}: ${fondo}`);
   }
 });
@@ -74,4 +79,9 @@ test("inicial: la primera letra del nombre del sitio, en mayúscula (o la del ho
   assert.equal(inicial("  ", "www.unilitoral.test"), "U");
   assert.equal(inicial("", ""), "·");
   assert.equal(inicial("Éxito"), "É");
+});
+
+test("el texto claro con que se compara es --texto-1 de tokens.css", () => {
+  const tokens = readFileSync(new URL("../public/estilos/tokens.css", import.meta.url), "utf8");
+  assert.match(tokens, new RegExp(`--texto-1:\\s*${CLARO}`, "i"));
 });
