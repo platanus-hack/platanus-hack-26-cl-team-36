@@ -111,12 +111,16 @@ _MOTOR_SCRIPT = r"""
 """
 
 
-def script_de_kit(tema_json: Path, css_tema: str) -> str:
+def script_de_kit(tema_json: Path, css_tema: str, src: Path | None = None) -> str:
     """El script que monta un kit como la extensión: el tema (CSS de los componentes y `css_tema`), los content scripts
-    del manifest que no usan `browser.*`, en su orden, y las features de `tema_json`. Solo en el frame principal."""
+    del manifest que no usan `browser.*`, en su orden, y las features de `tema_json`. Solo en el frame principal.
+
+    `src` es la carpeta de la extensión con su manifest; sin ella, la primera que la contenga subiendo desde el kit."""
     # El kit puede estar dentro de `src/` o fuera (los de ejemplo viven en `extension/test/fixtures/`).
-    src = next(carpeta for padre in tema_json.parents for carpeta in (padre, padre / "src")
-               if (carpeta / "manifest.json").is_file())
+    src = src or next((carpeta for padre in tema_json.parents for carpeta in (padre, padre / "src")
+                       if (carpeta / "manifest.json").is_file()), None)
+    if src is None:
+        raise TemaInvalido(f"no hay una extensión (manifest.json) sobre {tema_json}")
     contenido = json.loads((src / "manifest.json").read_text(encoding="utf-8"))["content_scripts"][0]
 
     def leer(tipo: str) -> list[str]:
@@ -175,14 +179,14 @@ def describir_tema(css_path: Path) -> tuple[str, dict]:
     return contenido.decode("utf-8"), datos
 
 
-def describir_kit(tema_json: Path) -> tuple[str, dict]:
+def describir_kit(tema_json: Path, src: Path | None = None) -> tuple[str, dict]:
     """El script de un kit (`tema_json` y el `tema.css` de su carpeta) y cómo se registra en la tanda: como un tema,
-    con el sha256 corto del script completo (cambia si cambia un componente) y `kit: true`.
+    con el sha256 corto del script completo (cambia si cambia un componente) y `kit: true`. `src`: ver `script_de_kit`.
 
     Lanza TemaInvalido si el `tema.css` trae algo que el filtro de la extensión borraría.
     """
     css, _ = describir_tema(tema_json.with_name("tema.css"))
-    script = script_de_kit(tema_json, css)
+    script = script_de_kit(tema_json, css, src)
     datos = {
         "archivo": tema_json.name,
         "sha256": hashlib.sha256(script.encode()).hexdigest()[:12],
