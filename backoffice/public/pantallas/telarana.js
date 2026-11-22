@@ -45,12 +45,9 @@ function crearPantalla(contenedor, ctx) {
   const perfiles = (tanda.perfiles ?? []).map((perfil) => ({ id: perfil.perfil, nombre: perfil.nombre ?? perfil.perfil }));
   const nombreDePerfil = (id) => nombreConNivel(perfiles.find((perfil) => perfil.id === id)?.nombre ?? intentos.get(id)?.nombrePerfil ?? id, t);
   const nombre = (pagina) => nombreDePagina(pagina, t);
-  // El grosor de los tramos y el eje (el camino más transitado) cuentan las veces que se pasó por cada tramo
-  // (rama.pasadas), como en la telaraña del PR #49; el ×N del panel y de los globos sigue contando intentos distintos.
-  const distribucion = distribuir({
-    ...(tanda.telarana ?? {}),
-    ramas: (tanda.telarana?.ramas ?? []).map((rama) => ({ ...rama, intentos: rama.pasadas ?? rama.intentos })),
-  });
+  // El grosor de los tramos y el eje (el camino más transitado) cuentan intentos distintos, no las veces que se pasó
+  // por cada tramo: un explorador que va y vuelve 40 veces entre dos páginas no engorda el tramo.
+  const distribucion = distribuir(tanda.telarana ?? {});
 
   const estado = {
     seleccion: null,
