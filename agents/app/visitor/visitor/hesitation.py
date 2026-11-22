@@ -50,4 +50,6 @@ def hesitation_points(run: dict) -> list[str]:
         points.append(f"Incidencia: {incident}.")
     if run.get("screenshots_requested"):
         points.append(f"Pidió {run['screenshots_requested']} captura(s) extra para volver a mirar la pantalla.")
+    if run.get("turnos_sin_accion"):
+        points.append(f"{run['turnos_sin_accion']} turno(s) del modelo sin ninguna acción en la página.")
     return points
