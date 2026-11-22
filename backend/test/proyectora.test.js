@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { claveDeEvento, crearProyectora, goalsElegidos, profundidad } from "../proyectora.js";
+import { claveDeEvento, crearProyectora, goalsElegidos, pasosDelGoal, profundidad } from "../proyectora.js";
 import { claveRevision } from "../estados.js";
 import { almacenFalso, tablaFalsa } from "./fakes.js";
 
@@ -370,11 +370,28 @@ test("Visitante con varios intentos: el GOAL muestra el último que avanzó, sin
   const primero = [VISITA_TRAZA, traza("visitor", [pasoVisita(1), pasoVisita(2), pasoVisita(3)], { updated_at: "2026-11-21T12:00:10Z" })];
   const segundo = [VISITA_TRAZA_2, traza("visitor", [pasoVisita(1)], { updated_at: "2026-11-21T12:00:20Z" })];
   for (const orden of [[primero, segundo], [segundo, primero]]) {
-    const { publicar, item } = conTrazas();
+    const { publicar, item, resumen } = conTrazas();
     for (const [clave, contenido] of orden) await publicar(clave, contenido);
     assert.equal(item("GOAL#buscar-precio#visitor").trace_key, VISITA_TRAZA_2);
     assert.equal(item("GOAL#buscar-precio#visitor").step, 1);
+    // El resumen suma los pasos de todos los intentos, también los del que avanzó antes.
+    assert.equal(resumen().pasos, 4);
   }
+});
+
+test("Visitante con varios intentos: un aviso viejo de un intento no le baja los pasos", async () => {
+  const { publicar, almacen, proyectar, resumen } = conTrazas();
+  await publicar(VISITA_TRAZA, traza("visitor", [pasoVisita(1), pasoVisita(2)]));
+  await publicar(VISITA_TRAZA_2, traza("visitor", [pasoVisita(1), pasoVisita(2), pasoVisita(3)]));
+  almacen.archivos[VISITA_TRAZA] = traza("visitor", [pasoVisita(1)]);
+  await proyectar(VISITA_TRAZA);
+  assert.equal(resumen().pasos, 5);
+});
+
+test("pasosDelGoal: los de cada intento si los hay; si no, step", () => {
+  assert.equal(pasosDelGoal({ step: 3 }), 3);
+  assert.equal(pasosDelGoal({ step: 1, "step#desktop": 4, "step#mobile": 1, "trace_at#desktop": "x" }), 5);
+  assert.equal(pasosDelGoal({}), 0);
 });
 
 test("trazas malformadas, sin revisión, de una revisión inexistente o fuera del layout se ignoran sin lanzar", async () => {

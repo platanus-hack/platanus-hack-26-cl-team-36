@@ -253,6 +253,15 @@ test("skipped: el Visitante no lanzado cuenta como cerrado, en el resumen guarda
   assert.deepEqual(avance.progreso, { cerrados: 4, total: 4, goalsConocidos: true });
 });
 
+test("resumen calculado: con varios intentos del Visitante suma los pasos de cada uno", () => {
+  const items = [
+    meta("varios", { goals_total: 1 }),
+    item("varios", "GOAL#horario#guide", "succeeded", { step: 3 }),
+    item("varios", "GOAL#horario#visitor", "running", { step: 1, "step#desktop": 4, "step#desktop-2": 1, "trace_at#desktop": "x" }),
+  ];
+  assert.equal(calcularResumen(items).pasos, 8);
+});
+
 test("trace_at de la proyectora sale como trazaActualizada, solo con una traza válida", () => {
   const conHora = (campos) => avanceDeRevision([meta("hora"), item("hora", "GOAL#horario#guide", "running", { run_key: GUIA, trace_at: "2026-11-22T10:40:59Z", ...campos })]).goals[0].guide;
   assert.equal(conHora({ trace_key: `${GUIA}/trace.json` }).trazaActualizada, "2026-11-22T10:40:59Z");

@@ -62,6 +62,15 @@ export function goalsElegidos(goals, goalsMax) {
 }
 
 const GOAL = /^GOAL#(.+)#(guide|visitor)$/;
+// Con varios intentos, el GOAL del Visitante guarda los pasos de cada uno en `step#<carpeta>`; `step` es el del último
+// que avanzó.
+const PASOS_DEL_INTENTO = "step#";
+
+export function pasosDelGoal(item) {
+  const porIntento = Object.entries(item).filter(([nombre, valor]) => nombre.startsWith(PASOS_DEL_INTENTO) && Number.isFinite(valor));
+  if (porIntento.length) return porIntento.reduce((total, [, valor]) => total + valor, 0);
+  return Number.isFinite(item.step) ? item.step : 0;
+}
 
 // Foto de la revisión a partir de todos sus ítems: no depende del orden de los eventos.
 export function resumir(items) {
@@ -78,7 +87,7 @@ export function resumir(items) {
     if (!goal) continue;
     goals.add(goal);
     contar(agente, item.status);
-    if (Number.isFinite(item.step)) pasos += item.step;
+    pasos += pasosDelGoal(item);
   }
   const agentes_activos = Object.values(fases).reduce((total, fase) => total + fase.running, 0);
   return { fases, agentes_activos, pasos, goals_total: goals.size };
@@ -87,7 +96,8 @@ export function resumir(items) {
 // <host>/guide/<goal>/<viewport>/<run>/trace.json o <host>/visitor/<goal>/<run>/<carpeta>/trace.json
 function rutaDeTraza(clave) {
   const [, agente, goal, ...resto] = clave.split("/");
-  return ["guide", "visitor"].includes(agente) && goal && resto.length === 3 ? { agente, goal } : null;
+  if (!["guide", "visitor"].includes(agente) || !goal || resto.length !== 3) return null;
+  return { agente, goal, carpeta: agente === "visitor" ? resto[1] : null };
 }
 
 const texto = (valor) => (typeof valor === "string" ? valor : null);
@@ -180,6 +190,15 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
     const SK = `GOAL#${ruta.goal}#${ruta.agente}`;
     const updated_at = ahora().toISOString();
     const avance = { step: steps.length, ...ultimoPaso({ steps, start }), trace_key: clave, trace_at, updated_at };
+    if (ruta.carpeta) {
+      // Cada intento cuenta sus pasos aparte: el aviso de un intento atrasado no se pierde ni retrocede a otro.
+      const traceAtDelIntento = `trace_at#${ruta.carpeta}`;
+      await db.actualizar(
+        claveRevision(revision, SK),
+        { [`${PASOS_DEL_INTENTO}${ruta.carpeta}`]: steps.length, [traceAtDelIntento]: trace_at },
+        { hasta: { [traceAtDelIntento]: trace_at } },
+      );
+    }
     await db.actualizar(claveRevision(revision, SK), avance, { hasta: { trace_at } });
     const status = items.find((item) => item.SK === SK)?.status;
     if (status === undefined || status === "pending") await avanzarEtapa(revision, SK, "running", { updated_at });

@@ -119,6 +119,12 @@ const ESTADOS = ["pending", "running", "succeeded", "failed", "skipped"];
 const fasesVacias = () => Object.fromEntries(FASES.map((fase) => [fase, Object.fromEntries(ESTADOS.map((e) => [e, 0]))]));
 const entero = (valor) => Math.max(0, Math.trunc(numero(valor) ?? 0));
 
+// Como pasosDelGoal de backend/proyectora.js: con varios intentos, los de cada uno (`step#<carpeta>`); si no, `step`.
+function pasosDelGoal(item) {
+  const porIntento = Object.keys(item).filter((nombre) => nombre.startsWith("step#"));
+  return porIntento.length ? porIntento.reduce((total, nombre) => total + entero(item[nombre]), 0) : entero(item.step);
+}
+
 /**
  * El resumen por fase que la proyectora guarda en META (`resumen`), calculado desde los ítems: para revisiones viejas
  * que no lo tienen. Los goals que META anuncia y todavía no tienen ítem cuentan como pendientes.
@@ -138,7 +144,7 @@ export function calcularResumen(items) {
     if (!partes) continue;
     goals.add(partes[1]);
     contar(partes[2], item.status);
-    pasos += entero(item.step);
+    pasos += pasosDelGoal(item);
   }
   const goalsTotal = Math.max(numero(meta.goals_total) ?? 0, goals.size);
   for (const fase of ["guide", "visitor"]) {
