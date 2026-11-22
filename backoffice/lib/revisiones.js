@@ -37,7 +37,7 @@ function paso(item, etapa) {
   return { estado, runKey, actualizada: item?.updated_at ?? null, resultados };
 }
 
-const numero = (valor) => (valor === undefined || valor === null || valor === "" ? null : Number(valor));
+const numero = (valor) => (valor === undefined || valor === null || valor === "" || !Number.isFinite(Number(valor)) ? null : Number(valor));
 
 /** Lo que muestra la lista: un ítem META. */
 export function resumenDeMeta(item) {
@@ -47,7 +47,7 @@ export function resumenDeMeta(item) {
     host: item.host ?? null,
     estado: item.status ?? "queued",
     goalsTotal: numero(item.goals_total),
-    css: partesDeResultado(item.css_key) ? item.css_key : null,
+    css: partesDeResultado(item.css_key)?.archivo === "tema.css" ? item.css_key : null,
     creada: item.created_at ?? null,
     actualizada: item.updated_at ?? null,
   };

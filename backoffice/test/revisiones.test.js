@@ -97,6 +97,13 @@ test("failed: el estado de la revisión manda y una run_key que no es del almac�
   assert.deepEqual(avance.progreso, { cerrados: 1, total: 2, goalsConocidos: true });
 });
 
+test("META con goals_total no numérico o css_key que no es un tema: se ignoran", () => {
+  const avance = avanceDeRevision([meta("rara", { status: "running", goals_total: "muchos", css_key: `${CATALOGO}/goals.json` })]);
+  assert.equal(avance.goalsTotal, null);
+  assert.equal(avance.css, null);
+  assert.deepEqual(avance.progreso, { cerrados: 0, total: 2, goalsConocidos: false });
+});
+
 test("sin META no hay revisión", () => {
   assert.equal(avanceDeRevision([item("x", "STAGE#cataloger", "running", CATALOGO)]), null);
   assert.equal(avanceDeRevision([]), null);
