@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Visor de solo lectura de las corridas del Visitante. Sin dependencias: solo node:http.",
+  "description": "Visor de solo lectura de las corridas del Visitante. node:http; el SDK de AWS solo para leer de S3 y DynamoDB.",
   "scripts": {
     "start": "node servidor.js",
     "dev": "node --watch servidor.js",
@@ -11,5 +11,10 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1175.0",
+    "@aws-sdk/client-s3": "3.1175.0",
+    "@aws-sdk/lib-dynamodb": "3.1175.0"
   }
 }

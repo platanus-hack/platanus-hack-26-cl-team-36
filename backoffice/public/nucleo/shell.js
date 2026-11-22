@@ -8,7 +8,7 @@ import { conservarFoco, el, reemplazar } from "./dom.js";
 import { EVENTO_IDIOMA, IDIOMAS, cambiarIdioma, fmt, idioma, t } from "./i18n.js";
 import { icono } from "./iconos.js";
 import { abrirPaleta } from "./paleta.js";
-import { enlaceATanda } from "./rutas.js";
+import { enlaceARevision, enlaceATanda } from "./rutas.js";
 
 const RECIENTES = 6;
 const ESCRITORIO = "(min-width: 820px)";
@@ -149,6 +149,16 @@ function contenidoLateral({ enCajon = false } = {}) {
             ),
           ),
         ),
+        el(
+          "li",
+          {},
+          el(
+            "a",
+            { class: "lateral-enlace lateral-revisiones", href: enlaceARevision(), "data-foco": "shell:revisiones" },
+            icono("historia"),
+            el("span", { texto: t("comun.shell.revisiones") }),
+          ),
+        ),
       ),
       el("h2", { class: "etiqueta-micro lateral-subtitulo", texto: t("comun.shell.tandasRecientes") }),
       listaDeRecientes(),
@@ -201,6 +211,10 @@ function marcarActual(contenedor) {
   const enCorridas = rutaActual?.tipo === "corridas";
   contenedor.querySelectorAll(".lateral-corridas").forEach((enlace) => {
     if (enCorridas) enlace.setAttribute("aria-current", "page");
+    else enlace.removeAttribute("aria-current");
+  });
+  contenedor.querySelectorAll(".lateral-revisiones").forEach((enlace) => {
+    if (rutaActual?.tipo === "revisiones") enlace.setAttribute("aria-current", "page");
     else enlace.removeAttribute("aria-current");
   });
   contenedor.querySelectorAll(".lateral-tanda").forEach((enlace) => {

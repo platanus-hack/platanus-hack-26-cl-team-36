@@ -13,6 +13,7 @@ export default {
     buscar: "Buscar…",
     abrirBuscador: "Abrir el buscador",
     corridas: "Corridas",
+    revisiones: "Revisiones",
     cuentaTandas: ({ n }, { plural }) => `${n} ${plural(n, { one: "tanda", other: "tandas" })}`,
     tandasRecientes: "Tandas recientes",
     sinTandas: "Todavía no hay tandas.",
