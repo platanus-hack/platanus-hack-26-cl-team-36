@@ -4,7 +4,7 @@
 
 import * as THREE from "../vendor/three@0.160.0/three.module.js";
 import { anilloFinal, claveDeFinal } from "./modelo.js";
-import { acotar, puntoDeTramo, radio, segmentosDeTramo } from "./layout.js";
+import { ETIQUETA, acotar, puntoDeTramo, radio, segmentosDeTramo } from "./layout.js";
 
 const TRAZO = 0.75; // s que tarda en dibujarse un tramo nuevo
 const VIAJE_MS = 400; // la cámara va al encuadre de un agente elegido
@@ -322,7 +322,16 @@ export function crearEscena(canvas, K) {
     }
     const V = E.V;
     if (V.auto) {
-      const z = acotar(Math.min((E.W - 72 - etqDer - etqIzq) / (x1 - x0), (E.H - 92) / (y1 - y0)), 0.3, 1.4);
+      // El nombre de una página va centrado en su nodo: las de las orillas piden media etiqueta de espacio hacia
+      // afuera (px). Se mide con el zoom actual, que el encuadre alcanza en unos cuadros.
+      for (const n of E.m.nodos.values()) {
+        if (n.term || (V.marco && !V.marco.has(n.clave))) continue;
+        const tx = radio(n.anillo) * Math.cos(n.ang);
+        const mitad = (n.ruta >= 0 ? ETIQUETA.ruta : ETIQUETA.pagina) / 2;
+        etqIzq = Math.max(etqIzq, mitad - (tx - x0) * V.z);
+        etqDer = Math.max(etqDer, mitad - (x1 - tx) * V.z);
+      }
+      const z =acotar(Math.min((E.W - 72 - etqDer - etqIzq) / (x1 - x0), (E.H - 92) / (y1 - y0)), 0.3, 1.4);
       const cx = (x0 + x1) / 2 + (etqDer - etqIzq) / 2 / z;
       const cy = (y0 + y1) / 2 + 12 / z;
       if (V.viaje) {

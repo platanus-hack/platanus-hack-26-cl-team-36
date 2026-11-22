@@ -5,7 +5,7 @@
 import { el } from "../nucleo/dom.js";
 import { icono } from "../nucleo/iconos.js";
 import { RESULTADO_DE_FINAL, anilloFinal } from "./modelo.js";
-import { acotar, radio } from "./layout.js";
+import { ETIQUETA, acotar, radio } from "./layout.js";
 
 const CLASE_DE_FINAL = { success: "ok", failed: "mal", abandoned: "neutro", unmeasured: "neutro", error: "neutro" };
 const choca = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -88,7 +88,7 @@ export function crearEtiquetas(capa, { t, nombre }) {
     for (const e of prioridad) {
       const n = e.n;
       ponerTexto(e.nom, nombre(n));
-      const max = n.ruta >= 0 ? 150 : 124;
+      const max = n.ruta >= 0 ? ETIQUETA.ruta : ETIQUETA.pagina;
       const off = n.ruta >= 0 ? 13 : 10;
       let mejor = null;
       for (const dy of [off, -off - 15]) {
