@@ -186,7 +186,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         if ((boton.getAttribute("aria-pressed") === "true") !== elegida) boton.setAttribute("aria-pressed", String(elegida));
       }
     },
-    /** Marca las estaciones donde se trabaron intentos (página → cuántos; cambia con el filtro de perfil). */
+    /** Marca las estaciones donde se trabaron intentos (página → cuántos). */
     marcarAtascos(cuantos) {
       for (const [id, { boton, marca, cuenta, pagina, estacion }] of marcasDeAtasco) {
         const n = cuantos.get(id) ?? 0;
@@ -196,7 +196,7 @@ export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, texto
         boton.setAttribute("aria-label", textos.ariaDeEstacion(pagina, estacion, n));
       }
     },
-    /** Pone las cuentas de las terminales (cambian con el filtro de perfil). */
+    /** Pone las cuentas de las terminales. */
     contarTerminales(totales) {
       for (const [, { nodo, cuenta, resultado }] of terminales) {
         const n = totales[resultado] ?? 0;

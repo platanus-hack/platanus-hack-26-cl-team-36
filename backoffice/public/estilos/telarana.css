@@ -15,12 +15,6 @@
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-4);
   min-width: 0;
 }
-/* Perfiles y controles de la historia en una sola fila mientras quepan (los perfiles se desplazan de lado). */
-.p-telarana .telarana-perfiles {
-  display: flex; gap: var(--e-2); flex: 1 1 0; min-width: min(100%, 280px); max-width: 100%; overflow-x: auto; scrollbar-width: none;
-  padding-block: 2px; padding-inline: 2px;
-}
-.p-telarana .telarana-perfiles::-webkit-scrollbar { display: none; }
 .p-telarana .telarana-historia-control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); min-width: 0; }
 .p-telarana .telarana-boton-historia[aria-pressed="true"] { background: var(--acento-sutil); color: var(--acento-fuerte); border-color: transparent; }
 .p-telarana .telarana-pista { display: inline-flex; }
@@ -250,23 +244,6 @@
 .p-telarana .panel-telarana-firma { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); color: var(--texto-1); font-weight: 500; }
 .p-telarana .panel-telarana-esperaba { display: grid; gap: var(--e-1); }
 .p-telarana .panel-telarana-abrir { justify-self: start; }
-
-/* ── Vista 3D (§10.5.4): plano inclinado, estaciones y terminales de pie (billboards) ────────────────────── */
-.p-telarana .telarana-boton-3d[aria-pressed="true"] { background: var(--acento-sutil); color: var(--acento-fuerte); border-color: transparent; }
-.p-telarana .lienzo[data-vista="3d"] { perspective: 1400px; perspective-origin: 50% 30%; }
-.p-telarana .lienzo[data-vista="3d"] .escena { transform-style: preserve-3d; }
-.p-telarana .lienzo.cambiando-vista .escena,
-.p-telarana .lienzo.cambiando-vista :is(.estacion, .terminal) {
-  transition: transform var(--dur-4) var(--curva-entrada-salida);
-}
-.p-telarana .lienzo[data-vista="3d"] .estacion {
-  flex-direction: column-reverse; transform-origin: 50% calc(100% - 9px);
-  transform: translate(-50%, calc(-100% + 9px)) rotateX(-52deg);
-}
-.p-telarana .lienzo[data-vista="3d"] .estacion-miniatura { display: block; }
-.p-telarana .lienzo[data-vista="3d"] .estacion-etiqueta { transform: none; max-width: 160px; }
-.p-telarana .lienzo[data-vista="3d"] .terminal { transform-origin: 11px 50%; transform: translate(-11px, -50%) rotateX(-52deg); }
-.p-telarana .lienzo[data-vista="3d"] .terminal-etiqueta { transform: none; }
 
 /* Globos de la telaraña (contenido; el globo en sí es compartido). */
 .telarana-globo { display: grid; gap: 2px; }

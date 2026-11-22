@@ -82,19 +82,10 @@ export function altoDeFilaPara(k, minimo) {
  */
 export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () => {}, puedeArrastrar = () => true, alTocarFondo = () => {} }) {
   const estado = { tx: 0, ty: 0, k: 1 };
-  // Vista 3D (§10.5.4): el plano se inclina (rotateX) y arrastrar lo gira (rotateZ, ±25°).
-  const plano = { inclinado: false, giro: 0, pivote: { x: 0, y: 0 } };
-  const INCLINACION = 52;
-  const GIRO_MAXIMO = 25;
   let vuelo = 0;
 
   function aplicar() {
-    // El giro es alrededor del centro del mapa (pivote), no del origen de la escena.
-    const { x: px, y: py } = plano.pivote;
-    const inclinacion = plano.inclinado
-      ? ` rotateX(${INCLINACION}deg) translate(${px}px, ${py}px) rotateZ(${Math.round(plano.giro * 10) / 10}deg) translate(${-px}px, ${-py}px)`
-      : "";
-    escena.style.transform = `translate(${estado.tx}px, ${estado.ty}px) scale(${estado.k})${inclinacion}`;
+    escena.style.transform = `translate(${estado.tx}px, ${estado.ty}px) scale(${estado.k})`;
     escena.style.setProperty("--k", String(Math.round(estado.k * 1000) / 1000));
     // La grilla de puntos del fondo acompaña al mapa.
     const paso = 16 * estado.k;
@@ -187,7 +178,7 @@ export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () =>
       if (evento.button !== 0 || !puedeArrastrar(evento)) return;
       punteros.set(evento.pointerId, local(evento));
       if (punteros.size === 1) {
-        arrastre = { id: evento.pointerId, ...local(evento), tx: estado.tx, ty: estado.ty, giro: plano.giro, movio: false, sobreFondo: evento.target === lienzo || !evento.target.closest?.("button, a, .terminal") };
+        arrastre = { id: evento.pointerId, ...local(evento), tx: estado.tx, ty: estado.ty, movio: false, sobreFondo: evento.target === lienzo || !evento.target.closest?.("button, a, .terminal") };
       } else if (punteros.size === 2) {
         arrastre = null;
         const dos = [...punteros.values()];
@@ -221,10 +212,7 @@ export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () =>
         }
         lienzo.classList.add("arrastrando");
       }
-      if (plano.inclinado) {
-        plano.giro = acotar(arrastre.giro + dx * 0.15, -GIRO_MAXIMO, GIRO_MAXIMO);
-        aplicar();
-      } else poner({ tx: arrastre.tx + dx, ty: arrastre.ty + dy });
+      poner({ tx: arrastre.tx + dx, ty: arrastre.ty + dy });
     },
     { signal: senal },
   );
@@ -279,16 +267,6 @@ export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () =>
     encuadre,
     esVisible,
     volarA,
-    /** Inclina o aplana el plano (la transición la pone el CSS con .cambiando-vista). */
-    inclinar(activo, pivote = plano.pivote) {
-      plano.inclinado = !!activo;
-      plano.pivote = pivote;
-      if (!activo) plano.giro = 0;
-      aplicar();
-    },
-    get inclinado() {
-      return plano.inclinado;
-    },
   };
 }
 

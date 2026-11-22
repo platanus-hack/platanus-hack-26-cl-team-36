@@ -11,13 +11,11 @@ import { leerTanda } from "../lib/tandas.js";
 import { GIRO_MAXIMO, acomodar, arcoDeAtajo, arcoDeVuelta, contarCruces, distribuir, geometria, idDeTerminal, idDeTramoFinal, piezasDeAvance } from "../public/telarana/distribuir.js";
 import { anchoDeTramo, claseDeTramo } from "../public/telarana/escena.js";
 import {
-  activosDePerfil,
   duracionDePaso,
   finalesPorPagina,
   hitosDeRuta,
   intentosPorPagina,
   pasoDeLlegada,
-  perfilVecino,
   recorridoDeHistoria,
   salidasDePagina,
   totalesDeTerminales,
@@ -413,34 +411,21 @@ test("sii 16-24-12 (tanda real, 27 páginas): inicio a la izquierda, meta a la d
   assert.ok(cruces <= 2, `medido al escribir la prueba: 2 (hay ${cruces})`);
 });
 
-test("cuentas por perfil: finales, terminales, activos y hitos de la ruta", async () => {
+test("cuentas: finales, terminales y hitos de la ruta", async () => {
   const tanda = await leerTanda(RAIZ, NUEVA);
   const todos = totalesDeTerminales(finalesPorPagina(tanda));
   assert.deepEqual(todos, { logrado: 2, fallido: 1, abandonado: 0, error: 1 });
-  const movil = totalesDeTerminales(finalesPorPagina(tanda, "mobile"));
-  assert.deepEqual(movil, { logrado: 0, fallido: 0, abandonado: 0, error: 1 });
-  assert.equal(activosDePerfil(tanda, null), null);
-  const activos = activosDePerfil(tanda, "senior");
-  for (const id of ["n1", "n5", "n6", "n1>n5", "n5>n6", "n6>n5", "n5>fin:fallido", "fin:fallido"]) assert.ok(activos.has(id), id);
-  assert.ok(!activos.has("n2") && !activos.has("fin:logrado"));
   // Los hitos cuentan solo intentos válidos: el error de Móvil no cuenta.
   assert.deepEqual(hitosDeRuta(tanda), [
     { pagina: "n1", n: 3, de: 3 },
     { pagina: "n2", n: 2, de: 3 },
     { pagina: "n3", n: 2, de: 3 },
   ]);
-  assert.deepEqual(hitosDeRuta(tanda, "mobile"), [
-    { pagina: "n1", n: 0, de: 0 },
-    { pagina: "n2", n: 0, de: 0 },
-    { pagina: "n3", n: 0, de: 0 },
-  ]);
 });
 
-test("vecindario: la estación, sus tramos y sus vecinas, dentro del filtro", () => {
+test("vecindario: la estación, sus tramos y sus vecinas", () => {
   const d = distribuir(DT);
   assert.deepEqual([...vecindario(d, "n2")].sort(), ["fin:error", "n1", "n1>n2", "n2", "n2>fin:error", "n2>n3", "n3"]);
-  const soloError = new Set(["n2>fin:error"]);
-  assert.deepEqual([...vecindario(d, "n2", soloError)].sort(), ["fin:error", "n2", "n2>fin:error"]);
 });
 
 test("intentos por página, paso de llegada y salidas", async () => {
@@ -450,13 +435,11 @@ test("intentos por página, paso de llegada y salidas", async () => {
   const enPlanes = intentosPorPagina(tanda, "n4").map(({ intento, paso }) => [intento.id, paso]);
   assert.deepEqual(enPlanes.map(([id]) => id).sort(), ["hurried", "mobile"]);
   for (const [, paso] of enPlanes) assert.ok(Number.isInteger(paso) && paso >= 1);
-  assert.deepEqual(intentosPorPagina(tanda, "n4", "first_time"), []);
   assert.deepEqual(salidasDePagina(tanda, "n1").map((r) => r.id), ["n1>n2", "n1>n4"].sort((a, b) => {
     const ra = tanda.telarana.ramas.find((r) => r.id === a);
     const rb = tanda.telarana.ramas.find((r) => r.id === b);
     return rb.intentos - ra.intentos || a.localeCompare(b);
   }));
-  assert.deepEqual(salidasDePagina(tanda, "n1", "mobile").map((r) => r.id), ["n1>n4"]);
 });
 
 test("historia: un paso por paso del intento, tramos al cambiar de página y el final", async () => {
@@ -474,12 +457,7 @@ test("historia: un paso por paso del intento, tramos al cambiar de página y el 
   assert.ok(recorridoDeHistoria(movil).ids.has("fin:error"));
 });
 
-test("perfil vecino da la vuelta pasando por «todos»; duración de un paso acotada", () => {
-  const perfiles = ["a", "b"];
-  assert.equal(perfilVecino(perfiles, null, 1), "a");
-  assert.equal(perfilVecino(perfiles, "b", 1), null);
-  assert.equal(perfilVecino(perfiles, null, -1), "b");
-  assert.equal(perfilVecino(perfiles, "desconocido", 1), "a");
+test("duración de un paso acotada", () => {
   assert.equal(duracionDePaso({ duracion: 0.2 }), 400);
   assert.equal(duracionDePaso({ duracion: 3 }), 1500);
   assert.equal(duracionDePaso({ duracion: 60 }), 2500);

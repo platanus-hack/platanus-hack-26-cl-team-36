@@ -3,13 +3,6 @@ const plural = (n, ayudas, uno, otros) => `${n} ${ayudas.plural(n, { one: uno, o
 
 export default {
   herramientas: "Route map tools",
-  perfiles: {
-    grupo: "Filter by profile",
-    todos: "All",
-    noExiste: "There is no profile «{perfil}»; showing all.",
-    anuncio: "Profile: {nombre}",
-    anuncioTodos: "All profiles",
-  },
   lienzo: {
     etiqueta: "Route map",
     instrucciones: "Drag to move the map; ⌘ or Ctrl + wheel to zoom. With focus on the map, the arrow keys move it.",
@@ -81,7 +74,7 @@ export default {
     conteo: "{n}/{de}",
     conteoAria: ({ n, de }) => `${n} of ${de} reach it`,
     terminaron: "How they ended",
-    nadieTermino: "No attempts for this profile.",
+    nadieTermino: "No attempt ended.",
     quitar: "Clear the selection",
     abrirPagina: "Open the page in another tab",
     variantes: "URL variants",
@@ -90,17 +83,13 @@ export default {
     terminanAqui: "End here",
     salidas: "From here they went to",
     pasaron: "Attempts that went through here",
-    nadiePaso: "No attempt of this profile went through here.",
+    nadiePaso: "No attempt went through here.",
     paso: "step {n}",
     abrirEnReplay: "Open {nombre} in Replay, step {n}",
     captura: "Screenshot of the page ({perfil})",
     hito: "Milestone {n} on the route",
     inicio: "Start",
     elegida: "{nombre}: selected",
-  },
-  vista3d: {
-    boton: "3D view",
-    ayuda: "Tilts the map; drag to turn it.",
   },
   historia: {
     boton: "Story",

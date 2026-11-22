@@ -3,13 +3,6 @@ const plural = (n, ayudas, uno, otros) => `${n} ${ayudas.plural(n, { one: uno, o
 
 export default {
   herramientas: "Herramientas de la telaraña",
-  perfiles: {
-    grupo: "Filtrar por perfil",
-    todos: "Todos",
-    noExiste: "No existe el perfil «{perfil}»; se muestran todos.",
-    anuncio: "Perfil: {nombre}",
-    anuncioTodos: "Todos los perfiles",
-  },
   lienzo: {
     etiqueta: "Mapa de la telaraña",
     instrucciones: "Arrastra para mover el mapa; ⌘ o Ctrl + rueda para acercar. Con el foco en el mapa, las flechas lo mueven.",
@@ -81,7 +74,7 @@ export default {
     conteo: "{n}/{de}",
     conteoAria: ({ n, de }) => `${n} de ${de} llegan`,
     terminaron: "Cómo terminaron",
-    nadieTermino: "Ningún intento de este perfil.",
+    nadieTermino: "Ningún intento terminó.",
     quitar: "Quitar la selección",
     abrirPagina: "Abrir la página en otra pestaña",
     variantes: "Variantes de URL",
@@ -90,17 +83,13 @@ export default {
     terminanAqui: "Terminan aquí",
     salidas: "Desde aquí fueron a",
     pasaron: "Intentos que pasaron por aquí",
-    nadiePaso: "Ningún intento de este perfil pasó por aquí.",
+    nadiePaso: "Ningún intento pasó por aquí.",
     paso: "paso {n}",
     abrirEnReplay: "Abrir {nombre} en Replay, paso {n}",
     captura: "Captura de la página ({perfil})",
     hito: "Hito {n} de la ruta",
     inicio: "Inicio",
     elegida: "{nombre}: elegida",
-  },
-  vista3d: {
-    boton: "Vista 3D",
-    ayuda: "Inclina el mapa; arrastra para girarlo.",
   },
   historia: {
     boton: "Historia",
