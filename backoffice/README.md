@@ -154,7 +154,11 @@ llega otra página, la grilla muestra tarjetas esqueleto. Si la página pedida y
 URL se corrige. Otra pestaña empieza en su página 1, que ya llegó con la primera respuesta. Una tarjeta lleva directo
 a Path map / Replay: la telaraña de su primer goal con tanda terminada (cada goal, a la suya); si la revisión todavía
 no tiene una, la de la tanda de su captura (la más nueva del mismo host y ruta); solo si no hay ninguna, al avance de
-la revisión.
+la revisión. Una revisión en curso abre, en cambio, la hoja de su primer goal con Visitante (corriendo o terminado; si
+ninguno salió, la del primer goal): su tanda si ya se lista o, si no, la hoja en vivo del goal
+(`#/revisiones/<revisión>/<goal>`), con la telaraña de lo que ya llegó y el SSE de `/api/vivo`; mientras el Visitante no
+sale dice que la Guía está trazando la ruta. Cada goal en curso abre la suya, y el avance técnico queda como enlace en
+la cabecera de la hoja.
 Hay una tarjeta por página: la revisión vigente (la que apunta el ítem `URL#<url>` de la tabla), aunque esté en curso;
 las que reemplazó un `force` no cuentan y la tarjeta enlaza a ellas ("2 previous reviews").
 El filtro de dispositivo (All · Desktop · Mobile) cambia los visitantes, las capturas, los medidores y los cuadritos
