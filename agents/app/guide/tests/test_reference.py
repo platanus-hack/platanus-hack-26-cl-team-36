@@ -77,10 +77,16 @@ def test_unanswered_exploration_is_not_found(site, tmp_path):
     assert (out_dir / "step_00.png").is_file()
 
 
-def test_scripted_engine_gives_up_and_the_route_is_not_found(site, tmp_path):
+def test_scripted_engine_verifies_the_start_page_citing_its_first_line(site, tmp_path):
     decider = ClaudeDecider("sistema", FakeCaller("guion", "low", scripted_decision))
     document, _, _ = _map(site, tmp_path, None, decider=decider)
-    assert document["status"] == "not_found" and document["exploration"]["end_reason"] == "gave_up"
+    assert document["status"] == "verified" and document["steps"] == []
+    assert document["quote_found"] and document["quote"] == document["answer"]
+
+
+def test_scripted_engine_gives_up_without_text():
+    turn = "TAREA: x\n\nTEXTO DE LA PÁGINA DESDE LA PANTALLA ACTUAL\n(texto recortado)\n"
+    assert scripted_decision("sistema", {}, [turn])["action"] == "give_up"
 
 
 def test_route_that_no_longer_replays_is_unverified(site, tmp_path):

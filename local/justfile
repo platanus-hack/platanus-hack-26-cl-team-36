@@ -12,6 +12,7 @@
 #   7. just local backoffice                 viewer of the visitor runs, at http://localhost:4848
 #   8. just local site <url> [goals]         catalog, guide and visitor per goal, and summary (calls Claude)
 #      just local summary <url>              a new summary from the latest runs in the store
+#      just local revision <url>             one page as in AWS: catalog, guide and visitor per goal, tema.css (calls Claude)
 #   9. just local migrate-runs <store>       old-layout runs of agents/.runs/ into a store (plan unless --write)
 #
 # Recipes run from the repo root, so every path here is relative to it. What `up`
@@ -76,7 +77,7 @@ setup:
     set -e
     echo "Installing dependencies"
     npm install    # the root postinstall also installs extension/ (web-ext)
-    for project in shared app/cataloger app/guide app/visitor app/summary app/web_designer; do
+    for project in shared app/cataloger app/guide app/visitor app/summary app/web_designer app/conductor; do
         (cd "agents/$project" && uv sync)
     done
     (cd agents/app/visitor && uv run playwright install chromium)    # one Chromium for every agent
@@ -196,6 +197,7 @@ test: _ready _agents_ready
     cd agents/app/visitor && uv run pytest -q
     cd agents/app/summary && uv run pytest -q
     cd agents/app/web_designer && uv run pytest -q
+    cd agents/app/conductor && uv run pytest -q
 
 # ── 4. Cataloger ──────────────────────────────────────────────────────────
 
@@ -305,9 +307,21 @@ summary url: _agents_ready
     cd agents/app/summary
     exec uv run main.py --site "$1"
 
+# A revision of one page, as the extension triggers it in AWS: catalog, guide and visitor per goal, and the improver's tema.css. E.g. just local revision https://www.wom.cl/ --goals-max 1
+[group('8. Site · `site` calls Claude, uses your plan')]
+[working-directory('agents/app/conductor')]
+[positional-arguments]
+revision url *options: _ready _agents_ready
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$1"
+    shift
+    # The conductor runs each stage's CLI in its own folder; a --revision in the options wins over this one.
+    exec uv run main.py --url "$url" --revision "local-$(date -u +%Y%m%d-%H%M%S)" ${1+"$@"}
+
 [private]
 _agents_ready:
-    @for project in cataloger guide summary web_designer; do test -x "agents/app/$project/.venv/bin/python" \
+    @for project in cataloger guide summary web_designer conductor; do test -x "agents/app/$project/.venv/bin/python" \
         || { echo "The $project dependencies are missing: run \`just local setup\` first." >&2; exit 1; }; done
 
 # ── 9. Migration ──────────────────────────────────────────────────────────
