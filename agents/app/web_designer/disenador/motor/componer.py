@@ -118,6 +118,10 @@ def _elegir_direccion(pedida: str, sitio: Sitio, dirs: dict, azar: Azar) -> tupl
 
 # ---------- 2. Ajustes del modelo: solo dentro de los rangos de la dirección ----------
 
+def _es_numero(x) -> bool:
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+
+
 def aplicar_ajustes(direccion: dict, ajustes: dict | None, sitio: Sitio, avisos: list[str]) -> dict:
     d = copy.deepcopy(direccion)
     for ruta, valor in (ajustes or {}).items():
@@ -135,8 +139,11 @@ def aplicar_ajustes(direccion: dict, ajustes: dict | None, sitio: Sitio, avisos:
         for clave in partes[:-1]:
             padre = padre.get(clave) if isinstance(padre, dict) else None
         rango = padre.get(partes[-1]) if isinstance(padre, dict) else None
-        if not isinstance(rango, list) or isinstance(valor, bool) or not isinstance(valor, (int, float)):
+        if not (isinstance(rango, list) and len(rango) == 2 and all(_es_numero(x) for x in rango)):
             avisos.append(f"ajuste ignorado: {ruta} no es un rango numérico de la dirección")
+            continue
+        if not _es_numero(valor):
+            avisos.append(f"ajuste ignorado: {ruta}={valor!r} no es un número")
             continue
         recortado = min(rango[1], max(rango[0], valor))
         if recortado != valor:
@@ -174,7 +181,10 @@ def _cabe(nombre: str, elegidas: list[str], meta: dict, ctx: dict) -> str | None
 def _resolver_recetas(d: dict, ctx: dict, meta: dict, azar: Azar, ajustes: dict | None, mezcla: list[str],
                       avisos: list[str]) -> list[str]:
     pedido = (ajustes or {}).get("recetas") or {}
-    quitar = set(pedido.get("quitar") or [])
+    if not isinstance(pedido, dict) or not all(isinstance(pedido.get(k) or [], list) for k in ("agregar", "quitar")):
+        avisos.append(f"ajuste ignorado: recetas={pedido!r} no es {{agregar: [...], quitar: [...]}}")
+        pedido = {}
+    quitar = {str(r) for r in pedido.get("quitar") or []}
     elegidas: list[str] = []
 
     def sumar(receta: str, origen: str) -> None:

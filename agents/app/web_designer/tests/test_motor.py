@@ -11,7 +11,7 @@ from disenador import atajos, motor
 from disenador.mejora import BLOQUE_JS
 from disenador.motor.azar import Azar
 from disenador.motor.color import contraste, ok
-from disenador.motor.componer import RAIZ
+from disenador.motor.componer import RAIZ, aplicar_ajustes
 
 METRO = motor.rasgos_del_sitio("www.metro.cl")
 SEMILLAS = range(1, 201)
@@ -93,6 +93,23 @@ def test_ajustes_fuera_de_rango_se_recortan():
     avisos = " | ".join(informe["avisos"])
     assert "tipo.escala=9 fuera de [1.3, 1.36], queda 1.36" in avisos and "forma.radio=-4" in avisos
     assert "tinta.croma no es un rango" in avisos and "hero='carrusel'" in avisos
+
+
+def test_ajustes_malformados_se_ignoran_con_aviso():
+    tema = motor.componer(METRO, "A", 3, {"tipo.escala": "1.3", "forma.radio": float("nan"), "densidad": [1],
+                                          "recetas": ["aurora"]})
+    avisos = " | ".join(tema.informe["avisos"])
+    assert tema.ok and "tipo.escala='1.3' no es un número" in avisos and "forma.radio=nan" in avisos
+    assert "densidad=[1]" in avisos and "recetas=['aurora']" in avisos
+    for rango in ([1], [1, "2"], "1-2", [1, 2, 3]):
+        avisos = []
+        direccion = aplicar_ajustes({"tipo": {"escala": rango}}, {"tipo.escala": 1.5}, METRO, avisos)
+        assert direccion["tipo"]["escala"] == rango and "no es un rango numérico" in avisos[0], rango
+
+
+def test_un_sitio_sin_carpeta_no_hereda_los_ids_de_metro():
+    tema = motor.componer(motor.rasgos_del_sitio("ejemplo.cl"), "A", 1)
+    assert tema.ok and "planificar" not in tema.css and 'data-mt-vista="mt-sin-atajo"' in tema.css
 
 
 def test_receta_incompatible_se_ignora_con_aviso():
