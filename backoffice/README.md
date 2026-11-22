@@ -297,11 +297,16 @@ backoffice/
 └── test/                ← node:test, con dos tandas sintéticas en fixtures/corridas/
 ```
 
-Contrato de una pantalla: `public/pantallas/<id>.js` exporta por defecto `{ titulo(ctx), montar(contenedor, ctx),
-actualizar?(ctx), desmontar?() }`. El enrutador carga su diccionario antes de `montar`. Si solo cambian los
-parámetros de la URL llama a `actualizar(ctx)`, y si esta devuelve `false` vuelve a montar la pestaña. Al salir llama
-a `desmontar()`, y los atajos registrados con `ctx.atajos.registrar` se quitan solos. Todo el estado de la vista
-vive en el hash, así que cualquier vista se puede compartir copiando el enlace.
+Contrato de una pantalla: `public/pantallas/<id>.js` exporta por defecto `{ titulo(ctx), cargar?(ctx),
+montar(contenedor, ctx, datos), actualizar?(ctx), desmontar?() }`. El enrutador carga su diccionario y, si la
+pantalla trae sus propios datos (el Overview, Revisiones y la Propuesta), llama a `cargar(ctx)` antes de la
+transición y le pasa el resultado a `montar`. Si la carga tarda más de 150 ms, muestra el esqueleto de esa vista, con
+su geometría (`esqueleto()` en `public/nucleo/estados.js`), y lo deja al menos 300 ms. `montar` no espera la red: la
+transición congela la página mientras corre. Si la pantalla se remonta sola (Reintentar), `montar` recibe `datos`
+undefined, pone su esqueleto y pide los datos ella. Si solo cambian los parámetros de la URL llama a
+`actualizar(ctx)`, y si esta devuelve `false` vuelve a montar la pestaña. Al salir llama a `desmontar()`, y los
+atajos registrados con `ctx.atajos.registrar` se quitan solos. Todo el estado de la vista vive en el hash, así que
+cualquier vista se puede compartir copiando el enlace.
 
 ## Seguridad
 

@@ -11,7 +11,7 @@
 import { nombreDePagina } from "../datos/textos.js";
 import { EVENTO_PROPUESTA, pedirPropuesta, urlDePropuesta, urlDeResultado } from "../nucleo/datos.js";
 import { conservarFoco, el, reemplazar } from "../nucleo/dom.js";
-import { errorDePantalla, vacio } from "../nucleo/estados.js";
+import { errorDePantalla, esqueleto, vacio } from "../nucleo/estados.js";
 import { icono } from "../nucleo/iconos.js";
 import { DISPOSITIVOS, evidenciaDeLaTanda, notasDeLaPropuesta, vistasDeLaPropuesta } from "../propuesta/vistas.js";
 
@@ -485,29 +485,47 @@ function aplicar(parametros) {
   pintar();
 }
 
+/**
+ * La propuesta de la tanda y la hoja de estilos. El enrutador lo llama antes de la transición, con el esqueleto de la
+ * pestaña mientras tanto. Un error no tumba la tanda: vuelve como { error } y la pestaña lo muestra en su panel.
+ * → { propuesta } | { error }
+ */
+async function cargar(contexto) {
+  try {
+    const [propuesta] = await Promise.all([pedirPropuesta(contexto.tanda.id), contexto.cargarEstilos("estilos/propuesta.css")]);
+    return { propuesta };
+  } catch (error) {
+    return { error };
+  }
+}
+
 export default {
   titulo(contexto) {
     return contexto.t("comun.pestana.propuesta");
   },
 
-  async montar(contenedor, contexto) {
+  cargar,
+
+  async montar(contenedor, contexto, cargado) {
     ctx = contexto;
     contenedor.classList.add("p-propuesta");
     const raiz = el("div", { class: "propuesta-raiz" });
     contenedor.append(raiz);
     estado = { propuesta: null, vista: contexto.parametros.vista ?? null, dispositivo: contexto.parametros.dispositivo ?? "desktop", corte: 50, pedido: 0, reloj: 0 };
-    let propuesta;
-    try {
-      [propuesta] = await Promise.all([pedirPropuesta(contexto.tanda.id), contexto.cargarEstilos("estilos/propuesta.css")]);
-    } catch (error) {
-      if (contexto.senal.aborted || ctx !== contexto) return;
-      reemplazar(raiz, errorDePantalla({ titulo: contexto.t("propuesta.error"), detalle: error?.message ?? String(error), reintentar: () => location.reload() }));
-      return;
+    if (!cargado) {
+      // Remontada sin pasar por el enrutador: pide ella, con el mismo esqueleto.
+      reemplazar(raiz, esqueleto("propuesta"));
+      cargado = await cargar(contexto);
     }
     // Si otra navegación reemplazó la vista mientras cargaba, no se arma nada.
     if (contexto.senal.aborted || ctx !== contexto) return;
+    if (cargado.error) {
+      const { error } = cargado;
+      reemplazar(raiz, errorDePantalla({ titulo: contexto.t("propuesta.error"), detalle: error?.message ?? String(error), reintentar: () => location.reload() }));
+      return;
+    }
     partes = { raiz };
-    estado.propuesta = propuesta ?? { estado: "ninguna" };
+    estado.propuesta = cargado.propuesta ?? { estado: "ninguna" };
     pintar();
     avisarEstado();
     programarPedido();

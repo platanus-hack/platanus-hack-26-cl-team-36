@@ -6,8 +6,84 @@ import { icono } from "./iconos.js";
 import { t } from "./i18n.js";
 
 const bloque = (clase) => el("div", { class: `esqueleto ${clase}` });
+const varios = (n, armar) => Array.from({ length: n }, armar);
+
+/**
+ * Una tarjeta de revisión del Overview mientras carga, con la geometría de la de verdad (barra de navegador,
+ * captura, nombre, etapas, tres medidores y pie). Va en un <li>: el Overview la usa también dentro de su grilla.
+ */
+export function tarjetaEsqueleto() {
+  return el(
+    "li",
+    { class: "esqueleto-ov-celda", "aria-hidden": "true" },
+    el(
+      "div",
+      { class: "esqueleto-ov-tarjeta" },
+      el("div", { class: "esqueleto-ov-barra" }),
+      bloque("esqueleto-ov-captura"),
+      el(
+        "div",
+        { class: "esqueleto-ov-cuerpo" },
+        el("div", { class: "esqueleto-ov-nombre" }, bloque("esqueleto-ov-marca"), bloque("esqueleto-ov-sitio")),
+        bloque("esqueleto-ov-etapas"),
+        el("div", { class: "esqueleto-ov-goals" }, varios(3, () => bloque("esqueleto-ov-goal"))),
+        bloque("esqueleto-ov-pie"),
+      ),
+    ),
+  );
+}
 
 const FORMAS = {
+  // El inicio: el título, el bloque de agentes (total, fichas de dispositivo, cuatro roles) y Reviews con sus
+  // pestañas y 6 tarjetas.
+  overview: () => [
+    el(
+      "div",
+      { class: "esqueleto-ov-grupo" },
+      el("div", { class: "esqueleto-ov-cabecera" }, bloque("esqueleto-ov-titulo")),
+      el(
+        "div",
+        { class: "esqueleto-ov-agentes" },
+        el("div", { class: "esqueleto-ov-fila" }, bloque("esqueleto-ov-total"), el("div", { class: "esqueleto-ov-fichas" }, varios(3, () => bloque("esqueleto-ov-ficha")))),
+        varios(4, () => el("div", { class: "esqueleto-ov-rol" }, bloque("esqueleto-ov-baldosa"), bloque("esqueleto-ov-rol-nombre"), bloque("esqueleto-ov-cuadritos"))),
+        bloque("esqueleto-ov-leyenda"),
+      ),
+    ),
+    el(
+      "div",
+      { class: "esqueleto-ov-grupo" },
+      el("div", { class: "esqueleto-ov-cabecera" }, bloque("esqueleto-ov-titulo"), bloque("esqueleto-ov-pestanas")),
+      el("ul", { class: "esqueleto-ov-grilla" }, varios(6, tarjetaEsqueleto)),
+    ),
+  ],
+  // Revisiones: el título con la cuenta y una fila por revisión (estado, sitio y URL, goals, cuándo).
+  revisiones: () => [
+    el("div", { class: "esqueleto-fila-titulo" }, bloque("esqueleto-titulo"), bloque("esqueleto-cuenta")),
+    bloque("esqueleto-meta"),
+    el(
+      "div",
+      { class: "esqueleto-revisiones" },
+      varios(6, () =>
+        el(
+          "div",
+          { class: "esqueleto-revision" },
+          bloque("esqueleto-insignia"),
+          el("div", { class: "esqueleto-vista" }, bloque("esqueleto-texto"), bloque("esqueleto-meta")),
+          bloque("esqueleto-cuenta"),
+        ),
+      ),
+    ),
+  ],
+  // Propuesta: las vistas de la ruta | el antes y después | el relato del Diseñador.
+  propuesta: () => [
+    el(
+      "div",
+      { class: "esqueleto-propuesta" },
+      el("div", { class: "esqueleto-vista" }, varios(3, () => bloque("esqueleto-miniatura-vista"))),
+      bloque("esqueleto-escenario"),
+      el("div", { class: "esqueleto-vista" }, bloque("esqueleto-titulo"), varios(5, () => bloque("esqueleto-texto")), bloque("esqueleto-bloque-corto")),
+    ),
+  ],
   lista: () => [
     bloque("esqueleto-titulo"),
     bloque("esqueleto-texto"),
@@ -28,7 +104,10 @@ const FORMAS = {
   tabla: () => [bloque("esqueleto-texto"), ...Array.from({ length: 6 }, () => bloque("esqueleto-linea"))],
 };
 
-/** Esqueleto con la misma geometría que la vista final: "lista" | "tanda" | "lienzo" | "replay" | "tabla". */
+/**
+ * Esqueleto con la misma geometría que la vista final: "overview" | "revisiones" | "propuesta" | "lista" | "tanda" |
+ * "lienzo" | "replay" | "tabla".
+ */
 export function esqueleto(tipo = "lista") {
   return el(
     "div",
