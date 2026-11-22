@@ -654,6 +654,33 @@ test("tarjeta de la ruta: las acciones humanas primero; un «volver a …» nunc
   assert.equal(accionesDelTramo(ctx, c, { origen: "n1", destino: "n2", accion: "" }).texto, "clic «Horarios» (2) · volver a «Agenda» (3)");
 });
 
+test("tarjeta de la ruta: encabeza la acción de la ruta del tramo, aunque otra se repita más en la rama", async () => {
+  const { accionesDelTramo } = await import("../public/pantallas/resumen.js");
+  const ctx = { t: (clave, vars = {}) => (clave === "resumen.ruta.accionVeces" ? `${vars.accion} (${vars.n})` : clave === "resumen.ruta.masAcciones" ? `+${vars.n}` : clave) };
+  const perfiles = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const c = {
+    tanda: {
+      intentos: perfiles.map((id) => ({ id, perfil: id, resultado: "logrado" })),
+      telarana: {
+        ramas: [{
+          origen: "n1", destino: "n2",
+          acciones: [
+            { accion: "clic «Buscar»", perfiles: perfiles.slice(0, 6), salto: false },
+            { accion: "clic «Ir al Centro de Ayuda»", perfiles: perfiles.slice(0, 3), salto: false },
+            { accion: "volver a «Inicio»", perfiles: ["h"], salto: true },
+          ],
+        }],
+      },
+    },
+  };
+  const tramo = { origen: "n1", destino: "n2", accion: "clic «Ir al Centro de Ayuda»" };
+  assert.equal(accionesDelTramo(ctx, c, tramo).texto.split(" · ")[0], "clic «Ir al Centro de Ayuda» (3)");
+  // Si la rama no tiene la acción de la ruta, igual va primero (sin cuenta).
+  assert.equal(accionesDelTramo(ctx, c, { ...tramo, accion: "tecla Enter" }).texto.split(" · ")[0], "tecla Enter");
+  // Un «volver a …» de la ruta no encabeza la tarjeta.
+  assert.equal(accionesDelTramo(ctx, c, { ...tramo, accion: "volver a «Inicio»" }).texto.split(" · ")[0], "clic «Buscar» (6)");
+});
+
 test("resultado por nivel de conocimiento: intentos, logrados, medianas y escrituras rechazadas", () => {
   const intento = (conocimiento, resultado, pasos, duracion, rechazados = []) => ({ conocimiento, resultado, pasos: Array(pasos).fill({}), duracion, terminosRechazados: rechazados });
   const intentos = [

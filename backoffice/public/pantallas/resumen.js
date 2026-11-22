@@ -265,12 +265,13 @@ export function accionesDelTramo(ctx, c, tramo) {
   const rama = (c.tanda.telarana?.ramas ?? []).find((r) => r.origen === tramo.origen && r.destino === tramo.destino);
   // Cuántos intentos válidos hicieron cada acción: los con error de la herramienta no cuentan (como en las cifras).
   const validos = new Set((c.tanda.intentos ?? []).filter(esValido).map((intento) => intento.perfil ?? intento.id));
-  // Los «volver a …» del explorador (un salto que ningún humano puede dar) van después de las acciones humanas.
-  const acciones = rama?.acciones?.length
-    ? rama.acciones
-        .map((accion) => ({ accion: accion.accion, salto: !!accion.salto, n: (accion.perfiles ?? []).filter((perfil) => validos.has(perfil)).length }))
-        .sort((a, b) => a.salto - b.salto)
-    : [{ accion: tramo.accion, n: 0 }];
+  // Primero, la acción de la ruta del evaluador para este tramo (la rama junta todos los caminos que terminan en la
+  // misma página, y la más repetida puede ser otra). Después las demás; los «volver a …» del explorador (un salto
+  // que ningún humano puede dar), al final.
+  const acciones = (rama?.acciones ?? [])
+    .map((accion) => ({ accion: accion.accion, salto: !!accion.salto, n: (accion.perfiles ?? []).filter((perfil) => validos.has(perfil)).length }))
+    .sort((a, b) => a.salto - b.salto || (b.accion === tramo.accion) - (a.accion === tramo.accion));
+  if (tramo.accion && !acciones.some((accion) => accion.accion === tramo.accion)) acciones.unshift({ accion: tramo.accion, salto: false, n: 0 });
   const texto = (accion) => (accion.n ? ctx.t("resumen.ruta.accionVeces", { accion: accion.accion, n: accion.n }) : accion.accion);
   const visibles = acciones.slice(0, ACCIONES_VISIBLES).map(texto);
   const resto = acciones.length - visibles.length;
