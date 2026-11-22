@@ -363,7 +363,7 @@
   left: 50%;
   width: 96px;
   height: 198px;
-  margin-left: -44px;
+  margin-left: -48px;
   padding: 4px;
   border-radius: 16px;
   box-shadow:
@@ -602,7 +602,8 @@
   .p-overview .ov-cuadritos { padding-top: 0; }
   .p-overview .ov-pista-etapa { width: 52px; }
   .p-overview .ov-pista-flecha { width: 16px; }
-  /* Las 4 pestañas caben en 358 px (en inglés); si no, su fila se desplaza sola, nunca la página. */
+  /* Las 4 pestañas caben en 358 px en inglés; si no caben (en español), su fila se desplaza sola hasta la elegida
+     (marcarPestana), nunca la página. */
   .p-overview .ov-pestanas { gap: 2px; }
   .p-overview .ov-pestana { gap: 6px; padding: 0 8px; }
   .p-overview .ov-insignia { min-width: 24px; padding: 0 5px; }
@@ -611,6 +612,7 @@
 /* Movimiento reducido: sin pulso ni barrido (la línea de escaneo queda quieta arriba, como en la maqueta). */
 @media (prefers-reduced-motion: reduce) {
   .p-overview :is(.ov-q-en_curso, .ov-etapa-en_curso, .ov-tramo-en_curso, .ov-pildora-punto),
+  .p-overview .ov-tarjeta-running .ov-pildora-punto,
   .p-overview .ov-tarjeta-running .ov-captura::after {
     animation: none;
   }

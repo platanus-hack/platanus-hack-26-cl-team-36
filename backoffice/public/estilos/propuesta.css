@@ -17,7 +17,7 @@
   transition: border-color var(--dur-1), background-color var(--dur-1);
 }
 .p-propuesta .propuesta-vista:hover { border-color: var(--borde-fuerte); }
-.p-propuesta .propuesta-vista[aria-pressed="true"] { border-color: color-mix(in oklch, var(--acento) 60%, transparent); background: var(--superficie-2); }
+.p-propuesta .propuesta-vista[aria-pressed="true"] { border-color: color-mix(in srgb, var(--acento) 60%, transparent); background: var(--superficie-2); }
 .p-propuesta .propuesta-miniatura {
   display: block; overflow: hidden; height: 112px; border-radius: var(--radio-2); background: var(--superficie-3);
 }
@@ -85,7 +85,7 @@
 .p-propuesta .propuesta-esqueleto > span:nth-child(2) { width: 38%; }
 .p-propuesta .propuesta-escaneo {
   position: absolute; inset-inline: 0; top: 0; height: 22%;
-  background: linear-gradient(to bottom, transparent, color-mix(in oklch, var(--acento) 22%, transparent), transparent);
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--acento) 22%, transparent), transparent);
   animation: propuesta-escaneo 2.4s var(--curva-entrada-salida) infinite;
 }
 
@@ -93,9 +93,9 @@
 .p-propuesta .propuesta-marcas { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .p-propuesta .propuesta-marca {
   position: absolute; box-sizing: border-box; border: 2px dashed var(--acento); border-radius: var(--radio-1);
-  background: color-mix(in oklch, var(--acento) 8%, transparent);
+  background: color-mix(in srgb, var(--acento) 8%, transparent);
 }
-.p-propuesta .propuesta-marca-evidencia { border-color: var(--peligro-texto); background: color-mix(in oklch, var(--peligro) 8%, transparent); }
+.p-propuesta .propuesta-marca-evidencia { border-color: var(--peligro-texto); background: color-mix(in srgb, var(--peligro) 8%, transparent); }
 .p-propuesta .propuesta-marca-numero {
   position: absolute; top: -11px; left: -11px; display: inline-grid; place-items: center; width: 22px; height: 22px;
   border-radius: 50%; background: var(--acento); color: var(--fondo); font-size: 12px; font-weight: 700;
@@ -109,7 +109,7 @@
   display: grid; gap: var(--e-3); padding: var(--e-4);
   border: 1px solid var(--borde-sutil); border-radius: var(--radio-3); background: var(--superficie-1);
 }
-.p-propuesta .propuesta-disenador-en-curso { border-color: color-mix(in oklch, var(--acento) 35%, transparent); }
+.p-propuesta .propuesta-disenador-en-curso { border-color: color-mix(in srgb, var(--acento) 35%, transparent); }
 .p-propuesta .propuesta-disenador-cabecera { display: flex; align-items: center; gap: var(--e-2); min-width: 0; }
 .p-propuesta .propuesta-disenador-icono {
   display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radio-2);
