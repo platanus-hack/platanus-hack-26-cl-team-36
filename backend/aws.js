@@ -6,7 +6,9 @@ import { randomUUID } from "node:crypto";
 import { credencialesDelEntorno, firmar } from "./firma.js";
 
 // `previos`: solo escribe si `status` no existe o es uno de ellos. `existente`: solo si el ítem existe.
-export function expresionActualizar(atributos, { previos, existente = false } = {}) {
+// `hasta`: { atributo: valor }, solo si el atributo no existe o no es mayor que ese valor.
+// `igual`: { atributo: valor }, solo si vale eso (undefined: si no existe).
+export function expresionActualizar(atributos, { previos, existente = false, hasta = {}, igual = {} } = {}) {
   const nombres = {};
   const valores = {};
   const sets = [];
@@ -26,6 +28,17 @@ export function expresionActualizar(atributos, { previos, existente = false } = 
       lista.length ? `(attribute_not_exists(#status) OR #status IN (${lista.join(", ")}))` : "attribute_not_exists(#status)",
     );
   }
+  Object.entries(hasta).forEach(([nombre, valor], i) => {
+    nombres[`#h${i}`] = nombre;
+    valores[`:h${i}`] = valor;
+    condiciones.push(`(attribute_not_exists(#h${i}) OR #h${i} <= :h${i})`);
+  });
+  Object.entries(igual).forEach(([nombre, valor], i) => {
+    nombres[`#i${i}`] = nombre;
+    if (valor === undefined) return condiciones.push(`attribute_not_exists(#i${i})`);
+    valores[`:i${i}`] = valor;
+    condiciones.push(`#i${i} = :i${i}`);
+  });
   if (existente) condiciones.push("attribute_exists(PK)");
 
   return {
@@ -57,7 +70,9 @@ export function filtroEnCurso(estados, desde) {
 
 export async function tablaDynamo(tabla) {
   const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
-  const { DynamoDBDocumentClient, GetCommand, ScanCommand, TransactWriteCommand, UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
+  const { DynamoDBDocumentClient, GetCommand, QueryCommand, ScanCommand, TransactWriteCommand, UpdateCommand } = await import(
+    "@aws-sdk/lib-dynamodb"
+  );
   const cliente = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
   // true si escribió; false si una condición no se cumplió.
@@ -98,6 +113,24 @@ export async function tablaDynamo(tabla) {
         ExclusiveStartKey = pagina.LastEvaluatedKey;
       } while (ExclusiveStartKey);
       return total;
+    },
+    async listar(PK) {
+      const items = [];
+      let ExclusiveStartKey;
+      do {
+        const pagina = await cliente.send(
+          new QueryCommand({
+            TableName: tabla,
+            KeyConditionExpression: "PK = :pk",
+            ExpressionAttributeValues: { ":pk": PK },
+            ConsistentRead: true,
+            ExclusiveStartKey,
+          }),
+        );
+        items.push(...pagina.Items);
+        ExclusiveStartKey = pagina.LastEvaluatedKey;
+      } while (ExclusiveStartKey);
+      return items;
     },
     actualizar: (Key, atributos, opciones) =>
       condicional(new UpdateCommand({ TableName: tabla, Key, ...expresionActualizar(atributos, opciones) })),

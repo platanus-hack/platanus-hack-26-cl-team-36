@@ -52,7 +52,10 @@ abajo).
   vive en el bucket del estado.
   `/revisiones` de la API marca cada página en la tabla y dispara el conductor en el runtime cuyo nombre termina en
   `runtime_agentes` (`chameleon`); la Lambda `chameleon-backend-proyectora` (`backend/proyectora.js`) recibe los
-  `manifest.json` nuevos del bucket y actualiza el estado de cada revisión. Sin `REVISIONES_TABLA` (en local),
+  `manifest.json` y `trace.json` nuevos del bucket, actualiza el estado de cada revisión (los `trace.json`, el paso en
+  curso de cada goal) y recalcula el `resumen` por fase en su META: `{ fases: { catalog|guide|visitor|improver:
+  { pending, running, succeeded, failed, skipped } }, agentes_activos, pasos, goals_total }` (`skipped`: el Visitante
+  de un goal cuya Guía falló). Sin `REVISIONES_TABLA` (en local),
   `/revisiones` responde 404.
   Un `POST` sobre una página cuya revisión quedó `failed`, o `queued`/`running` sin novedades hace más de una hora,
   dispara otra. Con `revisiones_en_curso_max` (5) revisiones

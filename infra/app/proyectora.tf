@@ -1,4 +1,4 @@
-# La proyectora: cada manifest.json del almacén actualiza la tabla de revisiones
+# La proyectora: cada manifest.json y trace.json del almacén actualiza la tabla de revisiones
 # (backend/proyectora.js, mismo paquete que la API).
 
 resource "aws_iam_role" "proyectora" {
@@ -13,12 +13,16 @@ resource "aws_iam_role_policy_attachment" "proyectora_logs" {
 
 data "aws_iam_policy_document" "proyectora" {
   statement {
-    actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.almacen.arn}/*/manifest.json", "${aws_s3_bucket.almacen.arn}/*/cataloger/*/goals.json"]
+    actions = ["s3:GetObject"]
+    resources = [
+      "${aws_s3_bucket.almacen.arn}/*/manifest.json",
+      "${aws_s3_bucket.almacen.arn}/*/trace.json",
+      "${aws_s3_bucket.almacen.arn}/*/cataloger/*/goals.json",
+    ]
   }
 
   statement {
-    actions   = ["dynamodb:UpdateItem"]
+    actions   = ["dynamodb:UpdateItem", "dynamodb:Query"]
     resources = [aws_dynamodb_table.revisiones.arn]
   }
 }
@@ -68,13 +72,17 @@ resource "aws_lambda_permission" "almacen_invoca_proyectora" {
   source_account = data.aws_caller_identity.actual.account_id
 }
 
+# Una regla por sufijo: S3 rechaza dos reglas que se solapen, y estos sufijos no se solapan.
 resource "aws_s3_bucket_notification" "almacen" {
   bucket = aws_s3_bucket.almacen.id
 
-  lambda_function {
-    lambda_function_arn = aws_lambda_function.proyectora.arn
-    events              = ["s3:ObjectCreated:*"]
-    filter_suffix       = "manifest.json"
+  dynamic "lambda_function" {
+    for_each = ["manifest.json", "trace.json"]
+    content {
+      lambda_function_arn = aws_lambda_function.proyectora.arn
+      events              = ["s3:ObjectCreated:*"]
+      filter_suffix       = lambda_function.value
+    }
   }
 
   depends_on = [aws_lambda_permission.almacen_invoca_proyectora]
