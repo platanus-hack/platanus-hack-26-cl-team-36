@@ -62,6 +62,15 @@ export const pedirRevision = (revision) => pedirJson(`api/revisiones/${encodeURI
 /** "resultados/<clave de corrida>/<archivo>" */
 export const urlDeResultado = (clave) => `resultados/${segmentosCodificados(clave)}`;
 
+// La propuesta del Diseñador cambia mientras diseña: sin caché, la pestaña la vuelve a pedir hasta que termina.
+/** → Propuesta (lib/propuestas.js) | null (404: la tanda no existe) */
+export const pedirPropuesta = (tandaId) => pedirJson(`api/propuestas/${segmentosCodificados(tandaId)}`);
+/** "propuestas/<corrida del Diseñador>/vistas/<nombre>.png" */
+export const urlDePropuesta = (clave) => `propuestas/${segmentosCodificados(clave)}`;
+
+/** Evento que avisa el estado de la propuesta de una tanda (detail: { tandaId, estado }): el marco pinta su pestaña. */
+export const EVENTO_PROPUESTA = "backoffice:propuesta";
+
 /** "archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<archivo>", cada segmento codificado. */
 export function urlDeArchivo(tandaId, perfil, archivo) {
   return `archivos/${[...String(tandaId).split("/"), perfil, archivo].map(encodeURIComponent).join("/")}`;
