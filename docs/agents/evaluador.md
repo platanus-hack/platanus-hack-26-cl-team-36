@@ -319,6 +319,13 @@ parte de la tanda por defecto.
 - En el árbol, cada vuelta es un **salto** (`"salto": true` en `branches`): se dibuja, pero la ruta recomendada no lo
   usa. En un intento con éxito, solo cuentan como éxito los tramos desde los que el usuario siguió hacia adelante
   hasta la página final; lo explorado y abandonado cuenta como fallo, así la exploración no infla la ruta.
+- Con `--exploradores conocimiento` son 8: los 4 lugares × 2 niveles de conocimiento del tema. `sin_contexto` conoce
+  su objetivo con palabras de todos los días y no puede escribir términos oficiales que no haya visto en el sitio;
+  `conoce_tema` conoce los nombres oficiales y cómo funciona el trámite. Ninguno sabe dónde está la respuesta en el
+  sitio. Desde 2026-11-21 son el conjunto estándar (`config.CONJUNTO_EXPLORADORES`); por qué, en el
+  [spike de exploradores con conocimiento (2026-11-21)](../../.spikes/2026-11-21-exploradores-conocimiento.md): 8 ven
+  ~39 % más páginas que 4, casi todo por ser el doble, y `sin_contexto` muestra dónde se pierde alguien sin
+  vocabulario (71 % de éxito contra 93 % de `conoce_tema`).
 
 El backoffice dibuja este grafo en la pestaña «Telaraña». Cómo correrlos y las tareas pensadas para ellos están en el
 [README del Visitante](../../agents/app/visitor/README.md#exploradores).

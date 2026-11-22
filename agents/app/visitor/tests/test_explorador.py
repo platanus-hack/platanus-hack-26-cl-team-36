@@ -28,7 +28,8 @@ EXPLORADORES = ("explorador", "explorador_buscador", "explorador_pie", "explorad
 
 def test_los_perfiles_por_defecto_no_cambian_y_los_exploradores_se_piden_por_nombre():
     assert PERFILES_POR_DEFECTO == ("first_time", "hurried", "mobile")
-    assert list(PROFILES) == [*PERFILES_POR_DEFECTO, *EXPLORADORES]
+    # los 4 de siempre y después los 8 con nivel de conocimiento (test_conocimiento.py)
+    assert list(PROFILES) == [*PERFILES_POR_DEFECTO, *EXPLORADORES, *profiles.CONJUNTOS_EXPLORADORES["conocimiento"]]
     for key in EXPLORADORES:
         assert PROFILES[key].key == key and PROFILES[key].explora and key not in PERFILES_POR_DEFECTO
     assert "no_existe" not in PROFILES
@@ -59,7 +60,7 @@ def test_el_prompt_del_explorador_trae_la_skill_sin_frontmatter_y_sus_limites():
 
 
 def test_los_exploradores_empiezan_por_lugares_distintos():
-    descripciones = {profile.description for profile in PROFILES.values() if profile.explora}
+    descripciones = {PROFILES[key].description for key in EXPLORADORES}
     assert len(descripciones) == 4
 
 

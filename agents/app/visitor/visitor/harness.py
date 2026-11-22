@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from playwright.async_api import Browser
+from playwright.async_api import Error as PlaywrightError
 
 from shared.browser.pixels import screen_change_ratio
 from shared.browser.session import BrowserSession, blocked_form_count, create_context
@@ -14,6 +15,7 @@ from shared.nodes.urls import node_key, normalize_url
 from visitor.actions import (
     CLICK_ACTIONS, UI_ACTIONS, VOLVER_A_NODO, Executor, InvalidActionError, UnavailableActionError,
 )
+from visitor.conocimiento import ConocimientoDeTarea, tarea_para, terminos_en
 from visitor.profiles import Profile, system_prompt
 from visitor.recording import Run, Step, element_at, has_no_effect, visible_error
 from visitor.route_tree import registrable_domain
@@ -43,12 +45,17 @@ class SyntheticUser:
         instruction: str,
         run_dir: Path,
         record_video: bool = False,
+        conocimiento: ConocimientoDeTarea | None = None,
     ):
         self.engine = engine
         self.browser = browser
         self.profile = profile
         self.url = url
-        self.instruction = instruction
+        # Con nivel de conocimiento, la tarea que lee depende del nivel (conocimiento.py); el juez usa la original.
+        self.tarea = tarea_para(profile.conocimiento, instruction, conocimiento)
+        self.instruction = self.tarea.instruccion
+        # Términos oficiales que ya aparecieron en alguna página: desde ahí `sin_contexto` puede escribirlos.
+        self.terminos_vistos: set[str] = set()
         self.run_dir = run_dir
         self.record_video = record_video
         self.session: BrowserSession | None = None
@@ -59,7 +66,9 @@ class SyntheticUser:
             model=engine.model,
             engine=engine.name,
             start_url=url,
-            instruction=instruction,
+            instruction=self.tarea.instruccion,
+            conocimiento=profile.conocimiento,
+            tarea_coloquial=self.tarea.coloquial,
         )
 
     def _log(self, text: str) -> None:
@@ -112,12 +121,13 @@ class SyntheticUser:
         if self.session.opened_at is not None:
             run.video_offset_s = round(self.started_at - self.session.opened_at, 2)
         self.last_step_end_s = 0.0
+        await self._anotar_terminos_vistos()
         self._log(f"inicio en {url} — {title!r}")
 
         try:
             await self.engine.start(
                 system_prompt(self.profile, self.engine.name),
-                f"Tu tarea: {self.instruction}\n\nEsta es la pantalla inicial del sitio.",
+                self._primer_mensaje(),
                 self.current_screenshot,
                 self.run_dir,
             )
@@ -188,6 +198,12 @@ class SyntheticUser:
                 continue
             if len(self.run.steps) >= self.profile.limite_acciones:
                 raise AttemptEnded("step_limit")
+            rechazo = self._rechazo_de_termino(request)
+            if rechazo is not None:
+                results.append(ActionResult(request, rechazo, is_error=True))
+                failed = True
+                expectation = None
+                continue
             if not expectation:
                 self.run.incidents.append(f"intentó '{request.name}' sin declarar su expectativa")
                 results.append(ActionResult(
@@ -207,6 +223,42 @@ class SyntheticUser:
             if time.monotonic() - self.started_at > self.profile.limite_segundos:
                 raise AttemptEnded("time_limit")
         return results
+
+    def _primer_mensaje(self) -> str:
+        contexto = f"\n\nLo que ya sabes del tema (no del sitio): {self.tarea.contexto}" if self.tarea.contexto else ""
+        return f"Tu tarea: {self.instruction}{contexto}\n\nEsta es la pantalla inicial del sitio."
+
+    async def _anotar_terminos_vistos(self) -> None:
+        """Anota los términos vetados que ya aparecen en el texto de la página actual (solo si hay términos vetados)."""
+        pendientes = [t for t in self.tarea.terminos_vetados if t not in self.terminos_vistos]
+        if not pendientes:
+            return
+        try:
+            texto = await self.session.page.evaluate("() => document.body ? document.body.innerText : ''")
+        except PlaywrightError:
+            return
+        self.terminos_vistos.update(terminos_en(texto or "", pendientes))
+
+    def _rechazo_de_termino(self, request: ActionRequest) -> str | None:
+        """Si `sin_contexto` quiere escribir un término oficial que no ha visto en el sitio, el error que se le responde.
+
+        Es la regla 1 de su nivel hecha cumplir por el harness: con solo pedírselo, el modelo escribe lo que ya sabe.
+        """
+        if request.name != "type" or not self.tarea.terminos_vetados:
+            return None
+        texto = str(request.input.get("text") or "")
+        no_vistos = [t for t in self.tarea.terminos_vetados if t not in self.terminos_vistos]
+        prohibidos = terminos_en(texto, no_vistos)
+        if not prohibidos:
+            return None
+        self.run.terminos_rechazados.extend(prohibidos)
+        lista = ", ".join(f"«{t}»" for t in prohibidos)
+        self.run.incidents.append(f"quiso escribir {lista} sin haberlo visto en el sitio; no se escribió")
+        self._log(f"escritura rechazada: {lista} no se ha visto en el sitio")
+        return (
+            f"No se escribió: {lista} es un nombre oficial que todavía no has visto en este sitio, y tú no lo conoces. "
+            "Escribe con tus palabras de todos los días, o con palabras que ya leíste en las pantallas del sitio."
+        )
 
     def _rechazo_de_fin_temprano(self, turn: Turn) -> ActionResult | None:
         """Si un explorador quiere terminar en la fase de abanico, el error que se le responde; si no, None.
@@ -330,6 +382,7 @@ class SyntheticUser:
             signals.append("security_block")
         self.visited_nodes.add(node_after)
         self._registrar_pagina(url, title)
+        await self._anotar_terminos_vistos()
         if node_before == self.nodo_inicial and node_after != node_before and name != VOLVER_A_NODO:
             self.ramas_desde_inicio.add(node_after)
 

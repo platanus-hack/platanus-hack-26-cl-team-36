@@ -23,6 +23,11 @@ EXPLORADOR_MAX_ACCIONES = 30
 # con 300 s se acababa el tiempo antes que las acciones.
 EXPLORADOR_MAX_SEGUNDOS = 420
 EXPLORADOR_MAX_TURNOS = 70
+# Conjunto de exploradores que corre con `--exploradores` sin nombre (ver profiles.CONJUNTOS_EXPLORADORES): "base" son
+# los 4 de siempre, uno por lugar de la página inicial (menú, buscador, pie, contenido); "conocimiento" son 8, esos 4
+# lugares con dos niveles de conocimiento del tema (sin_contexto y conoce_tema, ver conocimiento.py).
+# Desde el 2026-11-21 el estándar son los 8 (ver .spikes/2026-11-21-exploradores-conocimiento.md).
+CONJUNTO_EXPLORADORES = "conocimiento"
 
 # Skills de Claude Code del repo (.claude/skills/): algunos perfiles cargan una en su prompt. La carpeta queda fuera
 # de la imagen de AgentCore, así que ahí no hay skills (None) y esos perfiles solo corren en local.

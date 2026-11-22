@@ -125,3 +125,12 @@ def test_tasks_with_the_free_prefix_are_ignored(tmp_path, monkeypatch):
     (tmp_path / "sitio.cl" / "libre-baja-0a1b2c3d.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(tasks, "TASKS_DIR", tmp_path)
     assert tasks.available_tasks() == [] and tasks.load_task("sitio.cl/libre-baja-0a1b2c3d") is None
+
+
+def test_las_tareas_del_repo_cargan_con_su_conocimiento():
+    """Los campos de los exploradores con nivel de conocimiento son opcionales y no rompen load_task."""
+    refs = tasks.available_tasks()
+    assert refs
+    for ref in refs:
+        task = tasks.load_task(ref)
+        assert task is not None and isinstance(task.terminos_oficiales, tuple)

@@ -17,6 +17,16 @@ class Task:
     start_url: str
     description: str
     expected_answer: str | None = None
+    # Para los exploradores con nivel de conocimiento del Visitante (agents/app/visitor/visitor/conocimiento.py): la
+    # tarea con palabras de todos los días, los nombres oficiales que `sin_contexto` no conoce y lo que sabe del tema
+    # `conoce_tema`. Opcionales: una tarea sin ellos sigue siendo válida.
+    description_sin_contexto: str | None = None
+    terminos_oficiales: tuple[str, ...] = ()
+    conocimiento_del_tema: str | None = None
+
+    def __post_init__(self) -> None:
+        # En el JSON es una lista; se guarda como tupla para que la tarea siga siendo inmutable.
+        object.__setattr__(self, "terminos_oficiales", tuple(self.terminos_oficiales or ()))
 
     @property
     def ref(self) -> str:

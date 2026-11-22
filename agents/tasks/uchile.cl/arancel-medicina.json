@@ -3,5 +3,13 @@
   "host": "uchile.cl",
   "start_url": "https://uchile.cl/",
   "description": "Quieres estudiar Medicina en la Universidad de Chile: averigua cuánto cuesta el arancel anual para quien entra a primer año.",
-  "expected_answer": "$9.468.300 al año (valores 2026 para estudiantes nuevos), más $217.600 de derecho básico de matrícula."
+  "expected_answer": "$9.468.300 al año (valores 2026 para estudiantes nuevos), más $217.600 de derecho básico de matrícula.",
+  "description_sin_contexto": "Quieres estudiar Medicina en la Universidad de Chile: averigua cuánto se paga al año por la carrera si entras a primer año.",
+  "terminos_oficiales": [
+    "arancel",
+    "arancel anual",
+    "derecho básico de matrícula",
+    "pregrado"
+  ],
+  "conocimiento_del_tema": "En las universidades chilenas lo que se paga cada año por una carrera de pregrado se llama arancel anual; aparte se paga un derecho básico de matrícula. Los valores cambian cada año y se publican por carrera para los estudiantes nuevos."
 }

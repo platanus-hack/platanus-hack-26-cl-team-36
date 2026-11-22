@@ -19,6 +19,7 @@ from visitor.api_engine import ApiEngine
 from visitor.browsers import open_browsers
 from visitor.claude_code_engine import ClaudeCodeEngine
 from visitor.comparison import References, compare_batch
+from visitor.conocimiento import SIN_CONTEXTO, ConocimientoDeTarea
 from visitor.harness import SyntheticUser
 from visitor.judge import ApiJudge, ClaudeCodeJudge, judge_run, propose_criteria
 from visitor.profiles import PROFILES
@@ -110,8 +111,12 @@ def _judge_and_engines(engine: str, user_model: str, judge_model: str, effort: s
 
 
 async def _attempts(judge, make_engine, profile_keys: list[str], url: str, instruction: str, batch_dir: Path,
-                    browser: str, cdp_url: str | None, record_video: bool, css: str | None) -> tuple[list[Run], dict]:
-    """Los intentos que cargaron la página, con su veredicto, y el criterio de éxito; con `css`, todos con ese tema."""
+                    browser: str, cdp_url: str | None, record_video: bool, css: str | None,
+                    conocimiento: ConocimientoDeTarea | None) -> tuple[list[Run], dict]:
+    """Los intentos que cargaron la página, con su veredicto, y el criterio de éxito; con `css`, todos con ese tema.
+
+    Con `conocimiento`, los exploradores con nivel leen la tarea de su nivel; el criterio y el juez usan `instruction`.
+    """
     async with async_playwright() as playwright:
         browsers = open_browsers(playwright, browser, cdp_url)
         try:
@@ -125,7 +130,8 @@ async def _attempts(judge, make_engine, profile_keys: list[str], url: str, instr
             criteria_task = asyncio.create_task(_criteria_for(judge, criteria_browser, url, instruction))
             users = [
                 SyntheticUser(
-                    make_engine(), user_browser, PROFILES[key], url, instruction, batch_dir / key, record_video
+                    make_engine(), user_browser, PROFILES[key], url, instruction, batch_dir / key, record_video,
+                    conocimiento=conocimiento,
                 )
                 for key, user_browser in zip(profile_keys, user_browsers)
             ]
@@ -154,7 +160,8 @@ async def _attempts(judge, make_engine, profile_keys: list[str], url: str, instr
 
 async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, profile_keys: list[str],
                        references: References, engine: str, user_model: str, judge_model: str, effort: str,
-                       cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None) -> int:
+                       cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None,
+                       conocimiento: ConocimientoDeTarea | None, conjunto_exploradores: str | None) -> int:
     """Escribe la tanda en `batch_dir` y devuelve cuántos intentos no se interrumpieron."""
     css, tema = describir_tema(tema_css) if tema_css else (None, None)
     if css is not None:
@@ -163,7 +170,7 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
     with claude_workdir("visitor") as claude_cwd:
         judge, make_engine = _judge_and_engines(engine, user_model, judge_model, effort, claude_cwd)
         runs, criteria = await _attempts(judge, make_engine, profile_keys, url, instruction, batch_dir, browser,
-                                         cdp_url, record_video, css)
+                                         cdp_url, record_video, css, conocimiento)
 
     run_dicts = [run.to_dict() for run in runs]
     # El árbol y la ruta recomendada solo usan intentos reales; los interrumpidos quedan en el reporte.
@@ -179,7 +186,10 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
         "judge_model": judge_model,
         "effort": effort,
         "tema": tema,
+        "conjunto_exploradores": conjunto_exploradores,
     }
+    if any(PROFILES[key].conocimiento == SIN_CONTEXTO for key in profile_keys):
+        meta["tarea_sin_contexto"] = (conocimiento or ConocimientoDeTarea()).description_sin_contexto
     _write_json(batch_dir / "criteria.json", criteria)
     _write_json(batch_dir / "route_tree.json", {**meta, "criteria": criteria, **tree})
     comparison = compare_batch(references, run_dicts)
@@ -216,6 +226,8 @@ async def run_batch(
     browser: str = "local",
     record_video: bool = False,
     tema_css: Path | None = None,
+    conocimiento: ConocimientoDeTarea | None = None,
+    conjunto_exploradores: str | None = None,
 ) -> store.RunKey:
     """Una corrida de visitor: report.md, route_tree.json, comparison.json y una carpeta por perfil.
 
@@ -223,12 +235,16 @@ async def run_batch(
     termina `failed` (con su reporte) y lanza `BatchInterrupted`. Con `tema_css`, cada página de cada usuario (y la del
     criterio) se ve con ese tema, como con la extensión; la corrida deja una copia en `tema.css` y lo registra en
     `route_tree.json` (`tema`), para distinguirla de una sin tema.
+
+    Con `conocimiento` (lo que la tarea dice de su tema), los exploradores con nivel leen la tarea de su nivel; el
+    criterio y el juez usan siempre `instruction`. `conjunto_exploradores` solo se registra, para agrupar tandas.
     """
     user_model, judge_model = models_for(engine, user_model)
     with store.running(backend, prefix, model=user_model,
                        inputs=(*inputs, *(key for key, _ in references.values()))) as run:
         finished = await _write_batch(run.workdir, prefix.goal, url, instruction, profile_keys, references, engine,
-                                      user_model, judge_model, effort, cdp_url, browser, record_video, tema_css)
+                                      user_model, judge_model, effort, cdp_url, browser, record_video, tema_css,
+                                      conocimiento, conjunto_exploradores)
         if not finished:
             raise BatchInterrupted(run.key)
     return run.key

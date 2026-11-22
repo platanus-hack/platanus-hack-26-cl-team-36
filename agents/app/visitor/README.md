@@ -29,7 +29,8 @@ uv run main.py --task wom.cl/baja-fibra --css ../../.runs/diseno/www.wom.cl/<fec
 | `--task <host>/<id>` | Una tarea de [`agents/tasks/`](../../tasks/). |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el objetivo es `libre-<palabras>-<hash>` de la instrucción. |
 | `--site <url>` | El último catálogo del sitio, del [Catalogador](../cataloger/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
-| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--site`, `first_time`) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido`, que solo corren si se piden. |
+| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--site`, `first_time`) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido` (y los 8 [con nivel de conocimiento](#exploradores-con-nivel-de-conocimiento)), que solo corren si se piden. |
+| `--exploradores [CONJUNTO]` | Suma un conjunto de exploradores: `base` (los 4 de siempre) o `conocimiento` (los 8 con nivel de conocimiento). Sin nombre, el de `config.CONJUNTO_EXPLORADORES` (`conocimiento`, el estándar). Sin `--profiles`, corren solo ellos. |
 | `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
 | `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-sonnet-4-6`). |
 | `--browser` | `local` (Chromium, por defecto) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
@@ -87,6 +88,30 @@ uv run main.py --task metro.cl/tarifa-sabado \
   clic a una página ya vista se marca `revisit`: no es señal de error, pero ese tramo cuenta como exploración, salvo
   que llegue a la página final. Así el grafo tiene nodos con varias salidas (el inicio, sobre todo) en vez de una
   línea, sin que la exploración infle los éxitos.
+
+### Exploradores con nivel de conocimiento
+
+`--exploradores conocimiento` corre 8 exploradores: los 4 lugares de partida × 2 niveles de lo que saben del **tema**
+(`Profile.conocimiento`, ver [`visitor/conocimiento.py`](visitor/conocimiento.py)). Claves
+`explorador_<lugar>_<nivel>`, con lugar `menu`, `buscador`, `pie` o `contenido`.
+
+- **`sin_contexto`:** sabe su objetivo con palabras de todos los días, no los nombres oficiales. Lee la versión
+  coloquial de la tarea (`description_sin_contexto`) y su prompt trae reglas concretas: en el buscador solo palabras
+  de su tarea o ya vistas en el sitio, y un enlace con jerga que no conoce no tiene olor alto. El harness hace cumplir
+  la primera: si escribe un término de `terminos_oficiales` que todavía no apareció en el texto de ninguna página que
+  vio, no se escribe, se le responde con un error y queda en `terminos_rechazados` e `incidents`.
+- **`conoce_tema`:** lee la tarea original y, en el primer mensaje, `conocimiento_del_tema` y los términos oficiales;
+  sus reglas le piden buscar con el nombre oficial y dar olor alto a los enlaces que lo usan.
+- **Regla de oro:** ningún nivel sabe **dónde** está la respuesta (secciones, menús, URLs): el conocimiento es del
+  tema, nunca del sitio. Los tres campos se escriben a mano en cada tarea de `agents/tasks/<host>/` y una prueba
+  (`tests/test_conocimiento.py`) revisa que no traigan pistas de lugar, que la versión coloquial no use términos
+  oficiales y que el conocimiento no traiga números de la respuesta. Se eligió escribirlos a mano y no generarlos con
+  un modelo: son pocos, quedan revisados y fijos entre corridas, y un modelo que conoce el sitio puede filtrar dónde
+  está la respuesta. Sin esos campos (`--url`, `--site`), `sin_contexto` lee la tarea original y queda
+  `tarea_coloquial: false` en `run.json`.
+- **Dónde queda el nivel:** `conocimiento`, `tarea_coloquial` y `terminos_rechazados` en cada `run.json`;
+  `conjunto_exploradores` y `tarea_sin_contexto` en `route_tree.json`; una columna y la sección «Resultado por nivel de
+  conocimiento» en `report.md`. El juez usa siempre la tarea original.
 - **El reporte** muestra los límites de cada perfil y, en la tabla, pasos y tiempo junto a su tope.
 
 ## En AWS (AgentCore)
@@ -147,7 +172,9 @@ de esa instrucción terminó bien se omite. El resumen del sitio lo escribe [sum
 ## Tareas
 
 Cada archivo `agents/tasks/<host>/<id>.json` es una tarea: un objetivo de su host con su propio id, con la forma de
-[formas de datos](../../../docs/formas-de-datos.md), sección 5: `id`, `host`, `start_url` y `description`.
+[formas de datos](../../../docs/formas-de-datos.md), sección 5: `id`, `host`, `start_url` y `description`, más
+`description_sin_contexto`, `terminos_oficiales` y `conocimiento_del_tema` para los
+[exploradores con nivel de conocimiento](#exploradores-con-nivel-de-conocimiento).
 `wom.cl/baja-fibra`, `sii.cl/exencion-contribuciones` y `dt.gob.cl/reclamo-despido` salen de
 [tareas en sitios chilenos](../../../docs/tareas-sitios-chilenos.md). Otras cinco
 (`bibliotecanacional.gob.cl/socio-prestamo-domicilio`, `metro.cl/tarifa-sabado`, `sernac.cl/retracto-compra-online`,
@@ -174,6 +201,7 @@ revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio 
 | `visitor/proposal.py` | La propuesta de ruta cuando un intento logra la tarea con menos pasos que la referencia. |
 | `visitor/catalog_run.py` | Las tandas de un catálogo. |
 | `visitor/profiles.py`, `visitor/config.py` | Los perfiles de usuario, su prompt y los límites. |
+| `visitor/conocimiento.py` | Qué tarea lee y qué sabe del tema cada nivel de los [exploradores con nivel de conocimiento](#exploradores-con-nivel-de-conocimiento). |
 
 La sesión del navegador, la red de seguridad de formularios, el proceso de Claude Code y los nodos están en
 [`agents/shared/`](../../shared/README.md).
