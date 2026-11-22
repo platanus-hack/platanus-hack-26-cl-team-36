@@ -20,6 +20,8 @@ concurrency:
 jobs:
   descubrir:
     name: Proyectos de Python
+    # Solo en el repo de la organización; el personal recibe main por sync.
+    if: github.repository == 'platanus-hack/platanus-hack-26-cl-team-36'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -94,6 +96,7 @@ jobs:
 
   node:
     name: Backend, backoffice y extensión
+    if: github.repository == 'platanus-hack/platanus-hack-26-cl-team-36'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -120,7 +123,7 @@ jobs:
   resultado:
     name: Todas las pruebas
     needs: [descubrir, pytest, node]
-    if: always()
+    if: always() && github.repository == 'platanus-hack/platanus-hack-26-cl-team-36'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
