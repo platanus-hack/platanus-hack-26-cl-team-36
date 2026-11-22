@@ -99,6 +99,15 @@ y `s3://bucket/prefijo/wom.cl/cataloger/…/goals.json` en S3. Como el árbol es
 En S3 cada video (`video/*`) se sube con la etiqueta `tipo=video`, que la regla de ciclo de vida del bucket usa
 para expirarlo: S3 no filtra por extensión. Escribirla pide `s3:PutObjectTagging` además de `s3:PutObject`.
 
+### Corridas sin manifiesto
+
+`scripts/migrate_runs.py` copia a un almacén las corridas de `agents/.runs/` escritas sin `shared.store` (tandas
+`<tarea>/<fecha-hora>/`, rutas `reference/<viewport>/`, catálogos `<host>/goals/`) como corridas `succeeded` con sus
+instantes en UTC, o `failed` si todos los intentos se interrumpieron. No toca la fuente, omite con su motivo lo que no
+sabe ubicar y repetirla no copia nada nuevo. Sin `--write` solo muestra el plan:
+`just local migrate-runs file:///ruta [--write]`, o desde `agents/shared`,
+`uv run scripts/migrate_runs.py --to <almacén> [--from <carpeta>] [--write]`.
+
 ## Instalación
 
 Desde un agente en `agents/app/<agente>/`, como dependencia de ruta editable (sin editable no ubica `agents/.runs/`):
