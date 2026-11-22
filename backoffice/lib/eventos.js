@@ -23,8 +23,7 @@ function instante(valor) {
   return Number.isFinite(ms) ? ms : null;
 }
 
-// La hora de la clave de la corrida ("…/2026-11-22T10-00-00Z" → ms), el ts del start: run.json trae started_at y
-// trace.json no, y el ts de un evento ya enviado no debe cambiar (ordena la reanudación con Last-Event-ID).
+// La hora de la corrida ("…/2026-11-22T10-00-00Z"): trace.json no trae started_at y el ts del start no debe cambiar.
 function inicioDeCorrida(runKey) {
   const partes = /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})Z/.exec(partesDeCorrida(runKey ?? "")?.corrida ?? "");
   return partes ? Date.parse(`${partes[1]}T${partes[2]}:${partes[3]}:${partes[4]}Z`) : 0;
@@ -65,7 +64,7 @@ export function eventosDeRecorrido(recorrido, { revision, host, goal, agent, run
   for (const paso of recorrido.steps) {
     const desde = paso.url_before ? pagina(paso.url_before, paso.title_before) : nodo;
     nodo = pagina(paso.url, paso.title);
-    ultimo = Math.max(ultimo, instante(paso.settled_at) ?? base + numero(paso.seconds_since_start) * 1000);
+    ultimo = Math.max(ultimo, instante(paso.settled_at) ?? instante(paso.executed_at) ?? base + numero(paso.seconds_since_start) * 1000);
     eventos.push(evento("step", paso.number, ultimo, { action: accion(paso, agent), from: desde, node: nodo, signals: [...(paso.signals ?? [])] }));
   }
   if (fin) {
@@ -85,8 +84,7 @@ function finDeLaGuia({ estado, recorrido }) {
   return CERRADO.has(estado) ? { outcome: "error", end_reason: estado } : null;
 }
 
-// Un intento termina con su run.json (veredicto), con una traza "failed" (se interrumpió) o cuando la etapa se cerró
-// sin run.json. Una traza "succeeded" espera el veredicto, que llega con run.json al cerrar la etapa.
+// Termina con run.json, con una traza "failed" o con la etapa cerrada; una traza "succeeded" espera el veredicto.
 function finDelIntento({ archivo, datos }, estadoDeLaEtapa) {
   if (archivo === "run.json") return { outcome: RESULTADOS[datos.verdict?.outcome] ?? "abandoned", end_reason: texto(datos.end_reason) || "done" };
   if (datos.status === "failed") return { outcome: "error", end_reason: "interrupted" };
@@ -133,38 +131,30 @@ export function rutaDeLaGuia(guide) {
 /** true cuando ya no habrá más eventos del goal: el Visitante cerró (o no se lanzará) o la revisión terminó. */
 export const goalTerminado = ({ estado, goal }) => CERRADO.has(goal.visitor.estado) || estado === "done" || estado === "failed";
 
-/**
- * Lo que falta enviar de cada lectura: los eventos que no salieron antes, y el end de cada intento una sola vez.
- * Con `ultimoId` (Last-Event-ID), la primera lectura da por enviado todo hasta ese evento; si ya no está, lo de su
- * intento hasta ese paso.
- * @param {string | null} [ultimoId]
- * @returns {(eventos: object[]) => object[]}
- */
+/** Lo nuevo de cada lectura (nada de un intento ya terminado); con Last-Event-ID, lo de su intento hasta ese paso ya salió. */
 export function crearSeguimiento(ultimoId = null) {
   const enviados = new Set();
   const terminados = new Set();
   let pendiente = ultimoId ? String(ultimoId) : null;
   return function nuevos(eventos) {
     if (pendiente) {
-      const hasta = eventos.findIndex((evento) => evento.id === pendiente);
-      const [runKey, intento, paso] = pendiente.split("|");
-      const yaEnviado = hasta >= 0
-        ? (_, i) => i <= hasta
-        : (evento) => evento.run_id === `${runKey}|${intento}` && (evento.type !== "end" ? evento.step <= Number(paso) : pendiente.endsWith("|end"));
-      eventos.forEach((evento, i) => {
-        if (!yaEnviado(evento, i)) return;
+      // Solo se sabe lo de ese intento: lo de los demás se reenvía y el cliente deduplica por id.
+      const [runKey, intento, paso, tipo] = pendiente.split("|");
+      const runId = `${runKey}|${intento}`;
+      for (const evento of eventos) {
+        if (evento.run_id !== runId || !(tipo === "end" || evento.type === "start" || (evento.type === "step" && evento.step <= Number(paso)))) continue;
         enviados.add(evento.id);
-        if (evento.type === "end") terminados.add(evento.run_id);
-      });
+      }
+      if (tipo === "end") terminados.add(runId);
       pendiente = null;
     }
     const salen = [];
     for (const evento of eventos) {
-      if (enviados.has(evento.id) || (evento.type === "end" && terminados.has(evento.run_id))) continue;
+      if (enviados.has(evento.id) || terminados.has(evento.run_id)) continue;
       enviados.add(evento.id);
-      if (evento.type === "end") terminados.add(evento.run_id);
       salen.push(evento);
     }
+    for (const evento of salen) if (evento.type === "end") terminados.add(evento.run_id);
     return salen;
   };
 }

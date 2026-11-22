@@ -118,9 +118,9 @@ test("un intento que pasa a terminado emite end una sola vez, aunque cambie su a
   const run = { carpeta: "desktop", archivo: "run.json", datos: { ...traza("succeeded", pasos), end_reason: "done", verdict: { outcome: "failed" } } };
   const fin = nuevos(eventosDelGoal(leido({ intentos: [run], estadoVisita: "succeeded" })));
   assert.deepEqual(fin.map((e) => [e.type, e.outcome, e.end_reason]), [["end", "failed", "done"]]);
-  // Un end con otro número de paso (run.json con un paso más) no se repite.
+  // Terminado, nada más de ese intento sale (la Guía pasa de trace.json a route.json con otros pasos).
   const masLargo = { ...run, datos: { ...run.datos, steps: [...pasos, pasoDeVisita(2, AYUDA, HORARIO, 7)] } };
-  assert.deepEqual(resumen(nuevos(eventosDelGoal(leido({ intentos: [masLargo], estadoVisita: "succeeded" })))), ["visitor:desktop:step:2"]);
+  assert.deepEqual(nuevos(eventosDelGoal(leido({ intentos: [masLargo], estadoVisita: "succeeded" }))), []);
 });
 
 test("interrumpido: la traza failed termina con error; la etapa cerrada sin run.json también", () => {
@@ -158,15 +158,35 @@ test("la Guía: su ruta verificada sin páginas repetidas, y su end con la etapa
   assert.deepEqual([sinVerificar.outcome, sinVerificar.end_reason], ["failed", "unverified"]);
 });
 
-test("Last-Event-ID: lo de antes de ese evento no se reenvía, aunque ya no esté", () => {
-  const pasos = [pasoDeVisita(1, INICIO, AYUDA, 4), pasoDeVisita(2, AYUDA, HORARIO, 7)];
-  const eventos = eventosDelGoal(leido({ guia: { archivo: "route.json", datos: RUTA }, estadoGuia: "succeeded", intentos: [{ carpeta: "desktop", archivo: "trace.json", datos: traza("running", pasos) }] }));
-  const desde = crearSeguimiento(`${VISITA}|desktop|1|step`)(eventos);
-  assert.deepEqual(desde.map((e) => e.id), [`${VISITA}|desktop|2|step`]);
-  // Un id que ya no está (otra lectura): se salta lo de su intento hasta ese paso.
-  const perdido = crearSeguimiento(`${VISITA}|desktop|1|step`)(eventos.filter((e) => e.step !== 1 || e.agent !== "visitor"));
-  assert.ok(!perdido.some((e) => e.run_id === `${VISITA}|desktop` && e.step < 2));
-  assert.ok(perdido.some((e) => e.agent === "guide"));
+test("Last-Event-ID con dos intentos intercalados: se da por enviado solo lo de su intento hasta ese paso", () => {
+  const desktop = [pasoDeVisita(1, INICIO, AYUDA, 4), pasoDeVisita(2, AYUDA, HORARIO, 8)];
+  const mobile = [pasoDeVisita(1, INICIO, AYUDA, 2), pasoDeVisita(2, AYUDA, HORARIO, 6)];
+  const eventos = eventosDelGoal(leido({
+    intentos: [
+      { carpeta: "desktop", archivo: "trace.json", datos: traza("running", desktop) },
+      { carpeta: "mobile", archivo: "trace.json", datos: traza("running", mobile) },
+    ],
+  }));
+  assert.deepEqual(resumen(eventos), [
+    "visitor:desktop:start:0", "visitor:mobile:start:0", "visitor:mobile:step:1", "visitor:desktop:step:1",
+    "visitor:mobile:step:2", "visitor:desktop:step:2",
+  ]);
+  // El cliente vio hasta desktop 1, pero mobile 2 (de antes en ts) pudo no haber salido: todo lo de mobile se reenvía.
+  assert.deepEqual(resumen(crearSeguimiento(`${VISITA}|desktop|1|step`)(eventos)), [
+    "visitor:mobile:start:0", "visitor:mobile:step:1", "visitor:mobile:step:2", "visitor:desktop:step:2",
+  ]);
+  // Con el end de un intento, nada más de él.
+  const terminado = crearSeguimiento(`${VISITA}|desktop|2|end`)(eventos);
+  assert.ok(terminado.every((e) => e.attempt === "mobile"));
+});
+
+test("la Guía con hora en sus pasos: sus eventos la usan", () => {
+  const conHora = { ...RUTA, steps: RUTA.steps.map((paso, i) => ({ ...paso, settled_at: `2026-11-22T12:00:0${i + 3}.000Z` })) };
+  const pasos = eventosDelGoal(leido({ guia: { archivo: "route.json", datos: conHora }, estadoGuia: "succeeded" })).filter((e) => e.type === "step");
+  assert.deepEqual(pasos.map((e) => e.ts), ["2026-11-22T12:00:03.000Z", "2026-11-22T12:00:04.000Z"]);
+  const porSegundos = { ...RUTA, steps: RUTA.steps.map((paso, i) => ({ ...paso, seconds_since_start: 10 * (i + 1) })) };
+  const otros = eventosDelGoal(leido({ guia: { archivo: "route.json", datos: porSegundos }, estadoGuia: "succeeded" })).filter((e) => e.type === "step");
+  assert.deepEqual(otros.map((e) => e.ts), ["2026-11-22T12:00:10.000Z", "2026-11-22T12:00:20.000Z"]);
 });
 
 test("goalTerminado: con el Visitante cerrado (o no lanzado) o la revisión terminada", () => {
