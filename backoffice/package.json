@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node servidor.js",
     "dev": "node --watch servidor.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "mock": "node --watch mock/servir.js",
+    "mock:generar": "uv run --project ../agents/app/visitor python mock/generar.py"
   },
   "engines": {
     "node": ">=22"
