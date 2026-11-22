@@ -59,10 +59,11 @@ function ponerRuta(m, ruta) {
   tramo(m, "f", m.ruta.at(-1), claveDeFinal("success"));
 }
 
-function nodo(m, clave, pagina, { anillo = 0, ang = 0, ruta = -1, term = null }) {
+function nodo(m, clave, pagina, { anillo = 0, ang = 0, ruta = -1, term = null, origen = null }) {
   let n = m.nodos.get(clave);
   if (n) return n;
-  n = { clave, url: pagina?.url ?? "", titulo: String(pagina?.title ?? "").trim(), anillo: term ? -1 : anillo, ang, ruta, term, atascos: 0, pasaron: 0, count: 0 };
+  // origen: la página desde la que se descubrió, para que la animación la haga nacer de ahí.
+  n = { clave, url: pagina?.url ?? "", titulo: String(pagina?.title ?? "").trim(), anillo: term ? -1 : anillo, ang, ruta, term, origen, atascos: 0, pasaron: 0, count: 0 };
   m.nodos.set(clave, n);
   if (!term) m.maxAnillo = Math.max(m.maxAnillo, anillo);
   return n;
@@ -70,7 +71,7 @@ function nodo(m, clave, pagina, { anillo = 0, ang = 0, ruta = -1, term = null })
 
 function fuera(m, clave, pagina, desde) {
   const ubicacion = ubicarFuera(m.nodos.values(), m.lados, m.nodos.get(desde));
-  return nodo(m, clave, pagina, ubicacion);
+  return nodo(m, clave, pagina, { ...ubicacion, origen: desde });
 }
 
 function final(m, resultado, desde = null) {

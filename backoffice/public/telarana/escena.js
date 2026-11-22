@@ -1,207 +1,459 @@
-// Dibujo de la telaraña (diseño §10.5.2): un <svg> para los tramos en el mismo espacio de coordenadas que las
-// estaciones (botones HTML posicionados con CSSOM) y las terminales. No decide qué se muestra: recibe la
-// distribución, la geometría y funciones de texto, y devuelve los elementos para aislar, contar y animar.
+// Escena three.js de la telaraña viva: anillos y tramos como cintas (con rayas cortadas en píxeles de pantalla),
+// páginas y agentes como puntos con un shader de anillo, y la cámara ortográfica que encuadra la telaraña.
+// El estado visual (posiciones animadas, agentes en movimiento) vive aquí; el de los datos, en modelo.js.
 
-import { el, recortarAlMedio, svg } from "../nucleo/dom.js";
-import { icono } from "../nucleo/iconos.js";
+import * as THREE from "../vendor/three@0.160.0/three.module.js";
+import { anilloFinal, claveDeFinal } from "./modelo.js";
+import { acotar, puntoDeTramo, radio, segmentosDeTramo } from "./layout.js";
 
-const CLASE_DE_RAMA = { exito: "exito", mixto: "mixto", fallo: "fallo", abandono: "abandono", sin_medir: "sin_medir", error: "error" };
-const CLASE_DE_FINAL = { logrado: "exito", fallido: "fallo", abandonado: "abandono", sin_medir: "sin_medir", error: "error" };
-const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", sin_medir: "sin-medir", error: "error-herramienta" };
-const ORDEN_DE_CAPA = { retroceso: 0, avance: 1, final: 1, tronco: 2 };
+export const TRAZO = 0.75; // s que tarda en dibujarse un tramo nuevo
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const salida3 = (t) => 1 - Math.pow(1 - t, 3);
+const hash = (s) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0) / 4294967296;
+};
 
-/** Id de DOM seguro para un tramo (para <mpath href="#…">). */
-export const idDomDeTramo = (id) => `telarana-tramo-${String(id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+/** Los colores de los tokens CSS (oklch) en sRGB 0…1, leyéndolos de un píxel: WebGL no entiende oklch. */
+export function leerColores(elemento) {
+  const estilo = getComputedStyle(elemento);
+  const lienzo = document.createElement("canvas");
+  lienzo.width = lienzo.height = 1;
+  const ctx = lienzo.getContext("2d", { willReadFrequently: true });
+  const rgb = (token, respaldo) => {
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = respaldo;
+    ctx.fillStyle = estilo.getPropertyValue(token).trim() || respaldo;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return [r / 255, g / 255, b / 255];
+  };
+  const K = {
+    ruta: rgb("--acento", "#66bcff"),
+    ok: rgb("--exito", "#44d7b6"),
+    mid: rgb("--aviso", "#ff9f43"),
+    bad: rgb("--peligro", "#f2643b"),
+    neu: rgb("--texto-4", "#73757c"),
+    back: rgb("--neutro", "#9a9ca5"),
+    agente: rgb("--texto-1", "#f3f3f6"),
+    nodo: rgb("--texto-3", "#a6a8af"),
+    hilo: rgb("--texto-1", "#ffffff"),
+    lienzo: rgb("--lienzo", "#121316"),
+  };
+  K.warn = K.mid;
+  K.final = { success: K.ok, failed: K.bad, abandoned: K.back, unmeasured: K.back, error: K.back };
+  return K;
+}
 
-/** Ancho del trazo: 1.5 + 1.25·intentos (el de error, fino). */
-export const anchoDeTramo = (tramo) => (claseDeTramo(tramo) === "error" ? 1.5 : 1.5 + 1.25 * Math.max(0, tramo.intentos ?? 0));
+function buffer(max, tamanos) {
+  const g = new THREE.BufferGeometry();
+  const at = {};
+  for (const [nombre, n] of Object.entries(tamanos)) {
+    at[nombre] = new THREE.BufferAttribute(new Float32Array(max * n), n).setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute(nombre, at[nombre]);
+  }
+  g.setDrawRange(0, 0);
+  return { g, at, max };
+}
 
-export function claseDeTramo(tramo) {
-  if (tramo.tipo === "final") return CLASE_DE_FINAL[tramo.resultado] ?? "exito";
-  return CLASE_DE_RAMA[tramo.resultado] ?? "exito";
+function subir(b, cuantos) {
+  for (const a of Object.values(b.at)) {
+    a.clearUpdateRanges();
+    a.addUpdateRange(0, cuantos * a.itemSize);
+    a.needsUpdate = true;
+  }
+  b.g.setDrawRange(0, cuantos);
 }
 
 /**
- * @param {{ escena: HTMLElement, distribucion, geo, paginas: Map<string, object>, ramas: Map<string, object>,
- *   textos: { nombre(pagina), ariaDeEstacion(pagina, estacion, atascos), detalleDeVariantes(n), visitas(n),
- *             etiquetaDeResultado(r), ariaDeTerminal(r, n), anillo?(n) (etiqueta del anillo n: «paso n») },
- *   urlDeCaptura: (captura) => string | null, intentos: Map<string, object>, particulas: boolean }} opciones
+ * @param {HTMLCanvasElement} canvas
+ * @param {ReturnType<typeof leerColores>} K
  */
-export function dibujarEscena({ escena, distribucion, geo, paginas, ramas, textos, urlDeCaptura, intentos, particulas }) {
-  const elementos = new Map(); // id → elemento (estaciones, grupos de tramo, terminales)
-  const estaciones = new Map();
-  const marcasDeAtasco = new Map(); // id → { boton, marca, cuenta, pagina, estacion }
-  const tramos = new Map();
-  const terminales = new Map();
-  const { caja } = geo;
+export function crearEscena(canvas, K) {
+  THREE.ColorManagement.enabled = false;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+  renderer.setClearColor(0x000000, 0);
+  const dpr = Math.min(globalThis.devicePixelRatio || 1, 2);
+  renderer.setPixelRatio(dpr);
+  const escena = new THREE.Scene();
+  const camara = new THREE.OrthographicCamera(0, 1, 0, 1, -10, 10);
 
-  // ── Tramos ────────────────────────────────────────────────────────────
-  const lienzoSvg = svg("svg", {
-    class: "telarana-tramos",
-    viewBox: `${caja.x} ${caja.y} ${caja.ancho} ${caja.alto}`,
-    width: caja.ancho,
-    height: caja.alto,
-    "aria-hidden": "true",
-    focusable: "false",
-    estilo: { "--x": `${caja.x}px`, "--y": `${caja.y}px` },
+  // Cintas con largo acumulado: el fragmento corta las rayas en píxeles de pantalla, con cualquier zoom.
+  const CINTA = buffer(240000, { position: 3, rgba: 4, sd: 2 });
+  const matCinta = new THREE.ShaderMaterial({
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthTest: false,
+    depthWrite: false,
+    uniforms: { z: { value: 1 } },
+    vertexShader: `attribute vec4 rgba; attribute vec2 sd; varying vec4 vC; varying vec2 vS;
+      void main(){ vC=rgba; vS=sd; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `uniform float z; varying vec4 vC; varying vec2 vS;
+      void main(){ if(vS.y>.5){ float per=vS.y>1.5?10.:7.; float on=vS.y>1.5?6.:3.5; if(mod(vS.x*z,per)>on) discard; } gl_FragColor=vC; }`,
   });
-  // Guías de la telaraña radial: los anillos (un paso desde el inicio cada uno) como hebras y los rayos.
-  let guias = null;
-  if (geo.anillos?.length) {
-    const e = geo.extension;
-    guias = svg(
-      "svg",
-      { class: "telarana-guias", viewBox: `${-e} ${-e} ${2 * e} ${2 * e}`, width: 2 * e, height: 2 * e, "aria-hidden": "true", focusable: "false", estilo: { "--x": `${-e}px`, "--y": `${-e}px` } },
-      geo.rayos.map((d) => svg("path", { class: "guia-rayo", d })),
-      geo.anillos.map((anillo) => svg("path", { class: "guia-anillo", d: anillo.d })),
-      geo.anillos
-        .filter((anillo) => anillo.etiqueta)
-        .map((anillo) => svg("text", { class: "guia-etiqueta", x: anillo.etiqueta.x + 6, y: anillo.etiqueta.y - 6, texto: textos.anillo?.(anillo.capa) ?? String(anillo.capa) })),
-    );
+  const cintas = new THREE.Mesh(CINTA.g, matCinta);
+  cintas.frustumCulled = false;
+  escena.add(cintas);
+
+  // kind: 0 punto lleno, 1 página (anillo con centro del fondo), 2 final (anillo con centro lleno), 3 aro del elegido.
+  const matPuntos = new THREE.ShaderMaterial({
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    uniforms: { dpr: { value: dpr }, bg: { value: new THREE.Vector3(...K.lienzo) } },
+    vertexShader: `attribute float size; attribute vec4 rgba; attribute float kind; uniform float dpr;
+      varying vec4 vC; varying float vK; varying float vS;
+      void main(){ vC=rgba; vK=kind; vS=max(size*dpr,1.); gl_PointSize=vS; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `uniform vec3 bg; varying vec4 vC; varying float vK; varying float vS;
+      void main(){ float d=length(gl_PointCoord-.5)*2.; float aa=2./vS; float o=1.-smoothstep(1.-aa,1.,d); if(o<=0.) discard;
+        vec3 c=vC.rgb; float a=vC.a*o;
+        if(vK>.5&&vK<2.5){ float th=vK>1.5?.3:.24; c=mix(bg,vC.rgb,smoothstep(1.-th-aa,1.-th,d)); if(vK>1.5) c=mix(c,vC.rgb,1.-smoothstep(.34,.34+aa,d)); }
+        if(vK>2.5){ float th=.22; a*=smoothstep(1.-th-aa,1.-th,d); }
+        gl_FragColor=vec4(c,a); }`,
+  });
+  const NODOS = buffer(1024, { position: 3, rgba: 4, size: 1, kind: 1 });
+  const AGENTES = buffer(2048, { position: 3, rgba: 4, size: 1, kind: 1 });
+  for (const b of [NODOS, AGENTES]) {
+    const puntos = new THREE.Points(b.g, matPuntos);
+    puntos.frustumCulled = false;
+    escena.add(puntos);
   }
-  const ordenados = [...distribucion.tramos].sort((a, b) => ORDEN_DE_CAPA[a.tipo] - ORDEN_DE_CAPA[b.tipo]);
-  for (const tramo of ordenados) {
-    const d = geo.caminos.get(tramo.id);
-    if (!d) continue;
-    const clase = claseDeTramo(tramo);
-    const idDom = idDomDeTramo(tramo.id);
-    const grupo = svg(
-      "g",
-      { class: `tramo tramo-${tramo.tipo} tramo-${clase}`, "data-tramo": tramo.id },
-      svg("path", { class: "tramo-trazo", id: idDom, d, "stroke-width": anchoDeTramo(tramo) }),
-      // tabindex −1: Chromium vuelve enfocable con Tab a un elemento SVG que escucha focus (el globo lo hace).
-      svg("path", { class: "tramo-golpe", d, tabindex: "-1", focusable: "false" }),
-    );
-    // Partículas: una por intento que recorrió la rama, del color de cómo terminó ese intento.
-    if (particulas && tramo.tipo !== "final" && tramo.tipo !== "retroceso") {
-      const ids = ramas.get(tramo.id)?.intentosIds ?? [];
-      const duracion = 2.6;
-      ids.forEach((intentoId, indice) => {
-        const resultado = intentos.get(intentoId)?.resultado ?? "logrado";
-        grupo.append(
-          svg(
-            "circle",
-            { class: `particula particula-${resultado}`, r: 2.5 },
-            svg(
-              "animateMotion",
-              { dur: `${duracion}s`, begin: `${((indice * duracion) / Math.max(1, ids.length)).toFixed(2)}s`, repeatCount: "indefinite", rotate: "auto" },
-              svg("mpath", { href: `#${idDom}` }),
-            ),
-          ),
-        );
-      });
+
+  // ── Cintas ──────────────────────────────────────────────────────────
+  let nv = 0;
+  const cp = CINTA.at.position.array;
+  const cc = CINTA.at.rgba.array;
+  const cs = CINTA.at.sd.array;
+  function vertice(x, y, c, a, s, d) {
+    if (nv >= CINTA.max) return;
+    cp[nv * 3] = x;
+    cp[nv * 3 + 1] = y;
+    cp[nv * 3 + 2] = 0;
+    cc[nv * 4] = c[0];
+    cc[nv * 4 + 1] = c[1];
+    cc[nv * 4 + 2] = c[2];
+    cc[nv * 4 + 3] = a;
+    cs[nv * 2] = s;
+    cs[nv * 2 + 1] = d;
+    nv++;
+  }
+  function cinta(pts, np, hw, c, a, d) {
+    let pnx = 0;
+    let pny = 0;
+    let s = 0;
+    for (let i = 0; i < np - 1; i++) {
+      const x0 = pts[i * 2];
+      const y0 = pts[i * 2 + 1];
+      const x1 = pts[i * 2 + 2];
+      const y1 = pts[i * 2 + 3];
+      let dx = x1 - x0;
+      let dy = y1 - y0;
+      const l = Math.hypot(dx, dy) || 1e-6;
+      dx /= l;
+      dy /= l;
+      const nx = -dy * hw;
+      const ny = dx * hw;
+      const ax = i ? (nx + pnx) / 2 : nx;
+      const ay = i ? (ny + pny) / 2 : ny;
+      const s1 = s + l;
+      pnx = nx;
+      pny = ny;
+      vertice(x0 + ax, y0 + ay, c, a, s, d);
+      vertice(x0 - ax, y0 - ay, c, a, s, d);
+      vertice(x1 + nx, y1 + ny, c, a, s1, d);
+      vertice(x1 + nx, y1 + ny, c, a, s1, d);
+      vertice(x0 - ax, y0 - ay, c, a, s, d);
+      vertice(x1 - nx, y1 - ny, c, a, s1, d);
+      s = s1;
     }
-    lienzoSvg.append(grupo);
-    tramos.set(tramo.id, grupo);
-    elementos.set(tramo.id, grupo);
+  }
+  const circulo = new Float32Array(2 * 181);
+
+  function colorDeTramo(E, e) {
+    if (e.tipo === "b") return K.back;
+    if (e.ruta) return K.ruta;
+    if (e.term) return e.term === "success" ? K.ok : e.term === "failed" ? K.bad : K.back;
+    const d = E.finTramos.get(e.clave);
+    if (!d || !d.hechos) return K.neu;
+    return d.ok === d.hechos ? K.ok : d.ok === 0 ? K.bad : K.mid;
   }
 
-  // ── Estaciones ────────────────────────────────────────────────────────
-  const nodos = [];
-  for (const estacion of distribucion.estaciones) {
-    const pagina = paginas.get(estacion.id);
-    const posicion = geo.posiciones.get(estacion.id);
-    if (!pagina || !posicion) continue;
-    const variantes = pagina.variantes?.length ?? 0;
-    const enTronco = estacion.tipo === "hito" || (estacion.tipo === "inicio" && distribucion.troncoEsRuta);
-    const captura = urlDeCaptura(pagina.captura);
-    // Marca de "se trabaron aquí" (oculta hasta marcarAtascos): un triángulo de aviso con cuántos intentos.
-    const cuentaDeAtasco = el("span", { class: "estacion-atasco-cuenta" });
-    const marcaDeAtasco = el("span", { class: "estacion-atasco", "aria-hidden": "true", hidden: true }, icono("atasco"), cuentaDeAtasco);
-    const boton = el(
-      "button",
-      {
-        type: "button",
-        class: `estacion estacion-${estacion.tipo}${enTronco ? " estacion-tronco" : ""}`,
-        "data-pagina": estacion.id,
-        "data-foco": `telarana:pagina:${estacion.id}`,
-        "aria-pressed": "false",
-        "aria-label": textos.ariaDeEstacion(pagina, estacion, 0),
-        "data-ancla": geo.anclas?.get(estacion.id) ?? null,
-        estilo: { "--x": `${posicion.x}px`, "--y": `${posicion.y}px` },
-      },
-      el(
-        "span",
-        { class: "estacion-punto", "aria-hidden": "true" },
-        enTronco && estacion.hito !== null ? el("span", { class: "estacion-numero", texto: String(estacion.hito + 1) }) : null,
-        marcaDeAtasco,
-      ),
-      el(
-        "span",
-        { class: "estacion-etiqueta", "aria-hidden": "true" },
-        captura ? el("img", { class: "estacion-miniatura", src: captura, alt: "", loading: "lazy", decoding: "async", width: 120, height: 75 }) : null,
-        el("span", { class: "estacion-nombre", texto: textos.nombre(pagina) }),
-        variantes > 1 ? el("span", { class: "estacion-detalle", texto: textos.detalleDeVariantes(variantes) }) : null,
-        pagina.url ? el("span", { class: "estacion-url mono", texto: recortarAlMedio(pagina.url.replace(/^https?:\/\//, ""), 36) }) : null,
-        el("span", { class: "estacion-visitas", texto: textos.visitas(pagina.visitas ?? 0) }),
-      ),
-    );
-    estaciones.set(estacion.id, boton);
-    marcasDeAtasco.set(estacion.id, { boton, marca: marcaDeAtasco, cuenta: cuentaDeAtasco, pagina, estacion });
-    elementos.set(estacion.id, boton);
-    nodos.push(boton);
+  function dibujarTramos(E, dt) {
+    nv = 0;
+    const T = anilloFinal(E.m);
+    const px = 1 / E.V.z;
+    for (let c = 1; c <= T + 1; c++) {
+      const f = acotar((E.anim - E.tAbrir - c * 0.06) / 0.5, 0, 1);
+      for (let i = 0; i <= 180; i++) {
+        const t = (i / 180) * Math.PI * 2;
+        circulo[i * 2] = radio(c) * Math.cos(t);
+        circulo[i * 2 + 1] = radio(c) * Math.sin(t);
+      }
+      cinta(circulo, 181, 0.6 * px, K.hilo, (c <= T ? 0.12 : 0.05) * f, 0);
+    }
+    const k = 1 - Math.exp(-dt * 4);
+    const orden = [...E.m.tramos.values()].sort((x, y) => x.ruta - y.ruta || (x.forma !== "ret") - (y.forma !== "ret") || x.n - y.n);
+    for (const e of orden) {
+      const v = E.vis.tramos.get(e.clave);
+      if (!v) continue;
+      const p = acotar((E.anim - v.nace) / TRAZO, 0, 1);
+      if (p <= 0) {
+        v.np = 0;
+        continue;
+      }
+      const wT = e.tipo === "b" ? 1.4 : (e.ruta ? 2.6 : 1.5) + 5 * Math.sqrt(e.n / E.m.maxN);
+      v.w += (wT - v.w) * k;
+      const cT = colorDeTramo(E, e);
+      for (let i = 0; i < 3; i++) v.c[i] += (cT[i] - v.c[i]) * k;
+      const base = e.tipo === "b" ? 0.55 : e.n === 0 && !e.ruta && !e.term ? 0.5 : 0.95;
+      const aT = E.hl.on ? (E.hl.tramos.has(e.clave) ? 1 : 0.1) : base;
+      v.al += (aT - v.al) * (1 - Math.exp(-dt * 10));
+      const A = E.vis.nodos.get(e.a);
+      const B = E.vis.nodos.get(e.b);
+      const seg = segmentosDeTramo(A, B, e.forma);
+      const pe = salida3(p);
+      v.np = seg + 1;
+      for (let i = 0; i <= seg; i++) {
+        const q = puntoDeTramo(A, B, e.forma, e.ladeo, (i / seg) * pe, P);
+        v.pts[i * 2] = q.x;
+        v.pts[i * 2 + 1] = q.y;
+      }
+      const raya = e.tipo === "b" ? 1 : e.term === "abandoned" || e.term === "error" || e.term === "unmeasured" ? 2 : 0;
+      if (e.ruta) cinta(v.pts, v.np, (v.w / 2 + 5) * px, v.c, 0.07 * v.al, 0);
+      cinta(v.pts, v.np, (v.w / 2) * px, v.c, v.al, raya);
+    }
+    subir(CINTA, nv);
   }
 
-  // ── Terminales ────────────────────────────────────────────────────────
-  for (const terminal of distribucion.terminales) {
-    const posicion = geo.posiciones.get(terminal.id);
-    if (!posicion) continue;
-    const cuenta = el("span", { class: "terminal-cuenta", texto: String(terminal.total) });
-    const nodo = el(
-      "div",
-      {
-        class: `terminal terminal-${terminal.resultado}`,
-        "data-terminal": terminal.id,
-        role: "img",
-        "aria-label": textos.ariaDeTerminal(terminal.resultado, terminal.total),
-        "data-ancla": geo.anclas?.get(terminal.id) ?? null,
-        estilo: { "--x": `${posicion.x}px`, "--y": `${posicion.y}px` },
-      },
-      el("span", { class: "terminal-punto", "aria-hidden": "true" }, icono(ICONO_DE_RESULTADO[terminal.resultado])),
-      el("span", { class: "terminal-etiqueta", "aria-hidden": "true" }, el("span", { texto: textos.etiquetaDeResultado(terminal.resultado) }), cuenta),
-    );
-    terminales.set(terminal.id, { nodo, cuenta, resultado: terminal.resultado });
-    elementos.set(terminal.id, nodo);
-    nodos.push(nodo);
+  // ── Páginas y agentes ───────────────────────────────────────────────
+  function escribir(b, i, x, y, c, a, tam, tipo) {
+    const A = b.at;
+    A.position.array[i * 3] = x;
+    A.position.array[i * 3 + 1] = y;
+    A.position.array[i * 3 + 2] = 0;
+    A.rgba.array[i * 4] = c[0];
+    A.rgba.array[i * 4 + 1] = c[1];
+    A.rgba.array[i * 4 + 2] = c[2];
+    A.rgba.array[i * 4 + 3] = a;
+    A.size.array[i] = tam;
+    A.kind.array[i] = tipo;
   }
 
-  escena.replaceChildren(...(guias ? [guias] : []), lienzoSvg, ...nodos);
+  function dibujarNodos(E, dt) {
+    let i = 0;
+    for (const n of E.m.nodos.values()) {
+      const v = E.vis.nodos.get(n.clave);
+      const s = salida3(acotar((E.anim - v.nace) / 0.35, 0, 1));
+      if (s <= 0 || i >= NODOS.max - 2) continue;
+      v.pulso = Math.max(0, v.pulso - dt * 2.2);
+      const dim = E.hl.on && !E.hl.nodos.has(n.clave) ? 0.3 : 1;
+      const grande = E.marcado(n.clave) ? 1.18 : 1;
+      if (n.term) escribir(NODOS, i++, v.x, v.y, K.final[n.term], dim, (14 + 7 * v.pulso) * s * grande, 2);
+      else if (n.ruta >= 0) {
+        escribir(NODOS, i++, v.x, v.y, K.ruta, 0.16 * dim, 28 * s * grande, 0);
+        escribir(NODOS, i++, v.x, v.y, K.ruta, dim, 19 * s * grande, 1);
+      } else escribir(NODOS, i++, v.x, v.y, n.atascos ? K.warn : K.nodo, dim, 14 * s * grande, 1);
+    }
+    subir(NODOS, i);
+  }
+
+  function dibujarAgentes(E) {
+    let i = 0;
+    for (const [run, v] of E.vis.agentes) {
+      const a = E.m.agentes.get(run);
+      posicionDeAgente(E, a, v);
+      const fade = v.llego >= 0 ? 1 - acotar((E.anim - v.llego - 0.6) / 0.9, 0, 1) : acotar((E.anim - v.nace) / 0.3, 0, 1);
+      let c = a.agente === "guide" ? K.ruta : K.agente;
+      let tam = a.agente === "guide" ? 6.5 : 5.5;
+      let al = 0.92;
+      if (a.final && v.llego >= 0) c = K.final[a.final];
+      if (a.atascado && !a.final) {
+        const w = 0.5 + 0.5 * Math.sin(E.anim * 4.2 + v.h * 6);
+        c = K.warn;
+        tam += 2.2 * w;
+        al = 0.65 + 0.35 * w;
+      }
+      if (E.hl.on) {
+        if (E.hl.agentes.has(run)) tam += 1;
+        else al *= 0.18;
+      }
+      if (i >= AGENTES.max - 2) break;
+      escribir(AGENTES, i++, v.x, v.y, c, al * fade, tam, 0);
+      if (run === E.elegido) escribir(AGENTES, i++, v.x, v.y, K.agente, 0.9 * Math.max(fade, 0.4), 17, 3);
+    }
+    subir(AGENTES, i);
+  }
+
+  // ── Vista ───────────────────────────────────────────────────────────
+  function encuadrar(E, dt) {
+    const k = 1 - Math.exp(-dt * 4);
+    const Rf = radio(anilloFinal(E.m));
+    let x0 = -radio(1) * 0.7;
+    let x1 = radio(1);
+    let y0 = -radio(1);
+    let y1 = radio(1);
+    let etqDer = 0;
+    let etqIzq = 0;
+    for (const n of E.m.nodos.values()) {
+      const v = E.vis.nodos.get(n.clave);
+      const tr = n.term ? Rf : radio(n.anillo);
+      v.r += (tr - v.r) * k;
+      v.a += (n.ang - v.a) * k;
+      v.x = v.r * Math.cos(v.a);
+      v.y = v.r * Math.sin(v.a);
+      const tx = tr * Math.cos(n.ang);
+      const ty = tr * Math.sin(n.ang);
+      x0 = Math.min(x0, tx);
+      x1 = Math.max(x1, tx);
+      y0 = Math.min(y0, ty);
+      y1 = Math.max(y1, ty);
+      if (n.term) {
+        if (tx < -1) etqIzq = Math.max(etqIzq, 150);
+        else if (tx >= x1 - 1) etqDer = 150;
+      }
+    }
+    const V = E.V;
+    if (V.auto) {
+      const z = acotar(Math.min((E.W - 72 - etqDer - etqIzq) / (x1 - x0), (E.H - 92) / (y1 - y0)), 0.3, 1.4);
+      const cx = (x0 + x1) / 2 + (etqDer - etqIzq) / 2 / z;
+      const cy = (y0 + y1) / 2 + 12 / z;
+      const q = V.init ? 1 - Math.exp(-dt * 3) : 1;
+      V.z += (z - V.z) * q;
+      V.cx += (cx - V.cx) * q;
+      V.cy += (cy - V.cy) * q;
+      V.init = true;
+    }
+    camara.left = V.cx - E.W / 2 / V.z;
+    camara.right = V.cx + E.W / 2 / V.z;
+    camara.top = V.cy - E.H / 2 / V.z;
+    camara.bottom = V.cy + E.H / 2 / V.z;
+    camara.updateProjectionMatrix();
+    matCinta.uniforms.z.value = V.z;
+  }
 
   return {
-    svg: lienzoSvg,
-    estaciones,
-    tramos,
-    terminales,
-    /** Aísla `ids` (Set) atenuando el resto; null quita el aislamiento. Nunca saca nada del mapa. */
-    aislar(ids) {
-      escena.classList.toggle("aislando", !!ids);
-      for (const [id, elemento] of elementos) elemento.classList.toggle("activo", !!ids && ids.has(id));
+    medir(W, H) {
+      renderer.setSize(W, H, false);
     },
-    /** Marca la estación elegida (aria-pressed) y desmarca el resto. */
-    marcarEleccion(id) {
-      for (const [clave, boton] of estaciones) {
-        const elegida = clave === id;
-        if ((boton.getAttribute("aria-pressed") === "true") !== elegida) boton.setAttribute("aria-pressed", String(elegida));
-      }
+    /** Un cuadro: encuadre, tramos, páginas y agentes. */
+    dibujar(E, dt) {
+      encuadrar(E, dt);
+      dibujarTramos(E, dt);
+      dibujarNodos(E, dt);
+      dibujarAgentes(E);
+      renderer.render(escena, camara);
     },
-    /** Marca las estaciones donde se trabaron intentos (página → cuántos). */
-    marcarAtascos(cuantos) {
-      for (const [id, { boton, marca, cuenta, pagina, estacion }] of marcasDeAtasco) {
-        const n = cuantos.get(id) ?? 0;
-        marca.hidden = n === 0;
-        cuenta.textContent = n > 1 ? String(n) : "";
-        boton.classList.toggle("estacion-trabada", n > 0);
-        boton.setAttribute("aria-label", textos.ariaDeEstacion(pagina, estacion, n));
-      }
-    },
-    /** Pone las cuentas de las terminales. */
-    contarTerminales(totales) {
-      for (const [, { nodo, cuenta, resultado }] of terminales) {
-        const n = totales[resultado] ?? 0;
-        cuenta.textContent = String(n);
-        nodo.setAttribute("aria-label", textos.ariaDeTerminal(resultado, n));
-        nodo.classList.toggle("terminal-vacia", n === 0);
-      }
+    destruir() {
+      for (const b of [CINTA, NODOS, AGENTES]) b.g.dispose();
+      matCinta.dispose();
+      matPuntos.dispose();
+      renderer.dispose();
     },
   };
+}
+
+const P = { x: 0, y: 0 };
+
+/** El estado visual de una página o un tramo nuevos; instantaneo: sin animación de entrada. */
+export function sincronizar(E, { instantaneo = false, agentes = [] } = {}) {
+  const T = anilloFinal(E.m);
+  for (const n of E.m.nodos.values()) {
+    if (E.vis.nodos.has(n.clave)) continue;
+    const origen = n.origen ? E.vis.nodos.get(n.origen) : null;
+    const r = n.term ? radio(T) : radio(n.anillo);
+    E.vis.nodos.set(n.clave, {
+      r: !instantaneo && origen ? origen.r : r,
+      a: !instantaneo && origen && origen.r >= 1 ? origen.a : n.ang,
+      x: 0,
+      y: 0,
+      nace: E.anim + (instantaneo ? 0 : n.term ? TRAZO * 0.6 : origen ? TRAZO * 0.3 : 0),
+      pulso: 0,
+    });
+  }
+  for (const e of E.m.tramos.values()) {
+    if (E.vis.tramos.has(e.clave)) continue;
+    E.vis.tramos.set(e.clave, { nace: E.anim, w: 1.5, c: (e.tipo === "b" ? E.K.back : e.ruta ? E.K.ruta : E.K.neu).slice(), al: 0, pts: new Float32Array(2 * 161), np: 0 });
+  }
+  for (const a of agentes) {
+    let v = E.vis.agentes.get(a.run);
+    if (!v) {
+      if (instantaneo && a.final) continue;
+      v = { x: NaN, y: NaN, mv: null, llego: -1, nace: E.anim, h: hash(a.run), h2: hash(`${a.run}*`), serie: 0 };
+      E.vis.agentes.set(a.run, v);
+    }
+    if (v.serie === a.serie) continue;
+    v.serie = a.serie;
+    if (instantaneo) {
+      v.mv = null;
+      if (a.final) E.vis.agentes.delete(a.run);
+    } else v.mv = { tramo: a.mov, t0: E.anim, dur: 0.85 / Math.sqrt(E.vel), sx: v.x, sy: v.y };
+  }
+}
+
+/**
+ * Entrada de la telaraña al abrirla: anillos, páginas y tramos aparecen del centro hacia afuera.
+ */
+export function introducir(E) {
+  const T = anilloFinal(E.m);
+  const anillo = (n) => (n.term ? T : n.anillo);
+  E.tAbrir = E.anim;
+  for (const n of E.m.nodos.values()) {
+    const v = E.vis.nodos.get(n.clave);
+    v.r = n.term ? radio(T) : radio(n.anillo);
+    v.a = n.ang;
+    v.nace = E.anim + 0.08 * anillo(n);
+  }
+  for (const e of E.m.tramos.values()) {
+    const v = E.vis.tramos.get(e.clave);
+    v.nace = E.anim + 0.08 * Math.min(anillo(E.m.nodos.get(e.a)), anillo(E.m.nodos.get(e.b)));
+    v.al = 0;
+  }
+}
+
+/** Termina los movimientos cumplidos; devuelve los finales a los que acaba de llegar alguien (para el tic). */
+export function avanzarAgentes(E) {
+  const llegadas = [];
+  for (const [run, v] of E.vis.agentes) {
+    const a = E.m.agentes.get(run);
+    if (v.mv && E.anim - v.mv.t0 >= v.mv.dur) {
+      v.mv = null;
+      if (a.final && v.llego < 0) {
+        v.llego = E.anim;
+        const fin = claveDeFinal(a.final);
+        E.vis.nodos.get(fin).pulso = 1;
+        llegadas.push(fin);
+      }
+    }
+    if (v.llego >= 0 && E.anim - v.llego > 1.6 && run !== E.elegido) E.vis.agentes.delete(run);
+  }
+  return llegadas;
+}
+
+/** Dónde dibujar un agente: alrededor de su página, o sobre el tramo que recorre. */
+export function posicionDeAgente(E, a, v) {
+  const n = E.m.nodos.get(a.nodo);
+  const vn = E.vis.nodos.get(a.nodo);
+  const ang = n.term ? vn.a + Math.PI + (v.h - 0.5) * 1.6 : v.h * Math.PI * 2;
+  const r = (n.term ? 14 : 13) + v.h2 * (n.term ? 10 : 6);
+  const ox = Math.cos(ang) * r;
+  const oy = Math.sin(ang) * r;
+  const e = v.mv && E.m.tramos.get(v.mv.tramo);
+  if (e) {
+    const t = ease(acotar((E.anim - v.mv.t0) / v.mv.dur, 0, 1));
+    const A = E.vis.nodos.get(e.a);
+    const B = E.vis.nodos.get(e.b);
+    const c0 = puntoDeTramo(A, B, e.forma, e.ladeo, 0, P);
+    const c0x = c0.x;
+    const c0y = c0.y;
+    const sx = Number.isNaN(v.mv.sx) ? c0x : v.mv.sx;
+    const sy = Number.isNaN(v.mv.sy) ? c0y : v.mv.sy;
+    const q = puntoDeTramo(A, B, e.forma, e.ladeo, t, P);
+    v.x = q.x + (sx - c0x) * (1 - t) + ox * t;
+    v.y = q.y + (sy - c0y) * (1 - t) + oy * t;
+  } else {
+    v.x = vn.x + ox;
+    v.y = vn.y + oy;
+  }
 }
