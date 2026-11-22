@@ -22,6 +22,7 @@ from shared.browser.theme import describir_kit, describir_tema
 from shared.catalog.files import read_catalog
 from shared.catalog.goal import instruction_goal_id
 from shared.catalog.tasks import available_tasks, load_task
+from shared.claude import engines
 
 from visitor import config
 from visitor.batch import BatchInterrupted, run_batch
@@ -91,7 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--model",
         default=None,
         help=f"modelo de los usuarios sintéticos (por defecto {config.USER_MODEL}; con --engine bedrock,"
-        f" {config.BEDROCK_MODEL_VAR} o {config.BEDROCK_DEFAULT_MODEL})",
+        f" {engines.MODEL_VAR} o {engines.DEFAULT_BEDROCK_MODEL})",
     )
     parser.add_argument("--effort", default=config.USER_EFFORT, choices=["low", "medium", "high", "xhigh", "max"])
     parser.add_argument(

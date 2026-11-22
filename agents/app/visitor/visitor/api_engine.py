@@ -107,15 +107,16 @@ class ApiEngine:
         self.messages.append({"role": "assistant", "content": response.content})
         if response.stop_reason == "refusal":
             raise AttemptEnded("refusal", getattr(response.stop_details, "explanation", None) or "")
+        # Los bloques de razonamiento (`thinking`) quedan en el historial pero no son acciones ni texto final.
         tool_uses = [block for block in response.content if block.type == "tool_use"]
+        if response.stop_reason == "max_tokens":
+            raise AttemptEnded("no_response", "La respuesta del modelo se cortó por max_tokens.")
         if not tool_uses:
             text = "\n".join(block.text for block in response.content if block.type == "text").strip()
             match = _FINAL_TEXT_PATTERN.search(text)
             if match:
                 return Turn(final=(_FINAL_TEXT_REASONS[match.group(1).lower()], match.group(2).strip()))
             return Turn(final=("done", text))
-        if response.stop_reason == "max_tokens":
-            raise AttemptEnded("no_response", "La respuesta del modelo se cortó por max_tokens.")
         return Turn(requests=[self._action_request(block) for block in tool_uses])
 
     def _action_request(self, block) -> ActionRequest:

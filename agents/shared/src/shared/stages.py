@@ -31,7 +31,7 @@ _OPTIONS: dict[Stage, dict[str, str]] = {
     "improver": {},
 }
 # Topes: el payload llega de internet.
-_INTEGERS = {"goals_max": 10, "runs": 5, "concurrency": 5}
+_INTEGERS = {"goals_max": 10, "runs": 5, "concurrency": 10}
 _URL_MAX = 2048
 _WITH_GOAL: tuple[Stage, ...] = ("guide", "visitor")
 

@@ -67,7 +67,7 @@ def test_api_engine_marks_only_the_last_block_for_caching(tmp_path):
 
 
 def test_api_engine_uses_the_legacy_computer_tool_on_bedrock(tmp_path):
-    """El modelo de AWS (Haiku 4.5) no acepta el toolset ni `effort`: va la herramienta `computer` de su versión."""
+    """Haiku 4.5 (la cuenta de AWS anterior) no acepta el toolset ni `effort`: va la herramienta `computer` de su versión."""
     import asyncio
     from types import SimpleNamespace
 
@@ -77,7 +77,7 @@ def test_api_engine_uses_the_legacy_computer_tool_on_bedrock(tmp_path):
 
     click = SimpleNamespace(type="tool_use", id="t1", name="computer", input={"action": "left_click", "coordinate": [10, 20]})
     messages = _FakeMessages([click])
-    model = config.BEDROCK_DEFAULT_MODEL
+    model = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
     engine = ApiEngine(SimpleNamespace(beta=SimpleNamespace(messages=messages)), model, "medium")
     asyncio.run(engine.start("sistema", "primer mensaje", _png_header(390, 844), tmp_path))
     turn = asyncio.run(engine.decide())

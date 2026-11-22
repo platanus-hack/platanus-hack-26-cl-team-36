@@ -16,8 +16,8 @@ el conductor no espere en vano; igual si AgentCore apaga el contenedor (SIGTERM 
 `revision`, el conductor corre con `CONDUCTOR_INVOKER=agentcore` y el ARN de este mismo runtime (`CONDUCTOR_RUNTIME_ARN`, o el `cloud.resource_id` que AgentCore pone en `OTEL_RESOURCE_ATTRIBUTES`).
 
 La imagen (`Dockerfile`, contexto: la raíz del repo) trae cada app con su entorno (`uv sync --locked`) y el skill
-`disenar-tema` de `.claude/skills/`, sin Chromium ni Claude Code: en AWS van `AGENTS_ENGINE=bedrock` (Haiku 4.5,
-`AGENTS_MODEL`) y `AGENTS_BROWSER=agentcore`. Para revisarla en local, desde la raíz del repo:
+`disenar-tema` de `.claude/skills/`, sin Chromium ni Claude Code: en AWS van `AGENTS_ENGINE=bedrock` (Haiku 5.5 en
+`AGENTS_MODEL` y Sonnet 5.5 en `AGENTS_MODEL_FUERTE`) y `AGENTS_BROWSER=agentcore`. Para revisarla en local, desde la raíz del repo:
 
 ```bash
 docker build --platform linux/arm64 -f agents/app/runtime/Dockerfile -t chameleon .
