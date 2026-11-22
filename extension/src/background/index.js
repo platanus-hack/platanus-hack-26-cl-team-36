@@ -13,7 +13,7 @@
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
 import { consultarRevision } from "./api.js";
 import { crearCacheTemas } from "./cache-temas.js";
-import { recargadaEnDesarrollo } from "./config.js";
+import { recargadaEnDesarrollo, urlDeLaApi } from "./config.js";
 import { HOJA_FUENTES, hojaConUrlsAbsolutas, inyectarCssDeTema } from "./fuentes.js";
 import {
   FACTOR_INTERVALO_REVISION,
@@ -21,6 +21,7 @@ import {
   INTERVALO_REVISION_MS,
   TOPE_REVISION_MS,
   resolverRevision,
+  temaDeRevision,
   urlDePagina,
 } from "./revisiones.js";
 import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
@@ -106,30 +107,41 @@ const ESPERAR_REVISION = {
 
 const cacheTemas = crearCacheTemas(browser.storage.local);
 
+// Con la API en la clave, cambiar a la local (`apiLocal`) no mezcla sus temas con los de AWS.
+const claveCache = async (pagina) => `${await urlDeLaApi()} ${pagina}`;
+
 async function aplicarTema(sender) {
   if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen: new URL(sender.url).origin, temaId: null, css: "" });
   if (!(await puedeConsultarRevision(sender))) return null;
   const pagina = urlDePagina(sender.url);
-  const guardado = await cacheTemas.leer(pagina);
-  if (!guardado) return consultarYAplicar(sender);
-  const respuesta = await inyectarTema(guardado.tema, sender, pagina);
-  revalidarTema(guardado, sender, pagina).catch((error) => console.warn("[mi-tema] No se pudo revalidar el tema:", error));
+  const clave = await claveCache(pagina);
+  const guardado = await cacheTemas.leer(clave);
+  // Se sanea en cada uso: si las reglas de css-remoto.js cambiaron, lo guardado pasa por las nuevas.
+  const tema = guardado && temaDeRevision(guardado.revision, guardado.css, guardado.tema);
+  if (!tema) {
+    if (guardado) cacheTemas.olvidar(clave);
+    return consultarYAplicar(sender);
+  }
+  const respuesta = await inyectarTema(tema, sender, pagina);
+  revalidarTema({ guardado, tema, clave }, sender, pagina).catch((error) =>
+    console.warn("[mi-tema] No se pudo revalidar el tema:", error),
+  );
   return respuesta;
 }
 
-// Un error pasajero o una revisión nueva en curso dejan el tema guardado; un 404 lo olvida para la próxima visita.
-// Si la API trae otro tema, se cambia el CSS en la página; las features del tema nuevo llegan en la próxima carga.
-async function revalidarTema(guardado, sender, pagina) {
+// Un error pasajero o una revisión nueva en curso (o fallida) dejan el tema guardado; un 404 o una revisión sin CSS
+// aplicable lo olvidan. Si la API trae otro tema, se cambia el CSS en la página; sus features llegan en la próxima carga.
+async function revalidarTema({ guardado, tema, clave }, sender, pagina) {
   const resultado = await resolverRevision(sender.url, { consultar: consultarRevision });
-  if (resultado.estado === "sin-revision") return cacheTemas.olvidar(pagina);
-  if (resultado.estado !== "listo" || JSON.stringify(resultado.tema) === JSON.stringify(guardado.tema)) return;
-  await cacheTemas.guardar(pagina, resultado.revision, resultado.tema);
+  if (resultado.estado === "sin-revision" || resultado.estado === "inaplicable") return cacheTemas.olvidar(clave);
+  if (resultado.estado !== "listo" || JSON.stringify(resultado.cruda) === JSON.stringify(guardado)) return;
+  await cacheTemas.guardar(clave, resultado.cruda);
   const actual = temaPorPestana.get(sender.tab.id);
-  if (actual?.pagina !== pagina || actual.temaId !== guardado.tema.id) return; // la pestaña ya navegó
-  if (resultado.tema.css === guardado.tema.css) return;
+  if (actual?.pagina !== pagina || actual.temaId !== tema.id) return; // la pestaña ya navegó
+  if (resultado.tema.css === tema.css) return;
   await inyectarTema(resultado.tema, sender, pagina);
   // Después de inyectar el nuevo, para que la página no quede un instante sin tema.
-  await browser.scripting.removeCSS({ target: { tabId: sender.tab.id, frameIds: [sender.frameId] }, css: guardado.tema.css });
+  await browser.scripting.removeCSS({ target: { tabId: sender.tab.id, frameIds: [sender.frameId] }, css: tema.css });
 }
 
 // `esperando`: lo pide el motor mientras sondea; un error pasajero no corta la espera.
@@ -146,7 +158,7 @@ async function consultarYAplicar(sender, { esperando = false } = {}) {
   if (resultado.estado === "esperando" || (esperando && resultado.estado === "error")) return ESPERAR_REVISION;
   if (resultado.estado !== "listo") return null;
   const pagina = urlDePagina(sender.url);
-  cacheTemas.guardar(pagina, resultado.revision, resultado.tema);
+  claveCache(pagina).then((clave) => cacheTemas.guardar(clave, resultado.cruda));
   return inyectarTema(resultado.tema, sender, pagina);
 }
 

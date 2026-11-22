@@ -45,7 +45,7 @@ test("revisión en curso (pedida desde afuera): queued, luego running y luego do
   const listo = await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso });
 
   assert.equal(listo.estado, "listo");
-  assert.equal(listo.revision, "r1a2");
+  assert.deepEqual(listo.cruda, { revision: "r1a2", css: CSS });
   assert.deepEqual(listo.tema, {
     id: "rev-r1a2",
     nombre: "Revisión r1a2",
@@ -82,15 +82,15 @@ test("página sin revisión (404): sin-revision, sin lanzar", async () => {
   });
 });
 
-test("failed o css vacío: fin, sin lanzar", async () => {
+test("failed o done sin css: fin; css sin nada aplicable: inaplicable; sin lanzar", async () => {
   const casos = [
-    Response.json({ success: true, revision: "abc", status: "failed" }),
-    Response.json({ success: true, revision: "abc", status: "done", css: "@import url(x);" }),
-    Response.json({ success: true, revision: "abc", status: "done" }),
+    [Response.json({ success: true, revision: "abc", status: "failed" }), "fin"],
+    [Response.json({ success: true, revision: "abc", status: "done" }), "fin"],
+    [Response.json({ success: true, revision: "abc", status: "done", css: "@import url(x);" }), "inaplicable"],
   ];
-  for (const respuesta of casos) {
+  for (const [respuesta, estado] of casos) {
     simularFetch(respuesta);
-    assert.deepEqual(await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso }), { estado: "fin" });
+    assert.deepEqual(await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso }), { estado });
   }
 });
 
@@ -150,5 +150,7 @@ test("revisión con tema: el tema llega al motor con sus features saneadas", asy
 
 test("revisión con tema pero sin CSS aplicable: sin tema", async () => {
   simularFetch(Response.json({ success: true, revision: "r1", status: "done", css: "", tema: METRO }));
-  assert.deepEqual(await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso }), { estado: "fin" });
+  assert.deepEqual(await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso }), {
+    estado: "inaplicable",
+  });
 });

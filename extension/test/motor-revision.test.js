@@ -7,7 +7,7 @@ import vm from "node:vm";
 const CODIGO = readFileSync(new URL("../src/content/motor.js", import.meta.url), "utf8");
 const PAGINA = "https://example.com/tienda";
 
-// `respuestas`: lo que contesta el background a cada sendMessage, en orden.
+// `respuestas`: lo que contesta el background a cada sendMessage, en orden (un Error rechaza).
 function cargarMotor(...respuestas) {
   const clases = new Set();
   const html = {
@@ -43,7 +43,9 @@ function cargarMotor(...respuestas) {
       runtime: {
         sendMessage: async (mensaje) => {
           mensajes.push(mensaje.tipo);
-          return respuestas.shift() ?? null;
+          const respuesta = respuestas.shift() ?? null;
+          if (respuesta instanceof Error) throw respuesta;
+          return respuesta;
         },
       },
     },
@@ -123,4 +125,13 @@ test("pregunta cada vez más espaciado, hasta el máximo", async () => {
   await esperar();
   for (let i = 0; i < 6; i++) await correrTemporizador(motor);
   assert.deepEqual(motor.demoras, [3000, 4500, 6750, 10_125, 15_000, 15_000, 15_000]);
+});
+
+test("si el background no contesta mientras espera, reintenta en la próxima vuelta", async () => {
+  const motor = cargarMotor(ESPERAR, new Error("Could not establish connection"), TEMA);
+  await esperar();
+  await correrTemporizador(motor);
+  await correrTemporizador(motor);
+  assert.deepEqual(motor.mensajes, ["tema:aplicar", "tema:revision", "tema:revision"]);
+  assert.equal(motor.html.dataset.mtTema, "rev-abc");
 });

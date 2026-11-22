@@ -52,8 +52,10 @@ export function temaDeRevision(revision, css, tema, log = console) {
   return normalizarTema({ id: `rev-${revision}`, nombre: `Revisión ${revision}`, css: saneado.css, features });
 }
 
-// `consultar`: consultarRevision (o pedirRevision) de api.js. Nunca lanza; "listo" trae `tema` en vez de `css`.
-// → { estado: "listo", revision, tema } | { estado: "esperando" | "sin-revision" | "fin" | "error" }
+// `consultar`: consultarRevision (o pedirRevision) de api.js. Nunca lanza. "listo" trae el `tema` saneado y la
+// respuesta `cruda` ({ revision, css, tema? }), que es lo que se guarda: se vuelve a sanear en cada uso.
+// "inaplicable": la revisión terminó sin CSS aplicable.
+// → { estado: "listo", tema, cruda } | { estado: "esperando" | "sin-revision" | "inaplicable" | "fin" | "error" }
 export async function resolverRevision(url, { consultar, log = console }) {
   let resultado;
   try {
@@ -67,7 +69,8 @@ export async function resolverRevision(url, { consultar, log = console }) {
   const tema = temaDeRevision(resultado.revision, resultado.css, resultado.tema, log);
   if (!tema) {
     log.warn(`[mi-tema] La revisión ${resultado.revision} no dejó CSS aplicable.`);
-    return { estado: "fin" };
+    return { estado: "inaplicable" };
   }
-  return { estado: "listo", revision: resultado.revision, tema };
+  const { estado, ...cruda } = resultado;
+  return { estado: "listo", tema, cruda };
 }

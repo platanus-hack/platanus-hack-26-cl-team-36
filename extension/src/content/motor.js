@@ -152,7 +152,8 @@
   function esperarRevision(espera, pagina = paginaActual(), inicio = Date.now(), demoraMs = espera.intervaloMs) {
     setTimeout(async () => {
       if (tema || paginaActual() !== pagina || Date.now() - inicio > espera.topeMs) return;
-      const respuesta = await browser.runtime.sendMessage({ tipo: "tema:revision" }).catch(() => null);
+      // Si el background no contesta, se reintenta en la próxima vuelta.
+      const respuesta = await browser.runtime.sendMessage({ tipo: "tema:revision" }).catch(() => ({ esperarRevision: espera }));
       if (tema || paginaActual() !== pagina) return;
       const { esperarRevision: siguiente } = respuesta ?? {};
       if (siguiente) esperarRevision(siguiente, pagina, inicio, Math.min(demoraMs * siguiente.factor, siguiente.maximoMs));
