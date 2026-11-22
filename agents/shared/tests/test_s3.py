@@ -23,6 +23,7 @@ def test_publish_uploads_with_content_types_and_cleans_workdir() -> None:
     (run.workdir / "first_time" / "step_00.png").write_bytes(b"png")
     (run.workdir / "report.md").write_text("# Reporte\n")
     (run.workdir / "comparison.json").write_text("{}")
+    (run.workdir / "tema.css").write_text("html.mi-tema {}")
     finish_run(backend, run, "succeeded")
 
     base = "runs/wom.cl/visitor/baja-fibra/2026-11-21T10-44-22Z"
@@ -30,6 +31,7 @@ def test_publish_uploads_with_content_types_and_cleans_workdir() -> None:
         f"{base}/manifest.json": "application/json",
         f"{base}/comparison.json": "application/json",
         f"{base}/report.md": "text/markdown; charset=utf-8",
+        f"{base}/tema.css": "text/css; charset=utf-8",
         f"{base}/first_time/step_00.png": "image/png",
         f"{base}/first_time/video.webm": "video/webm",
     }
