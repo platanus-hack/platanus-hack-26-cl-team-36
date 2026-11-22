@@ -155,6 +155,7 @@ def test_without_revision_an_unfound_route_still_succeeds_outside_any_revision(s
     manifest = store.read_manifest(backend, run)
     assert (manifest.status, manifest.revision, manifest.inputs) == ("succeeded", None, ())
     assert backend.read_json(run.file("route.json"))["status"] == "not_found"
+    assert backend.read_json(run.file("trace.json"))["status"] == "failed"
 
 
 def test_on_aws_engines_it_does_not_need_the_claude_command(backend, monkeypatch):

@@ -179,7 +179,7 @@ async def map_references(
                     raise
                 trace.route(document)
                 verified = document["status"] == "verified"
-                trace.finish("succeeded" if verified or not mapping.revision else "failed")
+                trace.finish("succeeded" if verified else "failed")
                 if mapping.revision and not verified:
                     raise RouteNotVerified(run.key, document)
             return run.key, document

@@ -115,7 +115,7 @@ nueva de guide cuyos `inputs` son la ruta anterior y la corrida del Visitante. C
 ├── route.json        estado, respuesta, cita, totales, pasos, exploración, verificación y búsqueda
 ├── route.md
 ├── step_NN.png       la pantalla después de cada paso (step_00 es el inicio)
-├── trace.json        el avance en vivo; al terminar, la ruta verificada o, sin ella, lo explorado
+├── trace.json        el avance en vivo; al terminar, la ruta verificada (`succeeded`) o lo explorado (`failed`)
 └── claude_code.log
 ```
 
