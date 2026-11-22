@@ -7,6 +7,18 @@ def test_quote_ignores_spacing_case_and_wrapping_quotes():
     assert quote_in_text("WOM Fibra", text)
 
 
+def test_quote_ignores_spaces_the_page_text_lacks_between_inline_elements():
+    assert quote_in_text("Trimestre móvil julio – septiembre 2026", "9,8%\nTrimestre móviljulio – septiembre 2026")
+
+
+def test_quote_must_be_a_phrase_not_a_single_word():
+    text = "Índice de Precios al Consumidor (IPC)\nVariación mensual 0,4%"
+    assert not quote_in_text("IPC", text)
+    assert not quote_in_text("«0,4%»", text)
+    assert not quote_in_text("Precios", text)
+    assert quote_in_text("Variación mensual 0,4%", text)
+
+
 def test_quote_must_be_in_text():
     assert not quote_in_text("Desde cualquier celular", "Desde cualquier teléfono")
     assert not quote_in_text("  ", "algo")

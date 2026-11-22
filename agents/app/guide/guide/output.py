@@ -31,6 +31,10 @@ def step_record(number: int, step: Step) -> dict:
         "scrolls_needed": step.scrolls_needed,
         "ui_actions": step.ui_actions,
         "screenshot": f"step_{number:02d}.png" if step.screenshot else None,
+        "decided_at": step.decided_at,
+        "executed_at": step.executed_at,
+        "settled_at": step.settled_at,
+        "seconds_since_start": step.seconds_since_start,
     }
 
 
