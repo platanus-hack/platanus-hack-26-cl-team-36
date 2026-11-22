@@ -7,26 +7,27 @@
 Una extensión de navegador aplica un tema sobre cada página, sin tocar el sitio original. El tema sale de agentes de
 IA que recorren el sitio como lo haría una persona y encuentran dónde se pierde.
 
-[chameleonmode.app](https://chameleonmode.app) · Platanus Hack 26: Santiago ft. Buk · Track 🔗 Multiplayer
+[chameleonmode.app](https://chameleonmode.app), con la descarga para Firefox y Chrome · Platanus Hack 26: Santiago ft. Buk · Track 🔗 Multiplayer
 
 ## Cómo funciona
 
-Cuando alguien visita una página que Chameleon aún no conoce, la API pide una **revisión**:
+El tema de una página sale de una **revisión**, que se le pide a la API (`just aws revision <url>`). La extensión
+solo consulta las que existen:
 
 ```mermaid
 flowchart LR
-  E[Extensión] -->|página nueva| A[API]
+  P[Pedido de revisión] --> A[API]
   A --> C[Catalogador]
   C -->|un objetivo| G1[Guía] --> V1[Visitante]
   C -->|otro objetivo| G2[Guía] --> V2[Visitante]
   V1 --> D[Diseñador]
   V2 --> D
-  D -->|tema.css| E
+  D -->|tema.css| E[Extensión]
 ```
 
 1. El **Catalogador** lee la página y elige qué viene a hacer la gente en ella.
-2. Por cada objetivo, en paralelo, la **Guía** encuentra y verifica el camino con el DOM, y el **Visitante**, un
-   usuario sintético que solo ve capturas, intenta recorrerlo.
+2. Por cada objetivo, varios a la vez, la **Guía** encuentra y verifica el camino con el DOM; después el
+   **Visitante**, un usuario sintético que solo ve capturas, intenta recorrerlo.
 3. El **Diseñador** escribe el tema con lo que aprendieron, y la extensión lo aplica para todos los que visitan esa
    página.
 
@@ -48,16 +49,13 @@ a los agentes trabajando mientras avanzan.
 | [`agents/shared/`](agents/shared/README.md) | Lo que comparten los agentes: almacén, navegador, Claude, nodos, DOM y catálogo |
 | [`infra/`](infra/README.md) | Terraform y AgentCore: API, almacén, tabla, backoffice y runtime |
 
-## Equipo
-
-- Jorge Eduardo León Reyes ([@jorvan758](https://github.com/jorvan758))
-- Brayan Moreno Avendaño ([@brayanmoreno](https://github.com/brayanmoreno))
-- Rodrigo Elicer Krause ([@rodrigoelicer](https://github.com/rodrigoelicer))
-- Ariel Ignacio Madariaga González ([@arielm-unholster](https://github.com/arielm-unholster))
+Más detalle en [docs/](docs/index.md): [arquitectura](docs/arquitectura.md),
+[objetivos y métricas](docs/objetivos-y-metricas.md) y [glosario](docs/glosario.md).
 
 ## Desarrollo local
 
-Requisitos: [`just`](https://github.com/casey/just) (`brew install just`), Node.js 22 o más reciente con npm, Firefox
+Requisitos: [`just`](https://github.com/casey/just) (`brew install just`), Node.js 22 o más reciente con npm,
+[uv](https://docs.astral.sh/uv/), Firefox
 (la extensión también corre en Chrome 148 o superior: `npm run dev:chrome`, ver [extension/README.md](extension/README.md))
 y, para los pasos 4, 5, 6, 8 y 9, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
 clon nuevo, en este orden:
@@ -99,4 +97,11 @@ Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del rep
 Los agentes corren en AgentCore, con Claude en Bedrock (`export AWS_PROFILE=<perfil>`). `just aws revision <url>`
 revisa una página completa, igual que `just local revision <url>`, y muestra su avance; `just aws seed` siembra las
 páginas de la demo. Todo se despliega solo al mergear a `main`: ver [el runtime](agents/app/runtime/README.md) y
-[la infraestructura](infra/README.md).
+[la infraestructura](infra/README.md). Corre `just aws` para ver todos los comandos.
+
+## Equipo
+
+- Jorge Eduardo León Reyes ([@jorvan758](https://github.com/jorvan758))
+- Brayan Moreno Avendaño ([@brayanmoreno](https://github.com/brayanmoreno))
+- Rodrigo Elicer Krause ([@rodrigoelicer](https://github.com/rodrigoelicer))
+- Ariel Ignacio Madariaga González ([@arielm-unholster](https://github.com/arielm-unholster))

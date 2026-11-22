@@ -16,6 +16,7 @@ import {
   insigniaDePestana,
   leerPagina,
   leerPestana,
+  PESTANAS,
   medidorDeGoal,
   medidoresDeTarjeta,
   modeloDeTarjeta,
@@ -192,16 +193,16 @@ test("pestañas: un valor desconocido vale recent", () => {
   assert.equal(leerPestana(undefined), "recent");
 });
 
-test("insignias: Recent nunca; Live con cuentas.live; Delivered y Failed con su cuenta; con 0, ninguna", () => {
+test("cifras de los filtros: All con cuentas.total; Live con cuentas.live; Failed con su cuenta; con 0, ninguna", () => {
   const { cuentas } = OVERVIEW;
-  assert.equal(insigniaDePestana("recent", cuentas), null);
+  assert.deepEqual(PESTANAS, ["recent", "live", "failed"]);
+  assert.equal(insigniaDePestana("recent", cuentas), 90);
   assert.equal(insigniaDePestana("live", cuentas), 8);
-  assert.equal(insigniaDePestana("delivered", cuentas), 65);
   assert.equal(insigniaDePestana("failed", cuentas), 18);
   assert.equal(insigniaDePestana("live", cuentas), OVERVIEW.pestanas.live.total, "cuentas.live = pestanas.live.total (contrato §7.3)");
-  // Arranque vacío (artboard 5): solo Live lleva insignia.
+  // Arranque vacío (artboard 5): All y Live con 1, Failed sin cifra.
   const primera = { total: 1, running: 1, stalled: 0, queued: 0, live: 1, delivered: 0, failed: 0 };
-  assert.deepEqual(["recent", "live", "delivered", "failed"].map((p) => insigniaDePestana(p, primera)), [null, 1, null, null]);
+  assert.deepEqual(PESTANAS.map((p) => insigniaDePestana(p, primera)), [1, 1, null]);
   assert.equal(insigniaDePestana("live", undefined), null);
 });
 
@@ -352,8 +353,8 @@ test("tarjetas de una pestaña: en el orden de la API (las en cola arriba, como 
   assert.deepEqual(tarjetasDePestana(OVERVIEW, "inventada").length, 5);
   assert.deepEqual(tarjetasDePestana({}, "live"), []);
   // Con el paginado una pestaña trae más de 6: no se recortan.
-  const muchas = { pestanas: { delivered: { ids: Array.from({ length: 26 }, (_, i) => `r${i}`), total: 65 } }, tarjetas: Object.fromEntries(Array.from({ length: 26 }, (_, i) => [`r${i}`, { ...CLINICA, revision: `r${i}` }])) };
-  assert.equal(tarjetasDePestana(muchas, "delivered").length, 26);
+  const muchas = { pestanas: { failed: { ids: Array.from({ length: 26 }, (_, i) => `r${i}`), total: 65 } }, tarjetas: Object.fromEntries(Array.from({ length: 26 }, (_, i) => [`r${i}`, { ...CLINICA, revision: `r${i}` }])) };
+  assert.equal(tarjetasDePestana(muchas, "failed").length, 26);
 });
 
 test("una en cola es una tarjeta: píldora Queued, etapas pendientes, sin cuadritos, goals ni motivo, con su tiempo", () => {
@@ -379,15 +380,15 @@ test("paginador de una pestaña: página, páginas y el rango que se ve; sin pag
   // La API trae { ids, total, pagina, paginas } por pestaña (contrato §7.4).
   const conPaginas = {
     pestanas: {
-      delivered: { ids: ["a", "b", "c", "d", "e", "f"], total: 65, pagina: 3, paginas: 11 },
+      recent: { ids: ["a", "b", "c", "d", "e", "f"], total: 65, pagina: 3, paginas: 11 },
       failed: { ids: ["x", "y"], total: 20, pagina: 4, paginas: 4 },
       live: { ids: ["l"], total: 1, pagina: 1, paginas: 1 },
     },
   };
-  assert.deepEqual(paginacionDePestana(conPaginas, "delivered"), { pagina: 3, paginas: 11, total: 65, desde: 13, hasta: 18 });
+  assert.deepEqual(paginacionDePestana(conPaginas, "recent"), { pagina: 3, paginas: 11, total: 65, desde: 13, hasta: 18 });
   assert.deepEqual(paginacionDePestana(conPaginas, "failed"), { pagina: 4, paginas: 4, total: 20, desde: 19, hasta: 20 }, "la última, con lo que queda");
   assert.equal(paginacionDePestana(conPaginas, "live"), null, "cabe en una página");
-  assert.deepEqual([paginaDePestana(conPaginas, "delivered"), paginaDePestana(conPaginas, "recent")], [3, 1]);
+  assert.deepEqual([paginaDePestana(conPaginas, "recent"), paginaDePestana(conPaginas, "live")], [3, 1]);
   // Un servidor anterior al paginado (sin pagina ni paginas): las páginas salen del total.
   assert.deepEqual(paginacionDePestana(OVERVIEW, "recent"), { pagina: 1, paginas: 15, total: 90, desde: 1, hasta: 6 });
   assert.equal(paginacionDePestana(OVERVIEW, "failed"), null);

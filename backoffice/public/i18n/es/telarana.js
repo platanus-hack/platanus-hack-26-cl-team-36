@@ -22,6 +22,7 @@ export default {
     reproducir: "Reproducir",
     pausa: "Pausa",
     seguir: "Seguir",
+    alFinal: "Ir al final",
     velocidad: "Velocidad",
     activos: "Activos",
   },

@@ -1,36 +1,488 @@
-/* Portada de chameleonmode.app: solo la marca y un aviso (colores de docs/marca/chameleonmode-v1). */
-* {
-  box-sizing: border-box;
-  margin: 0;
+/* Portada de chameleonmode.app. Solo tema oscuro, con la paleta de la marca (docs/marca/chameleonmode-v1): los mismos
+   valores que public/estilos/tokens.css del backoffice. El turquesa es lo único que llama a actuar; el espectro del
+   camaleón queda para el símbolo. */
+:root {
+  color-scheme: dark;
+  --fondo: #0B0B10;
+  --superficie-1: #111118;
+  --superficie-2: #15151D;
+  --superficie-3: #1C1C27;
+  --borde-sutil: rgb(255 255 255 / 0.06);
+  --borde: rgb(255 255 255 / 0.08);
+  --borde-fuerte: rgb(255 255 255 / 0.16);
+  --texto-1: #F5F5F7;
+  --texto-2: #C4C4CE;
+  --texto-3: #A7A7B5;
+  --texto-4: #7A7A88;
+  --acento: #2EE6C5;
+  --sobre-acento: #0B0B10;
+  --acento-sutil: rgb(46 230 197 / 0.14);
+  --anillo-foco: rgb(46 230 197 / 0.9);
+  --sombra-imagen: 0 0 0 1px var(--borde), 0 24px 48px -16px rgb(0 0 0 / 0.7), 0 48px 96px -32px rgb(0 0 0 / 0.6);
+  --radio-2: 6px; --radio-3: 10px; --radio-4: 14px; --radio-5: 20px; --radio-pildora: 999px;
+  --fuente: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fuente-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --curva-salida: cubic-bezier(0.22, 1, 0.36, 1);
+  --ancho: 1120px;
+  --ancho-amplio: 1240px;
+  --margen: clamp(16px, 4vw, 32px);
 }
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 body {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: 24px 16px;
-  background: #0B0B10;
-  color: #F5F5F7;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--fondo);
+  color: var(--texto-2);
+  font-family: var(--fuente);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
-main {
-  display: grid;
-  justify-items: center;
-  gap: 20px;
-  text-align: center;
-}
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--anillo-foco); outline-offset: 3px; border-radius: var(--radio-2); }
 
-h1 img {
-  display: block;
-  width: min(360px, 80vw);
-  height: auto;
-}
+h1, h2, h3 { color: var(--texto-1); font-weight: 600; letter-spacing: -0.02em; text-wrap: balance; }
+p { text-wrap: pretty; }
 
-p {
-  color: #ADAEBB;
-  font-size: 15px;
-  letter-spacing: 0.08em;
+.contenedor { width: 100%; max-width: calc(var(--ancho) + 2 * var(--margen)); margin-inline: auto; padding-inline: var(--margen); }
+.contenedor-ancho { max-width: calc(var(--ancho-amplio) + 2 * var(--margen)); }
+
+.saltar {
+  position: absolute; left: 16px; top: -48px; z-index: 20;
+  padding: 8px 14px; border-radius: var(--radio-2);
+  background: var(--acento); color: var(--sobre-acento); font-weight: 600; text-decoration: none;
+}
+.saltar:focus { top: 12px; }
+
+.etiqueta {
+  font-family: var(--fuente-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--acento);
+}
+
+/* ---------- Botones ---------- */
+
+.boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 48px; padding: 0 22px;
+  border: 1px solid transparent; border-radius: var(--radio-pildora);
+  font: 600 16px/1 var(--fuente); letter-spacing: -0.005em;
+  text-decoration: none; white-space: nowrap;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms var(--curva-salida);
+}
+.boton:active { transform: translateY(1px); }
+.boton .icono { width: 20px; height: 20px; flex: none; }
+.boton-primario { background: var(--acento); color: var(--sobre-acento); box-shadow: 0 0 0 1px rgb(46 230 197 / 0.3), 0 8px 24px -8px rgb(46 230 197 / 0.45); }
+.boton-primario:hover { background: color-mix(in srgb, var(--acento) 85%, white); }
+.boton-secundario { border-color: var(--borde-fuerte); color: var(--texto-1); background: rgb(255 255 255 / 0.02); }
+.boton-secundario:hover { border-color: rgb(255 255 255 / 0.32); background: rgb(255 255 255 / 0.06); }
+.boton-chico { min-height: 38px; padding: 0 16px; font-size: 14px; }
+.boton-deshabilitado, .boton[aria-disabled="true"] {
+  border-color: var(--borde); background: var(--superficie-2); color: var(--texto-4);
+  box-shadow: none; cursor: not-allowed; pointer-events: none;
+}
+
+/* ---------- Barra ---------- */
+
+.barra {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--fondo) 78%, transparent);
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 1px solid var(--borde-sutil);
+}
+.barra-interior {
+  display: flex; align-items: center; gap: 24px;
+  max-width: calc(var(--ancho-amplio) + 2 * var(--margen)); margin-inline: auto;
+  padding: 12px var(--margen);
+}
+.marca { display: block; margin-left: -6px; }
+.marca img { width: auto; height: 46px; }
+.barra-nav { display: flex; gap: 28px; margin-left: auto; font-size: 15px; }
+.barra-nav a { color: var(--texto-3); text-decoration: none; transition: color 160ms ease; }
+.barra-nav a:hover { color: var(--texto-1); }
+/* EN | ES: el inglés es el de la página; sin JavaScript no hay cambio, así que no se muestra. */
+.idiomas {
+  display: inline-flex; gap: 2px; padding: 3px;
+  border: 1px solid var(--borde); border-radius: var(--radio-pildora);
+  background: rgb(255 255 255 / 0.02);
+}
+.idiomas button {
+  min-width: 34px; height: 28px; padding: 0 8px;
+  border: 0; border-radius: var(--radio-pildora);
+  background: transparent; color: var(--texto-3);
+  font: 500 12px/1 var(--fuente-mono); letter-spacing: 0.06em;
+  cursor: pointer; transition: background-color 160ms ease, color 160ms ease;
+}
+.idiomas button:hover { color: var(--texto-1); }
+.idiomas button[aria-pressed="true"] { background: var(--superficie-3); color: var(--texto-1); }
+.sin-js .idiomas { display: none; }
+@media (max-width: 640px) {
+  .barra-interior { gap: 10px; }
+  .barra-nav { display: none; }
+  .idiomas { margin-left: auto; }
+  .idiomas button { min-width: 30px; padding: 0 6px; }
+  .sin-js .barra-interior > .boton { margin-left: auto; }
+  .marca img { height: 34px; }
+}
+
+/* ---------- Portada (hero) ---------- */
+
+.portada { position: relative; padding-top: clamp(56px, 9vw, 112px); isolation: isolate; }
+.portada::before {
+  content: ""; position: absolute; z-index: -1; inset: 0 0 auto;
+  height: min(1100px, 140vw);
+  background:
+    radial-gradient(60% 45% at 50% 58%, rgb(46 230 197 / 0.13), transparent 70%),
+    radial-gradient(40% 30% at 50% 0%, rgb(255 255 255 / 0.04), transparent 70%);
+  pointer-events: none;
+}
+.portada-texto { text-align: center; display: grid; justify-items: center; }
+/* Un título corto y no tan grande: la atención va a la bajada, los botones y el antes/después. */
+.portada h1 {
+  margin-top: 18px;
+  font-size: clamp(34px, 4.6vw, 56px); line-height: 1.06; letter-spacing: -0.032em;
+}
+.portada h1 span { color: var(--texto-3); }
+.bajada { margin-top: 24px; max-width: 38em; font-size: clamp(17px, 1.6vw, 19px); color: var(--texto-2); }
+.acciones { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 36px; }
+.nota { margin-top: 16px; font-family: var(--fuente-mono); font-size: 13px; color: var(--texto-4); letter-spacing: 0.01em; }
+.nota a { color: var(--texto-3); text-underline-offset: 3px; text-decoration-color: var(--borde-fuerte); }
+.nota a:hover { color: var(--texto-1); }
+
+/* ---------- Comparador antes / después ---------- */
+
+/* --corte: dónde está la línea, desde la izquierda; a su izquierda se ve la página con el tema, a su derecha la
+   original. portada.js lo mueve con el control (la CSP no deja style="…"). */
+.comparador { --corte: 50%; margin-top: clamp(48px, 7vw, 88px); }
+.ventana {
+  border-radius: var(--radio-4);
+  background: var(--superficie-1);
+  box-shadow: var(--sombra-imagen), 0 0 120px -40px rgb(46 230 197 / 0.35);
+  overflow: hidden;
+}
+.ventana-barra {
+  display: flex; align-items: center; gap: 16px;
+  height: 40px; padding: 0 14px;
+  background: var(--superficie-3);
+  border-bottom: 1px solid var(--borde);
+}
+.puntos { display: flex; gap: 7px; }
+.puntos i { width: 11px; height: 11px; border-radius: 50%; background: rgb(255 255 255 / 0.14); }
+.direccion {
+  flex: 0 1 340px; margin-inline: auto; transform: translateX(-26px);
+  padding: 4px 12px; border-radius: var(--radio-2);
+  background: rgb(0 0 0 / 0.3); color: var(--texto-3);
+  font-family: var(--fuente-mono); font-size: 12px; text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.comparador-lienzo {
+  position: relative; aspect-ratio: 1440 / 612; background: var(--superficie-2);
+  cursor: ew-resize; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+.sin-js .comparador-lienzo { cursor: auto; }
+.comparador-lienzo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; pointer-events: none; }
+.comparador-despues { clip-path: inset(0 calc(100% - var(--corte)) 0 0); }
+.rotulo {
+  position: absolute; top: 14px; z-index: 2;
+  padding: 5px 10px; border-radius: var(--radio-pildora);
+  font-family: var(--fuente-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  background: rgb(11 11 16 / 0.78); color: var(--texto-1);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  transition: opacity 200ms ease;
+}
+.rotulo-despues { left: 14px; background: var(--acento); color: var(--sobre-acento); }
+.rotulo-antes { right: 14px; }
+.comparador-linea {
+  position: absolute; z-index: 3; top: 0; bottom: 0; left: var(--corte);
+  width: 2px; margin-left: -1px;
+  background: var(--acento);
+  box-shadow: 0 0 16px rgb(46 230 197 / 0.6);
+  pointer-events: none;
+}
+.comparador-asa {
+  position: absolute; top: 50%; left: 50%;
+  width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  background: var(--acento);
+  box-shadow: 0 0 0 6px rgb(46 230 197 / 0.2), 0 8px 20px rgb(0 0 0 / 0.5);
+}
+.comparador-asa::before, .comparador-asa::after {
+  content: ""; position: absolute; top: 50%; width: 0; height: 0;
+  border-block: 6px solid transparent; margin-top: -6px;
+}
+.comparador-asa::before { left: 11px; border-right: 7px solid var(--sobre-acento); }
+.comparador-asa::after { right: 11px; border-left: 7px solid var(--sobre-acento); }
+/* Invisible y sin puntero: solo lo usa el teclado (Tab y flechas). El foco se ve en el asa. */
+.comparador-control {
+  position: absolute; inset: 0; z-index: 4;
+  width: 100%; height: 100%; margin: 0;
+  opacity: 0; pointer-events: none;
+}
+.comparador-lienzo:has(.comparador-control:focus-visible) .comparador-asa { outline: 2px solid var(--texto-1); outline-offset: 4px; }
+.comparador figcaption { margin-top: 16px; text-align: center; font-size: 14px; color: var(--texto-4); }
+
+/* Sin JavaScript el control no mueve nada: se ve la mitad y mitad, sin asa ni invitación a arrastrar. */
+.sin-js .comparador-control, .sin-js .comparador-asa, .sin-js .sin-js-oculto { display: none; }
+
+/* ---------- El problema ---------- */
+
+.problema { padding-block: clamp(96px, 13vw, 168px) clamp(72px, 9vw, 120px); }
+.frase {
+  max-width: 24em;
+  font-size: clamp(26px, 3.4vw, 40px); line-height: 1.2; letter-spacing: -0.025em;
+}
+.frase span { color: var(--texto-4); }
+.problema-interior { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: clamp(40px, 6vw, 96px); }
+
+/* Dos teléfonos: el mismo sitio sin y con el tema. El de después, un poco más abajo y con el borde del acento. */
+.telefonos { display: flex; align-items: flex-start; gap: clamp(14px, 2vw, 24px); }
+.telefono { width: clamp(150px, 16vw, 210px); }
+.telefono img {
+  aspect-ratio: 390 / 844; object-fit: cover; object-position: top;
+  border: 5px solid var(--superficie-3); border-radius: 30px;
+  background: var(--superficie-2);
+  box-shadow: var(--sombra-imagen);
+}
+.telefono-despues { margin-top: 48px; }
+.telefono-despues img { border-color: color-mix(in srgb, var(--acento) 55%, var(--superficie-3)); box-shadow: var(--sombra-imagen), 0 0 64px -16px rgb(46 230 197 / 0.45); }
+.telefono figcaption {
+  margin-top: 14px; text-align: center;
+  font-family: var(--fuente-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--texto-4);
+}
+.telefono-despues figcaption { color: var(--acento); }
+@media (max-width: 860px) {
+  .problema-interior { grid-template-columns: minmax(0, 1fr); }
+  .telefonos { justify-content: center; }
+  .telefono { width: min(42vw, 200px); }
+}
+
+/* ---------- Secciones ---------- */
+
+.seccion { padding-block: clamp(64px, 9vw, 120px); }
+.seccion-cabecera { max-width: 40em; margin-bottom: clamp(40px, 5vw, 64px); }
+.seccion-cabecera h2, .cierre h2 { margin-top: 14px; font-size: clamp(30px, 4vw, 46px); line-height: 1.1; letter-spacing: -0.03em; }
+.seccion-cabecera > p:not(.etiqueta) { margin-top: 18px; font-size: 18px; color: var(--texto-3); }
+.seccion-cabecera-centrada { margin-inline: auto; text-align: center; }
+
+/* Pasos */
+.pasos {
+  list-style: none; padding: 0;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px;
+  border: 1px solid var(--borde); border-radius: var(--radio-4);
+  background: var(--borde); overflow: hidden;
+}
+.pasos { position: relative; }
+.paso { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 28px 24px 32px; background: var(--fondo); }
+.paso-numero { font-family: var(--fuente-mono); font-size: 13px; color: var(--texto-4); transition: color 400ms ease; }
+/* Una línea turquesa recorre los cuatro pasos, en orden, cuando la grilla aparece (portada.js pone .visible). */
+.pasos::after {
+  content: ""; position: absolute; z-index: 1; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--acento), color-mix(in srgb, var(--acento) 40%, transparent));
+  transform-origin: left; transform: scaleX(0);
+}
+.pasos.visible::after { transform: scaleX(1); }
+.pasos.visible .paso-numero { color: var(--acento); }
+.paso-rol {
+  align-self: flex-start; margin-top: 18px;
+  padding: 3px 9px; border-radius: var(--radio-pildora);
+  background: var(--acento-sutil); color: var(--acento);
+  font-family: var(--fuente-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.paso h3 { font-size: 20px; line-height: 1.25; }
+.paso p { font-size: 15px; color: var(--texto-3); }
+@media (max-width: 960px) { .pasos { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pasos::after { display: none; } }
+@media (max-width: 560px) { .pasos { grid-template-columns: minmax(0, 1fr); } }
+
+/* La telaraña: la sección destacada, con el video del Replay de una tanda real */
+.telarana { position: relative; isolation: isolate; }
+.telarana::before {
+  content: ""; position: absolute; z-index: -1; inset: 10% 0 0;
+  background: radial-gradient(50% 40% at 50% 45%, rgb(46 230 197 / 0.10), transparent 70%);
+  pointer-events: none;
+}
+.ventana-telarana { box-shadow: var(--sombra-imagen), 0 0 160px -40px rgb(46 230 197 / 0.4); }
+/* Los videos (telaraña y Replay): la proporción sale de su width/height. */
+.video-auto { display: block; width: 100%; height: auto; background: var(--fondo); }
+.telarana-figura figcaption { margin-top: 16px; text-align: center; font-size: 14px; color: var(--texto-4); }
+.claves {
+  list-style: none; padding: 0; margin-top: clamp(40px, 5vw, 64px);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 40px);
+  max-width: var(--ancho); margin-inline: auto;
+}
+.clave h3 { margin-top: 16px; font-size: 18px; }
+.clave p { margin-top: 8px; font-size: 15px; color: var(--texto-3); }
+.clave-muestra { display: flex; align-items: center; height: 22px; }
+.clave-ruta::before { content: ""; width: 64px; height: 6px; border-radius: 3px; background: var(--acento); box-shadow: 0 0 14px rgb(46 230 197 / 0.6); }
+.clave-rama::before {
+  content: ""; width: 56px; height: 22px;
+  border: 4px solid #4AC06C; border-left: 0; border-bottom: 0; border-top-right-radius: 22px;
+}
+.clave-traba {
+  width: max-content; padding: 0 8px; border-radius: 6px;
+  border: 1px solid rgb(255 159 63 / 0.6); background: rgb(255 159 63 / 0.14); color: #FF9F3F;
+  font-size: 12px; line-height: 20px;
+}
+@media (max-width: 760px) { .claves { grid-template-columns: minmax(0, 1fr); } }
+
+/* El Replay: el texto a la izquierda y el video a la derecha */
+.evidencia { padding-top: 0; }
+.evidencia .contenedor { max-width: calc(var(--ancho-amplio) + 2 * var(--margen)); }
+.fila { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); align-items: center; gap: clamp(32px, 5vw, 72px); }
+.fila-texto h3 { margin-top: 14px; font-size: clamp(26px, 2.8vw, 34px); line-height: 1.15; letter-spacing: -0.025em; }
+.fila-texto p:not(.etiqueta) { margin-top: 16px; color: var(--texto-3); }
+.fila-imagen .ventana { border-radius: var(--radio-3); }
+.fila-imagen figcaption { margin-top: 12px; text-align: center; font-size: 14px; color: var(--texto-4); }
+@media (max-width: 860px) { .fila { grid-template-columns: minmax(0, 1fr); } }
+
+/* Descargas */
+.descargas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.descarga {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 14px;
+  padding: 32px;
+  border: 1px solid var(--borde); border-radius: var(--radio-4);
+  background: var(--superficie-1);
+}
+.descarga-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.descarga h3 { font-size: 26px; letter-spacing: -0.02em; }
+.descarga-detalle { color: var(--texto-2); }
+.descarga .boton { margin-top: 6px; }
+.descarga-ayuda { margin-top: auto; padding-top: 10px; font-size: 14px; color: var(--texto-4); }
+.descarga-ayuda em { font-style: normal; color: var(--texto-3); }
+.descarga-pasos { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--texto-3); }
+.descarga-pasos li::marker { color: var(--texto-4); font-family: var(--fuente-mono); font-size: 12px; }
+.descarga-pasos em, .descarga-pasos code { font-style: normal; color: var(--texto-1); }
+.descarga-pasos code, .descarga-nota code, .descarga-ayuda code { font-family: var(--fuente-mono); font-size: 13px; padding: 1px 5px; border-radius: 4px; background: var(--superficie-3); color: var(--texto-1); }
+/* Debajo de las tarjetas: por qué pide permisos y cómo actualizar (no está en las tiendas, así que nadie lo explica). */
+.descarga-notas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 20px; }
+.descarga-nota { padding: 24px 32px; border: 1px solid var(--borde-sutil); border-radius: var(--radio-4); background: rgb(255 255 255 / 0.015); }
+.descarga-nota h3 { font-size: 16px; letter-spacing: -0.01em; }
+.descarga-nota p { margin-top: 8px; font-size: 14px; color: var(--texto-3); }
+.descarga-pronto { background: transparent; border-style: dashed; }
+.descarga-pronto h3 { color: var(--texto-3); }
+.insignia {
+  padding: 4px 10px; border-radius: var(--radio-pildora);
+  border: 1px solid var(--borde-fuerte); color: var(--texto-3);
+  font-family: var(--fuente-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+  white-space: nowrap;
+}
+.insignia-lista { border-color: rgb(46 230 197 / 0.35); background: var(--acento-sutil); color: var(--acento); letter-spacing: 0.02em; text-transform: none; }
+@media (max-width: 760px) {
+  .descargas, .descarga-notas { grid-template-columns: minmax(0, 1fr); }
+  .descarga, .descarga-nota { padding: 24px; }
+}
+
+/* Cierre */
+.cierre { padding-block: clamp(48px, 7vw, 96px) clamp(96px, 12vw, 160px); }
+.cierre-interior { display: grid; justify-items: center; text-align: center; }
+.cierre p { margin: 16px 0 32px; color: var(--texto-3); }
+
+/* Pie */
+.pie { border-top: 1px solid var(--borde-sutil); padding-block: 32px; }
+.pie-interior { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.pie img { width: auto; height: 32px; margin-left: -5px; }
+.pie p { font-size: 14px; color: var(--texto-4); }
+
+/* Aparecer al hacer scroll: solo con JavaScript y sin movimiento reducido (portada.js pone .visible). */
+@media (prefers-reduced-motion: no-preference) {
+  .js .aparece { opacity: 0; transform: translateY(16px); transition: opacity 700ms var(--curva-salida), transform 700ms var(--curva-salida); }
+  .js .aparece.visible { opacity: 1; transform: none; }
+  .js .pasos .aparece:nth-child(2) { transition-delay: 80ms; }
+  .js .pasos .aparece:nth-child(3) { transition-delay: 160ms; }
+  .js .pasos .aparece:nth-child(4) { transition-delay: 240ms; }
+}
+
+/* ---------- Animaciones ---------- */
+/* Todas solo sin movimiento reducido. Las de entrada son CSS puro: sin JavaScript también se ven. Las que siguen al
+   scroll usan animation-timeline (Chrome, Edge, Safari 26); donde no existe, la página queda quieta y completa. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes subir { from { opacity: 0; transform: translateY(18px); filter: blur(6px); } }
+  @keyframes aparecer { from { opacity: 0; } }
+  .portada-texto > * { animation: subir 900ms var(--curva-salida) both; }
+  .portada-texto > :nth-child(2) { animation-delay: 90ms; }
+  .portada-texto > :nth-child(3) { animation-delay: 220ms; }
+  .portada-texto > :nth-child(4) { animation-delay: 320ms; }
+  .portada-texto > :nth-child(5) { animation-delay: 420ms; }
+  .comparador { animation: subir 1100ms 380ms var(--curva-salida) both; }
+  .barra { animation: aparecer 600ms ease both; }
+
+  /* El resplandor de la portada respira despacio. */
+  @keyframes respirar { 50% { opacity: 0.65; transform: scale(1.06); } }
+  .portada::before { animation: respirar 9s ease-in-out infinite; }
+
+  /* Un brillo cruza el botón principal cada tanto. */
+  .boton-brillo { position: relative; overflow: hidden; }
+  .boton-brillo::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.55) 50%, transparent 65%);
+    transform: translateX(-120%);
+    animation: brillo 5s 1.6s ease-in-out infinite;
+  }
+  @keyframes brillo { 0% { transform: translateX(-120%); } 22%, 100% { transform: translateX(120%); } }
+
+  /* La línea de los pasos, de izquierda a derecha. */
+  .pasos::after { transition: transform 1600ms var(--curva-salida) 200ms; }
+  .pasos .paso-numero { transition-delay: calc(var(--i, 0) * 260ms + 300ms); }
+  .pasos .paso:nth-child(2) { --i: 1; }
+  .pasos .paso:nth-child(3) { --i: 2; }
+  .pasos .paso:nth-child(4) { --i: 3; }
+
+  /* Las tarjetas se levantan un poco al pasar. */
+  .paso, .descarga, .clave { transition: transform 300ms var(--curva-salida), background-color 300ms ease, border-color 300ms ease; }
+  .paso:hover { background: var(--superficie-1); }
+  .descarga:hover { transform: translateY(-3px); border-color: var(--borde-fuerte); }
+
+  @supports (animation-timeline: view()) {
+    /* Las ventanas se enderezan al entrar a la pantalla. */
+    @keyframes enderezar { from { transform: perspective(1800px) rotateX(16deg) scale(0.92); opacity: 0.4; } }
+    .comparador .ventana, .ventana-telarana {
+      animation: enderezar linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 38%;
+      transform-origin: 50% 100%;
+    }
+    /* Los teléfonos se separan al bajar. */
+    @keyframes flotar-arriba { from { transform: translateY(40px); } to { transform: translateY(-40px); } }
+    @keyframes flotar-abajo { from { transform: translateY(-16px); } to { transform: translateY(16px); } }
+    .telefono-despues { animation: flotar-arriba linear both; animation-timeline: view(); }
+    .telefono:not(.telefono-despues) { animation: flotar-abajo linear both; animation-timeline: view(); }
+    /* El Replay crece un poco al entrar. */
+    @keyframes acercar { from { transform: scale(0.94); opacity: 0.5; } }
+    .fila-imagen .ventana { animation: acercar linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
+  }
+}
+
+/* ---------- Huevo de pascua de la Platanus Hack 26 (huevo-de-pascua.js) ---------- */
+/* «Platanus Hack 26» en el pie es un botón con aspecto de texto: al pasar encima toma el degradado del logo; al
+   apretarlo sus letras saltan en ola y suelta los plátanos. Sin JavaScript es solo texto. */
+.huevo {
+  display: inline; padding: 0; border: 0; border-radius: 4px; background: none;
+  color: inherit; font: inherit; letter-spacing: inherit; cursor: pointer;
+}
+.huevo:hover, .huevo:focus-visible {
+  background: linear-gradient(90deg, #B8FF5C, #2EE6C5, #4C8DFF, #8B5CF6, #F472B6);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.sin-js .huevo { cursor: text; pointer-events: none; }
+/* Las letras, para la ola (las arma huevo-de-pascua.js). */
+.huevo-letra { display: inline-block; white-space: pre; }
+/* Los plátanos: una capa fija sobre todo, que no recibe clics (un lienzo WebGL, o SVG sin WebGL o con menos movimiento). */
+.platanos-lienzo { position: fixed; inset: 0; z-index: 90; overflow: hidden; pointer-events: none; }
+.platanos-lienzo > * { position: absolute; left: var(--x); top: var(--y); will-change: transform, opacity; }
+.platano { margin: -18px 0 0 -18px; filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.35)); }
+.platanos-anillo {
+  width: 8px; height: 8px; border: 2px solid var(--color); border-radius: 50%; transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px var(--color);
 }

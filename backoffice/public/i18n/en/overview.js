@@ -46,7 +46,7 @@ export default {
   },
   pestanas: "Reviews by status",
   pestana: {
-    recent: "Recent",
+    recent: "All",
     live: "Live",
     delivered: "Delivered",
     failed: "Failed",

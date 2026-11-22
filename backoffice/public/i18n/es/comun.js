@@ -5,6 +5,8 @@ export default {
   marca: {
     nombre: "chameleon mode",
     titulo: "Backoffice",
+    // La etiqueta del enlace de la marca, que lleva a la portada.
+    inicio: "Chameleon Mode, inicio",
   },
   // Barra superior (marca, revisiones en curso, buscador) y los nombres de las vistas.
   shell: {
@@ -20,14 +22,22 @@ export default {
     replay: "Replay",
     propuesta: "Propuesta",
   },
+  etapa: { catalog: "el Catalogador", guide: "la Guía", visitor: "los Visitantes", improver: "el Diseñador" },
   marco: {
     disenando: "El Diseñador está preparando la propuesta",
     vistas: "Vistas de la tanda",
-    volver: "Volver a {origen}",
     origen: { overview: "Resumen", revisiones: "Revisiones", corridas: "Corridas", vivo: "En vivo" },
-    mas: "Más acciones",
-    corrida: "Corrida del {fecha}",
-    copiarEnlace: "Copiar enlace",
+    cerrar: "Cerrar",
+    meta: {
+      paginas: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "página", other: "páginas" })}`,
+      intentos: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "intento", other: "intentos" })}`,
+      propuestaLista: "Lista",
+      propuestaEnCurso: "Diseñando",
+    },
+    necesita: "Necesita {etapa} · no corrió",
+    etapas: "Etapas de la revisión",
+    detenidaEn: "Se detuvo en {etapa}",
+    fallida: "Falló",
     abrirSitio: "Abrir {host} en otra pestaña",
     llegan: ({ n, de }, { plural }) => `${n}/${de} ${plural(n, { one: "llega", other: "llegan" })}`,
     ningunoValido: "Ningún intento válido",
@@ -173,7 +183,6 @@ export default {
       trazas: "Traza siguiente / anterior del riel",
       paginas: "Página siguiente / anterior del riel",
       cerrarTanda: "Cerrar la tanda y volver",
-      copiarEnlace: "Copiar el enlace a esta vista",
       filas: "Fila siguiente / anterior",
       listaGrilla: "Lista ↔ grilla",
       zoom: "Acercar / alejar",

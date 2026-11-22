@@ -62,6 +62,7 @@ def _mutaciones() -> list:
         lambda v: v[1]["datos"][0].update(enlace="/x\n"),
         lambda v: v[1]["datos"][0].update(imagen="/logo.png"),
         lambda v: v[1]["datos"][0].update(titulo={"es": "x" * 161, "en": "y"}),
+        lambda v: v[1]["datos"][0].update(titulo={"en": "Stations"}),
         lambda v: v[0].update(id="planificar\n"),
         lambda v: v[0].update(componente="cartelera"),
         lambda v: v[0].update(items="li"),
@@ -78,6 +79,13 @@ def _mutaciones() -> list:
         lambda v: v[2]["opciones"].update(teclas="si"),
         lambda v: v[2]["opciones"].update(textos={"es": {"subtitulo": "x"}}),
     ]
+
+
+def test_un_texto_sin_ingles_vale_en_los_dos():
+    _, lanzador, _ = kit_derivado()
+    lanzador["datos"][0]["titulo"] = {"es": "Estaciones"}
+    tema, descartes = tema_json.armar("metro", [lanzador])
+    assert descartes == [] and sanear_en_js([tema]) == [{"features": tema["features"], "rechazos": []}]
 
 
 def test_claves_como_proto_valen_igual_en_los_dos():

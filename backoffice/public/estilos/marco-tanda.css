@@ -23,14 +23,13 @@ html.con-hoja #contenido { opacity: 0.4; transition-duration: 220ms; }
 
 .marco-tanda { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 
-/* ── Cabecera: ← origen · tarea sitio insignia · pestañas · ⋯ ───────────── */
+/* ── Cabecera: título · sitio · pastilla · ✕; debajo, las pestañas ─────── */
 .marco-cabecera {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-4);
-  padding: 14px 20px; border-bottom: 1px solid var(--borde-sutil); min-width: 0; flex: none;
+  display: flex; flex-direction: column; gap: var(--e-3);
+  padding: 14px 16px 14px 20px; border-bottom: 1px solid var(--borde-sutil); min-width: 0; flex: none;
 }
-.marco-volver { gap: 6px; height: 32px; padding: 0 10px; font-size: 13px; }
-.marco-volver .icono { width: 14px; height: 14px; }
-.marco-identidad { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 0 1 auto; }
+.marco-fila { display: flex; align-items: center; gap: var(--e-3); min-width: 0; }
+.marco-identidad { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; min-width: 0; flex: 1 1 auto; }
 .marco-titulo { min-width: 0; flex: 0 1 auto; font-size: 18px; line-height: 26px; letter-spacing: -0.01em; }
 .marco-hueco { display: contents; }
 .marco-sitio { display: inline-flex; align-items: center; gap: var(--e-1); flex: 0 1 auto; min-width: 0; color: var(--texto-3); font-size: 13px; }
@@ -39,48 +38,47 @@ html.con-hoja #contenido { opacity: 0.4; transition-duration: 220ms; }
 .marco-sitio:hover { color: var(--texto-1); text-decoration: none; }
 .marco-identidad .insignia { align-self: center; flex: none; }
 .marco-insignia-esqueleto { display: inline-block; align-self: center; width: 72px; height: 20px; border-radius: var(--radio-pildora); }
+.marco-cerrar { flex: none; width: 34px; height: 34px; margin-inline-start: auto; border-radius: var(--radio-3); }
+.marco-cerrar .icono { width: 16px; height: 16px; }
 
-/* Pestañas: enlaces; el subrayado de la actual se desliza a la elegida. */
-.pestanas { position: relative; margin-inline-start: auto; }
-.pestanas ul { display: flex; gap: var(--e-1); overflow-x: auto; scrollbar-width: none; }
+/* Pestañas: segmentos grandes en una caja; la actual, rellena y con el ícono turquesa. */
+.pestanas { align-self: flex-start; max-width: 100%; }
+.pestanas ul {
+  display: flex; gap: var(--e-1); padding: var(--e-1); overflow-x: auto; scrollbar-width: none;
+  background: var(--fondo); border: 1px solid var(--borde); border-radius: 12px;
+}
 .pestanas ul::-webkit-scrollbar { display: none; }
 .pestana {
-  display: inline-flex; align-items: center; gap: var(--e-2); height: 34px; padding: 0 var(--e-3);
-  color: var(--texto-3); font-size: 13px; line-height: 20px; font-weight: 500; white-space: nowrap;
-  transition: color var(--dur-1);
+  display: inline-flex; align-items: center; gap: 9px; height: 36px; padding: 0 14px 0 12px; border-radius: 9px;
+  color: var(--texto-2); font-size: 14px; line-height: 20px; font-weight: 500; white-space: nowrap;
+  transition: color var(--dur-1), background-color var(--dur-2) var(--curva-salida), box-shadow var(--dur-2) var(--curva-salida);
 }
-.pestana:hover { color: var(--texto-1); text-decoration: none; }
-.pestana[aria-current="page"] { color: var(--texto-1); }
+.pestana-icono { display: inline-flex; color: var(--texto-3); transition: color var(--dur-1); }
+.pestana-icono :is(.icono, .icono24) { width: 16px; height: 16px; }
+.pestana-meta {
+  display: inline-flex; align-items: center; gap: 5px; color: var(--texto-4); font-size: 12px; font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.pestana:hover { color: var(--texto-1); background: var(--superficie-2); text-decoration: none; }
+.pestana[aria-current="page"] {
+  color: var(--texto-1); background: var(--superficie-3);
+  box-shadow: inset 0 0 0 1px var(--borde-fuerte), var(--brillo-superior);
+}
+.pestana[aria-current="page"] .pestana-icono { color: var(--acento); }
 .pestana:focus-visible { outline-offset: -2px; }
-.pestanas-subrayado {
-  position: absolute; left: 0; bottom: -1px; height: 2px; width: var(--ancho, 0); border-radius: 2px;
-  background: var(--acento); transform: translateX(var(--x, 0)); pointer-events: none;
-}
-.pestanas-subrayado-animado { transition: transform 180ms var(--curva-salida), width 180ms var(--curva-salida); }
+/* Apagada (una revisión fallida): legible, sin hover, con un globo que dice qué falta. */
+.pestana[aria-disabled="true"] { color: var(--texto-4); cursor: not-allowed; }
+.pestana[aria-disabled="true"]:hover { background: transparent; color: var(--texto-4); }
+.pestana[aria-disabled="true"] .pestana-icono { color: var(--superficie-4); }
 
-/* La pestaña Propuesta, con un punto que late mientras el Diseñador diseña. */
-.pestana-punto { display: none; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--acento); }
-.pestana-en-curso .pestana-punto { display: inline-block; animation: pestana-latido 1.4s var(--curva-entrada-salida) infinite; }
+/* El dato de Proposal: un punto turquesa («Ready»), que late mientras el Diseñador diseña. */
+.pestana-punto { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--acento); }
+.pestana-meta:has(.pestana-punto) { color: var(--acento); }
+.pestana-punto-vivo { animation: pestana-latido 1.4s var(--curva-entrada-salida) infinite; }
 @keyframes pestana-latido {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--acento-sutil); }
   50% { opacity: 0.6; box-shadow: 0 0 0 4px var(--acento-sutil); }
 }
-
-/* Menú ⋯: la fecha y Copiar enlace. */
-.marco-menu-ancla { position: relative; flex: none; }
-.marco-mas { width: 32px; height: 32px; }
-.marco-menu {
-  position: absolute; z-index: 10; top: calc(100% + 6px); right: 0; min-width: 220px; padding: var(--e-1);
-  background: var(--superficie-3); border-radius: var(--radio-3); box-shadow: var(--sombra-flotante);
-  animation: marco-menu-entrar 120ms var(--curva-salida);
-}
-@keyframes marco-menu-entrar { from { opacity: 0; transform: translateY(-4px); } }
-.marco-menu-fecha { padding: 6px 10px 8px; color: var(--texto-3); font-size: 12px; border-bottom: 1px solid var(--borde-sutil); margin-bottom: var(--e-1); }
-.marco-menu-item {
-  display: flex; align-items: center; gap: var(--e-2); width: 100%; height: 32px; padding: 0 10px;
-  border: 0; border-radius: var(--radio-2); background: none; color: var(--texto-2); text-align: start; font-size: 13px;
-}
-.marco-menu-item:hover, .marco-menu-item:focus-visible { background: var(--superficie-4); color: var(--texto-1); }
 
 .panel-tanda { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; }
 .panel-tanda > * { flex: 1 1 auto; min-width: 0; }
@@ -91,9 +89,8 @@ html.con-hoja #contenido { opacity: 0.4; transition-duration: 220ms; }
 
 @container contenido (width < 820px) {
   .marco-cabecera { padding: var(--e-3) var(--e-4); }
-  .marco-identidad { order: 2; flex-basis: 100%; flex-wrap: wrap; row-gap: 2px; }
-  .pestanas { order: 3; margin-inline-start: 0; flex-basis: 100%; }
-  .marco-menu-ancla { margin-inline-start: auto; }
+  .pestanas { align-self: stretch; }
+  .pestana { padding: 0 10px; gap: 7px; }
   .panel-tanda > .esqueleto-hoja { grid-template-columns: 1fr; }
 }
 
@@ -176,6 +173,5 @@ html.con-hoja #contenido { opacity: 0.4; transition-duration: 220ms; }
 .traza-pista { color: var(--texto-4); font-size: 12.5px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pestana-en-curso .pestana-punto { animation: none; }
-  .pestanas-subrayado-animado { transition: none; }
+  .pestana-punto-vivo { animation: none; }
 }

@@ -161,9 +161,10 @@ test("enIdioma y textosDe: datos por idioma y textos del tema sobre los del dicc
   assert.equal(enIdioma({ es: "Hola" }, "en"), "Hola");
   assert.equal(enIdioma("Igual", "en"), "Igual");
   assert.equal(enIdioma(undefined, "es"), "");
-  const t = textosDe("atajo", ["titulo", "boton"], { en: { boton: "Go" } }, "en");
+  const t = textosDe("atajo", ["invertir", "boton"], { en: { boton: "Go", titulo: "Plan your trip" } }, "en");
   assert.equal(t.boton, "Go");
-  assert.equal(t.titulo, MiTema.idioma.t("en", "atajo.titulo"));
+  assert.equal(t.invertir, MiTema.idioma.t("en", "atajo.invertir"));
+  assert.equal(t.titulo, "Plan your trip");
 });
 
 test("urlMismoSitio: solo enlaces de la misma página, con o sin www", () => {
@@ -217,6 +218,19 @@ test("lanzador: descarta enlaces e imágenes de otro sitio", () => {
   assert.deepEqual(Array.from(tareas, (a) => a.getAttribute("href")), ["https://www.metro.cl/plano", "https://www.metro.cl/bip"]);
   assert.equal(tareas[0].querySelector("img"), null);
   assert.equal(tareas[1].querySelector("img").getAttribute("src"), "https://www.metro.cl/img/bip.svg");
+});
+
+test("lanzador: sin título del tema no lleva titular, y la lista se nombra con la etiqueta del diccionario", () => {
+  const MiTema = cargar();
+  const { dibujar } = MiTema.componentes.get("lanzador");
+  const nodo = dibujar([{ titulo: "Horarios y Tarifas", enlace: "/el-viaje/horarios-y-tarifas" }], {}, contextoVista);
+  assert.equal(nodo.querySelector("h2"), null);
+  assert.equal(nodo.querySelector("header"), null);
+  assert.equal(nodo.hasAttribute("aria-labelledby"), false);
+  assert.equal(nodo.getAttribute("aria-label"), MiTema.idioma.t("es", "lanzador.etiqueta"));
+  const conBajada = dibujar([{ titulo: "Plano de Red", enlace: "/plano" }], { textos: { es: { subtitulo: "El Viaje" } } }, contextoVista);
+  assert.equal(conBajada.querySelector("h2"), null);
+  assert.equal(conBajada.querySelector(".mt-lanzador__bajada").textContent, "El Viaje");
 });
 
 test("lanzador: sin tareas válidas no dibuja nada", () => {
@@ -289,7 +303,14 @@ test("atajo: sin valor en la página muestra «Elige una opción» y el enlace e
   fin.disparar("change");
   assert.equal(ir.getAttribute("href"), "https://www.metro.cl/planificador/?inicio=SP&fin=LH");
   assert.equal(ir.hasAttribute("aria-disabled"), false);
-  assert.equal(nodo.getAttribute("aria-labelledby"), nodo.querySelector("h2").getAttribute("id"));
+  // Sin título del tema no hay titular inventado: el formulario se nombra con la etiqueta del diccionario.
+  assert.equal(nodo.querySelector("h2"), null);
+  assert.equal(nodo.querySelector("header"), null);
+  assert.equal(nodo.getAttribute("aria-label"), MiTema.idioma.t("es", "atajo.etiqueta"));
+
+  const conTitulo = dibujar(campos, { destino: "/planificador/", textos: { es: { titulo: "Planifica tu viaje" } } }, contextoVista);
+  assert.equal(conTitulo.querySelector("h2").textContent, "Planifica tu viaje");
+  assert.equal(conTitulo.getAttribute("aria-labelledby"), conTitulo.querySelector("h2").getAttribute("id"));
 });
 
 test("atajo: ignora opciones deshabilitadas, lo que no es <select> y no intercambia valores que el otro no tiene", () => {

@@ -1,11 +1,17 @@
-// Backoffice: visor de solo lectura de las corridas del Visitante (.specs/backoffice-v0.md).
+// Backoffice: visor de solo lectura de las corridas del Visitante.
 // Sirve la página de public/ y una API que lee las corridas a través de una fuente (lib/fuente.js;
 // por defecto, la carpeta agents/.runs/). No gatilla nada ni llama a Claude.
 //
-// La raíz es una portada pública ("work in progress", de portada/) que no enlaza al backoffice: el backoffice
-// entero (página, API y archivos) vive bajo /backoffice/.
+// La raíz es una portada pública (portada/): qué es Chameleon, la descarga de la extensión y un botón al backoffice. El
+// backoffice entero (página, API y archivos) vive bajo /backoffice/.
 //
-//   GET /                                 → la portada; GET /<archivo>.{html,css,svg} → archivos de portada/
+//   GET /                                 → la portada; GET /<archivo>.{html,css,js,svg,png} y /img/<imagen o video>
+//                                           → portada/ (con rangos: Safari los pide para reproducir un video)
+//   GET /descargas/<firefox|chrome>.json  → { disponible, version, publicado, url }: la última versión de la extensión
+//                                           para ese navegador (lib/descargas.js); { disponible: false } si no hay
+//   GET /descargas/<firefox|chrome>       → 302 al archivo de la última versión (el enlace fijo de la portada)
+//   GET /descargas/chameleon-mode-<versión>.xpi         → el .xpi firmado, como application/x-xpinstall (Firefox lo instala)
+//   GET /descargas/chameleon-mode-chrome-<versión>.zip  → el .zip para cargar descomprimido en Chrome
 //   GET /backoffice                       → 301 a /backoffice/ (la página pide lo suyo con rutas relativas)
 //   GET /backoffice/                      → la página del backoffice (public/index.html)
 //   GET /backoffice/api/tandas            → { carpeta, tandas: resumen de cada tanda, de la más nueva a la más
@@ -23,6 +29,8 @@
 //                                           (§2); una página de 6 ids por pestaña: la 1, o la `pagina` pedida en la
 //                                           pestaña pedida (§7.4); con `link`, solo las revisiones cuyo link calza; sin
 //                                           tabla, { ahora, disponible: false }
+//   GET /backoffice/api/tarjetas/<revision>  → { ahora, tarjeta }: la tarjeta del Overview de una revisión (§2), esté
+//                                           o no en una pestaña; la usa la hoja de una revisión fallida
 //   GET /backoffice/api/vivo/<revision>/<goal>  → los pasos de los agentes del goal en vivo (SSE, lib/transmision.js)
 //   GET /backoffice/resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
 //   GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>  → la propuesta del Diseñador para esa tanda
@@ -44,11 +52,13 @@
 // Accept-Encoding); nunca una respuesta con Range ni el SSE de /api/vivo. La página (index.html) y los archivos sin
 // versión se revalidan con ETag (304); v/<versión>/ y vendor/<lib>@<x.y.z>/ no cambian nunca (inmutables).
 
-import { existsSync } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
+import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
+import { NAVEGADORES, crearDescargas } from "./lib/descargas.js";
 import { coincide, etiquetaDe } from "./lib/etiqueta.js";
 import {
   MINIMO_PARA_COMPRIMIR,
@@ -62,6 +72,7 @@ import {
   sigueVigente,
 } from "./lib/estaticos.js";
 import { crearFuente } from "./lib/fuente.js";
+import { resolverRango } from "./lib/fuentes/rango.js";
 import { RANCIO_MS, crearPanel } from "./lib/panel.js";
 import { ARCHIVO_DE_VISTA, crearPropuestas } from "./lib/propuestas.js";
 import { crearRevisiones, partesDeResultado } from "./lib/revisiones.js";
@@ -80,6 +91,10 @@ const TIPOS = {
   ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".webp": "image/webp",
+  ".xpi": "application/x-xpinstall",
+  ".zip": "application/zip",
   ".webm": "video/webm",
   ".woff2": "font/woff2",
   ".json": "application/json; charset=utf-8",
@@ -90,8 +105,8 @@ const TIPOS_DE_RESULTADO = { ".css": "text/plain; charset=utf-8" };
 // bibliotecas copiadas tal cual en public/vendor/<nombre>@<versión>/, con sus nombres de archivo.
 const RUTA_PUBLICA =
   /^(?:(?:[a-z0-9-]+\/)*[a-z0-9-]+|vendor\/[a-z0-9-]+@\d+\.\d+\.\d+\/[a-z0-9-]+(?:\.[a-z0-9-]+)*)\.(?:html|js|css|svg|woff2)$/;
-// De portada/ solo se sirven archivos sueltos, sin subcarpetas.
-const RUTA_DE_PORTADA = /^[a-z0-9-]+\.(?:html|css|svg)$/;
+// De portada/ se sirven sus archivos sueltos y las imágenes de portada/img/, nada más hondo.
+const RUTA_DE_PORTADA = /^(?:[a-z0-9-]+\.(?:html|css|js|svg|png)|img\/[a-z0-9-]+\.(?:jpg|png|webp|svg|webm))$/;
 
 // Las capturas muestran páginas de terceros y a veces datos de quien corrió la prueba: la página
 // solo carga lo propio (más las fuentes de Google y, con S3, las capturas y videos firmados del bucket) y nada de lo
@@ -229,12 +244,58 @@ async function servirEstatico(req, res, estaticos, ruta, cache, seguridad) {
   return enviarEstatico(req, res, archivo, { tipo: tipoDe(ruta), cache, seguridad });
 }
 
+// Las imágenes y los videos de la portada (portada/img/): del disco, sin pasar por la memoria de lib/estaticos.js
+// (pesan), y por rangos: Safari no reproduce un video sin respuestas 206.
+async function servirDelDisco(req, res, ruta, { cache, rango } = {}) {
+  const info = await stat(ruta).catch(() => null);
+  if (!info?.isFile()) return responderJson(res, 404, { error: "No encontrado" });
+  const tamano = info.size;
+  const servido = resolverRango(rango, tamano);
+  if (servido === undefined) return enviar(req, res, ruta, { cuerpo: createReadStream(ruta), tamano, rango: null }, { cache });
+  if (servido === null) return enviar(req, res, ruta, { cuerpo: null, tamano, rango: null }, { cache });
+  return enviar(req, res, ruta, { cuerpo: createReadStream(ruta, { start: servido.inicio, end: servido.fin }), tamano, rango: servido }, { cache });
+}
+
+// Las imágenes y el video de la portada pesan y cambian poco: el navegador (o un caché) los guarda una hora. La página, sus
+// estilos y su script no, para que un despliegue se vea al recargar.
+const CACHE_DE_IMAGEN = "public, max-age=3600";
+
 // La portada de la raíz: index.html y los archivos que pide, nada más.
 function servirPortada(req, res, partes) {
-  const archivo = partes.length === 0 ? "index.html" : partes.length === 1 ? partes[0] : "";
-  const ruta = path.join(PORTADA, archivo);
-  if (RUTA_DE_PORTADA.test(archivo) && existsSync(ruta)) return servirEstatico(req, res, DE_PORTADA, ruta, REVALIDAR);
+  const archivo = partes.length === 0 ? "index.html" : partes.join("/");
+  const ruta = path.join(PORTADA, ...archivo.split("/"));
+  if (RUTA_DE_PORTADA.test(archivo) && existsSync(ruta)) {
+    // La página, sus estilos y su script, de memoria (comprimidos, con ETag); las imágenes y los videos, del disco.
+    if (archivo.startsWith("img/")) {
+      return servirDelDisco(req, res, ruta, { cache: CACHE_DE_IMAGEN, rango: leerRango(req.headers.range) ?? undefined });
+    }
+    return servirEstatico(req, res, DE_PORTADA, ruta, REVALIDAR);
+  }
   return responderJson(res, 404, { error: "No encontrado" });
+}
+
+// Una versión publicada no cambia nunca (Mozilla no firma dos veces la misma versión, y el tag es el mismo para el .zip):
+// se puede guardar en cualquier caché.
+const CACHE_DE_VERSION = "public, max-age=31536000, immutable";
+
+// /descargas/…: la última versión de la extensión para cada navegador (lib/descargas.js).
+async function servirDescarga(req, res, descargas, partes) {
+  const [, nombre] = partes;
+  if (partes.length !== 2) return responderJson(res, 404, { error: "No encontrado" });
+  const navegador = nombre.replace(/\.json$/, "");
+  if (Object.hasOwn(NAVEGADORES, navegador)) {
+    const ultima = await descargas.ultima(navegador);
+    if (nombre.endsWith(".json")) {
+      return responderJson(res, 200, ultima
+        ? { disponible: true, version: ultima.version, publicado: ultima.publicado, url: `/descargas/${navegador}` }
+        : { disponible: false });
+    }
+    if (!ultima) return responderJson(res, 404, { error: "Todavía no hay una versión publicada" });
+    res.writeHead(302, { Location: `/descargas/${ultima.archivo}`, "Cache-Control": "no-store", ...CABECERAS_DE_SEGURIDAD });
+    return res.end();
+  }
+  const abierto = await descargas.abrir(nombre, leerRango(req.headers.range) ?? undefined);
+  return abierto ? enviar(req, res, nombre, abierto, { cache: CACHE_DE_VERSION }) : responderJson(res, 404, { error: "No existe esa versión" });
 }
 
 const NOMBRES_LOCALES = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -286,6 +347,7 @@ export function crearServidor({
   const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   const propuestas = crearPropuestas(origen);
   const seguridad = cabecerasDeSeguridad(origen.origenDeDescargas);
+  const descargas = crearDescargas(origen);
 
   // Un archivo ya validado: con S3, un 302 a una URL firmada; si no, se envía desde la fuente. false si no existe.
   async function servirDeCorrida(req, res, clave, relativa, { tipo = tipoDe(relativa), cache = "no-store", redireccion = "no-store", redirigir = true, rango } = {}) {
@@ -327,7 +389,7 @@ export function crearServidor({
       } catch {
         return responderJson(res, 400, { error: "Ruta inválida" });
       }
-      if (!enBackoffice) return servirPortada(req, res, partes);
+      if (!enBackoffice) return partes[0] === "descargas" ? servirDescarga(req, res, descargas, partes) : servirPortada(req, res, partes);
 
       if (partes[0] === "api" && partes[1] === "tandas") {
         if (partes.length === 2) return responderJson(res, 200, await listarTandas(origen));
@@ -349,6 +411,10 @@ export function crearServidor({
       }
 
       if (partes[0] === "api" && partes.length === 2 && partes[1] === "resumen") return responderJson(res, 200, await panel.resumen());
+      if (partes[0] === "api" && partes[1] === "tarjetas" && partes.length === 3) {
+        const tarjeta = await panel.tarjeta(partes[2]);
+        return tarjeta ? responderJson(res, 200, { ahora: reloj().toISOString(), tarjeta }) : responderJson(res, 404, { error: "No existe esa revisión" });
+      }
       if (partes[0] === "api" && partes.length === 2 && partes[1] === "overview") {
         const consulta = new URLSearchParams(search);
         return responderJson(res, 200, await panel.overview({ pestana: consulta.get("pestana"), pagina: consulta.get("pagina"), link: consulta.get("link") }));

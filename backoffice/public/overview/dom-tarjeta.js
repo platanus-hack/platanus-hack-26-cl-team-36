@@ -2,8 +2,9 @@
 // la marca y los cuadritos de agentes, las 4 etapas, los medidores por goal (o el motivo) y el pie (con cuántas
 // revisiones anteriores de la página reemplazó, que llevan al historial).
 //
-// Enlaces (contrato §6.5, §7.1): la tarjeta entera lleva a la telaraña del primer goal con tanda; si no hay, a la de
-// la tanda de su captura; solo si tampoco hay, al avance de la revisión. Cada fila de goal con tanda lleva a la suya.
+// Enlaces (contrato §6.5, §7.1): una fallida sin tanda propia abre la hoja de la falla (#/f/<revision>); si no, la
+// tarjeta entera lleva a la telaraña del primer goal con tanda; si no hay, a la de la tanda de su captura; solo si
+// tampoco hay, al avance de la revisión. Cada fila de goal con tanda lleva a la suya.
 // Un <a> no puede contener otros, así que va el patrón de enlace estirado: el nombre del sitio es el enlace principal
 // y su ::after cubre la tarjeta; lo que tiene su propio enlace o un globo (etapas, cuadritos, goals, motivo, tiempo)
 // queda encima, y un clic ahí que no es en un enlace sigue al principal. El foco del principal se ve en toda la
@@ -15,7 +16,7 @@
 
 import { el } from "../nucleo/dom.js";
 import { icono24 } from "../nucleo/iconos.js";
-import { enlaceARevisiones, enlaceATanda } from "../nucleo/rutas.js";
+import { enlaceAFallo, enlaceARevisiones, enlaceATanda } from "../nucleo/rutas.js";
 import { inicial } from "./marca.js";
 import { cifra, etiquetaDeTarjeta, textoDeAviso, textoDeTiempo } from "./textos.js";
 
@@ -211,9 +212,10 @@ function actualizarTarjeta(registro, modelo, deps) {
     registro.firmas[nombreDeParte] = firma;
   }
 
-  // El enlace principal: la telaraña de modelo.tanda (primer goal con tanda, o la de la captura) o el avance.
+  // El enlace principal: la hoja de la falla (fallida sin tanda propia), la telaraña de modelo.tanda (primer goal con
+  // tanda, o la de la captura) o el avance.
   const enlace = registro.partes.nombre.querySelector(".ov-tarjeta-enlace");
-  const href = modelo.tanda ? enlaceATanda(modelo.tanda) : deps.enlace(modelo.revision);
+  const href = modelo.falla ? enlaceAFallo(modelo.revision) : modelo.tanda ? enlaceATanda(modelo.tanda) : deps.enlace(modelo.revision);
   if (enlace.getAttribute("href") !== href) enlace.setAttribute("href", href);
   const etiqueta = etiquetaDeTarjeta(modelo, deps);
   if (enlace.getAttribute("aria-label") !== etiqueta) enlace.setAttribute("aria-label", etiqueta);

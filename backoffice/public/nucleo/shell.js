@@ -1,6 +1,7 @@
 // Armazón (diseño §5.11, §10.1, contrato §6): una barra superior fija de 56 px, sin navegación, sin selector de idioma,
-// sin buscador y sin barra lateral. En orden: la marca (logo horizontal a 180 px, o el símbolo solo donde no cabe) y
-// las revisiones en curso (lleva a la pestaña Live del Overview). Se busca en cada vista: el Overview busca sus
+// sin buscador y sin barra lateral. En orden: la marca (logo horizontal a 180 px, o el símbolo solo donde no cabe;
+// lleva a la portada), el título de la vista ("/ Overview": lo pone el enrutador con ponerTituloDeVista) y las
+// revisiones en curso (lleva a la pestaña Live del Overview). Se busca en cada vista: el Overview busca sus
 // revisiones por link y Corridas, sus tandas. A Reviews y Batches se llega por los atajos g o / g c y los enlaces de
 // las pantallas; al español, con `?idioma=es`. Se redibuja al cambiar de idioma.
 
@@ -17,6 +18,8 @@ export const MARCA = Object.freeze({
   simbolo: { src: "marca/simbolo.svg", ancho: 128, alto: 128 },
   soloSimbolo: "(max-width: 369px)",
 });
+/** La marca lleva a la portada pública (la raíz del sitio, servidor.js); al Overview se llega con g o. */
+export const ENLACE_MARCA = "/";
 /** La píldora de revisiones en curso lleva a la pestaña Live del Overview. */
 export const ENLACE_EN_CURSO = hashDe({ tipo: "overview", parametros: { pestana: "live" } });
 // Las revisiones en curso se vuelven a contar cada 10 s, solo con la pestaña visible.
@@ -32,11 +35,13 @@ let barra = null;
 /** Revisiones en curso; null sin tabla (o mientras no se sabe). Con 0 o null la píldora se oculta. */
 let enCurso = null;
 let relojEnCurso = 0;
+/** El título de la vista de abajo (no el de una hoja); vacío, sin título. */
+let tituloDeVista = "";
 
 function marca() {
   return el(
     "a",
-    { class: "marca", href: hashDe({ tipo: "overview" }), "data-foco": "shell:marca" },
+    { class: "marca", href: ENLACE_MARCA, "aria-label": t("comun.marca.inicio"), "data-foco": "shell:marca" },
     el(
       "picture",
       {},
@@ -44,6 +49,25 @@ function marca() {
       el("img", { class: "marca-logo", src: MARCA.logo.src, alt: t("comun.marca.nombre"), width: MARCA.logo.ancho, height: MARCA.logo.alto }),
     ),
   );
+}
+
+function titulo() {
+  return el(
+    "span",
+    { class: "barra-titulo", hidden: !tituloDeVista },
+    el("span", { class: "barra-titulo-separador", "aria-hidden": "true", texto: "/" }),
+    el("span", { class: "barra-titulo-texto", texto: tituloDeVista }),
+  );
+}
+
+/** Pone el título de la vista en la barra, sin redibujarla (no mueve el foco). Vacío o null lo quita. */
+export function ponerTituloDeVista(texto) {
+  tituloDeVista = String(texto ?? "");
+  const nodo = barra?.querySelector(".barra-titulo");
+  if (!nodo) return;
+  nodo.hidden = !tituloDeVista;
+  const textoDe = nodo.querySelector(".barra-titulo-texto");
+  if (textoDe.textContent !== tituloDeVista) textoDe.textContent = tituloDeVista;
 }
 
 function pildoraEnCurso() {
@@ -86,7 +110,7 @@ function dibujar() {
   const saltar = document.querySelector(".saltar");
   if (saltar) saltar.textContent = t("comun.shell.saltar");
   conservarFoco(barra, () =>
-    reemplazar(barra, marca(), el("div", { class: "barra-acciones" }, pildoraEnCurso())),
+    reemplazar(barra, marca(), titulo(), el("div", { class: "barra-acciones" }, pildoraEnCurso())),
   );
 }
 

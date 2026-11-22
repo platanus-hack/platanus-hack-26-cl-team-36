@@ -1,5 +1,5 @@
 // Componente "buscador": una paleta de comandos (⌘K) para saltar a cualquier tarea de un sitio
-// escribiendo lo que se quiere hacer. La vista inserta un botón discreto («Buscar una tarea…»)
+// escribiendo lo que se quiere hacer. La vista inserta un botón discreto («Buscar en el sitio»)
 // que abre un <dialog> modal con un campo y la lista filtrada. Con `teclas: true` también se abre
 // con ⌘K / Ctrl+K o con `/` (este último no, si se está escribiendo en un campo de la página).
 //
@@ -17,7 +17,8 @@
 //   teclas    true: suma los atajos globales. Por omisión no, para no quitarle Ctrl+K (la barra
 //             de búsqueda) ni `/` (buscar en la página) al navegador en un sitio que no lo pidió
 //   textos    por idioma, para reemplazar los genéricos del diccionario (claves `buscador.*`
-//             de comun/idioma.js): { es: { boton, titulo, campo, … }, en: {…} }
+//             de comun/idioma.js): { es: { boton, titulo, campo, … }, en: {…} }. `titulo` solo
+//             viene del tema; sin él, el diálogo se nombra con el texto del botón
 //
 // El filtrado es difuso y sin dependencias: sin acentos ni mayúsculas, cada palabra escrita debe
 // aparecer en el título, las palabras o el detalle (pesan en ese orden); si no, en el título como
@@ -27,7 +28,7 @@
   const { crear } = MiTema.dom;
   const { enIdioma, textosDe, urlMismoSitio } = MiTema.plantillas;
 
-  const CLAVES = ["boton", "titulo", "campo", "sugerencias", "sin-resultados", "sin-resultados-ayuda", "cerrar", "mover", "abrir", "atajo", "atajo-mac"];
+  const CLAVES = ["boton", "campo", "sugerencias", "sin-resultados", "sin-resultados-ayuda", "cerrar", "mover", "abrir", "atajo", "atajo-mac"];
   const MAX_CONSULTA = 100;
   let vistas = 0; // para ids únicos
 
@@ -228,7 +229,8 @@
       "aria-autocomplete": "list",
     });
     const cerrar = crear("button", { clase: "mt-buscador__cerrar", type: "button", "aria-label": t.cerrar }, tecla("Esc"));
-    const lista = crear("ul", { clase: "mt-buscador__lista", id: `${id}-lista`, role: "listbox", "aria-label": t.titulo });
+    const nombre = t.titulo || t.boton;
+    const lista = crear("ul", { clase: "mt-buscador__lista", id: `${id}-lista`, role: "listbox", "aria-label": nombre });
     const tituloVacio = crear("p", { clase: "mt-buscador__vacio-titulo" });
     const vacio = crear("div", { clase: "mt-buscador__vacio", hidden: "hidden" }, [
       tituloVacio,
@@ -241,7 +243,7 @@
     ]);
     const dialogo = crear("dialog", { clase: "mt-buscador__dialogo", id: `${id}-dialogo`, "aria-labelledby": `${id}-titulo` }, [
       crear("div", { clase: "mt-buscador__panel" }, [
-        crear("h2", { clase: "mt-buscador__titulo", id: `${id}-titulo`, texto: t.titulo }),
+        crear("h2", { clase: "mt-buscador__titulo", id: `${id}-titulo`, texto: nombre }),
         crear("div", { clase: "mt-buscador__barra" }, [crear("span", { clase: "mt-buscador__lupa", "aria-hidden": "true" }), campo, cerrar]),
         crear("div", { clase: "mt-buscador__resultados" }, [lista, vacio]),
         pie,

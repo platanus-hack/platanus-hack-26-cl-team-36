@@ -1,9 +1,15 @@
-// Sección Reviews del Overview (spec §3.5, contrato §7): "Reviews" con el buscador por link y sus pestañas (Recent,
-// Live, Delivered, Failed), la grilla de tarjetas (páginas de 6), el paginador y la pista de arranque vacío. Las revisiones en cola son
+// Sección Reviews del Overview (spec §3.5, contrato §7): "Reviews" con sus filtros (All, Live, Failed: un control
+// segmentado con su cifra) y el buscador por link a la derecha, la grilla de tarjetas (páginas de 6), el paginador y
+// la pista de arranque vacío. Las revisiones en cola son
 // tarjetas como las demás (píldora "Queued"). Se arma una vez; al refrescar o al cambiar de pestaña, dispositivo o
 // página se reconcilia la grilla por tarjeta (key = revisión + dispositivo): las que siguen se actualizan por partes y
 // no se mueven, las que salen sueltan sus <img> y las nuevas entran en su lugar. Mientras llega otra página, la
 // grilla muestra tarjetas esqueleto.
+//
+// La página no se mueve al cambiar de filtro, de página o de búsqueda: el panel guarda como alto mínimo el mayor que
+// tuvo (a lo más dos filas y el paginador). Sin eso, un filtro con menos tarjetas acorta el documento y el navegador,
+// que no puede dejar el scroll más abajo que el final, lo sube solo (se ve como un salto hacia arriba). El mínimo se
+// olvida cuando cambia el ancho (cambia el alto de las filas).
 
 import { urlDeArchivo, urlDePropuesta } from "../nucleo/datos.js";
 import { conservarFoco, el, reemplazar } from "../nucleo/dom.js";
@@ -32,6 +38,9 @@ import {
 import { cifra } from "./textos.js";
 
 const ICONO_DE_ETAPA = { catalog: "catalogo", guide: "ruta", visitor: "visitantes", improver: "tema" };
+/** La entrada de las tarjetas al cambiar de filtro: un fundido corto (nada con movimiento reducido). */
+const ENTRADA = [{ opacity: 0.35, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }];
+const movimientoReducido = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 /** Cuánto se espera después de la última tecla para buscar. */
 const ESPERA_DE_BUSQUEDA = 250;
 
@@ -221,7 +230,7 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlac
   const nodo = el(
     "section",
     { class: "ov-revisiones", "aria-labelledby": "ov-revisiones-titulo" },
-    el("div", { class: "ov-cabecera" }, el("h2", { id: "ov-revisiones-titulo", class: "ov-titulo", texto: t("comun.shell.revisiones") }), busca.nodo, lista),
+    el("div", { class: "ov-cabecera ov-cabecera-revisiones" }, el("h2", { id: "ov-revisiones-titulo", class: "ov-titulo", texto: t("comun.shell.revisiones") }), lista, busca.nodo),
     aviso,
     noDisponible,
     panel,
@@ -232,6 +241,24 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlac
   const tarjetas = new Map();
   let nodoPista = null;
   let conError = null;
+  /** El filtro dibujado la última vez: si cambia, las tarjetas entran con un fundido. */
+  let pestanaDibujada = null;
+  /** El mayor alto del panel con el ancho actual (ver el encabezado). */
+  let altoMinimo = 0;
+  let anchoMedido = 0;
+
+  /** Antes de cambiar la grilla: el panel no baja del mayor alto que tuvo con este ancho. */
+  function sostenerAlto() {
+    if (panel.hidden || !panel.isConnected) return;
+    const ancho = panel.clientWidth;
+    if (ancho !== anchoMedido) {
+      anchoMedido = ancho;
+      altoMinimo = 0;
+      panel.style.minHeight = "";
+    }
+    altoMinimo = Math.max(altoMinimo, panel.offsetHeight);
+    if (altoMinimo) panel.style.minHeight = `${altoMinimo}px`;
+  }
 
   function ponerPestanas(overview, pestana) {
     for (const { id, insignia } of pestanas) {
@@ -313,7 +340,13 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlac
     }
     ponerPestanas(overview, pestana);
     // Esperando otra página: la grilla y el paginador ya muestran la pedida (esperarPagina).
-    if (!esperando) conservarFoco(panel, () => ponerGrilla(overview, dispositivo, pestana));
+    if (esperando) return;
+    sostenerAlto();
+    conservarFoco(panel, () => ponerGrilla(overview, dispositivo, pestana));
+    if (pestanaDibujada !== null && pestanaDibujada !== pestana && !movimientoReducido()) {
+      grilla.animate(ENTRADA, { duration: 200, easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
+    }
+    pestanaDibujada = pestana;
   }
 
   /**
@@ -321,6 +354,7 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlac
    * esa página: 6, o las que queden en la última); el paginador ya marca la página pedida.
    */
   function esperarPagina({ pagina, paginas: cuantas, total }) {
+    sostenerAlto();
     conservarFoco(panel, () => {
       soltar();
       const enEsta = Math.max(1, Math.min(TARJETAS_POR_PAGINA, total - (pagina - 1) * TARJETAS_POR_PAGINA));

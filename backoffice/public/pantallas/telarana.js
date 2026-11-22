@@ -1,5 +1,6 @@
 // Pestaña Mapa de caminos (diseño §10.5): a la izquierda el riel de trazas por interés (tanda/riel.js); al centro la
-// telaraña viva (public/telarana/viva.js) con el estado final de la tanda; a la derecha su panel o, con una traza
+// telaraña viva (public/telarana/viva.js), que se arma en unos segundos hasta el estado final de la tanda (directo al
+// final con movimiento reducido o si el enlace ya elige una traza o una página); a la derecha su panel o, con una traza
 // elegida, lo que la hace interesante y el enlace a sus pasos en Replay.
 //
 // El estado de la vista vive en el hash: intento= (la traza elegida, la misma clave del Replay) o pagina= (la página
@@ -30,6 +31,9 @@ function clavesDePaginas(tanda) {
   return { porId, porClave };
 }
 
+/** El mapa abre ya armado (sin construirse) con movimiento reducido o si el enlace elige una traza o una página. */
+export const abreArmado = (parametros, reducido) => !!(parametros?.intento || parametros?.pagina || reducido);
+
 function crearPantalla(contenedor, ctx) {
   const { tanda, t } = ctx;
   const paginas = new Map((tanda.telarana?.paginas ?? []).map((pagina) => [pagina.id, pagina]));
@@ -59,11 +63,14 @@ function crearPantalla(contenedor, ctx) {
   });
   reemplazar(contenedor, zonaDeAvisos, el("div", { class: "tanda-columnas" }, riel.nodo, centro));
 
-  function montarVista() {
+  function montarVista(armado) {
+    const armar = () => fuenteDeTanda(tanda, { reproducir: true });
+    const final = () => fuenteDeTanda(tanda);
     estado.vista = montarTelaranaViva(centro, {
       ruta: rutaDeTanda(tanda),
-      fuente: fuenteDeTanda(tanda),
-      repetir: () => fuenteDeTanda(tanda, { reproducir: true }),
+      fuente: armado ? final() : armar(),
+      repetir: armar,
+      alFinal: final,
       i18n: { t },
       nombre: (n) => {
         const pagina = paginas.get(claves.porClave.get(n.clave));
@@ -147,7 +154,8 @@ function crearPantalla(contenedor, ctx) {
       await ctx.cargarEstilos("estilos/telarana.css");
       // Si otra navegación reemplazó la vista mientras cargaba el CSS, no se arma nada.
       if (ctx.senal.aborted) return;
-      if (eventosDeTanda(tanda).length) montarVista();
+      const reducido = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (eventosDeTanda(tanda).length) montarVista(abreArmado(ctx.parametros, reducido));
       else reemplazar(centro, vacio({ titulo: t("telarana.lienzo.vacio") }));
       aplicar(ctx.parametros);
     },

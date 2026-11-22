@@ -195,19 +195,21 @@
 
 /* ── Revisiones ───────────────────────────────────────────────────────── */
 .p-overview .ov-revisiones { display: flex; flex-direction: column; gap: 16px; }
-/* Buscador por link: junto al título "Reviews", antes de las pestañas (que siguen a la derecha). */
+/* Fila de Reviews: el título, los filtros (control segmentado) y el buscador a la derecha, centrados en la fila. */
+.p-overview .ov-cabecera-revisiones { align-items: center; justify-content: flex-start; gap: 12px 16px; padding-bottom: 12px; }
+.p-overview .ov-cabecera-revisiones .ov-titulo { margin: 0; }
 .p-overview .ov-buscador {
   position: relative;
   display: flex;
   align-items: center;
   flex: 0 1 280px;
   min-width: 180px;
-  margin: 0 auto 6px 8px;
+  margin-inline-start: auto;
 }
 .p-overview .ov-buscar-icono { position: absolute; inset-inline-start: 10px; color: var(--texto-3); pointer-events: none; }
 .p-overview .ov-buscar-entrada {
   width: 100%;
-  height: 34px;
+  height: 36px;
   padding: 0 10px 0 32px;
   border: 1px solid var(--borde);
   border-radius: 10px;
@@ -220,10 +222,16 @@
 .p-overview .ov-buscar-entrada:hover { border-color: var(--borde-fuerte); }
 .p-overview .ov-buscar-entrada:focus-visible { outline-offset: 0; border-color: transparent; background: var(--superficie-2); }
 .p-overview .ov-buscar-entrada::-webkit-search-cancel-button { filter: invert(0.7); cursor: pointer; }
+/* Filtros: un control segmentado (no pestañas de página): la elegida en relieve, las demás planas. */
 .p-overview .ov-pestanas {
-  display: flex;
-  gap: 4px;
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
   max-width: 100%;
+  padding: 3px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie-1);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -232,22 +240,37 @@
   flex: none;
   align-items: center;
   gap: 8px;
-  height: 40px;
-  padding: 0 12px;
+  height: 28px;
+  padding: 0 10px;
   border: 0;
+  border-radius: 7px;
   background: transparent;
   color: var(--texto-3);
-  font: 500 14px var(--fuente);
+  font: 500 13px var(--fuente);
   letter-spacing: normal;
   white-space: nowrap;
-  transition: color var(--dur-1);
+  transition: color var(--dur-1), background-color var(--dur-2) var(--curva-salida), box-shadow var(--dur-2) var(--curva-salida);
 }
-.p-overview .ov-pestana:hover { color: var(--texto-1); }
-.p-overview .ov-pestana[aria-selected="true"] { color: var(--texto-1); box-shadow: inset 0 -2px 0 var(--acento); }
+.p-overview .ov-pestana:hover { color: var(--texto-1); background: var(--superficie-2); }
+.p-overview .ov-pestana[aria-selected="true"] {
+  color: var(--texto-1);
+  background: var(--superficie-3);
+  box-shadow: inset 0 0 0 1px var(--borde-fuerte), var(--brillo-superior);
+}
 /* Dentro de una fila que se desplaza, el anillo de foco va por dentro (por fuera quedaría recortado). */
 .p-overview .ov-pestana:focus-visible { outline-offset: -2px; }
+/* El punto de estado de Live (turquesa) y Failed (rojo), antes del nombre. */
+.p-overview .ov-pestana[data-valor="live"]::before,
+.p-overview .ov-pestana[data-valor="failed"]::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--acento);
+}
+.p-overview .ov-pestana[data-valor="failed"]::before { background: var(--resultado-fallido); }
 .p-overview .ov-insignia {
-  min-width: 32px;
+  min-width: 26px;
   padding: 0 6px;
   border-radius: var(--radio-pildora);
   background: var(--borde-sutil);
@@ -642,8 +665,6 @@
 
 /* Teléfono: las fichas bajan bajo el total y en cada fila el nombre y la cifra quedan sobre los cuadritos. */
 @container ov (max-width: 599px) {
-  /* El buscador toma el resto de la fila del título; las pestañas bajan a la suya. */
-  .p-overview .ov-buscador { flex: 1 1 160px; margin-inline-end: 0; }
   .p-overview .ov-paginas { justify-content: center; }
   .p-overview .ov-pagina { min-width: 32px; height: 32px; padding: 0 6px; }
   .p-overview .ov-pagina-hueco { min-width: 16px; }
@@ -662,11 +683,11 @@
   .p-overview .ov-cuadritos { padding-top: 0; }
   .p-overview .ov-pista-etapa { width: 52px; }
   .p-overview .ov-pista-flecha { width: 16px; }
-  /* Las 4 pestañas caben en 358 px en inglés; si no caben (en español), su fila se desplaza sola hasta la elegida
-     (marcarPestana), nunca la página. */
-  .p-overview .ov-pestanas { gap: 2px; }
+  /* Los 3 filtros caben en 358 px; si no caben, su fila se desplaza sola hasta el elegido (marcarPestana), nunca la
+     página. El buscador baja a su propia fila, entero. */
   .p-overview .ov-pestana { gap: 6px; padding: 0 8px; }
-  .p-overview .ov-insignia { min-width: 24px; padding: 0 5px; }
+  .p-overview .ov-insignia { min-width: 22px; padding: 0 5px; }
+  .p-overview .ov-cabecera-revisiones .ov-buscador { flex: 1 1 100%; margin-inline-start: 0; }
 }
 
 /* Movimiento reducido: sin pulso ni barrido (la línea de escaneo queda quieta arriba, como en la maqueta). */

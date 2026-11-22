@@ -18,7 +18,8 @@ import {
   terminados,
 } from "../public/telarana/modelo.js";
 import { LIMITE, PASO, puntoDeTramo, radio } from "../public/telarana/layout.js";
-import { eventosDeTanda, fuenteDeTanda, rutaDeTanda } from "../public/telarana/fuente-tanda.js";
+import { DURACION_COMPRIMIDA_MS, HUECO_MAX_MS, eventosDeTanda, fuenteDeTanda, horarioComprimido, rutaDeTanda } from "../public/telarana/fuente-tanda.js";
+import { abreArmado } from "../public/pantallas/telarana.js";
 import { claveDePagina } from "../public/nucleo/url.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
@@ -241,27 +242,72 @@ test("fuenteDeTanda: las variantes de URL de una página son el mismo nodo", asy
   assert.deepEqual(titulos, ["Ayuda", "Cómo dar de baja", "Inicio", "Planes"]);
 });
 
-test("fuenteDeTanda: reproduciendo, cada evento llega a su hora y la velocidad se puede cambiar", async (t) => {
+const enMs = (...ms) => ms.map((m) => ({ ts: new Date(Date.UTC(2026, 10, 22) + m).toISOString() }));
+
+test("horarioComprimido: la tanda dura lo previsto, en orden, con su ritmo y sin pausas largas", () => {
+  const eventos = enMs(0, 0, 60_000, 61_000, 62_000, 600_000, 601_000, 700_000);
+  const horas = horarioComprimido(eventos);
+  assert.equal(horas.length, eventos.length);
+  assert.equal(horas[0], 0);
+  assert.equal(horas[1], 0, "los simultáneos siguen juntos");
+  for (let i = 1; i < horas.length; i++) {
+    assert.ok(horas[i] >= horas[i - 1], "el orden se conserva");
+    assert.ok(horas[i] - horas[i - 1] <= HUECO_MAX_MS + 1e-6, "ninguna pausa pasa del tope");
+  }
+  assert.equal(horas[3] - horas[2], horas[4] - horas[3], "el ritmo relativo se conserva");
+  const largo = horarioComprimido(enMs(...Array.from({ length: 200 }, (_, i) => i * 5_000)));
+  assert.ok(Math.abs(largo.at(-1) - DURACION_COMPRIMIDA_MS) < 5, `dura ${largo.at(-1)} ms`);
+});
+
+test("horarioComprimido: vacía, de un evento y nunca más lenta que la real", () => {
+  assert.deepEqual(horarioComprimido([]), []);
+  assert.deepEqual(horarioComprimido(enMs(5_000)), [0]);
+  assert.deepEqual(horarioComprimido(enMs(0, 100, 300)), [0, 100, 300]);
+});
+
+test("fuenteDeTanda reproduciendo: se arma en ~8 s, con pausa y velocidad, y termina igual que el estado final", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   let reloj = 0;
   const tanda = await leer(TANDA);
-  const total = eventosDeTanda(tanda).length;
-  const llegados = [];
-  const suscripcion = fuenteDeTanda(tanda, { reproducir: true, ahora: () => reloj }).suscribir((ev) => llegados.push(ev));
+  const tandaLenta = { ...tanda, intentos: tanda.intentos.map((i) => ({ ...i, duracion: (i.duracion ?? 0) * 60, pasos: i.pasos.map((p) => ({ ...p, segundos: (p.segundos ?? 0) * 60 })) })) };
+  const total = eventosDeTanda(tandaLenta).length;
+  const armado = crearModelo({ ruta: rutaDeTanda(tandaLenta) });
+  const final = crearModelo({ ruta: rutaDeTanda(tandaLenta) });
+  fuenteDeTanda(tandaLenta).suscribir((ev) => aplicar(final, ev));
+  let llegados = 0;
+  const suscripcion = fuenteDeTanda(tandaLenta, { reproducir: true, ahora: () => reloj }).suscribir((ev) => {
+    llegados++;
+    aplicar(armado, ev);
+  });
   const correr = (ms) => {
     for (let i = 0; i < ms / 50; i++) {
       reloj += 50;
       t.mock.timers.tick(50);
     }
   };
-  const iniciales = llegados.length;
-  assert.ok(iniciales > 0 && llegados.every((ev) => ev.type === "start"));
-  correr(2_500);
-  assert.ok(llegados.length > iniciales && llegados.length < total);
+  correr(2_000);
+  const aMitad = llegados;
+  assert.ok(aMitad > 0 && aMitad < total && !suscripcion.terminada());
+  suscripcion.velocidad(0);
+  correr(5_000);
+  assert.equal(llegados, aMitad, "en pausa no llega nada");
   suscripcion.velocidad(4);
-  correr(3_000);
-  assert.equal(llegados.length, total, "×4: los 10 s de la tanda llegan en menos de 6 s");
+  correr(1_600);
+  assert.equal(llegados, total, "×4: lo que faltaba llega enseguida");
+  assert.ok(suscripcion.terminada());
+  assert.deepEqual(cifras(armado), cifras(final));
+  assert.deepEqual([...armado.nodos.keys()].sort(), [...final.nodos.keys()].sort());
+  assert.deepEqual([...armado.tramos.keys()].sort(), [...final.tramos.keys()].sort());
+  assert.deepEqual(armado.fin, final.fin);
   suscripcion.cerrar();
+});
+
+test("Mapa de caminos: se arma al abrir salvo con movimiento reducido o un enlace que ya elige", () => {
+  assert.equal(abreArmado({}, false), false);
+  assert.equal(abreArmado({ tanda: "x" }, undefined), false);
+  assert.equal(abreArmado({}, true), true);
+  assert.equal(abreArmado({ intento: "desktop" }, false), true);
+  assert.equal(abreArmado({ pagina: "p1" }, false), true);
 });
 
 test("FINALES tiene un nodo final por resultado", () => {

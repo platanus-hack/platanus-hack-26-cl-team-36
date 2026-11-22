@@ -16,8 +16,8 @@ from shared import store
 from shared.catalog.goal import Goal
 
 from conftest import ClaudeGuion
-from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR
-from disenador import atajos, tema_json
+from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR, prompt_de_sistema
+from disenador import atajos, mejora, tema_json
 from disenador.atajos import SelectDePagina
 
 DATOS = Path(__file__).with_name("datos") / "metro"
@@ -52,7 +52,7 @@ def test_atajo_del_planificador_de_metro():
     # Las claves del deep link verificado, en su orden; `inicio` se encuentra por el name de su <select>.
     assert [(c["nombre"], c["opciones"], c["requerido"]) for c in vista["datos"]] == [
         ("inicio", "#binicio", True), ("fin", "#fin", True), ("horario", "#horario", False), ("dia", "#dia", False)]
-    assert vista["datos"][0]["etiqueta"] == {"es": "Origen", "en": "Origen"}
+    assert vista["datos"][0]["etiqueta"] == {"es": "Origen"}
     assert vista["opciones"] == {"destino": "/el-viaje/planificador/", "invertir": ["inicio", "fin"]}
 
 
@@ -141,11 +141,51 @@ def test_el_lanzador_no_enlaza_el_viaje_que_eligio_la_guia():
 def test_titulo_derivado_corto_y_sin_cabos_sueltos():
     titulos = {g.id: atajos._titulo(g.description) for g in _goals_reales()}
     assert titulos["planificar-viaje"] == "Planifica tu viaje en metro"
-    assert titulos["encontrar-informacion-estacion"] == "Encuentra las estaciones del metro"
-    assert titulos["gestionar-arriendo-terrenos"] == "Gestiona el arriendo de terrenos"
-    assert titulos["conocer-linea-a"] == "Conoce el proyecto de la Línea A"
-    assert all(len(t.split()) <= 7 and len(t) <= 48 for t in titulos.values())
+    assert titulos["encontrar-informacion-estacion"] == "Estaciones del metro"
+    assert titulos["gestionar-arriendo-terrenos"] == "Gestiona el arriendo de terrenos del metro"
+    assert titulos["conocer-linea-a"] == "Proyecto de la Línea A del metro"
+    assert all(len(t.split()) <= 9 and len(t) <= 56 for t in titulos.values())
     assert not any(t.split()[-1] in atajos._ENLACES for t in titulos.values())
+    # «Llega a…» no nombra la tarea: queda el destino, sin el propósito.
+    assert atajos._titulo("Llega a la página de la Encuesta de Presupuestos Familiares.") == \
+        "Encuesta de Presupuestos Familiares"
+    assert atajos._titulo("Llega a la sala de prensa para leer el comunicado del IPC.") == "Sala de prensa"
+    assert atajos._titulo("Llega al Portal de Mapas del INE.") == "Portal de Mapas del INE"
+    assert atajos._titulo("Llega al trámite para iniciar actividades como contribuyente.") == \
+        "Iniciar actividades como contribuyente"
+    assert atajos._titulo("Te contactaron para una encuesta del INE: encuentra la información para personas.") == \
+        "Información para personas"
+
+
+def _titulos_de(sitio: str) -> dict[str, str]:
+    goals = json.loads((Path(__file__).with_name("datos") / sitio / "goals.json").read_text(encoding="utf-8"))
+    return {g["id"]: atajos._titulo(g["description"]) for g in goals["goals"]}
+
+
+def test_el_titulo_nombra_la_tarea_sin_el_verbo_del_catalogo_ni_cortes_a_medias():
+    sii, ine = _titulos_de("sii-real"), _titulos_de("ine-real")
+    # Antes: «Encuentra el valor de la UTM», «Encuentra los datos y valores», «Encuentra las estadísticas de permisos».
+    assert sii["consultar-utm"] == "Valor de la UTM del mes"
+    assert sii["fechas-valores-iva"] == "Datos y valores del IVA"
+    assert sii["fechas-valores-renta"] == "Plazos y valores de la declaración de renta"
+    assert sii["derechos-contribuyentes"] == "Tus derechos como contribuyente"
+    assert sii["rectificar-renta-2026"] == "Cómo rectificar tu declaración de renta 2026"
+    assert ine["permisos-de-edificacion"] == "Estadísticas de permisos de edificación"
+    # Un nombre propio no se parte: mejor la frase sin él que «… del Índice de Precios».
+    assert ine["variacion-mensual-ipc"] == "Variación mensual más reciente"
+    # «Busca un tema»: sin artículo definido no es el nombre de algo; el verbo se queda.
+    assert sii["buscar-en-sii"] == "Busca un tema"
+    for titulo in [*sii.values(), *ine.values()]:
+        assert len(titulo.split()) <= 9 and len(titulo) <= 56, titulo
+        assert titulo.split()[-1].lower() not in atajos._ENLACES, titulo
+        assert not re.match(r"(?i)(encuentra|consulta|revisa|conoce|obtén) (el|la|los|las) ", titulo), titulo
+
+
+def test_el_detalle_derivado_conserva_el_articulo():
+    goal = next(Goal(**g) for g in json.loads((Path(__file__).with_name("datos") / "sii-real" / "goals.json")
+                                              .read_text(encoding="utf-8"))["goals"] if g["id"] == "consultar-utm")
+    tarea = atajos._tarea(goal, "/utm")
+    assert tarea["titulo"]["es"] == "Valor de la UTM del mes" and tarea["detalle"]["es"] == "El valor de la UTM del mes"
 
 
 def test_lanzador_con_el_catalogo_de_metro():
@@ -195,7 +235,7 @@ def test_el_buscador_agrupa_por_el_objetivo_padre_y_tiene_tope():
     goals[1].parent = goals[2].parent = "viajar"
     buscador = atajos.buscador(goals, {}, INICIO, [padre, *goals])
     grupos = {t["enlace"]: t.get("grupo") for t in buscador["datos"]}
-    assert grupos["/el-viaje/estado-red"] == {"es": "Viajar en Metro", "en": "Viajar en Metro"}
+    assert grupos["/el-viaje/estado-red"] == {"es": "Viajar en Metro"}
     assert grupos["/el-viaje/planificador"] is None and buscador["opciones"]["agrupar"] is True
     muchos = [Goal(**{**goals[0].__dict__, "id": f"g{i}", "entry": f"{METRO}/t{i}"}) for i in range(50)]
     assert len(atajos.buscador(muchos, {}, INICIO)["datos"]) == atajos.MAX_BUSCADOR
@@ -242,7 +282,8 @@ def test_enlaces_fuera_del_sitio_se_descartan(enlace):
     (lambda v: v["opciones"].update(destino="//evil.com/x"), "$.opciones.destino"),
     (lambda v: v["opciones"].update(invertir=["inicio", "otro"]), "invertir"),
     (lambda v: v["opciones"].update(textos={"es": {"titulo": "x" * 200}}), "$.opciones.textos.es.titulo"),
-    (lambda v: v.update(datos=[{"nombre": "a", "etiqueta": {"es": "Desde"}, "opciones": "#a"}]), "$.datos"),
+    # Sin español no hay texto; sin inglés sí (se muestra el español).
+    (lambda v: v.update(datos=[{"nombre": "a", "etiqueta": {"en": "From"}, "opciones": "#a"}]), "$.datos"),
     (lambda v: v.update(datos=[{"nombre": "inicio", "etiqueta": {"es": "A", "en": "A"}}]), "$.datos"),
     (lambda v: v.update(script="alert(1)"), "clave no permitida"),
     # Los mismos topes que tema-remoto.js: un `\n` final no pasa el patrón (fullmatch, no search).
@@ -285,8 +326,8 @@ def test_la_propuesta_del_modelo_pone_las_palabras():
     assert atajo["contenedor"] == "body > :has(#binicio)"
     assert atajo["opciones"]["textos"] == {"es": {"titulo": "¿A dónde vas?", "boton": "Ver ruta"},
                                            "en": {"titulo": "Where to?", "boton": "See route"}}
-    # Una etiqueta sin inglés deja la derivada.
-    assert [c["etiqueta"]["en"] for c in atajo["datos"][:2]] == ["From", "Fin"]
+    # Una etiqueta sin inglés queda solo en español, sin copiarlo.
+    assert [c["etiqueta"] for c in atajo["datos"][:2]] == [{"es": "Desde", "en": "From"}, {"es": "Hasta"}]
     lanzador = tema_json.con_propuesta(lanzador, {"contenedor": "main", "tareas": [
         {"enlace": "/el-viaje/estaciones", "titulo_es": "Estaciones", "titulo_en": "Stations", "detalle_es": "",
          "detalle_en": ""}]})
@@ -334,8 +375,9 @@ def test_las_tareas_del_modelo_tienen_tope():
 
 
 PORTADA = """<!doctype html><meta charset="utf-8"><title>Metro de Santiago</title>
-<body><header><h1>Metro</h1></header>
-<div class="portada"><div class="hero"><video></video></div><div id="home"><form id="formPlanificador" action="/el-viaje/planificador/">
+<body><header><h1>Metro</h1><nav><a href="/el-viaje/carga-bip">Carga tu bip!</a></nav></header>
+<div class="portada"><div class="hero"><video></video></div><div id="home"><div class="card-title">Planifica tu viaje</div>
+<form id="formPlanificador" action="/el-viaje/planificador/">
 <label for="binicio">Origen</label>
 <select id="binicio" name="inicio"><option value="SP">San Pablo</option><option value="EL">Estación Central</option>
 </select>
@@ -429,7 +471,9 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     assert atajo["datos"][0]["etiqueta"] == {"es": "Desde", "en": "From"}
     assert atajo["datos"][1]["etiqueta"]["es"] == "Fin"
     assert atajo["opciones"]["destino"] == "/el-viaje/planificador/" and "fijos" not in atajo["opciones"]
-    assert lanzador["opciones"]["textos"]["en"]["titulo"] == "Most wanted"
+    # «¿A dónde vas?» vuelve al título de la sección del sitio; «Lo más buscado» no tiene uno: el lanzador va sin titular.
+    assert atajo["opciones"]["textos"]["es"] == {"titulo": "Planifica tu viaje", "boton": "Ver ruta"}
+    assert "textos" not in lanzador["opciones"]
     # El buscador también pasa por el modelo; las tareas valen para ambos por enlace.
     buscador = vistas["buscar"]
     assert buscador["contenedor"] == "body > :has(#binicio)" and len(buscador["datos"]) == 8
@@ -440,6 +484,8 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
         assert por_enlace["/el-viaje/estaciones"]["titulo"]["en"] == "Find a station"
 
     diag = backend.read_json(archivos["diagnostico.json"])
+    assert diag["voz_del_sitio"]["componentes"]["planificar-viaje"]["seccion"] == "Planifica tu viaje"
+    assert diag["voz_del_sitio"]["componentes"]["buscar"]["tareas"] == {"/el-viaje/carga-bip": "Carga tu bip!"}
     assert diag["viewport"] == {"width": 1024, "height": 768}
     assert diag["mensajes_visitante"][0]["mensaje"] == MENSAJE
     assert "Close" in diag["obstaculos"][0]["paso"]
@@ -453,13 +499,21 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     # El modelo eligió dirección; el código compuso, recortó el ajuste y ocultó el planificador original.
     assert disenador.llamadas[0]["esquema"] is ESQUEMA_MOTOR and len(disenador.llamadas) == 1
     informe = backend.read_json(archivos["informe.json"])
-    assert informe["modo"] == "motor" and informe["direccion"] == "B" and informe["semilla"] == 4
+    assert informe["modo"] == "motor" and informe["direccion"] == "B" and informe["pedido"]["semilla_modelo"] == 4
+    # La semilla que se compone mezcla la del modelo con la de la página; el sitio medido llega al modelo.
+    assert informe["semilla"] == informe["pedido"]["semilla"] != 4 and isinstance(informe["medida"], dict)
+    diag = backend.read_json(archivos["diagnostico.json"])
+    assert set(diag["sitio"]["auto_si_transforma"]) == {"A", "B", "C"} and "rasgos" in diag["sitio"]
     assert informe["parametros"]["escala"] == 1.27 and any("tipo.escala=2" in a for a in informe["avisos"])
     assert informe["contraste"]["fallas"] == [] and informe["contraste"]["minimo"] >= 4.5 and informe["tokens"]
     assert informe["ocultar"] == [{"vista": "planificar-viaje", "selector": "#home"}]
     # El modelo tradujo el título de estaciones pero no su detalle; carga-bip quedó con lo derivado.
     faltan = {(f["vista"], f["item"]): f["textos"] for f in informe["sin_traduccion"]}
     assert "titulo" in faltan["buscar", "/el-viaje/carga-bip"] and faltan["buscar", "/el-viaje/estaciones"] == ["detalle"]
+    assert {t["enlace"]: t["titulo"]["es"] for t in buscador["datos"]}["/el-viaje/carga-bip"] == "Carga tu bip!"
+    razones = {(r["vista"], r["texto"]): r for r in informe["voz"]["reemplazos"]}
+    assert razones["planificar-viaje", "titulo"]["razon"] == "pregunta retórica a la persona"
+    assert razones["tareas", "titulo"]["despues"] is None and razones["tareas", "titulo"]["razon"] == "«Lo más buscado»"
     tema_css = backend.read_text(archivos["tema.css"])
     assert OCULTAR in tema_css and '[data-mt-vista="tareas"]' in tema_css and "#home :has(> h1)" not in tema_css
 
@@ -492,3 +546,48 @@ def test_si_el_motor_falla_cae_al_css_libre(tmp_path, metro_local):
     assert informe["modo"] == "libre" and "dirección desconocida" in informe["respaldo"]
     tema_css = backend.read_text(manifest.key.file("tema.css"))
     assert "background: #111" in tema_css and OCULTAR in tema_css
+
+
+def test_el_modelo_recibe_todas_las_tareas_visibles_para_titular_y_traducir():
+    diag = json.loads((Path(__file__).with_name("datos") / "sii-real" / "diagnostico.json").read_text(encoding="utf-8"))
+    lanzador, buscador = (next(c for c in diag["componentes"] if c["componente"] == nombre)
+                          for nombre in ("lanzador", "buscador"))
+    pedido = mejora.tareas_a_escribir({"lanzador": lanzador, "buscador": buscador})
+    visibles = [t["enlace"] for t in lanzador["datos"]] + [t["enlace"] for t in buscador["datos"][:6]]
+    assert set(visibles) <= set(pedido["completas"]) and len(pedido["completas"]) == len(set(pedido["completas"]))
+    assert set(pedido["completas"]) | set(pedido["solo_titulo"]) == {t["enlace"] for t in buscador["datos"]} | {
+        t["enlace"] for t in lanzador["datos"]}
+    assert not set(pedido["completas"]) & set(pedido["solo_titulo"])
+    contrato = prompt_de_sistema(None, kit=True, con_motor=True)
+    assert "tareas_a_escribir" in contrato and "sin omitir ninguna" in contrato and "nunca una copia" in contrato
+    # El esquema deja escribir todas en una sola respuesta.
+    assert ESQUEMA_MOTOR["properties"]["componentes"]["items"]["properties"]["tareas"]["maxItems"] >= len(
+        pedido["completas"]) + len(pedido["solo_titulo"])
+
+
+def test_lo_que_el_modelo_no_tradujo_queda_en_espanol_y_anotado():
+    _, lanzador = _vistas_derivadas()
+    assert all(set(t["titulo"]) == {"es"} for t in lanzador["datos"])
+    enlace = lanzador["datos"][0]["enlace"]
+    propuesta = tema_json.con_propuesta(lanzador, {"tareas": [
+        {"enlace": enlace, "titulo_es": "Estaciones", "titulo_en": "", "detalle_es": "", "detalle_en": ""}]})
+    assert propuesta["datos"][0]["titulo"] == {"es": "Estaciones"}
+    faltan = {f["item"]: f["textos"] for f in tema_json.sin_traduccion([propuesta])}
+    assert "titulo" in faltan[enlace] and set(faltan) == {t["enlace"] for t in lanzador["datos"]}
+
+
+# Lo que `voz.VOZ_JS` leyó como `a_mano` en www.sii.cl (2026-11-22): sobre todo el bloque «Accesos rápidos».
+A_MANO_SII = {"/", "/servicios_online/", "/servicios_online/1031-1034.html", "/servicios_online/1042-3264.html",
+              "/servicios_online/1040-1287.html", "/servicios_online/1039-1183.html", "/servicios_online/1039-3256.html",
+              "/vat/index.html", "/destacados/prestamo_solidario/pago/", "/destacados/", "/noticias/2026/index.html"}
+
+
+def test_el_lanzador_no_repite_los_accesos_rapidos_del_sitio():
+    goals = [Goal(**g) for g in json.loads((Path(__file__).with_name("datos") / "sii-real" / "goals.json")
+                                           .read_text(encoding="utf-8"))["goals"] if g["exclusion"] is None]
+    kit = atajos.derivar(goals, {}, [], "https://www.sii.cl/", a_mano=A_MANO_SII)
+    lanzador = [atajos.ruta_de(t["enlace"]) for t in kit["lanzador"]["datos"]]
+    buscador = [atajos.ruta_de(t["enlace"]) for t in kit["buscador"]["datos"]]
+    assert lanzador and not set(lanzador) & A_MANO_SII
+    repetidas = [e for e in buscador if e in A_MANO_SII]
+    assert repetidas and buscador[-len(repetidas):] == repetidas

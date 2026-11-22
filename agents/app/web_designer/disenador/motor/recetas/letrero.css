@@ -1,4 +1,5 @@
 /* Receta «letrero»: la letra condensada del titular baja a navegación, botón, tareas y panel, en mayúsculas. */
+{{#z.nav_enlace}}
 html.mi-tema {{z.nav_enlace}} {
   font-family: var(--mt-familia-display) !important;
   font-size: 16px !important;
@@ -7,6 +8,7 @@ html.mi-tema {{z.nav_enlace}} {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+{{/z.nav_enlace}}
 html.mi-tema .mt-atajo__ir {
   font-family: var(--mt-familia-display);
   font-size: 18px;
@@ -24,6 +26,7 @@ html.mi-tema .mt-lanzador__titulo {
   letter-spacing: 0.01em;
   text-transform: uppercase;
 }
+{{#z.panel}}
 html.mi-tema {{z.panel}} > .card-title {
   color: var(--mt-panel-texto) !important;
   font-family: var(--mt-familia-display) !important;
@@ -32,3 +35,4 @@ html.mi-tema {{z.panel}} > .card-title {
   font-stretch: var(--mt-texto-ancho);
   letter-spacing: 0.05em;
 }
+{{/z.panel}}

@@ -63,10 +63,13 @@ test("una clave que el esquema no conoce descarta el item o la vista, como en te
   }
 });
 
-test("textos: { es, en } con los dos idiomas y hasta 160 caracteres", () => {
-  for (const titulo of ["Horarios", { es: "Horarios" }, { es: "a".repeat(161), en: "b" }, { es: ["x"], en: "y" }]) {
+test("textos: { es, en? } con el español obligatorio y hasta 160 caracteres", () => {
+  for (const titulo of ["Horarios", { en: "Timetables" }, { es: "a".repeat(161), en: "b" }, { es: ["x"], en: "y" }]) {
     assert.deepEqual(conVistas(lanzador({ datos: [tarea({ titulo })] })).features, {}, JSON.stringify(titulo));
   }
+  // Sin inglés vale: la extensión muestra el español (`enIdioma`).
+  assert.deepEqual(conVistas(lanzador({ datos: [tarea({ titulo: { es: "Horarios" } })] })).features.vista[0].datos,
+                   [tarea({ titulo: { es: "Horarios" } })]);
 });
 
 test("topes: vistas, items, fijos e invertir", () => {

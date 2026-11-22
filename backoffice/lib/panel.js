@@ -295,7 +295,10 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
       recordar(paginas, clave, guardada, PAGINAS_EN_MEMORIA);
       return guardada();
     },
-    /** Una tarjeta cualquiera (aunque no esté en una pestaña), o null si la revisión no existe. Para pruebas. */
+    /**
+     * Una tarjeta cualquiera (aunque no esté en una pestaña), o null si la revisión no existe: GET /api/tarjetas/<id>
+     * (la hoja de una revisión fallida) y las pruebas.
+     */
     async tarjeta(revision) {
       if (!revisiones || !REVISION.test(String(revision ?? ""))) return null;
       const ahora = reloj();

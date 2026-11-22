@@ -25,7 +25,8 @@
 .barra-superior {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: var(--e-5);
-  height: var(--alto-barra); padding: 0 var(--e-6);
+  /* El logo arranca en el mismo borde que el contenido (#contenido: ancho máximo centrado, con su gutter). */
+  height: var(--alto-barra); padding: 0 max(var(--e-6), calc((100% - var(--ancho-max)) / 2));
   /* El fondo al 88 % de la maqueta; el desenfoque evita que el texto que pasa por debajo se lea a través. */
   background: color-mix(in srgb, var(--fondo) 88%, transparent);
   backdrop-filter: blur(12px) saturate(1.2);
@@ -37,6 +38,17 @@
 .marca:hover { color: var(--texto-1); text-decoration: none; }
 .marca picture { display: block; flex: none; }
 .marca-logo { display: block; width: 180px; max-width: none; height: auto; }
+/* La firma trae aire a la izquierda (16 de 492 unidades ≈ 6 px a 180 px): se descuenta para que el símbolo quede en
+   el borde del contenido. */
+.marca { margin-inline-start: -6px; }
+
+/* El título de la vista, después de la marca: "/ Overview". */
+.barra-titulo { display: inline-flex; align-items: center; gap: var(--e-3); min-width: 0; margin-inline-start: calc(-1 * var(--e-2)); }
+.barra-titulo-separador { color: var(--texto-4); font-size: 18px; font-weight: 300; }
+.barra-titulo-texto {
+  overflow: hidden; color: var(--texto-1); font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+  white-space: nowrap; text-overflow: ellipsis;
+}
 
 .barra-acciones { display: flex; align-items: center; gap: var(--e-2); flex: none; margin-inline-start: auto; }
 
@@ -53,6 +65,7 @@
 /* Bajo 820 px: gutter de 16 px. */
 @media (max-width: 819px) {
   .barra-superior { gap: var(--e-2); padding: 0 var(--e-4); }
+  .barra-titulo { margin-inline-start: 0; gap: var(--e-2); }
   #contenido { padding: var(--e-4); }
 }
 /* Angosto (medido: logo 180 + píldora 90–103 + huecos y gutter, con margen). Bajo 370 px no cabe la firma, que nunca
@@ -60,6 +73,11 @@
    cambia de imagen en el mismo ancho (MARCA.soloSimbolo en nucleo/shell.js). */
 @media (max-width: 369px) {
   .marca-logo { width: 36px; height: 36px; }
+  .marca { margin-inline-start: 0; }
+}
+/* Bajo 480 px el título de la vista no cabe junto a la firma y la píldora: la vista ya lo dice. */
+@media (max-width: 479px) {
+  .barra-titulo { display: none; }
 }
 
 /* Fondo de la hoja de atajos (?). */

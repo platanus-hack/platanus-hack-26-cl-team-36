@@ -66,6 +66,7 @@ Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitant
 | `disenador/mejora.py` | La etapa de mejora de una revisión (`--revision`): resumen de lo medido y corrida en el almacén. |
 | `disenador/atajos.py` | El atajo (rutas verificadas que terminan en un deep link), el lanzador (objetivos del catálogo) y el buscador (hasta 40 objetivos con enlace del sitio), sin modelo. |
 | `disenador/tema_json.py` | Arma el `tema.json` con la microcopia del modelo y lo valida contra su esquema. |
+| `disenador/voz.py` | La voz del sitio en el kit: los textos de la página para cada componente, clichés prohibidos y anclaje léxico; lo reemplazado queda en `informe.json` (`voz`). |
 | `disenador/motor/` | Motor de direcciones de arte: `componer(rasgos_del_sitio(host, mapa), direccion, semilla, ajustes)` da `tema.css` (elegancia + tokens + kit + estructura del sitio + recetas, saneado) con la paleta verificada AA; direcciones, recetas y sitios conocidos son archivos de datos. |
 
 `disenador/motor/sitios/metro/` (`sitio.json`, `estructura.css` y sus variantes) es CSS y selectores **escritos a

@@ -1,4 +1,4 @@
-"""Un objetivo del catálogo, con el esquema de docs/agents/niveles-de-tarea.md (sección 3)."""
+"""Un objetivo del catálogo, con el esquema de docs/objetivos-y-metricas.md."""
 
 import hashlib
 import re

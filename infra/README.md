@@ -134,8 +134,8 @@ Eso dispara `Terraform` por primera vez. La extensión llama a `api.chameleonmod
 [`app/backoffice.tf`](app/backoffice.tf) pone el backoffice (`backoffice/`) en https://chameleonmode.app/backoffice/: una tarea de
 ECS Fargate en la VPC por defecto, detrás de un balanceador (ALB) con certificado de ACM, que lee el almacén y la tabla
 de revisiones con un rol de solo lectura. **Es público, sin login**, por decisión del equipo: lo que está en el almacén
-lo ve cualquiera que conozca la ruta. La raíz del dominio solo muestra una portada ("work in progress") que no enlaza
-al backoffice. Terraform también construye la imagen (`backoffice/Dockerfile`) con docker y la sube a ECR cuando
+lo ve cualquiera que conozca la ruta. La raíz del dominio es la portada del proyecto, con la descarga de la extensión
+para Firefox y un botón al backoffice ([backoffice/README.md](../backoffice/README.md#la-raíz-es-una-portada)). Terraform también construye la imagen (`backoffice/Dockerfile`) con docker y la sube a ECR cuando
 cambia algo de lo que entra en ella; el runner de Actions trae docker, así que un `apply` en local también lo necesita.
 
 Cuesta unos 40 USD al mes, casi todo el balanceador y las IP públicas: pasa la alerta de 20 USD de `bootstrap/`.

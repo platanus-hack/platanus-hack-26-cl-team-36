@@ -1,21 +1,313 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="sin-js">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0B0B10">
   <title>Chameleon Mode</title>
+  <meta name="description" content="A browser extension that redesigns hard-to-use websites, with AI agents that browse them like people to find where they get lost.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://chameleonmode.app/">
+  <meta property="og:title" content="Chameleon Mode">
+  <meta property="og:description" content="A browser extension that redesigns hard-to-use websites, with AI agents that browse them like people to find where they get lost.">
+  <meta property="og:image" content="https://chameleonmode.app/img/social.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="/estilos.css">
+  <script src="/portada.js" defer></script>
+  <script type="module" src="/huevo-de-pascua.js"></script>
 </head>
+<!-- La página está en inglés; portada.js la pasa a español (su diccionario ES, por las claves data-i18n*). -->
 <body>
-  <main>
-    <h1><img src="/logo.svg" alt="chameleon mode" width="492" height="128"></h1>
-    <p>Work in progress</p>
+  <a class="saltar" href="#contenido" data-i18n="saltar">Skip to content</a>
+
+  <header class="barra">
+    <div class="barra-interior">
+      <a class="marca" href="/" aria-label="Chameleon Mode, home" data-i18n-aria-label="marca"><img src="/logo.svg" alt="" width="492" height="128"></a>
+      <nav class="barra-nav" aria-label="Sections" data-i18n-aria-label="nav">
+        <a href="#how-it-works" data-i18n="nav.como">How it works</a>
+        <a href="#path-map" data-i18n="nav.telarana">Path map</a>
+        <a href="#download" data-i18n="nav.descargar">Download</a>
+      </nav>
+      <div class="idiomas" role="group" aria-label="Language" data-i18n-aria-label="idioma">
+        <button type="button" data-idioma="en" aria-pressed="true" lang="en" title="English">EN</button>
+        <button type="button" data-idioma="es" aria-pressed="false" lang="es" title="Español">ES</button>
+      </div>
+      <a class="boton boton-chico boton-secundario" href="/backoffice/"><span data-i18n="ir-app">Go to the app</span> <span aria-hidden="true">→</span></a>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <section class="portada" aria-labelledby="titulo">
+      <div class="contenedor portada-texto">
+        <p class="etiqueta" data-i18n="portada.etiqueta">Browser extension</p>
+        <h1 id="titulo" data-i18n-html="portada.titulo">The web, <span>adapted to you.</span></h1>
+        <p class="bajada" data-i18n="portada.bajada">
+          AI agents browse each site the way a person would, find where people get lost and generate a theme that the
+          extension applies on top of the page. The original site doesn't change, and you can always go back to it.
+        </p>
+        <div class="acciones">
+          <a class="boton boton-primario boton-brillo" href="/descargas/firefox" data-descarga-principal>
+            <svg class="icono" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span data-texto-descarga>Download for Firefox</span>
+          </a>
+          <a class="boton boton-secundario" href="/backoffice/"><span data-i18n="ir-app">Go to the app</span> <span aria-hidden="true">→</span></a>
+        </div>
+        <p class="nota"><span data-nota-versiones>For Firefox and Chrome</span> · <a href="#download" data-i18n="portada.todas">all downloads</a></p>
+      </div>
+
+      <div class="contenedor contenedor-ancho">
+        <figure class="comparador">
+          <div class="ventana">
+            <div class="ventana-barra" aria-hidden="true">
+              <span class="puntos"><i></i><i></i><i></i></span>
+              <span class="direccion">metro.cl</span>
+            </div>
+            <div class="comparador-lienzo">
+              <img class="comparador-antes" src="/img/antes.jpg" width="1440" height="612" data-i18n-alt="comparador.antes"
+                   alt="Metro de Santiago's homepage as it is: the menu and a grey grid with the status of each line over a video.">
+              <img class="comparador-despues" src="/img/despues.jpg" width="1440" height="612" data-i18n-alt="comparador.despues"
+                   alt="The same homepage with the Chameleon theme: a dark background, “Planifica tu viaje” (plan your trip) and six numbered tasks in each line's color, such as service status, the network map and timetables, plus a task search.">
+              <span class="rotulo rotulo-despues" aria-hidden="true" data-i18n="con-chameleon">With Chameleon</span>
+              <span class="rotulo rotulo-antes" aria-hidden="true" data-i18n="original">Original</span>
+              <span class="comparador-linea" aria-hidden="true"><span class="comparador-asa"></span></span>
+              <input class="comparador-control" type="range" min="0" max="100" value="50" step="1" data-i18n-aria-label="comparador.control"
+                     aria-label="Compare: the page with Chameleon on the left, the original on the right">
+            </div>
+          </div>
+          <figcaption>
+            <span data-i18n="comparador.pie">Metro de Santiago with the theme the agents generated, and without it: what people come to do, up top and in order.</span>
+            <span class="sin-js-oculto" data-i18n="comparador.arrastra">Drag to compare.</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="problema" aria-labelledby="titulo-problema">
+      <div class="contenedor problema-interior">
+        <h2 id="titulo-problema" class="frase" data-i18n-html="problema.frase">
+          Cancelling a service, requesting a certificate, finding a branch's opening hours.
+          <span>Simple tasks that turn into a maze on many sites. The site owner rarely fixes it, and the people who
+          suffer it can't do anything about it.</span>
+        </h2>
+        <div class="telefonos aparece">
+          <figure class="telefono">
+            <img src="/img/antes-movil.jpg" width="780" height="1688" loading="lazy" data-i18n-alt="telefono.antes"
+                 alt="metro.cl on a phone as it is: a banner and the status of each line; to plan a trip you have to keep scrolling.">
+            <figcaption data-i18n="original">Original</figcaption>
+          </figure>
+          <figure class="telefono telefono-despues">
+            <img src="/img/despues-movil.jpg" width="780" height="1688" loading="lazy" data-i18n-alt="telefono.despues"
+                 alt="metro.cl with the Chameleon theme: “Planifica tu viaje” (plan your trip) and a numbered list of tasks, each in a line's color.">
+            <figcaption data-i18n="con-chameleon">With Chameleon</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="seccion" aria-labelledby="titulo-como">
+      <div class="contenedor">
+        <header class="seccion-cabecera">
+          <p class="etiqueta" data-i18n="como.etiqueta">How it works</p>
+          <h2 id="titulo-como" data-i18n="como.titulo">Before touching a site, four agents study it</h2>
+          <p data-i18n="como.bajada">Every change comes from watching someone get lost, not from an opinion about how the page should look.</p>
+        </header>
+
+        <ol class="pasos" data-aparece>
+          <li class="paso aparece">
+            <span class="paso-numero">01</span>
+            <span class="paso-rol" data-i18n="rol.catalogador">Cataloger</span>
+            <h3 data-i18n="paso1.titulo">Finds out what people come for</h3>
+            <p data-i18n="paso1.texto">Reads the site and catalogs what people come to do on it: the procedures, the questions, what they look for.</p>
+          </li>
+          <li class="paso aparece">
+            <span class="paso-numero">02</span>
+            <span class="paso-rol" data-i18n="rol.guia">Guide</span>
+            <h3 data-i18n="paso2.titulo">Finds the shortest path</h3>
+            <p data-i18n="paso2.texto">For each goal it searches for and verifies the reference route: how to get there, page by page.</p>
+          </li>
+          <li class="paso aparece">
+            <span class="paso-numero">03</span>
+            <span class="paso-rol" data-i18n="rol.visitantes">Visitors</span>
+            <h3 data-i18n="paso3.titulo">They try it like people</h3>
+            <p data-i18n="paso3.texto">Synthetic users attempt the task seeing only screenshots, on desktop and on a phone: some go straight, others start from the menu, the search box or the footer.</p>
+          </li>
+          <li class="paso aparece">
+            <span class="paso-numero">04</span>
+            <span class="paso-rol" data-i18n="rol.disenador">Designer</span>
+            <h3 data-i18n="paso4.titulo">Generates the theme</h3>
+            <p data-i18n="paso4.texto">With what the attempts show, it writes a theme: more contrast, the task in plain sight, shortcuts where people got lost.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="path-map" class="seccion telarana" aria-labelledby="titulo-telarana">
+      <div class="contenedor">
+        <header class="seccion-cabecera seccion-cabecera-centrada">
+          <p class="etiqueta" data-i18n="telarana.etiqueta">Path map</p>
+          <h2 id="titulo-telarana" data-i18n="telarana.titulo">See where people get lost</h2>
+          <p data-i18n="telarana.bajada">
+            Every visitor's attempt is drawn as it happens: the recommended route as the axis, a ring per step and, in
+            branches, every detour and every step back. Before changing anything, you can see where someone got stuck.
+          </p>
+        </header>
+      </div>
+      <div class="contenedor contenedor-ancho">
+        <figure class="telarana-figura">
+          <div class="ventana ventana-telarana">
+            <div class="ventana-barra" aria-hidden="true">
+              <span class="puntos"><i></i><i></i><i></i></span>
+              <span class="direccion">chameleonmode.app/backoffice</span>
+            </div>
+            <video class="video-auto" src="/img/telarana.webm" poster="/img/telarana.jpg" width="1920" height="1200"
+                   muted loop playsinline preload="none" controls data-i18n-aria-label="telarana.video"
+                   aria-label="An illustrative path map: eight synthetic visitors look for the branch hours of a made-up bank; two get there, two fail and four give up."></video>
+          </div>
+          <figcaption data-i18n="telarana.pie">
+            An illustrative example, sped up: eight visitors look for the branch hours of a made-up bank. Only two get there.
+          </figcaption>
+        </figure>
+
+        <ul class="claves">
+          <li class="clave aparece">
+            <span class="clave-muestra clave-ruta" aria-hidden="true"></span>
+            <h3 data-i18n="clave1.titulo">Recommended route</h3>
+            <p data-i18n="clave1.texto">The turquoise axis: the shortest path the Guide verified, page by page.</p>
+          </li>
+          <li class="clave aparece">
+            <span class="clave-muestra clave-rama" aria-hidden="true"></span>
+            <h3 data-i18n="clave2.titulo">Detours and steps back</h3>
+            <p data-i18n="clave2.texto">Each branch is a page off the route. Its thickness shows how many went through it, and its color how they ended.</p>
+          </li>
+          <li class="clave aparece">
+            <span class="clave-muestra clave-traba" aria-hidden="true">⚠</span>
+            <h3 data-i18n="clave3.titulo">Where they got stuck</h3>
+            <p data-i18n="clave3.texto">A mark where someone couldn't move forward: that's where the theme needs to help.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="seccion evidencia" aria-label="What the agents leave behind" data-i18n-aria-label="evidencia">
+      <div class="contenedor">
+        <article class="fila aparece">
+          <div class="fila-texto">
+            <p class="etiqueta">Replay</p>
+            <h3 data-i18n="replay.titulo">Every attempt, step by step</h3>
+            <p data-i18n="replay.texto">
+              What the visitor saw, where they clicked, what they expected to find and where they ended up. The same
+              evidence the Designer uses is in plain sight for anyone.
+            </p>
+          </div>
+          <figure class="fila-imagen">
+            <div class="ventana">
+              <video class="video-auto" src="/img/replay.webm" poster="/img/replay.jpg" width="1280" height="800"
+                     muted loop playsinline preload="none" controls data-i18n-aria-label="replay.video"
+                     aria-label="The Replay of a real attempt on metro.cl, sped up: the visitor clicks through the transparency pages, takes two detours and goes back before reaching the financial reports; beside it, the Guide's route and what the visitor expected at each step."></video>
+            </div>
+            <figcaption data-i18n="replay.pie">A real attempt on metro.cl, at 2×.</figcaption>
+          </figure>
+        </article>
+      </div>
+    </section>
+
+    <section id="download" class="seccion" aria-labelledby="titulo-descargar">
+      <div class="contenedor">
+        <header class="seccion-cabecera">
+          <p class="etiqueta" data-i18n="descargar.etiqueta">Download</p>
+          <h2 id="titulo-descargar" data-i18n="descargar.titulo">Install Chameleon in your browser</h2>
+          <p data-i18n="descargar.bajada">
+            Chameleon isn't in the browser stores yet, so it installs from here. The Firefox version is signed by
+            Mozilla; the Chrome version loads in developer mode. Each takes about a minute.
+          </p>
+        </header>
+
+        <div class="descargas">
+          <article class="descarga" data-navegador="firefox">
+            <div class="descarga-cabecera">
+              <h3>Firefox</h3>
+              <span class="insignia insignia-lista" data-version-insignia>Available</span>
+            </div>
+            <p class="descarga-detalle" data-version-detalle>The latest version, signed by Mozilla.</p>
+            <a class="boton boton-primario" href="/descargas/firefox" data-descarga>
+              <svg class="icono" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Download the .xpi</span>
+            </a>
+            <ol class="descarga-pasos">
+              <li data-i18n-html="firefox.paso1">Open this page in Firefox and click <em>Download the .xpi</em>. Firefox says it blocked the site from installing software: click <em>Continue to Installation</em>.</li>
+              <li data-i18n-html="firefox.paso2">It asks to access your data on all websites: click <em>Add</em>.</li>
+              <li data-i18n-html="firefox.paso3">Pin it to the toolbar from the extensions menu (the puzzle piece): its icon turns the theme on and off.</li>
+            </ol>
+            <p class="descarga-ayuda" data-i18n-html="firefox.ayuda">
+              Requires Firefox 140 or later. Double-clicking the .xpi file won't install it: if you already downloaded it,
+              drag it onto a Firefox window, or open <code>about:addons</code>, click the gear icon and choose
+              <em>Install Add-on From File…</em>
+            </p>
+          </article>
+
+          <article class="descarga" data-navegador="chrome">
+            <div class="descarga-cabecera">
+              <h3>Chrome</h3>
+              <span class="insignia insignia-lista" data-version-insignia>Available</span>
+            </div>
+            <p class="descarga-detalle" data-version-detalle>The latest version, to load in developer mode.</p>
+            <a class="boton boton-primario" href="/descargas/chrome" data-descarga>
+              <svg class="icono" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Download the .zip</span>
+            </a>
+            <ol class="descarga-pasos">
+              <li data-i18n="chrome.paso1">Unzip the .zip into a folder you won't delete.</li>
+              <li data-i18n-html="chrome.paso2">Open <code>chrome://extensions</code> and turn on <em>Developer mode</em>.</li>
+              <li data-i18n-html="chrome.paso3">Click <em>Load unpacked</em> and choose that folder.</li>
+              <li data-i18n="chrome.paso4">Pin it to the toolbar from the extensions menu (the puzzle piece): its icon turns the theme on and off.</li>
+            </ol>
+            <p class="descarga-ayuda" data-i18n="chrome.ayuda">Requires Chrome 148 or later. On the Chrome Web Store, coming soon.</p>
+          </article>
+        </div>
+
+        <div class="descarga-notas">
+          <div class="descarga-nota">
+            <h3 data-i18n="permisos.titulo">Why it asks for access to every site</h3>
+            <p data-i18n="permisos.texto">
+              It applies themes on whatever site you open, so it needs to reach the page. To find out whether the page
+              has a theme it only sends its address, without parameters, and it sends nothing in private windows or
+              while it's switched off.
+            </p>
+          </div>
+          <div class="descarga-nota">
+            <h3 data-i18n="actualizar.titulo">How to update</h3>
+            <p data-i18n-html="actualizar.texto">
+              It doesn't update itself. The version on this page is always the latest: in Firefox, download it and
+              install it over the old one; in Chrome, replace the folder and click the extension's reload button on
+              <code>chrome://extensions</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cierre" aria-labelledby="titulo-cierre">
+      <div class="contenedor cierre-interior aparece">
+        <h2 id="titulo-cierre" data-i18n="cierre.titulo">Watch the agents at work</h2>
+        <p data-i18n="cierre.texto">The reviewed sites, the visitor batches and the proposed themes, live.</p>
+        <a class="boton boton-primario" href="/backoffice/"><span data-i18n="ir-app">Go to the app</span> <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
   </main>
+
+  <footer class="pie">
+    <div class="contenedor pie-interior">
+      <img src="/logo.svg" alt="Chameleon Mode" width="492" height="128" loading="lazy">
+      <!-- Huevo de pascua: «Platanus Hack 26» es un botón (huevo-de-pascua.js); el resto de la frase se traduce aparte. -->
+      <p><span data-i18n="pie.antes">chameleonmode.app · Made at</span> <button type="button" class="huevo" aria-label="Platanus Hack 26: bananas!" data-i18n-aria-label="huevo">Platanus Hack 26</button><span data-i18n="pie.despues">, Santiago</span></p>
+    </div>
+  </footer>
 </body>
 </html>

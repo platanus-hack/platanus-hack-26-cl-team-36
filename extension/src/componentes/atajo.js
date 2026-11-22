@@ -17,7 +17,8 @@
 //   fijos     { parametro: valor } que van siempre en el enlace
 //   invertir  [nombreA, nombreB]: un botón entre esos dos campos intercambia lo elegido
 //   textos    por idioma, para reemplazar los genéricos del diccionario (claves `atajo.*`
-//             de comun/idioma.js): { es: { titulo, subtitulo, boton, invertir, elegir }, en: {…} }
+//             de comun/idioma.js): { es: { titulo, subtitulo, boton, invertir, elegir }, en: {…} }.
+//             Sin `titulo` no hay titular y el formulario se nombra con `atajo.etiqueta`
 //
 // Si a un campo le faltan opciones (la página cambió), no dibuja nada y queda la página original.
 
@@ -25,7 +26,7 @@
   const { crear } = MiTema.dom;
   const { enIdioma, textosDe, urlMismoSitio } = MiTema.plantillas;
 
-  const CLAVES = ["titulo", "subtitulo", "boton", "invertir", "elegir"];
+  const CLAVES = ["etiqueta", "boton", "invertir", "elegir"];
   const MARCADOR = /\{(\w+)\}/g;
   let vistas = 0; // para ids únicos del encabezado
 
@@ -163,9 +164,10 @@
     actualizarEnlace();
 
     const idTitulo = `mt-atajo-titulo-${++vistas}`;
-    return crear("section", { clase: "mt-atajo", "aria-labelledby": idTitulo }, [
-      crear("header", { clase: "mt-atajo__cabecera" }, [
-        crear("h2", { clase: "mt-atajo__titulo", id: idTitulo, texto: t.titulo }),
+    const nombre = t.titulo ? { "aria-labelledby": idTitulo } : { "aria-label": t.etiqueta };
+    return crear("section", { clase: "mt-atajo", ...nombre }, [
+      (t.titulo || t.subtitulo) && crear("header", { clase: "mt-atajo__cabecera" }, [
+        t.titulo && crear("h2", { clase: "mt-atajo__titulo", id: idTitulo, texto: t.titulo }),
         t.subtitulo && crear("p", { clase: "mt-atajo__bajada", texto: t.subtitulo }),
       ]),
       crear("div", { clase: "mt-atajo__campos" }, [...filas, ir]),

@@ -7,7 +7,9 @@ import { ordenarEstados } from "./agentes.js";
 import { esHex } from "./marca.js";
 import { sinAvance, tiempoDeTarjeta } from "./tiempo.js";
 
-export const PESTANAS = Object.freeze(["recent", "live", "delivered", "failed"]);
+// Los filtros de Reviews: All (id `recent`: todas, por fecha), Live y Failed. La API también trae Delivered, que ya no
+// se muestra (es el grueso de All); un enlace viejo con ?pestana=delivered cae en All.
+export const PESTANAS = Object.freeze(["recent", "live", "failed"]);
 export const leerPestana = (valor) => (PESTANAS.includes(valor) ? valor : "recent");
 
 export const ESTADOS_DE_TARJETA = Object.freeze(["running", "stalled", "queued", "delivered", "failed"]);
@@ -26,12 +28,11 @@ export const TARJETAS_SIN_PISTA = 3;
 const estadoDeTarjeta = (valor) => (ESTADOS_DE_TARJETA.includes(valor) ? valor : "queued");
 
 /**
- * Insignia de una pestaña: la cifra o null (sin insignia). Recent nunca; Live con `cuentas.live` (corriendo,
- * detenidas y en cola: el total de la pestaña); Delivered y Failed con su cuenta. Con 0 no hay insignia.
+ * Cifra de un filtro, o null (sin cifra): All con `cuentas.total`; Live con `cuentas.live` (corriendo, detenidas y
+ * en cola: el total del filtro); Failed con su cuenta. Con 0 no hay cifra.
  */
 export function insigniaDePestana(pestana, cuentas) {
-  if (pestana === "recent") return null;
-  const n = Math.floor(Number(cuentas?.[pestana]) || 0);
+  const n = Math.floor(Number(cuentas?.[pestana === "recent" ? "total" : pestana]) || 0);
   return n > 0 ? n : null;
 }
 
@@ -71,9 +72,15 @@ const tandaValida = (tanda) => (typeof tanda === "string" && partesDeTanda(tanda
 export const tandaDeGoal = (goal) => tandaValida(goal?.tanda);
 
 /**
+ * ¿La tarjeta abre la hoja de la falla (#/f/<revision>)? Sí si la revisión falló antes de que algún goal tuviera su
+ * tanda: no hay telaraña propia que mostrar (la de la captura es de otra revisión del mismo sitio).
+ */
+export const abreLaFalla = (tarjeta) => estadoDeTarjeta(tarjeta?.estado) === "failed" && !(tarjeta?.goals ?? []).some(tandaDeGoal);
+
+/**
  * Adónde lleva la tarjeta (contrato §6.5 y §7.1): la telaraña del primer goal, en el orden de la tarjeta, que tenga
  * tanda; si ninguno tiene, la tanda de su captura (la de escritorio, si no la móvil: la más nueva del mismo host y
- * ruta); si tampoco hay, null: al avance de la revisión.
+ * ruta); si tampoco hay, null: al avance de la revisión. Una fallida sin tanda propia abre la falla (abreLaFalla).
  */
 export function tandaDeTarjeta(tarjeta) {
   for (const goal of tarjeta?.goals ?? []) {
@@ -172,6 +179,7 @@ export function modeloDeTarjeta(tarjeta, { dispositivo = "all", ahora = null } =
     sitio: tarjeta?.sitio || tarjeta?.host || "",
     estado,
     tanda: tandaDeTarjeta(tarjeta),
+    falla: abreLaFalla(tarjeta),
     capturas: { desktop: captura(tarjeta?.capturas?.desktop), mobile: captura(tarjeta?.capturas?.mobile) },
     cuadritos: cuadritosDeTarjeta(tarjeta, dispositivo),
     etapas: etapasDeTarjeta(tarjeta),

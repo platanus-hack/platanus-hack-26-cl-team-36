@@ -9,14 +9,15 @@
 //
 // Opciones:
 //   max     cuántas tareas mostrar (por defecto 6)
-//   textos  por idioma, para reemplazar los genéricos del diccionario (claves `lanzador.*`
-//           de comun/idioma.js): { es: { titulo, subtitulo }, en: {…} }
+//   textos  por idioma: { es: { titulo, subtitulo }, en: {…} }. Sin `titulo` no hay
+//           titular (el diccionario no inventa uno) y la lista se nombra con
+//           (`lanzador.etiqueta` de comun/idioma.js)
 
 (() => {
   const { crear } = MiTema.dom;
   const { enIdioma, textosDe, urlMismoSitio } = MiTema.plantillas;
 
-  const CLAVES = ["titulo", "subtitulo"];
+  const CLAVES = ["etiqueta"];
   let vistas = 0; // para ids únicos del encabezado
 
   function tarea(item, idioma, contexto) {
@@ -43,9 +44,10 @@
     if (tareas.length === 0) return null;
 
     const idTitulo = `mt-lanzador-titulo-${++vistas}`;
-    return crear("nav", { clase: "mt-lanzador", "aria-labelledby": idTitulo }, [
-      crear("header", { clase: "mt-lanzador__cabecera" }, [
-        crear("h2", { clase: "mt-lanzador__encabezado", id: idTitulo, texto: t.titulo }),
+    const nombre = t.titulo ? { "aria-labelledby": idTitulo } : { "aria-label": t.etiqueta };
+    return crear("nav", { clase: "mt-lanzador", ...nombre }, [
+      (t.titulo || t.subtitulo) && crear("header", { clase: "mt-lanzador__cabecera" }, [
+        t.titulo && crear("h2", { clase: "mt-lanzador__encabezado", id: idTitulo, texto: t.titulo }),
         t.subtitulo && crear("p", { clase: "mt-lanzador__bajada", texto: t.subtitulo }),
       ]),
       crear("ul", { clase: "mt-lanzador__lista" }, tareas.map((item) => crear("li", {}, tarea(item, idioma, contexto)))),

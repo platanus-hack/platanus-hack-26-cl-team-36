@@ -15,7 +15,8 @@ MAX_VISTAS = 6
 MAX_PALABRAS = 12
 
 _TEXTO_CORTO = {"type": "string", "maxLength": 160}
-TEXTO = {"type": "object", "properties": {"es": _TEXTO_CORTO, "en": _TEXTO_CORTO}, "required": ["es", "en"],
+# El español es obligatorio; el inglés, solo si alguien lo tradujo: sin él, la extensión muestra el español.
+TEXTO = {"type": "object", "properties": {"es": _TEXTO_CORTO, "en": _TEXTO_CORTO}, "required": ["es"],
          "additionalProperties": False}
 # Una ruta del mismo sitio: empieza con una sola `/` (no `//host` ni `/\host`), sin barras invertidas, espacios ni
 # controles (el parser de URLs borra tabs y saltos: `/\t/host` quedaría `//host`). Los espacios van explícitos y no
@@ -213,8 +214,9 @@ def _limpio(texto) -> str:
 
 
 def _par(es, en) -> dict | None:
+    """El texto por idioma, o None sin español; sin inglés, solo el español (nunca una copia)."""
     es, en = _limpio(es), _limpio(en)
-    return {"es": es, "en": en} if es and en else None
+    return ({"es": es, "en": en} if en else {"es": es}) if es else None
 
 
 MAX_TAREAS_PROPUESTAS = 40
@@ -232,13 +234,21 @@ def tareas_propuestas(propuestas) -> dict[str, dict]:
     return tareas
 
 
+def _sin_ingles(texto) -> bool:
+    return isinstance(texto, dict) and (not texto.get("en") or texto.get("en") == texto.get("es"))
+
+
 def sin_traduccion(vistas: list[dict]) -> list[dict]:
-    """Los textos que quedaron con el español en ambos idiomas (el modelo no los tradujo): el esquema exige los dos."""
+    """Los textos que quedaron sin inglés o con el español copiado (el modelo no los tradujo)."""
     faltan = []
     for vista in vistas:
+        propios = (vista.get("opciones") or {}).get("textos") or {}
+        ingles = propios.get("en") or {}
+        if copiados := sorted(c for c, t in (propios.get("es") or {}).items() if ingles.get(c, t) == t):
+            faltan.append({"vista": vista.get("id"), "item": "textos", "textos": copiados})
         for item in vista.get("datos") or []:
             claves = ("etiqueta",) if vista.get("componente") == "atajo" else ("titulo", "detalle")
-            textos = [c for c in claves if isinstance(item.get(c), dict) and item[c].get("es") == item[c].get("en")]
+            textos = [c for c in claves if _sin_ingles(item.get(c))]
             if textos:
                 faltan.append({"vista": vista.get("id"), "item": item.get("enlace") or item.get("nombre"),
                                "textos": textos})

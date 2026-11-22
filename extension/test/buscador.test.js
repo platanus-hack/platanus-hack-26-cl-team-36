@@ -230,6 +230,8 @@ test("buscador: el botón abre el diálogo con sugerencias, y Escape devuelve el
   assert.equal(document.activeElement, parte("campo"));
   assert.equal(opcionesVisibles().length, 3);
   assert.equal(parte("dialogo").getAttribute("aria-labelledby"), parte("titulo").id);
+  // Sin título del tema, el diálogo se nombra con el texto del botón.
+  assert.equal(parte("titulo").textContent, MiTema.idioma.t("es", "buscador.boton"));
 
   parte("dialogo").close(); // lo que hace el navegador con Escape
   assert.equal(document.activeElement, disparador);

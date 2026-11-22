@@ -1,6 +1,6 @@
 // Gramática de las rutas (diseño §5.1). Puro: no toca document ni window, así node:test lo importa.
 //
-//   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|delivered|failed &link=<texto> &pagina=<n>
+//   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|failed &link=<texto> &pagina=<n>
 //   #/corridas                  Corridas   ?q= &sitio= &filtro= &orden= &vista=
 //   #/?q=…&sitio=…              (enlace viejo, de cuando Corridas era #/) → #/corridas?… con esos parámetros
 //   #/t/<tandaId>               → #/t/<tandaId>/telarana
@@ -8,6 +8,7 @@
 //   #/revisiones                Revisiones (DynamoDB)   ?estado=live|done|failed|historial   (live = running + queued)
 //   #/revisiones/<revision>     el avance de una revisión
 //   #/revisiones/<revision>/<goal>   la telaraña en vivo de un goal (SSE)
+//   #/f/<revision>              una revisión fallida, en una hoja (la cadena de etapas y dónde se detuvo)
 //
 // Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
 // saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan. En el Overview y en el filtro de
@@ -22,7 +23,7 @@ export const PESTANA_POR_DEFECTO = "telarana";
 /** Filtro de dispositivo del Overview (el primero es el de por defecto). */
 export const DISPOSITIVOS = Object.freeze(["all", "desktop", "mobile"]);
 /** Pestañas de revisiones del Overview (la primera es la de por defecto). */
-export const PESTANAS_DEL_OVERVIEW = Object.freeze(["recent", "live", "delivered", "failed"]);
+export const PESTANAS_DEL_OVERVIEW = Object.freeze(["recent", "live", "failed"]);
 /** Filtro `estado=` de la lista de Revisiones. */
 export const ESTADOS_DE_REVISIONES = Object.freeze(["live", "done", "failed", "historial"]);
 
@@ -162,6 +163,11 @@ export function parsearHash(hash) {
     return { tipo: "vivo", revision, goal, parametros: {} };
   }
 
+  if (partes[0] === "f" && partes.length === 2) {
+    if (!REVISION.test(partes[1])) return { tipo: "desconocida", hash: original };
+    return { tipo: "fallo", revision: partes[1], parametros: {} };
+  }
+
   if (partes[0] === "t") {
     const resto = partes.slice(1);
     // Un id que no sigue el layout no es una tanda: así nunca arma otra ruta al pedirlo ("..%2F..%2Fx" → "../../x").
@@ -211,6 +217,7 @@ export function hashDe({ tipo, tandaId, revision = null, goal = null, pestana = 
     return `#/revisiones${consultaCanonica("revisiones", soloValidos("revisiones", parametros))}`;
   }
   if (tipo === "vivo") return enlaceAVivo(revision, goal);
+  if (tipo === "fallo") return enlaceAFallo(revision);
   if (tipo === "tanda") {
     const id = String(tandaId).split("/").map(encodeURIComponent).join("/");
     const limpios = aplicarAlias(pestana, parametros);
@@ -238,6 +245,11 @@ const ORIGENES = new Set(["overview", "revisiones", "corridas", "vivo"]);
 export function origenDeHoja(anterior, hash = null) {
   if (anterior && ORIGENES.has(anterior.tipo) && hash) return { clave: anterior.tipo, hash, conFondo: true };
   return { clave: "overview", hash: hashDe({ tipo: "overview" }), conFondo: false };
+}
+
+/** "#/f/<revision>": la hoja de una revisión fallida. */
+export function enlaceAFallo(revision) {
+  return `#/f/${encodeURIComponent(revision)}`;
 }
 
 /** "#/revisiones" o "#/revisiones/<revision>". */

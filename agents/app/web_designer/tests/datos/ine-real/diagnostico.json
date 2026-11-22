@@ -1,0 +1,362 @@
+{
+  "viewport": {
+    "width": 1024,
+    "height": 768
+  },
+  "mensajes_visitante": [
+    {
+      "objetivo": "variacion-mensual-ipc",
+      "perfil": "desktop",
+      "llego": false,
+      "mensaje": "La variación mensual más reciente del IPC es la de octubre de 2026, con un 0,5%. Lo confirmé en la página de resultados del Índice de Precios al Consumidor (base 2023=100), donde aparece \"Variación m…"
+    }
+  ],
+  "obstaculos": [],
+  "componentes": [
+    {
+      "id": "tareas",
+      "rutas": [
+        "/"
+      ],
+      "contenedor": "main",
+      "reemplazar": false,
+      "componente": "lanzador",
+      "datos": [
+        {
+          "titulo": {
+            "es": "Encuentra los canales para contactar",
+            "en": "Encuentra los canales para contactar"
+          },
+          "enlace": "/ine-educa/participacion-ciudadana/canales-de-atencion-a-usuarios",
+          "detalle": {
+            "es": "Encuentra los canales para contactar al INE",
+            "en": "Encuentra los canales para contactar al INE"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra las estadísticas de permisos",
+            "en": "Encuentra las estadísticas de permisos"
+          },
+          "enlace": "/estadisticas-por-tema/industria-energia-y-construccion/permisos-de-edificacion",
+          "detalle": {
+            "es": "Encuentra las estadísticas de permisos de edificación",
+            "en": "Encuentra las estadísticas de permisos de edificación"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuesta de Presupuestos Familiares",
+            "en": "Encuesta de Presupuestos Familiares"
+          },
+          "enlace": "/estadisticas-por-tema/sociedad-y-condiciones-de-vida/encuesta-de-presupuestos-familiares"
+        },
+        {
+          "titulo": {
+            "es": "Estadísticas de seguridad ciudadana",
+            "en": "Estadísticas de seguridad ciudadana"
+          },
+          "enlace": "/estadisticas-por-tema/sociedad-y-condiciones-de-vida/seguridad-ciudadana"
+        },
+        {
+          "titulo": {
+            "es": "Encuentra la fecha de publicación",
+            "en": "Encuentra la fecha de publicación"
+          },
+          "enlace": "/inicio/agendaestadistica/",
+          "detalle": {
+            "es": "Encuentra la fecha de publicación de un próximo indicador en la agenda estadística",
+            "en": "Encuentra la fecha de publicación de un próximo indicador en la agenda estadística"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra la información para personas",
+            "en": "Encuentra la información para personas"
+          },
+          "enlace": "/acceso-informantes/informacion-para-personas-encuestadas",
+          "detalle": {
+            "es": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas",
+            "en": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra la información para instituciones",
+            "en": "Encuentra la información para instituciones"
+          },
+          "enlace": "/acceso-informantes/informacion-para-empresas-encuestadas",
+          "detalle": {
+            "es": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas",
+            "en": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Portal de Mapas del INE",
+            "en": "Portal de Mapas del INE"
+          },
+          "enlace": "/herramientas/portal-de-mapas",
+          "detalle": {
+            "es": "Portal de Mapas del INE para ver indicadores en mapas",
+            "en": "Portal de Mapas del INE para ver indicadores en mapas"
+          }
+        }
+      ],
+      "opciones": {
+        "max": 6
+      }
+    },
+    {
+      "id": "buscar",
+      "rutas": [
+        "/"
+      ],
+      "contenedor": "main",
+      "reemplazar": false,
+      "componente": "buscador",
+      "datos": [
+        {
+          "titulo": {
+            "es": "Encuentra los canales para contactar",
+            "en": "Encuentra los canales para contactar"
+          },
+          "enlace": "/ine-educa/participacion-ciudadana/canales-de-atencion-a-usuarios",
+          "detalle": {
+            "es": "Encuentra los canales para contactar al INE",
+            "en": "Encuentra los canales para contactar al INE"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra las estadísticas de permisos",
+            "en": "Encuentra las estadísticas de permisos"
+          },
+          "enlace": "/estadisticas-por-tema/industria-energia-y-construccion/permisos-de-edificacion",
+          "detalle": {
+            "es": "Encuentra las estadísticas de permisos de edificación",
+            "en": "Encuentra las estadísticas de permisos de edificación"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuesta de Presupuestos Familiares",
+            "en": "Encuesta de Presupuestos Familiares"
+          },
+          "enlace": "/estadisticas-por-tema/sociedad-y-condiciones-de-vida/encuesta-de-presupuestos-familiares"
+        },
+        {
+          "titulo": {
+            "es": "Estadísticas de seguridad ciudadana",
+            "en": "Estadísticas de seguridad ciudadana"
+          },
+          "enlace": "/estadisticas-por-tema/sociedad-y-condiciones-de-vida/seguridad-ciudadana"
+        },
+        {
+          "titulo": {
+            "es": "Encuentra la fecha de publicación",
+            "en": "Encuentra la fecha de publicación"
+          },
+          "enlace": "/inicio/agendaestadistica/",
+          "detalle": {
+            "es": "Encuentra la fecha de publicación de un próximo indicador en la agenda estadística",
+            "en": "Encuentra la fecha de publicación de un próximo indicador en la agenda estadística"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra la información para personas",
+            "en": "Encuentra la información para personas"
+          },
+          "enlace": "/acceso-informantes/informacion-para-personas-encuestadas",
+          "detalle": {
+            "es": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas",
+            "en": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra la información para instituciones",
+            "en": "Encuentra la información para instituciones"
+          },
+          "enlace": "/acceso-informantes/informacion-para-empresas-encuestadas",
+          "detalle": {
+            "es": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas",
+            "en": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Portal de Mapas del INE",
+            "en": "Portal de Mapas del INE"
+          },
+          "enlace": "/herramientas/portal-de-mapas",
+          "detalle": {
+            "es": "Portal de Mapas del INE para ver indicadores en mapas",
+            "en": "Portal de Mapas del INE para ver indicadores en mapas"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Sistema de Información de Mercado Laboral",
+            "en": "Sistema de Información de Mercado Laboral"
+          },
+          "enlace": "/simel",
+          "detalle": {
+            "es": "Sistema de Información de Mercado Laboral (SIMEL)",
+            "en": "Sistema de Información de Mercado Laboral (SIMEL)"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Sala de prensa",
+            "en": "Sala de prensa"
+          },
+          "enlace": "/sala-de-prensa",
+          "detalle": {
+            "es": "Sala de prensa para leer el comunicado más reciente del IPC",
+            "en": "Sala de prensa para leer el comunicado más reciente del IPC"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra los términos de uso",
+            "en": "Encuentra los términos de uso"
+          },
+          "enlace": "/terminos-de-uso-y-licencia-de-datos-abiertos",
+          "detalle": {
+            "es": "Encuentra los términos de uso y la licencia de los datos abiertos del INE",
+            "en": "Encuentra los términos de uso y la licencia de los datos abiertos del INE"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Índice de Precios al Consumidor 0,5% Variación mensual. octu",
+            "en": "Índice de Precios al Consumidor 0,5% Variación mensual. octu"
+          },
+          "enlace": "/estadisticas-por-tema/precios-e-inflacion/indice-de-precios-al-consumidor",
+          "detalle": {
+            "es": "Encuentra la variación mensual más reciente del Índice de Precios al Consumidor (IPC)",
+            "en": "Encuentra la variación mensual más reciente del Índice de Precios al Consumidor (IPC)"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Tasa de desocupación nacional 9,8% Trimestre móviljulio – se",
+            "en": "Tasa de desocupación nacional 9,8% Trimestre móviljulio – se"
+          },
+          "enlace": "/estadisticas-por-tema/mercado-laboral/ocupacion-y-desocupacion",
+          "detalle": {
+            "es": "Encuentra la tasa de desocupación nacional del último trimestre móvil",
+            "en": "Encuentra la tasa de desocupación nacional del último trimestre móvil"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Población total 20,2 mill Proyección (base Censo 2024) al 30",
+            "en": "Población total 20,2 mill Proyección (base Censo 2024) al 30"
+          },
+          "enlace": "/estadisticas-por-tema/demografia-y-poblacion/proyecciones-de-poblacion",
+          "detalle": {
+            "es": "Encuentra la población total de Chile proyectada para el año en curso",
+            "en": "Encuentra la población total de Chile proyectada para el año en curso"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Índice Nominal de Remuneraciones 0,5% Variación mensual dese",
+            "en": "Índice Nominal de Remuneraciones 0,5% Variación mensual dese"
+          },
+          "enlace": "/estadisticas-por-tema/mercado-laboral/remuneraciones-y-costos-laborales",
+          "detalle": {
+            "es": "Encuentra la variación mensual más reciente del Índice Nominal de Remuneraciones",
+            "en": "Encuentra la variación mensual más reciente del Índice Nominal de Remuneraciones"
+          }
+        }
+      ],
+      "opciones": {
+        "max": 8,
+        "sugeridas": 6
+      }
+    }
+  ],
+  "sin_atajo": [
+    {
+      "objetivo": "variacion-mensual-ipc",
+      "razon": "la ruta no termina en una URL con consulta del mismo sitio"
+    },
+    {
+      "objetivo": "calculadora-ict",
+      "razon": "la ruta no está verificada"
+    },
+    {
+      "objetivo": "buscar-serie-ine-stat",
+      "razon": "la ruta no está verificada"
+    }
+  ],
+  "voz_del_sitio": {
+    "titulo": "Inicio",
+    "titulos": [
+      "Norte",
+      "Centro",
+      "Sur",
+      "Personas",
+      "Organizaciones Públicas y Empresas",
+      "Titulo página",
+      "Índice de Precios al Consumidor",
+      "Índice Nominal de Remuneraciones",
+      "Tasa de desocupación nacional",
+      "Población total",
+      "Esperanza de vida al nacer",
+      "Sala de prensa",
+      "Ver todas las estadísticas",
+      "Ver estadísticas",
+      "Ver agenda",
+      "Sistema de AtenciónCiudadana a través de CRM"
+    ],
+    "menu": [
+      "EN",
+      "Índice de Precios al Consumidor 0,5% Variación mensual. octu",
+      "Índice Nominal de Remuneraciones 0,5% Variación mensual dese",
+      "Tasa de desocupación nacional 9,8% Trimestre móviljulio – se",
+      "Población total 20,2 mill Proyección (base Censo 2024) al 30",
+      "Sala de prensa",
+      "Nacimientos aumentaron 2% interanualmente en agosto de 2026 "
+    ],
+    "botones": [],
+    "componentes": {
+      "tareas": {
+        "tareas": {}
+      },
+      "buscar": {
+        "tareas": {
+          "/estadisticas-por-tema/precios-e-inflacion/indice-de-precios-al-consumidor": "Índice de Precios al Consumidor 0,5% Variación mensual. octu",
+          "/estadisticas-por-tema/mercado-laboral/ocupacion-y-desocupacion": "Tasa de desocupación nacional 9,8% Trimestre móviljulio – se",
+          "/estadisticas-por-tema/demografia-y-poblacion/proyecciones-de-poblacion": "Población total 20,2 mill Proyección (base Censo 2024) al 30",
+          "/estadisticas-por-tema/mercado-laboral/remuneraciones-y-costos-laborales": "Índice Nominal de Remuneraciones 0,5% Variación mensual dese"
+        }
+      }
+    }
+  },
+  "sitio": {
+    "carpeta": false,
+    "rasgos": {
+      "institucional": 1.0,
+      "comercio": 0.1,
+      "categorias_color": 0,
+      "video_hero": 0,
+      "tarea_formulario": 0
+    },
+    "zonas": [
+      "cabecera",
+      "logo",
+      "pie",
+      "tarjetas"
+    ],
+    "auto_si_transforma": {
+      "A": 0.46,
+      "B": 0.21,
+      "C": 0.33
+    }
+  }
+}

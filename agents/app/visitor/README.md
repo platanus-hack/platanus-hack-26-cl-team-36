@@ -2,8 +2,8 @@
 
 El **Visitante**: dada una URL y una tarea en lenguaje natural, lanza usuarios sintéticos que intentan la tarea en un
 navegador como lo haría una persona, viendo solo capturas, y une sus recorridos en un árbol de rutas que indica cuál
-termina con menos errores. Su diseño está en [docs/agents/evaluador.md](../../../docs/agents/evaluador.md); dónde va
-cada pieza, en [arquitectura](../../../docs/agents/arquitectura.md).
+termina con menos errores. Dónde va
+cada pieza está en [arquitectura](../../../docs/arquitectura.md).
 
 ## Instalación
 
@@ -169,12 +169,10 @@ de esa instrucción terminó bien se omite. El resumen del sitio lo escribe [sum
 
 ## Tareas
 
-Cada archivo `agents/tasks/<host>/<id>.json` es una tarea: un objetivo de su host con su propio id, con la forma de
-[formas de datos](../../../docs/formas-de-datos.md), sección 5: `id`, `host`, `start_url` y `description`, más
+Cada archivo `agents/tasks/<host>/<id>.json` es una tarea: un objetivo de su host con su propio id, con los campos `id`, `host`, `start_url` y `description`, más
 `description_sin_contexto`, `terminos_oficiales` y `conocimiento_del_tema` para los
 [exploradores con nivel de conocimiento](#exploradores-con-nivel-de-conocimiento).
-`wom.cl/baja-fibra`, `sii.cl/exencion-contribuciones` y `dt.gob.cl/reclamo-despido` salen de
-[tareas en sitios chilenos](../../../docs/tareas-sitios-chilenos.md). Otras cinco
+`wom.cl/baja-fibra`, `sii.cl/exencion-contribuciones` y `dt.gob.cl/reclamo-despido` son trámites reales donde una persona se pierde, comprobados a mano sin sesión iniciada. Otras cinco
 (`bibliotecanacional.gob.cl/socio-prestamo-domicilio`, `metro.cl/tarifa-sabado`, `sernac.cl/retracto-compra-online`,
 `uchile.cl/arancel-medicina` e `ine.gob.cl/fecha-ipc-noviembre`) tienen varias rutas comprobadas y señuelos, para
 probar a los [exploradores](#exploradores). `expected_answer` sirve para
@@ -268,7 +266,7 @@ con la de escritorio (`reference_viewport` en `comparison.json`). Las corridas v
 (`first_time`, `hurried`) se siguen leyendo como de escritorio.
 
 Si el objetivo tiene una ruta vigente de la Guía, verificada para el viewport del perfil, el reporte la compara con
-cada intento ([fórmulas](../../../docs/agents/niveles-de-tarea.md), sección 5). El avance se informa como llegada a la
+cada intento ([fórmulas](../../../docs/objetivos-y-metricas.md#métricas-un-intento-contra-la-ruta-de-referencia)). El avance se informa como llegada a la
 página final de la ruta. Si un intento logra la tarea con menos pasos, `proposals.json` lo guarda (la clave de la
 ruta, sus pasos con el elemento clicado y sus nodos) y el reporte lo dice; `adopt` de la Guía la verifica.
 
