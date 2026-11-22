@@ -45,6 +45,9 @@ class Elemento {
   get label() {
     return this.getAttribute("label");
   }
+  get disabled() {
+    return this.hasAttribute("disabled");
+  }
   append(...hijos) {
     for (const hijo of hijos) {
       if (typeof hijo === "string") this.propio += hijo;
@@ -99,9 +102,11 @@ class Elemento {
   }
 }
 
+class Select extends Elemento {}
+
 // Un <select> como el de la página, con grupos: [["Línea 1", [["SP", "San Pablo"], …]], …]
 function selectDePagina(grupos, elegido) {
-  const select = new Elemento("select");
+  const select = new Select("select");
   for (const [nombre, opciones] of grupos) {
     const padre = nombre ? new Elemento("optgroup") : select;
     if (nombre) {
@@ -122,11 +127,11 @@ function selectDePagina(grupos, elegido) {
 function cargar(pagina = {}) {
   const document = {
     readyState: "complete",
-    createElement: (tag) => new Elemento(tag),
+    createElement: (tag) => (tag === "select" ? new Select(tag) : new Elemento(tag)),
     querySelector: (selector) => pagina[selector] ?? null,
     documentElement: new Elemento("html"),
   };
-  const contexto = vm.createContext({ document, URL, location: { href: "https://www.metro.cl/", pathname: "/" }, console });
+  const contexto = vm.createContext({ document, URL, HTMLSelectElement: Select, location: { href: "https://www.metro.cl/", pathname: "/" }, console });
   for (const archivo of ["content/registro.js", "comun/idioma.js", "content/plantillas.js", "componentes/lanzador.js", "componentes/atajo.js", "features/vista.js"]) {
     vm.runInContext(leer(archivo), contexto);
   }
@@ -142,7 +147,7 @@ const ESTACIONES = [
 const CAMPOS = [
   { nombre: "inicio", etiqueta: { es: "Desde", en: "From" }, opciones: "#binicio" },
   { nombre: "fin", etiqueta: { es: "Hasta", en: "To" }, opciones: "#fin" },
-  { nombre: "dia", etiqueta: "Día", valores: [{ valor: "DL", texto: { es: "Laboral", en: "Weekday" } }, { valor: "DS", texto: "Sábado" }] },
+  { nombre: "dia", etiqueta: "Día", valor: "DL", valores: [{ valor: "DL", texto: { es: "Laboral", en: "Weekday" } }, { valor: "DS", texto: "Sábado" }] },
 ];
 const OPCIONES_ATAJO = { destino: "/el-viaje/planificador/", invertir: ["inicio", "fin"], fijos: { horario: "VALLE" } };
 const paginaMetro = () => ({ "#binicio": selectDePagina(ESTACIONES, "SP"), "#fin": selectDePagina(ESTACIONES, "EL") });
@@ -198,7 +203,7 @@ test("lanzador: una tarea por item con su enlace, en el idioma actual y con tope
   assert.equal(nodo.querySelector(".mt-lanzador__titulo").textContent, "Hours");
   assert.equal(nodo.querySelector(".mt-lanzador__detalle").textContent, "Every day");
   assert.equal(nodo.querySelector("h2").textContent, "Top tasks");
-  assert.equal(nodo.getAttribute("aria-label"), "Top tasks");
+  assert.equal(nodo.getAttribute("aria-labelledby"), nodo.querySelector("h2").getAttribute("id"));
 });
 
 test("lanzador: descarta enlaces e imágenes de otro sitio", () => {
@@ -264,6 +269,82 @@ test("atajo: arma el deep link con lo elegido, lo sigue al cambiar e intercambia
 
   nodo.querySelector(".mt-atajo__invertir").disparar("click");
   assert.equal(ir.getAttribute("href"), "https://www.metro.cl/el-viaje/planificador/?inicio=EL&fin=SP&dia=DS&horario=VALLE");
+});
+
+test("atajo: sin valor en la página muestra «Elige una opción» y el enlace espera a los requeridos", () => {
+  const sinElegir = selectDePagina(ESTACIONES, null);
+  const MiTema = cargar({ "#binicio": selectDePagina(ESTACIONES, "SP"), "#fin": sinElegir });
+  sinElegir.querySelector("option").setAttribute("value", "");
+  const { dibujar } = MiTema.componentes.get("atajo");
+  const campos = [CAMPOS[0], { ...CAMPOS[1], requerido: true }];
+  const nodo = dibujar(campos, { destino: "/planificador/" }, contextoVista);
+  const ir = nodo.querySelector(".mt-atajo__ir");
+  const fin = nodo.querySelectorAll("select")[1];
+  assert.equal(fin.value, "");
+  assert.equal(fin.querySelector("option").textContent, MiTema.idioma.t("es", "atajo.elegir"));
+  assert.equal(ir.hasAttribute("href"), false);
+  assert.equal(ir.getAttribute("aria-disabled"), "true");
+
+  fin.value = "LH";
+  fin.disparar("change");
+  assert.equal(ir.getAttribute("href"), "https://www.metro.cl/planificador/?inicio=SP&fin=LH");
+  assert.equal(ir.hasAttribute("aria-disabled"), false);
+  assert.equal(nodo.getAttribute("aria-labelledby"), nodo.querySelector("h2").getAttribute("id"));
+});
+
+test("atajo: ignora opciones deshabilitadas, lo que no es <select> y no intercambia valores que el otro no tiene", () => {
+  const inicio = selectDePagina([["", [["SP", "San Pablo"], ["XX", "Cerrada"]]]], "SP");
+  inicio.querySelectorAll("option")[1].setAttribute("disabled", "");
+  const fin = selectDePagina([["", [["EL", "Estación Central"], ["SP", "San Pablo"]]]], "EL");
+  const MiTema = cargar({ "#binicio": inicio, "#fin": fin, "#div": new Elemento("div") });
+  const atajo = MiTema.componentes.get("atajo");
+  assert.deepEqual(Array.from(atajo.leerOpciones(CAMPOS[0], "es").opciones, (o) => o.valor), ["SP"]);
+  assert.equal(atajo.dibujar([{ nombre: "x", opciones: "#div" }], { destino: "/" }, contextoVista), null);
+
+  const nodo = atajo.dibujar(CAMPOS.slice(0, 2), OPCIONES_ATAJO, contextoVista);
+  const ir = nodo.querySelector(".mt-atajo__ir");
+  nodo.querySelector(".mt-atajo__invertir").disparar("click");
+  assert.match(ir.getAttribute("href"), /inicio=SP&fin=EL/, "EL no está en el origen: no se intercambia");
+  nodo.querySelectorAll("select")[1].value = "SP";
+  nodo.querySelector(".mt-atajo__invertir").disparar("click");
+  assert.match(ir.getAttribute("href"), /inicio=SP&fin=SP/);
+});
+
+test("armarEnlace: marcadores {nombre} en la ruta o el hash, codificados y fuera de la query", () => {
+  const { armarEnlace } = cargar().componentes.get("atajo");
+  assert.equal(armarEnlace("/estacion/{id}/#{vista}", { id: "a/b c", vista: "mapa", dia: "DL" }), "https://www.metro.cl/estacion/a%2Fb%20c/?dia=DL#mapa");
+  assert.equal(armarEnlace("/estacion/{id}", { id: "" }), "", "sin valor para el marcador no hay enlace");
+  assert.equal(armarEnlace("/{id}", { id: "/evil.com" }), "https://www.metro.cl/%2Fevil.com");
+});
+
+test("atajo: la firma cambia si la página cambia las opciones de un <select>", () => {
+  const pagina = paginaMetro();
+  const MiTema = cargar(pagina);
+  const { firma } = MiTema.componentes.get("atajo");
+  const antes = JSON.stringify(firma(CAMPOS, {}));
+  pagina["#fin"].querySelector("optgroup").append(new Elemento("option"));
+  pagina["#fin"].querySelectorAll("option").at(-1).setAttribute("value", "NU");
+  assert.notEqual(JSON.stringify(firma(CAMPOS, {})), antes);
+});
+
+test("vista: redibuja el atajo cuando la página cambia sus opciones y no toca los `datos` del tema", () => {
+  const ancla = contenedorFalso();
+  const pagina = { ...paginaMetro(), "#ancla": ancla };
+  const MiTema = cargar(pagina);
+  const datos = CAMPOS.map((campo) => ({ ...campo }));
+  const vista = { id: "planificar", contenedor: "#ancla", reemplazar: false, componente: "atajo", datos, opciones: OPCIONES_ATAJO };
+  const feature = MiTema.features.get("vista");
+  feature.actualizar([vista]);
+  feature.actualizar([vista]);
+  assert.equal(ancla.antes.length, 1, "misma firma: no redibuja");
+  const opcion = new Elemento("option");
+  opcion.setAttribute("value", "NU");
+  pagina["#fin"].append(opcion);
+  let reemplazos = 0;
+  ancla.antes[0].replaceWith = () => reemplazos++;
+  feature.actualizar([vista]);
+  assert.equal(reemplazos, 1);
+  assert.ok(datos.every((campo) => !("original" in campo)));
 });
 
 test("atajo: si a un campo le faltan opciones o el destino no es http(s), no dibuja nada", () => {

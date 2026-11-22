@@ -17,6 +17,7 @@
   const { enIdioma, textosDe, urlMismoSitio } = MiTema.plantillas;
 
   const CLAVES = ["titulo", "subtitulo"];
+  let vistas = 0; // para ids únicos del encabezado
 
   function tarea(item, idioma, contexto) {
     const insignia = enIdioma(item.insignia, idioma);
@@ -41,9 +42,10 @@
     const tareas = items.filter((item) => item.titulo && urlMismoSitio(item.enlace)).slice(0, opciones.max ?? 6);
     if (tareas.length === 0) return null;
 
-    return crear("nav", { clase: "mt-lanzador", "aria-label": t.titulo }, [
+    const idTitulo = `mt-lanzador-titulo-${++vistas}`;
+    return crear("nav", { clase: "mt-lanzador", "aria-labelledby": idTitulo }, [
       crear("header", { clase: "mt-lanzador__cabecera" }, [
-        crear("h2", { clase: "mt-lanzador__encabezado", texto: t.titulo }),
+        crear("h2", { clase: "mt-lanzador__encabezado", id: idTitulo, texto: t.titulo }),
         t.subtitulo && crear("p", { clase: "mt-lanzador__bajada", texto: t.subtitulo }),
       ]),
       crear("ul", { clase: "mt-lanzador__lista" }, tareas.map((item) => crear("li", {}, tarea(item, idioma, contexto)))),

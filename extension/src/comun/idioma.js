@@ -112,6 +112,7 @@
       "atajo.subtitulo": "Elige y te llevamos al resultado.",
       "atajo.boton": "Ver resultado",
       "atajo.invertir": "Intercambiar",
+      "atajo.elegir": "Elige una opción",
     },
 
     en: {
@@ -189,6 +190,7 @@
       "atajo.subtitulo": "Choose and we take you to the result.",
       "atajo.boton": "See result",
       "atajo.invertir": "Swap",
+      "atajo.elegir": "Choose an option",
     },
   };
 
