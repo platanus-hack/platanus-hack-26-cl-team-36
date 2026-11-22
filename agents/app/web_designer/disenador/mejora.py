@@ -1,11 +1,15 @@
-"""Etapa de mejora de una revisión: resume lo que midieron la Guía y el Visitante y genera un tema, una vez.
+"""Etapa de mejora de una revisión: resume lo que midieron la Guía y el Visitante y genera un kit, una vez.
 
 Lee del almacén las corridas de la misma `revision` (nunca "la última"): el catálogo (`goals.json`), la ruta de
 escritorio de cada objetivo (`route.json`) y la tanda del Visitante (`comparison.json` y `<perfil>/run.json`). Escribe
-`<host>/improver/<run>/` con `tema.css` (saneado) y `mejora.json` (el resumen usado y lo que decidió el modelo).
+`<host>/improver/<run>/` con `tema.css` (saneado), `tema.json` (los componentes del kit, validados), `atajos.json` (lo
+que se derivó de las rutas, sin modelo), `diagnostico.json` (lo que recibió el modelo además del mapa) y `mejora.json`
+(el resumen usado y lo que decidió el modelo).
 """
 
 import json
+import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from shared import store
@@ -13,10 +17,24 @@ from shared.browser.session import open_browser
 from shared.catalog.files import read_catalog
 from shared.nodes.urls import node_key
 
-from disenador import config, mapa, pagina
-from disenador.corrida import Caso, TemaRechazado, preparar
+from disenador import atajos, config, mapa, pagina, tema_json
+from disenador.corrida import TemaRechazado
 from disenador.css import sanear
-from disenador.modelo import ESQUEMA_TEMA, Skill, mensaje_de_diseno, prompt_de_sistema
+from disenador.modelo import ESQUEMA_KIT, Skill, mensaje_de_diseno, prompt_de_sistema
+
+# Lo que la Guía tuvo que sacar del camino (un modal, una encuesta, el aviso de cookies), según su historial.
+_OBSTACULO = re.compile(r"\b(modal|popup|pop-up|encuesta|cookies?)\b|«(close|cerrar|×)»", re.I)
+# Si el ancla de un componente no está en la página, la primera de estas que exista.
+ANCLAS_DE_RESPALDO = ("main", "[role='main']", "body > :has(h1)")
+
+_SELECTS = """() => [...document.querySelectorAll("select")].map((s) => ({
+  selector: s.id ? "#" + CSS.escape(s.id) : s.name ? `select[name="${CSS.escape(s.name)}"]` : "",
+  id: s.id, name: s.name,
+  etiqueta: ((s.labels && s.labels[0] && s.labels[0].textContent) || s.getAttribute("aria-label") || "")
+    .replace(/\\s+/g, " ").trim().slice(0, 40),
+  valores: [...s.options].filter((o) => o.value && !o.disabled).map((o) => o.value).slice(0, 500),
+  elegido: s.value,
+})).filter((s) => s.selector && s.selector.length <= 200)"""
 
 
 class TemaVacio(Exception):
@@ -45,8 +63,10 @@ def _ruta(route: dict | None) -> dict | None:
         return None
     pasos = [f"{_corto(p.get('label'), 80)} → {_lugar(p.get('url_after'), p.get('title_after'))}"
              for p in route.get("steps") or [] if isinstance(p, dict)]
+    historial = (route.get("exploration") or {}).get("history") or []
     return {"estado": route.get("status"), "pasos_minimos": (route.get("totals") or {}).get("min_steps"),
-            "pasos": pasos[:config.MAX_PASOS_RUTA]}
+            "pasos": pasos[:config.MAX_PASOS_RUTA], "llega_a": atajos.llegada(route),
+            "obstaculos": [_corto(h) for h in historial if isinstance(h, str) and _OBSTACULO.search(h)][:3]}
 
 
 def _desvio(intento: dict, nodos_ruta: list[str]) -> str | None:
@@ -81,7 +101,8 @@ def _visita(intento: dict, fila: dict, nodos_ruta: list[str]) -> dict:
         "fin": intento.get("end_reason") or None,
         "se_detuvo_en": _lugar(ultimo.get("url"), ultimo.get("title")),
         "se_desvio_en": None if llego else _desvio(intento, nodos_ruta),
-        "por_que": _corto(veredicto.get("justification") or intento.get("final_message")) or None,
+        # El mensaje del Visitante dice qué le pasó; la justificación del veredicto suele ser genérica.
+        "por_que": _corto(intento.get("final_message") or veredicto.get("justification")) or None,
     }
 
 
@@ -103,7 +124,7 @@ def _visitas(backend: store.Backend, tanda: store.RunKey, nodos_ruta: list[str])
     return visitas[:config.MAX_VISITAS]
 
 
-def _objetivo(backend: store.Backend, url: str, revision: str, goal) -> tuple[dict, list[store.RunKey]]:
+def _objetivo(backend: store.Backend, url: str, revision: str, goal) -> tuple[dict, list[store.RunKey], dict | None]:
     entradas = []
     route = None
     corrida_guia = store.revision_run(backend, store.guide(url, goal.id, "desktop"), revision)
@@ -119,14 +140,25 @@ def _objetivo(backend: store.Backend, url: str, revision: str, goal) -> tuple[di
     return {
         "id": goal.id,
         "descripcion": _corto(goal.description),
+        "entrada": goal.entry,
         "ruta": _ruta(route),
         "visitas": visitas,
         "tasa_llegada": round(sum(medidas) / len(medidas), 2) if medidas else None,
-    }, entradas
+    }, entradas, route if isinstance(route, dict) else None
 
 
-def resumir(backend: store.Backend, url: str, revision: str) -> tuple[dict, list[store.RunKey]]:
-    """El resumen compacto de lo medido en la revisión y las corridas que leyó."""
+@dataclass
+class Revision:
+    resumen: dict
+    entradas: list[store.RunKey]
+    goals: list
+    """Los objetivos del catálogo que se intentan, en su orden."""
+    rutas: dict[str, dict]
+    """La `route.json` de escritorio de cada objetivo que la tiene."""
+
+
+def leer_revision(backend: store.Backend, url: str, revision: str) -> Revision:
+    """Lo medido en la revisión: el resumen compacto, las corridas que leyó, el catálogo y las rutas de la Guía."""
     corrida = store.revision_run(backend, store.cataloger(url), revision)
     goals = []
     if corrida:
@@ -135,15 +167,24 @@ def resumir(backend: store.Backend, url: str, revision: str) -> tuple[dict, list
             goals = [g for g in catalogo if g.exclusion is None]
         except (OSError, ValueError, KeyError, TypeError):
             goals = []
-    objetivos, entradas = [], [corrida] if corrida else []
+    objetivos, entradas, rutas = [], [corrida] if corrida else [], {}
     for goal in goals:
-        objetivo, leidas = _objetivo(backend, url, revision, goal)
+        objetivo, leidas, route = _objetivo(backend, url, revision, goal)
         objetivos.append((objetivo, bool(leidas)))
         entradas += leidas
+        if route:
+            rutas[goal.id] = route
     # El conductor corre solo algunos objetivos: los demás no aportan nada al modelo.
     medidos = [o for o, con_corridas in objetivos if con_corridas]
-    return {"revision": revision, "url": url,
-            "objetivos": medidos or [o for o, _ in objetivos][:config.MAX_GOALS_SIN_CORRIDAS]}, entradas
+    resumen = {"revision": revision, "url": url,
+               "objetivos": medidos or [o for o, _ in objetivos][:config.MAX_GOALS_SIN_CORRIDAS]}
+    return Revision(resumen, entradas, goals, rutas)
+
+
+def resumir(backend: store.Backend, url: str, revision: str) -> tuple[dict, list[store.RunKey]]:
+    """El resumen compacto de lo medido en la revisión y las corridas que leyó."""
+    leida = leer_revision(backend, url, revision)
+    return leida.resumen, leida.entradas
 
 
 def peor_objetivo(resumen: dict) -> dict | None:
@@ -161,22 +202,75 @@ def _escribir_json(ruta: Path, datos) -> None:
     ruta.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+async def _selects(page) -> list[atajos.SelectDePagina]:
+    return [atajos.SelectDePagina(**{**s, "valores": tuple(s["valores"])}) for s in await page.evaluate(_SELECTS)]
+
+
+async def _existe(page, selector: str) -> bool:
+    try:
+        return await page.evaluate("(s) => document.querySelector(s) !== null", selector)
+    except Exception:  # un selector que el navegador no entiende
+        return False
+
+
+def diagnostico(resumen: dict, kit: dict) -> dict:
+    """Lo que el modelo recibe además del mapa: por qué no llegaron, qué sortearon y los componentes propuestos."""
+    mensajes, obstaculos = [], []
+    for objetivo in resumen["objetivos"]:
+        mensajes += [{"objetivo": objetivo["id"], "perfil": v["perfil"], "llego": v["llego"], "mensaje": v["por_que"]}
+                     for v in objetivo["visitas"] if v["por_que"]]
+        obstaculos += [{"objetivo": objetivo["id"], "paso": paso}
+                       for paso in (objetivo["ruta"] or {}).get("obstaculos") or []]
+    componentes = [a["vista"] for a in kit["atajos"]] + ([kit["lanzador"]] if kit["lanzador"] else [])
+    return {"viewport": config.REVISION, "mensajes_visitante": mensajes, "obstaculos": obstaculos,
+            "componentes": componentes, "sin_atajo": kit["descartes"]}
+
+
+async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[dict]:
+    """Los componentes con la microcopia del modelo y un ancla que existe en la página abierta (si van en ella)."""
+    por_id = {p.get("id"): p for p in propuestas or [] if isinstance(p, dict)}
+    en_pagina = atajos.ruta_de(url)
+    vistas = []
+    for vista in componentes:
+        propuesta = dict(por_id.get(vista["id"]) or {})
+        contenedor = ""
+        if any(atajos.misma_ruta(en_pagina, ruta) for ruta in vista["rutas"]):
+            for candidato in (str(propuesta.get("contenedor") or "").strip()[:200], vista["contenedor"],
+                              *ANCLAS_DE_RESPALDO):
+                if candidato and await _existe(page, candidato):
+                    contenedor = candidato
+                    break
+        vistas.append(tema_json.con_propuesta(vista, {**propuesta, "contenedor": contenedor}))
+    return vistas
+
+
 async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill | None, disenador, modelo: str,
                   cdp_url: str | None = None) -> store.Manifest:
     """Una corrida de improver: `succeeded` con un `tema.css` no vacío; si no, `failed` y lanza."""
-    resumen, entradas = resumir(backend, url, revision)
+    leida = leer_revision(backend, url, revision)
+    resumen = leida.resumen
     peor = peor_objetivo(resumen)
-    with store.running(backend, store.improver(url), model=modelo, inputs=entradas, revision=revision) as run:
+    with store.running(backend, store.improver(url), model=modelo, inputs=leida.entradas, revision=revision) as run:
         salida = {"resumen": resumen, "tarea": peor and {"id": peor["id"], "descripcion": peor["descripcion"]},
                   "gustos": config.GUSTOS_MEJORA}
         try:
             async with open_browser(cdp_url) as browser:
-                preparado = await preparar(browser, Caso("mejora", url, config.GUSTOS_MEJORA))
-                texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"],
-                                          mapa.como_texto(preparado.mapa), config.ESCRITORIO,
-                                          json.dumps(resumen["objetivos"], ensure_ascii=False))
-                respuesta = await disenador.pedir(prompt_de_sistema(skill), ESQUEMA_TEMA, [texto, preparado.captura],
-                                                  run.workdir / "claude_code.log")
+                contexto, page = await pagina.abrir(browser, url, "revision")
+                try:
+                    mapa_texto, captura = mapa.como_texto(await mapa.construir_mapa(page)), await pagina.capturar(page)
+                    kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url)
+                    _escribir_json(run.workdir / "atajos.json", kit)
+                    diag = diagnostico(resumen, kit)
+                    _escribir_json(run.workdir / "diagnostico.json", diag)
+                    texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"], mapa_texto,
+                                              config.REVISION, json.dumps(resumen["objetivos"], ensure_ascii=False),
+                                              json.dumps(diag, ensure_ascii=False))
+                    respuesta = await disenador.pedir(prompt_de_sistema(skill, kit=True), ESQUEMA_KIT,
+                                                      [texto, captura], run.workdir / "claude_code.log")
+                    # Con la página abierta: el ancla que propone el modelo solo vale si existe.
+                    vistas = await _vistas(page, url, diag["componentes"], respuesta.datos.get("componentes"))
+                finally:
+                    await contexto.close()
                 salida.update(modelo=modelo, resumen_tema=respuesta.datos.get("resumen"),
                               decisiones=respuesta.datos.get("decisiones"), costo_usd=respuesta.costo_usd)
                 saneado = sanear(respuesta.datos.get("css") or "")
@@ -187,7 +281,10 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                 if violaciones:
                     salida["violaciones_navegador"] = violaciones
                     raise TemaRechazado(f"el navegador rechazó el CSS saneado: {violaciones[0]['motivo']}")
+            tema, descartes = tema_json.armar(f"{store.normalize_host(url)} — kit de la revisión {revision}", vistas)
+            salida["kit"] = {"vistas": [v["id"] for v in tema["features"]["vista"]], "descartes": descartes}
             (run.workdir / "tema.css").write_text(saneado.css, encoding="utf-8")
+            _escribir_json(run.workdir / "tema.json", tema)
         except Exception as error:
             salida["error"] = f"{type(error).__name__}: {error}"[:300]
             raise

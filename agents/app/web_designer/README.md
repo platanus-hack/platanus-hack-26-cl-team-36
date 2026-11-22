@@ -43,7 +43,7 @@ uv run main.py --url https://www.wom.cl/ --revision <rev>   # etapa de mejora de
 | `--output` | La carpeta de la corrida (por defecto `agents/.runs/diseno/<id o host>/<fecha-hora>/`; con `--casos`, el nombre del archivo en vez del host). |
 | `--concurrencia` | Generaciones simultáneas (por defecto 3). |
 | `--cdp-url` | Un navegador remoto vía CDP. |
-| `--revision <rev>` | Etapa de mejora (con `--url`, sin `--gustos`): resume lo que midieron en esa revisión el Catalogador, la Guía y el Visitante, genera un tema (tarea: el objetivo que peor resultó; gustos: `GUSTOS_MEJORA`) y escribe `tema.css` saneado y `mejora.json` en `<host>/improver/<run>/` (`AGENTS_STORE`). Sale con 0 solo si la corrida queda `succeeded`. |
+| `--revision <rev>` | Etapa de mejora (con `--url`, sin `--gustos`): con lo que midieron en esa revisión el Catalogador, la Guía y el Visitante, genera un kit en el viewport del Visitante (tarea: el objetivo que peor resultó; gustos: `GUSTOS_MEJORA`) y escribe en `<host>/improver/<run>/` (`AGENTS_STORE`) `tema.css` saneado, `tema.json` (componentes `atajo` y `lanzador`, validados), `atajos.json`, `diagnostico.json` y `mejora.json`. Sale con 0 solo si la corrida queda `succeeded`. |
 
 Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitante](../visitor/README.md):
 `uv run main.py --task wom.cl/baja-fibra --css <ruta>/tema.css` desde `../visitor`.
@@ -63,6 +63,8 @@ Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitant
 | `disenador/resumen.py` | `resumen.json`, `reporte.md` y `--comparar`. |
 | `disenador/config.py` | Modelos, viewports, rutas y umbrales. |
 | `disenador/mejora.py` | La etapa de mejora de una revisión (`--revision`): resumen de lo medido y corrida en el almacén. |
+| `disenador/atajos.py` | El atajo (rutas verificadas que terminan en un deep link) y el lanzador (objetivos del catálogo), sin modelo. |
+| `disenador/tema_json.py` | Arma el `tema.json` con la microcopia del modelo y lo valida contra su esquema. |
 
 Por cada caso:
 

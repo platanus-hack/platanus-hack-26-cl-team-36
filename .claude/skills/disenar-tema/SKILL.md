@@ -145,6 +145,12 @@ widgets flotantes (encuestas "evalúa", chat, "te llamamos", "volver arriba"), p
 texto útil. **Nunca:** contenido principal, menú principal, buscador, formularios, secciones de enlaces del sitio
 (también los de redes sociales: quítales el color), el pie, ni nada cuyo texto coincide con la tarea. Si dudas, no lo ocultes: quítale el color.
 
+**Componentes del kit** (solo si el mensaje trae `componentes`): la extensión dibuja cada uno (`atajo`, `lanzador`)
+con `data-mt-vista="<id>"`. El bloque original que un componente reemplaza (p. ej. el formulario que resume el atajo)
+es la única excepción a "Nunca" de arriba, y solo así:
+`html.mi-tema:not(.mt-vista-original):has([data-mt-vista="<id>"]) <selector del bloque> { display: none !important; }`.
+Si el componente no se dibuja o la persona pide ver el original, el bloque reaparece. Nunca lo ocultes de otra forma.
+
 **Foco y movimiento** (sección 8, siempre):
 `html.mi-tema :focus-visible { outline: 3px solid var(--mt-foco) !important; outline-offset: 2px !important; }` y
 `@media (prefers-reduced-motion: reduce) { html.mi-tema * { transition-duration: 0s !important;

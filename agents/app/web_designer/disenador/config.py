@@ -3,6 +3,8 @@
 import os
 from pathlib import Path
 
+from shared.browser.viewports import SCREENS
+
 AGENTS_DIR = Path(__file__).resolve().parents[3]
 REPO_DIR = AGENTS_DIR.parent
 RUNS_DIR = AGENTS_DIR / ".runs" / "diseno"
@@ -22,6 +24,8 @@ TIMEOUT_MODELO_S = 240      # una llamada a `claude -p` (diseño o juez) que tar
 # Viewports: el modelo y el juez ven el de escritorio; el móvil se mide y se captura después.
 ESCRITORIO = {"width": 1280, "height": 800}
 MOVIL = {"width": 390, "height": 844}
+# La mejora de una revisión diseña en el escritorio de la Guía y el Visitante: lo que no vieron, el tema debe mostrarlo.
+REVISION = {"width": SCREENS["desktop"].width, "height": SCREENS["desktop"].height}
 LOCALE = "es-CL"
 TIMEZONE = "America/Santiago"
 

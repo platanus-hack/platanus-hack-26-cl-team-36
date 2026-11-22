@@ -1,0 +1,135 @@
+{
+ "goal": "planificar-viaje",
+ "instruction": "Planifica tu viaje indicando origen, destino, hora y día de salida.",
+ "start_url": "https://www.metro.cl/",
+ "viewport": "desktop",
+ "viewport_size": "1024x768",
+ "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+ "effort": "high",
+ "status": "verified",
+ "answer": "El viaje está planificado con origen San Pablo, destino Estación Central, horario Valle (09:00-18:00) y día Laboral, mostrando una ruta con tiempo estimado de 11 minutos.",
+ "quote": "Tiempo de viaje estimado: 11 minutos. N° de Estaciones: 8",
+ "quote_found": true,
+ "exploration": {
+  "end_reason": "done",
+  "message": "",
+  "steps": 7,
+  "turns": 8,
+  "duration_s": 46.5,
+  "tokens": {
+   "input_tokens": 79779,
+   "output_tokens": 1125,
+   "cache_read_input_tokens": 0,
+   "cache_creation_input_tokens": 0
+  },
+  "cost_usd": 0.0,
+  "history": [
+   "click e7 «San Pablo Neptuno Pajaritos Las Rejas Ecuador San Alberto Hurtado Universidad de» — llegó a «Metro de Santiago» https://www.metro.cl/ (razón: La página muestra una sección \"Planifica tu viaje\" con campos de origen y destino. Debo hacer clic en el primer combobox de origen para comenzar a seleccionar las estaciones y los detalles del viaje (origen, destino, hora y día).)",
+   "select e7 «San Pablo Neptuno Pajaritos Las Rejas Ecuador San Alberto Hurtado Universidad de» «San Pablo» — llegó a «Metro de Santiago» https://www.metro.cl/ (razón: El campo de origen e7 ya está abierto mostrando la lista de estaciones de la Línea 1. Debo seleccionar una estación de origen; selecciono \"San Pablo\" que ya está destacado.)",
+   "click e8 «San Pablo Neptuno Pajaritos Las Rejas Ecuador San Alberto Hurtado Universidad de» — llegó a «Metro de Santiago» https://www.metro.cl/ (razón: El campo de origen está correctamente establecido con \"San Pablo\". Ahora debo seleccionar el destino en el combobox e8 que está fuera de pantalla.)",
+   "select e8 «San Pablo Neptuno Pajaritos Las Rejas Ecuador San Alberto Hurtado Universidad de» «Estación Central» — llegó a «Metro de Santiago» https://www.metro.cl/ (razón: El combobox de destino e8 está abierto mostrando la lista de estaciones. Debo seleccionar una estación de destino diferente a San Pablo. Selecciono \"Estación Central\" que aparece en la lista.)",
+   "click e50 «Close» — llegó a «Metro de Santiago» https://www.metro.cl/ (razón: Cierro el modal de feedback \"Ayúdanos a mejorar\" que está cubriendo los campos de planificación del viaje para acceder a los campos de hora y día que aún no he configurado.)",
+   "scroll «down» — llegó a «Metro de Santiago» https://www.metro.cl/ (razón: Necesito ver los campos de hora y día de salida que están fuera de pantalla para completar la planificación del viaje.)",
+   "click e11 — llegó a «Planificación viaje San Pablo L1 - EstaciÃ³n Central - El Viaje - Metro de Santiago» https://www.metro.cl/el-viaje/planificador/?inicio=SP&fin=EL&horario=VALLE&dia=DL (razón: Los campos de origen (San Pablo), destino (Estación Central), hora (Valle 09:00-18:00) y día (Día Laboral) ya están correctamente completados en el formulario de planificación de viaje. Debo hacer clic en el botón de búsqueda/envío (la flecha roja) para finalizar la planificación.)"
+  ]
+ },
+ "verification": {
+  "replays": 7,
+  "removed_steps": 5,
+  "error": null
+ },
+ "search": {
+  "tried": 1,
+  "chosen": 1,
+  "routes": [
+   {
+    "status": "verified",
+    "min_steps": 5,
+    "actions": 2,
+    "cost_usd": 0.0
+   }
+  ]
+ },
+ "totals": {
+  "actions": 2,
+  "estimated_scrolls": 2,
+  "quote_scrolls": 0,
+  "min_steps": 5,
+  "distinct_pages": 2
+ },
+ "nodes": [
+  "https://metro.cl/ | Metro de Santiago",
+  "https://metro.cl/el-viaje/planificador?dia=DL&fin=EL&horario=VALLE&inicio=SP | Planificación viaje San Pablo L1 - EstaciÃ³n Central - El Viaje - Metro de Santiago"
+ ],
+ "final_node": "https://metro.cl/el-viaje/planificador?dia=DL&fin=EL&horario=VALLE&inicio=SP | Planificación viaje San Pablo L1 - EstaciÃ³n Central - El Viaje - Metro de Santiago",
+ "start": {
+  "url": "https://www.metro.cl/",
+  "title": "Metro de Santiago",
+  "node": "https://metro.cl/ | Metro de Santiago",
+  "screenshot": "step_00.png"
+ },
+ "steps": [
+  {
+   "number": 1,
+   "label": "select «San Pablo Neptuno Pajaritos Las Rejas Ecuador San Alberto Hurtado Universidad de»",
+   "action": "select",
+   "value": "Estación Central",
+   "target": {
+    "tag": "select",
+    "role": "combobox",
+    "name": "San Pablo Neptuno Pajaritos Las Rejas Ecuador San Alberto Hurtado Universidad de",
+    "text": "San Pablo Neptuno Pajaritos Las Rejas Ecuador San Alberto Hurtado Universidad de",
+    "href": null
+   },
+   "locators": [
+    {
+     "by": "css",
+     "value": "#fin",
+     "nth": 0
+    }
+   ],
+   "url_before": "https://www.metro.cl/",
+   "title_before": "Metro de Santiago",
+   "node_before": "https://metro.cl/ | Metro de Santiago",
+   "url_after": "https://www.metro.cl/",
+   "title_after": "Metro de Santiago",
+   "node_after": "https://metro.cl/ | Metro de Santiago",
+   "changes_node": false,
+   "in_viewport": false,
+   "scrolls_needed": 1,
+   "ui_actions": 3,
+   "screenshot": "step_01.png"
+  },
+  {
+   "number": 2,
+   "label": "click",
+   "action": "click",
+   "value": null,
+   "target": {
+    "tag": "button",
+    "role": "button",
+    "name": "",
+    "text": "",
+    "href": null
+   },
+   "locators": [
+    {
+     "by": "css",
+     "value": "body > div:nth-of-type(8) > div:nth-of-type(2) > div > div > div:nth-of-type(1) > div > div:nth-of-type(2) > div > div:nth-of-type(2) > form > div:nth-of-type(5) > button",
+     "nth": 0
+    }
+   ],
+   "url_before": "https://www.metro.cl/",
+   "title_before": "Metro de Santiago",
+   "node_before": "https://metro.cl/ | Metro de Santiago",
+   "url_after": "https://www.metro.cl/el-viaje/planificador/?inicio=SP&fin=EL&horario=VALLE&dia=DL",
+   "title_after": "Planificación viaje San Pablo L1 - EstaciÃ³n Central - El Viaje - Metro de Santiago",
+   "node_after": "https://metro.cl/el-viaje/planificador?dia=DL&fin=EL&horario=VALLE&inicio=SP | Planificación viaje San Pablo L1 - EstaciÃ³n Central - El Viaje - Metro de Santiago",
+   "changes_node": true,
+   "in_viewport": false,
+   "scrolls_needed": 1,
+   "ui_actions": 2,
+   "screenshot": "step_02.png"
+  }
+ ]
+}
