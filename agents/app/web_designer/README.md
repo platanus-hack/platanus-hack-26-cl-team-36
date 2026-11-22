@@ -27,13 +27,14 @@ uv run main.py --url https://es.wikipedia.org/wiki/Valdivia --gustos "Modo oscur
 uv run main.py --casos casos.json --repeticiones 2
 uv run main.py --url https://es.wikipedia.org/wiki/Valdivia --gustos "Modo oscuro" --solo-evaluar tema.css
 uv run main.py --comparar <corrida_a>/resumen.json <corrida_b>/resumen.json
+uv run main.py --url https://www.wom.cl/ --revision <rev>   # etapa de mejora de una revisión
 ```
 
 | Opción | Qué hace |
 |---|---|
 | `--url`, `--gustos`, `--tarea` | La página, los gustos del usuario en texto libre y, opcional, su tarea en el sitio. |
 | `--casos <casos.json>` | Varios casos en vez de `--url`: una lista de `{id, url, gustos, tarea?}` (sin `id`, el host). |
-| `--skill <SKILL.md>` | El skill que guía al modelo (por defecto [`.claude/skills/disenar-tema/SKILL.md`](../../../.claude/skills/disenar-tema/SKILL.md)). `none`: línea base, solo el contrato de salida. |
+| `--skill <SKILL.md>` | El skill que guía al modelo (por defecto `WEB_DESIGNER_SKILL` o [`.claude/skills/disenar-tema/SKILL.md`](../../../.claude/skills/disenar-tema/SKILL.md)). `none`: línea base, solo el contrato de salida. |
 | `--model`, `--effort` | Quién diseña (por defecto `claude-haiku-5-5`, `medium`; en `low` Haiku corta antes y se salta revisiones). |
 | `--repeticiones N` | N generaciones independientes por caso, con la misma entrada, para ver la varianza. |
 | `--juez-model`, `--juez-effort` | El juez (por defecto `claude-sonnet-5-5`, `medium`). |
@@ -42,6 +43,7 @@ uv run main.py --comparar <corrida_a>/resumen.json <corrida_b>/resumen.json
 | `--output` | La carpeta de la corrida (por defecto `agents/.runs/diseno/<id o host>/<fecha-hora>/`; con `--casos`, el nombre del archivo en vez del host). |
 | `--concurrencia` | Generaciones simultáneas (por defecto 3). |
 | `--cdp-url` | Un navegador remoto vía CDP. |
+| `--revision <rev>` | Etapa de mejora (con `--url`, sin `--gustos`): resume lo que midieron en esa revisión el Catalogador, la Guía y el Visitante (por objetivo: si hay ruta, si llegaron, dónde se desviaron o se detuvieron), genera un tema una vez con la tarea del objetivo que peor resultó y los gustos de `GUSTOS_MEJORA`, sin juez, y escribe `<host>/improver/<run>/` en el almacén (`AGENTS_STORE`): `tema.css` saneado y `mejora.json`. Sale con 0 solo si la corrida queda `succeeded`; un CSS vacío tras sanear la deja `failed`. |
 
 Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitante](../visitor/README.md):
 `uv run main.py --task wom.cl/baja-fibra --css <ruta>/tema.css` desde `../visitor`.
@@ -60,6 +62,7 @@ Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitant
 | `disenador/juez.py`, `rubrica_juez.md`, `rubrica_par.md` | El juez y sus rúbricas (se afinan editando los `.md`). |
 | `disenador/resumen.py` | `resumen.json`, `reporte.md` y `--comparar`. |
 | `disenador/config.py` | Modelos, viewports, rutas y umbrales. |
+| `disenador/mejora.py` | La etapa de mejora de una revisión (`--revision`): resumen de lo medido y corrida en el almacén. |
 
 Por cada caso:
 
