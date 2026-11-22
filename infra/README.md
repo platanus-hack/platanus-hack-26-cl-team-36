@@ -226,6 +226,12 @@ just aws seed https://www.wom.cl/ --force       # revisión nueva aunque ya teng
 Lo mismo desde GitHub: Actions → `Sembrar revisiones` → *Run workflow*, en el repo personal. Las que pasan el tope de
 revisiones en curso (429) se vuelven a pedir solas.
 
+`just aws improve <url>...` (o `--todas`: las revisiones vigentes `done`) vuelve a correr solo el improver sobre lo que
+ya midieron catálogo, Guía y Visitante, para llevar los temas a la versión nueva del diseñador. Invoca la etapa en el
+runtime (de a 2; `--concurrencia` hasta 3), la sigue en el almacén y termina con una tabla: resultado, dirección elegida
+y si dejó `tema.json`. La proyectora pasa al META el tema de la corrida más nueva. `--dry-run` lista qué invocaría.
+Necesita credenciales de AWS (`AWS_PROFILE`).
+
 ## Al terminar la hackatón
 
 1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El runtime no es parte de
