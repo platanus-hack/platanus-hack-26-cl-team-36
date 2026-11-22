@@ -24,12 +24,12 @@ test("Corridas: #/ y sus parámetros van y vuelven", () => {
 
 test("los valores por defecto y los vacíos no se escriben", () => {
   assert.equal(hashDe({ tipo: "corridas", parametros: { vista: "lista", orden: "nuevas", q: "" } }), "#/");
-  assert.equal(hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { modo: "despues", paso: "3", ver: null } }), `#/t/${CON_TAREA}/replay?paso=3`);
+  assert.equal(hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { paso: "3", intento: null } }), `#/t/${CON_TAREA}/replay?paso=3`);
 });
 
 test("orden estable de parámetros, sin importar el orden de entrada", () => {
-  const a = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { senales: "1", paso: "4", intento: "mobile", modo: "antes", ver: "video" } });
-  assert.equal(a, `#/t/${CON_TAREA}/replay?intento=mobile&paso=4&modo=antes&ver=video&senales=1`);
+  const a = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { z: "1", paso: "4", intento: "mobile" } });
+  assert.equal(a, `#/t/${CON_TAREA}/replay?intento=mobile&paso=4&z=1`);
   const b = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: { vista: "3d", paso: "2", historia: "mobile", pagina: "n2", perfil: "hurried", z: "1", a: "2" } });
   assert.equal(b, `#/t/${CON_TAREA}/telarana?perfil=hurried&pagina=n2&historia=mobile&paso=2&vista=3d&a=2&z=1`);
 });

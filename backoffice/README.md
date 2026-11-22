@@ -35,7 +35,7 @@ veredicto) y cuatro pestañas:
 |---|---|---|
 | **Resumen** (por defecto) | ¿Llegaron a la respuesta y qué hay que mirar? Abre con el titular y los hallazgos (desvíos, demoras, tropiezos, errores), cada uno con enlace al paso exacto en Replay y Telaraña; luego la ruta, los intentos y el criterio del juez. | `route_tree.json`, cada `<perfil>/run.json` y `criteria.json`, derivados en `lib/` |
 | **Telaraña** | ¿Por dónde fueron? Un grafo dirigido de izquierda a derecha: el inicio a la izquierda, la meta (el final de la ruta y las páginas donde alguien encontró la respuesta) a la derecha y las demás páginas en columnas según los pasos desde el inicio, ordenadas para cruzarse lo menos posible y repartidas encima y debajo de la ruta recomendada, que es una fila recta; los tramos son rectas (casi rectas si saltan columnas). Las vueltas atrás y los pasos laterales son arcos bajos, tenues y de un tono neutro, que se encienden al pasar el puntero o elegir una página. Grosor = intentos, color = cómo terminaron. Filtro por perfil (atenúa, no saca), panel por página, marcas donde alguien se trabó, modo historia (un intento recorriendo el mapa) y vista 3D. | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
-| **Replay** | ¿Qué hizo un intento, paso a paso? Riel de pasos, visor (después, antes, deslizar, superponer) y línea de tiempo sincronizados, con el veredicto y el criterio fijos arriba. Si hay `video.webm`, se puede ver el video. | `<perfil>/run.json`, `step_NN.png`, `video.webm` y `criteria.json` |
+| **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que se puede reproducir. | `<perfil>/run.json` y `step_NN.png` |
 | **Perfiles** | ¿A qué perfil le cuesta más? Resultado por intento, hasta qué hito de la ruta llega cada perfil, métricas por columna y la tabla de intentos ordenable. Toda marca abre el Replay en el paso que corresponde. | `perfiles` y `intentos` de la tanda derivada |
 
 Inventario y Propuestas no existen todavía: el menú solo las anuncia en "Próximamente", junto con cómo gatillar
@@ -87,7 +87,7 @@ nunca se traducen.
 | Tanda | `1`–`4` Resumen, Telaraña, Replay, Perfiles · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
 | Resumen | `j` `k` hallazgo siguiente / anterior |
 | Telaraña | `+` `-` zoom · `0` ajustar · `p` `Shift+P` perfil · `h` historia (con ella: `Espacio`, `←` `→`) · `v` vista 3D · `Esc` cerrar |
-| Replay | `←` `→` o `j` `k` paso · `n` `Shift+N` paso con problema · `Inicio` `Fin` · `d` `a` `l` `o` modo del visor · mantener `b` ver "antes" · `Espacio` reproducir · `,` `.` velocidad · `v` video · `s` solo pasos · `i` `Shift+I` intento · `e` veredicto · `t` abrir el paso en la telaraña |
+| Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `↑` `↓` en la lista de pasos |
 | Perfiles | `j` `k` fila · `Enter` abrir en Replay |
 
 ## Fuente de corridas

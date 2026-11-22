@@ -26,13 +26,10 @@ test("bordesOcultos: dice de qué lado quedan fichas sin ver", () => {
   assert.deepEqual(bordesOcultos({ desplazado: 0, visible: 600, total: 600 }), { izquierda: false, derecha: false });
 });
 
-test("los perfiles de la telaraña y los intentos del Replay usan la fila desplazable", () => {
+test("los perfiles de la telaraña usan la fila desplazable", () => {
   const telarana = readFileSync(new URL("../public/pantallas/telarana.js", import.meta.url), "utf8");
-  const cabecera = readFileSync(new URL("../public/replay/cabecera.js", import.meta.url), "utf8");
-  for (const fuente of [telarana, cabecera]) {
-    assert.match(fuente, /fila-desplazable/);
-    assert.match(fuente, /mostrarEnFila\(/);
-    assert.match(fuente, /seguirBordes\(/);
-  }
+  assert.match(telarana, /fila-desplazable/);
+  assert.match(telarana, /mostrarEnFila\(/);
+  assert.match(telarana, /seguirBordes\(/);
   assert.match(readFileSync(new URL("../public/estilos/componentes.css", import.meta.url), "utf8"), /\.fila-desplazable\[data-mas-derecha\]/);
 });

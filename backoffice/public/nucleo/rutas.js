@@ -25,13 +25,12 @@ const ORDEN_DE_PARAMETROS = {
   corridas: ["q", "sitio", "filtro", "orden", "vista"],
   resumen: [],
   telarana: ["perfil", "pagina", "historia", "paso", "vista"],
-  replay: ["intento", "paso", "modo", "ver", "senales"],
+  replay: ["intento", "paso"],
 };
 
 // Valores por defecto: no se escriben en el hash.
 const POR_DEFECTO = {
   corridas: { vista: "lista", orden: "nuevas" },
-  replay: { modo: "despues" },
 };
 
 // Sinónimos aceptados dentro de una tanda (se reescriben al nombre canónico).
