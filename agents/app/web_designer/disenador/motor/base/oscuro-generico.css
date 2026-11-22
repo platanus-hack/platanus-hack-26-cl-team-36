@@ -26,6 +26,10 @@ html.mi-tema body :where(input:not([type="checkbox"], [type="radio"], [type="ran
   background-color: var(--mt-campo) !important;
   color: var(--mt-tinta) !important;
 }
+/* Las rayas de un botón de menú (spans vacíos con fondo) toman la tinta. */
+html.mi-tema body :where(button, [role="button"]) :where(span:empty):where(:not(.mt-vista *)) {
+  background-color: var(--mt-tinta) !important;
+}
 /* Los menús desplegables y las capas encima del contenido necesitan un fondo propio. */
 html.mi-tema body :where(header, nav, [role="navigation"], [role="banner"]) :where(ul ul, [role="menu"], [class*="dropdown" i] > ul, [class*="dropdown-menu" i], [class*="submenu" i], [class*="sub-menu" i]),
 html.mi-tema body :where(dialog, [role="dialog"], [aria-modal="true"]):where(:not(.mt-vista *)) {

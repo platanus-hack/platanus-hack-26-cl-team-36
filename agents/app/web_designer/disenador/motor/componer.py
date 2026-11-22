@@ -9,6 +9,10 @@ La paleta se verifica AA y, si un par no llega, se mueve L en OKLCH hasta que cu
 Una dirección (`direcciones/<id>.json`) son datos: rangos de neutros, tinta, acento, tipo, forma y densidad; las
 recetas fijas y las opcionales con su probabilidad; y la afinidad con los rasgos del sitio para `auto`. La semilla
 elige un punto en cada rango; los ajustes del modelo fijan un valor, recortado al rango.
+
+La dirección Nativa (D) parte de la identidad medida del sitio (paleta, letra y radio) y solo refina. Regla de
+`auto`: sale Nativa con probabilidad `fidelidad` (0 = transformar, 1 = refinar; `FIDELIDAD` por omisión) y si no,
+A, B o C según los rasgos; una dirección fija se usa tal cual.
 """
 
 import copy
@@ -25,7 +29,9 @@ from disenador.motor.color import Color, css, fijo, num, ok
 from disenador.motor.sitio import Sitio
 
 RAIZ = Path(__file__).parent
-DIRECCIONES = ("A", "B", "C")
+DIRECCIONES = ("A", "B", "C", "D")
+NATIVA = "D"
+FIDELIDAD = 0.8
 # Los componentes del kit que el CSS nombra por su id (`{{v.atajo}}` → `data-mt-vista="<id>"`). Los ids los pasa el
 # improver (los de las vistas que derivó) o los trae el sitio (`vistas` en su `sitio.json`); uno que falta queda con
 # un id que no dibuja ninguna vista y sus reglas no aplican.
@@ -37,7 +43,7 @@ PROBABILIDAD_MEZCLA = 0.45
 # Las familias que empaqueta la extensión («MT …», con su cara «MT … Fallback» de métricas ajustadas), y después las
 # del sistema. La extensión inyecta las fuentes solo si el tema nombra alguna «MT …».
 def _pila(*familias: str, sistema: str = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif') -> str:
-    return ", ".join([*(f'"{f}"' for f in familias), sistema])
+    return ", ".join([*(f'"{f}"' for f in familias if f), sistema])
 
 
 FAMILIAS_DISPONIBLES = ("MT Inter", "MT Serif", "MT Archivo", "MT Geist", "MT Geist Mono")
@@ -63,6 +69,24 @@ FAMILIAS = {
     },
 }
 MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
+_SERIF = re.compile(r"serif|times|georgia|garamond|merriweather|lora|playfair|roboto slab|libre baskerville", re.I)
+
+
+def _respaldo(familia: str) -> tuple[str, str]:
+    """La fuente MT más parecida a la del sitio, que solo carga si la del sitio no está."""
+    if _SERIF.search(familia) and "sans" not in familia.lower():
+        return "MT Serif", "MT Serif Fallback"
+    return "MT Inter", "MT Inter Fallback"
+
+
+def familias(nombre: str, sitio: Sitio) -> dict:
+    """Las pilas de una familia; la nativa usa la letra del sitio primero."""
+    if nombre != "nativa":
+        return FAMILIAS[nombre]
+    texto = sitio.identidad.get("familia_texto", "")
+    titulos = sitio.identidad.get("familia_titulos", texto)
+    return {"display": _pila(titulos, *_respaldo(titulos)), "texto": _pila(texto, *_respaldo(texto)),
+            "texto_ancho": "100%"}
 
 
 class ErrorDeComposicion(Exception):
@@ -128,17 +152,51 @@ def _puntajes(sitio: Sitio, dirs: dict) -> dict[str, float]:
 
 
 def probabilidades_auto(sitio: Sitio) -> dict[str, float]:
-    """Con qué probabilidad `auto` elige cada dirección para este sitio."""
-    pesos = {k: math.exp(v / sitio.temperatura) for k, v in _puntajes(sitio, direcciones()).items()}
+    """Con qué probabilidad `auto` elige cada dirección expresiva para este sitio cuando no sale Nativa."""
+    expresivas = {k: d for k, d in direcciones().items() if k != NATIVA}
+    pesos = {k: math.exp(v / sitio.temperatura) for k, v in _puntajes(sitio, expresivas).items()}
     total = sum(pesos.values())
     return {k: round(p / total, 2) for k, p in pesos.items()}
 
 
-def _elegir_direccion(pedida: str, sitio: Sitio, dirs: dict, azar: Azar) -> tuple[dict, dict | None]:
+def _elegir_direccion(pedida: str, sitio: Sitio, dirs: dict, azar: Azar, fidelidad: float,
+                      semilla: int) -> tuple[dict, dict | None]:
     if pedida != "auto":
         return dirs[pedida], None
-    puntajes = _puntajes(sitio, dirs)
+    expresivas = {k: d for k, d in dirs.items() if k != NATIVA}
+    puntajes = _puntajes(sitio, expresivas)
+    # Un sorteo aparte: con Nativa descartada, la secuencia de la semilla es la misma que sin ella.
+    if fidelidad > 0 and Azar(semilla ^ 0x4E41).num() < fidelidad:
+        return dirs[NATIVA], puntajes
     return dirs[azar.ponderado({k: math.exp(v / sitio.temperatura) for k, v in puntajes.items()})], puntajes
+
+
+def _nativizar(d: dict, sitio: Sitio) -> dict:
+    """Nativa con lo medido del sitio: neutros y tinta de su página (armonizados; el contraste lo asegura la
+    verificación AA), su radio y, si la página es oscura, modo oscuro. Sin medida quedan los rangos de la dirección."""
+    d = copy.deepcopy(d)
+    identidad = sitio.identidad
+    if fondo := identidad.get("fondo"):
+        l, c, h = fondo
+        oscuro = l < 0.45
+        d["modo"] = "oscuro" if oscuro else "claro"
+        tono = h if c >= 0.006 else sitio.marca["h"]
+        croma = min(c, 0.02) if c >= 0.006 else 0.004
+        d["neutros"] = {"tono": tono, "croma": croma,
+                        "fondo": min(22, max(10, l * 100)) if oscuro else min(99.6, max(95, l * 100)),
+                        "paso": 4 if oscuro else 2.5}
+        if oscuro:
+            d["tinta"] = {"l": 94, "l2": 76}
+            d["acento"] = {"l": 62, "c": [0.13, 0.16]}
+            d["foco"] = {"tono": sitio.marca["h"], "l": 80, "c": 0.13}
+            d["panel"] = "superficie"
+    if (tinta := identidad.get("tinta")) and d["modo"] == "claro":
+        d["tinta"] = {"l": min(30, max(14, tinta[0] * 100)), "l2": min(48, max(38, tinta[0] * 100 + 20)),
+                      "croma": min(0.03, max(0.008, tinta[1]))}
+    d["foco"] = {**d["foco"], "tono": sitio.marca["h"]}
+    if isinstance(identidad.get("radio"), (int, float)):
+        d["forma"] = {"radio": max(2, min(16, identidad["radio"]))}
+    return d
 
 
 # ---------- 2. Ajustes del modelo: solo dentro de los rangos de la dirección ----------
@@ -150,7 +208,7 @@ def _es_numero(x) -> bool:
 def aplicar_ajustes(direccion: dict, ajustes: dict | None, sitio: Sitio, avisos: list[str]) -> dict:
     d = copy.deepcopy(direccion)
     for ruta, valor in (ajustes or {}).items():
-        if ruta == "recetas":
+        if ruta in ("recetas", "fidelidad"):
             continue
         if ruta in VARIANTES:
             permitidas = getattr(sitio, VARIANTES[ruta])
@@ -185,6 +243,8 @@ def _cabe(nombre: str, elegidas: list[str], meta: dict, ctx: dict) -> str | None
     m = meta.get(nombre)
     if not m:
         return f"no existe la receta {nombre}"
+    if nombre in ctx.get("prohibidas", ()):
+        return f"{nombre} no va con la dirección (le quita la identidad al sitio)"
     requiere = m.get("requiere") or {}
     if "modo" in requiere and ctx["modo"] not in requiere["modo"]:
         return f"{nombre} requiere modo {','.join(requiere['modo'])}"
@@ -325,7 +385,7 @@ def tokens(p: dict, col: dict[str, Color], sitio: Sitio) -> dict[str, str]:
     oscuro = p["modo"] == "oscuro"
     t = p["tipo"]
     r = t["escala"]
-    fam = FAMILIAS[t["familia"]]
+    fam = familias(t["familia"], sitio)
 
     def paso(k):
         return 16 * r ** k
@@ -497,11 +557,23 @@ def regla_de_ocultar(vista: str, selector: str) -> str:
             "  display: none !important;\n}")
 
 
+def _fidelidad(fidelidad, ajustes: dict | None, avisos: list[str]) -> float:
+    pedida = (ajustes or {}).get("fidelidad", fidelidad)
+    if pedida is None:
+        return FIDELIDAD
+    if not _es_numero(pedida):
+        avisos.append(f"ajuste ignorado: fidelidad={pedida!r} no es un número")
+        return FIDELIDAD
+    return min(1.0, max(0.0, float(pedida)))
+
+
 def componer(sitio: Sitio, direccion: str = "auto", semilla: int = 1, ajustes: dict | None = None,
-             vistas: dict[str, str | list[str]] | None = None, ocultar: list[tuple[str, str]] = ()) -> Tema:
-    """`ajustes`: los del modelo (`{"tipo.escala": 1.3, "hero": "ocultar", "recetas": {"agregar": [...],
-    "quitar": [...]}}`); `vistas`: el id (o los ids, si hay varios atajos) de cada componente del kit; `ocultar`:
-    `(vista, selector)` de los bloques que reemplazan."""
+             vistas: dict[str, str | list[str]] | None = None, ocultar: list[tuple[str, str]] = (),
+             fidelidad: float | None = None) -> Tema:
+    """`ajustes`: los del modelo (`{"tipo.escala": 1.3, "hero": "ocultar", "fidelidad": 0.9, "recetas": {"agregar":
+    [...], "quitar": [...]}}`); `vistas`: el id (o los ids, si hay varios atajos) de cada componente del kit;
+    `ocultar`: `(vista, selector)` de los bloques que reemplazan; `fidelidad`: la de `auto` si los ajustes no la
+    traen (0 transforma con A, B o C; 1 refina con Nativa)."""
     elegidas: dict = {c: f"mt-sin-{c}" for c in COMPONENTES_KIT}
     for fuente in (sitio.vistas, vistas or {}):
         elegidas.update({c: i for c, i in fuente.items() if i})
@@ -513,13 +585,18 @@ def componer(sitio: Sitio, direccion: str = "auto", semilla: int = 1, ajustes: d
     azar = Azar(semilla)
     avisos: list[str] = []
 
-    d0, puntajes = _elegir_direccion(direccion, sitio, dirs, azar)
+    fiel = _fidelidad(fidelidad, ajustes, avisos)
+    d0, puntajes = _elegir_direccion(direccion, sitio, dirs, azar, fiel, semilla)
+    if d0.get("nativa"):
+        d0 = _nativizar(d0, sitio)
     d = aplicar_ajustes(d0, ajustes, sitio, avisos)
     p = _muestrear(d, sitio, azar)
     textos = {r: _receta(r) for r in meta}
     ctx = {"modo": p["modo"], "familia": p["tipo"]["familia"], "categorias": bool(sitio.categorias),
-           "zonas": set(sitio.zonas), "zonas_de": lambda r: zonas_de(textos.get(r, ""))}
-    mezcla = _mezcla_auto(d, dirs, meta, ctx, azar) if direccion == "auto" else []
+           "zonas": set(sitio.zonas), "zonas_de": lambda r: zonas_de(textos.get(r, "")),
+           "prohibidas": set(d["recetas"].get("prohibidas", []))}
+    expresivas = {k: v for k, v in dirs.items() if k != NATIVA}
+    mezcla = _mezcla_auto(d, expresivas, meta, ctx, azar) if direccion == "auto" and not d.get("nativa") else []
     recetas = _resolver_recetas(d, ctx, meta, azar, ajustes, mezcla, avisos)
     # El video de fondo necesita vidrio encima; el mosaico necesita un atajo con caja.
     if p["hero"] == "atmosfera" and "vidrio" not in recetas:
@@ -553,6 +630,7 @@ def componer(sitio: Sitio, direccion: str = "auto", semilla: int = 1, ajustes: d
     informe = {
         "sitio": sitio.id,
         "pedida": direccion,
+        "fidelidad": fiel,
         "direccion": d["id"],
         "nombre": d["nombre"],
         "semilla": semilla,

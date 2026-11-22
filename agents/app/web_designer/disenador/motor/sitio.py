@@ -40,6 +40,11 @@ class Sitio:
     ordenes: list[str] = field(default_factory=list)
     disposiciones: list[str] = field(default_factory=list)
     carpeta: Path | None = None
+    identidad: dict = field(default_factory=dict)
+    """Medido: `fondo` y `tinta` ([l, c, h]), `familia_texto`, `familia_titulos` y `radio` del sitio (la dirección
+    Nativa parte de aquí)."""
+    categorias_derivadas: bool = False
+    """Las categorías son tonos derivados de la marca, no colores que el sitio use para clasificar."""
     temperatura: float = 1.0
     """Cuánto se aplanan los puntajes de `auto`: los rasgos medidos son indicios, menos seguros que una carpeta."""
     holgura_tarjetas: int = 0
@@ -160,13 +165,37 @@ def rasgos_medidos(host: str, medida: dict, mapa: dict | None = None) -> dict[st
     }
 
 
+_FAMILIA = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,40}$")
+
+
+def _identidad(datos) -> dict:
+    """Lo que define al sitio a la vista, saneado: colores en OKLCH, familias que se pueden nombrar en CSS sin
+    escapar y un radio razonable."""
+    if not isinstance(datos, dict):
+        return {}
+    identidad = {}
+    for clave in ("fondo", "tinta"):
+        if color := _oklch_de_rgb(str(datos.get(clave) or "")):
+            identidad[clave] = [round(color.l, 3), round(color.c, 3), round(color.h, 1)]
+    for clave in ("familia_texto", "familia_titulos"):
+        familia = str(datos.get(clave) or "").strip()
+        if _FAMILIA.match(familia) and familia.lower() not in ("inherit", "initial", "serif", "sans-serif"):
+            identidad[clave] = familia
+    if isinstance(datos.get("radio"), (int, float)):
+        identidad["radio"] = max(0, min(24, round(datos["radio"])))
+    return identidad
+
+
 def sitio_medido(host: str, medida: dict, mapa: dict | None = None) -> Sitio:
     """Un sitio sin carpeta a partir de lo medido en su página."""
     sitio = Sitio(id=id_de_host(host), temperatura=TEMPERATURA_MEDIDA)
     sitio.marca = _marca_medida(medida.get("marca")) or (_marca_del_mapa(mapa) if mapa else None) or sitio.marca
     sitio.rasgos = {**RASGOS_NEUTROS, **rasgos_medidos(host, medida, mapa)}
     sitio.zonas = {k: v for k, v in (medida.get("zonas") or {}).items() if isinstance(v, str) and v}
-    sitio.categorias = _categorias_medidas(medida.get("categorias")) or tonos_de_marca(sitio.marca)
+    sitio.categorias = _categorias_medidas(medida.get("categorias"))
+    if not sitio.categorias:
+        sitio.categorias, sitio.categorias_derivadas = tonos_de_marca(sitio.marca), True
+    sitio.identidad = _identidad(medida.get("identidad"))
     holgura = medida.get("tarjetas_holgura")
     sitio.holgura_tarjetas = int(holgura) if isinstance(holgura, (int, float)) and holgura > 0 else 0
     sitio.oscuros = {k: bool(v) for k, v in (medida.get("oscuros") or {}).items() if k in ("cabecera", "pie")}
@@ -192,11 +221,12 @@ def rasgos_del_sitio(host: str, mapa: dict | None = None, medida: dict | None = 
             ordenes=datos.get("ordenes") or [],
             disposiciones=datos.get("disposiciones") or [],
             carpeta=carpeta,
+            identidad=_identidad((medida or {}).get("identidad")),
         )
     if medida:
         return sitio_medido(host, medida, mapa)
     sitio = Sitio(id=id_de_host(host))
-    sitio.categorias = tonos_de_marca(sitio.marca)
+    sitio.categorias, sitio.categorias_derivadas = tonos_de_marca(sitio.marca), True
     if mapa:
         sitio.marca = _marca_del_mapa(mapa) or sitio.marca
         if (mapa.get("conteos") or {}).get("campos", 0) >= 2:

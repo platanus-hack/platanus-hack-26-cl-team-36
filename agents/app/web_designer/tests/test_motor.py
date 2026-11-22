@@ -17,7 +17,7 @@ METRO = motor.rasgos_del_sitio("www.metro.cl")
 SEMILLAS = range(1, 201)
 
 
-@pytest.mark.parametrize("direccion", ["A", "B", "C", "auto"])
+@pytest.mark.parametrize("direccion", ["A", "B", "C", "D", "auto"])
 def test_barrido_de_semillas_sin_rechazos_ni_fallas_aa(direccion):
     vistas_recetas = set()
     for semilla in SEMILLAS:
@@ -44,7 +44,7 @@ def test_mismo_resultado_que_el_prototipo():
                       4.51),
     }
     for (direccion, semilla), (elegida, recetas, minimo) in esperado.items():
-        informe = motor.componer(METRO, direccion, semilla).informe
+        informe = motor.componer(METRO, direccion, semilla, fidelidad=0).informe
         assert (informe["direccion"], informe["recetas"], informe["contraste"]["minimo"]) == (elegida, recetas, minimo)
 
 

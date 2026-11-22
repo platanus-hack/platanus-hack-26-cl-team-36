@@ -280,7 +280,7 @@ async def _existe(page, selector: str) -> bool:
 def sitio_para_el_modelo(sitio: motor.Sitio) -> dict:
     """Lo medido del sitio que orienta la dirección: rasgos, zonas y la probabilidad de cada dirección en `auto`."""
     return {"carpeta": sitio.carpeta is not None, "rasgos": sitio.rasgos, "zonas": sorted(sitio.zonas),
-            "auto": motor.probabilidades_auto(sitio)}
+            "auto_si_transforma": motor.probabilidades_auto(sitio)}
 
 
 def diagnostico(resumen: dict, kit: dict, sitio: motor.Sitio | None = None) -> dict:

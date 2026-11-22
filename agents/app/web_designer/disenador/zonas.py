@@ -279,6 +279,22 @@ _MEDIR_JS = r"""() => {
     if (!categorias || tonos.size > categorias.tonos) categorias = { tonos: tonos.size, lista };
   }
 
+  // Identidad: el fondo y la tinta del contenido, las familias de texto y de títulos y el radio típico de botones,
+  // campos y tarjetas. De ahí parte la dirección Nativa.
+  const parrafo = [...(principal || document.body).querySelectorAll("p, li")].filter(visible)
+    .find((el) => el.innerText.trim().length >= 40) || document.body;
+  const titulo = [...document.querySelectorAll("h1, h2")].filter(visible)[0] || parrafo;
+  const familia = (el) => getComputedStyle(el).fontFamily.split(",")[0].replace(/["']/g, "").trim();
+  const radios = [...document.querySelectorAll("button, .btn, input:not([type=hidden]), select, [class*=card]")]
+    .filter(visible).slice(0, 60).map((el) => parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0)
+    .filter((r) => r < 40).sort((a, b) => a - b);
+  const identidad = {
+    fondo: `rgb(${fondoOpaco(parrafo).join(", ")})`,
+    tinta: getComputedStyle(parrafo).color,
+    familia_texto: familia(parrafo), familia_titulos: familia(titulo),
+    radio: radios.length ? radios[Math.floor(radios.length / 2)] : null,
+  };
+
   // Rasgos.
   const textoVisible = (document.body.innerText || "").slice(0, 60000);
   const pieTexto = pie ? pie.innerText.slice(0, 4000) : "";
@@ -305,6 +321,7 @@ _MEDIR_JS = r"""() => {
     zonas, descartes, tarjetas_holgura: selTarjetas.length ? holgura : null, oscuros: { cabecera: oscuro(cabecera || nav), pie: oscuro(pie) },
     marca: Object.entries(marca).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([color, peso]) => ({ color, peso: Math.round(peso * 10) / 10 })),
     categorias: categorias ? categorias.lista : [],
+    identidad,
     senales: {
       host: location.hostname, titulo: document.title.slice(0, 120),
       institucion_texto: institucionTexto.test(document.title + " " + pieTexto),

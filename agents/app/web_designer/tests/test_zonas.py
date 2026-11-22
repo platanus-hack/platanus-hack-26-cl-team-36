@@ -148,13 +148,15 @@ def test_la_carpeta_manda_sobre_la_medida():
     assert con_medida.carpeta and con_medida.zonas == sin_medida.zonas
     assert motor.componer(con_medida, "auto", 9).css == motor.componer(sin_medida, "auto", 9).css
     # Lo que componía metro antes de las zonas medidas, byte a byte.
-    huellas = {(d, s): hashlib.sha256(motor.componer(sin_medida, d, s).css.encode()).hexdigest()[:12]
+    huellas = {(d, s): hashlib.sha256(motor.componer(sin_medida, d, s, fidelidad=0).css.encode()).hexdigest()[:12]
                for d, s in (("A", 1), ("B", 2), ("C", 3), ("auto", 5))}
     assert huellas == METRO_HUELLAS
 
 
-METRO_HUELLAS = {("A", 1): "98f6e0cd5585", ("B", 2): "3cb697d9723f", ("C", 3): "f1895a0dea3a",
-                 ("auto", 5): "380955090ef0"}
+# Antes de las zonas medidas eran 98f6e0cd5585, 3cb697d9723f, f1895a0dea3a y 380955090ef0; cambiaron solo porque
+# kit.css dejó de pisarle la fuente a los íconos (selector de la letra del kit con `:not` de clases de íconos).
+METRO_HUELLAS = {("A", 1): "b5452c107210", ("B", 2): "8e7399220abd", ("C", 3): "ecf3cf42181d",
+                 ("auto", 5): "a13490bc7e95"}
 
 
 SITIOS = {
@@ -171,16 +173,16 @@ SITIOS = {
 }
 
 
-def test_auto_reparte_direcciones_entre_sitios():
-    """Cada sitio con sus rasgos y la semilla de su página (aunque el modelo repita la 7). Cada página sortea por su
-    cuenta, así que el reparto se mide en muchas revisiones: ninguna dirección pasa del 45 % del total ni baja del 20 %,
-    y en la gran mayoría de las revisiones ninguna se lleva más de la mitad de los sitios."""
+def test_al_transformar_auto_reparte_las_expresivas_entre_sitios():
+    """Con fidelidad 0 (transformar), cada sitio con sus rasgos y la semilla de su página (aunque el modelo repita la
+    7). Cada página sortea por su cuenta, así que el reparto se mide en muchas revisiones: ninguna expresiva pasa del
+    45 % del total ni baja del 20 %, y en la gran mayoría ninguna se lleva más de la mitad de los sitios."""
     total, revisiones_sesgadas = Counter(), 0
     for r in range(200):
         elegidas = Counter()
         for host, medida in SITIOS.items():
             semilla = semilla_de_pagina(7, f"rev-{r} https://{host}/")
-            elegidas[motor.componer(sitio_medido(host, medida), "auto", semilla).informe["direccion"]] += 1
+            elegidas[motor.componer(sitio_medido(host, medida), "auto", semilla, fidelidad=0).informe["direccion"]] += 1
         total.update(elegidas)
         revisiones_sesgadas += max(elegidas.values()) > len(SITIOS) // 2
     partes = {d: n / sum(total.values()) for d, n in total.items()}
@@ -195,3 +197,40 @@ def test_auto_reparte_direcciones_entre_sitios():
 def test_la_semilla_de_pagina_es_determinista_y_distinta():
     assert semilla_de_pagina(7, "r a") == semilla_de_pagina(7, "r a") >= 1
     assert len({semilla_de_pagina(7, f"r https://{h}/") for h in SITIOS}) == len(SITIOS)
+
+
+NATIVO = {**MEDIDA, "identidad": {"fondo": "rgb(250, 248, 240)", "tinta": "rgb(40, 40, 60)", "familia_texto": "Open Sans",
+                                   "familia_titulos": "Merriweather", "radio": 4}}
+
+
+def test_por_omision_auto_refina_con_nativa():
+    """Sin razón fuerte (fidelidad por omisión), Nativa domina; con fidelidad 1 es siempre Nativa."""
+    elegidas = Counter()
+    for host, medida in SITIOS.items():
+        sitio = sitio_medido(host, {**medida, **NATIVO})
+        for r in range(20):
+            elegidas[motor.componer(sitio, "auto", semilla_de_pagina(7, f"rev-{r} {host}")).informe["direccion"]] += 1
+    assert elegidas["D"] >= sum(elegidas.values()) * 0.7, elegidas
+    sitio = sitio_medido("x.cl", NATIVO)
+    assert {motor.componer(sitio, "auto", s, {"fidelidad": 1}).informe["direccion"] for s in range(1, 30)} == {"D"}
+
+
+def test_nativa_parte_de_la_identidad_del_sitio():
+    sitio = sitio_medido("www.servicio.gob.cl", NATIVO)
+    for semilla in range(1, 41):
+        tema = motor.componer(sitio, "D", semilla, {"recetas": {"agregar": ["bento-lanzador", "vidrio"]}},
+                              vistas={"lanzador": "tareas"})
+        tokens = tema.informe["tokens"]
+        assert tema.ok and tokens["--mt-esquema"] == "light" and tokens["--mt-radio-2"] == "4px"
+        assert tokens["--mt-familia-texto"].startswith('"Open Sans", "MT Inter"')
+        assert tokens["--mt-familia-display"].startswith('"Merriweather", "MT Serif"')
+        assert not set(tema.informe["recetas"]) & {"bento-lanzador", "vidrio", "superficie-marca", "letrero", "aurora"}
+        assert any("le quita la identidad" in a for a in tema.informe["avisos"])
+        assert tema.informe["parametros"]["fondo"] >= 97  # el fondo crema del sitio sigue crema
+
+
+def test_nativa_de_un_sitio_oscuro_queda_oscura():
+    sitio = sitio_medido("noche.cl", {**NATIVO, "identidad": {**NATIVO["identidad"], "fondo": "rgb(18, 18, 24)",
+                                                              "tinta": "rgb(230, 230, 230)"}})
+    tema = motor.componer(sitio, "D", 3)
+    assert tema.ok and tema.informe["tokens"]["--mt-esquema"] == "dark"
