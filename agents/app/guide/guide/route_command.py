@@ -45,8 +45,9 @@ def add_parser(commands: argparse._SubParsersAction) -> None:
         "--viewports", default="desktop", help=f"viewports separados por coma: {', '.join(SCREENS)} (por defecto: desktop)"
     )
     route.add_argument(
-        "--shorter", type=int, default=config.EXTRA_ROUTES,
-        help=f"exploraciones más que buscan una ruta más corta que la primera verificada (por defecto: {config.EXTRA_ROUTES})",
+        "--shorter", type=int,
+        help="exploraciones más que buscan una ruta más corta que la primera verificada"
+             f" (por defecto: {config.EXTRA_ROUTES}; con --revision, {config.REVISION_EXTRA_ROUTES})",
     )
 
 
@@ -138,6 +139,8 @@ def run(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     backend = store.open_backend()
     if args.goal and not args.revision:
         parser.error("--goal va con --revision")
+    if args.shorter is None:
+        args.shorter = config.REVISION_EXTRA_ROUTES if args.revision else config.EXTRA_ROUTES
     if args.revision:
         mappings, concurrency = _revision_mappings(parser, args, backend), 1
     elif args.site:

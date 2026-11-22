@@ -11,7 +11,7 @@ import pytest
 from shared import store
 from shared.catalog.goal import Goal, instruction_goal_id
 
-from guide import reference, route_command
+from guide import config, reference, route_command
 import main
 from main import build_parser
 from tests.conftest import ScriptedDecider
@@ -163,3 +163,23 @@ def test_on_aws_engines_it_does_not_need_the_claude_command(backend, monkeypatch
     with pytest.raises(SystemExit) as exit_info:
         main.main()
     assert "no hay catálogo terminado de la revisión r1" in str(exit_info.value.code)
+
+
+@pytest.mark.parametrize("options, extra_routes", [
+    (["--revision", "rev-a", "--goal", "baja"], config.REVISION_EXTRA_ROUTES),
+    (["--revision", "rev-a", "--goal", "baja", "--shorter", "2"], 2),
+    (["--instruction", "Encuentra cómo dar de baja"], config.EXTRA_ROUTES),
+])
+def test_a_revision_explores_once_unless_asked(backend, monkeypatch, options, extra_routes):
+    url = "https://sitio.cl/"
+    _catalog(backend, url, "rev-a", [_goal("baja", url, "Encuentra cómo dar de baja")])
+    mapped = []
+
+    async def fake_map(backend, mappings, cdp_url, concurrency):
+        mapped.extend(mappings)
+        return []
+
+    monkeypatch.setattr(route_command, "_map", fake_map)
+    parser = build_parser()
+    route_command.run(parser, parser.parse_args(["route", "--url", url, *options]))
+    assert [mapping.extra_routes for mapping in mapped] == [extra_routes]

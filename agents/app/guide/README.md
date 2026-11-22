@@ -37,7 +37,7 @@ uv run main.py adopt --goal wom.cl/baja-fibra
 | `--routes N` | Con `--site`: deja hasta N objetivos con ruta verificada, o todos con `all` (por defecto 0); los que ya tienen una corrida verificada para la misma instrucción cuentan y no se rehacen. |
 | `--rerun` | Con `--site`: rehace también las rutas ya verificadas. |
 | `--viewports` | Viewports separados por coma: `desktop` (1024x768, el de `first_time` y `hurried`) y `mobile` (390x844). Por defecto, `desktop`. |
-| `--shorter N` | Exploraciones más que buscan una ruta más corta que la primera verificada (por defecto 1). |
+| `--shorter N` | Exploraciones más que buscan una ruta más corta que la primera verificada (por defecto 1; con `--revision`, 0). |
 
 `adopt`:
 
