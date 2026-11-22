@@ -232,7 +232,7 @@ def test_la_propuesta_del_modelo_pone_las_palabras():
 
 PORTADA = """<!doctype html><meta charset="utf-8"><title>Metro de Santiago</title>
 <body><header><h1>Metro</h1></header>
-<div class="portada"><div id="home"><form id="formPlanificador" action="/el-viaje/planificador/">
+<div class="portada"><div class="hero"><video></video></div><div id="home"><form id="formPlanificador" action="/el-viaje/planificador/">
 <label for="binicio">Origen</label>
 <select id="binicio" name="inicio"><option value="SP">San Pablo</option><option value="EL">Estación Central</option>
 </select>
@@ -294,7 +294,7 @@ COMPONENTES = [
                     "en": {"titulo": "Most wanted", "subtitulo": "", "boton": ""}},
          "etiquetas": [], "tareas": []},
 ]
-OCULTAR = 'html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar-viaje"]) :has(> #home)'
+OCULTAR = 'html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar-viaje"]) #home'
 
 
 def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
@@ -341,7 +341,7 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     assert informe["modo"] == "motor" and informe["direccion"] == "B" and informe["semilla"] == 4
     assert informe["parametros"]["escala"] == 1.27 and any("tipo.escala=2" in a for a in informe["avisos"])
     assert informe["contraste"]["fallas"] == [] and informe["contraste"]["minimo"] >= 4.5 and informe["tokens"]
-    assert informe["ocultar"] == [{"vista": "planificar-viaje", "selector": ":has(> #home)"}]
+    assert informe["ocultar"] == [{"vista": "planificar-viaje", "selector": "#home"}]
     tema_css = backend.read_text(archivos["tema.css"])
     assert OCULTAR in tema_css and '[data-mt-vista="tareas"]' in tema_css and "#home :has(> h1)" not in tema_css
 

@@ -38,24 +38,40 @@ _SELECTS = """() => [...document.querySelectorAll("select")].map((s) => ({
 
 # El bloque original que reemplaza un atajo: el formulario de sus `<select>`, subiendo mientras los hermanos sean solo
 # su título (nada interactivo ni texto largo). Sale como selector único anclado a un id; null si no hay uno seguro.
-BLOQUE_JS = """([selectores, contenedor]) => {
+# `anclas`: las de todas las vistas de la página (la propia primero): si una queda dentro del bloque, ocultarlo se la
+# llevaría. Los topes frenan un `<form>` que envuelve la página entera (ASP.NET WebForms) o un bloque desmedido.
+BLOQUE_JS = """([selectores, anclas]) => {
+  const MAX_CONTROLES_FUERA = 3, MAX_AREA = 0.6;
   const campos = selectores.map((s) => { try { return document.querySelector(s); } catch { return null; } });
   if (!campos.length || campos.some((c) => !c)) return null;
   let bloque = campos[0];
   while (bloque && !campos.every((c) => bloque.contains(c))) bloque = bloque.parentElement;
   if (!bloque) return null;
-  bloque = bloque.closest("form") || bloque;
+  const controles = "a[href], button, input, select, textarea, iframe, [role=button], [role=link]";
+  const controlesFuera = (el) => [...el.querySelectorAll(controles)]
+    .filter((c) => !campos.some((f) => f === c || f.contains(c) || c.contains(f))).length;
+  const pagina = Math.min(innerWidth * innerHeight,
+                          document.documentElement.scrollWidth * document.documentElement.scrollHeight);
+  const cabe = (el) => {
+    const r = el.getBoundingClientRect();
+    return controlesFuera(el) <= MAX_CONTROLES_FUERA && r.width * r.height < MAX_AREA * pagina;
+  };
+  const form = bloque.closest("form");
+  if (form && cabe(form)) bloque = form;
   const ajeno = "a[href], button, input, select, textarea, iframe, video, img, svg, [role=button], [role=link]";
   const otroContenido = (el) => el.matches(ajeno) || el.querySelector(ajeno) || el.textContent.trim().length > 140;
   while (bloque.parentElement && bloque.parentElement !== document.body
          && [...bloque.parentElement.children].every((c) => c === bloque || !otroContenido(c))) {
     bloque = bloque.parentElement;
   }
-  if ([document.body, document.documentElement].includes(bloque) || bloque.matches("main, [role=main]")) return null;
-  let ancla = null;
-  try { ancla = contenedor ? document.querySelector(contenedor) : null; } catch { /* selector inválido */ }
-  // El componente va antes de su ancla: si el ancla está dentro del bloque, ocultarlo se lo llevaría.
-  if (ancla && ancla !== bloque && bloque.contains(ancla)) return null;
+  if ([document.body, document.documentElement].includes(bloque) || bloque.parentElement === document.body
+      || bloque.matches("main, [role=main]") || bloque.querySelector("main, [role=main]") || !cabe(bloque)) return null;
+  for (const selector of anclas) {
+    let ancla = null;
+    try { ancla = selector ? document.querySelector(selector) : null; } catch { /* selector inválido */ }
+    // Cada componente va antes de su ancla: si el ancla está dentro del bloque, ocultarlo se lo llevaría.
+    if (ancla && ancla !== bloque && bloque.contains(ancla)) return null;
+  }
   const valido = (id) => /^[A-Za-z][\\w-]*$/.test(id);
   const unico = (sel) => { try { const l = document.querySelectorAll(sel); return l.length === 1 && l[0] === bloque; }
                            catch { return false; } };
@@ -285,15 +301,20 @@ async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[d
     return vistas
 
 
-async def _ocultar(page, vistas: list[dict]) -> list[tuple[str, str]]:
+async def _ocultar(page, url: str, vistas: list[dict]) -> list[tuple[str, str]]:
     """`(vista, selector)` del bloque original que reemplaza cada atajo dibujado en esta página."""
+    en_pagina = atajos.ruta_de(url)
+    # Como `features/vista.js`: sin `rutas`, la vista va en todas las páginas.
+    aqui = [v for v in vistas if v["contenedor"]
+            and (not v.get("rutas") or any(atajos.misma_ruta(en_pagina, r) for r in v["rutas"]))]
     pares = []
-    for vista in vistas:
+    for vista in aqui:
         campos = [c["opciones"] for c in vista["datos"] if c.get("opciones")]
-        if vista["componente"] != "atajo" or not vista["contenedor"] or not campos:
+        if vista["componente"] != "atajo" or not campos:
             continue
+        anclas = [vista["contenedor"], *(v["contenedor"] for v in aqui if v is not vista)]
         try:
-            selector = await page.evaluate(BLOQUE_JS, [campos, vista["contenedor"]])
+            selector = await page.evaluate(BLOQUE_JS, [campos, anclas])
         except Exception:  # un selector que el navegador no entiende
             selector = None
         if selector:
@@ -356,7 +377,7 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                     # El buscador no pasa por el modelo (son hasta 40 tareas): va con sus textos y un ancla verificada.
                     vistas = await _vistas(page, url, diag["componentes"] + [kit["buscador"]] * bool(kit["buscador"]),
                                            respuesta.datos.get("componentes"))
-                    ocultar = await _ocultar(page, vistas)
+                    ocultar = await _ocultar(page, url, vistas)
                 finally:
                     await contexto.close()
                 costo = respuesta.costo_usd

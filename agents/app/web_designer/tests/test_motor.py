@@ -127,13 +127,13 @@ PORTADA = """<!doctype html><body><nav><a href="/">Inicio</a></nav>
 </div></div><main><p>Noticias</p></main></body>"""
 
 
-async def _bloque(html: str, selectores: list[str], contenedor: str) -> str | None:
+async def _bloque(html: str, selectores: list[str], contenedor: str, *otras: str) -> str | None:
     async with async_playwright() as p:
         navegador = await p.chromium.launch()
         page = await navegador.new_page()
         await page.set_content(html)
         try:
-            return await page.evaluate(BLOQUE_JS, [selectores, contenedor])
+            return await page.evaluate(BLOQUE_JS, [selectores, [contenedor, *otras]])
         finally:
             await navegador.close()
 
@@ -145,6 +145,50 @@ def test_bloque_reemplazado_derivado_del_select():
     # Si el componente fuera dentro del bloque, ocultarlo se lo llevaría: no hay regla.
     assert asyncio.run(_bloque(PORTADA, ["#binicio"], "#formPlanificador")) is None
     assert asyncio.run(_bloque(PORTADA, ["#no-existe"], "body > :has(#binicio)")) is None
+    # Tampoco si dentro queda el ancla de otra vista de la página.
+    assert asyncio.run(_bloque(PORTADA, ["#binicio", "#fin"], "body > :has(#binicio)", ".titulo")) is None
+
+
+WEBFORMS = """<!doctype html><body><form id="form1" action="./" method="post">
+<header><nav><a href="/">Inicio</a><a href="/tarifas">Tarifas</a><a href="/contacto">Contacto</a></nav></header>
+<div id="contenido"><h1>Planifica tu viaje</h1>
+  <select id="binicio"></select><select id="fin"></select><input type="submit" value="Ir">
+  <p>Noticias, avisos y todo el resto de la página, dentro del mismo formulario.</p>
+  <ul><li><a href="/n/1">Nueva estación</a></li><li><a href="/n/2">Horario de verano</a></li></ul>
+  <a href="/noticias">Más noticias</a><a href="/avisos">Avisos</a></div>
+<footer><a href="/mapa">Mapa del sitio</a></footer></form></body>"""
+
+
+def test_un_form_que_envuelve_la_pagina_no_se_oculta():
+    # ASP.NET WebForms: todo el body va dentro de un <form>. Ni el form ni un bloque hijo de body son el atajo.
+    assert asyncio.run(_bloque(WEBFORMS, ["#binicio", "#fin"], "#contenido")) is None
+    assert asyncio.run(_bloque(WEBFORMS.replace('<form id="form1" action="./" method="post">', "<div>")
+                               .replace("</form>", "</div>"), ["#binicio", "#fin"], "body > div")) is None
+
+
+class _PaginaFalsa:
+    def __init__(self):
+        self.pedidos = []
+
+    async def evaluate(self, _script, argumentos):
+        self.pedidos.append(argumentos)
+        return "#bloque"
+
+
+def test_ocultar_solo_en_las_paginas_de_la_vista_y_con_todas_sus_anclas():
+    from disenador.mejora import _ocultar
+
+    atajo = {"id": "planificar", "componente": "atajo", "rutas": ["/viaje/"], "contenedor": "#a",
+             "datos": [{"nombre": "inicio", "opciones": "#binicio"}]}
+    lanzador = {"id": "tareas", "componente": "lanzador", "rutas": ["/viaje"], "contenedor": "#b", "datos": []}
+    otra = {**lanzador, "id": "otra", "rutas": ["/otra"], "contenedor": "#c"}
+    pagina = _PaginaFalsa()
+    assert asyncio.run(_ocultar(pagina, "https://ejemplo.cl/viaje", [atajo, lanzador, otra])) == [
+        ("planificar", "#bloque")]
+    assert pagina.pedidos == [[["#binicio"], ["#a", "#b"]]]
+    pagina = _PaginaFalsa()
+    assert asyncio.run(_ocultar(pagina, "https://ejemplo.cl/otra", [atajo, lanzador, otra])) == []
+    assert pagina.pedidos == []
 
 
 def _goal(goal_id: str, prominencia: str, entrada: str):
