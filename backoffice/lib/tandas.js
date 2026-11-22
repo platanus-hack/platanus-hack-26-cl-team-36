@@ -1,7 +1,7 @@
 // Lectura de tandas a través de una fuente de corridas (lib/fuente.js). Aquí se valida todo lo que
 // llega desde afuera: un id solo vale si la fuente lo listó, y de un perfil solo se sirven capturas y video.
 
-import { ARCHIVO_DANADO, armarTanda, resumirTanda } from "./derivar.js";
+import { ARCHIVO_DANADO, armarTanda, perfilDelRun, resumirTanda } from "./derivar.js";
 import { crearFuenteDeArchivos } from "./fuentes/archivos.js";
 import { AGENTE, partesDeTanda } from "../public/nucleo/almacen.js";
 
@@ -76,7 +76,7 @@ async function leerSinVecinas(fuente, id) {
     if (!run) continue;
     intentos.push({ perfil, run, video: await fuente.existe(id, `${perfil}/video.webm`) });
   }
-  const perfilDe = ({ perfil, run }) => run.profile || perfil;
+  const perfilDe = ({ perfil, run }) => perfilDelRun(run, perfil);
   const posicion = (intento) => {
     const indice = ORDEN_DE_PERFILES.indexOf(perfilDe(intento));
     return indice < 0 ? ORDEN_DE_PERFILES.length : indice;

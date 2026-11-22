@@ -687,6 +687,11 @@ function armarPasos(run, ubicacion, ruta, comoRuta) {
   });
 }
 
+const textoNoVacio = (valor) => typeof valor === "string" && valor !== "";
+
+/** El perfil de un run.json (`desktop` en la carpeta `desktop-2`); si no trae uno, la carpeta. */
+export const perfilDelRun = (run, carpeta) => (textoNoVacio(run.profile) ? run.profile : carpeta);
+
 /** El intento 2 en adelante de un perfil lleva «#n» en el nombre (no se traduce: es un número). */
 const nombreDeRepeticion = (nombre, repeticion) => (repeticion > 1 ? `${nombre} #${repeticion}` : nombre);
 
@@ -701,7 +706,8 @@ function armarIntento({ perfil: carpeta, run, video }, ubicacion, ruta, inicios)
   const fuente = fuenteDelVeredicto(run.verdict);
   const declaroTerminar = typeof run.verdict?.claimed_done === "boolean" ? run.verdict.claimed_done : null;
   const repeticion = Number.isInteger(run.attempt) && run.attempt > 0 ? run.attempt : 1;
-  const nombreDelPerfil = run.profile_name || run.profile || carpeta;
+  const perfil = perfilDelRun(run, carpeta);
+  const nombreDelPerfil = textoNoVacio(run.profile_name) ? run.profile_name : perfil;
   const { camino, llegadas } = ubicacion;
   // Contra la ruta se compara el camino visto desde ella (otra página de inicio cuenta como la de la ruta);
   // `camino` queda con las páginas reales.
@@ -719,7 +725,7 @@ function armarIntento({ perfil: carpeta, run, video }, ubicacion, ruta, inicios)
   else if (resultado === "fallido" && fuente === "ruta" && declaroTerminar) logro = "declaro_sin_llegar";
   const intento = {
     id: carpeta,
-    perfil: run.profile || carpeta,
+    perfil,
     carpeta,
     repeticion,
     nombrePerfil: nombreDeRepeticion(nombreDelPerfil, repeticion),
@@ -957,7 +963,7 @@ function intentosDelTramoSegun(crudos, ubicaciones) {
   const porPerfil = new Map();
   crudos.forEach(({ perfil: carpeta, run }, i) => {
     if (fueraDelArbol(run)) return;
-    const perfil = run.profile || carpeta;
+    const perfil = perfilDelRun(run, carpeta);
     if (!porPerfil.has(perfil)) porPerfil.set(perfil, []);
     porPerfil.get(perfil).push({ id: carpeta, camino: ubicaciones[i].camino });
   });

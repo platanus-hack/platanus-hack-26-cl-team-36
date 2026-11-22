@@ -140,6 +140,13 @@ test("las corridas viejas siguen igual: veredicto del juez, un intento por perfi
   assert.ok(tanda.criterio);
 });
 
+test("un run.json con perfil o nombre que no son texto usa la carpeta", () => {
+  const leer = (relativa) => JSON.parse(readFileSync(new URL(`./fixtures/recorrido-unico/${CON_RUTA}/${relativa}`, import.meta.url), "utf8"));
+  const run = { ...leer("desktop-2/run.json"), profile: { x: 1 }, profile_name: ["<b>"] };
+  const tanda = armarTanda({ id: CON_RUTA, arbol: leer("route_tree.json"), criterio: null, intentos: [{ perfil: "desktop-2", run, video: false }] });
+  assert.deepEqual([tanda.intentos[0].perfil, tanda.intentos[0].nombrePerfil, tanda.perfiles[0].nombre], ["desktop-2", "desktop-2 #2", "desktop-2"]);
+});
+
 test("un intento interrumpido no está en el árbol: no descuenta finales ni se asigna a tramos", () => {
   const leer = (relativa) => JSON.parse(readFileSync(new URL(`./fixtures/recorrido-unico/${CON_RUTA}/${relativa}`, import.meta.url), "utf8"));
   const crudos = ["desktop", "desktop-2", "mobile", "mobile-2"].map((carpeta) => ({ perfil: carpeta, run: leer(`${carpeta}/run.json`), video: false }));
