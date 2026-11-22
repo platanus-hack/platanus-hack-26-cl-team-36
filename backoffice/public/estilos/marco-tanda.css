@@ -3,8 +3,6 @@
 .marco-cabecera { display: grid; gap: var(--e-1); padding-block-end: var(--e-3); min-width: 0; }
 .marco-barra { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-3); min-width: 0; }
 .marco-identidad { display: flex; align-items: center; gap: var(--e-3); min-width: 0; flex: 1 1 auto; }
-.marco-volver { display: inline-flex; align-items: center; gap: 2px; flex: none; font-size: 13px; color: var(--texto-3); }
-.marco-volver:hover { color: var(--texto-1); text-decoration: none; }
 .marco-titulo { min-width: 0; flex: 0 1 auto; font-size: 20px; line-height: 28px; }
 .marco-acciones { display: flex; align-items: center; gap: var(--e-2); flex: none; }
 .marco-hueco { display: contents; }

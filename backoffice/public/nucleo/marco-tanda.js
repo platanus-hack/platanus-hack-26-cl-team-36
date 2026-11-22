@@ -139,7 +139,6 @@ export function montarMarco({ tanda, ruta, navegar }) {
         el(
           "div",
           { class: "marco-identidad" },
-          el("a", { class: "marco-volver", href: "#/", "data-foco": "marco:migas:corridas", "aria-label": t("comun.shell.corridas") }, icono("anterior"), el("span", { class: "marco-etiqueta-boton", texto: t("comun.shell.corridas") })),
           el("h1", { class: "marco-titulo truncar", tabindex: "-1", title: tanda.instruccion || titulo, texto: titulo }),
         ),
         el("div", { class: "marco-acciones" }, anterior, siguiente, copiar),
