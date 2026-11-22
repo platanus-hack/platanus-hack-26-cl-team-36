@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import json
 
-from shared import store
+from shared import stages, store
 
 from conductor import config
 from conductor.flow import Options, conduct
@@ -42,9 +42,10 @@ def log(text: str) -> None:
 def run(parser: argparse.ArgumentParser, args: argparse.Namespace) -> bool:
     """Corre la revisión; True si su corrida quedó `succeeded`."""
     try:
-        store.validate_revision(args.revision)
-        prefix = store.conductor(args.url)
-    except ValueError as error:
+        prefix = stages.command("revision", {"url": args.url, "revision": args.revision, "goals_max": args.goals_max,
+                                             "profiles": args.profiles, "runs": args.runs,
+                                             "concurrency": args.concurrency}).prefix
+    except stages.InvalidPayload as error:
         parser.error(str(error))
     backend = store.open_backend()
     conductor_run = store.start_run(backend, prefix, model=None, revision=args.revision)

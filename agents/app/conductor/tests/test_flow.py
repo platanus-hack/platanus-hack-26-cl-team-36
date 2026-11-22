@@ -2,7 +2,13 @@
 
 import asyncio
 import json
+import os
+import signal
+import subprocess
+import sys
+import time
 from dataclasses import asdict
+from pathlib import Path
 
 import pytest
 
@@ -161,3 +167,45 @@ def test_command_with_a_bad_invoker_leaves_a_failed_run(monkeypatch, backend):
     run = store.latest_run(backend, store.conductor(URL), "failed")
     assert exit.value.code == 1
     assert "no es un invocador" in json.loads((backend.root / str(run) / "conductor.json").read_text())["error"]
+
+
+# El conductor con un invocador que nunca termina, para recibir SIGTERM a mitad de la revisión.
+_SLOW = """
+import asyncio
+import main
+from conductor import command
+
+class Slow:
+    async def run(self, stage, payload, timeout_s):
+        await asyncio.sleep(60)
+
+command.make_invoker = lambda backend, log_dir: Slow()
+main.main()
+"""
+
+
+def test_sigterm_leaves_a_failed_run(backend, tmp_path):
+    script = tmp_path / "slow.py"
+    script.write_text(_SLOW, encoding="utf-8")
+    env = {**os.environ, store.ENV_VAR: backend.root.as_uri()}
+    process = subprocess.Popen([sys.executable, str(script), "--url", URL, "--revision", REVISION],
+                               cwd=Path(main.__file__).parent, env={**env, "PYTHONPATH": str(Path(main.__file__).parent)},
+                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    deadline = time.monotonic() + 20
+    while store.revision_run(backend, store.conductor(URL), REVISION) is None and time.monotonic() < deadline:
+        time.sleep(0.05)
+    time.sleep(0.3)
+    process.send_signal(signal.SIGTERM)
+    assert process.wait(20) == 1, process.stderr.read().decode()
+    run = store.revision_run(backend, store.conductor(URL), REVISION)
+    assert store.read_manifest(backend, run).status == "failed"
+
+
+@pytest.mark.parametrize("args", [["--url", "sitio.cl"], ["--url", URL, "--goals-max", "50"],
+                                  ["--url", URL, "--profiles", "x,-y"]])
+def test_command_rejects_what_a_stage_would_reject(monkeypatch, backend, args):
+    monkeypatch.setenv(store.ENV_VAR, backend.root.as_uri())
+    monkeypatch.setattr("sys.argv", ["main.py", "--revision", REVISION, *args])
+    with pytest.raises(SystemExit) as exit:
+        main.main()
+    assert exit.value.code == 2 and not backend.root.exists()
