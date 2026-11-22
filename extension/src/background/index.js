@@ -3,12 +3,12 @@
 //
 // Responsabilidades:
 //   1. Ícono y badge sincronizados con `activo` en storage (el interruptor está en el popup).
-//   2. Pedirle a la API la revisión de cada página (el tema que generaron los agentes, ver revisiones.js)
-//      e inyectar su CSS cuando esté lista.
+//   2. Consultarle a la API la revisión de cada página (el tema que generaron los agentes, ver revisiones.js)
+//      e inyectar su CSS cuando esté lista. No dispara revisiones (ver el TODO en revisarPagina).
 //   3. Guardar en el equipo los votos del usuario sobre la página con tema (ver votos.js).
 
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
-import { consultarRevision, pedirRevision } from "./api.js";
+import { consultarRevision } from "./api.js";
 import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
 import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
 
@@ -82,21 +82,25 @@ async function refrescarPestanasConTema() {
 // `tema:aplicar` y `tema:revision` → tema (sin css) | null | { esperarRevision: { intervaloMs, topeMs } }.
 async function aplicarTema(sender) {
   if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen: new URL(sender.url).origin, temaId: null, css: "" });
-  return revisarPagina(sender, pedirRevision);
+  return revisarPagina(sender);
 }
 
-async function revisarPagina(sender, consultar) {
-  if (!(await puedePedirRevision(sender))) return null;
-  const resultado = await resolverRevision(sender.url, { consultar });
+// TODO: la extensión no dispara revisiones: solo consulta (GET) la de la página, y una página sin revisión queda tal
+// cual. Cada revisión corre agentes en AWS y cuesta; por ahora se piden con `just aws revision <url>` o
+// `just aws seed`. Para volver a dispararlas al entrar a una página nueva, usar pedirRevision (POST, api.js) en vez de
+// consultarRevision cuando el GET responda que no existe, idealmente con un límite por usuario o a pedido desde el popup.
+async function revisarPagina(sender) {
+  if (!(await puedeConsultarRevision(sender))) return null;
+  const resultado = await resolverRevision(sender.url, { consultar: consultarRevision });
   if (resultado.estado === "esperando") {
     return { esperarRevision: { intervaloMs: INTERVALO_REVISION_MS, topeMs: TOPE_REVISION_MS } };
   }
   return resultado.estado === "listo" ? inyectarTema(resultado.tema, sender, urlDePagina(sender.url)) : null;
 }
 
-// Una revisión cuesta (corre agentes), y en ventanas privadas no se envía la URL a nadie. Con el
-// interruptor apagado tampoco: se pedirá en la próxima visita con Chameleon encendido.
-async function puedePedirRevision(sender) {
+// En ventanas privadas no se envía la URL a nadie, y con el interruptor apagado tampoco: se consultará en la próxima
+// visita con Chameleon encendido.
+async function puedeConsultarRevision(sender) {
   return sender.frameId === 0 && !sender.tab?.incognito && /^https?:/.test(sender.url ?? "") && (await leerActivo());
 }
 
@@ -254,7 +258,7 @@ browser.runtime.onMessage.addListener((mensaje, sender) => {
     case "tema:aplicar":
       return aplicarTema(sender);
     case "tema:revision":
-      return revisarPagina(sender, consultarRevision);
+      return revisarPagina(sender);
     case "voto:guardar":
       return guardarVoto(mensaje, sender);
     case "votos:estado":

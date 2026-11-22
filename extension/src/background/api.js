@@ -1,7 +1,8 @@
 // Cliente del backend (ver backend/index.js), en {urlDeLaApi()} (ver config.js).
 //
-//   POST /revisiones y GET /revisiones?url=  (ver revisiones.js): la URL de la página sin query ni hash.
+//   GET /revisiones?url= y POST /revisiones (ver revisiones.js): la URL de la página sin query ni hash.
 //   La API busca la revisión de esa página en DynamoDB y, si terminó, devuelve el tema.css que dejó en S3.
+//   La extensión solo usa el GET; el POST dispara una revisión (ver el TODO en index.js).
 
 import { urlDeLaApi } from "./config.js";
 import { leerRevision } from "./revisiones.js";
@@ -11,6 +12,7 @@ import { leerRevision } from "./revisiones.js";
 const TIEMPO_MAXIMO_REVISION_MS = 5000;
 
 // Lanzan si la API no responde o no manda JSON (resolverRevision lo trata como "fin").
+// pedirRevision hoy no se usa: corre agentes en AWS (ver el TODO en index.js).
 export async function pedirRevision(url) {
   return leerRespuestaRevision(
     await fetch(`${await urlDeLaApi()}/revisiones`, {

@@ -307,7 +307,7 @@ summary url: _agents_ready
     cd agents/app/summary
     exec uv run main.py --site "$1"
 
-# A revision of one page, as the extension triggers it in AWS: catalog, guide and visitor per goal, and the improver's tema.css. E.g. just local revision https://www.wom.cl/ --goals-max 1
+# A revision of one page, as POST /revisiones triggers it in AWS (just aws revision): catalog, guide and visitor per goal, and the improver's tema.css. E.g. just local revision https://www.wom.cl/ --goals-max 1
 [group('8. Site · `site` calls Claude, uses your plan')]
 [working-directory('agents/app/conductor')]
 [positional-arguments]

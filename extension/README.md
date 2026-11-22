@@ -3,10 +3,11 @@
 Extensión de Firefox que cambia el diseño de sitios web aplicando **temas**.
 Un tema es CSS + la lista de features (comportamientos JS) que se activan en ese sitio.
 
-En cada página, la extensión le pide al backend (`backend/`) la **revisión** de esa página: el
+En cada página, la extensión le consulta al backend (`backend/`) la **revisión** de esa página: el
 tema que generaron los agentes para ella. El backend busca la revisión en DynamoDB y, si
 terminó, devuelve el `tema.css` que quedó en S3. Si no hay revisión lista, o el backend no
-responde, la página queda tal cual. La extensión no trae temas empaquetados. Ver [La API](#la-api).
+responde, la página queda tal cual. La extensión no trae temas empaquetados ni dispara
+revisiones. Ver [La API](#la-api).
 
 ## Estructura
 
@@ -15,9 +16,9 @@ extension/
 ├── src/                      ← todo lo que va dentro de la extensión (.xpi)
 │   ├── manifest.json
 │   ├── background/
-│   │   ├── index.js          ← badge ON/OFF + pide la revisión de cada página e inyecta su CSS + votos
+│   │   ├── index.js          ← badge ON/OFF + consulta la revisión de cada página e inyecta su CSS + votos
 │   │   ├── config.js         ← URL del backend
-│   │   ├── api.js            ← pregunta al backend: POST y GET /revisiones
+│   │   ├── api.js            ← pregunta al backend: GET /revisiones
 │   │   ├── revisiones.js     ← lógica pura de las revisiones; testeable con Node
 │   │   ├── css-remoto.js     ← sanea el CSS que llega de la API
 │   │   └── temas.js          ← lógica pura (validar temas); testeable con Node
@@ -44,9 +45,9 @@ extension/
 ## Cómo funciona
 
 1. En cada página http(s), `content/motor.js` le pide al background el tema para esa URL.
-2. El background le pide a la API la revisión de la página (`api.js`, `revisiones.js`). Si está
-   lista, sanea su CSS (`css-remoto.js`), lo inyecta con `scripting.insertCSS` y le devuelve al
-   motor el tema. Si está en curso, el motor vuelve a preguntar cada 15 s mientras siga en la
+2. El background le consulta a la API la revisión de la página (`api.js`, `revisiones.js`). Si
+   está lista, sanea su CSS (`css-remoto.js`), lo inyecta con `scripting.insertCSS` y le devuelve
+   al motor el tema. Si está en curso, el motor vuelve a preguntar cada 15 s mientras siga en la
    página. Si no hay revisión, falló o la API no responde, el motor no toca la página.
 3. El motor pone la clase `mi-tema` en `<html>` (todo el CSS del tema cuelga de ella) y
    ejecuta las features en cada navegación y cambio del DOM.
@@ -114,9 +115,10 @@ background en `about:debugging` → la extensión → "Inspeccionar".
 
 De su revisión: los agentes en AWS catalogan la página, la recorren y el diseñador escribe un
 `tema.css` (todo bajo `html.mi-tema`). No hay que tocar la extensión ni el manifest para que un
-sitio tenga tema. Una revisión se pide visitando la página con la extensión encendida (fuera de
-ventanas privadas) o con `just aws revision <url>` desde la raíz. Vale solo para esa página
-(la URL sin query ni hash, y sin `www.`).
+sitio tenga tema. La extensión **no** pide revisiones (cada una corre agentes y cuesta; ver el
+TODO en `background/index.js`): se piden desde la raíz con `just aws revision <url>` o
+`just aws seed <url>...`. Una revisión vale solo para esa página (la URL sin query ni hash, y
+sin `www.`).
 
 Un tema (`normalizarTema` en `background/temas.js`) también puede traer `features` y
 `eventosNavegacion`, pero hoy la API solo manda CSS:
@@ -181,23 +183,26 @@ un elemento armado con `MiTema.dom.crear` (nunca `innerHTML`), más su CSS en
 
 ## La API
 
-En cada página, la extensión pide su **revisión** (`background/revisiones.js`):
+En cada página, la extensión consulta su **revisión** (`background/revisiones.js`):
 
 ```
-POST <URL de la API>/revisiones
-{ "url": "https://www.metro.cl/" }      ← la URL sin query ni hash
+GET <URL de la API>/revisiones?url=https%3A%2F%2Fwww.metro.cl%2F      ← la URL sin query ni hash
 ```
 
 | Respuesta | Qué hace la extensión |
 | --- | --- |
 | `200 { "success": true, "revision", "status": "done", "css" }` | Sanea el CSS (`background/css-remoto.js`, mismas reglas que el diseñador) y lo aplica como tema `rev-<revision>` |
-| `202`/`200` con `status: "queued"` o `"running"` | El motor vuelve a preguntar con `GET /revisiones?url=` cada 15 s (hasta 10 min) mientras siga en la página |
-| `failed`, `404`, `429`, error o más de 5 s sin responder | Nada |
+| `200` con `status: "queued"` o `"running"` | Vuelve a preguntar cada 15 s (hasta 10 min) mientras siga en la página |
+| `404` (la página no tiene revisión), `failed`, error o más de 5 s sin responder | Nada |
 
 El backend busca la revisión de la página en la tabla DynamoDB `chameleon-revisiones` y lee el
-`tema.css` de S3 (`css_key` de la revisión). Una página nueva dispara una revisión: corre los
-agentes en AgentCore, así que cuesta. No se piden revisiones en ventanas privadas ni con el
+`tema.css` de S3 (`css_key` de la revisión). No se consulta en ventanas privadas ni con el
 interruptor apagado.
+
+**La extensión no dispara revisiones.** `POST /revisiones` sí lo hace (una página nueva corre los
+agentes en AgentCore, que cuesta), pero por ahora solo lo usan `just aws revision` y
+`just aws seed`. Volver a dispararlas desde la extensión es un TODO en `background/index.js`
+(`pedirRevision` en `api.js` sigue lista para eso).
 
 La URL de la API sale de `src/background/config.js`:
 
@@ -221,7 +226,7 @@ Lo que hay que tener en cuenta:
   `background/revisiones.js` es el lugar para pasarlas; `normalizarTema` es el contrato.
 - **Permisos y privacidad:** la extensión corre en todos los sitios http(s) y, con el interruptor
   encendido y fuera de ventanas privadas, le envía al backend la URL sin query ni hash de cada
-  página que visitas (para pedir su revisión). Por eso pide acceso a todos los sitios y el
+  página que visitas (para consultar su revisión). Por eso pide acceso a todos los sitios y el
   manifest declara `browsingActivity` en `data_collection_permissions`; Firefox lo muestra
   al instalar.
 - **Latencia:** el tema se aplica cuando la API responde. Con la API desplegada, una
