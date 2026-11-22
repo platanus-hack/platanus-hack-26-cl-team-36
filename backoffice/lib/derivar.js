@@ -895,8 +895,6 @@ function armarPerfiles(intentos, ruta) {
 
 function armarKpis(intentos, ruta) {
   const validos = intentos.filter((intento) => intento.resultado !== "error");
-  const contar = (estado) =>
-    validos.reduce((total, intento) => total + intento.pasos.filter((paso) => paso.estado === estado).length, 0);
   return {
     intentos: intentos.length,
     validos: validos.length,
@@ -910,8 +908,6 @@ function armarKpis(intentos, ruta) {
     pasosIdeales: ruta?.pasosIdeales ?? null,
     tramos: ruta?.tramos.length ?? 0,
     hitos: ruta?.paginas.length ?? 0,
-    sinEfecto: contar("sin_efecto"),
-    noCumplidas: contar("no_cumplida"),
   };
 }
 
@@ -1002,7 +998,7 @@ export const NIVELES_DE_CONOCIMIENTO = ["sin_contexto", "conoce_tema"];
  * Resultado por nivel de conocimiento (como la tabla del report.md del evaluador): por nivel, intentos, cuántos lo
  * lograron, mediana de pasos y de segundos, y escrituras rechazadas. null si la tanda no tiene los dos niveles.
  * @param {{ conocimiento: string | null, resultado: string, pasos: unknown[], duracion: number | null, terminosRechazados?: string[] }[]} intentos
- * @returns {{ nivel: string, intentos: number, logrados: number, pasosMediana: number | null, segundosMediana: number | null, rechazos: number }[] | null}
+ * @returns {{ nivel: string, intentos: number, logrados: number, pasosMediana: number | null, segundosMediana: number | null }[] | null}
  */
 export function porConocimiento(intentos) {
   const niveles = NIVELES_DE_CONOCIMIENTO.map((nivel) => [nivel, intentos.filter((intento) => intento.conocimiento === nivel)]);
@@ -1013,7 +1009,6 @@ export function porConocimiento(intentos) {
     logrados: suyos.filter((intento) => intento.resultado === "logrado").length,
     pasosMediana: mediana(suyos.map((intento) => intento.pasos.length)),
     segundosMediana: mediana(suyos.map((intento) => intento.duracion)),
-    rechazos: suyos.reduce((suma, intento) => suma + (intento.terminosRechazados?.length ?? 0), 0),
   }));
 }
 

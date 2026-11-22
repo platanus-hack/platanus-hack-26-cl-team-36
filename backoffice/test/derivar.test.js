@@ -207,7 +207,7 @@ test("KPIs y métricas por perfil: pares {n, de} y null cuando no aplica", async
   const tanda = await leerTanda(RAIZ, VIEJA);
   assert.deepEqual(tanda.kpis, {
     intentos: 3, validos: 3, errores: 0, logrados: 2, directos: 2, siguenLaRuta: 2,
-    pasosMediana: 2, segundosMediana: 10, pasosIdeales: 2, tramos: 2, hitos: 3, sinEfecto: 1, noCumplidas: 2,
+    pasosMediana: 2, segundosMediana: 10, pasosIdeales: 2, tramos: 2, hitos: 3,
   });
   const porPerfil = Object.fromEntries(tanda.perfiles.map((p) => [p.perfil, p]));
   assert.deepEqual(porPerfil.first_time.metricas.exito, { n: 1, de: 1 });
@@ -691,8 +691,8 @@ test("resultado por nivel de conocimiento: intentos, logrados, medianas y escrit
     intento("conoce_tema", "logrado", 24, 91, ["ipc"]), intento("conoce_tema", "fallido", 30, 120), intento("conoce_tema", "error", 2, 5),
   ];
   assert.deepEqual(porConocimiento(intentos), [
-    { nivel: "sin_contexto", intentos: 2, logrados: 2, pasosMediana: 19, segundosMediana: 74, rechazos: 0 },
-    { nivel: "conoce_tema", intentos: 3, logrados: 1, pasosMediana: 24, segundosMediana: 91, rechazos: 1 },
+    { nivel: "sin_contexto", intentos: 2, logrados: 2, pasosMediana: 19, segundosMediana: 74 },
+    { nivel: "conoce_tema", intentos: 3, logrados: 1, pasosMediana: 24, segundosMediana: 91 },
   ]);
   // Sin los dos niveles (perfiles comunes, o un solo nivel), no hay comparación.
   assert.equal(porConocimiento(intentos.map((i) => ({ ...i, conocimiento: null }))), null);
