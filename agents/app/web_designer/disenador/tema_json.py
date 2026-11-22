@@ -1,9 +1,11 @@
 """El `tema.json` del kit: las vistas de `features.vista` que monta la extensión, validadas contra un esquema.
 
 El esquema es un subconjunto de JSON Schema (type, properties, required, additionalProperties, pattern, maxLength,
-minLength, items, minItems, maxItems, maxProperties, minimum, maximum, enum, anyOf) que valida `_errores`. Solo
+minLength, items, minItems, maxItems, maxProperties, propertyNames, minimum, maximum, enum, anyOf) que valida `_errores`. Solo
 admite los componentes `atajo` y `lanzador`, enlaces relativos del mismo sitio y nada que cargue recursos (sin
 `imagen`). Lo que no valida se descarta con su razón: un item malo deja la vista sin ese item, una vista mala no entra.
+Patrones y topes son los mismos que `sanearTema` en `extension/src/background/tema-remoto.js`: si cambian aquí,
+cambian allá.
 """
 
 import re
@@ -15,7 +17,7 @@ _TEXTO_CORTO = {"type": "string", "maxLength": 160}
 TEXTO = {"type": "object", "properties": {"es": _TEXTO_CORTO, "en": _TEXTO_CORTO}, "required": ["es", "en"],
          "additionalProperties": False}
 # Una ruta del mismo sitio: empieza con una sola `/` (no `//host` ni `/\host`), sin espacios ni barras invertidas.
-RUTA = {"type": "string", "pattern": r"^/(?![/\\])[^\s\\]*$", "maxLength": 300}
+RUTA = {"type": "string", "pattern": r"^/(?![/\\])[^\s\\]*$", "maxLength": 200}
 SELECTOR = {"type": "string", "minLength": 1, "maxLength": 200}
 ID = {"type": "string", "pattern": r"^[a-z][a-z0-9-]{0,39}$"}
 _NOMBRE_PARAMETRO = {"type": "string", "pattern": r"^[A-Za-z0-9_.\[\]-]{1,40}$"}
@@ -58,7 +60,8 @@ OPCIONES = {
         "type": "object",
         "properties": {
             "destino": RUTA,
-            "fijos": {"type": "object", "maxProperties": 10, "additionalProperties": _VALOR},
+            "fijos": {"type": "object", "maxProperties": 6, "propertyNames": _NOMBRE_PARAMETRO,
+                      "additionalProperties": _VALOR},
             "invertir": {"type": "array", "minItems": 2, "maxItems": 2, "items": _NOMBRE_PARAMETRO},
             "textos": _textos(("titulo", "subtitulo", "boton", "invertir", "elegir")),
         },
@@ -105,7 +108,7 @@ def _errores(valor, esquema: dict, ruta: str = "$") -> list[str]:
     if isinstance(valor, str):
         if len(valor) > esquema.get("maxLength", len(valor)) or len(valor) < esquema.get("minLength", 0):
             errores.append(f"{ruta}: largo {len(valor)} fuera de rango")
-        if "pattern" in esquema and not re.search(esquema["pattern"], valor):
+        if "pattern" in esquema and not re.fullmatch(esquema["pattern"], valor):
             errores.append(f"{ruta}: {valor[:60]!r} no cumple {esquema['pattern']}")
     if isinstance(valor, int) and not isinstance(valor, bool):
         if not esquema.get("minimum", valor) <= valor <= esquema.get("maximum", valor):
@@ -122,6 +125,8 @@ def _errores(valor, esquema: dict, ruta: str = "$") -> list[str]:
         if len(valor) > esquema.get("maxProperties", len(valor)):
             errores.append(f"{ruta}: demasiadas claves")
         for clave, sub in valor.items():
+            if "propertyNames" in esquema:
+                errores += _errores(clave, esquema["propertyNames"], f"{ruta}.{clave}")
             if clave in propiedades:
                 errores += _errores(sub, propiedades[clave], f"{ruta}.{clave}")
             elif extra is False:

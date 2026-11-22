@@ -132,6 +132,11 @@ def test_enlaces_fuera_del_sitio_se_descartan(enlace):
     (lambda v: v.update(datos=[{"nombre": "a", "etiqueta": {"es": "Desde"}, "opciones": "#a"}]), "$.datos"),
     (lambda v: v.update(datos=[{"nombre": "inicio", "etiqueta": {"es": "A", "en": "A"}}]), "$.datos"),
     (lambda v: v.update(script="alert(1)"), "clave no permitida"),
+    # Los mismos topes que tema-remoto.js: un `\n` final no pasa el patrón (fullmatch, no search).
+    (lambda v: v.update(id="planificar\n"), "$.id"),
+    (lambda v: v["opciones"].update(destino="/" + "a" * 200), "$.opciones.destino"),
+    (lambda v: v["opciones"].update(fijos={f"k{i}": "x" for i in range(7)}), "$.opciones.fijos"),
+    (lambda v: v["opciones"].update(fijos={"a b": "x"}), "$.opciones.fijos.a b"),
 ])
 def test_vistas_invalidas_se_descartan_con_razon(cambio, motivo):
     atajo, lanzador = _vistas_derivadas()
@@ -139,6 +144,15 @@ def test_vistas_invalidas_se_descartan_con_razon(cambio, motivo):
     tema, descartes = tema_json.armar("metro", [atajo, lanzador])
     assert [v["id"] for v in tema["features"]["vista"]] == ["tareas"]
     assert motivo in descartes[-1]
+
+
+def test_casos_limite_que_si_validan():
+    atajo, _ = _vistas_derivadas()
+    atajo["datos"][0]["nombre"] = "q[inicio]"
+    atajo["opciones"].pop("invertir")
+    atajo["opciones"]["fijos"] = {f"k{i}": "x" for i in range(6)}
+    atajo["opciones"]["destino"] = "/" + "a" * 199
+    assert tema_json.validar_vista(atajo) == (atajo, [])
 
 
 def test_sin_imagen_ni_ids_repetidos():
