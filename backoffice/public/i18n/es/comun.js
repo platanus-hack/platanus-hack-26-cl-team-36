@@ -41,7 +41,6 @@ export default {
     resumen: "Resumen",
     telarana: "Telaraña",
     replay: "Replay",
-    perfiles: "Perfiles",
   },
   marco: {
     migas: "Ubicación",
@@ -146,7 +145,6 @@ export default {
     cambiarIdioma: "Idioma: English",
     intento: "Replay · {resultado}",
     pagina: "Telaraña · {url}",
-    perfil: "Perfiles · {n}",
   },
   atajos: {
     titulo: "Atajos de teclado",
@@ -162,7 +160,6 @@ export default {
       resumen: "Resumen",
       telarana: "Telaraña",
       replay: "Replay",
-      perfiles: "Perfiles",
     },
     tecla: {
       espacio: "Espacio",
@@ -178,7 +175,7 @@ export default {
       cerrar: "Cerrar el diálogo o el globo; después, quitar la selección",
       irACorridas: "Ir a Corridas",
       buscar: "En Corridas, buscar; en otras vistas, abrir la paleta",
-      pestanas: "Resumen · Telaraña · Replay · Perfiles",
+      pestanas: "Resumen · Telaraña · Replay",
       vecinas: "Tanda anterior (más antigua) / siguiente (más nueva)",
       copiarEnlace: "Copiar el enlace a esta vista",
       filas: "Fila siguiente / anterior",
@@ -205,7 +202,6 @@ export default {
       intentos: "Intento siguiente / anterior",
       veredicto: "Mostrar u ocultar el veredicto y el criterio",
       verEnTelarana: "Abrir este paso en la telaraña",
-      abrirEnReplay: "Abrir en Replay",
     },
   },
 };

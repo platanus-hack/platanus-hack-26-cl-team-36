@@ -34,8 +34,6 @@ export default {
     verIntentoEtiqueta: ({ nombre, n }, { plural }) => `${nombre}: see its ${steps(n, plural)} in Replay`,
     verPagina: "See on the route map",
     verPaginaEtiqueta: "See “{pagina}” on the route map",
-    verPerfiles: "See profiles",
-    verPerfilesEtiqueta: "Compare each profile's steps in Profiles",
   },
   ruta: {
     titulo: "Recommended route",
@@ -57,7 +55,6 @@ export default {
   },
   intentos: {
     titulo: "Attempts",
-    compararPerfiles: "Compare profiles",
     columna: {
       perfil: "Profile",
       resultado: "Result",

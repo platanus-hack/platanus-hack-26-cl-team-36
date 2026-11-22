@@ -2,14 +2,14 @@
 //
 //   #/                          Corridas   ?q= &sitio= &filtro= &orden= &vista=
 //   #/t/<tandaId>               → #/t/<tandaId>/resumen
-//   #/t/<tandaId>/<pestaña>     resumen · telarana · replay · perfiles
+//   #/t/<tandaId>/<pestaña>     resumen · telarana · replay
 //
 // Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
 // saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan.
 
 import { CORRIDA, partesDeTanda } from "./almacen.js";
 
-export const PESTANAS = ["resumen", "telarana", "replay", "perfiles"];
+export const PESTANAS = ["resumen", "telarana", "replay"];
 export const PESTANA_POR_DEFECTO = "resumen";
 
 // Claves del diccionario (no textos): t(NOMBRES_DE_PESTANA.replay) → "Replay".
@@ -17,7 +17,6 @@ export const NOMBRES_DE_PESTANA = Object.freeze({
   resumen: "comun.pestana.resumen",
   telarana: "comun.pestana.telarana",
   replay: "comun.pestana.replay",
-  perfiles: "comun.pestana.perfiles",
 });
 
 
@@ -27,7 +26,6 @@ const ORDEN_DE_PARAMETROS = {
   resumen: [],
   telarana: ["perfil", "pagina", "historia", "paso", "vista"],
   replay: ["intento", "paso", "modo", "ver", "senales"],
-  perfiles: ["orden"],
 };
 
 // Valores por defecto: no se escriben en el hash.
@@ -42,7 +40,7 @@ const ALIAS = {
   telarana: { nodo: "pagina" },
 };
 
-const PANTALLAS_LEGADAS = new Set(["telarana", "replay", "perfiles"]);
+const PANTALLAS_LEGADAS = new Set(["telarana", "replay"]);
 
 export const AVISO_ENLACE_SIN_TANDA = "comun.aviso.enlaceSinTanda";
 
@@ -145,7 +143,7 @@ export function enlaceATanda(tandaId, pestana = PESTANA_POR_DEFECTO, parametros 
 }
 
 /**
- * Enlaces de la v0 (#/telarana?t=…, #/replay?t=…&perfil=…, #/perfiles?t=…).
+ * Enlaces de la v0 (#/telarana?t=…, #/replay?t=…&perfil=…).
  * @returns {{ destino: string, aviso: string | null } | null}  aviso es una clave del diccionario.
  */
 export function traducirLegado(hash) {

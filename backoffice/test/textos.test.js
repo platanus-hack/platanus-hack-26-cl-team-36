@@ -253,7 +253,7 @@ test("lista: la mediana de pasos con el separador decimal del idioma (C4-6)", as
 });
 
 test("el nivel de conocimiento de un perfil en cada idioma, también dentro de su nombre (C4-6)", async () => {
-  const { textoDeNivel } = await import("../public/perfiles/nombres.js");
+  const { textoDeNivel } = await import("../public/datos/nombres.js");
   const { formatear } = await import("../public/nucleo/i18n.js");
   const comunEs = (await import("../public/i18n/es/comun.js")).default;
   const comunEn = (await import("../public/i18n/en/comun.js")).default;
@@ -263,7 +263,13 @@ test("el nivel de conocimiento de un perfil en cada idioma, también dentro de s
   assert.equal(textoDeNivel("sin contexto", t("en")), "no context");
   assert.equal(textoDeNivel("sin contexto", t("es")), "sin contexto");
   assert.equal(textoDeNivel("otro nivel", t("en")), "otro nivel");
-  const { nombreConNivel } = await import("../public/perfiles/nombres.js");
+  const { nombreConNivel } = await import("../public/datos/nombres.js");
   assert.equal(nombreConNivel("Explorador del pie (conoce el tema)", t("en")), "Explorador del pie (knows the topic)");
   assert.equal(nombreConNivel("Senior", t("en")), "Senior");
+});
+
+test("partirNombre: el nivel de conocimiento va aparte del resto del nombre", async () => {
+  const { partirNombre } = await import("../public/datos/nombres.js");
+  assert.deepEqual(partirNombre("Explorador del pie (conoce el tema)"), { base: "Explorador del pie", nivel: "conoce el tema" });
+  assert.deepEqual(partirNombre("Apurado"), { base: "Apurado", nivel: null });
 });

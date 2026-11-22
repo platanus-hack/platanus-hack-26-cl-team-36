@@ -1,6 +1,6 @@
 // Marco de una tanda (diseño §5.11, §10.3): migas, anterior/siguiente, copiar enlace, h1, instrucción, línea de
 // datos, resumen del veredicto, pestañas y el panel donde se montan las pestañas. Las pestañas son enlaces (cambian
-// la URL), no pestañas ARIA. Registra los atajos [ ] 1–4 c y las opciones de la tanda en la paleta.
+// la URL), no pestañas ARIA. Registra los atajos [ ] 1–3 c y las opciones de la tanda en la paleta.
 
 import { kbd, registrarAtajos } from "./atajos.js";
 import { copiarEnlace } from "./avisos.js";
@@ -265,15 +265,6 @@ export function montarMarco({ tanda, ruta, navegar }) {
       palabras: `${pagina.titulo ?? ""} ${pagina.url ?? ""}`,
       href: enlaceATanda(tanda.id, "telarana", { pagina: pagina.id }),
       icono: pagina.enRuta ? "en-ruta" : "fuera-de-ruta",
-    })),
-    ...(tanda.perfiles ?? []).map((perfil) => ({
-      id: `tanda:perfil:${perfil.perfil}`,
-      grupo: "tanda",
-      titulo: perfil.nombre ?? perfil.perfil,
-      subtitulo: t("comun.paleta.perfil", { n: fmt.conteo(perfil.metricas?.exito ?? null) }),
-      palabras: perfil.perfil,
-      href: enlaceATanda(tanda.id, "perfiles"),
-      icono: "corridas",
     })),
   ]);
 

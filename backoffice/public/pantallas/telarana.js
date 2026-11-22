@@ -31,7 +31,7 @@ import { atascosPorPagina } from "../telarana/atascos.js";
 import { claseDeTramo, dibujarEscena } from "../telarana/escena.js";
 import { crearHistoria } from "../telarana/historia.js";
 import { etiquetasDeEstaciones } from "../telarana/nombres.js";
-import { nombreConNivel } from "../perfiles/nombres.js";
+import { nombreConNivel } from "../datos/nombres.js";
 
 const PASO_DE_PAN = 60;
 /** Las acciones de una rama, las de la gente primero y los saltos del explorador al final. */

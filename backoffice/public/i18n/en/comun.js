@@ -42,7 +42,6 @@ export default {
     resumen: "Summary",
     telarana: "Route map",
     replay: "Replay",
-    perfiles: "Profiles",
   },
   marco: {
     migas: "Breadcrumb",
@@ -146,7 +145,6 @@ export default {
     cambiarIdioma: "Language: Español",
     intento: "Replay · {resultado}",
     pagina: "Route map · {url}",
-    perfil: "Profiles · {n}",
   },
   atajos: {
     titulo: "Keyboard shortcuts",
@@ -162,7 +160,6 @@ export default {
       resumen: "Summary",
       telarana: "Route map",
       replay: "Replay",
-      perfiles: "Profiles",
     },
     tecla: {
       espacio: "Space",
@@ -178,7 +175,7 @@ export default {
       cerrar: "Close the dialog or tooltip; then clear the selection",
       irACorridas: "Go to Runs",
       buscar: "In Runs, search; elsewhere, open the palette",
-      pestanas: "Summary · Route map · Replay · Profiles",
+      pestanas: "Summary · Route map · Replay",
       vecinas: "Previous (older) / next (newer) batch",
       copiarEnlace: "Copy the link to this view",
       filas: "Next / previous row",
@@ -205,7 +202,6 @@ export default {
       intentos: "Next / previous attempt",
       veredicto: "Show or hide the verdict and criterion",
       verEnTelarana: "Open this step in the route map",
-      abrirEnReplay: "Open in Replay",
     },
   },
 };

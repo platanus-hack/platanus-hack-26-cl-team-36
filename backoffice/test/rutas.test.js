@@ -42,9 +42,10 @@ test("cada pestaña, con y sin tarea, va y vuelve", () => {
       assert.deepEqual(parsearHash(hash), { tipo: "tanda", tandaId, pestana, parametros: {} });
     }
   }
-  const perfiles = parsearHash(`#/t/${CON_TAREA}/perfiles?orden=-pasos`);
-  assert.deepEqual(perfiles.parametros, { orden: "-pasos" });
-  assert.equal(hashDe(perfiles), `#/t/${CON_TAREA}/perfiles?orden=-pasos`);
+  assert.deepEqual(PESTANAS, ["resumen", "telarana", "replay"]);
+  // Perfiles ya no existe: su pestaña y su enlace de la v0 son rutas desconocidas.
+  assert.equal(parsearHash(`#/t/${CON_TAREA}/perfiles`).tipo, "desconocida");
+  assert.equal(parsearHash(`#/perfiles?t=${CON_TAREA}`).tipo, "desconocida");
 });
 
 test("#/t/<id> sin pestaña es el Resumen", () => {
@@ -79,7 +80,7 @@ test("enlaces de la v0 se traducen a la tanda", () => {
     destino: "#/t/dt.gob.cl/visitor/reclamo-despido/2026-11-21T07-28-42Z/replay?intento=mobile&paso=3",
     aviso: null,
   });
-  assert.deepEqual(traducirLegado(`#/perfiles?t=${CON_TAREA}`), { destino: `#/t/${CON_TAREA}/perfiles`, aviso: null });
+  assert.equal(traducirLegado(`#/perfiles?t=${CON_TAREA}`), null);
   assert.equal(traducirLegado(`#/t/${CON_TAREA}/replay`), null);
   const legado = parsearHash(`#/replay?t=${CON_TAREA}&perfil=mobile`);
   assert.equal(legado.tipo, "legado");
@@ -87,7 +88,7 @@ test("enlaces de la v0 se traducen a la tanda", () => {
 });
 
 test("enlaces viejos sin t → Corridas con aviso", () => {
-  for (const hash of ["#/telarana", "#/replay?perfil=mobile&paso=2", "#/perfiles?x=1"]) {
+  for (const hash of ["#/telarana", "#/replay?perfil=mobile&paso=2"]) {
     const ruta = parsearHash(hash);
     assert.equal(ruta.tipo, "legado");
     assert.equal(ruta.destino, "#/");

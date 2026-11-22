@@ -305,7 +305,7 @@ function dificultad(tanda, lista) {
 }
 
 /**
- * Las frases con que abren Resumen (tanda), Telaraña y Perfiles, como clave + variables.
+ * Las frases con que abren Resumen (la tanda y sus intentos) y Telaraña, como clave + variables.
  * `tanda` lleva además `nivel`: "bien" (todos llegan sin dificultad), "dificultad" (todos llegan, pero alguien
  * tarda o tropieza: datos.titular.tanda) o el nivel del hallazgo `resultado`.
  * @param {{ intentos: any[], telarana: { ruta: any }, kpis: any, perfiles: any[] }} tanda

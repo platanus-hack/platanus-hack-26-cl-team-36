@@ -272,7 +272,7 @@ export function kbd(especificacion, { mantener = false } = {}) {
 
 // ── Hoja de atajos ("?") ─────────────────────────────────────────────────
 
-const GRUPOS = ["global", "tanda", "corridas", "resumen", "telarana", "replay", "perfiles"];
+const GRUPOS = ["global", "tanda", "corridas", "resumen", "telarana", "replay"];
 
 // El mapa de §7: se muestra para las vistas que no están abiertas (las abiertas muestran lo que registraron).
 const CATALOGO = [
@@ -281,7 +281,7 @@ const CATALOGO = [
   { grupo: "global", teclas: ["Escape"], clave: "cerrar" },
   { grupo: "global", teclas: ["g c"], clave: "irACorridas" },
   { grupo: "global", teclas: ["/"], clave: "buscar" },
-  { grupo: "tanda", teclas: ["1", "2", "3", "4"], clave: "pestanas" },
+  { grupo: "tanda", teclas: ["1", "2", "3"], clave: "pestanas" },
   { grupo: "tanda", teclas: ["[", "]"], clave: "vecinas" },
   { grupo: "tanda", teclas: ["c"], clave: "copiarEnlace" },
   { grupo: "corridas", teclas: ["j", "k", "ArrowDown", "ArrowUp"], clave: "filas" },
@@ -308,8 +308,6 @@ const CATALOGO = [
   { grupo: "replay", teclas: ["i", "Shift+I"], clave: "intentos" },
   { grupo: "replay", teclas: ["e"], clave: "veredicto" },
   { grupo: "replay", teclas: ["t"], clave: "verEnTelarana" },
-  { grupo: "perfiles", teclas: ["j", "k"], clave: "filas" },
-  { grupo: "perfiles", teclas: ["Enter"], clave: "abrirEnReplay" },
 ];
 
 /** Las teclas de §7 (para pruebas y para la hoja). */

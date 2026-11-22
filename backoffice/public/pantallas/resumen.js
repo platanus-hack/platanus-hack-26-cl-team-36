@@ -1,13 +1,13 @@
 // Resumen de una tanda (diseño §10.4): la pestaña por defecto al abrir una tanda. Empieza por el hallazgo
 // (titulares.tanda) y lo que lo sostiene (cifras y los demás hallazgos, cada uno con su enlace al paso exacto en
 // Replay y en la telaraña), y después la ruta recomendada, los intentos, los errores de la herramienta, dónde se
-// separan de la ruta y el criterio del juez. Es la puerta de entrada a Telaraña, Replay y Perfiles.
+// separan de la ruta y el criterio del juez. Es la puerta de entrada a Telaraña y Replay.
 
 import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea } from "../nucleo/estados.js";
 import { icono, insignia } from "../nucleo/iconos.js";
 import { nombreDePagina, textoDeAccion, textoDeError, textoDeHallazgo, textoDeTitular } from "../datos/textos.js";
-import { nombreConNivel } from "../perfiles/nombres.js";
+import { nombreConNivel } from "../datos/nombres.js";
 
 const ICONO_DE_SENAL = { no_effect: "sin-efecto", went_back: "volvio", visible_error: "error-visible", security_block: "bloqueo" };
 const ACCIONES_VISIBLES = 2;
@@ -223,18 +223,6 @@ function enlacesDeHallazgo(ctx, c, hallazgo) {
     return enlaces;
   }
 
-  if (tipo === "costo") {
-    enlaces.push(
-      enlaceConFlecha({
-        href: ctx.enlace("perfiles"),
-        texto: ctx.t("resumen.hallazgo.verPerfiles"),
-        etiqueta: ctx.t("resumen.hallazgo.verPerfilesEtiqueta"),
-        clase: "resumen-hallazgo-principal",
-        foco: `resumen:hallazgo:${hallazgo.id}`,
-        extra: { "data-hallazgo": "" },
-      }),
-    );
-  }
   return enlaces;
 }
 
@@ -414,7 +402,6 @@ function intentos(ctx, c) {
     {
       id: "resumen-titulo-intentos",
       titulo: ctx.t("resumen.intentos.titulo"),
-      extra: enlaceConFlecha({ href: ctx.enlace("perfiles"), texto: ctx.t("resumen.intentos.compararPerfiles"), foco: "resumen:perfiles" }),
       clase: "resumen-seccion-intentos",
     },
     titularPerfiles ? el("p", { class: "resumen-subtitular texto-2", texto: titularPerfiles }) : null,

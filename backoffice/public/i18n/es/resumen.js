@@ -34,8 +34,6 @@ export default {
     verIntentoEtiqueta: ({ nombre, n }, { plural }) => `${nombre}: ver sus ${pasos(n, plural)} en Replay`,
     verPagina: "Ver en la telaraña",
     verPaginaEtiqueta: "Ver «{pagina}» en la telaraña",
-    verPerfiles: "Ver perfiles",
-    verPerfilesEtiqueta: "Comparar los pasos de cada perfil en Perfiles",
   },
   ruta: {
     titulo: "Ruta recomendada",
@@ -57,7 +55,6 @@ export default {
   },
   intentos: {
     titulo: "Intentos",
-    compararPerfiles: "Comparar perfiles",
     columna: {
       perfil: "Perfil",
       resultado: "Resultado",
