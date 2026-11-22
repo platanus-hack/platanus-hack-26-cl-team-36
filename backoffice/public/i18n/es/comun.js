@@ -44,6 +44,7 @@ export default {
     pasos: ({ n }, { plural }) => `${n} ${plural(n, { one: "paso", other: "pasos" })}`,
     grupo: ({ n, nombres }) => `×${n} · ${nombres}`,
     elInicio: "el inicio",
+    pagina: "«{nombre}»",
     quitar: "Quitar la selección",
     salioEn: "Salió de la ruta en {desde} → {hacia}.",
     noSalio: "No salió de la ruta.",
@@ -117,6 +118,7 @@ export default {
     tandaNoExiste: "No existe la tanda «{id}».",
     otrasDeLaTarea: "Otras tandas de esta tarea:",
     intentoNoExiste: "No existe el intento «{intento}»; se muestra «{nombre}».",
+    trazaNoExiste: "No existe el intento «{intento}» en esta tanda.",
     pasoInvalido: "El paso «{paso}» no es válido; se muestra el 1.",
     pasoFueraDeRango: ({ total }, { plural }) =>
       `El intento tiene ${total} ${plural(total, { one: "paso", other: "pasos" })}; se muestra el último.`,

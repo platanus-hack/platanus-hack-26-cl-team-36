@@ -1,14 +1,19 @@
-// Pestaña Telaraña (diseño §10.5): la telaraña viva (public/telarana/viva.js) con el estado final de la tanda; el
-// botón Reproducir la anima a la velocidad real. Los enlaces del panel abren Replay en el intento y el paso.
+// Pestaña Mapa de caminos (diseño §10.5): a la izquierda el riel de trazas por interés (tanda/riel.js); al centro la
+// telaraña viva (public/telarana/viva.js) con el estado final de la tanda; a la derecha su panel o, con una traza
+// elegida, lo que la hace interesante y el enlace a sus pasos en Replay.
 //
-// El estado de la vista vive en el hash: pagina= (la página fijada). Un clic en una página escribe el parámetro con
-// ctx.actualizarParametros y actualizar(ctx) lo aplica: una sola fuente de verdad.
+// El estado de la vista vive en el hash: intento= (la traza elegida, la misma clave del Replay) o pagina= (la página
+// fijada). Un clic escribe el parámetro con ctx.actualizarParametros y actualizar(ctx) lo aplica: una sola fuente de
+// verdad. Pasar sobre una fila del riel resalta su traza sin moverla; elegirla acerca la cámara a su camino.
 
 import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
 import { claveDePagina } from "../nucleo/url.js";
-import { nombreDePagina, textoDeTitular } from "../datos/textos.js";
+import { nombreDePagina } from "../datos/textos.js";
 import { nombreConNivel } from "../datos/nombres.js";
+import { crearRiel } from "../tanda/riel.js";
+import { seleccion, vecina } from "../tanda/riel-estado.js";
+import { detalleDeTraza, filasDeTrazas, resumenDeOtra, trazasDeLaTanda } from "../tanda/trazas.js";
 import { eventosDeTanda, fuenteDeTanda, rutaDeTanda } from "../telarana/fuente-tanda.js";
 import { montarTelaranaViva } from "../telarana/viva.js";
 
@@ -29,17 +34,33 @@ function crearPantalla(contenedor, ctx) {
   const { tanda, t } = ctx;
   const paginas = new Map((tanda.telarana?.paginas ?? []).map((pagina) => [pagina.id, pagina]));
   const intentos = new Map((tanda.intentos ?? []).map((intento) => [`${tanda.id}|${intento.id}`, intento]));
+  const runDe = (id) => `${tanda.id}|${id}`;
   const claves = clavesDePaginas(tanda);
-  const estado = { avisos: [], profundidad: 0, vista: null };
+  const trazas = trazasDeLaTanda(tanda, t);
+  const estado = { avisos: [], profundidad: 0, vista: null, pagina: null, intento: null };
 
   contenedor.classList.add("p-telarana");
-  const titular = el("h2", { class: "telarana-titular", tabindex: "-1", "data-foco-inicial": "", texto: textoDeTitular(tanda.titulares?.telarana, tanda, t) });
   const zonaDeAvisos = el("div", { class: "telarana-avisos" });
-  const cuerpo = el("div", { class: "telarana-cuerpo" });
-  reemplazar(contenedor, el("header", { class: "telarana-cabecera" }, titular, zonaDeAvisos), cuerpo);
+  const centro = el("div", { class: "telarana-anfitrion" });
+
+  const elegir = (id) => ctx.actualizarParametros({ intento: id === estado.intento?.grupo.representante ? null : id, pagina: null });
+  const riel = crearRiel({
+    titulo: t("comun.traza.titulo"),
+    orden: t("comun.traza.orden"),
+    etiqueta: t("comun.traza.etiqueta"),
+    filas: filasDeTrazas(trazas, t),
+    senal: ctx.senal,
+    alApuntar: (id) => {
+      const grupo = id ? seleccion(trazas.grupos, id)?.grupo : null;
+      estado.vista?.apuntarAgente(grupo ? grupo.intentos.map((intento) => runDe(intento.id)) : null);
+    },
+    alElegir: elegir,
+    otras: { titulo: t("comun.traza.otrasTandas"), tanda, pestana: "telarana", resumen: resumenDeOtra(ctx.tandas), fecha: (iso) => ctx.fmt.fechaCorta(iso) },
+  });
+  reemplazar(contenedor, zonaDeAvisos, el("div", { class: "tanda-columnas" }, riel.nodo, centro));
 
   function montarVista() {
-    estado.vista = montarTelaranaViva(cuerpo, {
+    estado.vista = montarTelaranaViva(centro, {
       ruta: rutaDeTanda(tanda),
       fuente: fuenteDeTanda(tanda),
       repetir: () => fuenteDeTanda(tanda, { reproducir: true }),
@@ -54,9 +75,18 @@ function crearPantalla(contenedor, ctx) {
         const id = clave ? claves.porClave.get(clave) : null;
         // Una página que la tanda no conoce se fija igual, pero no tiene cómo ir al hash.
         if (clave && !id) return;
-        ctx.actualizarParametros({ pagina: id });
+        ctx.actualizarParametros({ pagina: id, intento: null });
         if (id) ctx.anunciar(t("telarana.panel.elegida", { nombre: nombreDePagina(paginas.get(id), t) }));
       },
+      alElegir: (run) => ctx.actualizarParametros({ intento: run ? (intentos.get(run)?.id ?? null) : null, pagina: null }),
+      detalleDeAgente: () =>
+        estado.intento
+          ? detalleDeTraza(estado.intento, trazas, {
+              t,
+              enlaceAReplay: (id) => ctx.enlace("replay", { intento: id }),
+              alQuitar: () => ctx.actualizarParametros({ intento: null }),
+            })
+          : null,
     });
   }
 
@@ -80,16 +110,33 @@ function crearPantalla(contenedor, ctx) {
       }
       if (canonica !== pagina) return reescribir({ pagina: canonica });
     }
-    estado.pagina = pagina;
-    estado.vista?.fijar(pagina ? claves.porId.get(pagina) : null);
+    const elegida = seleccion(trazas.grupos, parametros.intento ?? null);
+    if (parametros.intento && !elegida) {
+      estado.avisos.push(t("comun.estado.trazaNoExiste", { intento: parametros.intento }));
+      return reescribir({ intento: null });
+    }
+    estado.intento = elegida;
+    estado.pagina = elegida ? null : pagina;
+    riel.marcar(elegida?.grupo.representante ?? null);
+    if (elegida) estado.vista?.elegirAgente(runDe(elegida.intento.id), elegida.grupo.intentos.map((intento) => runDe(intento.id)));
+    else {
+      estado.vista?.elegirAgente(null);
+      estado.vista?.fijar(estado.pagina ? claves.porId.get(estado.pagina) : null);
+    }
     reemplazar(zonaDeAvisos, estado.avisos.map((texto) => avisoEnLinea(texto, "atencion")));
     return true;
   }
 
+  const mover = (delta) => {
+    const id = vecina(trazas.grupos, estado.intento?.grupo.representante ?? null, delta);
+    if (id) ctx.actualizarParametros({ intento: id, pagina: null });
+  };
   ctx.atajos.registrar({
     "+": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => estado.vista?.acercar() },
     "-": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => estado.vista?.alejar() },
     0: { descripcion: () => t("comun.atajos.desc.ajustar"), accion: () => estado.vista?.ajustar() },
+    ArrowDown: { descripcion: () => t("comun.atajos.desc.trazas"), accion: () => mover(1) },
+    ArrowUp: { descripcion: () => t("comun.atajos.desc.trazas"), accion: () => mover(-1) },
   });
 
   return {
@@ -98,14 +145,19 @@ function crearPantalla(contenedor, ctx) {
       // Si otra navegación reemplazó la vista mientras cargaba el CSS, no se arma nada.
       if (ctx.senal.aborted) return;
       if (eventosDeTanda(tanda).length) montarVista();
-      else reemplazar(cuerpo, vacio({ titulo: t("telarana.lienzo.vacio") }));
+      else reemplazar(centro, vacio({ titulo: t("telarana.lienzo.vacio") }));
       aplicar(ctx.parametros);
     },
     actualizar(nuevo) {
       return aplicar(nuevo.parametros) !== false;
     },
-    /** Esc suelta la página fijada antes de cerrar la hoja. */
+    /** Esc cierra la leyenda y suelta la traza o la página antes de cerrar la hoja. */
     escapar() {
+      if (estado.vista?.cerrarAyuda()) return true;
+      if (estado.intento) {
+        ctx.actualizarParametros({ intento: null });
+        return true;
+      }
       if (!estado.pagina) return false;
       estado.vista?.soltar();
       return true;

@@ -7,6 +7,7 @@ import { anilloFinal, claveDeFinal } from "./modelo.js";
 import { acotar, puntoDeTramo, radio, segmentosDeTramo } from "./layout.js";
 
 const TRAZO = 0.75; // s que tarda en dibujarse un tramo nuevo
+const VIAJE_MS = 400; // la cámara va al encuadre de un agente elegido
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const salida3 = (t) => 1 - Math.pow(1 - t, 3);
 const hash = (s) => {
@@ -209,7 +210,7 @@ export function crearEscena(canvas, K) {
       for (let i = 0; i < 3; i++) v.c[i] += (cT[i] - v.c[i]) * k;
       const base = e.tipo === "b" ? 0.55 : e.n === 0 && !e.ruta && !e.term ? 0.5 : 0.95;
       const aT = E.hl.on ? (E.hl.tramos.has(e.clave) ? 1 : 0.1) : base;
-      v.al += (aT - v.al) * (1 - Math.exp(-dt * 10));
+      v.al += (aT - v.al) * (1 - Math.exp(-dt * 20));
       const A = E.vis.nodos.get(e.a);
       const B = E.vis.nodos.get(e.b);
       const seg = segmentosDeTramo(A, B, e.forma);
@@ -290,10 +291,12 @@ export function crearEscena(canvas, K) {
   function encuadrar(E, dt) {
     const k = 1 - Math.exp(-dt * 4);
     const Rf = radio(anilloFinal(E.m));
-    let x0 = -radio(1) * 0.7;
-    let x1 = radio(1);
-    let y0 = -radio(1);
-    let y1 = radio(1);
+    // Con un encuadre (el camino de un agente elegido) la caja parte vacía; sin él, con el primer anillo.
+    const r1 = E.V.marco ? 0 : radio(1);
+    let x0 = -r1 * 0.7;
+    let x1 = r1;
+    let y0 = -r1;
+    let y1 = r1;
     let etqDer = 0;
     let etqIzq = 0;
     for (const n of E.m.nodos.values()) {
@@ -305,6 +308,7 @@ export function crearEscena(canvas, K) {
       v.y = v.r * Math.sin(v.a);
       const tx = tr * Math.cos(n.ang);
       const ty = tr * Math.sin(n.ang);
+      if (E.V.marco && !E.V.marco.has(n.clave)) continue;
       x0 = Math.min(x0, tx);
       x1 = Math.max(x1, tx);
       y0 = Math.min(y0, ty);
@@ -319,10 +323,19 @@ export function crearEscena(canvas, K) {
       const z = acotar(Math.min((E.W - 72 - etqDer - etqIzq) / (x1 - x0), (E.H - 92) / (y1 - y0)), 0.3, 1.4);
       const cx = (x0 + x1) / 2 + (etqDer - etqIzq) / 2 / z;
       const cy = (y0 + y1) / 2 + 12 / z;
-      const q = V.init ? 1 - Math.exp(-dt * 3) : 1;
-      V.z += (z - V.z) * q;
-      V.cx += (cx - V.cx) * q;
-      V.cy += (cy - V.cy) * q;
+      if (V.viaje) {
+        // Del encuadre de antes al nuevo en VIAJE_MS, con la curva de salida; después sigue al encuadre.
+        const p = salida3(acotar((performance.now() - V.viaje.t0) / VIAJE_MS, 0, 1));
+        V.z = V.viaje.z + (z - V.viaje.z) * p;
+        V.cx = V.viaje.cx + (cx - V.viaje.cx) * p;
+        V.cy = V.viaje.cy + (cy - V.viaje.cy) * p;
+        if (p >= 1) V.viaje = null;
+      } else {
+        const q = V.init ? 1 - Math.exp(-dt * 3) : 1;
+        V.z += (z - V.z) * q;
+        V.cx += (cx - V.cx) * q;
+        V.cy += (cy - V.cy) * q;
+      }
       V.init = true;
     }
     camara.left = V.cx - E.W / 2 / V.z;

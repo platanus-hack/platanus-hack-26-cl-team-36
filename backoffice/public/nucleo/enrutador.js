@@ -694,6 +694,7 @@ export function actualizarParametros(cambios, { historial = "reemplazar" } = {})
   ruta = parsearHash(hash);
   hashMostrado = hash;
   if (vista) vista.ruta = ruta;
+  vista?.marco?.actualizar(ruta);
   const hecho = actualizarPantalla();
   avisarRuta();
   return hecho;

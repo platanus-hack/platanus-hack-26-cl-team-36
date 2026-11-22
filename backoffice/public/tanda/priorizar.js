@@ -92,11 +92,11 @@ export function priorizar(intentos = [], ruta = null) {
 export const grupoDe = (grupos, id) => grupos.find((grupo) => grupo.intentos.some((intento) => intento.id === id)) ?? null;
 
 /**
- * Un motivo en palabras: t("comun.traza.motivo.<clave>", { pagina: «nombre», n }).
+ * Un motivo en palabras: t("comun.traza.motivo.<clave>", { pagina: «nombre», n }), con las comillas del idioma.
  * @param {Motivo} motivo
  * @param {{ t: Function, nombre: (id: string) => string }} ayudas
  */
 export function motivoATexto(motivo, { t, nombre }) {
-  const pagina = motivo.pagina ? `«${nombre(motivo.pagina)}»` : t("comun.traza.elInicio");
+  const pagina = motivo.pagina ? t("comun.traza.pagina", { nombre: nombre(motivo.pagina) }) : t("comun.traza.elInicio");
   return t(`comun.traza.motivo.${motivo.clave}`, { pagina, n: motivo.n ?? 0 });
 }

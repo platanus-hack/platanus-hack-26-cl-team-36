@@ -42,6 +42,7 @@ export default {
     pasos: ({ n }, { plural }) => `${n} ${plural(n, { one: "step", other: "steps" })}`,
     grupo: ({ n, nombres }) => `×${n} · ${nombres}`,
     elInicio: "the start",
+    pagina: "“{nombre}”",
     quitar: "Clear selection",
     salioEn: "Left the route at {desde} → {hacia}.",
     noSalio: "Did not leave the route.",
@@ -115,6 +116,7 @@ export default {
     tandaNoExiste: "The batch “{id}” does not exist.",
     otrasDeLaTarea: "Other batches of this task:",
     intentoNoExiste: "The attempt “{intento}” does not exist; showing “{nombre}”.",
+    trazaNoExiste: "There is no attempt “{intento}” in this batch.",
     pasoInvalido: "Step “{paso}” is not valid; showing step 1.",
     pasoFueraDeRango: ({ total }, { plural }) =>
       `The attempt has ${total} ${plural(total, { one: "step", other: "steps" })}; showing the last one.`,
