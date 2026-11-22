@@ -233,13 +233,17 @@ Cada tanda es una corrida en el almacén de [`shared.store`](../../shared/README
 <host>/visitor/<id>/<run>/
 ├── manifest.json     inputs: las corridas de guide con que se comparó y, con --site, la del catálogo
 ├── criteria.json     solo si el juez dictaminó algún intento
-├── <perfil>[-<n>]/   un intento: step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
+├── <perfil>[-<n>]/   un intento: step_NN.png, run.json, trace.json, claude_code.log y, con --record-video, video.webm
 ├── route_tree.json   nodos, ramas y ruta recomendada
 ├── tema.css          solo con --css: el tema aplicado (route_tree.json lo registra en `tema`)
 ├── comparison.json   solo si hay ruta de referencia
 ├── proposals.json    solo si un intento usó menos pasos que una ruta
 └── report.md
 ```
+
+Cada paso de un intento sube al almacén su `step_NN.png` y `trace.json` (`steps` con la forma de run.json), sin
+esperar al final; al terminar, trace.json queda con los pasos de run.json y `status` `succeeded`, o `failed` si el
+intento se interrumpió.
 
 Un intento interrumpido por un error técnico no cuenta como éxito ni como fallo: no entra en la comparación, el
 árbol ni el resumen. Si todos se interrumpen, la corrida termina `failed`, con su reporte, y el comando sale con error.

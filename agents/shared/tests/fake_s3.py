@@ -42,6 +42,10 @@ class FakeS3:
         if tagging is not None:
             self.tags[(bucket, key)] = tagging
 
+    def delete_object(self, Bucket: str, Key: str) -> None:
+        self.objects.pop((Bucket, Key), None)
+        self.tags.pop((Bucket, Key), None)
+
     def get_object(self, Bucket: str, Key: str) -> dict[str, Any]:
         if (Bucket, Key) not in self.objects:
             raise ClientError("NoSuchKey")

@@ -149,6 +149,7 @@ def test_command_writes_the_conductor_run(monkeypatch, backend):
     code, manifest, report = _main(monkeypatch, backend, FakeInvoker(backend, [goal("a")]), "--goals-max", "1")
     assert code == 0 and manifest.revision == REVISION and manifest.status == "succeeded"
     assert report["status"] == "succeeded" and report["options"]["goals_max"] == 1
+    assert report["options"]["concurrency"] == 3  # por defecto: tres objetivos a la vez
 
 
 def test_command_fails_with_the_improver(monkeypatch, backend):

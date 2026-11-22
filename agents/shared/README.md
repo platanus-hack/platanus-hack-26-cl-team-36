@@ -92,6 +92,11 @@ bloque lanza una excepción; los consumidores ignoran las corridas que no termin
 En disco, `run.workdir` es la carpeta de la corrida. En S3 es una carpeta temporal que `finish_run` sube y borra. Los
 archivos ocultos (`.DS_Store`) no se publican.
 
+`store.publish_file(run.key, run.workdir, name, profile)` sube al momento un archivo de una corrida en curso (si ya no
+está, quita el publicado); en disco no hace nada porque ya está ahí. Un fallo queda como aviso en el log. `LiveTrace`
+lo usa para el `trace.json` de la Guía y del Visitante: `schema_version`, `agent`, `goal`, `revision`, `profile`,
+`status` (running → succeeded|failed), `updated_at`, `start` y `steps`, publicado tras cada paso con su captura.
+
 ### Local y S3
 
 `AGENTS_STORE` elige el backend:

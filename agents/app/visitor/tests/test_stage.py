@@ -18,6 +18,7 @@ from shared.nodes.urls import node_key
 import main
 from visitor import batch, outcome, report
 from visitor.batch import attempt_folder, attempt_slots
+from visitor.harness import SyntheticUser
 from visitor.profiles import PROFILES, system_prompt
 from visitor.recording import Run
 from visitor.stage import MissingInput, run_stage
@@ -271,3 +272,37 @@ def test_the_cli_exits_zero_when_the_run_succeeds_and_not_without_inputs(tmp_pat
     main.main()  # sin SystemExit: sale con 0
     run = store.revision_run(backend, store.visitor(site, "horario"), REVISION)
     assert store.read_manifest(backend, run).status == "succeeded"
+
+
+def test_each_attempt_publishes_its_trace_after_every_step_and_ends_as_its_run(tmp_path, site, monkeypatch):
+    backend = store.LocalBackend(tmp_path / "almacen")
+    goal = _goal(site)
+    _catalog(backend, site, REVISION, goal, 0)
+    _route(backend, site, REVISION, goal, 1)
+    seen: dict[str, list[dict]] = {}
+    publish = SyntheticUser._publish_trace
+
+    async def watching(self, screenshot):
+        await publish(self, screenshot)
+        [run] = backend.list_runs(store.visitor(site, "horario"))
+        folder = self.run.folder
+        trace = backend.read_json(run.file("trace.json", folder))
+        assert store.read_manifest(backend, run).status == "running"
+        assert (trace["status"], len(trace["steps"])) == ("running", len(self.run.steps))
+        assert backend.exists(run.file(screenshot, folder))
+        seen.setdefault(folder, []).append(trace)
+
+    monkeypatch.setattr(SyntheticUser, "_publish_trace", watching)
+    run = _stage(backend, site, runs=2)
+
+    assert {folder: [len(trace["steps"]) for trace in traces] for folder, traces in seen.items()} == {
+        "desktop": [0, 1, 2], "desktop-2": [0, 1, 2]}
+    last = seen["desktop-2"][-1]
+    assert (last["schema_version"], last["agent"], last["goal"], last["revision"], last["profile"]) == (
+        1, "visitor", "horario", REVISION, "desktop")
+    for folder in ("desktop", "desktop-2"):
+        data = backend.read_json(run.file("run.json", folder))
+        final = backend.read_json(run.file("trace.json", folder))
+        assert (final["status"], final["start"], final["steps"]) == ("succeeded", data["start"], data["steps"])
+        files = sorted(path.name for path in (backend.root / str(run) / folder).iterdir())
+        assert files == ["run.json", "step_00.png", "step_01.png", "step_02.png", "trace.json"]

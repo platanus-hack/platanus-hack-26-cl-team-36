@@ -9,7 +9,7 @@ from shared.nodes.urls import node_key
 from guide.route import Step, route_nodes, totals
 
 
-def _step_record(number: int, step: Step) -> dict:
+def step_record(number: int, step: Step) -> dict:
     target = None
     if step.target:
         target = {key: value for key, value in asdict(step.target).items() if key != "locators"}
@@ -49,7 +49,7 @@ def route_document(
         "final_node": steps[-1].node_after if steps else start_node,
         "start": {"url": start_url, "title": start_title, "node": start_node,
                   "screenshot": "step_00.png" if start_screenshot else None},
-        "steps": [_step_record(number, step) for number, step in enumerate(steps, 1)],
+        "steps": [step_record(number, step) for number, step in enumerate(steps, 1)],
     }
 
 

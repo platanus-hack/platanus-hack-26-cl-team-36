@@ -14,12 +14,13 @@ from shared import store
 from guide import config
 from guide.candidates import Candidate, search_record, shorter_instruction
 from guide.decider import ClaudeDecider, Decider, scripted_decision
-from guide.explore import Exploration, explore
+from guide.explore import Exploration, Progress, explore, no_progress
 from guide.operate import Log
 from guide.output import route_document, write_reference
 from guide.prompts import system_prompt
 from guide.replay import Verification, verify_and_minimise
 from guide.route import distill
+from guide.trace import GuideTrace
 
 
 @dataclass
@@ -53,10 +54,11 @@ class RouteNotVerified(Exception):
         self.run, self.document = run, document
 
 
-async def _explore(browser: Browser, mapping: Mapping, decider: Decider, instruction: str, log: Log) -> Exploration:
+async def _explore(browser: Browser, mapping: Mapping, decider: Decider, instruction: str, log: Log,
+                   progress: Progress) -> Exploration:
     context = await create_context(browser, mapping.screen)
     try:
-        return await explore(BrowserSession(context, mapping.screen), mapping.url, decider, instruction, log)
+        return await explore(BrowserSession(context, mapping.screen), mapping.url, decider, instruction, log, progress)
     finally:
         await context.close()
 
@@ -115,34 +117,38 @@ async def _verify(browser: Browser, mapping: Mapping, exploration: Exploration, 
     return verification
 
 
-async def _candidate(browser: Browser, mapping: Mapping, decider: Decider, instruction: str, log: Log) -> Candidate:
+async def _candidate(browser: Browser, mapping: Mapping, decider: Decider, instruction: str, log: Log,
+                     progress: Progress) -> Candidate:
     cost_before = decider.cost_usd
-    exploration = await _explore(browser, mapping, decider, instruction, log)
+    exploration = await _explore(browser, mapping, decider, instruction, log, progress)
     verification = await _verify(browser, mapping, exploration, log) if exploration.end_reason == "done" else None
     return Candidate(exploration, verification, decider.cost_usd - cost_before)
 
 
-async def _search(browser: Browser, mapping: Mapping, decider: Decider, log: Log) -> tuple[list[Candidate], Candidate]:
+async def _search(browser: Browser, mapping: Mapping, decider: Decider, log: Log,
+                  progress: Progress) -> tuple[list[Candidate], Candidate]:
     """La primera ruta y hasta `extra_routes` exploraciones más que piden una más corta; gana la que `beats`."""
-    best = await _candidate(browser, mapping, decider, mapping.instruction, log)
+    best = await _candidate(browser, mapping, decider, mapping.instruction, log, progress)
     candidates = [best]
     for _ in range(mapping.extra_routes):
         if best.status != "verified" or best.totals["min_steps"] == 0:
             break
         log(f"buscando una ruta de menos de {best.totals['min_steps']} pasos mínimos")
-        candidate = await _candidate(browser, mapping, decider, shorter_instruction(mapping.instruction, best), log)
+        candidate = await _candidate(browser, mapping, decider, shorter_instruction(mapping.instruction, best), log,
+                                     progress)
         candidates.append(candidate)
         if candidate.beats(best):
             best = candidate
     return candidates, best
 
 
-async def map_reference(browser: Browser, mapping: Mapping, decider: Decider, out_dir: Path) -> dict:
-    """Mapea la ruta, la escribe en `out_dir` y devuelve el documento de route.json."""
+async def map_reference(browser: Browser, mapping: Mapping, decider: Decider, out_dir: Path,
+                        progress: Progress = no_progress) -> dict:
+    """Mapea la ruta, la escribe en `out_dir` y devuelve el documento de route.json; `progress` sigue cada exploración."""
     def log(text: str) -> None:
         print(f"[{mapping.label}] {text}", flush=True)
 
-    candidates, best = await _search(browser, mapping, decider, log)
+    candidates, best = await _search(browser, mapping, decider, log, progress)
     document = route_document(
         _meta(mapping), best.status, best.start, best.steps, best.quote_scrolls,
         {**_details(best, decider.usage, decider.cost_usd), "search": search_record(candidates, best)},
@@ -165,8 +171,16 @@ async def map_references(
                 caller = make_caller(mapping.model, mapping.effort, claude_cwd, run.workdir / "claude_code.log",
                                      fake=scripted_decision)
                 decider = ClaudeDecider(system_prompt(mapping.screen.width, mapping.screen.height), caller)
-                document = await map_reference(browser, mapping, decider, run.workdir)
-                if mapping.revision and document["status"] != "verified":
+                trace = GuideTrace(store.LiveTrace(backend, run, "guide"))
+                try:
+                    document = await map_reference(browser, mapping, decider, run.workdir, trace.explored)
+                except BaseException:
+                    trace.finish("failed")
+                    raise
+                trace.route(document)
+                verified = document["status"] == "verified"
+                trace.finish("succeeded" if verified or not mapping.revision else "failed")
+                if mapping.revision and not verified:
                     raise RouteNotVerified(run.key, document)
             return run.key, document
 

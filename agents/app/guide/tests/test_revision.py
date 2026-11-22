@@ -183,3 +183,69 @@ def test_a_revision_explores_once_unless_asked(backend, monkeypatch, options, ex
     parser = build_parser()
     route_command.run(parser, parser.parse_args(["route", "--url", url, *options]))
     assert [mapping.extra_routes for mapping in mapped] == [extra_routes]
+
+
+DETOUR = [("scroll", None, {"text": "down"}), *ROUTE]   # la verificación quita el scroll
+
+
+@pytest.mark.parametrize("script", [ROUTE, DETOUR])
+def test_the_trace_is_in_the_store_after_each_step_and_ends_as_the_route(served, backend, scripted, monkeypatch, script):
+    _catalog(backend, served, "rev-a", [_goal("baja", served, "Encuentra cómo dar de baja")])
+    scripted["script"] = script
+    published, seen = [], []
+    publish_file = store.LocalBackend.publish_file
+
+    def spy(self, run, workdir, name, profile=None):
+        published.append(name)
+        publish_file(self, run, workdir, name, profile)
+
+    monkeypatch.setattr(store.LocalBackend, "publish_file", spy)
+    decide = reference.ClaudeDecider
+
+    def watching(system_prompt, caller):
+        decider = decide(system_prompt, caller)
+        original = decider.decide
+
+        async def decide_and_look(text, screenshot):
+            [run] = _guide_runs(backend, served, "baja")
+            trace = backend.read_json(run.file("trace.json"))
+            steps = len(seen)
+            assert store.read_manifest(backend, run).status == "running"
+            assert (trace["status"], len(trace["steps"]), trace["start"]["screenshot"]) == ("running", steps, "step_00.png")
+            assert all(backend.exists(run.file(f"step_{n:02d}.png")) for n in range(steps + 1))
+            seen.append(trace)
+            return await original(text, screenshot)
+
+        decider.decide = decide_and_look
+        return decider
+
+    monkeypatch.setattr(reference, "ClaudeDecider", watching)
+    _route("--url", served, "--revision", "rev-a", "--goal", "baja")
+
+    actions = len(script) - 1
+    assert published == ["step_00.png", "trace.json"] + [
+        name for n in range(1, actions + 1) for name in (f"step_{n:02d}.png", "trace.json")
+    ] + [f"step_{n:02d}.png" for n in range(4, actions + 1)]   # las capturas que la ruta no usa se quitan
+    last = seen[-1]
+    assert (last["schema_version"], last["agent"], last["goal"], last["revision"], last["profile"]) == (
+        1, "guide", "baja", "rev-a", None)
+    assert last["steps"][-1]["label"] == "click «¿Cómo doy de baja?»"
+
+    [run] = _guide_runs(backend, served, "baja")
+    route = backend.read_json(run.file("route.json"))
+    trace = backend.read_json(run.file("trace.json"))
+    assert (trace["status"], trace["steps"]) == ("succeeded", route["steps"])
+    assert trace["start"] == {key: route["start"][key] for key in ("url", "title", "screenshot")}
+    files = sorted(path.name for path in (backend.root / str(run)).iterdir())
+    assert files == ["manifest.json", "route.json", "route.md", "step_00.png", "step_01.png", "step_02.png",
+                     "step_03.png", "trace.json"]
+
+
+def test_a_failed_route_leaves_a_failed_trace(served, backend, scripted):
+    _catalog(backend, served, "rev-a", [_goal("baja", served, "Encuentra cómo dar de baja")])
+    scripted["script"] = [("click", "Productos", {}), ("give_up", None, {"text": "No está."})]
+    with pytest.raises(SystemExit):
+        _route("--url", served, "--revision", "rev-a", "--goal", "baja")
+    [run] = _guide_runs(backend, served, "baja")
+    trace = backend.read_json(run.file("trace.json"))
+    assert (trace["status"], trace["steps"]) == ("failed", backend.read_json(run.file("route.json"))["steps"])

@@ -5,7 +5,7 @@ from pathlib import Path
 
 GOALS_MAX = 3
 RUNS = 1
-CONCURRENCY = 2
+CONCURRENCY = 3
 
 INVOKER_VAR = "CONDUCTOR_INVOKER"           # local (por defecto) o agentcore
 RUNTIME_ARN_VAR = "CONDUCTOR_RUNTIME_ARN"   # con agentcore: el runtime que corre cada etapa
