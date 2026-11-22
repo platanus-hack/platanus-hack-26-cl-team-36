@@ -33,6 +33,7 @@
       "idioma.boton": "Idioma: {nombre}. Cambiar idioma",
 
       // Sección de opinión
+      "opinion.desplegar": "Dar mi opinión",
       "opinion.titulo": "Ayúdanos a mejorar tu experiencia",
       "opinion.pregunta": "¿Esta página es mejor para ti que la original?",
       "opinion.mejor": "Mejor",
@@ -109,6 +110,7 @@
       "idioma.lista": "Language",
       "idioma.boton": "Language: {nombre}. Change language",
 
+      "opinion.desplegar": "Give feedback",
       "opinion.titulo": "Help us improve your experience",
       "opinion.pregunta": "Is this page better for you than the original?",
       "opinion.mejor": "Better",

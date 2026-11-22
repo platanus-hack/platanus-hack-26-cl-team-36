@@ -4,7 +4,9 @@
 //   corre la metamorfosis en la pestaña; el background pinta el badge. El popup se
 //   redibuja con storage.onChanged, venga de donde venga el cambio.
 // - Opinión: pregunta a la pestaña activa `estado:pagina` (content/captura.js) para decidir
-//   qué mostrar (ver estado.js) y guarda con `voto:guardar` en el background.
+//   qué mostrar (ver estado.js) y guarda con `voto:guardar` en el background. Va plegada bajo el
+//   interruptor: el botón «Dar mi opinión» la abre y la cierra, y cada vez que se abre el panel empieza
+//   cerrada (no se recuerda). Cerrada, «Guardando…» o el resultado del último envío se ven junto al botón.
 //
 // - Efectos: el interruptor «Efectos» (centrado en la cabecera) guarda `efectos` ("llamativos" | "sutiles",
 //   comun/efectos.js) en storage.local; content/motor.js y el camaleón (interruptor.js, por body[data-efectos])
@@ -38,6 +40,9 @@ const el = {
   estado: $("mt-estado"),
   ayuda: $("mt-estado-ayuda"),
   opinion: $("mt-opinion"),
+  desplegar: $("mt-desplegar"),
+  plegable: $("mt-opinion-cuerpo"),
+  resumen: $("mt-opinion-resumen"),
   aviso: $("mt-aviso"),
   formulario: $("mt-formulario"),
   opciones: [...document.querySelectorAll(".mt-opcion")],
@@ -55,6 +60,7 @@ const estado = {
   efectos: EFECTOS_POR_OMISION, // "llamativos" | "sutiles"
   tabId: null,
   pagina: null, // { alcanzable, privada, temaId } | null mientras se consulta
+  opinionAbierta: false, // la opinión empieza cerrada cada vez que se abre el panel
   opcion: null, // "mejor" | "peor" | "comentario" | null
   guardando: false,
   pendientes: null,
@@ -105,6 +111,7 @@ function dibujarOpinion() {
   const cargando = estado.pagina === null || estado.activo === null;
   const vista = cargando ? { modo: "cargando", aviso: null, privacidad: null } : decidirVista(estado);
   el.opinion.dataset.modo = vista.modo;
+  dibujarPlegado();
   ponerTexto(el.aviso, vista.aviso ? tx(vista.aviso) : "");
   ponerTexto(el.privacidad, vista.privacidad ? tx(vista.privacidad) : "");
 
@@ -131,6 +138,19 @@ function dibujarOpinion() {
   el.mensaje.textContent = textoMensaje(estado.mensaje);
   el.mensaje.dataset.tipo = estado.mensaje?.tipo ?? "";
   ponerTexto(el.pendientes, estado.pendientes === null ? "" : textoPendientes(estado.pendientes, estado.idioma));
+}
+
+// Abierta o cerrada. Cerrada, la región queda inert (ni teclado ni lector de pantalla) y lo que no debe perderse se
+// muestra junto al botón: «Guardando…» mientras se guarda, o el resultado del último envío.
+function dibujarPlegado() {
+  const abierta = estado.opinionAbierta;
+  el.opinion.dataset.abierta = abierta ? "si" : "no";
+  el.desplegar.setAttribute("aria-expanded", String(abierta));
+  el.plegable.inert = !abierta;
+  const resumen = abierta ? null : estado.guardando ? { tipo: "guardando", clave: "opinion.guardando" } : estado.mensaje;
+  // Región viva (role=status), como el mensaje: no se anima.
+  el.resumen.textContent = textoMensaje(resumen);
+  el.resumen.dataset.tipo = resumen?.tipo ?? "";
 }
 
 function textoMensaje(mensaje) {
@@ -226,6 +246,12 @@ browser.storage.onChanged.addListener((cambios, area) => {
 });
 
 // ---------- Opinión ----------
+
+// Botón nativo: Enter y Espacio ya lo activan. El foco se queda en el botón (patrón de divulgación).
+el.desplegar.addEventListener("click", () => {
+  estado.opinionAbierta = !estado.opinionAbierta;
+  dibujarPlegado();
+});
 
 for (const boton of el.opciones) {
   boton.addEventListener("click", () => {

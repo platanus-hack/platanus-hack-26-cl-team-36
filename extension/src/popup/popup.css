@@ -199,10 +199,126 @@ body[data-activo="si"] .mt-chip {
   color: var(--mt-tinta);
 }
 
-/* ---------- Opinión ---------- */
+/* ---------- Opinión (plegable, bajo el interruptor) ---------- */
 
+/* La barra con «Dar mi opinión» y, debajo, la tarjeta plegable. Va bajo el interruptor: al abrirla el panel crece
+   hacia abajo y el camaleón no se mueve. */
 .mt-opinion {
+  --mt-plegado-duracion: 260ms;
+  --mt-plegado: var(--mt-plegado-duracion) cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  display: flex;
+  flex-direction: column;
+}
+
+.mt-opinion-barra {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* El botón es discreto (texto tenue, sin fondo) para que el interruptor sea lo principal. */
+.mt-desplegar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px 4px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--mt-texto-tenue);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--mt-transicion),
+    color var(--mt-transicion),
+    background var(--mt-transicion);
+}
+
+.mt-desplegar:hover,
+.mt-desplegar[aria-expanded="true"] {
+  border-color: var(--mt-borde);
+  background: var(--mt-superficie);
+  color: var(--mt-texto);
+}
+
+.mt-desplegar:focus-visible {
+  outline: 2px solid var(--mt-turquesa);
+  outline-offset: 2px;
+}
+
+.mt-desplegar-flecha {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--mt-plegado);
+}
+
+.mt-desplegar[aria-expanded="true"] .mt-desplegar-flecha {
+  transform: rotate(180deg);
+}
+
+/* Con la opinión cerrada: «Guardando…» o el resultado del último envío (popup.js lo deja vacío si está abierta). */
+.mt-opinion-resumen {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--mt-texto-suave);
+}
+
+.mt-opinion-resumen:empty {
+  display: none;
+}
+
+.mt-opinion-resumen[data-tipo="exito"] {
+  color: var(--mt-turquesa);
+}
+
+.mt-opinion-resumen[data-tipo="error"] {
+  color: var(--mt-error);
+}
+
+/* Una sola fila que va de 0fr (cerrada: nada ocupa lugar) a 1fr (el alto de la tarjeta), con un fundido. Al terminar
+   de cerrarse queda `visibility: hidden` (fuera del lector de pantalla y del teclado, junto con el `inert` que pone
+   popup.js); al abrir, visible desde el primer cuadro. */
+.mt-plegable {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--mt-plegado),
+    opacity var(--mt-plegado),
+    visibility 0s linear var(--mt-plegado-duracion);
+}
+
+.mt-opinion[data-abierta="si"] .mt-plegable {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows var(--mt-plegado),
+    opacity var(--mt-plegado),
+    visibility 0s;
+}
+
+.mt-plegable-interior {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* El margen (el espacio bajo el botón) va adentro de lo que se pliega: cerrada, no queda ni el hueco. */
+.mt-tarjeta {
   position: relative;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -214,17 +330,12 @@ body[data-activo="si"] .mt-chip {
 }
 
 /* Filete del espectro arriba de la tarjeta. */
-.mt-opinion::before {
+.mt-tarjeta::before {
   content: "";
   position: absolute;
   inset: 0 0 auto;
   height: 3px;
   background: var(--mt-espectro);
-}
-
-.mt-opinion-titulo {
-  font-size: 15px;
-  font-weight: 700;
 }
 
 .mt-pregunta {
@@ -245,7 +356,7 @@ body[data-activo="si"] .mt-chip {
 }
 
 /* La pregunta con sus opciones y el aviso van en la misma celda: la tarjeta mide lo mismo con o sin opciones
-   (el interruptor de abajo no salta al encender o apagar). Sin opciones, quedan invisibles pero ocupan su lugar. */
+   (el panel no cambia de alto al encender o apagar). Sin opciones, quedan invisibles pero ocupan su lugar. */
 .mt-eleccion {
   display: grid;
 }
@@ -311,7 +422,7 @@ body[data-activo="si"] .mt-chip {
 }
 
 /* Siempre dos líneas de alto («Solo quiero comentar» ocupa dos; «Just comment», una): la tarjeta no cambia de alto
-   con el idioma y el interruptor de abajo no se mueve. */
+   con el idioma y el panel no cambia de alto. */
 .mt-opcion-texto {
   display: flex;
   align-items: center;
@@ -468,5 +579,12 @@ body[data-activo="si"] .mt-chip {
   .mt-opcion:active:not(:disabled),
   .mt-enviar:active:not(:disabled) {
     transform: none;
+  }
+
+  /* La opinión se abre y se cierra de golpe (sin el retraso del visibility). */
+  .mt-plegable,
+  .mt-opinion[data-abierta="si"] .mt-plegable,
+  .mt-desplegar-flecha {
+    transition: none;
   }
 }
