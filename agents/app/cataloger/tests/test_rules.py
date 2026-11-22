@@ -71,6 +71,15 @@ def test_validation_repairs_or_drops_invalid_goals_and_says_why():
                for goal_id in ("baja", "raro", "inventado", "entrada", "huerfano"))
 
 
+def test_one_page_catalog_takes_that_page_as_evidence_when_the_model_cites_a_link_destination():
+    # Caso real de dt.gob.cl: Haiku citó como evidencia los destinos de los enlaces de la única página.
+    start = "https://www.dt.gob.cl/portal/1626/w3-channel.html"
+    workers = "https://www.dt.gob.cl/portal/1626/w3-propertyvalue-26864.html"
+    one_page = SiteOutline(start, "dt.gob.cl", "1024x768", [_page(start, [Link("Trabajadores", workers, "nav", True, 170)])], [])
+    goals, issues = validate([_raw("servicios-trabajadores", evidence=[workers], entry=workers)], one_page, reserved=set())
+    assert [(goal.evidence, goal.entry) for goal in goals] == [([start], workers)] and not issues
+
+
 def test_the_free_goal_prefix_is_reserved():
     goals, issues = validate([_raw("libre-baja-0a1b2c3d"), _raw("baja")], OUTLINE, reserved=set())
     assert [goal.id for goal in goals] == ["baja"] and "libre-" in issues[0]

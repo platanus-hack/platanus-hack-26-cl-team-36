@@ -90,7 +90,7 @@ def _details(best: Candidate, usage: dict, cost_usd: float) -> dict:
             "duration_s": exploration.duration_s,
             "tokens": usage,
             "cost_usd": round(cost_usd, 4),
-            "history": [f"{entry.action} — {entry.outcome} (razón: {entry.reason})" for entry in exploration.history],
+            "history": [str(entry) for entry in exploration.history],
         },
         "verification": {
             "replays": verification.replays,
@@ -179,7 +179,7 @@ async def map_references(
                     raise
                 trace.route(document)
                 verified = document["status"] == "verified"
-                trace.finish("succeeded" if verified or not mapping.revision else "failed")
+                trace.finish("succeeded" if verified else "failed")
                 if mapping.revision and not verified:
                     raise RouteNotVerified(run.key, document)
             return run.key, document

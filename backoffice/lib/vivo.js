@@ -29,6 +29,10 @@ export function pasoDeGuia(paso) {
     title: texto(paso?.title_after),
     signals: [],
     screenshot: paso?.screenshot ?? null,
+    decided_at: texto(paso?.decided_at),
+    executed_at: texto(paso?.executed_at),
+    settled_at: texto(paso?.settled_at),
+    seconds_since_start: numero(paso?.seconds_since_start),
   };
 }
 
