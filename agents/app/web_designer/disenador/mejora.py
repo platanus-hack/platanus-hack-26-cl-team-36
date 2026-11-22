@@ -14,7 +14,7 @@ from shared.catalog.files import read_catalog
 from shared.nodes.urls import node_key
 
 from disenador import config, mapa, pagina
-from disenador.corrida import Caso, TemaRechazado, preparar
+from disenador.corrida import TemaRechazado
 from disenador.css import sanear
 from disenador.modelo import ESQUEMA_TEMA, Skill, mensaje_de_diseno, prompt_de_sistema
 
@@ -172,11 +172,14 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                   "gustos": config.GUSTOS_MEJORA}
         try:
             async with open_browser(cdp_url) as browser:
-                preparado = await preparar(browser, Caso("mejora", url, config.GUSTOS_MEJORA))
-                texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"],
-                                          mapa.como_texto(preparado.mapa), config.ESCRITORIO,
-                                          json.dumps(resumen["objetivos"], ensure_ascii=False))
-                respuesta = await disenador.pedir(prompt_de_sistema(skill), ESQUEMA_TEMA, [texto, preparado.captura],
+                contexto, page = await pagina.abrir(browser, url, "revision")
+                try:
+                    mapa_texto, captura = mapa.como_texto(await mapa.construir_mapa(page)), await pagina.capturar(page)
+                finally:
+                    await contexto.close()
+                texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"], mapa_texto,
+                                          config.REVISION, json.dumps(resumen["objetivos"], ensure_ascii=False))
+                respuesta = await disenador.pedir(prompt_de_sistema(skill), ESQUEMA_TEMA, [texto, captura],
                                                   run.workdir / "claude_code.log")
                 salida.update(modelo=modelo, resumen_tema=respuesta.datos.get("resumen"),
                               decisiones=respuesta.datos.get("decisiones"), costo_usd=respuesta.costo_usd)

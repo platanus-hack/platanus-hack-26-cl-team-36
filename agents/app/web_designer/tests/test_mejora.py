@@ -139,7 +139,7 @@ def test_corrida_de_mejora_en_el_almacen(tmp_path, url):
 
     texto, captura = disenador.llamadas[0]["partes"]
     assert "Encontrar la ayuda" in texto and config.GUSTOS_MEJORA in texto and '"se_desvio_en"' in texto
-    assert captura.startswith(b"\x89PNG")
+    assert captura.startswith(b"\x89PNG") and "viewport 1024x768" in texto
 
 
 def test_css_vacio_falla(tmp_path, url):
