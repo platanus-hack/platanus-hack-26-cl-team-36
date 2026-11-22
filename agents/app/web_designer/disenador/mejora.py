@@ -29,8 +29,61 @@ from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR, Skill, mensaje_de_disen
 
 # Lo que la Guía tuvo que sacar del camino (un modal, una encuesta, el aviso de cookies), según su historial.
 _OBSTACULO = re.compile(r"\b(modal|popup|pop-up|encuesta|cookies?)\b|«(close|cerrar|×)»", re.I)
-# Si el ancla de un componente no está en la página, la primera de estas que exista.
-ANCLAS_DE_RESPALDO = ("main", "[role='main']", "body > :has(h1)")
+# Si el ancla de un componente no sirve en la página, la primera de estas que sirva; `None` es el bloque donde empieza
+# el contenido tras la cabecera (`CONTENIDO_JS`), para los sitios sin `<main>`.
+ANCLAS_DE_RESPALDO = ("main", "[role='main']", None, "body > :has(h1)")
+
+# Las cabeceras del sitio: la medida (`zonas`) y las convencionales arriba de la página, fuera de `<main>`.
+_CABECERAS_JS = """const cabeceras = (medidas) => {
+    const lista = [];
+    for (const s of [...medidas, "header", "[role=banner]", "#header", "#Header", "nav"]) {
+      if (!s) continue;
+      let encontrados = [];
+      try { encontrados = [...document.querySelectorAll(s)]; } catch { continue; }
+      for (const el of encontrados) {
+        const r = el.getBoundingClientRect();
+        if (r.height > 0 && r.top + scrollY < 300 && !el.closest("main, [role=main]")) lista.push(el);
+      }
+    }
+    return lista;
+  };"""
+
+# Un ancla sirve si existe y no envuelve la cabecera: el componente va antes de ella, y un `<form>` de ASP.NET o un
+# envoltorio de toda la página lo dejaría sobre la cabecera.
+ANCLA_JS = """([selector, medidas]) => {
+  """ + _CABECERAS_JS + """
+  let ancla = null;
+  try { ancla = document.querySelector(selector); } catch { return false; }
+  if (!ancla || ancla === document.body || ancla === document.documentElement) return false;
+  return !cabeceras(medidas).some((c) => ancla.contains(c));
+}"""
+
+# El bloque donde empieza el contenido: desde el primer título visible fuera de la cabecera, el ancestro más alto que
+# no la contiene. Sale como selector único (por id, o por etiqueta y clases bajo el id más cercano); null si no hay.
+CONTENIDO_JS = """([medidas]) => {
+  """ + _CABECERAS_JS + """
+  const cabs = cabeceras(medidas);
+  const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const inicio = [...document.querySelectorAll("h1, h2, h3")]
+    .find((h) => visible(h) && h.textContent.trim() && !cabs.some((c) => c.contains(h)));
+  if (!inicio) return null;
+  let el = inicio;
+  while (el.parentElement && el.parentElement !== document.body && !cabs.some((c) => el.parentElement.contains(c))) {
+    el = el.parentElement;
+  }
+  if (cabs.some((c) => el.contains(c))) return null;
+  const valido = (t) => /^[A-Za-z][\\w-]*$/.test(t);
+  const unico = (sel) => { try { const l = document.querySelectorAll(sel); return l.length === 1 && l[0] === el; }
+                           catch { return false; } };
+  if (el.id && valido(el.id) && unico("#" + el.id)) return "#" + el.id;
+  let base = "body";
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    if (p.id && valido(p.id)) { base = "#" + p.id; break; }
+  }
+  const propio = el.tagName.toLowerCase() + [...el.classList].filter(valido).slice(0, 3).map((c) => "." + c).join("");
+  for (const sel of [`${base} > ${propio}`, `${base} ${propio}`]) if (sel.length <= 200 && unico(sel)) return sel;
+  return null;
+}"""
 # Las capturas de la propuesta: (dispositivo de mejora.json, viewport de `pagina`, nombre del archivo).
 VISTAS = (("desktop", "revision", "escritorio"), ("mobile", "movil", "movil"))
 
@@ -299,11 +352,19 @@ async def _selects(page) -> list[atajos.SelectDePagina]:
     return [atajos.SelectDePagina(**{**s, "valores": tuple(s["valores"])}) for s in await page.evaluate(_SELECTS)]
 
 
-async def _existe(page, selector: str) -> bool:
+async def _sirve(page, selector: str, cabeceras: list[str]) -> bool:
+    """Si el ancla existe y no envuelve la cabecera del sitio (`ANCLA_JS`)."""
     try:
-        return await page.evaluate("(s) => document.querySelector(s) !== null", selector)
+        return await page.evaluate(ANCLA_JS, [selector, cabeceras])
     except Exception:  # un selector que el navegador no entiende
         return False
+
+
+async def _contenido(page, cabeceras: list[str]) -> str | None:
+    try:
+        return await page.evaluate(CONTENIDO_JS, [cabeceras])
+    except Exception:
+        return None
 
 
 def sitio_para_el_modelo(sitio: motor.Sitio) -> dict:
@@ -331,10 +392,12 @@ def diagnostico(resumen: dict, kit: dict, sitio: motor.Sitio | None = None, voz_
     return diag
 
 
-async def _vistas(page, url: str, componentes: list[dict], propuestas,
-                  vocabulario: set[str]) -> tuple[list[dict], list[dict]]:
+async def _vistas(page, url: str, componentes: list[dict], propuestas, vocabulario: set[str],
+                  cabeceras: list[str] | None = None) -> tuple[list[dict], list[dict]]:
     """Los componentes con la microcopia del modelo, sin lo que no tiene la voz del sitio (`voz.verificar`), y un ancla
-    que existe en la página abierta (si van en ella); y los textos reemplazados con su razón."""
+    que sirve en la página abierta (si van en ella: existe y no los deja sobre la cabecera; `cabeceras`, los selectores
+    medidos de la cabecera y la navegación); y los textos reemplazados con su razón."""
+    cabeceras = [c for c in cabeceras or [] if c]
     por_id = {p.get("id"): p for p in propuestas or [] if isinstance(p, dict)}
     tareas = tema_json.tareas_propuestas(propuestas)
     en_pagina = atajos.ruta_de(url)
@@ -345,7 +408,9 @@ async def _vistas(page, url: str, componentes: list[dict], propuestas,
         if any(atajos.misma_ruta(en_pagina, ruta) for ruta in vista["rutas"]):
             for candidato in (str(propuesta.get("contenedor") or "").strip()[:200], vista["contenedor"],
                               *ANCLAS_DE_RESPALDO):
-                if candidato and await _existe(page, candidato):
+                if candidato is None:
+                    candidato = await _contenido(page, cabeceras)
+                if candidato and await _sirve(page, candidato, cabeceras):
                     contenedor = candidato
                     break
         propuesta = tema_json.con_propuesta(vista, {**propuesta, "contenedor": contenedor}, tareas)
@@ -476,7 +541,8 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                     # Con la página abierta: el ancla que propone el modelo solo vale si existe.
                     vistas, reemplazos = await _vistas(page, url, diag["componentes"],
                                                        respuesta.datos.get("componentes"),
-                                                       voz.vocabulario(voz_sitio, leida.catalogo))
+                                                       voz.vocabulario(voz_sitio, leida.catalogo),
+                                                       [(medida or {}).get("zonas", {}).get(z) for z in ("cabecera", "nav")])
                     ocultar = await _ocultar(page, url, vistas)
                 finally:
                     await contexto.close()
