@@ -17,7 +17,8 @@ el conductor no espere en vano; igual si AgentCore apaga el contenedor (SIGTERM 
 
 La imagen (`Dockerfile`, contexto: la raíz del repo) trae cada app con su entorno (`uv sync --locked`) y el skill
 `disenar-tema` de `.claude/skills/`, sin Chromium ni Claude Code: en AWS van `AGENTS_ENGINE=bedrock` (Haiku 5.5 en
-`AGENTS_MODEL` y Sonnet 5.5 en `AGENTS_MODEL_FUERTE`) y `AGENTS_BROWSER=agentcore`. Para revisarla en local, desde la raíz del repo:
+`AGENTS_MODEL`, Sonnet 5.5 en `AGENTS_MODEL_FUERTE` y Opus 5.5 para la Guía en `AGENTS_MODEL_GUIA`) y
+`AGENTS_BROWSER=agentcore`. Para revisarla en local, desde la raíz del repo:
 
 ```bash
 docker build --platform linux/arm64 -f agents/app/runtime/Dockerfile -t chameleon .

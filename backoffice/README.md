@@ -313,8 +313,7 @@ recibe una ruta sin validar. `derivar.js` y las pantallas no saben de dónde vie
 
 La de S3 lista con `ListObjectsV2` y `Delimiter: "/"`, pasa capturas y video por el servidor (el bucket sigue
 privado y vale la CSP) y guarda en memoria lo leído de corridas cerradas. Recibe el cliente del SDK (`lib/aws.js`),
-así las pruebas usan clientes falsos (`test/aws-falso.js`). Antes de desplegarlo fuera de `127.0.0.1`, autenticación
-delante.
+así las pruebas usan clientes falsos (`test/aws-falso.js`).
 
 ## Estructura
 

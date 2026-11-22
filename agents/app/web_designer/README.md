@@ -1,10 +1,18 @@
 # web_designer
 
-El **diseñador** mide un skill de diseño de temas con corridas reales. Dada una URL y los gustos de un usuario (y, si
-la hay, su tarea en el sitio), le pide a Claude Haiku un tema de Chameleon guiado por un `SKILL.md`: una hoja CSS con
-todas sus reglas bajo `html.mi-tema`, como las que aplica la [extensión](../../../extension/CLAUDE.md). Después la
-sanea como lo haría la extensión, la aplica sobre la página real en escritorio y en móvil, mide qué cambió y le pide
-a un juez que la evalúe. Sirve para iterar el skill: dos versiones se comparan con los mismos casos.
+El **Diseñador** escribe el tema de una página al final de su
+[revisión](../../../docs/arquitectura.md#el-ciclo-de-una-revisión). Con lo que midieron en esa revisión el
+[Catalogador](../cataloger/README.md), la [Guía](../guide/README.md) y el [Visitante](../visitor/README.md), deja un
+`tema.css` y un `tema.json` que la [extensión](../../../extension/README.md) aplica. El modelo no escribe CSS: elige
+una dirección de arte y escribe los textos de los componentes. El código deriva los componentes de lo medido, compone
+el CSS con recetas, verifica el contraste AA y lo sanea como lo haría la extensión.
+
+**Nombres.** Es una sola pieza: la carpeta `web_designer`, el paquete `disenador`, la etapa `improver` (y su carpeta
+en el almacén; en el código, la «mejora»: `mejora.py`, `mejora.json`) y **Diseñador** en los documentos y el
+backoffice ([glosario](../../../docs/glosario.md)).
+
+La app trae además el [banco del skill](#banco-del-skill): el modelo escribe CSS libre y un juez lo puntúa. Sirve
+para afinar el skill y las rúbricas; no corre en una revisión.
 
 ## Instalación
 
@@ -15,10 +23,162 @@ uv sync
 uv run playwright install chromium
 ```
 
-Usa el navegador, `claude -p` y la comparación de capturas de [`shared`](../../shared/README.md). Llama a tu Claude
-Code local (`claude` instalado y con sesión iniciada) y consume los límites de tu plan: cada generación es una llamada al modelo y tres al juez.
+Usa el navegador, el motor de Claude y la comparación de capturas de [`shared`](../../shared/README.md). Por defecto
+llama a tu Claude Code local (`claude` instalado y con sesión iniciada) y consume los límites de tu plan: una revisión
+es una llamada al modelo (dos si el motor falla y se pide el CSS libre); en el banco, cada generación es una llamada al
+modelo y tres al juez. Con `AGENTS_ENGINE=bedrock` va por Bedrock, como en AWS.
 
-## Uso
+## En una revisión
+
+### Uso
+
+```bash
+just local revision https://www.wom.cl/                      # desde la raíz: la revisión completa, con el conductor
+uv run main.py --url https://www.wom.cl/ --revision <rev>    # solo esta etapa, con las corridas de <rev> ya en el almacén
+just aws improve https://www.wom.cl/                         # desde la raíz: de nuevo solo esta etapa, en AgentCore
+```
+
+El [conductor](../conductor/README.md) corre esta etapa como `uv run --locked main.py --url <url> --revision <rev>`
+(lo arma `shared.stages`), localmente o en el runtime. `just local revision` deja además una copia del `tema.css` en
+`local/.state/local/<rev>/`. `just aws improve` vuelve a correr solo esta etapa sobre revisiones ya `done`
+([infra](../../../infra/README.md)).
+
+| Opción | Qué hace |
+|---|---|
+| `--url`, `--revision <rev>` | La página y la revisión cuyas corridas se leen. No va con `--gustos`, `--casos` ni `--solo-evaluar`. |
+| `--tema motor\|libre` | `motor` (por defecto, o `WEB_DESIGNER_TEMA`): el modelo elige dirección de arte, semilla y ajustes y el código compone el CSS; si la composición falla, cae al CSS libre y lo anota. `libre`: el modelo escribe el CSS. |
+| `--skill`, `--model`, `--effort`, `--cdp-url` | Como en el [banco](#banco-del-skill). Con `AGENTS_ENGINE=bedrock` diseña el modelo fuerte (`AGENTS_MODEL_FUERTE`, Sonnet 5.5 en el runtime), salvo que `--model` ya sea un modelo de Bedrock. |
+
+Termina `succeeded` con un `tema.css` no vacío; si no, `failed`. Sale con 0 solo si la corrida queda `succeeded`.
+
+### Qué hace
+
+1. **Lee la revisión.** Del almacén, solo las corridas de esa `revision` que ya terminaron (el conductor la puede
+   lanzar con objetivos en curso): el catálogo (`goals.json`), la ruta de escritorio de cada objetivo (`route.json`)
+   y la tanda del Visitante (`comparison.json` y `<perfil>/run.json`). Resume cada objetivo: la ruta y lo que la Guía
+   tuvo que sacar del camino (un modal, las cookies), y por intento si llegó, dónde se desvió o se detuvo y qué dijo.
+   La tarea es el objetivo que peor resultó (la menor tasa de llegada); los gustos son fijos (`GUSTOS_MEJORA`).
+2. **Mide la página.** La abre en el escritorio de la Guía y el Visitante (1024x768) y saca el mapa y una captura
+   (como en el banco), las zonas, rasgos e identidad del sitio (`zonas.medir`), los `<select>` y la voz del sitio:
+   títulos de sección, menú, botones y etiquetas.
+3. **Deriva los componentes, sin modelo** (`atajos.py`). Todos los enlaces son rutas relativas del mismo sitio.
+   - `atajo`: una ruta verificada de la Guía que solo elige opciones y termina en una URL con consulta (el deep link)
+     se vuelve un formulario corto, con las opciones copiadas de los `<select>` de la página.
+   - `lanzador`: hasta 8 objetivos del catálogo con su enlace, primero los de ruta verificada y los que menos
+     lograron los Visitantes, sin lo que la página ya enlaza en su primer pantallazo.
+   - `buscador`: hasta 40 objetivos con enlace, en una paleta para saltar a cualquier tarea del sitio.
+4. **Pide al modelo, una vez.** Prompt de sistema: el cuerpo del
+   [`SKILL.md`](../../../.claude/skills/disenar-tema/SKILL.md) más el contrato del motor y el del kit (`modelo.py`).
+   Mensaje: URL, gustos, tarea, mapa, captura, el resumen y el diagnóstico (`diagnostico.json`). Responde `direccion`,
+   `semilla`, `ajustes` y `motivo` y, por componente, los textos en español e inglés, las etiquetas de los campos, los
+   títulos de las tareas y el ancla (`contenedor`).
+5. **Revisa textos y lugar.** `voz.verificar` devuelve al texto del sitio, o al título derivado del objetivo, lo que
+   es un cliché («Accesos rápidos», preguntas a la persona) o no comparte palabras con la página ni con el catálogo.
+   El ancla es la primera que existe y no deja el componente sobre la cabecera: la del modelo, la derivada o una de
+   respaldo (`main` y otras). Por cada atajo busca el bloque original que reemplaza, para ocultarlo.
+6. **Compone el CSS** con el [motor](#el-motor). Si la composición falla (un pedido imposible, un par de colores que
+   no llega a AA), pide al modelo el CSS libre y lo anota en `informe.json` (`respaldo`).
+7. **Verifica y escribe.** Sanea el CSS (`css.py`) y Chromium lo vuelve a leer: si ve una regla no permitida, la
+   corrida falla (`TemaRechazado`). Arma `tema.json` con las vistas que validan (`tema_json.py`). Captura el primer
+   pantallazo sin y con el kit completo, en escritorio y móvil, montado con `shared.browser.theme.describir_kit` y
+   `extension/src/`; si las capturas fallan o pasan de 120 s, la corrida sigue sin ellas y el motivo queda en
+   `informe.json`.
+
+### El motor
+
+`motor.componer(sitio, direccion, semilla, ajustes, vistas, ocultar)` da el `tema.css`: `base/elegancia.css` (capa
+base) + los tokens `--mt-*` + `base/kit.css` (atajo y lanzador) + la estructura del sitio y sus variantes + las
+recetas + las reglas que ocultan los bloques reemplazados, saneado con `css.sanear`. Direcciones, recetas y sitios son
+archivos de datos.
+
+**Direcciones** (`motor/direcciones/<id>.json`): rangos de neutros, tinta, acento, tipo, forma y densidad; recetas
+fijas y opcionales con su probabilidad; y la afinidad con los rasgos del sitio.
+
+| Dirección | Modo | Idea |
+|---|---|---|
+| `A` Señalética viva | oscuro | Fondo noche, letreros condensados y las categorías como sistema. |
+| `B` Expresivo / bento | claro | La marca como superficie, formas grandes y las categorías en baldosas de color suave. |
+| `C` Nocturno / vidrio | oscuro | El video como atmósfera, vidrio y un hilo con la luz de las categorías. |
+| `D` Nativa | claro, u oscuro si el sitio lo es | El mismo sitio refinado: parte de su paleta, su letra y su radio medidos. |
+
+El contrato le pide al modelo `auto`, salvo una razón fuerte: sale Nativa con probabilidad `fidelidad` (0,8 por
+omisión) y si no, A, B o C según los rasgos del sitio. La semilla del modelo se mezcla con la de la página (revisión
+y URL): el tema es reproducible y distinto por página. La semilla elige un punto en cada rango; un ajuste numérico
+del modelo fija un valor, recortado al rango de la dirección. La paleta se arma en OKLCH y se verifica AA: si un par
+no llega, se mueve L hasta que cumpla.
+
+**Recetas** (`motor/recetas/*.css`, con sus reglas en `recetas.json`): bloques que solo leen tokens, como `vidrio`,
+`bento-lanzador` o `cabecera-editorial`. Las de un mismo grupo (`atajo`, `lanzador`) se excluyen; algunas piden un
+modo, una familia de letra, categorías o zonas del sitio. La que no calza queda fuera con un aviso en `informe.json`.
+Nativa prohíbe las que le quitarían la identidad al sitio.
+
+**El sitio** (`motor/sitio.py`):
+
+- **Con carpeta** (`motor/sitios/<id>/`, con el id del host: `www.metro.cl` → `metro`): `sitio.json` (rasgos, marca,
+  categorías, zonas, ids de vista y variantes), `estructura.css` y las variantes `hero-*`, `disposicion-*` y `orden-*`
+  que el modelo elige con `ajustes`. Está **escrita a mano**, no sale de ninguna medición, y tiene prioridad: de la
+  página solo se toma la identidad. Hoy la única es `metro/`.
+- **Sin carpeta**: lo que mide `zonas.medir` en la página. Zonas (`cabecera`, `nav`, `nav_enlace`,
+  `titulos_seccion`, `tarjetas`, `pie`, `logo`) con selectores estables verificados en la página; lo dudoso se
+  descarta y queda en `descartes`. Rasgos (`institucional`, `comercio`, `categorias_color`, `video_hero`,
+  `tarea_formulario`) por señales simples: dominio y palabras de institución, precios y carro, video o imagen grande
+  arriba, campos de un formulario, colores repetidos entre hermanos. Además el color de marca, las categorías (o tonos
+  derivados de la marca) y la identidad (fondo, tinta, letras y radio). Recibe la estructura genérica
+  (`base/estructura-generica.css`, un bloque por zona medida, y en una dirección oscura `base/oscuro-generico.css`).
+  Sin medida, solo el mapa: la marca y si hay formulario.
+
+### Qué escribe
+
+`<host>/improver/<run>/` en el almacén (`AGENTS_STORE`, por [`shared.store`](../../shared/README.md#sharedstore)),
+con `revision` en el manifiesto:
+
+| Archivo | Qué es |
+|---|---|
+| `manifest.json` | Estado, modelo, `revision` y, en `inputs`, las corridas que leyó. |
+| `tema.css` | El CSS saneado: lo que la API entrega a la extensión. |
+| `tema.json` | Las vistas `atajo`, `lanzador` y `buscador` en `features.vista`, validadas con las mismas reglas que `extension/src/background/tema-remoto.js`. |
+| `atajos.json` | Los componentes derivados sin modelo y los objetivos sin atajo, con su razón. |
+| `diagnostico.json` | Lo que recibió el modelo además del mapa y la captura: mensajes del Visitante, obstáculos, componentes con la voz del sitio, las tareas que debe titular y lo medido del sitio (rasgos, zonas y probabilidades de `auto`). |
+| `informe.json` | La composición: modo, dirección, semilla, recetas, parámetros, tokens, contraste y avisos; la medida completa de `zonas.medir`, los bloques ocultos y los textos reemplazados (`voz`) o sin traducir. Si pasó, el respaldo al CSS libre o por qué no hay capturas. |
+| `mejora.json` | El resumen usado, la tarea, lo que eligió el modelo (`pedido`, `resumen_tema`), modelo, costo, las vistas del kit y sus descartes, y `vistas` si salieron las capturas: el contrato de `backoffice/lib/propuestas.js`. Con `error` si falló. |
+| `vistas/{escritorio,movil}-{antes,despues}.png` | El primer pantallazo sin y con el kit completo. |
+| `claude_code.log` | La llamada al modelo. |
+
+Para probar el tema con usuarios sintéticos, pásale la corrida al [Visitante](../visitor/README.md) desde
+`../visitor`: `uv run main.py --task wom.cl/baja-fibra --tema <corrida>/tema.json` monta el kit como la extensión;
+`--css <corrida>/tema.css`, solo el CSS.
+
+## Módulos
+
+| Módulo | Qué hace |
+|---|---|
+| `main.py` | Punto de entrada: opciones; con `--revision`, la etapa; si no, el banco. |
+| `disenador/mejora.py` | La etapa `improver`: lee la revisión, arma el diagnóstico, llama al modelo, compone y escribe la corrida en el almacén. |
+| `disenador/atajos.py` | El atajo (rutas verificadas que terminan en un deep link), el lanzador (objetivos del catálogo) y el buscador (hasta 40 objetivos con enlace del sitio), sin modelo. |
+| `disenador/voz.py` | La voz del sitio en el kit: los textos de la página para cada componente, clichés prohibidos y anclaje léxico; lo reemplazado queda en `informe.json` (`voz`). |
+| `disenador/zonas.py` | Mide en la página lo que el motor necesita de un sitio sin carpeta: zonas, rasgos, marca, categorías e identidad. |
+| `disenador/motor/` | El motor: `componer.py` compone y verifica, `sitio.py` arma el sitio (carpeta o medida), `paleta.py` y `color.py` la paleta y el contraste AA en OKLCH, `azar.py` el azar reproducible por semilla; `direcciones/`, `recetas/`, `base/` y `sitios/` son datos. |
+| `disenador/tema_json.py` | Arma el `tema.json` con la microcopia del modelo y lo valida contra su esquema. |
+| `disenador/mapa.py` | El mapa de la página que recibe el modelo. |
+| `disenador/modelo.py` | El skill, el prompt, los contratos de salida (CSS libre, kit y motor) y la llamada al modelo. |
+| `disenador/css.py` | Lectura, saneamiento, ámbito `html.mi-tema` y riesgos del CSS. |
+| `disenador/pagina.py` | Abrir la página, aplicar y apagar el tema, capturar y verificar el CSS en Chromium. |
+| `disenador/config.py` | Modelos, viewports, rutas, umbrales y el modo del tema. |
+| `disenador/corrida.py` | Banco: casos, la preparación de cada caso y el flujo de cada generación. |
+| `disenador/metricas.py` | Banco: métricas deterministas antes y después. |
+| `disenador/juez.py`, `rubrica_juez.md`, `rubrica_par.md` | Banco: el juez y sus rúbricas (se afinan editando los `.md`). |
+| `disenador/resumen.py` | Banco: `resumen.json`, `reporte.md` y `--comparar`. |
+
+## Banco del skill
+
+**No es lo que corre en una revisión.** Es la herramienta para iterar el
+[`SKILL.md`](../../../.claude/skills/disenar-tema/SKILL.md) y las rúbricas del juez con corridas reales. Dada una URL y
+los gustos de un usuario (y, si la hay, su tarea en el sitio), le pide al modelo un tema guiado por el skill: una hoja
+CSS libre con todas sus reglas bajo `html.mi-tema`. Después la sanea como lo haría la extensión, la aplica sobre la
+página real en escritorio y en móvil, mide qué cambió y le pide a un juez que la evalúe. Dos versiones del skill se
+comparan con los mismos casos.
+
+### Uso
 
 ```bash
 uv run main.py --url https://es.wikipedia.org/wiki/Valdivia --gustos "Modo oscuro, letra más grande, menos distracciones"
@@ -27,7 +187,6 @@ uv run main.py --url https://es.wikipedia.org/wiki/Valdivia --gustos "Modo oscur
 uv run main.py --casos casos.json --repeticiones 2
 uv run main.py --url https://es.wikipedia.org/wiki/Valdivia --gustos "Modo oscuro" --solo-evaluar tema.css
 uv run main.py --comparar <corrida_a>/resumen.json <corrida_b>/resumen.json
-uv run main.py --url https://www.wom.cl/ --revision <rev>   # etapa de mejora de una revisión
 ```
 
 | Opción | Qué hace |
@@ -43,35 +202,8 @@ uv run main.py --url https://www.wom.cl/ --revision <rev>   # etapa de mejora de
 | `--output` | La carpeta de la corrida (por defecto `agents/.runs/diseno/<id o host>/<fecha-hora>/`; con `--casos`, el nombre del archivo en vez del host). |
 | `--concurrencia` | Generaciones simultáneas (por defecto 3). |
 | `--cdp-url` | Un navegador remoto vía CDP. |
-| `--revision <rev>` | Etapa de mejora (con `--url`, sin `--gustos`): con lo que midieron en esa revisión el Catalogador, la Guía y el Visitante, genera un kit en el viewport del Visitante (tarea: el objetivo que peor resultó; gustos: `GUSTOS_MEJORA`) y escribe en `<host>/improver/<run>/` (`AGENTS_STORE`) `tema.css` saneado, `tema.json` (componentes `atajo`, `lanzador` y `buscador`, validados; el buscador no pasa por el modelo), `atajos.json`, `diagnostico.json`, `informe.json` (dirección, semilla, recetas, tokens, contraste y avisos), `vistas/{escritorio,movil}-{antes,despues}.png` (el primer pantallazo sin y con el kit completo, montado con `shared.browser.theme.describir_kit` y `extension/src/`) y `mejora.json` (con `vistas`, el contrato de `backoffice/lib/propuestas.js`). Si las capturas fallan, la corrida sigue sin `vistas` y el motivo queda en `informe.json`. Sale con 0 solo si la corrida queda `succeeded`. |
-| `--tema motor\|libre` | Con `--revision`: `motor` (por defecto, o `WEB_DESIGNER_TEMA`) el modelo elige dirección de arte, semilla y ajustes y el código compone el CSS; si falla, cae al CSS libre y lo anota. `libre`: el modelo escribe el CSS. |
 
-Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitante](../visitor/README.md):
-`uv run main.py --task wom.cl/baja-fibra --css <ruta>/tema.css` desde `../visitor`.
-
-## Cómo funciona
-
-| Módulo | Qué hace |
-|---|---|
-| `main.py` | Punto de entrada: opciones, la corrida y el resumen. |
-| `disenador/corrida.py` | Casos, la preparación de cada caso y el flujo de cada generación. |
-| `disenador/mapa.py` | El mapa de la página que recibe el modelo. |
-| `disenador/modelo.py` | El skill, el prompt, el contrato de salida y la llamada a `claude -p`. |
-| `disenador/css.py` | Lectura, saneamiento, ámbito `html.mi-tema` y riesgos del CSS. |
-| `disenador/pagina.py` | Abrir la página, aplicar y apagar el tema, capturar. |
-| `disenador/metricas.py` | Métricas deterministas antes y después. |
-| `disenador/juez.py`, `rubrica_juez.md`, `rubrica_par.md` | El juez y sus rúbricas (se afinan editando los `.md`). |
-| `disenador/resumen.py` | `resumen.json`, `reporte.md` y `--comparar`. |
-| `disenador/config.py` | Modelos, viewports, rutas y umbrales. |
-| `disenador/mejora.py` | La etapa de mejora de una revisión (`--revision`): resumen de lo medido y corrida en el almacén. |
-| `disenador/atajos.py` | El atajo (rutas verificadas que terminan en un deep link), el lanzador (objetivos del catálogo) y el buscador (hasta 40 objetivos con enlace del sitio), sin modelo. |
-| `disenador/tema_json.py` | Arma el `tema.json` con la microcopia del modelo y lo valida contra su esquema. |
-| `disenador/voz.py` | La voz del sitio en el kit: los textos de la página para cada componente, clichés prohibidos y anclaje léxico; lo reemplazado queda en `informe.json` (`voz`). |
-| `disenador/motor/` | Motor de direcciones de arte: `componer(rasgos_del_sitio(host, mapa), direccion, semilla, ajustes)` da `tema.css` (elegancia + tokens + kit + estructura del sitio + recetas, saneado) con la paleta verificada AA; direcciones, recetas y sitios conocidos son archivos de datos. |
-
-`disenador/motor/sitios/metro/` (`sitio.json`, `estructura.css` y sus variantes) es CSS y selectores **escritos a
-mano**, de ejemplo de lo que el diagnóstico deberá medir (zonas, categorías, variantes); no sale de ninguna medición.
-Un sitio nuevo, sin carpeta, recibe solo elegancia, kit, tokens (con la marca del mapa) y las recetas que no piden zonas.
+### Cómo funciona
 
 Por cada caso:
 
@@ -102,6 +234,8 @@ Por cada caso:
    selector de primer nivel que no empieza por `html.mi-tema` (o uno anidado que no empieza por `&`) o carga recursos,
    el tema **no se aplica**: la generación queda con error `TemaRechazado`, `metricas.json` lleva las
    `violaciones` que vio el navegador y el CSS queda en `tema-rechazado.css`, nunca en `tema.css`.
+
+   El saneamiento y la verificación del navegador son los mismos que usa la etapa de una revisión.
 4. **Aplicación y métricas**, en escritorio (1280x800) y en móvil (390x844): carga la página, la captura y la mide,
    espera lo mismo que esperará con el tema y la mide otra vez sin tocarla (el ruido: lo que la página pierde sola),
    agrega la clase `mi-tema` y un `<style>` con el tema (con la CSP desactivada, como `scripting.insertCSS` de la
@@ -141,7 +275,9 @@ filtro. No se considera la `opacity` de los ancestros ni las sombras de texto. "
 elemento recortado por un ancestro con `overflow: hidden` cuenta como visible. La prueba de "tapado" usa
 `elementFromPoint` en el centro, así que solo vale para lo que está en el viewport.
 
-## Salida
+### Salida
+
+El banco no escribe en el almacén: arma su propia carpeta (`config.RUNS_DIR`), sin `shared.store` ni manifiesto.
 
 ```
 agents/.runs/diseno/<id o host>/<fecha-hora>/
@@ -164,7 +300,10 @@ mata y cuenta como error (el juez la reintenta una vez). Un tema que el navegado
 `error: TemaRechazado ...`, sin capturas, con sus `violaciones` en `metricas.json` y el CSS en `tema-rechazado.css`. El backoffice no lee estas
 carpetas: no tienen `route_tree.json`.
 
-## Iterar un skill
+Para probar un `tema.css` del banco con usuarios sintéticos: `uv run main.py --task wom.cl/baja-fibra --css <ruta>/tema.css`
+desde `../visitor`.
+
+### Iterar un skill
 
 1. Arma un `casos.json` con 3 a 6 sitios distintos y gustos variados (oscuro, letra grande, menos ruido, alto
    contraste), con tarea en algunos.
@@ -183,6 +322,10 @@ carpetas: no tienen `route_tree.json`.
 uv run pytest -q
 ```
 
-No llaman a Claude ni salen a internet: saneamiento y ámbito, riesgos, el mapa y las métricas sobre una página local,
-y una corrida completa con un modelo y un juez guionizados (incluidos `--solo-evaluar`, un caso que no carga, un juez
-que falla y `--comparar`).
+No llaman a Claude ni salen a internet. De la etapa: el resumen de una revisión y la corrida de improver en el
+almacén, el kit derivado con datos reales de metro.cl y una corrida `--revision` con el modelo guionizado, la voz del
+sitio, el motor (semillas, sitio sin carpeta, ajustes, recetas incompatibles), las zonas medidas sobre HTML local y el
+contrato del `tema.json` con `sanearTema` de la extensión (con `node`; sin él, se salta). Del banco: saneamiento y
+ámbito, riesgos, el mapa y las métricas sobre una página local, y una corrida completa con un modelo y un juez
+guionizados (incluidos `--solo-evaluar`, un caso que no carga, un juez que falla y `--comparar`). Las dos: el CSS
+saneado leído por Chromium.
