@@ -80,9 +80,9 @@ def run(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     if args.pages is None:
         args.pages = 1 if args.revision else config.MAX_PAGES
     backend = store.open_backend()
-    previous = store.latest_run(backend, prefix)
     # Con --revision la corrida es de esa revisión: un catálogo de otra no sirve.
-    if previous and not args.rerun and args.revision is None:
+    previous = None if args.revision else store.latest_run(backend, prefix)
+    if previous and not args.rerun:
         print(f"Ya hay un catálogo: {previous.file('goals.json')} (--rerun para hacer otro).")
         return
     started = time.monotonic()
