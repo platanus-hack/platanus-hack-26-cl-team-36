@@ -177,15 +177,24 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
         break;
       }
       case "cataloger":
-      case "improver":
         await avanzarEtapa(revision, `STAGE#${agent}`, status, { run_key, updated_at });
-        if (status !== "succeeded") break;
-        if (agent === "cataloger") await crearGoals(revision, run_key, updated_at);
-        else {
-          const tema_key = (await existeTema(`${run_key}/tema.json`)) ? `${run_key}/tema.json` : undefined;
-          await actualizarMeta(revision, { css_key: `${run_key}/tema.css`, tema_key, updated_at });
-        }
+        if (status === "succeeded") await crearGoals(revision, run_key, updated_at);
         break;
+      case "improver": {
+        const avanzo = await avanzarEtapa(revision, `STAGE#${agent}`, status, { run_key, updated_at });
+        if (status !== "succeeded") break;
+        // Otra corrida terminada de la misma revisión (just aws improve) reemplaza a la anterior si es más nueva; los
+        // ids de corrida ordenan como texto. Una vieja que llega tarde no.
+        const reemplaza =
+          avanzo ||
+          (await db.actualizar(claveRevision(revision, `STAGE#${agent}`), { run_key, updated_at }, { igual: { status }, hasta: { run_key } }));
+        if (!reemplaza) break;
+        // null y no undefined: sin tema.json, el de la corrida anterior ya no corresponde.
+        const tema_key = (await existeTema(`${run_key}/tema.json`)) ? `${run_key}/tema.json` : null;
+        const css_key = `${run_key}/tema.css`;
+        await actualizarMeta(revision, { css_key, tema_key, updated_at }, { hasta: { css_key } });
+        break;
+      }
       case "guide":
       case "visitor":
         if (typeof goal !== "string" || !goal) break;
