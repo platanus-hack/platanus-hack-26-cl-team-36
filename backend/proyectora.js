@@ -37,12 +37,11 @@ export function goalsElegidos(goals, goalsMax) {
     .map(({ goal }) => goal.id);
 }
 
-const ESTADOS = ["pending", "running", "succeeded", "failed"];
 const GOAL = /^GOAL#(.+)#(guide|visitor)$/;
 
 // Foto de la revisión a partir de todos sus ítems: no depende del orden de los eventos.
 export function resumir(items) {
-  const vacia = () => Object.fromEntries(ESTADOS.map((estado) => [estado, 0]));
+  const vacia = () => Object.fromEntries(Object.keys(ORDEN_ETAPA).map((estado) => [estado, 0]));
   const fases = { catalog: vacia(), guide: vacia(), visitor: vacia(), improver: vacia() };
   const contar = (fase, status) => Object.hasOwn(fases[fase], status) && fases[fase][status]++;
   const etapa = (SK) => items.find((item) => item.SK === SK)?.status ?? "pending";
@@ -172,7 +171,11 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
         break;
       case "guide":
       case "visitor":
-        if (typeof goal === "string" && goal) await avanzarEtapa(revision, `GOAL#${goal}#${agent}`, status, { run_key, updated_at });
+        if (typeof goal !== "string" || !goal) break;
+        await avanzarEtapa(revision, `GOAL#${goal}#${agent}`, status, { run_key, updated_at });
+        if (agent === "guide" && status === "failed") {
+          await db.actualizar(claveRevision(revision, `GOAL#${goal}#visitor`), { status: "skipped", updated_at }, { previos: ["pending"] });
+        }
         break;
     }
     await guardarResumen(revision);

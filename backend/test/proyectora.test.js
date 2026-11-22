@@ -215,9 +215,9 @@ function conTrazas(opciones) {
   return { ...base, publicar, resumen: () => base.item("META").resumen };
 }
 
-// [pending, running, succeeded, failed] por fase.
+// [pending, running, succeeded, failed, skipped] por fase.
 const fases = (catalog, guide, visitor, improver) => {
-  const n = ([pending = 0, running = 0, succeeded = 0, failed = 0] = []) => ({ pending, running, succeeded, failed });
+  const n = ([pending = 0, running = 0, succeeded = 0, failed = 0, skipped = 0] = []) => ({ pending, running, succeeded, failed, skipped });
   return { catalog: n(catalog), guide: n(guide), visitor: n(visitor), improver: n(improver) };
 };
 
@@ -337,6 +337,32 @@ test("resumen: revisión fallida", async () => {
   assert.equal(item("META").status, "failed");
 });
 
+test("Guía fallida: su Visitante queda skipped, aunque el manifiesto llegue antes que el catálogo", async () => {
+  for (const catalogoAntes of [true, false]) {
+    const { evento, resumen, item } = conTrazas();
+    if (catalogoAntes) await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
+    await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
+    await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
+    if (!catalogoAntes) await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
+    assert.equal(item("GOAL#buscar-precio#visitor").status, "skipped");
+    assert.equal(item("GOAL#ver-contacto#visitor").status, "pending");
+    assert.deepEqual(resumen().fases.visitor, { pending: 1, running: 0, succeeded: 0, failed: 0, skipped: 1 });
+  }
+});
+
+test("Guía fallida no toca un Visitante que ya salió de pending", async () => {
+  const { evento, item } = conTrazas();
+  await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
+  await evento(VISITA, { agent: "visitor", goal: "buscar-precio", status: "running" });
+  await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
+  assert.equal(item("GOAL#buscar-precio#visitor").status, "running");
+  // skipped es final: un manifiesto tardío del Visitante no lo reabre.
+  const { evento: otro, item: otroItem } = conTrazas();
+  await otro(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
+  await otro(VISITA, { agent: "visitor", goal: "buscar-precio", status: "running" });
+  assert.equal(otroItem("GOAL#buscar-precio#visitor").status, "skipped");
+});
+
 test("eventos repetidos y desordenados dejan el mismo resultado final", async () => {
   // Cada evento lee el objeto tal como quedó en S3.
   const archivos = {
@@ -361,7 +387,7 @@ test("eventos repetidos y desordenados dejan el mismo resultado final", async ()
   }
   assert.equal(enOrden[`REV#${REV}|GOAL#buscar-precio#guide`].status, "succeeded");
   assert.equal(enOrden[`REV#${REV}|GOAL#buscar-precio#visitor`].status, "running");
-  assert.deepEqual(enOrden[`REV#${REV}|META`].resumen.fases.guide, { pending: 1, running: 0, succeeded: 1, failed: 0 });
+  assert.deepEqual(enOrden[`REV#${REV}|META`].resumen.fases.guide, { pending: 1, running: 0, succeeded: 1, failed: 0, skipped: 0 });
   assert.equal(enOrden[`REV#${REV}|META`].resumen.pasos, 3);
 });
 
@@ -377,6 +403,6 @@ test("resumen: una consulta vieja no pisa la de una más nueva, aunque marquen l
     return foto;
   };
   await publicar(GUIA_TRAZA, traza("guide", [pasoGuia(1)]));
-  assert.deepEqual(resumen().fases.visitor, { pending: 1, running: 1, succeeded: 0, failed: 0 });
+  assert.deepEqual(resumen().fases.visitor, { pending: 1, running: 1, succeeded: 0, failed: 0, skipped: 0 });
   assert.equal(resumen().pasos, 2);
 });
