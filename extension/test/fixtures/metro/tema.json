@@ -43,32 +43,32 @@
           {
             "titulo": { "es": "Horarios y tarifas", "en": "Hours and fares" },
             "detalle": { "es": "A qué hora funciona y cuánto cuesta cada día", "en": "Opening hours and fares for each day" },
-            "enlace": "https://www.metro.cl/el-viaje/horarios-y-tarifas"
+            "enlace": "/el-viaje/horarios-y-tarifas"
           },
           {
             "titulo": { "es": "Carga tu bip!", "en": "Top up your bip!" },
             "detalle": { "es": "Recarga saldo para viajar", "en": "Add credit to travel" },
-            "enlace": "https://www.metro.cl/el-viaje/carga-bip"
+            "enlace": "/el-viaje/carga-bip"
           },
           {
             "titulo": { "es": "Estaciones", "en": "Stations" },
             "detalle": { "es": "Información de cada estación", "en": "Details for every station" },
-            "enlace": "https://www.metro.cl/el-viaje/estaciones"
+            "enlace": "/el-viaje/estaciones"
           },
           {
             "titulo": { "es": "Plano de red", "en": "Network map" },
             "detalle": { "es": "El mapa completo de las líneas", "en": "The full map of every line" },
-            "enlace": "https://www.metro.cl/el-viaje/plano-de-red"
+            "enlace": "/el-viaje/plano-de-red"
           },
           {
             "titulo": { "es": "Metro accesible", "en": "Accessible Metro" },
             "detalle": { "es": "Viajar con discapacidad o movilidad reducida", "en": "Travelling with a disability or reduced mobility" },
-            "enlace": "https://www.metro.cl/guia-del-usuario/metro-accesible"
+            "enlace": "/guia-del-usuario/metro-accesible"
           },
           {
             "titulo": { "es": "Canales de atención", "en": "Customer service" },
             "detalle": { "es": "Cómo comunicarte con Metro", "en": "How to get in touch with Metro" },
-            "enlace": "https://www.metro.cl/atencion-cliente/canales-de-contacto"
+            "enlace": "/atencion-cliente/canales-de-contacto"
           }
         ],
         "opciones": {
