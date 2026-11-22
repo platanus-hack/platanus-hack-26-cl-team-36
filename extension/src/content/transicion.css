@@ -33,7 +33,7 @@
   se mide al punto más lejano de la pieza (el que el frente toca primero al encogerse).
 */
 
-@property --mt-radio {
+@property --mt-frente-radio {
   syntax: "<length>";
   inherits: false;
   initial-value: 0px;
@@ -247,24 +247,24 @@ html[data-mt-transicion] #mt-frente::after {
   mask-image:
     radial-gradient(
       circle at 100% 0,
-      transparent calc(var(--mt-radio) - 200px),
-      rgb(0 0 0 / 0.1) calc(var(--mt-radio) - 120px),
-      rgb(0 0 0 / 0.5) calc(var(--mt-radio) - 24px),
-      #000 calc(var(--mt-radio) - 4px),
-      #000 var(--mt-radio),
-      transparent calc(var(--mt-radio) + 14px)
+      transparent calc(var(--mt-frente-radio) - 200px),
+      rgb(0 0 0 / 0.1) calc(var(--mt-frente-radio) - 120px),
+      rgb(0 0 0 / 0.5) calc(var(--mt-frente-radio) - 24px),
+      #000 calc(var(--mt-frente-radio) - 4px),
+      #000 var(--mt-frente-radio),
+      transparent calc(var(--mt-frente-radio) + 14px)
     ),
     radial-gradient(
       circle at 100% 0,
-      transparent calc(var(--mt-radio) * 0.78 - 5px),
-      rgb(0 0 0 / 0.8) calc(var(--mt-radio) * 0.78),
-      transparent calc(var(--mt-radio) * 0.78 + 6px)
+      transparent calc(var(--mt-frente-radio) * 0.78 - 5px),
+      rgb(0 0 0 / 0.8) calc(var(--mt-frente-radio) * 0.78),
+      transparent calc(var(--mt-frente-radio) * 0.78 + 6px)
     ),
     radial-gradient(
       circle at 100% 0,
-      transparent calc(var(--mt-radio) * 0.58 - 3px),
-      rgb(0 0 0 / 0.55) calc(var(--mt-radio) * 0.58),
-      transparent calc(var(--mt-radio) * 0.58 + 4px)
+      transparent calc(var(--mt-frente-radio) * 0.58 - 3px),
+      rgb(0 0 0 / 0.55) calc(var(--mt-frente-radio) * 0.58),
+      transparent calc(var(--mt-frente-radio) * 0.58 + 4px)
     );
 }
 
@@ -363,13 +363,13 @@ html[data-mt-transicion="salida"] #mt-frente::after {
 }
 
 @keyframes mt-frente-crece {
-  from { --mt-radio: 0px; }
-  to { --mt-radio: calc(hypot(100vw, 100vh) + 220px); }
+  from { --mt-frente-radio: 0px; }
+  to { --mt-frente-radio: calc(hypot(100vw, 100vh) + 220px); }
 }
 
 @keyframes mt-frente-encoge {
-  from { --mt-radio: calc(hypot(100vw, 100vh) + 40px); }
-  to { --mt-radio: 0px; }
+  from { --mt-frente-radio: calc(hypot(100vw, 100vh) + 40px); }
+  to { --mt-frente-radio: 0px; }
 }
 
 @keyframes mt-frente-apaga {
