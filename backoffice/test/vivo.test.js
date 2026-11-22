@@ -171,6 +171,16 @@ test("una traza a medio escribir: se ignoran los pasos sin URL y sin inicio no h
   assert.equal(telaranaEnVivo({ goal: "x", guia: null, intentos: [] }), null);
 });
 
+test("los pasos de la Guía conservan sus horas para animar en orden; una ruta vieja sin horas da vacío y 0", () => {
+  const horas = { decided_at: "2026-11-22T02:35:01.000-03:00", executed_at: "2026-11-22T02:35:01.200-03:00",
+    settled_at: "2026-11-22T02:35:02.500-03:00", seconds_since_start: 12.5 };
+  const [conHoras, sinHoras] = recorridoDe(traza("guide", "running", [
+    { ...pasoDeGuia(1, INICIO, AYUDA, "Ayuda"), ...horas }, pasoDeGuia(2, AYUDA, HORARIO, "Horario"),
+  ]), { guia: true }).steps;
+  assert.deepEqual(Object.fromEntries(Object.keys(horas).map((clave) => [clave, conHoras[clave]])), horas);
+  assert.deepEqual([sinHoras.decided_at, sinHoras.executed_at, sinHoras.settled_at, sinHoras.seconds_since_start], ["", "", "", 0]);
+});
+
 test("arbolEnVivo une como build_route_tree: los run.json terminados suman su final", async () => {
   const tanda = await leerTanda(RAIZ, TANDA);
   assert.ok(tanda);
