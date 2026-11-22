@@ -8,8 +8,8 @@ dependencies = [
 ]
 
 [dependency-groups]
-# Playwright solo para que CI instale el Chromium que usan las apps en la prueba de punta a punta: su misma versión.
-dev = ["pytest>=8.0", "playwright==1.65.2"]
+# shared[browser] trae Playwright: así CI instala el Chromium de la prueba de punta a punta.
+dev = ["pytest>=8.0", "shared[browser]"]
 
 [tool.uv]
 # Se corre con `uv run main.py`; no se empaqueta.

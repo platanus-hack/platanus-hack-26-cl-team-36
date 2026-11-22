@@ -49,8 +49,8 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "playwright" },
     { name = "pytest" },
+    { name = "shared", extra = ["browser"] },
 ]
 
 [package.metadata]
@@ -58,8 +58,8 @@ requires-dist = [{ name = "shared", extras = ["s3"], editable = "../../shared" }
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "playwright", specifier = "==1.65.2" },
     { name = "pytest", specifier = ">=8.0" },
+    { name = "shared", extras = ["browser"], editable = "../../shared" },
 ]
 
 [[package]]
@@ -190,6 +190,9 @@ version = "0.1.0"
 source = { editable = "../../shared" }
 
 [package.optional-dependencies]
+browser = [
+    { name = "playwright" },
+]
 s3 = [
     { name = "boto3" },
 ]
