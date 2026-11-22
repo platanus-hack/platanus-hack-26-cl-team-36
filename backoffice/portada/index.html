@@ -30,6 +30,7 @@
       <a class="marca" href="/" aria-label="Chameleon Mode, inicio"><img src="/logo.svg" alt="" width="492" height="128"></a>
       <nav class="barra-nav" aria-label="Secciones">
         <a href="#como-funciona">Cómo funciona</a>
+        <a href="#telarana">La telaraña</a>
         <a href="#descargar">Descargar</a>
       </nav>
       <a class="boton boton-chico boton-secundario" href="/backoffice/">Ir a la app <span aria-hidden="true">→</span></a>
@@ -46,13 +47,13 @@
           tema que la extensión aplica encima de la página. El sitio original no cambia, y siempre puedes volver a él.
         </p>
         <div class="acciones">
-          <a class="boton boton-primario" href="/descargas/firefox" data-descarga-firefox>
+          <a class="boton boton-primario boton-brillo" href="/descargas/firefox" data-descarga-principal>
             <svg class="icono" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Descargar para Firefox
+            <span data-texto-descarga>Descargar para Firefox</span>
           </a>
           <a class="boton boton-secundario" href="/backoffice/">Ir a la app <span aria-hidden="true">→</span></a>
         </div>
-        <p class="nota" data-version-firefox>Firmada por Mozilla · Chrome, próximamente</p>
+        <p class="nota"><span data-nota-versiones>Para Firefox y Chrome</span> · <a href="#descargar">todas las descargas</a></p>
       </div>
 
       <div class="contenedor contenedor-ancho">
@@ -60,13 +61,13 @@
           <div class="ventana">
             <div class="ventana-barra" aria-hidden="true">
               <span class="puntos"><i></i><i></i><i></i></span>
-              <span class="direccion">uchile.cl</span>
+              <span class="direccion">metro.cl</span>
             </div>
             <div class="comparador-lienzo">
-              <img class="comparador-antes" src="/img/antes.jpg" width="1440" height="900"
-                   alt="La portada de la Universidad de Chile tal como es: el menú y, debajo, un carrusel de fotos que ocupa toda la pantalla.">
-              <img class="comparador-despues" src="/img/despues.jpg" width="1440" height="900"
-                   alt="La misma portada con el tema de Chameleon: un panel «Lo que buscas» con seis tareas directas, como postgrados, diplomados y admisión, y un buscador de tareas.">
+              <img class="comparador-antes" src="/img/antes.jpg" width="1440" height="612"
+                   alt="La portada de Metro de Santiago tal como es: el menú y una grilla gris con el estado de cada línea sobre un video.">
+              <img class="comparador-despues" src="/img/despues.jpg" width="1440" height="612"
+                   alt="La misma portada con el tema de Chameleon: fondo oscuro, «Planifica tu viaje» y seis tareas numeradas con el color de cada línea, como el estado del servicio, el plano de la red y los horarios, y un buscador de tareas.">
               <span class="rotulo rotulo-despues" aria-hidden="true">Con Chameleon</span>
               <span class="rotulo rotulo-antes" aria-hidden="true">Original</span>
               <span class="comparador-linea" aria-hidden="true"><span class="comparador-asa"></span></span>
@@ -75,7 +76,7 @@
             </div>
           </div>
           <figcaption>
-            La Universidad de Chile con el tema que generaron los agentes y sin él: lo que la gente viene a buscar, arriba.
+            Metro de Santiago con el tema que generaron los agentes y sin él: lo que la gente viene a hacer, arriba y en orden.
             <span class="sin-js-oculto">Arrastra para comparar.</span>
           </figcaption>
         </figure>
@@ -92,12 +93,12 @@
         <div class="telefonos aparece">
           <figure class="telefono">
             <img src="/img/antes-movil.jpg" width="780" height="1688" loading="lazy"
-                 alt="metro.cl en el teléfono tal como es: un banner y el estado de cada línea; para planificar un viaje hay que seguir bajando.">
+                 alt="uchile.cl en el teléfono tal como es: un carrusel de fotos, la noticia del aniversario y su programa; lo que se viene a buscar queda más abajo.">
             <figcaption>Original</figcaption>
           </figure>
           <figure class="telefono telefono-despues">
             <img src="/img/despues-movil.jpg" width="780" height="1688" loading="lazy"
-                 alt="metro.cl con el tema de Chameleon: «Planifica tu viaje» y una lista numerada de tareas, cada una con el color de una línea.">
+                 alt="uchile.cl con el tema de Chameleon: «Lo que buscas» y una lista de tareas directas: postgrados, diplomados, carreras de pregrado, bachillerato y admisión.">
             <figcaption>Con Chameleon</figcaption>
           </figure>
         </div>
@@ -112,7 +113,7 @@
           <p>Cada cambio sale de ver a alguien perderse, no de una opinión sobre cómo debería verse la página.</p>
         </header>
 
-        <ol class="pasos">
+        <ol class="pasos" data-aparece>
           <li class="paso aparece">
             <span class="paso-numero">01</span>
             <span class="paso-rol">Catalogador</span>
@@ -141,25 +142,63 @@
       </div>
     </section>
 
+    <section id="telarana" class="seccion telarana" aria-labelledby="titulo-telarana">
+      <div class="contenedor">
+        <header class="seccion-cabecera seccion-cabecera-centrada">
+          <p class="etiqueta">La telaraña</p>
+          <h2 id="titulo-telarana">Mira por dónde se pierde la gente</h2>
+          <p>
+            Cada intento de un visitante se dibuja mientras ocurre: la ruta recomendada como eje, un anillo por paso y,
+            en ramas, cada desvío y cada vuelta atrás. Antes de cambiar nada, se ve dónde se trabó alguien.
+          </p>
+        </header>
+      </div>
+      <div class="contenedor contenedor-ancho">
+        <figure class="telarana-figura">
+          <div class="ventana ventana-telarana">
+            <div class="ventana-barra" aria-hidden="true">
+              <span class="puntos"><i></i><i></i><i></i></span>
+              <span class="direccion">chameleonmode.app/backoffice</span>
+            </div>
+            <video class="telarana-video" src="/img/telarana.webm" poster="/img/telarana.jpg" width="1920" height="1200"
+                   muted loop playsinline preload="none" controls
+                   aria-label="La telaraña de una tanda real en metro.cl, reproducida a 4×: el visitante se desvía a Marco Normativo y a Estructura Organizacional, vuelve dos veces y llega a Informes Financieros."></video>
+          </div>
+          <figcaption>
+            Un intento real en metro.cl, a 4×: el visitante buscaba la información de transparencia, se desvió dos veces y
+            llegó en 13 pasos.
+          </figcaption>
+        </figure>
+
+        <ul class="claves">
+          <li class="clave aparece">
+            <span class="clave-muestra clave-ruta" aria-hidden="true"></span>
+            <h3>Ruta recomendada</h3>
+            <p>El eje turquesa: el camino más corto que verificó la Guía, página a página.</p>
+          </li>
+          <li class="clave aparece">
+            <span class="clave-muestra clave-rama" aria-hidden="true"></span>
+            <h3>Desvíos y vueltas atrás</h3>
+            <p>Cada rama es una página fuera de la ruta. El grosor dice cuántos pasaron por ahí y el color, cómo terminaron.</p>
+          </li>
+          <li class="clave aparece">
+            <span class="clave-muestra clave-traba" aria-hidden="true">⚠</span>
+            <h3>Dónde se trabó</h3>
+            <p>Una marca donde alguien no logró avanzar: ahí es donde el tema tiene que ayudar.</p>
+          </li>
+        </ul>
+
+        <p class="telarana-enlace">
+          <a class="boton boton-secundario" href="/backoffice/#/t/metro.cl/visitor/consultar-transparencia-activa/2026-11-22T07-55-56Z/telarana">
+            Abrir esta telaraña en la app <span aria-hidden="true">→</span>
+          </a>
+        </p>
+      </div>
+    </section>
+
     <section class="seccion evidencia" aria-label="Lo que dejan los agentes">
       <div class="contenedor">
         <article class="fila aparece">
-          <div class="fila-texto">
-            <p class="etiqueta">Mapa de caminos</p>
-            <h3>Dónde se separan de la ruta</h3>
-            <p>
-              Cada tanda de visitantes queda dibujada como una telaraña: la ruta recomendada como eje y, en ramas, los
-              desvíos, las vueltas atrás y los abandonos. El grosor dice cuántos pasaron por ahí, y una marca, dónde
-              alguien se trabó.
-            </p>
-          </div>
-          <figure class="fila-imagen">
-            <img src="/img/mapa.jpg" width="1440" height="900" loading="lazy"
-                 alt="El mapa de caminos de una tanda en metro.cl: la ruta de la portada a Informes Financieros como eje, dos desvíos en ramas y el panel de la página donde el visitante se trabó.">
-          </figure>
-        </article>
-
-        <article class="fila fila-invertida aparece">
           <div class="fila-texto">
             <p class="etiqueta">Replay</p>
             <h3>Cada intento, paso a paso</h3>
@@ -174,7 +213,7 @@
           </figure>
         </article>
 
-        <article class="fila aparece">
+        <article class="fila fila-invertida aparece">
           <div class="fila-texto">
             <p class="etiqueta">Propuesta</p>
             <h3>Un tema que se puede explicar</h3>
@@ -220,30 +259,39 @@
         </header>
 
         <div class="descargas">
-          <article class="descarga">
+          <article class="descarga" data-navegador="firefox">
             <div class="descarga-cabecera">
               <h3>Firefox</h3>
               <span class="insignia insignia-lista" data-version-insignia>Disponible</span>
             </div>
             <p class="descarga-detalle" data-version-detalle>La última versión, firmada por Mozilla.</p>
-            <a class="boton boton-primario" href="/descargas/firefox" data-descarga-firefox>
+            <a class="boton boton-primario" href="/descargas/firefox" data-descarga>
               <svg class="icono" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Descargar el .xpi
+              <span>Descargar el .xpi</span>
             </a>
             <p class="descarga-ayuda">
               Firefox te pedirá permiso para instalarla: aprieta <em>Continuar con la instalación</em> y luego
-              <em>Añadir</em>. Si se descarga como archivo, arrástralo a una ventana de Firefox.
+              <em>Añadir</em>. Si se descarga como archivo, arrástralo a una ventana de Firefox. Necesita Firefox 140 o
+              superior.
             </p>
           </article>
 
-          <article class="descarga descarga-pronto">
+          <article class="descarga" data-navegador="chrome">
             <div class="descarga-cabecera">
               <h3>Chrome</h3>
-              <span class="insignia">Próximamente</span>
+              <span class="insignia insignia-lista" data-version-insignia>Disponible</span>
             </div>
-            <p class="descarga-detalle">Estamos preparando la versión para Chrome.</p>
-            <button class="boton boton-deshabilitado" type="button" disabled>Próximamente</button>
-            <p class="descarga-ayuda">Mientras tanto, puedes usar Chameleon en Firefox o ver el trabajo de los agentes en la app.</p>
+            <p class="descarga-detalle" data-version-detalle>La última versión, para cargarla en modo de desarrollador.</p>
+            <a class="boton boton-primario" href="/descargas/chrome" data-descarga>
+              <svg class="icono" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Descargar el .zip</span>
+            </a>
+            <ol class="descarga-pasos">
+              <li>Descomprime el .zip en una carpeta que no vayas a borrar.</li>
+              <li>Abre <code>chrome://extensions</code> y activa <em>Modo de desarrollador</em>.</li>
+              <li>Aprieta <em>Cargar descomprimida</em> y elige esa carpeta.</li>
+            </ol>
+            <p class="descarga-ayuda">Necesita Chrome 148 o superior. En la Chrome Web Store, próximamente.</p>
           </article>
         </div>
       </div>

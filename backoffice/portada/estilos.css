@@ -138,6 +138,8 @@ p { text-wrap: pretty; }
 .bajada { margin-top: 24px; max-width: 38em; font-size: clamp(17px, 1.6vw, 19px); color: var(--texto-2); }
 .acciones { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 36px; }
 .nota { margin-top: 16px; font-family: var(--fuente-mono); font-size: 13px; color: var(--texto-4); letter-spacing: 0.01em; }
+.nota a { color: var(--texto-3); text-underline-offset: 3px; text-decoration-color: var(--borde-fuerte); }
+.nota a:hover { color: var(--texto-1); }
 
 /* ---------- Comparador antes / después ---------- */
 
@@ -166,7 +168,7 @@ p { text-wrap: pretty; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .comparador-lienzo {
-  position: relative; aspect-ratio: 1440 / 900; background: var(--superficie-2);
+  position: relative; aspect-ratio: 1440 / 612; background: var(--superficie-2);
   cursor: ew-resize; touch-action: pan-y; user-select: none; -webkit-user-select: none;
 }
 .sin-js .comparador-lienzo { cursor: auto; }
@@ -253,6 +255,7 @@ p { text-wrap: pretty; }
 .seccion-cabecera { max-width: 40em; margin-bottom: clamp(40px, 5vw, 64px); }
 .seccion-cabecera h2, .multijugador h2, .cierre h2 { margin-top: 14px; font-size: clamp(30px, 4vw, 46px); line-height: 1.1; letter-spacing: -0.03em; }
 .seccion-cabecera > p:not(.etiqueta) { margin-top: 18px; font-size: 18px; color: var(--texto-3); }
+.seccion-cabecera-centrada { margin-inline: auto; text-align: center; }
 
 /* Pasos */
 .pasos {
@@ -261,8 +264,17 @@ p { text-wrap: pretty; }
   border: 1px solid var(--borde); border-radius: var(--radio-4);
   background: var(--borde); overflow: hidden;
 }
-.paso { display: flex; flex-direction: column; gap: 10px; padding: 28px 24px 32px; background: var(--fondo); }
-.paso-numero { font-family: var(--fuente-mono); font-size: 13px; color: var(--texto-4); }
+.pasos { position: relative; }
+.paso { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 28px 24px 32px; background: var(--fondo); }
+.paso-numero { font-family: var(--fuente-mono); font-size: 13px; color: var(--texto-4); transition: color 400ms ease; }
+/* Una línea turquesa recorre los cuatro pasos, en orden, cuando la grilla aparece (portada.js pone .visible). */
+.pasos::after {
+  content: ""; position: absolute; z-index: 1; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--acento), color-mix(in srgb, var(--acento) 40%, transparent));
+  transform-origin: left; transform: scaleX(0);
+}
+.pasos.visible::after { transform: scaleX(1); }
+.pasos.visible .paso-numero { color: var(--acento); }
 .paso-rol {
   align-self: flex-start; margin-top: 18px;
   padding: 3px 9px; border-radius: var(--radio-pildora);
@@ -271,8 +283,39 @@ p { text-wrap: pretty; }
 }
 .paso h3 { font-size: 20px; line-height: 1.25; }
 .paso p { font-size: 15px; color: var(--texto-3); }
-@media (max-width: 960px) { .pasos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 960px) { .pasos { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pasos::after { display: none; } }
 @media (max-width: 560px) { .pasos { grid-template-columns: minmax(0, 1fr); } }
+
+/* La telaraña: la sección destacada, con el video del Replay de una tanda real */
+.telarana { position: relative; isolation: isolate; }
+.telarana::before {
+  content: ""; position: absolute; z-index: -1; inset: 10% 0 0;
+  background: radial-gradient(50% 40% at 50% 45%, rgb(46 230 197 / 0.10), transparent 70%);
+  pointer-events: none;
+}
+.ventana-telarana { box-shadow: var(--sombra-imagen), 0 0 160px -40px rgb(46 230 197 / 0.4); }
+.telarana-video { display: block; width: 100%; height: auto; aspect-ratio: 1920 / 1200; background: var(--fondo); }
+.telarana-figura figcaption { margin-top: 16px; text-align: center; font-size: 14px; color: var(--texto-4); }
+.claves {
+  list-style: none; padding: 0; margin-top: clamp(40px, 5vw, 64px);
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 40px);
+  max-width: var(--ancho); margin-inline: auto;
+}
+.clave h3 { margin-top: 16px; font-size: 18px; }
+.clave p { margin-top: 8px; font-size: 15px; color: var(--texto-3); }
+.clave-muestra { display: flex; align-items: center; height: 22px; }
+.clave-ruta::before { content: ""; width: 64px; height: 6px; border-radius: 3px; background: var(--acento); box-shadow: 0 0 14px rgb(46 230 197 / 0.6); }
+.clave-rama::before {
+  content: ""; width: 56px; height: 22px;
+  border: 4px solid #4AC06C; border-left: 0; border-bottom: 0; border-top-right-radius: 22px;
+}
+.clave-traba {
+  width: max-content; padding: 0 8px; border-radius: 6px;
+  border: 1px solid rgb(255 159 63 / 0.6); background: rgb(255 159 63 / 0.14); color: #FF9F3F;
+  font-size: 12px; line-height: 20px;
+}
+.telarana-enlace { margin-top: clamp(32px, 4vw, 48px); text-align: center; }
+@media (max-width: 760px) { .claves { grid-template-columns: minmax(0, 1fr); } }
 
 /* Filas con imagen */
 .evidencia { padding-top: 0; }
@@ -328,6 +371,10 @@ p { text-wrap: pretty; }
 .descarga .boton { margin-top: 6px; }
 .descarga-ayuda { margin-top: auto; padding-top: 10px; font-size: 14px; color: var(--texto-4); }
 .descarga-ayuda em { font-style: normal; color: var(--texto-3); }
+.descarga-pasos { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--texto-3); }
+.descarga-pasos li::marker { color: var(--texto-4); font-family: var(--fuente-mono); font-size: 12px; }
+.descarga-pasos em, .descarga-pasos code { font-style: normal; color: var(--texto-1); }
+.descarga-pasos code { font-family: var(--fuente-mono); font-size: 13px; padding: 1px 5px; border-radius: 4px; background: var(--superficie-3); }
 .descarga-pronto { background: transparent; border-style: dashed; }
 .descarga-pronto h3 { color: var(--texto-3); }
 .insignia {
@@ -357,4 +404,64 @@ p { text-wrap: pretty; }
   .js .pasos .aparece:nth-child(2) { transition-delay: 80ms; }
   .js .pasos .aparece:nth-child(3) { transition-delay: 160ms; }
   .js .pasos .aparece:nth-child(4) { transition-delay: 240ms; }
+}
+
+/* ---------- Animaciones ---------- */
+/* Todas solo sin movimiento reducido. Las de entrada son CSS puro: sin JavaScript también se ven. Las que siguen al
+   scroll usan animation-timeline (Chrome, Edge, Safari 26); donde no existe, la página queda quieta y completa. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes subir { from { opacity: 0; transform: translateY(18px); filter: blur(6px); } }
+  @keyframes aparecer { from { opacity: 0; } }
+  .portada-texto > * { animation: subir 900ms var(--curva-salida) both; }
+  .portada-texto > :nth-child(2) { animation-delay: 90ms; }
+  .portada-texto > :nth-child(3) { animation-delay: 220ms; }
+  .portada-texto > :nth-child(4) { animation-delay: 320ms; }
+  .portada-texto > :nth-child(5) { animation-delay: 420ms; }
+  .comparador { animation: subir 1100ms 380ms var(--curva-salida) both; }
+  .barra { animation: aparecer 600ms ease both; }
+
+  /* El resplandor de la portada respira despacio. */
+  @keyframes respirar { 50% { opacity: 0.65; transform: scale(1.06); } }
+  .portada::before { animation: respirar 9s ease-in-out infinite; }
+
+  /* Un brillo cruza el botón principal cada tanto. */
+  .boton-brillo { position: relative; overflow: hidden; }
+  .boton-brillo::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.55) 50%, transparent 65%);
+    transform: translateX(-120%);
+    animation: brillo 5s 1.6s ease-in-out infinite;
+  }
+  @keyframes brillo { 0% { transform: translateX(-120%); } 22%, 100% { transform: translateX(120%); } }
+
+  /* La línea de los pasos, de izquierda a derecha. */
+  .pasos::after { transition: transform 1600ms var(--curva-salida) 200ms; }
+  .pasos .paso-numero { transition-delay: calc(var(--i, 0) * 260ms + 300ms); }
+  .pasos .paso:nth-child(2) { --i: 1; }
+  .pasos .paso:nth-child(3) { --i: 2; }
+  .pasos .paso:nth-child(4) { --i: 3; }
+
+  /* Las tarjetas se levantan un poco al pasar. */
+  .paso, .descarga, .clave { transition: transform 300ms var(--curva-salida), background-color 300ms ease, border-color 300ms ease; }
+  .paso:hover { background: var(--superficie-1); }
+  .descarga:hover { transform: translateY(-3px); border-color: var(--borde-fuerte); }
+
+  @supports (animation-timeline: view()) {
+    /* Las ventanas se enderezan al entrar a la pantalla. */
+    @keyframes enderezar { from { transform: perspective(1800px) rotateX(16deg) scale(0.92); opacity: 0.4; } }
+    .comparador .ventana, .ventana-telarana {
+      animation: enderezar linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 38%;
+      transform-origin: 50% 100%;
+    }
+    /* Los teléfonos se separan al bajar. */
+    @keyframes flotar-arriba { from { transform: translateY(40px); } to { transform: translateY(-40px); } }
+    @keyframes flotar-abajo { from { transform: translateY(-16px); } to { transform: translateY(16px); } }
+    .telefono-despues { animation: flotar-arriba linear both; animation-timeline: view(); }
+    .telefono:not(.telefono-despues) { animation: flotar-abajo linear both; animation-timeline: view(); }
+    /* Las capturas crecen un poco al entrar. */
+    @keyframes acercar { from { transform: scale(0.94); opacity: 0.5; } }
+    .fila-imagen img { animation: acercar linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
+  }
 }

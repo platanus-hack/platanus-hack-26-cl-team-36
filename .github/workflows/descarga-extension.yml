@@ -1,9 +1,12 @@
-# Copia el .xpi del último release de la extensión al almacén, de donde la portada de chameleonmode.app lo ofrece
-# para descargar (backoffice/lib/descargas.js). Hace falta porque los releases viven en el repo personal, que es
-# privado: un enlace directo al release le da 404 a quien no es colaborador.
+# Copia los archivos del último release de la extensión al almacén, de donde la portada de chameleonmode.app los
+# ofrece para descargar (backoffice/lib/descargas.js): el .xpi para Firefox y, si el release lo trae, el .zip para
+# Chrome. Hace falta porque los releases viven en el repo personal, que es privado: un enlace directo al release le da
+# 404 a quien no es colaborador.
 #
 #   s3://chameleon-almacen-<cuenta>/_descargas/firefox/chameleon-mode-<versión>.xpi
 #   s3://chameleon-almacen-<cuenta>/_descargas/firefox/ultima.json    { version, publicado, tag }
+#   s3://chameleon-almacen-<cuenta>/_descargas/chrome/chameleon-mode-chrome-<versión>.zip
+#   s3://chameleon-almacen-<cuenta>/_descargas/chrome/ultima.json
 #
 # Corre solo cuando termina bien "Publicar extensión" (just publish v0.7.0) y a mano desde la pestaña Actions o con
 # `gh workflow run descarga-extension.yml -R brayanmoreno/hackathon-grupo36`. Las dos corren sobre main, así que el
@@ -43,7 +46,7 @@ jobs:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Baja el .xpi del último release
+      - name: Baja los archivos del último release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -53,29 +56,42 @@ jobs:
             echo "::error::El último release no tiene un tag vX.Y.Z: $tag"
             exit 1
           fi
-          mkdir xpi
-          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern '*.xpi' --dir xpi
+          mkdir -p release firefox chrome
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern '*.xpi' --pattern '*.zip' --dir release
           shopt -s nullglob
-          archivos=(xpi/*.xpi)
-          if [ "${#archivos[@]}" -ne 1 ]; then
-            echo "::error::El release $tag debería traer un solo .xpi y trae ${#archivos[@]}."
+          xpis=(release/*.xpi)
+          if [ "${#xpis[@]}" -ne 1 ]; then
+            echo "::error::El release $tag debería traer un solo .xpi y trae ${#xpis[@]}."
             exit 1
           fi
-          mv "${archivos[0]}" "chameleon-mode-$version.xpi"
-          node -e '
-            const [version, publicado, tag] = process.argv.slice(1);
-            process.stdout.write(JSON.stringify({ version, publicado, tag }, null, 2) + "\n");
-          ' "$version" "$publicado" "$tag" > ultima.json
+          mv "${xpis[0]}" "firefox/chameleon-mode-$version.xpi"
+          # El .zip para Chrome llegó en v0.7.0: un release anterior no lo trae, y Chrome se queda con lo que tenía.
+          if [ -f "release/chameleon-mode-chrome-$version.zip" ]; then
+            mv "release/chameleon-mode-chrome-$version.zip" "chrome/chameleon-mode-chrome-$version.zip"
+          fi
+          for navegador in firefox chrome; do
+            node -e '
+              const [version, publicado, tag] = process.argv.slice(1);
+              process.stdout.write(JSON.stringify({ version, publicado, tag }, null, 2) + "\n");
+            ' "$version" "$publicado" "$tag" > "$navegador/ultima.json"
+          done
           {
             echo "VERSION=$version"
             echo "TAG=$tag"
           } >> "$GITHUB_ENV"
 
-      # El .xpi primero y ultima.json al final: la portada nunca apunta a un archivo que todavía no está.
+      # Cada archivo primero y su ultima.json al final: la portada nunca apunta a un archivo que todavía no está.
       - name: Sube al almacén
         run: |
           cuenta=$(aws sts get-caller-identity --query Account --output text)
-          destino="s3://chameleon-almacen-${cuenta}/_descargas/firefox"
-          aws s3 cp "chameleon-mode-$VERSION.xpi" "$destino/chameleon-mode-$VERSION.xpi" --content-type application/x-xpinstall --no-progress
-          aws s3 cp ultima.json "$destino/ultima.json" --content-type "application/json" --cache-control no-store --no-progress
-          echo "✔ $TAG en https://chameleonmode.app/descargas/firefox" >> "$GITHUB_STEP_SUMMARY"
+          destino="s3://chameleon-almacen-${cuenta}/_descargas"
+          aws s3 cp "firefox/chameleon-mode-$VERSION.xpi" "$destino/firefox/chameleon-mode-$VERSION.xpi" --content-type application/x-xpinstall --no-progress
+          aws s3 cp firefox/ultima.json "$destino/firefox/ultima.json" --content-type "application/json" --cache-control no-store --no-progress
+          echo "✔ Firefox $TAG en https://chameleonmode.app/descargas/firefox" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "chrome/chameleon-mode-chrome-$VERSION.zip" ]; then
+            aws s3 cp "chrome/chameleon-mode-chrome-$VERSION.zip" "$destino/chrome/chameleon-mode-chrome-$VERSION.zip" --content-type application/zip --no-progress
+            aws s3 cp chrome/ultima.json "$destino/chrome/ultima.json" --content-type "application/json" --cache-control no-store --no-progress
+            echo "✔ Chrome $TAG en https://chameleonmode.app/descargas/chrome" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "El release $TAG no trae el .zip para Chrome: Chrome queda como estaba." >> "$GITHUB_STEP_SUMMARY"
+          fi

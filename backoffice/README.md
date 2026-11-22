@@ -89,29 +89,37 @@ que importa `app.js` y, según la ruta, la pantalla que va a abrir y los datos d
 El backoffice entero (la página, `api/`, `archivos/`, `resultados/` y `propuestas/`) vive bajo `/backoffice/`; `/backoffice` sin la barra
 final redirige ahí, porque la página pide todo con rutas relativas. La raíz (`/`) sirve la portada de
 [`portada/`](portada/): qué es Chameleon y cómo trabajan los agentes, con capturas reales (`portada/img/`), la descarga
-de la extensión para Firefox (Chrome aparece como próximamente) y el botón **Ir a la app**, que lleva a
-`/backoffice/`. Es lo que ve quien abre https://chameleonmode.app, la URL de la entrega en
-`platanus-hack-project.jsonc`. Sin build ni dependencias, como el backoffice: `index.html`, `estilos.css` y
-`portada.js` (el comparador antes/después, la versión publicada y la aparición al bajar; sin él la página se ve
-completa). De `portada/` solo se sirven sus archivos sueltos y las imágenes de `img/`; las imágenes salen con
-`Cache-Control: public, max-age=3600`.
+de la extensión para Firefox (`.xpi`) y Chrome (`.zip`) y el botón **Ir a la app**, que lleva a `/backoffice/`. Es lo
+que ve quien abre https://chameleonmode.app, la URL de la entrega en `platanus-hack-project.jsonc`. Sin build ni
+dependencias, como el backoffice: `index.html`, `estilos.css` y `portada.js` (el comparador antes/después, las
+versiones publicadas, el botón principal según el navegador de quien visita, el video de la telaraña, que corre solo
+mientras se ve, y la aparición al bajar; sin él la página se ve completa y quieta). Las animaciones respetan
+`prefers-reduced-motion`; las que siguen al scroll usan `animation-timeline` y donde no existe (Firefox) la página
+queda quieta. De `portada/` solo se sirven sus archivos sueltos y las imágenes y el video de `img/`, con
+`Cache-Control: public, max-age=3600` y por rangos (Safari no reproduce un video sin respuestas 206).
+
+`img/telarana.webm` es el Replay de una tanda real de metro.cl (`consultar-transparencia-activa`) en la telaraña viva
+de producción, a 4×, grabado cuadro a cuadro con el reloj falso de Playwright (`page.clock`) y codificado en VP9;
+`img/telarana.jpg` es su último cuadro, el póster.
 
 ### La descarga de la extensión
 
 Los releases de la extensión viven en el repo personal, que es privado: un enlace al release le da 404 a cualquiera
 que no sea colaborador. Por eso el workflow [`descarga-extension.yml`](../.github/workflows/descarga-extension.yml)
-copia el `.xpi` del último release al almacén, en `_descargas/firefox/` (el `_` hace que no se confunda con un sitio),
-cada vez que termina bien **Publicar extensión**, y el servidor lo sirve con la misma fuente que las corridas
-([`lib/descargas.js`](lib/descargas.js)):
+copia el `.xpi` y, si el release lo trae (desde v0.7.0), el `.zip` para Chrome del último release al almacén, en
+`_descargas/firefox/` y `_descargas/chrome/` (el `_` hace que no se confunda con un sitio), cada vez que termina bien
+**Publicar extensión**, y el servidor los sirve con la misma fuente que las corridas ([`lib/descargas.js`](lib/descargas.js)):
 
 | Ruta | Qué devuelve |
 |---|---|
-| `GET /descargas/firefox.json` | `{ disponible, version, publicado, url }` de `_descargas/firefox/ultima.json` (releído a lo más una vez por minuto); `{ disponible: false }` si no hay. La portada lo usa para mostrar la versión. |
-| `GET /descargas/firefox` | 302 al `.xpi` de la última versión: el enlace fijo de los botones. |
-| `GET /descargas/chameleon-mode-<versión>.xpi` | El `.xpi` firmado, como `application/x-xpinstall` (Firefox ofrece instalarlo), guardable en cualquier caché: Mozilla no firma dos veces la misma versión. |
+| `GET /descargas/<firefox\|chrome>.json` | `{ disponible, version, publicado, url }` de `_descargas/<navegador>/ultima.json` (releído a lo más una vez por minuto); `{ disponible: false }` si no hay. La portada lo usa para mostrar las versiones. |
+| `GET /descargas/<firefox\|chrome>` | 302 al archivo de la última versión: el enlace fijo de los botones. |
+| `GET /descargas/chameleon-mode-<versión>.xpi` | El `.xpi` firmado, como `application/x-xpinstall` (Firefox ofrece instalarlo). |
+| `GET /descargas/chameleon-mode-chrome-<versión>.zip` | El `.zip` para cargar descomprimido en `chrome://extensions` (Chrome 148 o superior). |
 
-En local la fuente de archivos lo busca en `agents/.runs/_descargas/firefox/`: sin esa carpeta, la portada dice que
-la descarga está disponible pronto. Para subir a mano el último release (por ejemplo, el primero después de mergear
+Una versión publicada no cambia (Mozilla no firma dos veces la misma), así que los archivos salen guardables en
+cualquier caché. En local la fuente de archivos los busca en `agents/.runs/_descargas/<navegador>/`: sin esa carpeta,
+la portada dice que la descarga está disponible pronto. Para subir a mano el último release (por ejemplo, el primero después de mergear
 el workflow): `gh workflow run descarga-extension.yml -R brayanmoreno/hackathon-grupo36`.
 
 ## Pantallas

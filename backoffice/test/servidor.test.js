@@ -111,6 +111,7 @@ test("la raíz es la portada: lleva a la descarga para Firefox y al backoffice",
   assert.match(portada.headers.get("content-security-policy"), /script-src 'self'/);
   const html = await portada.text();
   assert.match(html, /href="\/descargas\/firefox"/);
+  assert.match(html, /href="\/descargas\/chrome"/);
   assert.match(html, /href="\/backoffice\/"/);
   assert.equal((await pedirEnRaiz("/estilos.css")).headers.get("content-type"), "text/css; charset=utf-8");
   assert.equal((await pedirEnRaiz("/portada.js")).headers.get("content-type"), "text/javascript; charset=utf-8");
@@ -123,7 +124,7 @@ test("la raíz es la portada: lleva a la descarga para Firefox y al backoffice",
 
 test("la portada pide existentes: cada src y href propio de index.html se sirve", async () => {
   const html = await (await pedirEnRaiz("/")).text();
-  const propias = [...html.matchAll(/(?:src|href)="(\/[^"#]*)"/g)].map(([, ruta]) => ruta).filter((ruta) => !ruta.startsWith("/backoffice/") && !ruta.startsWith("/descargas/"));
+  const propias = [...html.matchAll(/(?:src|href|poster)="(\/[^"#]*)"/g)].map(([, ruta]) => ruta).filter((ruta) => !ruta.startsWith("/backoffice/") && !ruta.startsWith("/descargas/"));
   assert.ok(propias.some((ruta) => ruta.startsWith("/img/")), "la portada tiene imágenes");
   for (const ruta of new Set(propias)) {
     const respuesta = await pedirEnRaiz(ruta, { method: "HEAD" });
@@ -134,6 +135,33 @@ test("la portada pide existentes: cada src y href propio de index.html se sirve"
 
 test("de portada/ solo se sirven sus archivos sueltos y las imágenes de img/", async () => {
   for (const ruta of ["/img", "/img/", "/img/x/y.jpg", "/img/../servidor.js", "/img/%2E%2E%2Fservidor.js", "/img/nada.jpg", "/img/foto.gif"]) {
+    const respuesta = await pedirEnRaiz(ruta);
+    assert.ok([400, 404].includes(respuesta.status), `${ruta} respondió ${respuesta.status}`);
+  }
+});
+
+test("el video de la portada se sirve por rangos (Safari no lo reproduce sin 206)", async () => {
+  const entero = await pedirEnRaiz("/img/telarana.webm", { method: "HEAD" });
+  assert.equal(entero.headers.get("content-type"), "video/webm");
+  const tamano = Number(entero.headers.get("content-length"));
+  const parte = await pedirEnRaiz("/img/telarana.webm", { headers: { Range: "bytes=0-1" } });
+  assert.equal(parte.status, 206);
+  assert.equal(parte.headers.get("content-range"), `bytes 0-1/${tamano}`);
+  assert.equal((await parte.arrayBuffer()).byteLength, 2);
+  const fuera = await pedirEnRaiz("/img/telarana.webm", { headers: { Range: `bytes=${tamano}-` } });
+  assert.equal(fuera.status, 416);
+});
+
+test("/descargas/: la última versión para Chrome, su enlace fijo y el .zip", async () => {
+  assert.deepEqual(await (await pedirEnRaiz("/descargas/chrome.json")).json(), { disponible: true, version: "0.6.0", publicado: "2026-11-22T07:46:23.000Z", url: "/descargas/chrome" });
+  const enlace = await pedirEnRaiz("/descargas/chrome", { redirect: "manual" });
+  assert.equal(enlace.status, 302);
+  assert.equal(enlace.headers.get("location"), "/descargas/chameleon-mode-chrome-0.6.0.zip");
+  const zip = await pedirEnRaiz("/descargas/chameleon-mode-chrome-0.6.0.zip");
+  assert.equal(zip.status, 200);
+  assert.equal(zip.headers.get("content-type"), "application/zip");
+  assert.equal(await zip.text(), "PK-zip-de-prueba");
+  for (const ruta of ["/descargas/edge.json", "/descargas/edge", "/descargas/chrome.json.json", "/descargas/__proto__", "/descargas/chameleon-mode-chrome-0.6.0.xpi", "/descargas/chameleon-mode-0.6.0.zip"]) {
     const respuesta = await pedirEnRaiz(ruta);
     assert.ok([400, 404].includes(respuesta.status), `${ruta} respondió ${respuesta.status}`);
   }
