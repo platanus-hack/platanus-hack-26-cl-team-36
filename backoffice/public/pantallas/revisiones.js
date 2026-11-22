@@ -1,24 +1,27 @@
 // Revisiones del flujo en AWS: la lista de las vigentes, una por página (#/revisiones, filtrable con
 // ?estado=live|done|failed; ?estado=historial muestra las reemplazadas) y el avance de una
 // por etapa y por goal (#/revisiones/<revision>), con enlaces a lo que dejó cada corrida terminada. "En vivo" es
-// volver a pedir cada INTERVALO mientras la vista está montada; solo se redibuja si la respuesta (o el filtro) cambió.
+// volver a pedir mientras la vista está montada (esperaDe), con el ETag de la última respuesta: un 304 no redibuja.
 // Un goal en curso (o recién terminado) enlaza a su telaraña en vivo (#/revisiones/<revision>/<goal>, pantallas/vivo.js).
 
-import { pedirRevision, pedirRevisiones, urlDeResultado } from "../nucleo/datos.js";
+import { sondearRevisiones, urlDeResultado } from "../nucleo/datos.js";
 import { conservarFoco, el, esUrlWeb, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, esqueleto, vacio } from "../nucleo/estados.js";
 import { icono } from "../nucleo/iconos.js";
 import { enlaceARevision, enlaceARevisiones, enlaceATanda, enlaceAVivo } from "../nucleo/rutas.js";
 import { goalEnVivo } from "../datos/vivo.js";
 
-const INTERVALO = 2500;
+const INTERVALO_REVISION = 2500;
+const INTERVALO_LISTA = 10000;
+const INTERVALO_LISTA_QUIETA = 60000;
+const TERMINADA = new Set(["done", "failed"]);
 const TONO = { queued: "neutro", pending: "neutro", running: "acento", done: "logrado", succeeded: "logrado", failed: "fallido" };
 const ICONO = { queued: "proximamente", pending: "proximamente", running: "reproducir", done: "logrado", succeeded: "logrado", failed: "fallido" };
 const COMANDO_AWS = "BACKOFFICE_FUENTE=s3 BACKOFFICE_ALMACEN=s3://<bucket> AWS_PROFILE=<perfil> npm run backoffice";
 // Qué estados de la tabla deja ver cada filtro (el mismo corte que las pestañas del Overview: Live = corriendo y en cola).
 const ESTADOS_DEL_FILTRO = { live: ["running", "queued"], done: ["done"], failed: ["failed"] };
 
-/** Estado de la vista montada: { contenedor, ctx, revision, filtro, firma, error, reloj }. */
+/** Estado de la vista montada: { contenedor, ctx, revision, filtro, datos, etiqueta, error, reloj }. */
 let estado = null;
 
 function insignia(ctx, valor) {
@@ -210,7 +213,7 @@ function vistaDeRevision(ctx, revision, avance) {
       el("span", { class: "texto-2", texto: t(progreso.goalsConocidos ? "revisiones.progreso" : "revisiones.progresoParcial", progreso) }),
       avance.css ? el("a", { class: "boton boton-secundario", href: urlDeResultado(avance.css), target: "_blank", rel: "noreferrer", texto: t("revisiones.verTema") }) : null,
     ),
-    el("p", { class: "texto-3 t-pequeno", texto: t("revisiones.enVivo") }),
+    TERMINADA.has(avance.estado) ? null : el("p", { class: "texto-3 t-pequeno", texto: t("revisiones.enVivo") }),
     seccion(ctx, "catalogo", paso(ctx, avance.catalogo)),
     seccion(ctx, "goals", tablaDeGoals(ctx, revision, avance.goals)),
     seccion(ctx, "improver", paso(ctx, avance.improver)),
@@ -219,43 +222,51 @@ function vistaDeRevision(ctx, revision, avance) {
 
 // ── Montaje y sondeo ───────────────────────────────────────────────────────
 
-const pedir = (actual) => (actual.revision ? pedirRevision(actual.revision) : pedirRevisiones());
+// Una revisión terminada no cambia más: deja de sondear. La lista sondea más lento si nada está en curso.
+function esperaDe(actual) {
+  if (actual.error) return actual.revision ? INTERVALO_REVISION : INTERVALO_LISTA;
+  if (actual.revision) return TERMINADA.has(actual.datos?.estado) ? null : INTERVALO_REVISION;
+  const todas = [...(actual.datos?.revisiones ?? []), ...(actual.datos?.historial ?? [])];
+  return todas.some((revision) => !TERMINADA.has(revision.estado)) ? INTERVALO_LISTA : INTERVALO_LISTA_QUIETA;
+}
 
-function dibujar(actual, datos) {
-  const firma = JSON.stringify([datos, actual.error, actual.filtro]);
-  if (firma === actual.firma) return;
-  actual.firma = firma;
-  actual.datos = datos;
-  const vista = actual.revision ? vistaDeRevision(actual.ctx, actual.revision, datos) : vistaDeLista(actual.ctx, datos, actual.filtro);
+function dibujar(actual) {
+  const vista = actual.revision ? vistaDeRevision(actual.ctx, actual.revision, actual.datos) : vistaDeLista(actual.ctx, actual.datos, actual.filtro);
   conservarFoco(actual.contenedor, () =>
     reemplazar(actual.contenedor, vista[0], actual.error ? avisoEnLinea(actual.ctx.t("revisiones.errorAlRefrescar"), "atencion") : null, vista.slice(1)),
   );
 }
 
 function programar(actual) {
+  const espera = esperaDe(actual);
+  if (espera === null) return;
   actual.reloj = setTimeout(async () => {
     if (estado !== actual) return;
     if (!document.hidden) {
+      const habiaError = actual.error;
       try {
-        const datos = await pedir(actual);
+        const respuesta = await sondearRevisiones(actual.revision, actual.etiqueta);
+        if (estado !== actual) return;
         actual.error = false;
-        if (estado === actual) dibujar(actual, datos);
+        if (respuesta.cambio) Object.assign(actual, { datos: respuesta.datos, etiqueta: respuesta.etiqueta });
+        if (respuesta.cambio || habiaError) dibujar(actual);
       } catch {
+        if (estado !== actual) return;
         actual.error = true;
-        if (estado === actual) dibujar(actual, actual.datos);
+        if (!habiaError) dibujar(actual);
       }
     }
-    if (estado === actual) programar(actual);
-  }, INTERVALO);
+    programar(actual);
+  }, espera);
 }
 
 /**
  * La lista o la revisión, y la hoja de estilos. El enrutador lo llama antes de la transición, con el esqueleto de
- * Revisiones mientras tanto. → { datos } (datos null: la revisión no existe)
+ * Revisiones mientras tanto. → { datos, etiqueta } (datos null: la revisión no existe)
  */
 async function cargar(ctx) {
-  const [datos] = await Promise.all([pedir({ revision: ctx.ruta.revision ?? null }), ctx.cargarEstilos("estilos/revisiones.css")]);
-  return { datos };
+  const [{ datos, etiqueta }] = await Promise.all([sondearRevisiones(ctx.ruta.revision ?? null), ctx.cargarEstilos("estilos/revisiones.css")]);
+  return { datos, etiqueta };
 }
 
 export default {
@@ -269,15 +280,15 @@ export default {
     contenedor.classList.add("p-revisiones");
     const revision = ctx.ruta.revision ?? null;
     const filtro = revision ? null : (ctx.parametros.estado ?? null);
-    const actual = { contenedor, ctx, revision, filtro, firma: null, datos: null, error: false, reloj: null };
     if (!cargado) {
       // Remontada sin pasar por el enrutador (Reintentar): pide ella, con el mismo esqueleto.
       reemplazar(contenedor, esqueleto(revision ? "tabla" : "revisiones"));
       cargado = await cargar(ctx);
     }
     if (ctx.senal.aborted) return;
+    const actual = { contenedor, ctx, revision, filtro, datos: cargado.datos, etiqueta: cargado.etiqueta, error: false, reloj: null };
     estado = actual;
-    dibujar(actual, cargado.datos);
+    dibujar(actual);
     programar(actual);
   },
 
@@ -288,7 +299,7 @@ export default {
     const filtro = estado.revision ? null : (ctx.parametros.estado ?? null);
     if (filtro !== estado.filtro) {
       estado.filtro = filtro;
-      dibujar(estado, estado.datos);
+      dibujar(estado);
     }
     return true;
   },

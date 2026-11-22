@@ -59,6 +59,24 @@ export function pedirTanda(id) {
 export const pedirRevisiones = () => pedirJson("api/revisiones");
 /** → AvanceDeRevision | null (404) */
 export const pedirRevision = (revision) => pedirJson(`api/revisiones/${encodeURIComponent(revision)}`);
+
+/**
+ * Para el sondeo: con la `etiqueta` (ETag) de la última respuesta, un 304 da { cambio: false }.
+ * → { cambio: true, datos, etiqueta } | { cambio: false, etiqueta }   (datos null con un 404)
+ */
+export async function sondearRevisiones(revision, etiqueta = null) {
+  const url = revision ? `api/revisiones/${encodeURIComponent(revision)}` : "api/revisiones";
+  let respuesta;
+  try {
+    respuesta = await fetch(url, { cache: "no-store", headers: { Accept: "application/json", ...(etiqueta ? { "If-None-Match": etiqueta } : {}) } });
+  } catch (error) {
+    throw new ErrorDeDatos(`${url}: ${error?.message ?? error}`, 0);
+  }
+  if (respuesta.status === 304) return { cambio: false, etiqueta };
+  if (respuesta.status === 404) return { cambio: true, datos: null, etiqueta: null };
+  if (!respuesta.ok) throw new ErrorDeDatos(`${url} respondió ${respuesta.status}`, respuesta.status);
+  return { cambio: true, datos: await respuesta.json(), etiqueta: respuesta.headers.get("ETag") };
+}
 // El Overview también se refresca cada pocos segundos: sin caché.
 /** → { ahora, roles: { cataloger, guide, visitor: { all, desktop, mobile }, improver } } (contrato §1) | null (404) */
 export const pedirResumen = () => pedirJson("api/resumen");

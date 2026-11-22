@@ -297,10 +297,11 @@ test("avanceDeRevision: pasos, última acción y traza por goal; una traza de ot
 
 // ── Con el almacén (S3 falso) ─────────────────────────────────────────
 
-function armar(items, almacen = objetos()) {
+function armar(items, almacen = objetos(), memoriaMs = 0) {
   const s3 = clienteS3Falso(BUCKET, almacen, { porPagina: 50 });
   const fuente = crearFuenteS3({ bucket: BUCKET, cliente: s3, comandos: comandosS3 });
-  return { s3, almacen, revisiones: crearRevisiones({ tabla: TABLA, cliente: clienteDynamoFalso(TABLA, items, { porPagina: 50 }), comandos: comandosDynamo, fuente }) };
+  const dynamo = clienteDynamoFalso(TABLA, items, { porPagina: 50 });
+  return { s3, dynamo, almacen, revisiones: crearRevisiones({ tabla: TABLA, cliente: dynamo, comandos: comandosDynamo, fuente, memoriaMs }) };
 }
 
 test("leer en curso: la Guía terminada da su route.json, el Visitante sus trazas (la dañada se salta)", async () => {
@@ -308,7 +309,8 @@ test("leer en curso: la Guía terminada da su route.json, el Visitante sus traza
   const avance = await revisiones.leer("en-vivo");
   const horario = avance.goals.find((goal) => goal.goal === "horario");
   assert.equal(horario.guide.recorrido.archivo, "route.json");
-  assert.deepEqual(horario.visitor.intentos.map((i) => [i.carpeta, i.archivo, i.datos.status]), [["desktop", "trace.json", "running"]]);
+  assert.deepEqual(horario.visitor.intentos, [{ carpeta: "desktop", archivo: "trace.json" }], "los archivos leídos no viajan");
+  assert.equal(horario.guide.recorrido.datos, undefined);
   assert.equal(horario.telarana.fuente, "vivo");
   assert.deepEqual(ruta(horario.telarana), ["Inicio", "Ayuda", "Horario"]);
   assert.deepEqual(tramos(horario.telarana), ["Ayuda>Horario:1:exito", "Inicio>Ayuda:2:exito"]);
@@ -323,8 +325,8 @@ test("una traza que queda a medio escribir usa la última versión buena; lo en 
   const { almacen, revisiones, s3 } = armar(EN_VIVO);
   await revisiones.leer("en-vivo");
   almacen[`${VISITA}/desktop/trace.json`] = '{"status": "running", "steps": [';
-  const avance = await revisiones.leer("en-vivo");
-  const horario = avance.goals.find((goal) => goal.goal === "horario");
+  const { goal: horario } = await revisiones.leerGoal("en-vivo", "horario");
+  assert.equal(horario.visitor.intentos[0].datos.status, "running");
   assert.equal(horario.visitor.intentos[0].datos.steps.length, 1);
   const lecturas = () => s3.llamadas.filter((c) => c.input.Key === `${VISITA}/desktop/trace.json`).length;
   const antes = lecturas();
@@ -359,6 +361,18 @@ test("terminado: la telaraña es la de la tanda terminada y lo cerrado se lee un
   const antes = s3.llamadas.length;
   assert.deepEqual(await revisiones.leer("terminada"), avance);
   assert.equal(s3.llamadas.length, antes, "lo cerrado sale de la memoria");
+});
+
+test("leer comparte su resultado memoriaMs y una sola lectura en vuelo por revisión", async () => {
+  const { revisiones, s3, dynamo } = armar(EN_VIVO, objetos(), 60_000);
+  const [una, otra] = await Promise.all([revisiones.leer("en-vivo"), revisiones.leer("en-vivo")]);
+  assert.equal(una, otra);
+  const antes = { s3: s3.llamadas.length, dynamo: dynamo.llamadas.length };
+  assert.equal(await revisiones.leer("en-vivo"), una);
+  await revisiones.listar();
+  await revisiones.listar();
+  assert.equal(s3.llamadas.length, antes.s3, "dentro de memoriaMs no se vuelve a leer el almacén");
+  assert.equal(dynamo.llamadas.length - antes.dynamo, 1, "un solo Scan para dos listar()");
 });
 
 test("revisión fallida y vieja: resumen calculado, nada leído con claves que no son del goal", async () => {
@@ -396,6 +410,7 @@ test("/api/revisiones/<rev>: resumen, estado por goal y telaraña", async () => 
   assert.equal(terminada.goals[0].telarana.fuente, "tanda");
   const fallida = await (await fetch(`${base}/api/revisiones/fallida`)).json();
   assert.equal(fallida.resumen.calculado, true);
+  assert.ok(!JSON.stringify(avance).includes('"datos"'), "sin los archivos leídos");
   assert.equal((await fetch(`${base}/api/revisiones/no-existe`)).status, 404);
   const lista = await (await fetch(`${base}/api/revisiones`)).json();
   assert.deepEqual(lista.revisiones.map((r) => r.revision).sort(), ["en-vivo", "fallida", "terminada"]);

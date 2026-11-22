@@ -10,10 +10,10 @@
 //   catalogo, improver: { estado, runKey, actualizada, resultados }
 //   goals: [{ goal,
 //     guide:   { estado, runKey, actualizada, resultados, pasos, ultimo: { accion, url, titulo } | null, traza, trazaActualizada,
-//                recorrido: { archivo: "route.json" | "trace.json", datos } | null },
-//     visitor: { …lo mismo sin recorrido…, intentos: [{ carpeta, archivo: "run.json" | "trace.json", datos }] },
+//                recorrido: { archivo: "route.json" | "trace.json" } | null },
+//     visitor: { …lo mismo sin recorrido…, intentos: [{ carpeta, archivo: "run.json" | "trace.json" }] },
 //     telarana: { fuente: "vivo" | "tanda", tanda: <id de tanda> | null, paginas, ramas, ruta: { paginas } | null } | null }]
-//   `datos` es el archivo tal cual (steps como en route.json / run.json). La telaraña tiene ids estables entre
+//   Los archivos leídos no viajan (leerGoal() sí los da, para lib/eventos.js). La telaraña tiene ids estables entre
 //   refrescos (URL sin consulta + título); con el Visitante terminado es la de la tanda (lib/vivo.js).
 //   progreso: { cerrados, total, goalsConocidos }
 //   estado de un paso: pending | running | succeeded | failed | skipped (Visitante no lanzado: su Guía no verificó la ruta).
@@ -264,6 +264,30 @@ function recordar(mapa, clave, valor) {
   if (mapa.size > LIMITE_EN_MEMORIA) mapa.delete(mapa.keys().next().value);
 }
 
+const MEMORIA_MS = 2000;
+
+/** Por clave, una sola lectura en vuelo y su resultado compartido `ms` después de llegar (pestañas y sondeos a la vez). */
+function memorizarPorClave(fn, ms = MEMORIA_MS) {
+  const guardadas = new Map();
+  return (clave) => {
+    const guardada = guardadas.get(clave);
+    if (guardada && (guardada.hasta === null || performance.now() < guardada.hasta)) return guardada.promesa;
+    const actual = { promesa: null, hasta: null };
+    actual.promesa = fn(clave).then(
+      (valor) => {
+        actual.hasta = performance.now() + ms;
+        return valor;
+      },
+      (error) => {
+        if (guardadas.get(clave) === actual) guardadas.delete(clave);
+        throw error;
+      },
+    );
+    recordar(guardadas, clave, actual);
+    return actual.promesa;
+  };
+}
+
 /**
  * Lo que se dibuja de cada goal, leído del almacén con las claves de la tabla ya validadas (paso()).
  * Lo de una corrida cerrada se guarda en memoria; lo de una en curso se vuelve a leer en cada pedido. De un trace.json
@@ -366,7 +390,12 @@ export function crearLectorDeTrazas(fuente) {
       const vivo = telaranaEnVivo({ goal: goal.goal, guia: deLaGuia, intentos: recorridos, guiaFallo: goal.guide.estado === "failed" });
       telarana = vivo ? { fuente: "vivo", tanda: null, ...vivo } : null;
     }
-    return { ...goal, guide, visitor, telarana };
+    return {
+      ...goal,
+      guide: { ...guide, recorrido: recorridoGuia ? { archivo: recorridoGuia.archivo } : null },
+      visitor: { ...visitor, intentos: intentosVisitante.map(({ carpeta, archivo }) => ({ carpeta, archivo })) },
+      telarana,
+    };
   }
 
   return { leerRecorridos, completarGoal };
@@ -374,10 +403,11 @@ export function crearLectorDeTrazas(fuente) {
 
 /**
  * @param {{ tabla: string, cliente: { send: Function }, comandos: { QueryCommand: Function, ScanCommand: Function },
- *           fuente?: import("./fuente.js").Fuente }} opciones
- *        cliente de lib-dynamodb (ítems como objetos planos); con `fuente`, leer() suma lo que se dibuja de cada goal
+ *           fuente?: import("./fuente.js").Fuente, memoriaMs?: number }} opciones
+ *        cliente de lib-dynamodb (ítems como objetos planos); con `fuente`, leer() suma lo que se dibuja de cada goal;
+ *        listar() y leer() comparten su resultado `memoriaMs` (memorizarPorClave)
  */
-export function crearRevisiones({ tabla, cliente, comandos, fuente = null }) {
+export function crearRevisiones({ tabla, cliente, comandos, fuente = null, memoriaMs = MEMORIA_MS }) {
   const lector = fuente ? crearLectorDeTrazas(fuente) : null;
   const { QueryCommand, ScanCommand } = comandos;
   async function todas(Comando, entrada) {
@@ -399,26 +429,28 @@ export function crearRevisiones({ tabla, cliente, comandos, fuente = null }) {
   const items = async (revision) =>
     esRevision(revision) ? todas(QueryCommand, { KeyConditionExpression: "PK = :pk", ExpressionAttributeValues: { ":pk": `REV#${revision}` } }) : [];
   const avanceDe = async (revision) => (esRevision(revision) ? avanceDeRevision(await items(revision)) : null);
+  const listar = memorizarPorClave(async () => {
+    const { metas, punteros } = await metasYPunteros();
+    const { vigentes, anteriores } = revisionesVigentes(metas, punteros);
+    const resumenes = metas.map(resumenDeMeta).sort(porFecha);
+    return {
+      revisiones: resumenes.filter((r) => vigentes.has(r.revision)).map((r) => ({ ...r, anteriores: anteriores.get(r.revision) ?? 0 })),
+      historial: resumenes.filter((r) => !vigentes.has(r.revision)),
+    };
+  }, memoriaMs);
+  const leer = memorizarPorClave(async (revision) => {
+    const avance = await avanceDe(revision);
+    if (!avance || !lector) return avance;
+    return { ...avance, goals: await Promise.all(avance.goals.map(lector.completarGoal)) };
+  }, memoriaMs);
   return {
     descripcion: `dynamodb://${tabla}`,
 
     /** Resúmenes de las vigentes y del historial, de la más nueva a la más vieja. */
-    async listar() {
-      const { metas, punteros } = await metasYPunteros();
-      const { vigentes, anteriores } = revisionesVigentes(metas, punteros);
-      const resumenes = metas.map(resumenDeMeta).sort(porFecha);
-      return {
-        revisiones: resumenes.filter((r) => vigentes.has(r.revision)).map((r) => ({ ...r, anteriores: anteriores.get(r.revision) ?? 0 })),
-        historial: resumenes.filter((r) => !vigentes.has(r.revision)),
-      };
-    },
+    listar: () => listar(""),
 
     /** El avance de una revisión, o null si no existe. */
-    async leer(revision) {
-      const avance = await avanceDe(revision);
-      if (!avance || !lector) return avance;
-      return { ...avance, goals: await Promise.all(avance.goals.map(lector.completarGoal)) };
-    },
+    leer: (revision) => (esRevision(revision) ? leer(revision) : Promise.resolve(null)),
 
     /**
      * Un goal de la revisión con lo leído de sus agentes y sin telaraña (lo que sigue lib/eventos.js), o null si la
