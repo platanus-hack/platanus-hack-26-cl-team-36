@@ -23,7 +23,7 @@
 //   GET /backoffice/resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
 //   GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>  → la propuesta del Diseñador para esa tanda
 //   GET /backoffice/propuestas/<host>/improver/<corrida>/vistas/<nombre>.png  → una captura antes/después del tema
-//   GET /backoffice/<ruta>.{html,js,css,svg,woff2}  → archivos de public/
+//   GET /backoffice/<ruta>.{html,js,css,svg,woff2}  → archivos de public/ (también public/vendor/<lib>@<versión>/)
 //   GET /salud                            → { ok: true }, con cualquier Host (el health check del balanceador)
 //
 // Solo responde a pedidos dirigidos a este computador (Host localhost, 127.0.0.1 o [::1] con el puerto del
@@ -65,8 +65,10 @@ const TIPOS = {
 };
 // Un tema de un resultado se muestra como texto: no es una hoja de estilos de esta página.
 const TIPOS_DE_RESULTADO = { ".css": "text/plain; charset=utf-8" };
-// Lo que se sirve de public/: cualquier archivo con estas extensiones, en minúsculas, a cualquier profundidad.
-const RUTA_PUBLICA = /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:html|js|css|svg|woff2)$/;
+// Lo que se sirve de public/: cualquier archivo con estas extensiones, en minúsculas, a cualquier profundidad; y las
+// bibliotecas copiadas tal cual en public/vendor/<nombre>@<versión>/, con sus nombres de archivo.
+const RUTA_PUBLICA =
+  /^(?:(?:[a-z0-9-]+\/)*[a-z0-9-]+|vendor\/[a-z0-9-]+@\d+\.\d+\.\d+\/[a-z0-9-]+(?:\.[a-z0-9-]+)*)\.(?:html|js|css|svg|woff2)$/;
 // De portada/ solo se sirven archivos sueltos, sin subcarpetas.
 const RUTA_DE_PORTADA = /^[a-z0-9-]+\.(?:html|css|svg)$/;
 
