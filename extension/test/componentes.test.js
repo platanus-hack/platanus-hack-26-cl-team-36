@@ -124,14 +124,14 @@ function selectDePagina(grupos, elegido) {
   return select;
 }
 
-function cargar(pagina = {}) {
+function cargar(pagina = {}, pathname = "/") {
   const document = {
     readyState: "complete",
     createElement: (tag) => (tag === "select" ? new Select(tag) : new Elemento(tag)),
     querySelector: (selector) => pagina[selector] ?? null,
     documentElement: new Elemento("html"),
   };
-  const contexto = vm.createContext({ document, URL, HTMLSelectElement: Select, location: { href: "https://www.metro.cl/", pathname: "/" }, console });
+  const contexto = vm.createContext({ document, URL, HTMLSelectElement: Select, location: { href: `https://www.metro.cl${pathname}`, pathname }, console });
   for (const archivo of ["content/registro.js", "comun/idioma.js", "content/plantillas.js", "componentes/lanzador.js", "componentes/atajo.js", "features/vista.js"]) {
     vm.runInContext(leer(archivo), contexto);
   }
@@ -373,6 +373,15 @@ test("vista: con `datos` y `reemplazar: false` suma el componente sin ocultar el
   assert.ok(ancla.antes[0].classList.contains("mt-lanzador"));
   assert.equal(ancla.antes[0].dataset.mtVista, "tareas");
   assert.equal(ancla.hasAttribute("data-mt-oculto"), false);
+});
+
+test("vista: la ruta coincide con o sin barra final, y no con otra página", () => {
+  for (const [ruta, pathname, dibuja] of [["/portada/", "/portada", true], ["/portada", "/portada/", true], ["/portada", "/portadas", false]]) {
+    const ancla = contenedorFalso();
+    const MiTema = cargar({ "#ancla": ancla }, pathname);
+    MiTema.features.get("vista").actualizar([{ id: "tareas", rutas: [ruta], contenedor: "#ancla", reemplazar: false, componente: "lanzador", datos: [{ titulo: "Plano", enlace: "/plano" }] }]);
+    assert.equal(ancla.antes.length, dibuja ? 1 : 0, `${ruta} en ${pathname}`);
+  }
 });
 
 test("vista: si el componente se niega, deja la página como estaba", () => {

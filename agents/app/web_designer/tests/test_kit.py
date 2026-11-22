@@ -60,6 +60,16 @@ def test_sin_la_pagina_solo_valen_los_selects_de_la_ruta():
     assert vista["opciones"]["fijos"] == {"inicio": "SP", "horario": "VALLE", "dia": "DL"}
 
 
+def test_la_ruta_queda_como_la_ve_el_navegador():
+    route = copy.deepcopy(_route())
+    for paso in route["steps"][:-1]:
+        paso["url_before"] = f"{METRO}/portada/"
+    # La página abierta sin la barra final es la misma: valen sus `<select>`.
+    vista, _ = atajos.atajo("planificar-viaje", route, SELECTS, f"{METRO}/portada")
+    assert vista["rutas"] == ["/portada/"] and len(vista["datos"]) == 4
+    assert atajos.misma_ruta("/portada", "/portada/") and not atajos.misma_ruta("/portada", "/portadas")
+
+
 @pytest.mark.parametrize("cambio, razon", [
     (lambda r: r.update(status="failed"), "no está verificada"),
     (lambda r: r["steps"][0].update(action="fill"), "algo más que elegir"),

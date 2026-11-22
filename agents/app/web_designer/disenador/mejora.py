@@ -11,7 +11,6 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from shared import store
 from shared.browser.session import open_browser
@@ -230,12 +229,12 @@ def diagnostico(resumen: dict, kit: dict) -> dict:
 async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[dict]:
     """Los componentes con la microcopia del modelo y un ancla que existe en la página abierta (si van en ella)."""
     por_id = {p.get("id"): p for p in propuestas or [] if isinstance(p, dict)}
-    en_pagina = urlsplit(url).path or "/"
+    en_pagina = atajos.ruta_de(url)
     vistas = []
     for vista in componentes:
         propuesta = dict(por_id.get(vista["id"]) or {})
         contenedor = ""
-        if en_pagina in vista["rutas"]:
+        if any(atajos.misma_ruta(en_pagina, ruta) for ruta in vista["rutas"]):
             for candidato in (str(propuesta.get("contenedor") or "").strip()[:200], vista["contenedor"],
                               *ANCLAS_DE_RESPALDO):
                 if candidato and await _existe(page, candidato):

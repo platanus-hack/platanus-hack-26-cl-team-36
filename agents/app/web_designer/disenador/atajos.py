@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import parse_qsl, urljoin, urlsplit
 
-from shared.nodes.urls import normalize_url, site_host
+from shared.nodes.urls import site_host
 
 ID_LANZADOR = "tareas"
 MAX_TAREAS = 8
@@ -53,8 +53,14 @@ def mismo_sitio(url: str | None, inicio: str) -> str | None:
     return ruta + (f"?{partes.query}" if partes.query else "") + (f"#{partes.fragment}" if partes.fragment else "")
 
 
-def _ruta_de(url: str) -> str:
-    return urlsplit(normalize_url(url)).path
+def ruta_de(url: str) -> str:
+    """La ruta de `url` tal cual la ve el navegador en `location.pathname`, con su barra final si la tiene."""
+    return urlsplit(url).path or "/"
+
+
+def misma_ruta(a: str, b: str) -> bool:
+    """Si dos rutas son la misma página: la barra final no cuenta, como en `features/vista.js`."""
+    return a.rstrip("/") == b.rstrip("/")
 
 
 def id_de_vista(texto: str) -> str:
@@ -117,13 +123,13 @@ def atajo(objetivo_id: str, route: dict, selects: list[SelectDePagina], inicio: 
     elecciones = pasos[:-1]
     if not all(_es_eleccion(p) for p in elecciones) or not any(p.get("action") == "select" for p in elecciones):
         return None, "la ruta hace algo más que elegir opciones"
-    paginas = {_ruta_de(p.get("url_before") or "") for p in elecciones}
+    paginas = {ruta_de(p.get("url_before") or "").rstrip("/") for p in elecciones}
     origen = elecciones[0].get("url_before") or ""
     if len(paginas) != 1 or not mismo_sitio(origen, inicio):
         return None, "las elecciones no ocurren en una sola página del sitio"
-    pagina = paginas.pop()
+    pagina = ruta_de(origen)
     # Los `<select>` leídos son los de la página abierta: si el atajo va en otra, solo valen los de la ruta.
-    selects = selects if pagina == _ruta_de(inicio) else []
+    selects = selects if misma_ruta(pagina, ruta_de(inicio)) else []
 
     de_ruta = _selectores_de_ruta(elecciones)
     campos, fijos, usados, por_nombre = [], {}, set(), {}
@@ -190,7 +196,7 @@ def lanzador(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str]
             continue
         final = llegada(rutas.get(goal.id))
         enlace = mismo_sitio(final, inicio) or mismo_sitio(goal.entry, inicio)
-        if not enlace or (_ruta_de(enlace) == _ruta_de(inicio) and "?" not in enlace):
+        if not enlace or (misma_ruta(ruta_de(enlace), ruta_de(inicio)) and "?" not in enlace):
             continue
         candidatos.append(((_PROMINENCIA.get(goal.prominence, 3), final is None, posicion), enlace, goal))
     tareas, vistos = [], set()
@@ -208,7 +214,7 @@ def lanzador(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str]
             break
     if not tareas:
         return None
-    return {"id": ID_LANZADOR, "rutas": [_ruta_de(inicio)], "contenedor": "main", "reemplazar": False,
+    return {"id": ID_LANZADOR, "rutas": [ruta_de(inicio)], "contenedor": "main", "reemplazar": False,
             "componente": "lanzador", "datos": tareas, "opciones": {"max": MOSTRAR_TAREAS}}
 
 
