@@ -29,6 +29,8 @@ const FORMAS = {
   indirecto: [["circle", { cx: 8, cy: 8, r: 5.75 }], ["path", { d: "M8 2.25a5.75 5.75 0 0 1 0 11.5z", ...R }]],
   buscar: [["circle", { cx: 7, cy: 7, r: 4.5 }], ["path", { d: "M10.4 10.4L13.75 13.75" }]],
   menu: [["path", { d: "M2.5 4h11M2.5 8h11M2.5 12h11" }]],
+  mas: [["circle", { cx: 3.5, cy: 8, r: 1.1, ...R }], ["circle", { cx: 8, cy: 8, r: 1.1, ...R }], ["circle", { cx: 12.5, cy: 8, r: 1.1, ...R }]],
+  ayuda: [["circle", { cx: 8, cy: 8, r: 6 }], ["path", { d: "M6.3 6.4a1.75 1.75 0 0 1 3.4.6c0 1.2-1.7 1.4-1.7 2.5" }], ["path", { d: "M8 11.5v.1" }]],
   cerrar: [["path", { d: "M4 4l8 8M12 4l-8 8" }]],
   anterior: [["path", { d: "M10 3.5L5.5 8l4.5 4.5" }]],
   siguiente: [["path", { d: "M6 3.5L10.5 8 6 12.5" }]],

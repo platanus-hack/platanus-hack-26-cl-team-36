@@ -1,15 +1,21 @@
-// Marco de una tanda (diseño §5.11, §10.3): una cabecera mínima de dos líneas (la tarea con anterior/siguiente y
-// copiar enlace; debajo, sitio, fecha y cuántos llegan), las pestañas y el panel donde se montan. Las pestañas son
-// enlaces (cambian la URL), no pestañas ARIA. Registra los atajos [ ] 1–2 c.
+// Marco de una tanda, dentro de su hoja: una sola fila con «← <origen>», la tarea, el sitio y cuántos llegan, las
+// pestañas (enlaces, no pestañas ARIA) y el menú ⋯ con la fecha y Copiar enlace; debajo, el panel de la pestaña.
+// Se arma al instante con lo que dice el id (la tarea y el sitio) y un esqueleto; ponerTanda() completa el resto.
+// Los atajos (1–3, c, Esc) van solo en el globo de cada botón.
 
 import { kbd, registrarAtajos } from "./atajos.js";
 import { copiarEnlace } from "./avisos.js";
+import { partesDeTanda } from "./almacen.js";
 import { EVENTO_PROPUESTA, pedirPropuesta } from "./datos.js";
-import { el, esUrlWeb } from "./dom.js";
-import { conGlobo } from "./globo.js";
+import { el, esUrlWeb, reemplazar } from "./dom.js";
+import { esqueleto } from "./estados.js";
+import { conGlobo, ocultarGlobo } from "./globo.js";
 import { fmt, t } from "./i18n.js";
 import { icono } from "./iconos.js";
-import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda } from "./rutas.js";
+import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda, parametrosQueSiguen } from "./rutas.js";
+import { limpiarTitulos } from "../tanda/titulos.js";
+
+const movimientoReducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 /** Cifras de la tanda con respaldo para la forma anterior de la API. */
 function cifras(tanda) {
@@ -40,166 +46,190 @@ function insigniaDeLlegan({ logrados, validos, medidos }) {
 /** Contenido de un globo: descripción + tecla. */
 const globoConTecla = (descripcion, tecla) => () => el("span", { class: "globo-con-tecla" }, el("span", { texto: descripcion }), kbd(tecla));
 
-function botonVecina({ id, pestana, tipo, senal }) {
-  const anterior = tipo === "anterior";
-  const etiqueta = t(anterior ? "comun.marco.anterior" : "comun.marco.siguiente");
-  const descripcion = t(anterior ? "comun.marco.anteriorDescripcion" : "comun.marco.siguienteDescripcion");
-  const contenido = [
-    anterior ? icono("anterior") : null,
-    el("span", { class: "marco-etiqueta-boton", texto: etiqueta }),
-    !anterior ? icono("siguiente") : null,
-    el("span", { class: "marco-pista", "aria-hidden": "true" }, kbd(anterior ? "[" : "]")),
-  ];
-  if (!id) {
-    const sin = t(anterior ? "comun.marco.sinAnterior" : "comun.marco.sinSiguiente");
-    // role="link" para que el lector de pantalla anuncie la etiqueta y que está deshabilitado.
-    const deshabilitado = el("span", { class: "boton boton-secundario marco-vecina", role: "link", "aria-disabled": "true", "aria-label": sin }, contenido);
-    return conGlobo(deshabilitado, sin, { senal });
-  }
-  const enlace = el(
+function sitioDe(tanda) {
+  const host = tanda.host ?? null;
+  if (!tanda.url || !esUrlWeb(tanda.url)) return host ? el("span", { class: "marco-sitio", texto: host }) : null;
+  return el(
     "a",
-    {
-      class: "boton boton-secundario marco-vecina",
-      href: enlaceATanda(id, pestana),
-      rel: anterior ? "prev" : "next",
-      "aria-label": descripcion,
-      "data-foco": `marco:${tipo}`,
-      "aria-keyshortcuts": anterior ? "[" : "]",
-    },
-    contenido,
+    { class: "marco-sitio", href: tanda.url, target: "_blank", rel: "noreferrer noopener", title: t("comun.marco.abrirSitio", { host: host ?? tanda.url }) },
+    el("span", { texto: host ?? tanda.url }),
+    icono("enlace-externo"),
   );
-  return conGlobo(enlace, globoConTecla(descripcion, anterior ? "[" : "]"), { senal });
+}
+
+/** El menú ⋯: la fecha de la corrida y Copiar enlace. Se cierra al elegir, con Esc o al hacer clic afuera. */
+function crearMenu(senal) {
+  const fecha = el("p", { class: "marco-menu-fecha" });
+  const copiar = el(
+    "button",
+    { type: "button", class: "marco-menu-item", role: "menuitem", "aria-keyshortcuts": "c", "data-foco": "marco:copiar" },
+    icono("copiar"),
+    el("span", { texto: t("comun.marco.copiarEnlace") }),
+  );
+  const menu = el("div", { class: "marco-menu", role: "menu", hidden: true }, fecha, copiar);
+  const boton = el(
+    "button",
+    { type: "button", class: "boton boton-icono marco-mas", "aria-label": t("comun.marco.mas"), "aria-haspopup": "menu", "aria-expanded": "false", "data-foco": "marco:mas" },
+    icono("mas"),
+  );
+  const abierto = () => !menu.hidden;
+  const cerrar = (devolverFoco = false) => {
+    if (!abierto()) return false;
+    menu.hidden = true;
+    boton.setAttribute("aria-expanded", "false");
+    if (devolverFoco) boton.focus({ preventScroll: true });
+    return true;
+  };
+  const abrir = () => {
+    menu.hidden = false;
+    boton.setAttribute("aria-expanded", "true");
+    copiar.focus({ preventScroll: true });
+  };
+  boton.addEventListener("click", () => (abierto() ? cerrar() : abrir()), { signal: senal });
+  copiar.addEventListener("click", () => {
+    cerrar(true);
+    copiarEnlace();
+  }, { signal: senal });
+  document.addEventListener("pointerdown", (evento) => abierto() && !menu.contains(evento.target) && !boton.contains(evento.target) && cerrar(), { signal: senal });
+  conGlobo(copiar, globoConTecla(t("comun.atajos.desc.copiarEnlace"), "c"), { senal });
+  return {
+    nodo: el("div", { class: "marco-menu-ancla" }, boton, menu),
+    cerrar,
+    ponerFecha(texto, iso) {
+      reemplazar(fecha, texto ? el("time", { datetime: iso ?? null, texto }) : null);
+      fecha.hidden = !texto;
+    },
+  };
+}
+
+/** El subrayado de la pestaña actual se desliza a la elegida (180 ms); la primera vez se pone sin animar. */
+function crearSubrayado(nav, senal) {
+  const barra = el("span", { class: "pestanas-subrayado", "aria-hidden": "true" });
+  nav.append(barra);
+  let puesto = false;
+  const mover = () => {
+    const actual = nav.querySelector('.pestana[aria-current="page"]');
+    if (!actual || !actual.offsetWidth) return;
+    const inicio = actual.offsetLeft + 12;
+    const ancho = Math.max(0, actual.offsetWidth - 24);
+    barra.classList.toggle("pestanas-subrayado-animado", puesto && !movimientoReducido());
+    barra.style.setProperty("--x", `${inicio}px`);
+    barra.style.setProperty("--ancho", `${ancho}px`);
+    puesto = true;
+  };
+  const observador = new ResizeObserver(() => {
+    puesto = false;
+    mover();
+  });
+  observador.observe(nav);
+  senal.addEventListener("abort", () => observador.disconnect(), { once: true });
+  return mover;
 }
 
 /**
- * Arma el marco. → { raiz, panel, actualizar(ruta), desmontar() }.
- * @param {{ tanda: object, ruta: object, navegar: (hash: string) => void }} opciones
+ * Arma el marco. → { raiz, panel, ponerTanda(tanda), actualizar(ruta), cerrarMenu(), desmontar() }.
+ * @param {{ tandaId: string, ruta: object, navegar: (hash: string) => void,
+ *           volver: { clave: string, hash: string }, escapar: () => boolean }} opciones
+ *   escapar: lo que hace Esc antes de cerrar la hoja (la pantalla suelta su selección); true si lo usó.
  */
-export function montarMarco({ tanda, ruta, navegar }) {
-  const titulo = tanda.tarea ?? tanda.host ?? tanda.id;
-  const fecha = tanda.fechaIso ?? tanda.fecha;
-  const vecinas = tanda.vecinas ?? {};
-  let pestanaActual = ruta.pestana;
+export function montarMarco({ tandaId, ruta, navegar, volver, escapar = () => false }) {
+  const partes = partesDeTanda(tandaId) ?? { host: null, objetivo: tandaId };
   const controlador = new AbortController();
   const senal = controlador.signal;
+  let tanda = null;
+  let rutaActual = ruta;
 
-  const anterior = el("span", { class: "marco-hueco" });
-  const siguiente = el("span", { class: "marco-hueco" });
-  const ponerVecinas = () => {
-    anterior.replaceChildren(botonVecina({ id: vecinas.anterior, pestana: pestanaActual, tipo: "anterior", senal }));
-    siguiente.replaceChildren(botonVecina({ id: vecinas.siguiente, pestana: pestanaActual, tipo: "siguiente", senal }));
-  };
-  ponerVecinas();
+  const titulo = el("h1", { class: "marco-titulo truncar", tabindex: "-1", texto: partes.objetivo });
+  const sitio = el("span", { class: "marco-hueco" }, partes.host ? el("span", { class: "marco-sitio", texto: partes.host }) : null);
+  const insignia = el("span", { class: "marco-hueco" }, el("span", { class: "esqueleto marco-insignia-esqueleto", "aria-hidden": "true" }));
+
+  const etiquetaDeVolver = t("comun.marco.origen." + volver.clave);
+  const botonVolver = el(
+    "a",
+    { class: "boton boton-secundario marco-volver", href: volver.hash, "data-foco": "marco:volver", "aria-label": t("comun.marco.volver", { origen: etiquetaDeVolver }), "aria-keyshortcuts": "Escape" },
+    icono("anterior"),
+    el("span", { texto: etiquetaDeVolver }),
+  );
+  conGlobo(botonVolver, globoConTecla(t("comun.marco.volver", { origen: etiquetaDeVolver }), "Escape"), { senal });
 
   const enlacesDePestana = new Map(
-    PESTANAS.map((pestana, indice) => [
-      pestana,
-      el(
+    PESTANAS.map((pestana, indice) => {
+      const enlace = el(
         "a",
-        { class: "pestana", href: enlaceATanda(tanda.id, pestana), "data-foco": `marco:pestana:${pestana}`, "aria-keyshortcuts": String(indice + 1) },
+        { class: "pestana", href: enlaceATanda(tandaId, pestana), "data-foco": `marco:pestana:${pestana}`, "aria-keyshortcuts": String(indice + 1) },
         el("span", { texto: t(NOMBRES_DE_PESTANA[pestana]) }),
         pestana === "propuesta" ? el("span", { class: "pestana-punto", "aria-hidden": "true" }) : null,
-        el("span", { class: "marco-pista", "aria-hidden": "true" }, kbd(String(indice + 1))),
-      ),
-    ]),
+      );
+      conGlobo(enlace, globoConTecla(t(NOMBRES_DE_PESTANA[pestana]), String(indice + 1)), { senal });
+      return [pestana, enlace];
+    }),
   );
+  const nav = el("nav", { class: "pestanas", "aria-label": t("comun.marco.vistas") }, el("ul", {}, [...enlacesDePestana.values()].map((enlace) => el("li", {}, enlace))));
+  const moverSubrayado = crearSubrayado(nav, senal);
+  const menu = crearMenu(senal);
 
-  // La pestaña Propuesta late mientras el Diseñador diseña: lo dice el primer pedido y, después, la propia pantalla.
-  const ponerEstadoDePropuesta = (estado) => {
-    const enlace = enlacesDePestana.get("propuesta");
-    enlace?.classList.toggle("pestana-en-curso", estado === "running");
-    if (estado === "running") enlace?.setAttribute("title", t("comun.marco.disenando"));
-    else enlace?.removeAttribute("title");
-  };
-  document.addEventListener(EVENTO_PROPUESTA, (evento) => evento.detail?.tandaId === tanda.id && ponerEstadoDePropuesta(evento.detail.estado), { signal: senal });
-  pedirPropuesta(tanda.id)
-    .then((propuesta) => !senal.aborted && ponerEstadoDePropuesta(propuesta?.estado))
-    .catch(() => {});
-
-  const panel = el("section", { id: "panel-tanda", class: "panel-tanda", tabindex: "-1" });
-
-  const sitio = !tanda.url
-    ? null
-    : esUrlWeb(tanda.url)
-      ? el(
-          "a",
-          { class: "marco-sitio", href: tanda.url, target: "_blank", rel: "noreferrer noopener", title: t("comun.marco.abrirSitio", { host: tanda.host ?? tanda.url }) },
-          el("span", { texto: tanda.host ?? tanda.url }),
-          icono("enlace-externo"),
-        )
-      : el("span", { class: "marco-sitio", texto: tanda.host || tanda.url });
-
-  const copiar = el(
-    "button",
-    { type: "button", class: "boton boton-secundario marco-copiar", "data-foco": "marco:copiar", "aria-label": t("comun.marco.copiarEnlace"), "aria-keyshortcuts": "c", onclick: () => copiarEnlace() },
-    icono("copiar"),
-    el("span", { class: "marco-etiqueta-boton", texto: t("comun.marco.copiarEnlace") }),
-    el("span", { class: "marco-pista", "aria-hidden": "true" }, kbd("c")),
-  );
-  conGlobo(copiar, globoConTecla(t("comun.atajos.desc.copiarEnlace"), "c"), { senal });
-
+  const panel = el("section", { id: "panel-tanda", class: "panel-tanda", tabindex: "-1" }, esqueleto("hoja"));
   const raiz = el(
     "div",
     { class: "marco-tanda" },
-    el(
-      "header",
-      { class: "marco-cabecera" },
-      el(
-        "div",
-        { class: "marco-barra" },
-        el(
-          "div",
-          { class: "marco-identidad" },
-          el("h1", { class: "marco-titulo truncar", tabindex: "-1", title: tanda.instruccion || titulo, texto: titulo }),
-        ),
-        el("div", { class: "marco-acciones" }, anterior, siguiente, copiar),
-      ),
-      el(
-        "p",
-        { class: "marco-datos" },
-        sitio,
-        fecha ? el("time", { class: "marco-fecha", datetime: tanda.fechaIso ?? null, title: fmt.fechaLegible(fecha), texto: fmt.fechaCorta(fecha) }) : null,
-        insigniaDeLlegan(cifras(tanda)),
-      ),
-    ),
-    el("nav", { class: "pestanas", "aria-label": t("comun.marco.vistas") }, el("ul", {}, [...enlacesDePestana.values()].map((enlace) => el("li", {}, enlace)))),
+    el("header", { class: "marco-cabecera" }, botonVolver, el("div", { class: "marco-identidad" }, titulo, sitio, insignia), nav, menu.nodo),
     panel,
   );
 
+  // La pestaña Propuesta late mientras el Diseñador diseña: lo dice el primer pedido y, después, la propia pantalla.
+  const ponerEstadoDePropuesta = (estado) => enlacesDePestana.get("propuesta")?.classList.toggle("pestana-en-curso", estado === "running");
+  document.addEventListener(EVENTO_PROPUESTA, (evento) => evento.detail?.tandaId === tandaId && ponerEstadoDePropuesta(evento.detail.estado), { signal: senal });
+
   function actualizar(nuevaRuta) {
     const enfocada = document.activeElement?.classList?.contains("pestana") && raiz.contains(document.activeElement);
-    pestanaActual = nuevaRuta.pestana;
+    rutaActual = nuevaRuta;
+    const siguen = parametrosQueSiguen(nuevaRuta.parametros);
     for (const [pestana, enlace] of enlacesDePestana) {
-      if (pestana === pestanaActual) enlace.setAttribute("aria-current", "page");
+      enlace.setAttribute("href", enlaceATanda(tandaId, pestana, siguen));
+      if (pestana === nuevaRuta.pestana) enlace.setAttribute("aria-current", "page");
       else enlace.removeAttribute("aria-current");
     }
-    panel.setAttribute("aria-label", t(NOMBRES_DE_PESTANA[pestanaActual]));
-    // Si el foco estaba en una pestaña (p. ej. se cambió con 1–2), pasa a la pestaña elegida.
-    if (enfocada) enlacesDePestana.get(pestanaActual)?.focus({ preventScroll: true });
-    // Anterior/siguiente conservan la pestaña (sin sus parámetros): se cambia el href en el lugar, sin perder foco.
-    for (const [contenedor, id] of [[anterior, vecinas.anterior], [siguiente, vecinas.siguiente]]) {
-      const enlace = contenedor.querySelector("a");
-      if (enlace && id) enlace.setAttribute("href", enlaceATanda(id, pestanaActual));
-    }
+    panel.setAttribute("aria-label", t(NOMBRES_DE_PESTANA[nuevaRuta.pestana]));
+    if (enfocada) enlacesDePestana.get(nuevaRuta.pestana)?.focus({ preventScroll: true });
+    requestAnimationFrame(moverSubrayado);
   }
   actualizar(ruta);
 
+  function ponerTanda(datos) {
+    tanda = limpiarTitulos(datos);
+    titulo.textContent = tanda.tarea ?? tanda.host ?? partes.objetivo;
+    titulo.title = tanda.instruccion || titulo.textContent;
+    reemplazar(sitio, sitioDe(tanda));
+    reemplazar(insignia, insigniaDeLlegan(cifras(tanda)));
+    const fecha = tanda.fechaIso ?? tanda.fecha;
+    menu.ponerFecha(fecha ? t("comun.marco.corrida", { fecha: fmt.fechaLegible(fecha) }) : null, tanda.fechaIso ?? null);
+    pedirPropuesta(tanda.id)
+      .then((propuesta) => !senal.aborted && ponerEstadoDePropuesta(propuesta?.estado))
+      .catch(() => {});
+  }
+
   const atajos = {
-    "[": { descripcion: t("comun.atajos.desc.vecinas"), accion: () => vecinas.anterior && navegar(enlaceATanda(vecinas.anterior, pestanaActual)) },
-    "]": { descripcion: t("comun.atajos.desc.vecinas"), accion: () => vecinas.siguiente && navegar(enlaceATanda(vecinas.siguiente, pestanaActual)) },
     c: { descripcion: t("comun.atajos.desc.copiarEnlace"), accion: () => copiarEnlace() },
+    Escape: {
+      descripcion: t("comun.atajos.desc.cerrarTanda"),
+      accion: () => {
+        if (menu.cerrar(true) || ocultarGlobo() || escapar()) return;
+        navegar(volver.hash);
+      },
+    },
   };
-  // Una fila en la hoja de atajos con los nombres de las pestañas, tal como dicen hoy («1 / 2: Mapa · Replay»).
+  // Una fila en la hoja de atajos con los nombres de las pestañas («1 / 2 / 3: Mapa · Replay · Propuesta»).
   const nombresDePestanas = () => PESTANAS.map((pestana) => t(NOMBRES_DE_PESTANA[pestana])).join(" · ");
   PESTANAS.forEach((pestana, indice) => {
-    atajos[String(indice + 1)] = { descripcion: nombresDePestanas, accion: () => navegar(enlaceATanda(tanda.id, pestana)) };
+    atajos[String(indice + 1)] = { descripcion: nombresDePestanas, accion: () => navegar(enlaceATanda(tandaId, pestana, parametrosQueSiguen(rutaActual.parametros))) };
   });
   const quitarAtajos = registrarAtajos(atajos, { ambito: "pantalla", grupo: "tanda" });
-
 
   return {
     raiz,
     panel,
+    titulo,
+    ponerTanda,
     actualizar,
     desmontar() {
       controlador.abort();

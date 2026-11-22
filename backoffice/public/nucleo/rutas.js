@@ -56,7 +56,7 @@ const ORDEN_DE_PARAMETROS = {
   overview: ["dispositivo", "pestana", "link", "pagina"],
   corridas: PARAMETROS_DE_CORRIDAS,
   revisiones: ["estado"],
-  telarana: ["pagina"],
+  telarana: ["intento", "pagina"],
   replay: ["intento", "paso"],
   propuesta: ["vista", "dispositivo"],
 };
@@ -222,6 +222,22 @@ export function hashDe({ tipo, tandaId, revision = null, goal = null, pestana = 
 
 export function enlaceATanda(tandaId, pestana = PESTANA_POR_DEFECTO, parametros = {}) {
   return hashDe({ tipo: "tanda", tandaId, pestana, parametros });
+}
+
+/** Los parámetros de una pestaña de la tanda que siguen al cambiar a otra: la traza elegida (?intento=). */
+export function parametrosQueSiguen(parametros) {
+  return parametros?.intento ? { intento: parametros.intento } : {};
+}
+
+const ORIGENES = new Set(["overview", "revisiones", "corridas", "vivo"]);
+
+/**
+ * Adónde vuelve la hoja de una tanda: la vista que quedó debajo (`anterior`, con el hash que mostraba) o, si se
+ * entró por un enlace directo o desde otra tanda, el Overview. → { clave, hash, conFondo }.
+ */
+export function origenDeHoja(anterior, hash = null) {
+  if (anterior && ORIGENES.has(anterior.tipo) && hash) return { clave: anterior.tipo, hash, conFondo: true };
+  return { clave: "overview", hash: hashDe({ tipo: "overview" }), conFondo: false };
 }
 
 /** "#/revisiones" o "#/revisiones/<revision>". */

@@ -6,7 +6,6 @@
 
 import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
-import { ocultarGlobo } from "../nucleo/globo.js";
 import { claveDePagina } from "../nucleo/url.js";
 import { nombreDePagina, textoDeTitular } from "../datos/textos.js";
 import { nombreConNivel } from "../datos/nombres.js";
@@ -81,6 +80,7 @@ function crearPantalla(contenedor, ctx) {
       }
       if (canonica !== pagina) return reescribir({ pagina: canonica });
     }
+    estado.pagina = pagina;
     estado.vista?.fijar(pagina ? claves.porId.get(pagina) : null);
     reemplazar(zonaDeAvisos, estado.avisos.map((texto) => avisoEnLinea(texto, "atencion")));
     return true;
@@ -90,13 +90,6 @@ function crearPantalla(contenedor, ctx) {
     "+": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => estado.vista?.acercar() },
     "-": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => estado.vista?.alejar() },
     0: { descripcion: () => t("comun.atajos.desc.ajustar"), accion: () => estado.vista?.ajustar() },
-    Escape: {
-      descripcion: () => t("comun.atajos.desc.cerrar"),
-      accion: () => {
-        if (ocultarGlobo()) return;
-        estado.vista?.soltar();
-      },
-    },
   });
 
   return {
@@ -110,6 +103,12 @@ function crearPantalla(contenedor, ctx) {
     },
     actualizar(nuevo) {
       return aplicar(nuevo.parametros) !== false;
+    },
+    /** Esc suelta la página fijada antes de cerrar la hoja. */
+    escapar() {
+      if (!estado.pagina) return false;
+      estado.vista?.soltar();
+      return true;
     },
     desmontar() {
       estado.vista?.desmontar();
@@ -128,6 +127,9 @@ export default {
   },
   actualizar(ctx) {
     return pantalla ? pantalla.actualizar(ctx) : false;
+  },
+  escapar() {
+    return pantalla?.escapar() ?? false;
   },
   desmontar() {
     pantalla?.desmontar();

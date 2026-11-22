@@ -11,6 +11,9 @@
 // página está congelada), (4) foco (§5.4), (5) evento `backoffice:ruta`. Si solo cambia la pestaña, el marco se queda
 // y se cambia el panel. Si solo cambian parámetros, no se remonta. Cuando una pantalla se remonta sin pasar por aquí
 // (Reintentar, un actualizar que devuelve false), montar recibe datos undefined y los pide ella, con su esqueleto.
+//
+// Una tanda se abre en una hoja sobre la vista de la que vino, que queda montada debajo (nucleo/hoja.js): la hoja
+// aparece al instante con el título y un esqueleto, y volver a esa vista cierra la hoja sin remontar nada.
 
 import { avisar, anunciar } from "./avisos.js";
 import { pedirTanda, pedirTandas, urlDeArchivo } from "./datos.js";
@@ -18,13 +21,12 @@ import { cargarEstilos, el, reemplazar } from "./dom.js";
 import { conCarga, errorDePantalla, esqueleto, vacio } from "./estados.js";
 import { EVENTO_IDIOMA, IDIOMAS, cambiarIdioma, cargarSeccion, fmt, idioma, t } from "./i18n.js";
 import { registrarAtajos } from "./atajos.js";
+import { abrirHoja } from "./hoja.js";
 import { montarMarco } from "./marco-tanda.js";
-import { NOMBRES_DE_PESTANA, enlaceATanda, extraerIdioma, hashDe, parsearHash } from "./rutas.js";
+import { NOMBRES_DE_PESTANA, enlaceATanda, extraerIdioma, hashDe, origenDeHoja, parsearHash } from "./rutas.js";
 import { conTransicion } from "./transiciones.js";
 
 export const EVENTO_RUTA = "backoffice:ruta";
-
-const ESQUELETO_DE_PESTANA = { telarana: "lienzo", replay: "replay", propuesta: "propuesta" };
 
 /** El esqueleto de una vista entera mientras carga, con su geometría (estados.js). */
 function esqueletoDeVista(ruta) {
@@ -56,6 +58,12 @@ let hashMostrado = null;
 let cambiandoIdiomaDesdeHash = false;
 const desplazamientos = new Map();
 let listaDeTandas = { carpeta: null, tandas: [] };
+/** La hoja de la tanda abierta: { hoja, fondo (la vista de debajo, montada) | null, volver: { clave, hash }, abridor }. */
+let hojaAbierta = null;
+/** El último enlace interno con clic: el que abrió la hoja, para devolverle el foco al cerrarla. */
+let ultimoEnlace = null;
+/** El desmontaje de la pantalla que sale con la hoja: espera a que termine su animación (o a la próxima pantalla). */
+let diferido = null;
 
 // ── Pantallas ──────────────────────────────────────────────────────────────
 
@@ -152,27 +160,63 @@ function ponerTitulo(v) {
 
 // ── Montar y desmontar ────────────────────────────────────────────────────
 
-function desmontarPantalla(v) {
+function vaciarDiferido() {
+  const pendiente = diferido;
+  diferido = null;
+  pendiente?.();
+}
+
+/** Desmonta la pantalla; con `despues`, su desmontar() espera esa promesa (la salida de la hoja sigue mostrándola). */
+function desmontarPantalla(v, { despues = null } = {}) {
   if (!v?.modulo) return;
   v.controlador.abort();
   for (const quitar of v.quitar.splice(0)) quitar();
-  try {
-    v.modulo.desmontar?.();
-  } catch (error) {
-    console.error("enrutador: desmontar() falló", error);
-  }
+  const modulo = v.modulo;
   v.modulo = null;
+  const terminar = () => {
+    try {
+      modulo.desmontar?.();
+    } catch (error) {
+      console.error("enrutador: desmontar() falló", error);
+    }
+  };
+  if (!despues) return terminar();
+  vaciarDiferido();
+  diferido = terminar;
+  despues.then(() => diferido === terminar && vaciarDiferido());
+}
+
+/** Cierra la hoja (con su animación de salida) y desmonta la tanda y la vista de debajo. */
+function cerrarHoja({ conservarFondo = false } = {}) {
+  if (!hojaAbierta) return null;
+  const { hoja, fondo } = hojaAbierta;
+  hojaAbierta = null;
+  const salida = hoja?.cerrar() ?? Promise.resolve();
+  if (vista?.tipo === "tanda") {
+    desmontarPantalla(vista, { despues: salida });
+    vista.marco?.desmontar();
+    vista = null;
+  }
+  if (fondo && !conservarFondo) desmontarPantalla(fondo);
+  return salida;
 }
 
 function desmontarVista() {
-  if (!vista) return;
-  desmontarPantalla(vista);
-  vista.marco?.desmontar();
-  vista = null;
+  if (vista) {
+    if (hojaAbierta && vista.tipo === "tanda") return void cerrarHoja();
+    desmontarPantalla(vista);
+    vista.marco?.desmontar();
+    vista = null;
+  }
+  cerrarHoja();
 }
+
+/** Donde está lo que el usuario ve: la hoja, si hay una abierta. */
+const zona = () => hojaAbierta?.hoja?.nodo ?? raiz;
 
 /** `datos`: lo que devolvió cargar(ctx) de la pantalla; undefined si no se cargó antes (la pantalla lo pide). */
 async function montarPantalla(v, modulo, destino, datos) {
+  vaciarDiferido();
   v.modulo = modulo;
   v.controlador = new AbortController();
   v.quitar = [];
@@ -220,7 +264,7 @@ function enfocar(objetivo) {
 function enfocarDespues({ clave, completa, panel, quedarseEnArmazon = false }) {
   const activo = document.activeElement;
   if (clave) {
-    const destino = raiz.querySelector(`[data-foco="${CSS.escape(clave)}"]`);
+    const destino = zona().querySelector(`[data-foco="${CSS.escape(clave)}"]`);
     if (destino) {
       if (destino !== activo) destino.focus({ preventScroll: true });
       return;
@@ -230,8 +274,8 @@ function enfocarDespues({ clave, completa, panel, quedarseEnArmazon = false }) {
   const enArmazon = !!activo?.closest?.(".barra-superior");
   if (!perdido && !(completa && enArmazon && !quedarseEnArmazon)) return;
   const objetivo = completa
-    ? (raiz.querySelector("h1") ?? raiz.querySelector("[data-foco-inicial]") ?? raiz)
-    : (panel?.querySelector("[data-foco-inicial]") ?? panel?.querySelector('h2[tabindex="-1"]') ?? panel ?? raiz);
+    ? (zona().querySelector("h1") ?? zona().querySelector("[data-foco-inicial]") ?? zona())
+    : (panel?.querySelector("[data-foco-inicial]") ?? panel?.querySelector('h2[tabindex="-1"]') ?? panel ?? zona());
   enfocar(objetivo);
 }
 
@@ -240,6 +284,8 @@ function guardarDesplazamiento() {
 }
 
 function desplazarDespues({ origen, completa, conservar }) {
+  // La hoja se desplaza por dentro; la vista de debajo conserva su scroll.
+  if (hojaAbierta) return;
   if (conservar !== undefined) return scrollTo(0, conservar);
   if (origen === "historial") return scrollTo(0, desplazamientos.get(location.hash) ?? 0);
   if (completa) return scrollTo(0, 0);
@@ -400,7 +446,16 @@ async function procesar({ origen = "historial" } = {}) {
   if (mismaVista) {
     fijarRuta(nueva, hash);
     vista.ruta = nueva;
+    vista.marco?.actualizar(nueva);
     await actualizarPantalla();
+    avisarRuta();
+    return;
+  }
+
+  // Volver a la vista de debajo de la hoja: se cierra la hoja y esa vista sigue tal como estaba.
+  if (!remontarTodo && hojaAbierta?.fondo && hash === hojaAbierta.volver.hash) {
+    fijarRuta(nueva, hash);
+    volverAlFondo();
     avisarRuta();
     return;
   }
@@ -418,7 +473,8 @@ async function procesar({ origen = "historial" } = {}) {
   }
 
   // Solo cambia la pestaña: el marco se queda.
-  const soloPestana = !remontarTodo && nueva.tipo === "tanda" && vista?.tipo === "tanda" && vista.tandaId === nueva.tandaId;
+  const soloPestana = !remontarTodo && nueva.tipo === "tanda" && vista?.tipo === "tanda" && vista.tandaId === nueva.tandaId && !!vista.tanda;
+  if (nueva.tipo === "tanda" && !soloPestana) return abrirTanda(nueva, hash, { miTurno, fijarRuta, origen });
   const panel = soloPestana ? vista.marco.panel : null;
 
   let cargado;
@@ -429,7 +485,7 @@ async function procesar({ origen = "historial" } = {}) {
         if (miTurno !== turno || remontarTodo) return;
         if (soloPestana) {
           desmontarPantalla(vista);
-          reemplazar(panel, esqueleto(ESQUELETO_DE_PESTANA[nueva.pestana] ?? "tabla"));
+          reemplazar(panel, esqueleto("hoja"));
         } else {
           desmontarVista();
           reemplazar(raiz, esqueleto(esqueletoDeVista(nueva)));
@@ -473,15 +529,8 @@ async function procesar({ origen = "historial" } = {}) {
       return;
     }
     desmontarVista();
-    if (nueva.tipo !== "tanda") {
-      vista = { tipo: nueva.tipo, id: nueva.tipo, ruta: nueva, quitar: [] };
-      await montarPantalla(vista, cargado.modulo, raiz, cargado.datos);
-      return;
-    }
-    const marco = montarMarco({ tanda: cargado.tanda, ruta: nueva, navegar });
-    reemplazar(raiz, marco.raiz);
-    vista = { tipo: "tanda", id: nueva.pestana, ruta: nueva, tanda: cargado.tanda, tandaId: nueva.tandaId, pestana: nueva.pestana, marco, quitar: [] };
-    await montarPantalla(vista, cargado.modulo, marco.panel, cargado.datos);
+    vista = { tipo: nueva.tipo, id: nueva.tipo, ruta: nueva, quitar: [] };
+    await montarPantalla(vista, cargado.modulo, raiz, cargado.datos);
   };
 
   try {
@@ -509,6 +558,89 @@ async function procesar({ origen = "historial" } = {}) {
   });
   desplazarDespues({ origen, completa: !soloPestana, conservar });
   avisarRuta();
+}
+
+/** El elemento que abrió la hoja (con foco o recién cliqueado, dentro de la vista de debajo). */
+function abridorDeLaHoja() {
+  const activo = document.activeElement;
+  const elemento = activo && activo !== document.body && raiz.contains(activo) ? activo : ultimoEnlace?.isConnected && raiz.contains(ultimoEnlace) ? ultimoEnlace : null;
+  return { elemento, clave: elemento?.closest?.("[data-foco]")?.getAttribute("data-foco") ?? null };
+}
+
+/**
+ * Abre una tanda en la hoja: al instante el marco con el título y un esqueleto; los datos y la pantalla después.
+ * Sobre la vista de antes (que queda montada debajo) o, si ya hay una hoja abierta, en su lugar.
+ */
+async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
+  if (hojaAbierta) {
+    if (vista?.tipo === "tanda") {
+      desmontarPantalla(vista);
+      vista.marco?.desmontar();
+    }
+    // Con otro idioma, la vista de debajo quedó en el anterior: al volver se monta de nuevo.
+    if (origen === "idioma" && hojaAbierta.fondo) {
+      desmontarPantalla(hojaAbierta.fondo);
+      hojaAbierta.fondo = null;
+    }
+  } else {
+    const conFondo = !!vista?.modulo && vista.tipo !== "tanda";
+    const volver = origenDeHoja(conFondo ? vista.ruta : null, conFondo ? hashMostrado : null);
+    const abridor = conFondo ? abridorDeLaHoja() : { elemento: null, clave: null };
+    if (!conFondo) {
+      desmontarVista();
+      reemplazar(raiz);
+    }
+    hojaAbierta = { hoja: null, fondo: conFondo ? vista : null, volver, abridor };
+  }
+  vista = null;
+  const marco = montarMarco({
+    tandaId: nueva.tandaId,
+    ruta: nueva,
+    navegar,
+    volver: hojaAbierta.volver,
+    escapar: () => vista?.modulo?.escapar?.() === true,
+  });
+  if (hojaAbierta.hoja) reemplazar(hojaAbierta.hoja.nodo, marco.raiz);
+  else hojaAbierta.hoja = abrirHoja(marco.raiz, { fondo: raiz });
+  const v = { tipo: "tanda", id: nueva.pestana, ruta: nueva, tanda: null, tandaId: nueva.tandaId, pestana: nueva.pestana, marco, quitar: [] };
+  vista = v;
+  enfocar(marco.titulo);
+
+  let cargado;
+  try {
+    cargado = await cargarRuta(nueva);
+  } catch (error) {
+    if (miTurno !== turno) return;
+    console.error(error);
+    fijarRuta(nueva, hash);
+    reemplazar(marco.panel, errorDeCarga(error, "tanda"));
+    avisarRuta();
+    return;
+  }
+  if (miTurno !== turno || vista !== v) return;
+  fijarRuta(nueva, hash);
+  if (!cargado.tanda) {
+    reemplazar(marco.panel, noExisteLaTanda(nueva.tandaId));
+    document.title = [t("comun.estado.tandaNoExiste", { id: nueva.tandaId }), t("comun.marco.titulo")].join(" · ");
+    avisarRuta();
+    return;
+  }
+  marco.ponerTanda(cargado.tanda);
+  v.tanda = cargado.tanda;
+  await montarPantalla(v, cargado.modulo, marco.panel, cargado.datos);
+  if (miTurno !== turno) return;
+  avisarRuta();
+}
+
+/** Cierra la hoja y deja a la vista la de debajo, en su scroll, con el foco en lo que abrió la hoja. */
+function volverAlFondo() {
+  const { fondo, abridor } = hojaAbierta;
+  cerrarHoja({ conservarFondo: true });
+  vista = fondo;
+  vista.ruta = ruta;
+  ponerTitulo(vista);
+  const destino = abridor.elemento?.isConnected ? abridor.elemento : abridor.clave ? raiz.querySelector(`[data-foco="${CSS.escape(abridor.clave)}"]`) : null;
+  enfocar(destino ?? raiz.querySelector("h1") ?? raiz);
 }
 
 async function actualizarPantalla() {
@@ -579,6 +711,7 @@ function interceptarEnlaces(evento) {
   const href = enlace.getAttribute("href");
   if (!href?.startsWith("#/") && href !== "#") return;
   evento.preventDefault();
+  ultimoEnlace = enlace;
   navegar(href === "#" ? "#/" : href);
 }
 

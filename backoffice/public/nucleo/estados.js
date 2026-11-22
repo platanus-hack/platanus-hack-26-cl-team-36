@@ -100,13 +100,19 @@ const FORMAS = {
     bloque("esqueleto-bloque"),
   ],
   lienzo: () => [bloque("esqueleto-texto"), bloque("esqueleto-lienzo")],
+  // La hoja de una tanda: el riel, el lienzo y el panel derecho.
+  hoja: () => [
+    el("div", { class: "esqueleto-riel" }, Array.from({ length: 5 }, () => el("div", { class: "esqueleto-vista" }, bloque("esqueleto-texto"), bloque("esqueleto-meta")))),
+    bloque("esqueleto-bloque"),
+    el("div", { class: "esqueleto-vista" }, bloque("esqueleto-meta"), ...Array.from({ length: 4 }, () => bloque("esqueleto-texto"))),
+  ],
   replay: () => [bloque("esqueleto-texto"), el("div", { class: "esqueleto-replay" }, bloque("esqueleto-bloque"), bloque("esqueleto-bloque"))],
   tabla: () => [bloque("esqueleto-texto"), ...Array.from({ length: 6 }, () => bloque("esqueleto-linea"))],
 };
 
 /**
  * Esqueleto con la misma geometría que la vista final: "overview" | "revisiones" | "propuesta" | "lista" | "tanda" |
- * "lienzo" | "replay" | "tabla".
+ * "hoja" | "lienzo" | "replay" | "tabla".
  */
 export function esqueleto(tipo = "lista") {
   return el(
