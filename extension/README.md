@@ -122,8 +122,9 @@ sin `www.`).
 
 Un tema (`normalizarTema` en `background/temas.js`) también puede traer `features` y
 `eventosNavegacion`. De la API llegan las `features` del `tema.json` que deja el improver, si lo
-deja (solo `vista` con los componentes `atajo`, `lanzador` y `cartelera`, y `modo-foco`; las sanea
-`background/tema-remoto.js`). `eventosNavegacion` todavía no llega de la API:
+deja (solo `vista` con los componentes `atajo` y `lanzador` y sus `datos`; las sanea
+`background/tema-remoto.js`, espejo exacto del validador del improver). `modo-foco`, la `cartelera`
+y `eventosNavegacion` todavía no llegan de la API; un tema que los traiga se vería así:
 
 ```json
 {
@@ -226,8 +227,9 @@ Lo que hay que tener en cuenta:
 - **La API solo puede mandar datos (CSS + config), nunca JS.** MV3 y Mozilla prohíben
   ejecutar código remoto. Los comportamientos tienen que existir como features en la extensión.
 - **Las features de la API** pasan por `sanearTema` (`background/tema-remoto.js`) en `temaDeRevision`
-  (`background/revisiones.js`); `normalizarTema` es el contrato. Una feature nueva para temas remotos
-  se agrega allí y en el validador del improver.
+  (`background/revisiones.js`); `normalizarTema` es el contrato. Una feature o un componente nuevo
+  para temas remotos se agrega allí y en el validador del improver (`tema_json.py`), con los mismos
+  topes: `agents/app/web_designer/tests/test_contrato.py` lo verifica.
 - **Permisos y privacidad:** la extensión corre en todos los sitios http(s) y, con el interruptor
   encendido y fuera de ventanas privadas, le envía al backend la URL sin query ni hash de cada
   página que visitas (para consultar su revisión). Por eso pide acceso a todos los sitios y el

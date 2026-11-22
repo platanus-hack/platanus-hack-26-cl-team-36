@@ -1,14 +1,17 @@
-// Tests del saneamiento de las features que llegan de la API (src/background/tema-remoto.js).
+// Tests del saneamiento de las features que llegan de la API (src/background/tema-remoto.js). El contrato con
+// el improver (lo que arma tema_json.py pasa sin rechazos) está en agents/app/web_designer/tests/test_contrato.py.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { MAX_CADENA, MAX_ITEMS, MAX_VISTAS, sanearTema } from "../src/background/tema-remoto.js";
+import { MAX_ITEMS, MAX_VISTAS, sanearTema, validarVista } from "../src/background/tema-remoto.js";
 
 const METRO = JSON.parse(readFileSync(new URL("fixtures/metro/tema.json", import.meta.url), "utf8"));
+const ATAJO = METRO.features.vista[0];
 
 const tarea = (extra = {}) => ({ titulo: { es: "Horarios", en: "Hours" }, enlace: "/horarios", ...extra });
-const lanzador = (extra = {}) => ({ id: "tareas", contenedor: "#ancla", componente: "lanzador", datos: [tarea()], ...extra });
+const lanzador = (extra = {}) => ({ id: "tareas", contenedor: "#ancla", componente: "lanzador", datos: [tarea()], opciones: {}, ...extra });
 const conVistas = (...vistas) => sanearTema({ features: { vista: vistas } });
+const conOpciones = (opciones) => ({ ...ATAJO, opciones: { ...ATAJO.opciones, ...opciones } });
 
 test("el kit de metro.cl pasa entero, sin rechazos", () => {
   assert.deepEqual(sanearTema(METRO), { features: METRO.features, rechazos: [] });
@@ -19,102 +22,83 @@ test("sin tema o sin features: nada que montar y nada que reclamar", () => {
   assert.deepEqual(sanearTema({ nombre: "x" }), { features: {}, rechazos: [] });
   assert.deepEqual(sanearTema([1]).features, {});
   assert.deepEqual(sanearTema({ features: [] }).features, {});
+  assert.deepEqual(sanearTema({ features: { vista: {} } }).rechazos, ["`vista` no es una lista"]);
 });
 
-test("enlaces que salen del sitio descartan la vista", () => {
-  for (const enlace of ["//evil.com/x", "/\\evil.com", "https://otro.cl", "/\t/evil.com", "javascript:alert(1)", "/a?javascript:x", "horarios"]) {
-    const { features, rechazos } = conVistas(lanzador({ datos: [tarea({ enlace })] }));
-    assert.deepEqual(features, {}, enlace);
-    assert.equal(rechazos.length, 1, enlace);
-    assert.match(rechazos[0], /^vista "tareas"\.datos\[0\]\.enlace: .*se descarta la vista/, enlace);
+test("un item que no valida se descarta solo y la vista sigue; si no queda ninguno, se va la vista", () => {
+  for (const enlace of ["//evil.com/x", "/\\evil.com", "https://otro.cl", "/\t/evil.com", "/con espacio", "/a b", "horarios", "/x\n"]) {
+    const { features, rechazos } = conVistas(lanzador({ datos: [tarea(), tarea({ enlace })] }));
+    assert.deepEqual(features.vista[0].datos, [tarea()], JSON.stringify(enlace));
+    assert.match(rechazos[0], /^vista "tareas", item descartado: datos\[1\]\.enlace/, JSON.stringify(enlace));
+  }
+  const { features, rechazos } = conVistas(lanzador({ datos: [tarea({ enlace: "//evil.com" })] }));
+  assert.deepEqual(features, {});
+  assert.match(rechazos.at(-1), /^vista "tareas" descartada: \$\.datos: 0 elementos/);
+  assert.equal(conVistas(lanzador({ datos: [tarea({ enlace: "/estación/baquedano" })] })).features.vista.length, 1);
+});
+
+test("rutas y destino también deben ser rutas relativas, de hasta 200 caracteres", () => {
+  assert.deepEqual(conVistas(lanzador({ rutas: ["//evil.com"] })).features, {});
+  const { features, rechazos } = conVistas(conOpciones({ destino: "https://otro.cl/buscar" }));
+  assert.deepEqual(features, {});
+  assert.match(rechazos[0], /\$\.opciones\.destino/);
+  assert.equal(conVistas(conOpciones({ destino: `/${"a".repeat(199)}` })).features.vista.length, 1);
+  assert.deepEqual(conVistas(conOpciones({ destino: `/${"a".repeat(200)}` })).features, {});
+});
+
+test("componente fuera del kit remoto o feature desconocida se descartan con su razón", () => {
+  const { features, rechazos } = sanearTema({
+    features: { vista: [lanzador(), lanzador({ id: "otra", componente: "cartelera" })], "modo-foco": {}, aviso: {} },
+  });
+  assert.deepEqual(features, { vista: [lanzador()] });
+  assert.deepEqual(rechazos, ['feature desconocida "modo-foco"', 'feature desconocida "aviso"', 'componente no permitido: "cartelera"']);
+});
+
+test("una clave que el esquema no conoce descarta el item o la vista, como en tema_json.py", () => {
+  const { features, rechazos } = conVistas(lanzador({ datos: [tarea(), tarea({ imagen: "https://rastreo.com/pixel.gif" })] }));
+  assert.deepEqual(features.vista[0].datos, [tarea()]);
+  assert.match(rechazos[0], /clave no permitida "imagen"/);
+  for (const extra of [{ items: "li" }, { campos: {} }, { accion: { selector: "a" } }, { script: "x" }]) {
+    assert.deepEqual(conVistas(lanzador(extra)).features, {}, Object.keys(extra)[0]);
   }
 });
 
-test("rutas y destino también deben ser rutas relativas", () => {
-  assert.deepEqual(conVistas(lanzador({ rutas: ["//evil.com"] })).features, {});
-  const atajo = METRO.features.vista[0];
-  const { features, rechazos } = conVistas({ ...atajo, opciones: { ...atajo.opciones, destino: "https://otro.cl/buscar" } });
-  assert.deepEqual(features, {});
-  assert.match(rechazos[0], /opciones\.destino/);
+test("textos: { es, en } con los dos idiomas y hasta 160 caracteres", () => {
+  for (const titulo of ["Horarios", { es: "Horarios" }, { es: "a".repeat(161), en: "b" }, { es: ["x"], en: "y" }]) {
+    assert.deepEqual(conVistas(lanzador({ datos: [tarea({ titulo })] })).features, {}, JSON.stringify(titulo));
+  }
 });
 
-test("componente desconocido o feature desconocida se descartan con su razón", () => {
-  const { features, rechazos } = sanearTema({
-    features: { vista: [lanzador(), lanzador({ id: "otra", componente: "iframe" })], "modo-foco": {}, aviso: { texto: "hola" } },
-  });
-  assert.deepEqual(features, { vista: [lanzador()], "modo-foco": {} });
-  assert.deepEqual(rechazos, ['vista "otra": componente desconocido "iframe" (se descarta la vista)', 'feature desconocida "aviso"']);
-});
-
-test("cadenas largas, selectores largos y textos que no son string o { es, en }", () => {
-  const largo = "a".repeat(MAX_CADENA + 1);
-  assert.deepEqual(conVistas(lanzador({ datos: [tarea({ detalle: largo })] })).features, {});
-  assert.deepEqual(conVistas(lanzador({ contenedor: `#${largo}` })).features, {});
-  assert.deepEqual(conVistas(lanzador({ datos: [tarea({ titulo: 42 })] })).features, {});
-  assert.deepEqual(conVistas(lanzador({ datos: [tarea({ titulo: { es: ["x"] } })] })).features, {});
-  assert.deepEqual(conVistas(lanzador({ datos: [tarea({ titulo: {} })] })).features, {});
-});
-
-test("topes: vistas, items y campos", () => {
+test("topes: vistas, items, fijos e invertir", () => {
   const vistas = Array.from({ length: MAX_VISTAS + 1 }, (_, i) => lanzador({ id: `v${i}` }));
   const { features, rechazos } = conVistas(...vistas);
   assert.equal(features.vista.length, MAX_VISTAS);
-  assert.deepEqual(rechazos, [`vista "v${MAX_VISTAS}": más de ${MAX_VISTAS} vistas`]);
+  assert.deepEqual(rechazos, [`vista "v${MAX_VISTAS}" descartada: repetida o sobre el máximo de ${MAX_VISTAS}`]);
+  assert.deepEqual(conVistas(lanzador({ datos: Array.from({ length: MAX_ITEMS.lanzador + 1 }, () => tarea()) })).features, {});
 
-  assert.deepEqual(conVistas(lanzador({ datos: Array.from({ length: MAX_ITEMS + 1 }, () => tarea()) })).features, {});
-
-  const campos = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`c${i}`, { selector: "a" }]));
-  assert.deepEqual(conVistas(lanzador({ datos: undefined, items: "li", campos })).features, {});
+  const fijos = (n) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`k${i}`, "x"]));
+  assert.equal(conVistas(conOpciones({ fijos: fijos(6) })).features.vista.length, 1);
+  assert.deepEqual(conVistas(conOpciones({ fijos: fijos(7) })).features, {});
+  assert.deepEqual(conVistas(conOpciones({ fijos: { "a b": "x" } })).features, {});
+  assert.deepEqual(conVistas(conOpciones({ invertir: ["inicio", "otro"] })).features, {});
 });
 
-test("las imágenes y las claves desconocidas se descartan solas; la vista sigue", () => {
-  const { features, rechazos } = conVistas(
-    lanzador({ datos: [tarea({ imagen: "https://rastreo.com/pixel.gif" })], extra: 1 }),
-    { id: "lista", contenedor: "ul", componente: "cartelera", items: "li", campos: { titulo: { selector: "a" }, enlace: { selector: "a", atributo: "href" }, imagen: { selector: "img", atributo: "src" } } },
-  );
-  assert.deepEqual(features.vista[0], lanzador());
-  assert.deepEqual(Object.keys(features.vista[1].campos), ["titulo", "enlace"]);
-  assert.equal(rechazos.length, 3);
-  assert.match(rechazos.join("\n"), /imagen.*no se aceptan/);
-  assert.match(rechazos.join("\n"), /se descarta `extra`/);
+test("nombres de parámetro: letras, números y _.[]- hasta 40; un \\n final no valida", () => {
+  const conNombre = (nombre) => ({ ...ATAJO, opciones: { destino: "/x" }, datos: [{ ...ATAJO.datos[0], nombre }] });
+  assert.equal(validarVista(conNombre("q[inicio]"))[0].datos[0].nombre, "q[inicio]");
+  for (const nombre of ["inicio\n", "a b", "x".repeat(41), ""]) assert.equal(validarVista(conNombre(nombre))[0], null, JSON.stringify(nombre));
 });
 
-test("patrón: largo, cuantificadores anidados o inválido descartan la vista; uno sano pasa", () => {
-  const plantilla = (patron) => lanzador({ datos: undefined, items: "li", campos: { titulo: { selector: "a", patron } } });
-  for (const patron of ["(a+)+$", "([a-z]*)*", "(", "a".repeat(MAX_CADENA + 1)]) {
-    assert.deepEqual(conVistas(plantilla(patron)).features, {}, patron);
-  }
-  assert.equal(conVistas(plantilla("v=([\\w-]+)")).features.vista.length, 1);
-});
-
-test("un enlace armado con formato debe quedar en el sitio", () => {
-  const plantilla = (formato) =>
-    lanzador({ datos: undefined, items: "li", campos: { titulo: { selector: "a" }, enlace: { selector: "a", atributo: "href", patron: "v=(\\w+)", formato } } });
-  assert.deepEqual(conVistas(plantilla("https://evil.com/$1")).features, {});
-  assert.equal(conVistas(plantilla("/watch?v=$1")).features.vista.length, 1);
-});
-
-test("una vista sin datos ni plantilla, sin id, con id repetido o un atajo sin destino se descarta", () => {
-  assert.deepEqual(conVistas(lanzador({ datos: undefined })).features, {});
+test("una vista sin id, con id inválido o repetido, o un atajo sin destino se descarta", () => {
   assert.deepEqual(conVistas(lanzador({ id: undefined })).features, {});
+  assert.deepEqual(conVistas(lanzador({ id: "Tareas" })).features, {});
+  assert.deepEqual(conVistas(lanzador({ id: "tareas\n" })).features, {});
   assert.equal(conVistas(lanzador(), lanzador()).features.vista.length, 1);
-  const atajo = METRO.features.vista[0];
-  assert.deepEqual(conVistas({ ...atajo, opciones: { textos: atajo.opciones.textos } }).features, {});
+  assert.deepEqual(conVistas({ ...ATAJO, opciones: { textos: ATAJO.opciones.textos } }).features, {});
 });
 
-test("un campo __proto__ no cambia el prototipo de lo saneado", () => {
-  const campos = JSON.parse('{"titulo": {"selector": "a"}, "__proto__": {"selector": "b"}}');
-  const { features } = conVistas(lanzador({ datos: undefined, items: "li", campos }));
-  const saneados = features.vista[0].campos;
-  assert.equal(Object.getPrototypeOf(saneados), Object.prototype);
-  assert.deepEqual(Object.keys(saneados), ["titulo", "__proto__"]);
-});
-
-test("modo-foco: rutas relativas y ancla; si no cumple, se descarta la feature", () => {
-  assert.deepEqual(sanearTema({ features: { "modo-foco": { rutas: ["/"], ancla: "#menu" } } }).features, {
-    "modo-foco": { rutas: ["/"], ancla: "#menu" },
-  });
-  const { features, rechazos } = sanearTema({ features: { "modo-foco": { rutas: ["//evil.com"] } } });
-  assert.deepEqual(features, {});
-  assert.match(rechazos[0], /^modo-foco\.rutas\[0\]: .*se descarta la feature/);
+test("claves como __proto__ o constructor no se toman por propiedades del esquema", () => {
+  const datos = [JSON.parse('{"titulo": {"es": "a", "en": "b"}, "enlace": "/x", "__proto__": {"x": 1}}'), tarea({ constructor: "x" })];
+  const { features } = conVistas(lanzador({ datos: [tarea(), ...datos] }));
+  assert.deepEqual(features.vista[0].datos, [tarea()]);
 });

@@ -1,11 +1,11 @@
 """El `tema.json` del kit: las vistas de `features.vista` que monta la extensión, validadas contra un esquema.
 
 El esquema es un subconjunto de JSON Schema (type, properties, required, additionalProperties, pattern, maxLength,
-minLength, items, minItems, maxItems, maxProperties, propertyNames, minimum, maximum, enum, anyOf) que valida `_errores`. Solo
-admite los componentes `atajo` y `lanzador`, enlaces relativos del mismo sitio y nada que cargue recursos (sin
-`imagen`). Lo que no valida se descarta con su razón: un item malo deja la vista sin ese item, una vista mala no entra.
-Patrones y topes son los mismos que `sanearTema` en `extension/src/background/tema-remoto.js`: si cambian aquí,
-cambian allá.
+minLength, items, minItems, maxItems, maxProperties, propertyNames, minimum, maximum, enum, anyOf) que valida
+`_errores`. Solo admite los componentes `atajo` y `lanzador`, enlaces relativos del mismo sitio y nada que cargue
+recursos (sin `imagen`). Lo que no valida se descarta con su razón: un item malo deja la vista sin ese item, una vista
+mala no entra. `sanearTema` (`extension/src/background/tema-remoto.js`) es su espejo exacto: mismos esquemas,
+patrones y topes. Si cambian aquí, cambian allá (lo vigila `tests/test_contrato.py`).
 """
 
 import re
@@ -16,8 +16,11 @@ MAX_VISTAS = 6
 _TEXTO_CORTO = {"type": "string", "maxLength": 160}
 TEXTO = {"type": "object", "properties": {"es": _TEXTO_CORTO, "en": _TEXTO_CORTO}, "required": ["es", "en"],
          "additionalProperties": False}
-# Una ruta del mismo sitio: empieza con una sola `/` (no `//host` ni `/\host`), sin espacios ni barras invertidas.
-RUTA = {"type": "string", "pattern": r"^/(?![/\\])[^\s\\]*$", "maxLength": 200}
+# Una ruta del mismo sitio: empieza con una sola `/` (no `//host` ni `/\host`), sin barras invertidas, espacios ni
+# controles (el parser de URLs borra tabs y saltos: `/\t/host` quedaría `//host`). Los espacios van explícitos y no
+# como `\s`, que no es el mismo conjunto en Python y en JS.
+RUTA = {"type": "string", "maxLength": 200,
+        "pattern": r"^/(?![/\\])[^\\\x00-\x20\x7f-\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]*$"}
 SELECTOR = {"type": "string", "minLength": 1, "maxLength": 200}
 ID = {"type": "string", "pattern": r"^[a-z][a-z0-9-]{0,39}$"}
 _NOMBRE_PARAMETRO = {"type": "string", "pattern": r"^[A-Za-z0-9_.\[\]-]{1,40}$"}
