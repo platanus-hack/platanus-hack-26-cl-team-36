@@ -33,7 +33,7 @@ export default {
   },
   pestana: {
     resumen: "Summary",
-    telarana: "Route map",
+    telarana: "Path map",
     replay: "Replay",
   },
   marco: {
@@ -137,7 +137,7 @@ export default {
     irACorridas: "Go to Runs",
     cambiarIdioma: "Language: Español",
     intento: "Replay · {resultado}",
-    pagina: "Route map · {url}",
+    pagina: "Path map · {url}",
   },
   atajos: {
     titulo: "Keyboard shortcuts",
@@ -150,7 +150,7 @@ export default {
       tanda: "In a batch",
       corridas: "Runs",
       resumen: "Summary",
-      telarana: "Route map",
+      telarana: "Path map",
       replay: "Replay",
     },
     tecla: {
@@ -167,7 +167,7 @@ export default {
       cerrar: "Close the dialog or tooltip; then clear the selection",
       irACorridas: "Go to Runs",
       buscar: "In Runs, search; elsewhere, open the palette",
-      pestanas: "Summary · Route map · Replay",
+      pestanas: "Summary · Path map · Replay",
       vecinas: "Previous (older) / next (newer) batch",
       copiarEnlace: "Copy the link to this view",
       filas: "Next / previous row",
@@ -188,7 +188,7 @@ export default {
       soloPasos: "Steps only: on or off",
       intentos: "Next / previous attempt",
       veredicto: "Show or hide the verdict and criterion",
-      verEnTelarana: "Open this step in the route map",
+      verEnTelarana: "Open this step in the path map",
     },
   },
 };

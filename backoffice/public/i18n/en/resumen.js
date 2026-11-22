@@ -5,7 +5,7 @@ const steps = (n, plural) => `${n} ${plural(n, { one: "step", other: "steps" })}
 
 export default {
   archivos: {
-    arbolDanado: "route_tree.json is damaged: the route, the route map and what comes from them are missing.",
+    arbolDanado: "route_tree.json is damaged: the route, the path map and what comes from them are missing.",
     arbolFalta: "Incomplete batch: it has no route_tree.json yet (the evaluator writes it at the end, or it stopped).",
   },
   cifra: {
@@ -21,17 +21,17 @@ export default {
     ninguno: "No other findings: nobody slows down or stumbles.",
     verPaso: "See step {paso}",
     verPasoEtiqueta: "{nombre}, step {paso}: open in Replay",
-    enTelaranaEtiqueta: "{nombre}, step {paso}: see on the route map",
+    enTelaranaEtiqueta: "{nombre}, step {paso}: see on the path map",
     verIntento: ({ n }, { plural }) => `See its ${steps(n, plural)}`,
     verIntentoEtiqueta: ({ nombre, n }, { plural }) => `${nombre}: see its ${steps(n, plural)} in Replay`,
-    verPagina: "See on the route map",
-    verPaginaEtiqueta: "See “{pagina}” on the route map",
+    verPagina: "See on the path map",
+    verPaginaEtiqueta: "See “{pagina}” on the path map",
   },
   ruta: {
     titulo: "Recommended route",
     hitos: "Pages of the recommended route",
     hito: "Milestone {n}:",
-    verEnTelarana: "See on the route map",
+    verEnTelarana: "See on the path map",
     sinRuta: "Nobody reached the answer: there is no recommended route.",
     lleganTitulo: "Reach this page: {nombres}",
     nadieLlega: "No valid attempt reaches this page",

@@ -34,8 +34,8 @@ veredicto) y tres pestañas:
 
 | Pestaña | Qué pregunta responde | De dónde sale |
 |---|---|---|
-| **Resumen** (por defecto) | ¿Llegaron a la respuesta y qué hay que mirar? Una pantalla: el titular, cuántos llegan y los pasos (mediana contra la ruta), los dos niveles de conocimiento lado a lado, los 3 hallazgos que más pesan (quien no llega, errores, tropiezos, desvíos), cada uno con enlace al paso exacto en Replay y Telaraña, y la ruta recomendada. | `route_tree.json` y cada `<perfil>/run.json`, derivados en `lib/` |
-| **Telaraña** | ¿Por dónde fueron? Un grafo de izquierda a derecha: el inicio al medio a la izquierda, la meta (el final de la ruta y las páginas donde alguien encontró la respuesta) al medio a la derecha y las demás páginas entre ellos, repartidas encima y debajo, en columnas según los pasos desde el inicio. Dos caminos y nada más: **camino feliz** (la ruta recomendada, una fila recta) y **camino ineficiente** (desvíos, vueltas atrás y caminos que dan vueltas o no llegan); la leyenda de dos botones resalta uno u otro. Los avances son rectas; las vueltas atrás y los pasos laterales, curvas suaves. Panel por página (quién pasó, adónde fue, cómo terminó, con enlace al paso en Replay). | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
+| **Resumen** (por defecto) | ¿Llegaron a la respuesta y qué hay que mirar? Una pantalla: el titular, cuántos llegan y los pasos (mediana contra la ruta), los dos niveles de conocimiento lado a lado, los 3 hallazgos que más pesan (quien no llega, errores, tropiezos, desvíos), cada uno con enlace al paso exacto en Replay y en el Mapa de caminos, y la ruta recomendada. | `route_tree.json` y cada `<perfil>/run.json`, derivados en `lib/` |
+| **Mapa de caminos** | ¿Por dónde fueron? Un grafo dirigido de izquierda a derecha: el inicio a la izquierda, la meta (el final de la ruta y las páginas donde alguien encontró la respuesta) a la derecha y las demás páginas en columnas según los pasos desde el inicio, ordenadas para cruzarse lo menos posible y repartidas encima y debajo de la ruta recomendada, que es una fila recta; los tramos son rectas (casi rectas si saltan columnas). Las vueltas atrás y los pasos laterales son arcos bajos, tenues y de un tono neutro, que se encienden al pasar el puntero o elegir una página. Grosor = intentos, color = cómo terminaron (leyenda abajo); cada camino termina en su resultado (logrado, fallido, abandonado, error) y unas partículas lo recorren. Panel por página (quién pasó, adónde fue, cómo terminó, con enlace al paso en Replay), marcas donde alguien se trabó y modo historia (un intento recorriendo el mapa, paso a paso). | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
 | **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que se puede reproducir. | `<perfil>/run.json` y `step_NN.png` |
 
 ## Cómo leer las cifras
@@ -46,9 +46,8 @@ veredicto) y tres pestañas:
 - **Páginas fusionadas.** Dos nodos del `route_tree.json` son la misma página si tienen la misma URL sin la consulta
   (`?s=…`) y el mismo título no vacío. El panel de la página lista las variantes de URL unidas. Los nodos sin
   título nunca se unen.
-- **Camino feliz = ruta recomendada.** El eje es `recommended_route`, la ruta de menor costo entre las que hicieron
-  los intentos; en la telaraña se llama «camino feliz» y todo lo demás es «camino ineficiente». Si nadie llegó, el eje
-  es el camino más transitado y no hay camino feliz.
+- **Ruta recomendada, no happy path.** El eje es `recommended_route`, la ruta de menor costo entre las que hicieron
+  los intentos, y se rotula así en todas partes. Si nadie llegó, el eje es el camino más transitado.
 - **Llegar no basta.** Si todos llegan pero alguno se demora, tropieza o da más pasos que la ruta, el titular lo dice
   ("Los 3 llegan a la respuesta, pero Apurado tarda 12 pasos (la ruta: 5).") y se marca como dificultad, no como
   éxito limpio. Los pasos en una página cuentan todas las acciones hechas ahí, incluida la que sale: la misma unidad
@@ -83,9 +82,9 @@ el resto.
 |---|---|
 | Siempre | `⌘K` paleta de comandos · `?` atajos · `g c` ir a Corridas · `/` paleta (en Corridas, el buscador) |
 | Corridas | `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
-| Tanda | `1` `2` `3` Resumen, Telaraña, Replay · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
+| Tanda | `1` `2` `3` Resumen, Mapa de caminos, Replay · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
 | Resumen | `j` `k` hallazgo siguiente / anterior |
-| Telaraña | `+` `-` acercar / alejar · `0` ajustar · `Esc` quitar la selección (con el foco en el mapa, las flechas lo mueven) |
+| Mapa de caminos | `+` `-` acercar / alejar · `0` ajustar · `h` historia (con ella: `Espacio` reproducir / pausar, `←` `→` paso) · `Esc` cerrar (con el foco en el mapa, las flechas lo mueven) |
 | Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `↑` `↓` en la lista de pasos |
 
 ## Fuente de corridas

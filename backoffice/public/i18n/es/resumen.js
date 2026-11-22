@@ -5,7 +5,7 @@ const pasos = (n, plural) => `${n} ${plural(n, { one: "paso", other: "pasos" })}
 
 export default {
   archivos: {
-    arbolDanado: "route_tree.json está dañado: faltan la ruta, la telaraña y lo que sale de ellas.",
+    arbolDanado: "route_tree.json está dañado: faltan la ruta, el mapa de caminos y lo que sale de ellos.",
     arbolFalta: "Tanda incompleta: todavía no tiene route_tree.json (el evaluador lo escribe al final, o se cortó).",
   },
   cifra: {
@@ -21,17 +21,17 @@ export default {
     ninguno: "Sin otros hallazgos: nadie se demora ni tropieza.",
     verPaso: "Ver paso {paso}",
     verPasoEtiqueta: "{nombre}, paso {paso}: abrir en Replay",
-    enTelaranaEtiqueta: "{nombre}, paso {paso}: ver en la telaraña",
+    enTelaranaEtiqueta: "{nombre}, paso {paso}: ver en el mapa de caminos",
     verIntento: ({ n }, { plural }) => `Ver sus ${pasos(n, plural)}`,
     verIntentoEtiqueta: ({ nombre, n }, { plural }) => `${nombre}: ver sus ${pasos(n, plural)} en Replay`,
-    verPagina: "Ver en la telaraña",
-    verPaginaEtiqueta: "Ver «{pagina}» en la telaraña",
+    verPagina: "Ver en el mapa de caminos",
+    verPaginaEtiqueta: "Ver «{pagina}» en el mapa de caminos",
   },
   ruta: {
     titulo: "Ruta recomendada",
     hitos: "Páginas de la ruta recomendada",
     hito: "Hito {n}:",
-    verEnTelarana: "Ver en la telaraña",
+    verEnTelarana: "Ver en el mapa de caminos",
     sinRuta: "Nadie llegó a la respuesta: no hay ruta recomendada.",
     lleganTitulo: "Llegan a esta página: {nombres}",
     nadieLlega: "Ningún intento válido llega a esta página",

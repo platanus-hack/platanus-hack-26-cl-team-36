@@ -32,7 +32,7 @@ export default {
   },
   pestana: {
     resumen: "Resumen",
-    telarana: "Telaraña",
+    telarana: "Mapa de caminos",
     replay: "Replay",
   },
   marco: {
@@ -137,7 +137,7 @@ export default {
     irACorridas: "Ir a Corridas",
     cambiarIdioma: "Idioma: English",
     intento: "Replay · {resultado}",
-    pagina: "Telaraña · {url}",
+    pagina: "Mapa de caminos · {url}",
   },
   atajos: {
     titulo: "Atajos de teclado",
@@ -150,7 +150,7 @@ export default {
       tanda: "En una tanda",
       corridas: "Corridas",
       resumen: "Resumen",
-      telarana: "Telaraña",
+      telarana: "Mapa de caminos",
       replay: "Replay",
     },
     tecla: {
@@ -167,7 +167,7 @@ export default {
       cerrar: "Cerrar el diálogo o el globo; después, quitar la selección",
       irACorridas: "Ir a Corridas",
       buscar: "En Corridas, buscar; en otras vistas, abrir la paleta",
-      pestanas: "Resumen · Telaraña · Replay",
+      pestanas: "Resumen · Mapa de caminos · Replay",
       vecinas: "Tanda anterior (más antigua) / siguiente (más nueva)",
       copiarEnlace: "Copiar el enlace a esta vista",
       filas: "Fila siguiente / anterior",
@@ -188,7 +188,7 @@ export default {
       soloPasos: "Solo pasos: activar o quitar",
       intentos: "Intento siguiente / anterior",
       veredicto: "Mostrar u ocultar el veredicto y el criterio",
-      verEnTelarana: "Abrir este paso en la telaraña",
+      verEnTelarana: "Abrir este paso en el mapa de caminos",
     },
   },
 };

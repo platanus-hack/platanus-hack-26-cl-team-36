@@ -2,12 +2,12 @@
 const plural = (n, ayudas, uno, otros) => `${n} ${ayudas.plural(n, { one: uno, other: otros })}`;
 
 export default {
-  herramientas: "Route map tools",
+  herramientas: "Path map tools",
   lienzo: {
-    etiqueta: "Route map",
+    etiqueta: "Path map",
     instrucciones: "Drag to move the map; ⌘ or Ctrl + wheel to zoom. With focus on the map, the arrow keys move it.",
-    arbolDanado: "route_tree.json is damaged: the route map can't be drawn.",
-    arbolFalta: "Incomplete batch: it has no route_tree.json yet, so the route map can't be drawn.",
+    arbolDanado: "route_tree.json is damaged: the path map can't be drawn.",
+    arbolFalta: "Incomplete batch: it has no route_tree.json yet, so the path map can't be drawn.",
     vacio: "This batch has no pages to draw.",
   },
   camara: {
@@ -62,7 +62,7 @@ export default {
     final: ({ resultado, n }, ayudas) => `Ends: ${resultado.toLowerCase()} (${plural(n, ayudas, "attempt", "attempts")})`,
   },
   panel: {
-    etiqueta: "Route map detail",
+    etiqueta: "Path map detail",
     elegir: "Pick a page to see who went through it.",
     ruta: "Route",
     eje: "Most travelled path",

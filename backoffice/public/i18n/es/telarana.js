@@ -2,13 +2,13 @@
 const plural = (n, ayudas, uno, otros) => `${n} ${ayudas.plural(n, { one: uno, other: otros })}`;
 
 export default {
-  herramientas: "Herramientas de la telaraña",
+  herramientas: "Herramientas del mapa de caminos",
   lienzo: {
-    etiqueta: "Mapa de la telaraña",
+    etiqueta: "Mapa de caminos",
     instrucciones: "Arrastra para mover el mapa; ⌘ o Ctrl + rueda para acercar. Con el foco en el mapa, las flechas lo mueven.",
     vacio: "Esta tanda no tiene páginas para dibujar.",
-    arbolDanado: "route_tree.json dañado: no se puede dibujar la telaraña.",
-    arbolFalta: "Tanda incompleta: todavía no tiene route_tree.json, así que no se puede dibujar la telaraña.",
+    arbolDanado: "route_tree.json dañado: no se puede dibujar el mapa de caminos.",
+    arbolFalta: "Tanda incompleta: todavía no tiene route_tree.json, así que no se puede dibujar el mapa de caminos.",
   },
   camara: {
     controles: "Zoom del mapa",
@@ -62,7 +62,7 @@ export default {
     final: ({ resultado, n }, ayudas) => `Termina: ${resultado.toLowerCase()} (${plural(n, ayudas, "intento", "intentos")})`,
   },
   panel: {
-    etiqueta: "Detalle de la telaraña",
+    etiqueta: "Detalle del mapa de caminos",
     elegir: "Elige una página para ver quién pasó por ella.",
     ruta: "Ruta",
     eje: "Camino más transitado",
