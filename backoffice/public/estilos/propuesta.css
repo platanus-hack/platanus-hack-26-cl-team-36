@@ -156,7 +156,6 @@
 .p-propuesta .propuesta-decisiones summary:hover { color: var(--texto-1); }
 .p-propuesta .propuesta-decisiones ul { display: grid; gap: var(--e-1); margin: var(--e-2) 0 0; padding-left: var(--e-4); color: var(--texto-2); }
 
-.p-propuesta .propuesta-pie { display: flex; align-items: center; justify-content: space-between; gap: var(--e-3); padding: var(--e-1) var(--e-1) 0; }
 .p-propuesta .propuesta-paleta { display: inline-flex; gap: 6px; }
 .p-propuesta .propuesta-color { width: 28px; height: 28px; border-radius: var(--radio-2); background: var(--color); box-shadow: inset 0 0 0 1px var(--borde-medio); }
 .p-propuesta .propuesta-tema { justify-self: start; font-size: 13px; }
