@@ -9,6 +9,7 @@
 
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
 import { consultarRevision } from "./api.js";
+import { inyectarCssDeTema } from "./fuentes.js";
 import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
 import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
 
@@ -110,10 +111,8 @@ async function inyectarTema(tema, sender, pagina) {
   if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen, pagina, temaId: tema.id, css: tema.css });
   console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${pagina}`);
 
-  await browser.scripting.insertCSS({
-    target: { tabId: sender.tab.id, frameIds: [sender.frameId] },
-    css: tema.css,
-  });
+  const target = { tabId: sender.tab.id, frameIds: [sender.frameId] };
+  await inyectarCssDeTema(tema.css, target, (detalles) => browser.scripting.insertCSS(detalles));
 
   const { css, ...resto } = tema;
   return { ...resto, pagina };
