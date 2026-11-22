@@ -22,7 +22,7 @@ export async function sembrar(
   { api, force = false, fetch = globalThis.fetch, dormir = dormirMs, ahora = Date.now, intervaloMs = 15_000, topeMs = 45 * 60_000, log = console.log },
 ) {
   const inicio = ahora();
-  const paginas = urls.map((url) => ({ url, status: null, revision: null, error: null }));
+  const paginas = [...new Set(urls)].map((url) => ({ url, status: null, revision: null, error: null }));
   const cambiar = (pagina, status, extra = {}) => {
     if (status === pagina.status && !extra.error) return;
     Object.assign(pagina, { status, ...extra });
@@ -74,11 +74,13 @@ async function main() {
     allowPositionals: true,
     options: { force: { type: "boolean", default: false }, api: { type: "string" }, "tope-min": { type: "string", default: "45" } },
   });
+  const topeMin = Number(values["tope-min"]);
+  if (!(topeMin > 0)) throw new Error(`--tope-min debe ser un número de minutos: ${values["tope-min"]}`);
   const raiz = new URL("../../", import.meta.url);
   const urls = positionals.length ? positionals : JSON.parse(await readFile(new URL("agents/tasks/demo.json", raiz), "utf8"));
   const api = (values.api ?? (await import(new URL("extension/src/background/config.js", raiz))).API_URL_AWS).replace(/\/$/, "");
   console.log(`Sembrando ${urls.length} páginas en ${api}${values.force ? " (force)" : ""}`);
-  const { ok } = await sembrar(urls, { api, force: values.force, topeMs: Number(values["tope-min"]) * 60_000 });
+  const { ok } = await sembrar(urls, { api, force: values.force, topeMs: topeMin * 60_000 });
   process.exitCode = ok ? 0 : 1;
 }
 

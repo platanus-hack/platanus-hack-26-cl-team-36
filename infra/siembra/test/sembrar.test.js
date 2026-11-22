@@ -74,6 +74,13 @@ test("force va en el POST; un 429 se vuelve a pedir en la vuelta siguiente", asy
   );
 });
 
+test("una URL repetida se pide una sola vez", async () => {
+  const { fetch, llamadas } = fetchFalso({ "POST https://a.cl/": [rev("done")] });
+  const { paginas } = await sembrar(["https://a.cl/", "https://a.cl/"], { api: API, fetch, ...reloj(), log: () => {} });
+  assert.equal(paginas.length, 1);
+  assert.equal(llamadas.length, 1);
+});
+
 test("un POST rechazado cuenta como fallida", async () => {
   const { fetch } = fetchFalso({ "POST nada": [[400, { success: false, error: "url inválida" }]] });
   const { ok, paginas } = await sembrar(["nada"], { api: API, fetch, ...reloj(), log: () => {} });

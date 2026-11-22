@@ -37,7 +37,7 @@ jobs:
           args=()
           [ "$FORZAR" = true ] && args+=(--force)
           read -ra urls <<< "$URLS"
-          node infra/siembra/sembrar.js "${args[@]}" "${urls[@]}" | tee siembra.txt
+          node infra/siembra/sembrar.js "${args[@]}" -- "${urls[@]}" | tee siembra.txt
           status=${PIPESTATUS[0]}
           { echo '```'; cat siembra.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
