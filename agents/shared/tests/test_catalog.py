@@ -3,13 +3,15 @@
 import json
 import re
 from dataclasses import asdict
+from pathlib import Path
 
 import pytest
 
 from shared import store
 from shared.catalog import tasks
 from shared.catalog.files import read_catalog, read_outline
-from shared.catalog.goal import Goal, exclusion, instruction, instruction_goal_id, is_free_goal_id, routable, slugify
+from shared.catalog.goal import (Goal, exclusion, for_revision, instruction, instruction_goal_id, is_free_goal_id, leaves_site,
+                                 routable, slugify)
 from shared.catalog.outline import Link, PageOutline, SiteOutline
 from shared.catalog.prominence import complexity, link_prominence, prominence, route_prominence
 
@@ -78,6 +80,29 @@ def test_routable_order_buried_first_then_id_without_blocking_gates():
     assert [goal.id for goal in routable(goals, 2)] == ["b", "z"]
     assert len(routable(goals, None)) == 4
     assert [exclusion(goal) for goal in goals[3:6]] == [None, "barrera login", "nivel summary"]
+
+
+def test_revision_prefers_prominent_goals_inside_the_site_without_gates():
+    goals = [
+        _goal("fuera", prominence="primary", entry="https://otro.cl/x"),
+        _goal("escondido", prominence="buried", entry="/ayuda"),
+        _goal("con-efecto", prominence="primary", gates=["side_effect"]),
+        _goal("secundario", prominence="secondary", entry="https://pagos.sitio.cl/"),
+        _goal("principal", prominence="primary"),
+        _goal("login", prominence="primary", gates=["login"]),
+    ]
+    assert [leaves_site(goal) for goal in goals[:4]] == [True, False, False, False]
+    assert [goal.id for goal in for_revision(goals, None)] == ["principal", "secundario", "escondido", "con-efecto", "fuera"]
+    assert [goal.id for goal in routable(goals, None)][0] == "escondido"
+
+
+def test_revision_selection_of_a_real_catalog_matches_the_projector():
+    # backend/test/proyectora.test.js lee el mismo archivo y espera lo mismo.
+    data = json.loads((Path(__file__).parent / "data" / "catalogo-metro.json").read_text())
+    fields = Goal.__dataclass_fields__
+    goals = [Goal(**{key: value for key, value in raw.items() if key in fields}) for raw in data["goals"]]
+    assert [goal.id for goal in for_revision(goals, data["goals_max"])] == data["expected"]
+    assert [goal.id for goal in for_revision(goals, None)] == data["expected_all"]
 
 
 def test_transact_routes_stop_before_submitting():

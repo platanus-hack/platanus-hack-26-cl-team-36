@@ -4,6 +4,9 @@ import hashlib
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from urllib.parse import urljoin
+
+from shared.nodes.urls import same_site
 
 LEVELS = ("summary", "user_goal", "subfunction")
 INTENTS = ("find_info", "reach_page", "transact")
@@ -64,6 +67,19 @@ def routable(goals: list[Goal], limit: int | None) -> list[Goal]:
     """Los que el Visitante puede intentar, los más escondidos primero y luego por id; `limit` None es todos."""
     candidates = [goal for goal in goals if exclusion(goal) is None]
     candidates.sort(key=lambda goal: (PROMINENCE_ORDER.index(goal.prominence), goal.id))
+    return candidates[:limit]
+
+
+def leaves_site(goal: Goal) -> bool:
+    """Si su entrada es un enlace a otro sitio, que la Guía no sigue."""
+    return bool(goal.entry) and not same_site(urljoin(goal.start_url, goal.entry), goal.start_url)
+
+
+def for_revision(goals: list[Goal], limit: int | None) -> list[Goal]:
+    """Los que el Visitante puede intentar, los que más probablemente busca quien llega a la página primero: dentro
+    del sitio, sin barreras, más prominentes y en el orden del catálogo. `backend/proyectora.js` elige igual."""
+    candidates = [goal for goal in goals if exclusion(goal) is None]
+    candidates.sort(key=lambda goal: (leaves_site(goal), bool(goal.gates), -PROMINENCE_ORDER.index(goal.prominence)))
     return candidates[:limit]
 
 

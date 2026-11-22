@@ -16,7 +16,7 @@ Desde la raíz, `just local revision <url>` hace lo mismo con una revisión nuev
 
 | Opción | Qué hace |
 |---|---|
-| `--goals-max` | Objetivos evaluables que se recorren (por defecto 3): sin `exclusion`, los más escondidos primero y luego por id (`routable`, el mismo criterio de la proyectora). |
+| `--goals-max` | Objetivos evaluables que se recorren (por defecto 3): sin `exclusion`, primero los que no salen del sitio ni tienen barreras, los más prominentes y en el orden del catálogo (`for_revision`, el mismo criterio de la proyectora). |
 | `--profiles`, `--runs` | Van al Visitante (por defecto, sus perfiles y 1 intento por perfil). |
 | `--concurrency` | Objetivos a la vez (por defecto 2). |
 

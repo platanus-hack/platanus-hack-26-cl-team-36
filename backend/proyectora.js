@@ -6,17 +6,34 @@ import { ORDEN_ETAPA, ORDEN_META, claveRevision, previos } from "./estados.js";
 const MANIFIESTO = "/manifest.json";
 const META_DE = { running: "running", succeeded: "done", failed: "failed" };
 
-// Misma selección que el conductor (agents/shared, catalog/goal.py `routable`): user_goal
-// sin barreras, los más escondidos primero y luego por id, hasta `goalsMax`.
+// Misma selección que el conductor (agents/shared, catalog/goal.py `for_revision`): user_goal
+// sin barreras que lo excluyan; primero los que no salen del sitio, luego sin barreras, luego
+// los más prominentes y en el orden del catálogo, hasta `goalsMax`.
 const BARRERAS = ["login", "personal_data", "bot_check"];
 const PROMINENCIA = ["buried", "secondary", "primary"];
 
+// Como `site_host` de agents/shared (nodes/urls.py): sin www y con el puerto si no es el de siempre.
+const sitio = (url) => new URL(url).host.toLowerCase().replace(/^www\./, "");
+
+function saleDelSitio(goal) {
+  if (!goal.entry) return false;
+  try {
+    const host = sitio(new URL(goal.entry, goal.start_url)), propio = sitio(goal.start_url);
+    return host !== propio && !host.endsWith(`.${propio}`);
+  } catch {
+    return true;
+  }
+}
+
 export function goalsElegidos(goals, goalsMax) {
+  const orden = (goal) => [saleDelSitio(goal) ? 1 : 0, [].concat(goal.gates ?? []).length ? 1 : 0, -PROMINENCIA.indexOf(goal.prominence)];
+  const comparar = (a, b) => a.reduce((diferencia, valor, i) => diferencia || valor - b[i], 0);
   return goals
     .filter((goal) => goal.level === "user_goal" && ![].concat(goal.gates ?? []).some((gate) => BARRERAS.includes(gate)))
-    .sort((a, b) => PROMINENCIA.indexOf(a.prominence) - PROMINENCIA.indexOf(b.prominence) || (a.id < b.id ? -1 : 1))
+    .map((goal) => ({ goal, clave: orden(goal) }))
+    .sort((a, b) => comparar(a.clave, b.clave))
     .slice(0, goalsMax)
-    .map((goal) => goal.id);
+    .map(({ goal }) => goal.id);
 }
 
 export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMax = 3 }) {
