@@ -133,6 +133,7 @@ test("crearRevisiones: lista las META de la más nueva a la más vieja y lee una
     css: `${MEJORA}/tema.css`,
     creada: "2026-11-21T11:00:00Z",
     actualizada: "2026-11-21T10:00:00Z",
+    resumen: null,
   });
   assert.deepEqual(await revisiones.leer("a-medias"), avanceDeRevision(A_MEDIAS));
   assert.equal(await revisiones.leer("no-existe"), null);
