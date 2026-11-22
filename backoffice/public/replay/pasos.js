@@ -53,7 +53,7 @@ export function crearListaDePasos({ t, elegir, mover, senal }) {
     { signal: senal },
   );
 
-  function fila(paso, indice) {
+  function fila(paso, indice, sale) {
     const firma = textoDeFirma(paso.firma, t) || paso.descripcion || "";
     const resumen = resumenDelPaso(paso);
     const tono = tonoDelPaso(paso);
@@ -62,10 +62,10 @@ export function crearListaDePasos({ t, elegir, mover, senal }) {
       "li",
       {
         id: idDeOpcion(indice),
-        class: `replay-paso${tono ? ` tono-${tono}` : ""}`,
+        class: `replay-paso${tono ? ` tono-${tono}` : ""}${sale ? " replay-paso-sale" : ""}`,
         role: "option",
         "aria-selected": "false",
-        "aria-label": [t("replay.pasos.opcion", { n: paso.numero, firma }), resumen, ...senales.map((s) => t(`comun.senal.${s}`))].filter(Boolean).join(". "),
+        "aria-label": [t("replay.pasos.opcion", { n: paso.numero, firma }), resumen, sale ? t("replay.pasos.saleDeLaRuta") : null, ...senales.map((s) => t(`comun.senal.${s}`))].filter(Boolean).join(". "),
         "data-indice": String(indice),
       },
       el("span", { class: "replay-paso-numero num", "aria-hidden": "true", texto: String(paso.numero) }),
@@ -74,14 +74,15 @@ export function crearListaDePasos({ t, elegir, mover, senal }) {
         { class: "replay-paso-texto", "aria-hidden": "true" },
         el("span", { class: "replay-paso-accion truncar", title: firma, texto: firma }),
         resumen ? el("span", { class: "replay-paso-resumen truncar", title: resumen, texto: resumen }) : null,
+        sale ? el("span", { class: "replay-paso-salida", texto: t("replay.pasos.saleDeLaRuta") }) : null,
       ),
       senales.length ? el("span", { class: "replay-paso-senales", "aria-hidden": "true" }, senales.map((s) => marcaDeSenal(s))) : null,
     );
   }
 
-  /** Arma las filas de un intento. */
-  function pintar(intento) {
-    reemplazar(lista, (intento?.pasos ?? []).map(fila));
+  /** Arma las filas de un intento; `sale`: el n.º del paso donde deja la ruta (se marca). */
+  function pintar(intento, { sale = null } = {}) {
+    reemplazar(lista, (intento?.pasos ?? []).map((paso, indice) => fila(paso, indice, sale !== null && paso.numero === sale)));
     actual = -1;
   }
 

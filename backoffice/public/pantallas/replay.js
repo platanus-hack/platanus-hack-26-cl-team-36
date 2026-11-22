@@ -1,6 +1,6 @@
-// Replay: un intento paso a paso, solo con lo esencial. A la izquierda la lista de pasos, al centro la captura del
-// paso actual, a la derecha su análisis (dónde va en la ruta de la Guía: replay/analisis.js) y abajo la línea de
-// tiempo que se puede reproducir.
+// Replay: un intento paso a paso, solo con lo esencial. A la izquierda el riel de trazas (el mismo del Mapa), al
+// centro la captura del paso actual con la línea de tiempo que se puede reproducir y a la derecha la lista de pasos,
+// con el paso donde deja la ruta marcado y, plegado, por qué terminó así.
 //
 // Estado en la URL: ?intento= &paso=. Los cambios de paso se aplican primero en la pantalla (en el lugar, sin
 // reconstruir: el foco nunca se cae) y después se escriben en el hash; actualizar(ctx) compara la URL con el estado
@@ -15,10 +15,13 @@ import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
 import { cambiarVelocidad, factorDeTiempo, planDelPaso, velocidadValida } from "../replay/animacion.js";
-import { cabeceraDeAnalisis, contenidoDeAnalisis } from "../replay/analisis.js";
+import { porQueTermino } from "../replay/analisis.js";
 import { crearEscena } from "../replay/escena.js";
 import { crearLineaDeTiempo } from "../replay/linea-de-tiempo.js";
 import { crearListaDePasos } from "../replay/pasos.js";
+import { crearRiel } from "../tanda/riel.js";
+import { seleccion, vecina } from "../tanda/riel-estado.js";
+import { filasDeTrazas, resumenDeOtra, salidaDeLaRuta, trazasDeLaTanda } from "../tanda/trazas.js";
 
 /** Cuánto se queda cada paso quieto en pantalla al reproducir, después de su animación (a 1×, antes de RITMO_BASE). */
 const MS_DE_PAUSA = 700;
@@ -47,17 +50,20 @@ const movimientoReducido = () => globalThis.matchMedia?.("(prefers-reduced-motio
 let ctx = null;
 let partes = null;
 let estado = null;
+let trazas = null;
 
 // ── Leer la URL ───────────────────────────────────────────────────────────
 
-/** Parámetros → intento e índice pedidos, con los arreglos que hay que escribir de vuelta en la URL y el aviso. */
-function leerParametros(parametros, tanda) {
-  const intentos = tanda.intentos ?? [];
+/**
+ * Parámetros → intento e índice pedidos, con los arreglos que hay que escribir de vuelta en la URL y el aviso. Sin
+ * intento, la traza más interesante (la primera del riel).
+ */
+function leerParametros(parametros) {
   const cambios = {};
   const avisos = [];
-  let intento = intentos.find((cada) => cada.id === parametros.intento) ?? null;
-  if (!intento) {
-    intento = intentos[0] ?? null;
+  const elegida = seleccion(trazas.grupos, parametros.intento ?? null, { porDefecto: true });
+  const intento = elegida?.intento ?? null;
+  if (!elegida?.valido) {
     if (parametros.intento !== undefined) {
       cambios.intento = null;
       avisos.push(ctx.t("comun.estado.intentoNoExiste", { intento: parametros.intento, nombre: intento?.nombrePerfil ?? intento?.id ?? "" }));
@@ -91,11 +97,16 @@ function ponerAviso(texto) {
 
 function pintarIntento() {
   const { intento } = estado;
-  partes.selector.value = intento.id;
+  partes.riel.marcar(seleccion(trazas.grupos, intento.id)?.grupo.representante ?? null);
   const viewport = intento.viewport ?? {};
   partes.captura.style.setProperty("--proporcion", String((viewport.ancho || 1024) / (viewport.alto || 768)));
-  partes.lista.pintar(intento);
+  partes.lista.pintar(intento, { sale: salidaDeLaRuta(intento)?.paso ?? null });
   partes.linea.pintar(intento);
+  reemplazar(partes.fin, porQueTermino({ intento, tanda: ctx.tanda, t: ctx.t }));
+  // El panel cambia de contenido con un fundido corto.
+  partes.lado.classList.remove("tanda-lado-fundido");
+  void partes.lado.offsetWidth;
+  partes.lado.classList.add("tanda-lado-fundido");
 }
 
 /**
@@ -122,9 +133,6 @@ function pintarPaso(modo = "corto") {
 
   partes.lista.marcar(indice);
   partes.linea.marcar(Math.max(0, indice));
-  reemplazar(partes.cabeceraAnalisis, cabeceraDeAnalisis({ intento, indice, t: ctx.t, fmt: ctx.fmt }));
-  reemplazar(partes.analisis, contenidoDeAnalisis({ intento, indice, tanda: ctx.tanda, t: ctx.t }));
-  partes.analisis.scrollTop = 0;
   return animacion;
 }
 
@@ -136,11 +144,9 @@ function precargar(intento, indice) {
   imagen.src = ctx.urlDeArchivo(intento.id, archivo);
 }
 
-/** La vista ocupa el alto que queda en la ventana bajo el encabezado de la tanda (con un mínimo). */
+/** Tras un cambio de tamaño: el paso actual sigue a la vista y la captura se reubica. */
 function ajustarAlto() {
   if (!partes) return;
-  const arriba = partes.raiz.getBoundingClientRect().top + globalThis.scrollY;
-  partes.raiz.style.setProperty("--alto-replay", `${Math.max(460, globalThis.innerHeight - arriba - 24)}px`);
   partes.lista.revelar();
   partes.escena.ajustar(partes.captura);
 }
@@ -211,13 +217,14 @@ async function alternarReproduccion() {
 }
 
 function cambiarIntento(id) {
+  if (!id || seleccion(trazas.grupos, id)?.grupo === seleccion(trazas.grupos, estado.intento?.id)?.grupo) return;
   ctx.actualizarParametros({ intento: id, paso: null }, { historial: "agregar" });
 }
 
 // ── Aplicar la URL ────────────────────────────────────────────────────────
 
 function aplicar(parametros) {
-  const pedido = leerParametros(parametros, ctx.tanda);
+  const pedido = leerParametros(parametros);
   const cambioDeIntento = pedido.intento.id !== estado.intento?.id;
   if (pedido.aviso) ponerAviso(pedido.aviso);
   else if (cambioDeIntento && estado.aviso) ponerAviso(null);
@@ -240,12 +247,15 @@ function armar(contenedor) {
   const lista = crearListaDePasos({ t, elegir, mover: (delta) => elegir(estado.indice + delta), senal });
   const linea = crearLineaDeTiempo({ t, fmt: ctx.fmt, senal, elegir, alternar: () => alternarReproduccion(), velocidad: (valor) => ponerVelocidad(valor) });
 
-  const selector = el(
-    "select",
-    { class: "replay-intento", "aria-label": t("replay.pasos.intento"), "data-foco": "replay:intento" },
-    (ctx.tanda.intentos ?? []).map((intento) => el("option", { value: intento.id, texto: intento.nombrePerfil ?? intento.id })),
-  );
-  selector.addEventListener("change", () => cambiarIntento(selector.value), { signal: senal });
+  const riel = crearRiel({
+    titulo: t("comun.traza.titulo"),
+    orden: t("comun.traza.orden"),
+    etiqueta: t("comun.traza.etiqueta"),
+    filas: filasDeTrazas(trazas, t),
+    senal,
+    alElegir: cambiarIntento,
+    otras: { titulo: t("comun.traza.otrasTandas"), tanda: ctx.tanda, pestana: "replay", resumen: resumenDeOtra(ctx.tandas), fecha: (iso) => ctx.fmt.fechaCorta(iso) },
+  });
 
   const escena = crearEscena({ t, senal });
   const imagen = escena.imagen;
@@ -253,34 +263,18 @@ function armar(contenedor) {
   imagen.addEventListener("error", () => imagen.getAttribute("src") && captura.classList.add("sin-captura"), { signal: senal });
   imagen.addEventListener("load", () => captura.classList.remove("sin-captura"), { signal: senal });
 
-  const analisis = el("div", { class: "replay-analisis-contenido" });
-  const cabeceraAnalisis = el("div", { class: "replay-columna-cabecera" }, el("h3", { class: "etiqueta-micro", texto: t("replay.analisis.titulo") }));
   const aviso = el("div", { class: "replay-aviso" });
-  const raiz = el(
-    "div",
-    { class: "replay" },
-    aviso,
-    el(
-      "div",
-      { class: "replay-columnas" },
-      el(
-        "aside",
-        { class: "replay-columna replay-pasos", "aria-label": t("replay.pasos.titulo") },
-        el("div", { class: "replay-columna-cabecera" }, el("h3", { class: "etiqueta-micro", texto: t("replay.pasos.titulo") }), selector),
-        lista.nodo,
-      ),
-      captura,
-      el(
-        "aside",
-        { class: "replay-columna replay-analisis", "aria-label": t("replay.analisis.titulo") },
-        cabeceraAnalisis,
-        analisis,
-      ),
-    ),
-    linea.nodo,
+  const fin = el("div", { class: "replay-fin-contenido" });
+  const lado = el(
+    "aside",
+    { class: "tanda-lado replay-lado", "aria-label": t("replay.pasos.titulo") },
+    el("h3", { class: "tanda-etiqueta", texto: t("replay.pasos.titulo") }),
+    lista.nodo,
+    el("details", { class: "replay-fin" }, el("summary", { texto: t("replay.fin.titulo") }), fin),
   );
-  contenedor.append(raiz);
-  partes = { raiz, aviso, selector, lista, linea, captura, imagen, analisis, cabeceraAnalisis, escena };
+  const raiz = el("div", { class: "tanda-columnas replay" }, riel.nodo, el("section", { class: "tanda-centro replay-centro", "aria-label": t("replay.captura.etiqueta") }, captura, linea.nodo), lado);
+  contenedor.append(aviso, raiz);
+  partes = { raiz, aviso, riel, lista, linea, captura, imagen, lado, fin, escena };
   globalThis.addEventListener("resize", ajustarAlto, { signal: senal });
   const observador = new ResizeObserver(() => escena.ajustar(captura));
   observador.observe(captura);
@@ -296,6 +290,8 @@ function registrarAtajos() {
     Home: { descripcion: d("extremos"), accion: () => elegir(0) },
     End: { descripcion: d("extremos"), accion: () => elegir((estado.intento.pasos?.length ?? 1) - 1) },
     Space: { descripcion: d("reproducir"), accion: () => alternarReproduccion() },
+    ArrowDown: { descripcion: () => ctx.t("comun.atajos.desc.trazas"), accion: () => cambiarIntento(vecina(trazas.grupos, estado.intento?.id ?? null, 1)) },
+    ArrowUp: { descripcion: () => ctx.t("comun.atajos.desc.trazas"), accion: () => cambiarIntento(vecina(trazas.grupos, estado.intento?.id ?? null, -1)) },
     ",": { descripcion: d("velocidad"), accion: () => ponerVelocidad(cambiarVelocidad(estado.velocidad, -1)) },
     ".": { descripcion: d("velocidad"), accion: () => ponerVelocidad(cambiarVelocidad(estado.velocidad, 1)) },
   });
@@ -304,7 +300,7 @@ function registrarAtajos() {
 export default {
   titulo(contexto) {
     const intentos = contexto.tanda?.intentos ?? [];
-    const intento = intentos.find((cada) => cada.id === contexto.parametros.intento) ?? intentos[0];
+    const intento = intentos.find((cada) => cada.id === contexto.parametros.intento) ?? (trazas ? seleccion(trazas.grupos, null, { porDefecto: true })?.intento : intentos[0]);
     return intento ? contexto.t("replay.tituloDocumento", { nombre: intento.nombrePerfil ?? intento.id }) : contexto.t("comun.pestana.replay");
   },
 
@@ -319,6 +315,7 @@ export default {
       partes = null;
       return;
     }
+    trazas = trazasDeLaTanda(ctx.tanda, ctx.t);
     estado = { intento: null, indice: -1, aviso: null, reproduccion: 0, reloj: 0, velocidad: leerVelocidadGuardada() };
     armar(contenedor);
     partes.linea.ponerVelocidad(estado.velocidad);
@@ -338,5 +335,6 @@ export default {
     partes?.escena.detener();
     partes = null;
     estado = null;
+    trazas = null;
   },
 };
