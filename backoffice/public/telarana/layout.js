@@ -5,6 +5,7 @@
 export const PASO = 150; // px entre anillos
 export const ESPACIO = 104; // px mínimos entre dos páginas del mismo anillo
 export const LIMITE = Math.PI * 0.94; // las páginas no cruzan el eje de atrás del inicio
+export const ETIQUETA = { ruta: 150, pagina: 124 }; // px máximos del nombre de una página, centrado en su nodo
 
 export const radio = (anillo) => Math.max(0, anillo) * PASO;
 export const acotar = (v, a, b) => Math.max(a, Math.min(b, v));
