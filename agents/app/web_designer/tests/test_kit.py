@@ -6,6 +6,7 @@ import copy
 import functools
 import http.server
 import json
+import re
 import threading
 from pathlib import Path
 
@@ -461,6 +462,20 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     assert "titulo" in faltan["buscar", "/el-viaje/carga-bip"] and faltan["buscar", "/el-viaje/estaciones"] == ["detalle"]
     tema_css = backend.read_text(archivos["tema.css"])
     assert OCULTAR in tema_css and '[data-mt-vista="tareas"]' in tema_css and "#home :has(> h1)" not in tema_css
+
+    # Las capturas de la propuesta, con el contrato que lee el backoffice (backoffice/lib/propuestas.js).
+    assert mejora["vistas"] == [{"url": url, "titulo": mejora["vistas"][0]["titulo"], "capturas": {
+        "desktop": {"antes": "vistas/escritorio-antes.png", "despues": "vistas/escritorio-despues.png"},
+        "mobile": {"antes": "vistas/movil-antes.png", "despues": "vistas/movil-despues.png"}}}]
+    assert mejora["vistas"][0]["titulo"] and "vistas" not in informe
+    capturas = {}
+    for par in mejora["vistas"][0]["capturas"].values():
+        for ruta in par.values():
+            assert re.fullmatch(r"vistas/[a-z0-9][a-z0-9-]{0,80}\.png", ruta)
+            capturas[ruta] = backend.read_bytes(manifest.key.file(*reversed(ruta.split("/"))))
+            assert capturas[ruta].startswith(b"\x89PNG")
+    assert capturas["vistas/escritorio-antes.png"] != capturas["vistas/escritorio-despues.png"]
+    assert capturas["vistas/movil-antes.png"] != capturas["vistas/movil-despues.png"]
 
 
 def test_si_el_motor_falla_cae_al_css_libre(tmp_path, metro_local):

@@ -1,0 +1,19 @@
+{
+  "goal": "horario",
+  "status": "verified",
+  "start": { "url": "https://www.ejemplo.test/?utm_source=x", "title": "Inicio", "screenshot": "step_00.png" },
+  "steps": [
+    {
+      "number": 1, "label": "click «Ayuda»", "action": "click", "value": null,
+      "target": { "tag": "a", "role": "link", "name": "Ayuda", "text": "Ayuda", "href": "/ayuda" },
+      "url_before": "https://www.ejemplo.test/?utm_source=x", "title_before": "Inicio",
+      "url_after": "https://www.ejemplo.test/ayuda/", "title_after": "Ayuda", "changes_node": true, "screenshot": "step_01.png"
+    },
+    {
+      "number": 2, "label": "click «Horario»", "action": "click", "value": null,
+      "target": { "tag": "a", "role": "link", "name": "Horario", "text": "Horario", "href": "/ayuda/horario" },
+      "url_before": "https://www.ejemplo.test/ayuda/", "title_before": "Ayuda",
+      "url_after": "https://www.ejemplo.test/ayuda/horario", "title_after": "Horario", "changes_node": true, "screenshot": "step_02.png"
+    }
+  ]
+}

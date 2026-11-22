@@ -2,7 +2,8 @@
 // proyectora; el backoffice solo lee). Una revisión es un ítem META y uno por etapa (STAGE#…) o goal (GOAL#…).
 //
 // GET /api/revisiones → { disponible, revisiones: [{ revision, url, host, estado, goalsTotal, css, creada, actualizada,
-//   resumen | null }] }
+//   resumen | null, anteriores }], historial: [lo mismo sin anteriores] }
+//   revisiones: la vigente de cada página (revisionesVigentes), aunque esté en curso; historial: las que reemplazó.
 // GET /api/revisiones/<rev> → lo mismo de su META, más:
 //   resumen: { fases: { catalog|guide|visitor|improver: { pending, running, succeeded, failed, skipped } }, agentesActivos,
 //              pasos, goalsTotal, calculado }   (calculado: true si META no lo traía y salió de los ítems)
@@ -214,6 +215,43 @@ export function avanceDeRevision(items) {
   };
 }
 
+const idDe = (meta) => String(meta?.PK ?? "").replace(/^REV#/, "");
+
+/** La URL del ítem URL#<url> (backend/urls.js) que le corresponde al `url` de META (origin + pathname), o null. */
+export function paginaDeRevision(url) {
+  try {
+    const partes = new URL(url);
+    const nombre = partes.hostname.replace(/\.$/, "").replace(/^www\./, "");
+    return `${partes.protocol}//${partes.port ? `${nombre}:${partes.port}` : nombre}${partes.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Qué revisiones están vigentes: la que apunta el ítem URL#<url> de su página (`revision`). Las demás de esa página
+ * quedan en el historial (un `force` deja la anterior ahí). Una página sin ese ítem, o con uno que apunta a una
+ * revisión sin META, deja vigentes todas las suyas.
+ * @param {object[]} metas     ítems META
+ * @param {object[]} punteros  ítems SK = URL
+ * @returns {{ vigentes: Set<string>, anteriores: Map<string, number> }}  anteriores: por revisión vigente, cuántas reemplazó
+ */
+export function revisionesVigentes(metas, punteros) {
+  const ids = new Set(metas.map(idDe));
+  const apuntada = new Map(
+    punteros.filter((item) => item?.SK === "URL" && ids.has(item.revision)).map((item) => [String(item.PK).replace(/^URL#/, ""), item.revision]),
+  );
+  const vigentes = new Set();
+  const anteriores = new Map();
+  for (const meta of metas) {
+    const id = idDe(meta);
+    const actual = apuntada.get(paginaDeRevision(meta.url));
+    if (actual === undefined || actual === id) vigentes.add(id);
+    else anteriores.set(actual, (anteriores.get(actual) ?? 0) + 1);
+  }
+  return { vigentes, anteriores };
+}
+
 const porFecha = (a, b) => String(b.creada ?? "").localeCompare(String(a.creada ?? "")) || a.revision.localeCompare(b.revision);
 
 const LIMITE_EN_MEMORIA = 500;
@@ -305,11 +343,17 @@ export function crearLectorDeTrazas(fuente) {
     return telarana;
   }
 
+  /** Un goal de avanceDeRevision() con lo leído de cada agente: guide.recorrido y visitor.intentos. */
+  async function leerRecorridos(goal) {
+    const [recorrido, intentosVisitante] = await Promise.all([guia(goal.guide), intentos(goal.visitor)]);
+    return { ...goal, guide: { ...goal.guide, recorrido }, visitor: { ...goal.visitor, intentos: intentosVisitante } };
+  }
+
   /** Completa un goal de avanceDeRevision() con lo leído (recorrido, intentos) y su telaraña. */
-  return async function completarGoal(goal) {
-    const [recorridoGuia, intentosVisitante] = await Promise.all([guia(goal.guide), intentos(goal.visitor)]);
-    const guide = { ...goal.guide, recorrido: recorridoGuia };
-    const visitor = { ...goal.visitor, intentos: intentosVisitante };
+  async function completarGoal(goal) {
+    const { guide, visitor } = await leerRecorridos(goal);
+    const recorridoGuia = guide.recorrido;
+    const intentosVisitante = visitor.intentos;
     let telarana = goal.visitor.estado === "succeeded" && goal.visitor.runKey ? await tandaTerminada(goal.visitor.runKey) : null;
     if (!telarana) {
       const enCurso = (archivo, datos) => archivo === TRAZA && datos.status === "running";
@@ -323,7 +367,9 @@ export function crearLectorDeTrazas(fuente) {
       telarana = vivo ? { fuente: "vivo", tanda: null, ...vivo } : null;
     }
     return { ...goal, guide, visitor, telarana };
-  };
+  }
+
+  return { leerRecorridos, completarGoal };
 }
 
 /**
@@ -332,7 +378,7 @@ export function crearLectorDeTrazas(fuente) {
  *        cliente de lib-dynamodb (ítems como objetos planos); con `fuente`, leer() suma lo que se dibuja de cada goal
  */
 export function crearRevisiones({ tabla, cliente, comandos, fuente = null }) {
-  const completarGoal = fuente ? crearLectorDeTrazas(fuente) : null;
+  const lector = fuente ? crearLectorDeTrazas(fuente) : null;
   const { QueryCommand, ScanCommand } = comandos;
   async function todas(Comando, entrada) {
     const items = [];
@@ -344,29 +390,50 @@ export function crearRevisiones({ tabla, cliente, comandos, fuente = null }) {
     } while (desde);
     return items;
   }
-  /** Los ítems META tal cual (Scan con SK = META), en cualquier orden. */
-  const metas = () => todas(ScanCommand, { FilterExpression: "SK = :meta", ExpressionAttributeValues: { ":meta": "META" } });
+  /** Los ítems META y los URL#<url> tal cual (un Scan), en cualquier orden. */
+  async function metasYPunteros() {
+    const leidos = await todas(ScanCommand, { FilterExpression: "SK IN (:meta, :url)", ExpressionAttributeValues: { ":meta": "META", ":url": "URL" } });
+    return { metas: leidos.filter((item) => item.SK === "META"), punteros: leidos.filter((item) => item.SK === "URL") };
+  }
   /** Todos los ítems de una revisión tal cual (Query por PK = REV#<revision>); [] si el id no es válido. */
   const items = async (revision) =>
     esRevision(revision) ? todas(QueryCommand, { KeyConditionExpression: "PK = :pk", ExpressionAttributeValues: { ":pk": `REV#${revision}` } }) : [];
+  const avanceDe = async (revision) => (esRevision(revision) ? avanceDeRevision(await items(revision)) : null);
   return {
     descripcion: `dynamodb://${tabla}`,
 
-    /** Resúmenes de todas las revisiones, de la más nueva a la más vieja. */
+    /** Resúmenes de las vigentes y del historial, de la más nueva a la más vieja. */
     async listar() {
-      return (await metas()).map(resumenDeMeta).sort(porFecha);
+      const { metas, punteros } = await metasYPunteros();
+      const { vigentes, anteriores } = revisionesVigentes(metas, punteros);
+      const resumenes = metas.map(resumenDeMeta).sort(porFecha);
+      return {
+        revisiones: resumenes.filter((r) => vigentes.has(r.revision)).map((r) => ({ ...r, anteriores: anteriores.get(r.revision) ?? 0 })),
+        historial: resumenes.filter((r) => !vigentes.has(r.revision)),
+      };
     },
 
     /** El avance de una revisión, o null si no existe. */
     async leer(revision) {
-      if (!esRevision(revision)) return null;
-      const avance = avanceDeRevision(await items(revision));
-      if (!avance || !completarGoal) return avance;
-      return { ...avance, goals: await Promise.all(avance.goals.map(completarGoal)) };
+      const avance = await avanceDe(revision);
+      if (!avance || !lector) return avance;
+      return { ...avance, goals: await Promise.all(avance.goals.map(lector.completarGoal)) };
+    },
+
+    /**
+     * Un goal de la revisión con lo leído de sus agentes y sin telaraña (lo que sigue lib/eventos.js), o null si la
+     * revisión o el goal no están en la tabla. → { revision, host, estado, goal: { goal, guide, visitor } }
+     */
+    async leerGoal(revision, goal) {
+      const avance = await avanceDe(revision);
+      const encontrado = avance?.goals.find((otro) => otro.goal === goal);
+      if (!encontrado || !lector) return null;
+      const host = avance.host ?? partesDeCorrida(encontrado.visitor.runKey ?? encontrado.guide.runKey ?? "")?.host ?? null;
+      return { revision, host, estado: avance.estado, goal: await lector.leerRecorridos(encontrado) };
     },
 
     // Crudos, para el Overview (lib/panel.js): necesita campos que listar() y leer() no entregan (META.error).
-    metas,
+    metasYPunteros,
     items,
   };
 }

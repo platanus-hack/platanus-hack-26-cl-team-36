@@ -16,7 +16,8 @@ team-36
 ## Desarrollo local
 
 Requisitos: [`just`](https://github.com/casey/just) (`brew install just`), Node.js 22 o más reciente con npm, Firefox
-y, para los pasos 4, 5, 6 y 8, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
+(la extensión también corre en Chrome 148 o superior: `npm run dev:chrome`, ver [extension/README.md](extension/README.md))
+y, para los pasos 4, 5, 6, 8 y 9, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
 clon nuevo, en este orden:
 
 ```bash
@@ -30,7 +31,8 @@ just local guide <host>/<goal>        # 5. guide: reference route of a task in a
 just local visit <url> "<task>"       # 6. visitor: synthetic users try a task on a site (calls Claude)
 just local visit-tasks [wom|sii|dt]   #    visitor on the tasks in agents/tasks/ (calls Claude)
 just local backoffice                 # 7. viewer of the visitor runs
-just local site <url> [goals]         # 8. catalog, guide and visitor per goal, and a summary per site (calls Claude)
+just local revision <url>             # 8. the whole pipeline on one page: catalog, guide and visitor per goal, and tema.css (calls Claude)
+just local site <url> [goals]         # 9. per site, without tema.css: catalog, guide and visitor per goal, and a summary (calls Claude)
 just local summary <url>              #    rewrites that summary from the files on disk
 ```
 
@@ -52,12 +54,12 @@ Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del rep
 
 Los agentes también corren en AWS, en el runtime `chameleon` de AgentCore, con Claude en Bedrock y la cuenta de la
 hackatón (`export AWS_PROFILE=<perfil>`): `just aws revision <url>` revisa una página completa (catálogo, Guía,
-Visitante y tema) y muestra su avance. Se despliega solo al mergear a `main`; los detalles están en
+Visitante y tema), igual que `just local revision <url>`, y muestra su avance. Se despliega solo al mergear a `main`; los detalles están en
 [el runtime](agents/app/runtime/README.md) y en [la infraestructura](infra/README.md).
 
 | Pieza | Qué es |
 |---|---|
-| [`extension/`](extension/README.md) | Extensión de Firefox que cambia el diseño de cada sitio aplicando un tema |
+| [`extension/`](extension/README.md) | Extensión de Firefox y Chrome que cambia el diseño de cada sitio aplicando un tema |
 | `backend/` | API que le dice a la extensión qué tema corresponde a cada página |
 | [`agents/app/cataloger/`](agents/app/cataloger/README.md) | Catalogador: lee el DOM de un sitio y cataloga sus objetivos, clasificados |
 | [`agents/app/guide/`](agents/app/guide/README.md) | Guía: encuentra y verifica la ruta de referencia de un objetivo, con el DOM y capturas |

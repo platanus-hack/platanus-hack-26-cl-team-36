@@ -43,6 +43,10 @@ function almacen() {
     [`${CORRIENDO}/mobile/trace.json`]: JSON.stringify({ status: "running", profile: "mobile" }),
     [`${TEMA}/manifest.json`]: JSON.stringify({ status: "succeeded" }),
     [`${TEMA}/tema.css`]: "html.mi-tema { --mi-acento: #ABCDEF; }",
+    [`${TEMA}/mejora.json`]: JSON.stringify({ vistas: [{ url: "https://www.uno.test/", titulo: "Inicio", capturas: {
+      desktop: { antes: "vistas/escritorio-antes.png", despues: "vistas/escritorio-despues.png" },
+      mobile: { antes: "vistas/movil-antes.png", despues: "../movil-despues.png" } } }] }),
+    [`${CATALOGO}/mejora.json`]: JSON.stringify({ vistas: [{ url: "https://www.uno.test/", capturas: { desktop: { despues: "vistas/escritorio-despues.png" } } }] }),
     [`${TEMA_ROJO}/manifest.json`]: JSON.stringify({ status: "succeeded" }),
     [`${TEMA_ROJO}/tema.css`]: "html.mi-tema { --mi-acento: red; }",
   });
@@ -125,6 +129,40 @@ test("tarjetas: intentos por goal (con los en curso), goals en el orden de goals
   assert.deepEqual(tarjetas.lista.goals.map((g) => [g.goal, g.tanda]), [["b", ENTREGADA_B], ["a", VIEJA]], "entregada: la tanda de cada goal");
   assert.equal(tarjetas.roja.acento, null, "un acento que no es hex no sale");
   assert.deepEqual(tarjetas.espera.capturas, { desktop: null, mobile: null }, "otra ruta del host: sin captura");
+  // El Diseñador terminó con vistas: su «después» encima de la del Visitante; una ruta fuera de vistas/ no sale.
+  assert.deepEqual(tarjetas.lista.capturas, {
+    desktop: { tanda: ENTREGADA_B, carpeta: "desktop", archivo: "step_00.png", despues: `${TEMA}/vistas/escritorio-despues.png` },
+    mobile: { tanda: VIEJA, carpeta: "mobile", archivo: "step_00.png" },
+  });
+  assert.equal(tarjetas.roja.capturas.desktop?.despues, undefined, "sin mejora.json, la del Visitante");
+});
+
+const puntero = (url, revision) => ({ PK: `URL#${url}`, SK: "URL", revision });
+
+test("vigentes: dos revisiones de la misma página son una tarjeta, la que apunta URL#<url>, con cuántas reemplazó", async () => {
+  const { panel } = armar({ items: [...ITEMS, puntero("https://uno.test", "corre"), puntero("https://uno.test/otra", "espera")] });
+  const { tarjetas, pestanas, cuentas } = await panel.overview();
+  assert.deepEqual(pestanas.recent.ids, ["espera", "corre"]);
+  assert.deepEqual([cuentas.total, cuentas.delivered, pestanas.delivered.ids], [2, 0, []], "las entregadas reemplazadas no cuentan");
+  assert.deepEqual([tarjetas.corre.estado, tarjetas.corre.anteriores, tarjetas.espera.anteriores], ["running", 3, 0]);
+});
+
+test("vigentes: una fallida reemplazada queda fuera de las pestañas; una fallida vigente sale en failed", async () => {
+  const items = [
+    meta("vieja", "failed", { created_at: "2026-11-22T01:00:00.000Z" }),
+    meta("nueva", "done", { created_at: "2026-11-22T02:00:00.000Z" }),
+    puntero("https://uno.test", "nueva"),
+    meta("rota", "failed", { url: "https://www.uno.test/rota", created_at: "2026-11-22T01:30:00.000Z" }),
+    meta("rota-antes", "done", { url: "https://www.uno.test/rota", created_at: "2026-11-22T00:30:00.000Z" }),
+    puntero("https://uno.test/rota", "rota"),
+  ];
+  const { panel } = armar({ items });
+  const { pestanas, cuentas } = await panel.overview();
+  assert.deepEqual(pestanas.recent.ids, ["nueva", "rota"]);
+  assert.deepEqual(pestanas.failed, { ids: ["rota"], total: 1 });
+  assert.deepEqual(pestanas.delivered, { ids: ["nueva"], total: 1 });
+  assert.deepEqual([cuentas.total, cuentas.failed], [2, 1]);
+  assert.equal((await panel.tarjeta("vieja")).estado, "failed", "una reemplazada sigue teniendo tarjeta a pedido");
 });
 
 test("seguridad: una run_key de otro rol, de otro goal o fuera del almacén no se lee, y un css_key que no es tema tampoco", async () => {
@@ -135,6 +173,8 @@ test("seguridad: una run_key de otro rol, de otro goal o fuera del almacén no s
   assert.equal(mala.acento, null);
   assert.ok(!fuente.lecturas.some((ruta) => ruta.includes("..")), "nada con ..");
   assert.ok(!fuente.lecturas.includes(`${CATALOGO}/tema.css`), "el improver de la revisión apuntaba al catalogador");
+  assert.ok(!fuente.lecturas.includes(`${CATALOGO}/mejora.json`), "ni su mejora.json");
+  assert.equal(mala.capturas.desktop.despues, undefined);
   assert.ok(!fuente.lecturas.some((ruta) => ruta.startsWith("uno.test/guide/")), "goals.json solo de un catalogador");
   // Sin tandas propias válidas: la más nueva del mismo host y ruta que tenga ese dispositivo.
   assert.deepEqual([mala.capturas.desktop.tanda, mala.capturas.mobile.tanda], [LISTA, VIEJA]);

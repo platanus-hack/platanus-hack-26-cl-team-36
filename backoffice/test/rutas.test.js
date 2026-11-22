@@ -95,8 +95,8 @@ test("Revisiones: #/revisiones y #/revisiones/<revision>; una revisión inválid
   }
 });
 
-test("Revisiones: ?estado=live|done|failed filtra la lista; enlaceARevisiones arma el enlace", () => {
-  assert.deepEqual(ESTADOS_DE_REVISIONES, ["live", "done", "failed"]);
+test("Revisiones: ?estado=live|done|failed|historial filtra la lista; enlaceARevisiones arma el enlace", () => {
+  assert.deepEqual(ESTADOS_DE_REVISIONES, ["live", "done", "failed", "historial"]);
   for (const estado of ESTADOS_DE_REVISIONES) {
     const hash = `#/revisiones?estado=${estado}`;
     assert.deepEqual(parsearHash(hash), { tipo: "revisiones", revision: null, parametros: { estado } });

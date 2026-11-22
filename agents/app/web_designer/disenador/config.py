@@ -11,6 +11,8 @@ RUNS_DIR = AGENTS_DIR / ".runs" / "diseno"
 # En la imagen Docker (contexto `agents/`) el skill no está en `.claude/`: se copia y se indica con esta variable.
 SKILL_VAR = "WEB_DESIGNER_SKILL"
 SKILL_POR_DEFECTO = Path(os.environ.get(SKILL_VAR) or REPO_DIR / ".claude" / "skills" / "disenar-tema" / "SKILL.md")
+# La extensión cuyos componentes monta el kit en las capturas de la mejora (en la imagen del runtime, la misma ruta).
+EXTENSION_SRC = REPO_DIR / "extension" / "src"
 RUBRICA_JUEZ = Path(__file__).with_name("rubrica_juez.md")
 RUBRICA_PAR = Path(__file__).with_name("rubrica_par.md")
 
@@ -33,6 +35,7 @@ TIMEZONE = "America/Santiago"
 CARGA_TIMEOUT_MS = 30_000
 ESPERA_RED_MS = 5_000       # espera a networkidle, sin fallar si el sitio nunca se calma
 ESPERA_TEMA_S = 0.6         # tras aplicar o quitar el tema, antes de medir y capturar
+CAPTURAS_TIMEOUT_S = 120    # las capturas antes/después de la mejora; si tardan más, la mejora sigue sin ellas
 
 # Mapa de la página que recibe el modelo.
 MAPA_MAX_CARACTERES = 14_000

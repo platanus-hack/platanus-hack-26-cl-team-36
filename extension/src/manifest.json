@@ -16,6 +16,7 @@
 
   "background": {
     "scripts": ["background/index.js"],
+    "service_worker": "background/index.js",
     "type": "module"
   },
 
@@ -57,6 +58,8 @@
       "matches": ["http://*/*", "https://*/*"]
     }
   ],
+
+  "minimum_chrome_version": "148",
 
   "browser_specific_settings": {
     "gecko": {

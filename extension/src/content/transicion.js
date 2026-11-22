@@ -8,7 +8,7 @@
 // Corre en cualquier sitio, tenga tema o no: sin cambios, las piezas giran igual.
 //
 // Cómo funciona (JS marca y mide; todo lo visual está en transicion.css):
-//   - Con View Transitions (Firefox ≥ 144): se eligen hasta MAX_PIEZAS bloques visibles
+//   - Con View Transitions (Firefox ≥ 144, Chrome ≥ 111): se eligen hasta MAX_PIEZAS bloques visibles
 //     (y hasta MAX_PIEZAS_NUEVAS que aparecen con el cambio; en total MAX_NOMBRES) y se
 //     marcan con `data-mt-pieza="<i>"`; el CSS le da a cada uno el nombre `mt-p<i>`.
 //     Sus parámetros van como propiedades personalizadas en <html> (`--mt-f-<i>`: qué tan

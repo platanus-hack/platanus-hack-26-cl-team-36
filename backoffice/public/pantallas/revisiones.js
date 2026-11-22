@@ -1,4 +1,5 @@
-// Revisiones del flujo en AWS: la lista (#/revisiones, filtrable con ?estado=live|done|failed) y el avance de una
+// Revisiones del flujo en AWS: la lista de las vigentes, una por página (#/revisiones, filtrable con
+// ?estado=live|done|failed; ?estado=historial muestra las reemplazadas) y el avance de una
 // por etapa y por goal (#/revisiones/<revision>), con enlaces a lo que dejó cada corrida terminada. "En vivo" es
 // volver a pedir cada INTERVALO mientras la vista está montada; solo se redibuja si la respuesta (o el filtro) cambió.
 
@@ -88,16 +89,17 @@ function vistaDeLista(ctx, datos, filtro) {
       vacio({ titulo: t("revisiones.noDisponible.titulo"), texto: t("revisiones.noDisponible.texto"), codigo: COMANDO_AWS }),
     ];
   }
-  const todas = datos.revisiones;
+  const historial = filtro === "historial";
+  const todas = historial ? (datos.historial ?? []) : datos.revisiones;
   const estados = ESTADOS_DEL_FILTRO[filtro] ?? null;
   const revisiones = estados ? todas.filter((revision) => estados.includes(revision.estado)) : todas;
   const cuenta = estados ? t("revisiones.cuentaFiltrada", { n: revisiones.length, total: todas.length }) : t("revisiones.cuenta", { n: todas.length });
   return [
-    cabecera(ctx, t("comun.shell.revisiones"), fichaDelFiltro(ctx, estados ? filtro : null), el("span", { class: "revisiones-cuenta", texto: cuenta })),
+    cabecera(ctx, t("comun.shell.revisiones"), fichaDelFiltro(ctx, estados || historial ? filtro : null), el("span", { class: "revisiones-cuenta", texto: cuenta })),
     el("p", { class: "texto-3 t-pequeno", texto: t("revisiones.enVivo") }),
     revisiones.length
       ? el("ul", { class: "revisiones-lista tarjeta" }, revisiones.map((revision) => fila(ctx, revision)))
-      : vacio({ titulo: t(estados ? "revisiones.filtro.vacio" : "revisiones.vacio") }),
+      : vacio({ titulo: t(estados || historial ? "revisiones.filtro.vacio" : "revisiones.vacio") }),
   ];
 }
 

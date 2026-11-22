@@ -91,12 +91,15 @@ enlaces de cada pantalla.
 
 **Overview** (`#/`, el inicio) tiene dos bloques. Arriba, los agentes: un solo total dividido por rol en el orden del
 flujo (Cataloger → Guide → Visitors → Designer), con un cuadrito por corrida y el % de éxito de cada rol. Abajo, las
-revisiones en tarjetas con la página revisada (captura de escritorio y teléfono), sus cuatro etapas (Catalog, Routes,
+revisiones en tarjetas con la página revisada (captura de escritorio y teléfono; si el Diseñador terminó y dejó
+capturas, la del después de su tema, y si no, la de inicio de un visitante), sus cuatro etapas (Catalog, Routes,
 Visits, Theme), un medidor por goal y un cuadrito por agente; pestañas Recent (todas, también las en cola), Live (en
 curso, detenidas y en cola), Delivered y Failed. Cada pestaña muestra 6 tarjetas y "Show 10 more" suma las siguientes
 abajo, paginadas en el servidor (`/api/overview?pestana=…&limite=…`). Una tarjeta lleva directo a Path map / Replay: la
 telaraña de su primer goal con tanda terminada (cada goal, a la suya); si la revisión todavía no tiene una, la de la
 tanda de su captura (la más nueva del mismo host y ruta); solo si no hay ninguna, al avance de la revisión.
+Hay una tarjeta por página: la revisión vigente (la que apunta el ítem `URL#<url>` de la tabla), aunque esté en curso;
+las que reemplazó un `force` no cuentan y la tarjeta enlaza a ellas ("2 previous reviews").
 El filtro de dispositivo (All · Desktop · Mobile) cambia los visitantes, las capturas, los medidores y los cuadritos
 de cada tarjeta. El dispositivo y la pestaña quedan en la URL (`#/?dispositivo=mobile&pestana=failed`); la página
 vuelve a pedir cada 5 s mientras la pestaña del navegador está visible.
@@ -106,8 +109,9 @@ por día. Cada fila abre la tanda y dice solo qué tanda es y cómo le fue: tare
 medidor), los errores de la herramienta si los hay y cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla
 quedan en la URL.
 
-**Revisiones** (`#/revisiones`, con `?estado=live|done|failed` para filtrar) lista las revisiones de la tabla y abre
-el avance de cada una por etapa y por goal.
+**Revisiones** (`#/revisiones`, con `?estado=live|done|failed` para filtrar) lista las revisiones vigentes y abre
+el avance de cada una por etapa y por goal; `?estado=historial` lista las reemplazadas. `npm run historial` (con
+`AWS_PROFILE`) imprime esas mismas en la terminal, las que se podrían archivar: solo lee, no archiva ni borra.
 
 Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene una cabecera mínima, común a sus pestañas:
 la tarea (con tanda anterior/siguiente y copiar enlace) y, debajo, sitio, fecha y cuántos llegan. Debajo, tres
@@ -209,8 +213,13 @@ del DOM, sin agregar una dependencia más pesada que todo el front.
 ## Idiomas (es / en)
 
 Inglés por defecto y español. No hay selector en la barra: el idioma se cambia con la acción de la paleta ⌘K o con
-`idioma=` en el hash de la URL (`#/?idioma=es`), y se guarda en `localStorage`. Los datos de la corrida (títulos de
-páginas, instrucciones de los goals, expectativas del agente, justificaciones, criterios) nunca se traducen.
+`idioma=` en el hash de la URL (`#/?idioma=es`), y se guarda en `localStorage` (`backoffice:idioma:v2`; lo que guardó
+el selector ES | EN de antes ya no se lee). Los datos de la corrida (títulos de páginas, instrucciones de los goals,
+expectativas del agente, justificaciones, criterios) nunca se traducen.
+
+La página pide que el navegador no la traduzca (`translate="no"` y `<meta name="google" content="notranslate">`):
+el traductor de Chrome (que se ofrece solo a quien tiene el navegador en español) traduce lo que hay al cargar y no
+lo que la vista vuelve a dibujar (el Overview se refresca cada 5 s), y deja la interfaz en spanglish.
 
 - Cada texto de la interfaz pasa por `t("<sección>.<clave>", vars)`. Hay un diccionario por sección y por idioma:
   `public/i18n/{es,en}/<sección>.js` (`comun`, `datos` y uno por pantalla). Un valor es un texto con `{variables}` o

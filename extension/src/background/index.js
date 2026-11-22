@@ -1,5 +1,7 @@
-// Background de la extensión (módulo ES).
-// En Firefox MV3 corre como "event page" (background.scripts), NO como service worker.
+// Background de la extensión (módulo ES). El mismo archivo corre en los dos navegadores:
+// en Firefox como "event page" (background.scripts) y en Chrome como service worker
+// (background.service_worker). Ninguno queda vivo: los dos lo descargan tras un rato sin uso,
+// así que nada de DOM (no hay en un service worker) ni estado en memoria que no se pueda perder.
 //
 // Responsabilidades:
 //   1. Ícono y badge sincronizados con `activo` en storage (el interruptor está en el popup).
@@ -9,7 +11,8 @@
 
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
 import { consultarRevision } from "./api.js";
-import { inyectarCssDeTema } from "./fuentes.js";
+import { recargadaEnDesarrollo } from "./config.js";
+import { HOJA_FUENTES, hojaConUrlsAbsolutas, inyectarCssDeTema } from "./fuentes.js";
 import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
 import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
 
@@ -26,9 +29,10 @@ async function leerActivo() {
 
 async function pintarBadge(activo) {
   const estado = activo ? "on" : "off";
+  // Rutas absolutas: Chrome resuelve las relativas contra el service worker (background/icons/… no existe).
   await browser.action.setIcon({ path: {
-    16: `icons/extension-${estado}-16.png`,
-    32: `icons/extension-${estado}-32.png`,
+    16: `/icons/extension-${estado}-16.png`,
+    32: `/icons/extension-${estado}-32.png`,
   } });
   await browser.action.setBadgeText({ text: activo ? "ON" : "" });
   // Colores de marca: turquesa del espectro con texto tinta (ver docs/marca/).
@@ -43,16 +47,17 @@ browser.storage.onChanged.addListener((cambios, area) => {
 
 browser.runtime.onStartup.addListener(async () => pintarBadge(await leerActivo()));
 
-// onInstalled se dispara al instalar y cada vez que `npm run dev` recarga la extensión.
-// `temporary` solo es true si la extensión se cargó con web-ext o about:debugging.
-browser.runtime.onInstalled.addListener(async ({ temporary }) => {
+// onInstalled se dispara al instalar, al actualizar el navegador y cada vez que se recarga la extensión
+// (`npm run dev`/`dev:chrome` al guardar, o el botón de recargar de chrome://extensions).
+browser.runtime.onInstalled.addListener(async (detalles) => {
   await pintarBadge(await leerActivo());
-  if (temporary) await refrescarPestanasConTema();
+  if (await recargadaEnDesarrollo(detalles)) await refrescarPestanasConTema();
 });
 
 // En desarrollo, al recargar la extensión las pestañas abiertas siguen con el
-// CSS/JS anterior. Refrescamos las que tenían un tema aplicado (content/motor.js
-// les deja el atributo data-mt-tema en <html>) para ver el cambio sin tocar nada.
+// CSS/JS anterior (en Chrome, con un content script que ya no habla con la extensión).
+// Refrescamos las que tenían un tema aplicado (content/motor.js les deja el atributo
+// data-mt-tema en <html>) para ver el cambio sin tocar nada.
 async function refrescarPestanasConTema() {
   const pestanas = await browser.tabs.query({ url: ["http://*/*", "https://*/*"] });
   const conTema = await Promise.all(
@@ -64,7 +69,7 @@ async function refrescarPestanasConTema() {
         });
         return result ? pestana : null;
       } catch {
-        return null; // páginas donde Firefox no deja inyectar (ej. addons.mozilla.org)
+        return null; // páginas donde el navegador no deja inyectar (addons.mozilla.org, chromewebstore.google.com)
       }
     }),
   );
@@ -112,10 +117,17 @@ async function inyectarTema(tema, sender, pagina) {
   console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${pagina}`);
 
   const target = { tabId: sender.tab.id, frameIds: [sender.frameId] };
-  await inyectarCssDeTema(tema.css, target, (detalles) => browser.scripting.insertCSS(detalles));
+  await inyectarCssDeTema(tema.css, target, (detalles) => browser.scripting.insertCSS(detalles), leerHojaFuentes);
 
   const { css, ...resto } = tema;
   return { ...resto, pagina };
+}
+
+// fuentes/fuentes.css como texto, con las url() absolutas para que valgan en los dos navegadores (ver fuentes.js).
+async function leerHojaFuentes() {
+  const respuesta = await fetch(browser.runtime.getURL(HOJA_FUENTES));
+  if (!respuesta.ok) throw new Error(`${HOJA_FUENTES}: ${respuesta.status}`);
+  return hojaConUrlsAbsolutas(await respuesta.text(), (archivo) => browser.runtime.getURL(archivo));
 }
 
 // ---------- 3. Votos ----------
@@ -127,7 +139,7 @@ const almacenVotos = crearAlmacenVotos(crearAdaptadorIndexedDB());
 // Tema que aplicarTema resolvió para la página de cada pestaña (frame principal), con su
 // origen y su CSS (para incrustarlo en el HTML "editado"). El voto toma el tema de acá y
 // no del DOM, que la página controla: un sitio cualquiera podría poner
-// `data-mt-tema="rev-…"` en su <html>. Firefox descarga el background tras un rato sin
+// `data-mt-tema="rev-…"` en su <html>. El navegador descarga el background tras un rato sin
 // uso y esto se pierde: por eso, si no está o es de otro origen o página, se vuelve a consultar.
 const temaPorPestana = new Map(); // tabId → { origen, pagina?, temaId | null, css }
 browser.tabs.onRemoved.addListener((tabId) => temaPorPestana.delete(tabId));
@@ -151,8 +163,8 @@ async function temaDePestana(tabId, url) {
 let cssFeatures = null;
 function leerCssFeatures() {
   cssFeatures ??= (async () => {
-    // Firefox devuelve URLs completas (moz-extension://<uuid>/…): se pasan a rutas relativas,
-    // que el uuid es propio de cada instalación y no debe quedar en el HTML guardado.
+    // Firefox devuelve URLs completas (moz-extension://<uuid>/…) y Chrome rutas: todo pasa a rutas
+    // relativas, que el uuid es propio de cada instalación y no debe quedar en el HTML guardado.
     const raiz = browser.runtime.getURL("/");
     const archivos = browser.runtime
       .getManifest()
@@ -196,7 +208,7 @@ async function capturarPestana(tabId, origen) {
 // `voto:guardar` { tabId?, voto, comentario } → { ok: true, id, pendientes } | { ok: false, codigo, error }
 // `tabId` hace falta si el mensaje no viene de un content script (p. ej. un popup).
 // `codigo` se traduce con la clave `error.<codigo>` del diccionario (comun/idioma.js).
-//   - Ventana privada: no se guarda nada (Firefox espera que lo de esas ventanas no quede en disco).
+//   - Ventana privada: no se guarda nada (el navegador espera que lo de esas ventanas no quede en disco).
 //   - Página sin tema: solo se puede comentar, y se guarda el comentario sin capturar la página.
 //   - Página con tema: se captura el HTML sin y con el tema (content/captura.js).
 async function guardarVoto(mensaje, sender) {

@@ -1,5 +1,6 @@
 // Una tarjeta de revisión del Overview (spec §3.5): barra de navegador, captura (según el dispositivo), nombre con
-// la marca y los cuadritos de agentes, las 4 etapas, los medidores por goal (o el motivo) y el pie.
+// la marca y los cuadritos de agentes, las 4 etapas, los medidores por goal (o el motivo) y el pie (con cuántas
+// revisiones anteriores de la página reemplazó, que llevan al historial).
 //
 // Enlaces (contrato §6.5, §7.1): la tarjeta entera lleva a la telaraña del primer goal con tanda; si no hay, a la de
 // la tanda de su captura; solo si tampoco hay, al avance de la revisión. Cada fila de goal con tanda lleva a la suya.
@@ -14,7 +15,7 @@
 
 import { el } from "../nucleo/dom.js";
 import { icono24 } from "../nucleo/iconos.js";
-import { enlaceATanda } from "../nucleo/rutas.js";
+import { enlaceARevisiones, enlaceATanda } from "../nucleo/rutas.js";
 import { inicial } from "./marca.js";
 import { cifra, etiquetaDeTarjeta, textoDeAviso, textoDeTiempo } from "./textos.js";
 
@@ -160,6 +161,9 @@ function pie(modelo, { t, fmt }) {
     relativo
       ? el("time", { class: "ov-tiempo", datetime: modelo.tiempo.fecha, title: fmt.fechaLegible(modelo.tiempo.fecha), texto: tiempo })
       : el("span", { class: "ov-tiempo", texto: tiempo }),
+    modelo.anteriores
+      ? el("a", { class: "ov-anteriores", href: enlaceARevisiones("historial"), "data-foco": `overview:anteriores:${modelo.key}`, texto: t("overview.tarjeta.anteriores", { n: modelo.anteriores }) })
+      : null,
     modelo.acento
       ? el("span", { class: "ov-tema" }, t("overview.tarjeta.tema"), el("span", { class: "ov-tema-muestra", "aria-hidden": "true", estilo: { "--acento-tema": modelo.acento } }))
       : null,
@@ -179,7 +183,7 @@ function partes(modelo, registro, deps) {
     ["nombre", [modelo.sitio, modelo.host, modelo.cuadritos], () => nombre(modelo, { t, fmt })],
     ["etapas", modelo.etapas, () => etapas(modelo, t)],
     ["goals", [modelo.medidores, modelo.aviso && textoDeAviso(modelo.aviso, t), modelo.aviso?.detalle ?? null], () => goals(modelo, t)],
-    ["pie", [textoDeTiempo(modelo.tiempo, { t, fmt }), modelo.tiempo?.tipo === "relativo" ? modelo.tiempo.fecha : null, modelo.acento], () => pie(modelo, { t, fmt })],
+    ["pie", [textoDeTiempo(modelo.tiempo, { t, fmt }), modelo.tiempo?.tipo === "relativo" ? modelo.tiempo.fecha : null, modelo.anteriores, modelo.acento], () => pie(modelo, { t, fmt })],
   ];
 }
 

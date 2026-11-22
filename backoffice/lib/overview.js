@@ -6,7 +6,8 @@
 //   lib/tarjeta.js) y no entra en las cifras visibles: la página la usa solo para dibujar contornos.
 // GET /api/overview[?pestana=<p>&limite=<n>] → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, tarjetas }:
 //   listasDelOverview() arma cuentas y pestañas (paginadas en el servidor: parametrosDelOverview); las tarjetas salen
-//   de lib/tarjeta.js.
+//   de lib/tarjeta.js. Solo entran las revisiones vigentes, una por página (lib/panel.js): si la vigente corre, la tarjeta
+//   dice que corre aunque una anterior se haya entregado; las reemplazadas no cuentan en ninguna cifra ni pestaña.
 
 import { estadoDeCorrida } from "./clasificar.js";
 

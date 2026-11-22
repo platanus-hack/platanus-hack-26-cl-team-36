@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from shared.store import InvalidKey, LocalBackend, cataloger, finish_run, start_run, visitor
+from shared.store import InvalidKey, LocalBackend, cataloger, finish_run, improver, start_run, visitor
 
 MOMENT = datetime(2026, 11, 21, 10, 44, 22, tzinfo=UTC)
 
@@ -32,6 +32,16 @@ def test_profiles_only_exist_in_visitor_runs(tmp_path: Path) -> None:
     run = start_run(backend, cataloger("wom.cl"), model=None, clock=lambda: MOMENT)
     with pytest.raises(InvalidKey):
         backend.list_profiles(run.key)
+
+
+def test_improver_keeps_its_vistas_folder(tmp_path: Path) -> None:
+    backend = LocalBackend(tmp_path)
+    run = start_run(backend, improver("wom.cl"), model=None, clock=lambda: MOMENT)
+    (run.workdir / "vistas").mkdir()
+    (run.workdir / "vistas" / "movil-despues.png").write_bytes(b"png")
+    finish_run(backend, run, "succeeded", clock=lambda: MOMENT)
+
+    assert backend.read_bytes(run.key.file("movil-despues.png", "vistas")) == b"png"
 
 
 def test_same_second_never_overwrites(tmp_path: Path) -> None:

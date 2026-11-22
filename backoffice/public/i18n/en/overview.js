@@ -76,6 +76,7 @@ export default {
     capturaMovil: "Mobile screenshot of {sitio}",
     masGoals: ({ n }, { plural }) => `+${n} ${plural(n, { one: "goal", other: "goals" })}`,
     tema: "theme",
+    anteriores: ({ n }, { plural }) => `${n} ${plural(n, { one: "previous review", other: "previous reviews" })}`,
   },
   aviso: {
     sin_avance: "No progress for {duracion}",

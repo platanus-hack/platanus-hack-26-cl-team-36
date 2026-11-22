@@ -4,6 +4,7 @@
 !agents/app
 !agents/tasks
 !.claude/skills
+!extension/src
 **/.venv
 **/.env*
 **/__pycache__

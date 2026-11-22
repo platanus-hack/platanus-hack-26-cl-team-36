@@ -52,8 +52,11 @@ async def esperar(page: Page, segundos: float = 0.4) -> None:
     await asyncio.sleep(segundos)
 
 
-async def abrir(browser: Browser, url: str, viewport: str) -> tuple[BrowserContext, Page]:
+async def abrir(browser: Browser, url: str, viewport: str, script: str | None = None) -> tuple[BrowserContext, Page]:
+    """La página cargada; con `script`, corre en cada documento desde que se crea (el kit de `script_de_kit`)."""
     contexto = await nuevo_contexto(browser, viewport)
+    if script:
+        await contexto.add_init_script(script)
     pagina = await contexto.new_page()
     try:
         await pagina.goto(url, wait_until="domcontentloaded", timeout=config.CARGA_TIMEOUT_MS)

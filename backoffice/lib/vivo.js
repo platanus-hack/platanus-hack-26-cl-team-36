@@ -11,6 +11,7 @@ const SALTO = "volver_a_nodo";
 const SENALES_DE_ERROR = new Set(["no_effect", "visible_error", "went_back"]);
 const CLICS = { left_click: "clic", double_click: "doble clic", triple_click: "triple clic" };
 const FINALES = ["success", "failed", "abandoned", "unmeasured"];
+// Si la Guía las publica, sus pasos llevan hora como los del Visitante (lib/eventos.js las usa como ts).
 
 const texto = (valor) => (typeof valor === "string" ? valor : "");
 const numero = (valor) => (Number.isFinite(valor) ? valor : 0);
