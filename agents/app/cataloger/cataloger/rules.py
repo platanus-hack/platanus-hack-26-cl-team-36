@@ -2,7 +2,7 @@
 
 import re
 
-from shared.catalog.goal import FREE_GOAL_PREFIX, INTENTS, LEVELS, Goal, fill_evaluation, is_free_goal_id, slugify
+from shared.catalog.goal import DEMANDS, FREE_GOAL_PREFIX, INTENTS, LEVELS, Goal, fill_evaluation, is_free_goal_id, slugify
 from shared.catalog.outline import Field, PageOutline, SiteOutline
 from shared.catalog.prominence import prominence
 from shared.catalog.tasks import task_ids
@@ -22,6 +22,8 @@ _PERSONAL_LABEL = re.compile(
     re.IGNORECASE,
 )
 _SEARCH_LABEL = re.compile(r"buscar|b[uú]squeda|search", re.IGNORECASE)
+TOP_MAX = 6
+_STEPS_MAX = 50
 
 
 def _asks_personal_data(item: Field) -> bool:
@@ -90,10 +92,25 @@ def validate(raw_goals: list[dict], outline: SiteOutline, reserved: set[str] | N
             description=raw["description"].strip(), expected_answer=None, level=raw["level"], parent=parent,
             intent=raw["intent"], evidence=list(dict.fromkeys(evidence)), entry=entry,
             submits_form=bool(raw.get("submits_form")),
+            demand=raw.get("demand") if raw.get("demand") in DEMANDS else None,
+            estimated_steps=_steps(raw.get("estimated_steps")),
         ))
+    issues += _limit_top(goals)
     issues += _rename_reserved(goals, reserved)
     issues += _repair_parents(goals)
     return goals, issues
+
+
+def _steps(value) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= _STEPS_MAX else None
+
+
+def _limit_top(goals: list[Goal]) -> list[str]:
+    """Más de `TOP_MAX` tareas principales no son principales: desde la séptima quedan `common`."""
+    extra = [goal for goal in goals if goal.demand == "top"][TOP_MAX:]
+    for goal in extra:
+        goal.demand = "common"
+    return [f"{goal.id}: ya hay {TOP_MAX} tareas principales; queda common" for goal in extra]
 
 
 def _rename_reserved(goals: list[Goal], reserved: set[str]) -> list[str]:

@@ -2,7 +2,7 @@
 
 import re
 
-from shared.catalog.goal import INTENTS, LEVELS
+from shared.catalog.goal import DEMANDS, INTENTS, LEVELS
 from shared.catalog.outline import SiteOutline
 from shared.claude.caller import Caller
 
@@ -24,8 +24,11 @@ CATALOG_SCHEMA = {
                     "submits_form": {"type": "boolean"},
                     "evidence": {"type": "array", "items": {"type": "string"}},
                     "entry": {"type": ["string", "null"]},
+                    "demand": {"type": "string", "enum": list(DEMANDS)},
+                    "estimated_steps": {"type": "integer"},
                 },
-                "required": ["id", "description", "level", "parent", "intent", "submits_form", "evidence", "entry"],
+                "required": ["id", "description", "level", "parent", "intent", "submits_form", "evidence", "entry",
+                             "demand", "estimated_steps"],
                 "additionalProperties": False,
             },
         },
@@ -56,6 +59,20 @@ CADA OBJETIVO
 - "submits_form": true si el objetivo no se cumple sin llenar y enviar un formulario, consultas incluidas.
 - "evidence": las URLs del esquema, copiadas tal cual de las líneas PÁGINA, donde el objetivo aparece; nunca el destino de un enlace (→).
 - "entry": el href, copiado tal cual de un enlace de la PÁGINA 1: el primer enlace que una persona usaría desde la página inicial, preferentemente el más visible; null si ninguno.
+- "demand": cuánta gente que llega a esta página viene a hacer esto (top tasks), no cuán visible es el enlace:
+  · "top" solo para las 3 a 6 tareas principales, las que la mayoría viene a hacer y por las que existe la página.
+    En metro.cl: planificar un viaje, ver el estado de la red, horarios y tarifas; en un banco: pagar una cuenta,
+    ver la cartola; en una municipalidad: pagar el permiso de circulación.
+  · "common" lo que una parte de las personas busca y la página ofrece a la vista, sin ser principal: contacto,
+    reclamos, preguntas frecuentes, información de una sucursal.
+  · "rare" lo de nicho o institucional que pocas personas vienen a hacer: transparencia, inversionistas, trabaja
+    con nosotros, prensa, licitaciones, correo interno de empleados.
+  Si dudas entre dos, elige la menos demandada; nunca más de 6 "top".
+- "estimated_steps": cuántos clics, campos escritos u opciones elegidas necesita desde la página inicial una
+  persona que conoce el camino, sin contar desplazamientos. Corto 1–2: un enlace directo ("Transparencia activa"
+  en el pie). Medio 3–4: abrir un menú y elegir una subpágina, o buscar y abrir un resultado. Largo 5 o más:
+  llenar un formulario, elegir varias opciones o recorrer varias páginas (planificar un viaje con origen,
+  destino y hora).
 
 CRITERIOS
 - Cubre todo lo que el sitio ofrece, incluidas las tareas que el sitio no destaca: dar de baja, reclamar, cancelar, devolver.
@@ -108,4 +125,5 @@ def scripted_catalog(system_prompt: str, schema: dict, parts: list) -> dict:
     return {"goals": [{
         "id": "pagina-inicial", "description": "Llega a la página inicial del sitio.", "level": "user_goal",
         "parent": None, "intent": "reach_page", "submits_form": False, "evidence": [start_url], "entry": None,
+        "demand": "top", "estimated_steps": 1,
     }]}
