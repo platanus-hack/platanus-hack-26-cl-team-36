@@ -9,10 +9,12 @@
 //   GET /api/revisiones/<revision>        → el avance de una revisión por etapa y por goal
 //   GET /resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
 //   GET /<ruta>.{html,js,css,svg,woff2}   → archivos de public/
+//   GET /salud                            → { ok: true }, con cualquier Host (el health check del balanceador)
 //
 // Solo responde a pedidos dirigidos a este computador (Host localhost, 127.0.0.1 o [::1] con el puerto del
 // servidor): así una página ajena no puede leer las corridas apuntando su dominio a 127.0.0.1 (DNS rebinding).
-// BACKOFFICE_HOSTS="otro.host:8080,…" agrega hosts permitidos (para cuando se sirva detrás de algo con acceso).
+// BACKOFFICE_HOSTS="otro.host:8080,…" agrega hosts permitidos (en AWS, el dominio: infra/app/backoffice.tf).
+// Escucha en 127.0.0.1; BACKOFFICE_ESCUCHA="0.0.0.0" lo abre a la red (en el contenedor).
 
 import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
@@ -133,6 +135,10 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
   const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   return createServer(async (req, res) => {
     try {
+      // El balanceador revisa la tarea con su IP privada como Host: esta ruta no pasa por el chequeo y no lee nada.
+      if (req.url === "/salud" && (req.method === "GET" || req.method === "HEAD")) {
+        return responderJson(res, 200, { ok: true });
+      }
       if (!hostPermitido(req.headers.host, req.socket.localPort, extra)) {
         return responderJson(res, 403, { error: "Host no permitido" });
       }
@@ -195,6 +201,7 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const puerto = Number(process.env.PORT) || 4848;
+  const escucha = process.env.BACKOFFICE_ESCUCHA || "127.0.0.1";
   const tipo = process.env.BACKOFFICE_FUENTE ?? "archivos";
   const aws = tipo === "s3" ? await (await import("./lib/aws.js")).conectarAws() : null;
   const fuente = crearFuente({
@@ -204,7 +211,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     s3: aws?.s3,
   });
   const revisiones = aws ? crearRevisiones({ tabla: process.env.BACKOFFICE_TABLA || "chameleon-revisiones", ...aws.dynamo }) : null;
-  // Solo en este computador: las corridas pueden mostrar datos de quien corrió la prueba.
+  // Por defecto, solo en este computador: las corridas pueden mostrar datos de quien corrió la prueba.
   const servidor = crearServidor({ fuente, revisiones });
   servidor.on("error", (error) => {
     if (error.code !== "EADDRINUSE") throw error;
@@ -214,8 +221,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     );
     process.exit(1);
   });
-  servidor.listen(puerto, "127.0.0.1", () => {
+  servidor.listen(puerto, escucha, () => {
     const conRevisiones = revisiones ? ` · revisiones de ${revisiones.descripcion} (${aws.region})` : "";
-    console.log(`Backoffice en http://localhost:${puerto} · corridas de ${fuente.descripcion}${conRevisiones}`);
+    const abierto = escucha === "127.0.0.1" ? "" : ` · escucha en ${escucha}:${puerto}`;
+    console.log(`Backoffice en http://localhost:${puerto}${abierto} · corridas de ${fuente.descripcion}${conRevisiones}`);
   });
 }

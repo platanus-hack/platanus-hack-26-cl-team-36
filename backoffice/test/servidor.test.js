@@ -133,6 +133,17 @@ test("solo responde a Host de este computador con su puerto (DNS rebinding)", as
   assert.equal(await pedirConHost(`/archivos/${TANDA}/first_time/step_00.png`, `atacante.example:${port}`), 403);
 });
 
+test("GET /salud responde con cualquier Host (health check del balanceador); el resto sigue cerrado", async () => {
+  const { port } = servidor.address();
+  for (const host of ["10.0.1.23:4848", "atacante.example", `localhost:${port}`]) {
+    assert.equal(await pedirConHost("/salud", host), 200, host);
+  }
+  assert.equal(await pedirConHost("/salud/", "10.0.1.23:4848"), 403);
+  assert.equal(await pedirConHost("/salud?x=/api/tandas", "10.0.1.23:4848"), 403);
+  assert.equal(await pedirConHost("/api/tandas", "10.0.1.23:4848"), 403);
+  assert.deepEqual(await (await pedir("/salud")).json(), { ok: true });
+});
+
 test("hostPermitido: puerto por defecto y hosts extra", () => {
   assert.equal(hostPermitido("localhost", 80), true);
   assert.equal(hostPermitido("localhost", 4848), false);
