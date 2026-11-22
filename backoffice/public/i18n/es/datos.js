@@ -25,6 +25,7 @@ export default {
     refusal: "El modelo se negó a seguir",
     juez: "El juez no pudo dar veredicto",
     sin_inicio: "No se pudo abrir la página",
+    archivo_danado: "El archivo del intento está dañado",
   },
 
   motivo: {
@@ -48,6 +49,7 @@ export default {
     desplazar: ({ flecha, cantidad }) => ["desplazar", flecha, cantidad ? `×${cantidad}` : ""].filter(Boolean).join(" "),
     escribir: "escribir «{objetivo}»",
     atras: "volver atrás",
+    volver: ({ objetivo }) => (objetivo ? `volver a «${objetivo}»` : "volver a una página ya vista"),
     tecla: "tecla {objetivo}",
     otra: ({ original }) => String(original ?? "") || "otra acción",
   },

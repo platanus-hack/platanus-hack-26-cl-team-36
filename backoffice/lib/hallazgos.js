@@ -116,13 +116,38 @@ const hallazgo = (id, nivel, tipo, vars, { intento = null, paso = null, pagina =
 /** La señal que convierte un paso en tropiezo (la primera de las que cuentan). */
 const senalDeTropiezo = (paso) => SENALES_DE_TROPIEZO.find((senal) => paso.senales.includes(senal)) ?? null;
 
+// Al recortar la lista nunca se pierden el resultado ni los tropiezos (el titular y la cifra de tropiezos dependen de
+// ellos); se cortan primero los desvíos (uno por intento: los que sobran ya se ven en la telaraña).
+const QUE_NO_SE_CORTAN = new Set(["resultado", "tropiezos"]);
+const tipoDe = (h) => h.id.split(":")[0];
+
+/** La lista recortada a `maximo`: primero se van los últimos desvíos; después, los últimos que no sean protegidos. */
+export function recortarHallazgos(lista, maximo = MAXIMO_DE_HALLAZGOS) {
+  const quedan = [...lista];
+  const quitarUltimo = (puede) => {
+    for (let i = quedan.length - 1; i >= 0; i -= 1) {
+      if (puede(quedan[i])) {
+        quedan.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  };
+  while (quedan.length > maximo) {
+    if (!quitarUltimo((h) => tipoDe(h) === "desvio") && !quitarUltimo((h) => !QUE_NO_SE_CORTAN.has(tipoDe(h)))) break;
+  }
+  return quedan;
+}
+
 /**
  * Los hallazgos de una tanda, en orden: resultado, errores, desvíos (por paso), detenidos, demoras,
- * tropiezos y costo. Máximo 8. Los intentos con error de la herramienta solo aparecen en `errores`.
+ * tropiezos y costo. Máximo 8 (recortarHallazgos: el resultado y los tropiezos nunca se cortan). Los intentos con
+ * error de la herramienta solo aparecen en `errores`.
  * @param {{ intentos: any[], telarana: { ruta: any }, kpis: any }} tanda
+ * @param {{ maximo?: number }} [opciones]
  * @returns {Hallazgo[]}
  */
-export function hallazgos(tanda) {
+export function hallazgos(tanda, { maximo = MAXIMO_DE_HALLAZGOS } = {}) {
   const { intentos, kpis } = tanda;
   const ruta = tanda.telarana.ruta;
   const validos = intentos.filter((intento) => intento.resultado !== "error");
@@ -240,7 +265,7 @@ export function hallazgos(tanda) {
     );
   }
 
-  return lista.slice(0, MAXIMO_DE_HALLAZGOS);
+  return recortarHallazgos(lista, maximo);
 }
 
 const primerValido = (tanda, perfil) =>

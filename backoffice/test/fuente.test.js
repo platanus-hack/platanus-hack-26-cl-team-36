@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -118,4 +118,54 @@ test("el servidor funciona con una fuente en memoria", async () => {
   assert.equal(parte.status, 206);
   assert.equal((await parte.arrayBuffer()).byteLength, 4);
   assert.equal((await fetch(`${base}/archivos/${ID}/first_time/run.json`)).status, 404);
+});
+
+// ── Archivos dañados o que faltan: se dicen, no se esconden ─────────────────
+
+test("archivos dañados: un run.json roto es un intento con error; un route_tree.json roto o que falta se avisa", async (t) => {
+  const raiz = mkdtempSync(path.join(tmpdir(), "corridas-rotas-"));
+  t.after(() => rmSync(raiz, { recursive: true, force: true }));
+  const consola = t.mock.method(console, "error", () => {});
+  const DT = "dt.gob.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
+  const METRO = "metro.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
+  const INE = "ine.gob.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
+  const copiar = (destino) => cpSync(`${RAIZ}/${ID}`, path.join(raiz, destino), { recursive: true });
+  // dt: un run.json a medio escribir.
+  copiar(DT);
+  writeFileSync(path.join(raiz, DT, "mobile/run.json"), '{"profile": "mobile", "steps": [');
+  // metro: route_tree.json roto.
+  copiar(METRO);
+  writeFileSync(path.join(raiz, METRO, "route_tree.json"), "{ no es json");
+  // ine: los intentos ya están, el route_tree.json todavía no.
+  copiar(INE);
+  rmSync(path.join(raiz, INE, "route_tree.json"));
+  // vacia: una carpeta de tanda sin nada que leer no se lista.
+  mkdirSync(path.join(raiz, "vacia.cl/visitor/tarea-demo/2026-11-21T10-00-00Z/first_time"), { recursive: true });
+
+  const fuente = crearFuenteDeArchivos({ raiz });
+  const sana = await leerTanda(RAIZ, ID);
+  const dt = await leerTanda(fuente, DT);
+  assert.equal(dt.intentos.length, sana.intentos.length, "el intento roto no desaparece");
+  const roto = dt.intentos.find((intento) => intento.perfil === "mobile");
+  assert.deepEqual([roto.resultado, roto.error.tipo], ["error", "archivo_danado"]);
+  assert.equal(dt.kpis.errores, 1);
+  assert.equal(dt.arbol, "ok");
+
+  const metro = await leerTanda(fuente, METRO);
+  assert.equal(metro.arbol, "danado");
+  assert.equal(metro.telarana.paginas.length, 0);
+
+  // En el almacén, una corrida sin route_tree.json no terminó: no se abre ni se lista.
+  assert.equal(await leerTanda(fuente, INE), null);
+
+  const { tandas } = await listarTandas(fuente);
+  // Solo se listan las corridas con route_tree.json que terminaron bien (manifest.json); ine se abre por su id.
+  assert.deepEqual(tandas.map((tanda) => [tanda.id, tanda.arbol, tanda.errores]).sort(), [
+    [DT, "ok", 1],
+    [METRO, "danado", 0],
+  ]);
+  // Una línea en la consola por archivo dañado, aunque se lea muchas veces.
+  const lineas = consola.mock.calls.map((llamada) => String(llamada.arguments[0]));
+  assert.equal(lineas.filter((linea) => linea.includes("mobile/run.json") && linea.includes("dañado")).length, 1);
+  assert.equal(lineas.filter((linea) => linea.includes("metro") && linea.includes("route_tree.json")).length, 1);
 });

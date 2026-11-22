@@ -39,6 +39,8 @@ export default {
     sinFecha: "Sin fecha",
   },
   fila: {
+    arbolDanado: "route_tree.json dañado",
+    arbolFalta: "Incompleta",
     intentoResultado: "{nombre}: {resultado}",
     sinValidos: "sin válidos",
     sinPasos: "Sin intentos válidos: no hay pasos que contar",

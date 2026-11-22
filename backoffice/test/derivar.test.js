@@ -17,6 +17,7 @@ import {
   resultadoDeRama,
   resumenDeError,
   textoDeElemento,
+  porConocimiento,
 } from "../lib/derivar.js";
 import { idsDeTandas, leerTanda, listarTandas } from "../lib/tandas.js";
 import { consultaDe, normalizarUrl, rutaSinConsulta } from "../lib/url.js";
@@ -116,12 +117,17 @@ test("distancias desde el inicio; lo inalcanzable va afuera", () => {
   assert.deepEqual([...distancias(paginas, ramas)], [["a", 0], ["b", 1], ["c", 2], ["x", 3]]);
 });
 
-test("resultado de una rama", () => {
-  assert.equal(resultadoDeRama({ exitos: 2, fallos: 0, errores: 1 }), "exito");
-  assert.equal(resultadoDeRama({ exitos: 1, fallos: 1, errores: 0 }), "mixto");
-  assert.equal(resultadoDeRama({ exitos: 0, fallos: 0, errores: 1 }), "error");
-  assert.equal(resultadoDeRama({ exitos: 0, fallos: 1, errores: 0 }, { fallido: 1, abandonado: 0 }), "fallo");
-  assert.equal(resultadoDeRama({ exitos: 0, fallos: 1, errores: 0 }, { fallido: 0, abandonado: 2 }), "abandono");
+test("resultado de una rama: cómo terminaron los intentos que pasaron por ella", () => {
+  const resultadoDe = new Map([["a", "logrado"], ["b", "logrado"], ["c", "fallido"], ["d", "abandonado"], ["e", "abandonado"], ["x", "error"]]);
+  const de = (perfiles, extra = {}) => resultadoDeRama({ perfiles, ...extra }, resultadoDe);
+  // Todos llegaron, aunque el evaluador marque el tramo como desvío (fuera del camino a la página final).
+  assert.deepEqual(de(["a", "b"], { exitos: 0, fallos: 2 }), { resultado: "exito", llegaron: 2, noLlegaron: 0 });
+  // Un intento con error de la herramienta no cuenta.
+  assert.deepEqual(de(["a", "x"]), { resultado: "exito", llegaron: 1, noLlegaron: 0 });
+  assert.deepEqual(de(["a", "c"]), { resultado: "mixto", llegaron: 1, noLlegaron: 1 });
+  assert.deepEqual(de(["c", "d"], { exitos: 2 }), { resultado: "fallo", llegaron: 0, noLlegaron: 2 });
+  assert.deepEqual(de(["d", "e"]), { resultado: "abandono", llegaron: 0, noLlegaron: 2 });
+  assert.deepEqual(de(["x"]), { resultado: "error", llegaron: 0, noLlegaron: 0 });
 });
 
 test("fechaIso de una tanda", () => {
@@ -167,7 +173,9 @@ test("telaraña de la tanda vieja: ruta, distancias, capturas y ramas", async ()
   // El nodo de /planes?utm_source=x se encuentra aunque la URL del paso traiga parámetros de seguimiento.
   assert.ok(paginas.every((p) => p.captura), "cada página tiene captura");
   const haciaPlanes = ramas.find((r) => r.destino === "n4");
-  assert.deepEqual([haciaPlanes.id, haciaPlanes.resultado, haciaPlanes.intentos], ["n1>n4", "fallo", 2]);
+  // Por /planes pasaron hurried (después lo logró) y mobile (falló): algunos llegaron.
+  assert.deepEqual([haciaPlanes.id, haciaPlanes.resultado, haciaPlanes.intentos], ["n1>n4", "mixto", 2]);
+  assert.deepEqual([haciaPlanes.llegaron, haciaPlanes.noLlegaron], [1, 1]);
   assert.deepEqual(haciaPlanes.perfiles, ["hurried", "mobile"]);
   assert.equal(ramas.filter((r) => r.enRuta).length, 2);
 });
@@ -264,8 +272,8 @@ test("tanda nueva: el error de la herramienta se marca y no cuenta", async () =>
   const inicioAyuda = tanda.telarana.ramas.find((r) => r.id === "n1>n2");
   assert.deepEqual([inicioAyuda.exitos, inicioAyuda.fallos, inicioAyuda.errores, inicioAyuda.intentos], [2, 0, 1, 3]);
   assert.deepEqual(inicioAyuda.acciones, [
-    { accion: "clic «Ayuda»", intentos: 2, perfiles: ["hurried", "mobile"] },
-    { accion: "clic «Buscar»", intentos: 1, perfiles: ["first_time"] },
+    { accion: "clic «Ayuda»", intentos: 2, perfiles: ["hurried", "mobile"], salto: false },
+    { accion: "clic «Buscar»", intentos: 1, perfiles: ["first_time"], salto: false },
   ]);
   assert.equal(inicioAyuda.accion, "clic «Ayuda»");
   const ayuda = tanda.telarana.paginas.find((p) => p.id === "n2");
@@ -595,4 +603,68 @@ test("lista: el titular nombra la página (nunca «n4»), traducida en el navega
   assert.equal(inicio.vars.pagina.tituloTipo, "inicio");
   const conInicio = (clave, vars) => (clave === "datos.pagina.inicio" ? "Inicio" : clave === "datos.titular.tanda" ? `«${vars.pagina}»` : clave);
   assert.equal(textoDeTitular(inicio, resumirTanda(tanda), conInicio), "«Inicio»");
+});
+
+test("un explorador que vuelve a una página con volver_a_nodo no tropieza (ni se traba ahí)", async () => {
+  const { atascosPorPagina } = await import("../public/telarana/atascos.js");
+  const conSaltos = (accion) => {
+    const cruda = tandaViejaCruda();
+    const apurado = cruda.intentos.find((intento) => intento.perfil === "hurried").run;
+    for (const paso of apurado.steps) {
+      paso.action = accion;
+      paso.signals = ["went_back"];
+    }
+    return armarTanda(cruda);
+  };
+  const tanda = conSaltos("volver_a_nodo");
+  const apurado = tanda.intentos.find((intento) => intento.id === "hurried");
+  assert.ok(apurado.pasos.every((paso) => paso.estado === "sin_evaluar" && !paso.senales.includes("went_back")));
+  const tropiezos = tanda.hallazgos.find((h) => h.id === "tropiezos");
+  assert.ok(!tropiezos?.vars.casos.some((caso) => caso.intento === "hurried"), "sin tropiezos de hurried");
+  for (const [, atascos] of atascosPorPagina(tanda)) assert.ok(!atascos.some((a) => a.intento === "hurried" && a.tropiezos), "sin atascos de hurried");
+  // Un «volvió atrás» de verdad (un clic que regresa) sí cuenta.
+  const conClics = conSaltos("left_click");
+  assert.ok(conClics.intentos.find((intento) => intento.id === "hurried").pasos.every((paso) => paso.estado === "no_cumplida"));
+  assert.ok(conClics.hallazgos.find((h) => h.id === "tropiezos").vars.pasos > (tropiezos?.vars.pasos ?? 0));
+});
+
+test("firma de un salto del explorador: «volver a «X»», con su propio tipo (se traduce)", () => {
+  const salto = { action: "volver_a_nodo", action_input: { nodo: "p1", url: "https://www.ine.gob.cl/", titulo: "Inicio" }, description: "volver a «Inicio»" };
+  assert.deepEqual({ tipo: firmaDelPaso(salto).tipo, objetivo: firmaDelPaso(salto).objetivo }, { tipo: "volver", objetivo: "Inicio" });
+  assert.equal(firmaDelPaso({ action: "volver_a_nodo", description: "volver a «Mapa del sitio»" }).objetivo, "Mapa del sitio");
+});
+
+test("tarjeta de la ruta: las acciones humanas primero; un «volver a …» nunca la encabeza", async () => {
+  const { accionesDelTramo } = await import("../public/pantallas/resumen.js");
+  const ctx = { t: (clave, vars = {}) => (clave === "resumen.ruta.accionVeces" ? `${vars.accion} (${vars.n})` : clave === "resumen.ruta.masAcciones" ? `+${vars.n}` : clave) };
+  const c = {
+    tanda: {
+      intentos: ["a", "b", "c"].map((id) => ({ id, perfil: id, resultado: "logrado" })),
+      telarana: {
+        ramas: [{
+          origen: "n1", destino: "n2",
+          acciones: [
+            { accion: "volver a «Agenda»", perfiles: ["a", "b", "c"], salto: true },
+            { accion: "clic «Horarios»", perfiles: ["a", "b"], salto: false },
+          ],
+        }],
+      },
+    },
+  };
+  assert.equal(accionesDelTramo(ctx, c, { origen: "n1", destino: "n2", accion: "" }).texto, "clic «Horarios» (2) · volver a «Agenda» (3)");
+});
+
+test("resultado por nivel de conocimiento: intentos, logrados, medianas y escrituras rechazadas", () => {
+  const intento = (conocimiento, resultado, pasos, duracion, rechazados = []) => ({ conocimiento, resultado, pasos: Array(pasos).fill({}), duracion, terminosRechazados: rechazados });
+  const intentos = [
+    intento("sin_contexto", "logrado", 20, 78), intento("sin_contexto", "logrado", 18, 70),
+    intento("conoce_tema", "logrado", 24, 91, ["ipc"]), intento("conoce_tema", "fallido", 30, 120), intento("conoce_tema", "error", 2, 5),
+  ];
+  assert.deepEqual(porConocimiento(intentos), [
+    { nivel: "sin_contexto", intentos: 2, logrados: 2, pasosMediana: 19, segundosMediana: 74, rechazos: 0 },
+    { nivel: "conoce_tema", intentos: 3, logrados: 1, pasosMediana: 24, segundosMediana: 91, rechazos: 1 },
+  ]);
+  // Sin los dos niveles (perfiles comunes, o un solo nivel), no hay comparación.
+  assert.equal(porConocimiento(intentos.map((i) => ({ ...i, conocimiento: null }))), null);
+  assert.equal(porConocimiento(intentos.filter((i) => i.conocimiento === "conoce_tema")), null);
 });

@@ -26,6 +26,8 @@ import { crearFuenteDeArchivos } from "./fuentes/archivos.js";
  *           subcarpetas de una tanda (nombres sin validar)
  * @property {(id: string, relativa: string) => Promise<object | null>} leerJson
  *           "route_tree.json", "first_time/run.json"; null si no existe o no es JSON
+ * @property {(id: string, relativa: string) => Promise<{ datos: object | null, estado: "ok" | "falta" | "danado" }>} leerJsonDetallado
+ *           como leerJson, pero dice si el archivo falta o está dañado (no es JSON); avisa en la consola de un dañado
  * @property {(id: string, relativa: string) => Promise<boolean>} existe
  *           "first_time/video.webm"
  * @property {(id: string, relativa: string, rango?: RangoPedido) => Promise<ArchivoAbierto | null>} abrirArchivo

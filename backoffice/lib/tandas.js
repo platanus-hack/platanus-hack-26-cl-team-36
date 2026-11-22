@@ -1,7 +1,7 @@
 // Lectura de tandas a través de una fuente de corridas (lib/fuente.js). Aquí se valida todo lo que
 // llega desde afuera: un id solo vale si la fuente lo listó, y de un perfil solo se sirven capturas y video.
 
-import { armarTanda, resumirTanda } from "./derivar.js";
+import { ARCHIVO_DANADO, armarTanda, resumirTanda } from "./derivar.js";
 import { crearFuenteDeArchivos } from "./fuentes/archivos.js";
 import { AGENTE, partesDeTanda } from "../public/nucleo/almacen.js";
 
@@ -48,22 +48,37 @@ export function vecinasDe(id, ids) {
   };
 }
 
+/** Lee un JSON diciendo si falta o está dañado (con una fuente que no lo distingue, un null es que falta). */
+async function leerDetallado(fuente, id, relativa) {
+  if (fuente.leerJsonDetallado) return fuente.leerJsonDetallado(id, relativa);
+  const datos = await fuente.leerJson(id, relativa);
+  return { datos, estado: datos ? "ok" : "falta" };
+}
+
+/**
+ * El intento de un run.json que no se puede leer: queda como error de la herramienta («archivo dañado») en vez de
+ * desaparecer de la tanda (que mostraría 7 de 8 exploradores sin decirlo).
+ */
+const runDanado = (perfil) => ({ profile: perfil, end_reason: ARCHIVO_DANADO, final_message: `${perfil}/run.json no es JSON válido`, steps: [] });
+
 async function leerSinVecinas(fuente, id) {
   const [arbol, criterio] = await Promise.all([
-    fuente.leerJson(id, "route_tree.json"),
+    leerDetallado(fuente, id, "route_tree.json"),
     fuente.leerJson(id, "criteria.json"),
   ]);
   const perfiles = (await fuente.listarPerfiles(id)).filter((perfil) => NOMBRE_SEGURO.test(perfil));
   const intentos = [];
   for (const perfil of perfiles) {
-    const run = await fuente.leerJson(id, `${perfil}/run.json`);
+    // Sin run.json (todavía no termina): no es un intento. Con un run.json dañado: un intento con error.
+    const { datos: run, estado } = await leerDetallado(fuente, id, `${perfil}/run.json`);
+    if (estado === "danado") intentos.push({ perfil, run: runDanado(perfil), video: false });
     if (!run) continue;
     intentos.push({ perfil, run, video: await fuente.existe(id, `${perfil}/video.webm`) });
   }
   const posicion = (perfil) =>
     ORDEN_DE_PERFILES.includes(perfil) ? ORDEN_DE_PERFILES.indexOf(perfil) : ORDEN_DE_PERFILES.length;
   intentos.sort((a, b) => posicion(a.perfil) - posicion(b.perfil) || (a.perfil < b.perfil ? -1 : 1));
-  return armarTanda({ id, arbol, criterio, intentos });
+  return armarTanda({ id, arbol: arbol.datos, criterio, intentos, estadoDelArbol: arbol.estado });
 }
 
 /**

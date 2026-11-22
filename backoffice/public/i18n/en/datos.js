@@ -22,6 +22,7 @@ export default {
     refusal: "The model refused to continue",
     juez: "The judge could not give a verdict",
     sin_inicio: "The page could not be opened",
+    archivo_danado: "The attempt's file is damaged",
   },
 
   motivo: {
@@ -45,6 +46,7 @@ export default {
     desplazar: ({ flecha, cantidad }) => ["scroll", flecha, cantidad ? `×${cantidad}` : ""].filter(Boolean).join(" "),
     escribir: "type «{objetivo}»",
     atras: "go back",
+    volver: ({ objetivo }) => (objetivo ? `jump back to «${objetivo}»` : "jump back to a page already seen"),
     tecla: "key {objetivo}",
     otra: ({ original }) => String(original ?? "") || "other action",
   },

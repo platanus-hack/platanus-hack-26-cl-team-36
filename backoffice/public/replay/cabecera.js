@@ -7,6 +7,7 @@
 import { textoDeError, textoDeMotivo } from "../datos/textos.js";
 import { kbd } from "../nucleo/atajos.js";
 import { el, reemplazar } from "../nucleo/dom.js";
+import { mostrarEnFila, seguirBordes } from "../nucleo/fila.js";
 import { conGlobo } from "../nucleo/globo.js";
 import { icono, insignia, textoDeResultado } from "../nucleo/iconos.js";
 
@@ -37,8 +38,10 @@ export function crearCabecera({ t, fmt, tanda, senal }) {
   const navegacion = el(
     "nav",
     { class: "replay-intentos", "aria-label": t("replay.cabecera.intentos") },
-    el("ul", {}, [...pildoras.values()].map((pildora) => el("li", {}, pildora))),
+    el("ul", { class: "fila-desplazable" }, [...pildoras.values()].map((pildora) => el("li", {}, pildora))),
   );
+  const filaDePildoras = navegacion.querySelector("ul");
+  seguirBordes(filaDePildoras, senal);
 
   const meta = el("p", { class: "replay-meta texto-3" });
   // La tarea que leyó este intento (cada nivel de conocimiento lee la suya) y lo que no le dejaron escribir.
@@ -89,6 +92,8 @@ export function crearCabecera({ t, fmt, tanda, senal }) {
       if (id === intento.id) pildora.setAttribute("aria-current", "true");
       else pildora.removeAttribute("aria-current");
     }
+    // El intento elegido (clic, i/I o la URL) siempre a la vista en su fila.
+    requestAnimationFrame(() => mostrarEnFila(filaDePildoras, pildoras.get(intento.id)));
 
     const ruta = tanda.telarana?.ruta?.pasosIdeales ?? null;
     const viewport = intento.viewport;

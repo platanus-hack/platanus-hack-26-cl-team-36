@@ -4,6 +4,10 @@
 const steps = (n, plural) => `${n} ${plural(n, { one: "step", other: "steps" })}`;
 
 export default {
+  archivos: {
+    arbolDanado: "route_tree.json is damaged: the route, the route map and what comes from them are missing.",
+    arbolFalta: "Incomplete batch: it has no route_tree.json yet (the evaluator writes it at the end, or it stopped).",
+  },
   cifra: {
     llegan: "Reach the answer",
     siguen: "Follow the route",
@@ -66,6 +70,18 @@ export default {
     historia: "Story",
     replayEtiqueta: "Open {nombre}'s attempt in Replay",
     historiaEtiqueta: "See {nombre}'s story on the route map",
+  },
+  niveles: {
+    titulo: "By knowledge level",
+    columna: {
+      nivel: "Level",
+      intentos: "Attempts",
+      logrados: "Reach it",
+      pasos: "Steps (median)",
+      tiempo: "Time (median)",
+      rechazos: "Rejected writes",
+    },
+    nivel: { sin_contexto: "No context", conoce_tema: "Knows the topic" },
   },
   errores: {
     titulo: "Tool errors",

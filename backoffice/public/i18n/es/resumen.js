@@ -4,6 +4,10 @@
 const pasos = (n, plural) => `${n} ${plural(n, { one: "paso", other: "pasos" })}`;
 
 export default {
+  archivos: {
+    arbolDanado: "route_tree.json está dañado: faltan la ruta, la telaraña y lo que sale de ellas.",
+    arbolFalta: "Tanda incompleta: todavía no tiene route_tree.json (el evaluador lo escribe al final, o se cortó).",
+  },
   cifra: {
     llegan: "Llegan",
     siguen: "Siguen la ruta",
@@ -66,6 +70,18 @@ export default {
     historia: "Historia",
     replayEtiqueta: "Abrir el intento de {nombre} en Replay",
     historiaEtiqueta: "Ver la historia de {nombre} en la telaraña",
+  },
+  niveles: {
+    titulo: "Por nivel de conocimiento",
+    columna: {
+      nivel: "Nivel",
+      intentos: "Intentos",
+      logrados: "Llegan",
+      pasos: "Pasos (mediana)",
+      tiempo: "Tiempo (mediana)",
+      rechazos: "Escrituras rechazadas",
+    },
+    nivel: { sin_contexto: "Sin contexto", conoce_tema: "Conoce el tema" },
   },
   errores: {
     titulo: "Errores de la herramienta",

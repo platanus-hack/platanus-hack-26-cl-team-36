@@ -212,6 +212,8 @@ export function montarMarco({ tanda, ruta, navegar }) {
   function actualizar(nuevaRuta) {
     const enfocada = document.activeElement?.classList?.contains("pestana") && raiz.contains(document.activeElement);
     pestanaActual = nuevaRuta.pestana;
+    // La telaraña pide el alto para el mapa: su cabecera se compacta (marco-tanda.css).
+    raiz.dataset.pestana = pestanaActual;
     for (const [pestana, enlace] of enlacesDePestana) {
       if (pestana === pestanaActual) enlace.setAttribute("aria-current", "page");
       else enlace.removeAttribute("aria-current");

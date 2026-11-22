@@ -9,11 +9,12 @@
 import { kbd } from "../nucleo/atajos.js";
 import { conservarFoco, el, esUrlWeb, recortarAlMedio, reemplazar, svg } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
+import { mostrarEnFila, seguirBordes } from "../nucleo/fila.js";
 import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
 import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
 import { nombreDePagina, textoDeFirma, textoDeTitular } from "../datos/textos.js";
-import { altoDeFilaPara, cajaDeEtiqueta, crearCamara, zoomLegible } from "../telarana/camara.js";
+import { altoDeFilaPara, altoDelLienzo, crearCamara, zoomLegible } from "../telarana/camara.js";
 import {
   activosDePerfil,
   finalesPorPagina,
@@ -63,6 +64,7 @@ function crearPantalla(contenedor, ctx) {
     historia: null,
     geo: null,
     altoFila: null, // alto de fila con que se dibujó (depende del ancho del lienzo)
+    altoDelLienzo: null, // px: lo que queda de la ventana bajo el lienzo
     zoomDelAncho: null, // zoom con que el mapa entra a lo ancho del lienzo
     dibujo: null,
     ancho: 0,
@@ -112,10 +114,11 @@ function crearPantalla(contenedor, ctx) {
   };
   const grupoDePerfiles = el(
     "div",
-    { class: "telarana-perfiles", role: "group", "aria-label": t("telarana.perfiles.grupo") },
+    { class: "telarana-perfiles fila-desplazable", role: "group", "aria-label": t("telarana.perfiles.grupo") },
     chip(null, t("telarana.perfiles.todos")),
     perfiles.map((perfil) => chip(perfil.id, perfil.nombre)),
   );
+  seguirBordes(grupoDePerfiles, senal);
 
   const selectorDeHistoria = el(
     "select",
@@ -199,7 +202,7 @@ function crearPantalla(contenedor, ctx) {
     el("header", { class: "telarana-cabecera" }, titular, zonaDeAvisos, herramientas),
     distribucion.estaciones.length
       ? el("div", { class: "telarana-cuerpo" }, el("div", { class: "telarana-columna" }, mapa, leyenda), panel)
-      : vacio({ titulo: t("telarana.lienzo.vacio") }),
+      : vacio({ titulo: t(tanda.arbol === "danado" ? "telarana.lienzo.arbolDanado" : tanda.arbol === "falta" ? "telarana.lienzo.arbolFalta" : "telarana.lienzo.vacio") }),
   );
 
   function construirLeyenda() {
@@ -217,8 +220,10 @@ function crearPantalla(contenedor, ctx) {
       ...[["exito", "exito"], ["mixto", "mixto"], ["fallo", "fallo"], ["abandono", "abandono"], ["error", "error"]]
         .filter(([clase]) => clases.has(clase))
         .map(([clase, clave]) => [`tramo-${clase}`, clave]),
-      fuera.some((tramo) => tramo.tipo === "retroceso") ? ["tramo-retroceso tramo-exito", "retroceso"] : null,
-      fuera.some((tramo) => tramo.tipo === "lateral") ? ["tramo-lateral tramo-exito", "lateral"] : null,
+      // Las vueltas atrás y los pasos laterales, con las mismas clases que los tramos dibujados.
+      ...["retroceso", "lateral"]
+        .filter((tipo) => fuera.some((tramo) => tramo.tipo === tipo))
+        .map((tipo) => [`tramo-${tipo} tramo-${claseDeTramo({ tipo })}`, tipo]),
     ].filter(Boolean);
     const hayAtascos = atascosPorPagina(tanda).size > 0;
     return el(
@@ -282,8 +287,8 @@ function crearPantalla(contenedor, ctx) {
     if (tramo.tipo === "retroceso") filas.push(el("span", { class: "texto-3", texto: t("telarana.tramo.vuelta") }));
     for (const accion of rama?.acciones ?? []) filas.push(el("span", { class: "telarana-globo-accion" }, el("span", { texto: accion.accion }), el("span", { class: "num texto-3", texto: `×${accion.intentos}` })));
     const desglose = [t("telarana.tramo.intentos", { n: rama?.intentos ?? tramo.intentos })];
-    if (rama?.exitos) desglose.push(t("telarana.tramo.exitos", { n: rama.exitos }));
-    if (rama?.fallos) desglose.push(t("telarana.tramo.fallos", { n: rama.fallos }));
+    if (rama?.llegaron) desglose.push(t("telarana.tramo.llegaron", { n: rama.llegaron }));
+    if (rama?.noLlegaron) desglose.push(t("telarana.tramo.noLlegaron", { n: rama.noLlegaron }));
     if (rama?.errores) desglose.push(t("telarana.tramo.errores", { n: rama.errores }));
     filas.push(el("span", { class: "texto-2", texto: desglose.join(" · ") }));
     const extra = [];
@@ -302,14 +307,12 @@ function crearPantalla(contenedor, ctx) {
 
   /** Zoom con que se ve el mapa entero a lo ancho del lienzo. */
   function zoomDelAncho() {
-    const { caja } = geometria(distribucion, { elegirFormas: false }); // la caja no depende de la forma de los avances
+    const { caja } = geometria(distribucion);
     return lienzo.clientWidth / (caja.ancho + HOLGURA.izquierda + HOLGURA.derecha);
   }
 
   function dibujar() {
-    // Los avances esquivan los nombres del tamaño con que se verán al ajustar la vista.
-    const etiqueta = cajaDeEtiqueta(Math.max(estado.zoomDelAncho ?? 1, zoomLegible(estado.altoFila ?? ALTO_FILA)));
-    estado.geo = geometria(distribucion, { altoFila: estado.altoFila ?? ALTO_FILA, etiqueta });
+    estado.geo = geometria(distribucion, { altoFila: estado.altoFila ?? ALTO_FILA });
     estado.dibujo = dibujarEscena({
       escena,
       distribucion,
@@ -345,7 +348,6 @@ function crearPantalla(contenedor, ctx) {
       return;
     }
     const legible = zoomLegible(estado.altoFila ?? ALTO_FILA);
-    lienzo.style.setProperty("--alto-lienzo", `${Math.ceil(caja.alto * Math.max(legible, Math.min(1.25, lienzo.clientWidth / caja.ancho)))}px`);
     const encuadre = camara.encuadre(caja, { minimo: legible });
     // Si aun así no cabe (teléfonos, tandas grandes): se ve desde el inicio (a la izquierda) y a la altura de la ruta,
     // sin dejar vacío arriba ni abajo del mapa.
@@ -389,11 +391,25 @@ function crearPantalla(contenedor, ctx) {
     });
   }
 
+  /** El lienzo llena lo que queda de la ventana bajo su borde de arriba (con la página sin desplazar). */
+  function dimensionarLienzo() {
+    const arriba = lienzo.getBoundingClientRect().top + window.scrollY;
+    const alto = altoDelLienzo(window.innerHeight, arriba);
+    if (alto === estado.altoDelLienzo) return false;
+    estado.altoDelLienzo = alto;
+    contenedor.style.setProperty("--alto-del-lienzo", `${alto}px`);
+    return true;
+  }
+
   function alCambiarTamano() {
+    const cambioElAlto = dimensionarLienzo();
     const ancho = contenedor.clientWidth;
     if (!ancho || !distribucion.estaciones.length) return;
     const primera = !estado.geo;
-    if (!primera && Math.abs(ancho - estado.ancho) < 2) return;
+    if (!primera && Math.abs(ancho - estado.ancho) < 2) {
+      if (cambioElAlto) ajustar();
+      return;
+    }
     estado.ancho = ancho;
     // Alto de fila para que los nombres quepan viendo el mapa entero a lo ancho.
     const zoom = zoomDelAncho();
@@ -608,7 +624,8 @@ function crearPantalla(contenedor, ctx) {
               "button",
               { type: "button", class: "panel-telarana-hito", "data-foco": `telarana:ruta:${id}` },
               el("span", { class: "panel-telarana-numero", "aria-hidden": "true", texto: String(indice + 1) }),
-              el("span", { class: "truncar", texto: nombre(pagina) }),
+              // Lo que distingue a la página adelante (como en su estación); el nombre completo, al pasar el puntero.
+              el("span", { class: "truncar", title: nombre(pagina), texto: textos.etiqueta(pagina) }),
               hito?.de ? el("span", { class: "num texto-3", "aria-label": t("telarana.panel.conteoAria", hito), texto: t("telarana.panel.conteo", hito) }) : null,
             );
             boton.addEventListener("click", () => elegir(id));
@@ -807,6 +824,8 @@ function crearPantalla(contenedor, ctx) {
     const cambioDePerfil = perfil !== estado.perfil;
     estado.perfil = perfil;
     for (const [id, boton] of chips) boton.setAttribute("aria-pressed", String(id === perfil));
+    // El perfil elegido (clic, p/P o la URL) siempre a la vista en su fila.
+    requestAnimationFrame(() => mostrarEnFila(grupoDePerfiles, chips.get(perfil)));
 
     // pagina= (con los alias de páginas fusionadas)
     let pagina = parametros.pagina ?? null;
@@ -919,6 +938,8 @@ function crearPantalla(contenedor, ctx) {
       alCambiarTamano();
       const observador = new ResizeObserver(() => alCambiarTamano());
       observador.observe(contenedor);
+      // El alto de la ventana (y lo que ocupa la cabecera, p. ej. al abrir la instrucción) cambia el alto del lienzo.
+      window.addEventListener("resize", () => alCambiarTamano(), { signal: senal });
       senal.addEventListener("abort", () => observador.disconnect(), { once: true });
       aplicar(ctx.parametros);
       estado.montado = true;

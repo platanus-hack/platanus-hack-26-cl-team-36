@@ -4,6 +4,7 @@
 // separan de la ruta y el criterio del juez. Es la puerta de entrada a Telaraña, Replay y Perfiles.
 
 import { el, reemplazar } from "../nucleo/dom.js";
+import { avisoEnLinea } from "../nucleo/estados.js";
 import { icono, insignia } from "../nucleo/iconos.js";
 import { nombreDePagina, textoDeError, textoDeHallazgo, textoDeTitular } from "../datos/textos.js";
 
@@ -259,12 +260,16 @@ function hallazgos(ctx, c) {
 
 // ── Ruta recomendada ────────────────────────────────────────────────────────
 
-function accionesDelTramo(ctx, c, tramo) {
+/** Las acciones con que se recorrió un tramo de la ruta (texto de la tarjeta y su globo). */
+export function accionesDelTramo(ctx, c, tramo) {
   const rama = (c.tanda.telarana?.ramas ?? []).find((r) => r.origen === tramo.origen && r.destino === tramo.destino);
   // Cuántos intentos válidos hicieron cada acción: los con error de la herramienta no cuentan (como en las cifras).
   const validos = new Set((c.tanda.intentos ?? []).filter(esValido).map((intento) => intento.perfil ?? intento.id));
+  // Los «volver a …» del explorador (un salto que ningún humano puede dar) van después de las acciones humanas.
   const acciones = rama?.acciones?.length
-    ? rama.acciones.map((accion) => ({ accion: accion.accion, n: (accion.perfiles ?? []).filter((perfil) => validos.has(perfil)).length }))
+    ? rama.acciones
+        .map((accion) => ({ accion: accion.accion, salto: !!accion.salto, n: (accion.perfiles ?? []).filter((perfil) => validos.has(perfil)).length }))
+        .sort((a, b) => a.salto - b.salto)
     : [{ accion: tramo.accion, n: 0 }];
   const texto = (accion) => (accion.n ? ctx.t("resumen.ruta.accionVeces", { accion: accion.accion, n: accion.n }) : accion.accion);
   const visibles = acciones.slice(0, ACCIONES_VISIBLES).map(texto);
@@ -425,6 +430,42 @@ function intentos(ctx, c) {
           ),
         ),
         el("tbody", {}, filas),
+      ),
+    ),
+  );
+}
+
+// ── Por nivel de conocimiento ───────────────────────────────────────────────
+
+/** Los dos niveles de conocimiento lado a lado (solo si la tanda tiene los dos). */
+function niveles(ctx, c) {
+  const filas = c.tanda.porConocimiento;
+  if (!filas?.length) return null;
+  const claves = ["nivel", "intentos", "logrados", "pasos", "tiempo", "rechazos"];
+  const columnas = claves.map((clave) => ctx.t(`resumen.niveles.columna.${clave}`));
+  const celda = (indice, texto) => el("td", { class: "num", "data-etiqueta": columnas[indice], texto });
+  return seccion(
+    { id: "resumen-titulo-niveles", titulo: ctx.t("resumen.niveles.titulo"), clase: "resumen-seccion-niveles" },
+    el(
+      "table",
+      { class: "tabla resumen-niveles" },
+      el("caption", { class: "visualmente-oculto", texto: ctx.t("resumen.niveles.titulo") }),
+      el("thead", {}, el("tr", {}, columnas.map((texto, indice) => el("th", { scope: "col", class: indice ? "num" : null, texto })))),
+      el(
+        "tbody",
+        {},
+        filas.map((fila) =>
+          el(
+            "tr",
+            {},
+            el("th", { scope: "row", texto: ctx.t(`resumen.niveles.nivel.${fila.nivel}`) }),
+            celda(1, ctx.fmt.numero(fila.intentos)),
+            celda(2, ctx.fmt.conteo({ n: fila.logrados, de: fila.intentos })),
+            celda(3, fila.pasosMediana === null ? "—" : ctx.fmt.numero(fila.pasosMediana)),
+            celda(4, ctx.fmt.duracion(fila.segundosMediana) || "—"),
+            celda(5, ctx.fmt.numero(fila.rechazos)),
+          ),
+        ),
       ),
     ),
   );
@@ -600,10 +641,14 @@ export default {
     const c = contexto(ctx);
     reemplazar(
       contenedor,
+      c.tanda.arbol === "danado" || c.tanda.arbol === "falta"
+        ? avisoEnLinea(ctx.t(c.tanda.arbol === "danado" ? "resumen.archivos.arbolDanado" : "resumen.archivos.arbolFalta"), "atencion")
+        : null,
       el("div", { class: "resumen-cabeza" }, titular(ctx, c), cifras(ctx, c)),
       hallazgos(ctx, c),
       ruta(ctx, c),
       intentos(ctx, c),
+      niveles(ctx, c),
       errores(ctx, c),
       quiebres(ctx, c),
       criterio(ctx, c),

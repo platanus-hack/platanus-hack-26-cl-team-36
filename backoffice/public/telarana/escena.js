@@ -15,14 +15,22 @@ const SECUNDARIOS = new Set(["retroceso", "lateral"]);
 /** Id de DOM seguro para un tramo (para <mpath href="#…">). */
 export const idDomDeTramo = (id) => `telarana-tramo-${String(id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
-/** Ancho del trazo: 1.5 + 1.25·intentos (el de error, fino; los secundarios, más finos para no tapar el avance). */
+/**
+ * Ancho del trazo: 1.5 + 1.25·intentos (el de error, fino; los secundarios, más finos y a lo más 3 px, para no tapar
+ * el avance ni verse como una barra junto al tronco).
+ */
 export function anchoDeTramo(tramo) {
   if (claseDeTramo(tramo) === "error") return 1.5;
   const intentos = Math.max(0, tramo.intentos ?? 0);
-  return SECUNDARIOS.has(tramo.tipo) ? 1.25 + 0.5 * intentos : 1.5 + 1.25 * intentos;
+  return SECUNDARIOS.has(tramo.tipo) ? Math.min(3, 1.25 + 0.5 * intentos) : 1.5 + 1.25 * intentos;
 }
 
+/**
+ * Clase de color de un tramo: la de cómo terminaron (avances y finales) o, en las vueltas atrás y los pasos
+ * laterales, "secundario" (un tono neutro: su color no dice un resultado). La muestra de la leyenda usa esta misma.
+ */
 export function claseDeTramo(tramo) {
+  if (SECUNDARIOS.has(tramo.tipo)) return "secundario";
   if (tramo.tipo === "final") return CLASE_DE_FINAL[tramo.resultado] ?? "exito";
   return CLASE_DE_RAMA[tramo.resultado] ?? "exito";
 }

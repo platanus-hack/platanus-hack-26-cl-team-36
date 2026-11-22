@@ -80,6 +80,7 @@ export default {
     went_back: "Volvió atrás",
     visible_error: "Error visible",
     security_block: "Bloqueo de seguridad",
+    revisit: "Volvió a una página ya vista",
   },
   coincide: {
     si: "Sí",

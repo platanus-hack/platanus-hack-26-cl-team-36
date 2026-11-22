@@ -5,7 +5,7 @@
 // No arma frases para la pantalla: lo que es texto de la interfaz sale como clave + variables
 // ({ clave, vars }) o como campos estructurados, y public/datos/textos.js lo traduce.
 
-import { demorasDelIntento, hallazgos as calcularHallazgos, titulares as calcularTitulares } from "./hallazgos.js";
+import { demorasDelIntento, hallazgos as calcularHallazgos, recortarHallazgos, titulares as calcularTitulares } from "./hallazgos.js";
 import { titularPaginas, unirNodos } from "./paginas.js";
 import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinConsulta } from "./url.js";
 
@@ -17,7 +17,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @typedef {"logrado" | "fallido" | "abandonado" | "error"} Resultado
  *
  * @typedef {Object} ErrorDeHerramienta
- * @property {"internal_error" | "api_error" | "no_response" | "refusal" | "juez" | "sin_inicio"} tipo
+ * @property {"internal_error" | "api_error" | "no_response" | "refusal" | "juez" | "sin_inicio" | "archivo_danado"} tipo
  * @property {string} resumen      primera línea del mensaje, sin "Error: ", hasta 140 caracteres
  * @property {string} detalle      el mensaje completo, tal cual
  *
@@ -122,17 +122,20 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} id
  * @property {string} origen
  * @property {string} destino
- * @property {{ accion: string, intentos: number, perfiles: string[] }[]} acciones
+ * @property {{ accion: string, intentos: number, perfiles: string[], salto: boolean }[]} acciones  salto: un
+ *   «volver a …» del explorador (no lo hace un humano)
  * @property {string} accion
- * @property {number} exitos
- * @property {number} fallos
+ * @property {number} exitos  pasadas que el evaluador marcó en camino a la página final
+ * @property {number} fallos  pasadas que no (desvíos, saltos, vueltas)
  * @property {number} errores
  * @property {number} intentos
  * @property {string[]} perfiles
  * @property {string[]} intentosIds
  * @property {number | null} medianaSegundos
  * @property {number} pasosMinimos
- * @property {"exito" | "mixto" | "fallo" | "abandono" | "error"} resultado
+ * @property {number} llegaron  intentos válidos que pasaron por la rama y lograron la tarea
+ * @property {number} noLlegaron  intentos válidos que pasaron por la rama y no la lograron
+ * @property {"exito" | "mixto" | "fallo" | "abandono" | "error"} resultado  cómo terminaron los que pasaron por ella
  * @property {boolean} enRuta
  *
  * @typedef {Object} Ruta
@@ -173,11 +176,15 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {Perfil[]} perfiles
  * @property {Hallazgo[]} hallazgos
  * @property {{ tanda: Texto, telarana: Texto, perfiles: Texto }} titulares
+ * @property {ReturnType<typeof porConocimiento>} porConocimiento
+ * @property {"ok" | "falta" | "danado"} arbol  estado del route_tree.json de la tanda
  */
 
 // Motivos de fin que son fallas de la herramienta, no del usuario: los _INTERRUPTED_REASONS de
 // agents/app/visitor/visitor/batch.py. El orden es el de la tabla del diseño (§2.1).
 const MOTIVOS_DE_ERROR = ["internal_error", "api_error", "no_response", "refusal"];
+/** Motivo de fin del intento armado para un run.json que no se pudo leer (lib/tandas.js). */
+export const ARCHIVO_DANADO = "archivo_danado";
 const SIN_VEREDICTO = "No se pudo obtener el veredicto";
 const LARGO_DEL_RESUMEN = 140;
 const CAMBIO_QUE_CUENTA = 0.05;
@@ -186,6 +193,10 @@ const ANCHO_DE_ESCRITORIO = 1000;
 const ORDEN_DE_SENALES = ["visible_error", "went_back", "no_effect", "security_block"];
 const RESULTADO_DEL_JUEZ = { success: "logrado", failed: "fallido", abandoned: "abandonado" };
 const ACCIONES_DE_CLIC = new Set(["left_click", "double_click", "triple_click"]);
+
+/** Acción con que un explorador vuelve a una página ya vista para abrir otra rama (no la hace un humano). */
+export const SALTO_DEL_EXPLORADOR = "volver_a_nodo";
+export const esSaltoDelExplorador = (accion) => accion === SALTO_DEL_EXPLORADOR;
 
 // Estado de un paso. El evaluador guarda la expectativa pero no la compara con el resultado,
 // así que solo se distingue lo que delatan las señales.
@@ -223,7 +234,10 @@ export function errorDelIntento(run) {
   const justificacion = String(run.verdict?.justification ?? "");
   let tipo = null;
   let texto = "";
-  if (MOTIVOS_DE_ERROR.includes(run.end_reason)) {
+  if (run.end_reason === ARCHIVO_DANADO) {
+    tipo = ARCHIVO_DANADO;
+    texto = run.final_message;
+  } else if (MOTIVOS_DE_ERROR.includes(run.end_reason)) {
     tipo = run.end_reason;
     texto = run.final_message;
   } else if (justificacion.startsWith(SIN_VEREDICTO)) {
@@ -280,6 +294,8 @@ export function firmaDelPaso(paso) {
     }
     case "type":
       return { ...base, tipo: "escribir", objetivo: entrada.text ?? /^escribir «(.*)»$/s.exec(descripcion)?.[1] ?? "" };
+    case SALTO_DEL_EXPLORADOR:
+      return { ...base, tipo: "volver", objetivo: entrada.titulo ?? /^volver a «(.*)»$/s.exec(descripcion)?.[1] ?? null };
     case "key":
       if (descripcion === "atrás" || (paso.signals ?? []).includes("went_back")) return { ...base, tipo: "atras" };
       return { ...base, tipo: "tecla", objetivo: entrada.text ?? descripcion.replace(/^tecla\s*/, "") };
@@ -406,7 +422,7 @@ function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
       accion.intentos += perfiles.length;
       for (const perfil of perfiles) if (!accion.perfiles.includes(perfil)) accion.perfiles.push(perfil);
     } else {
-      rama.acciones.push({ accion: texto, intentos: perfiles.length, perfiles: [...new Set(perfiles)] });
+      rama.acciones.push({ accion: texto, intentos: perfiles.length, perfiles: [...new Set(perfiles)], salto: esVolver(texto) });
     }
   }
   return [...porPar.values()].map(({ tiempos, pasos, ...rama }) => {
@@ -423,13 +439,25 @@ function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
   });
 }
 
-/** Cómo terminó lo que pasó por una rama, para su color. */
-export function resultadoDeRama(rama, finalesDelDestino) {
-  if (rama.exitos === 0 && rama.fallos === 0 && rama.errores > 0) return "error";
-  if (rama.exitos > 0 && rama.fallos === 0) return "exito";
-  if (rama.exitos > 0) return "mixto";
-  const finales = finalesDelDestino ?? {};
-  return (finales.abandonado ?? 0) > 0 && !(finales.fallido ?? 0) ? "abandono" : "fallo";
+/**
+ * Cómo terminaron los intentos que pasaron por una rama (su color): todos los válidos lograron la tarea → "exito";
+ * algunos → "mixto"; ninguno → "abandono" si todos abandonaron, si no "fallo"; solo intentos con error de la
+ * herramienta → "error". No es la marca del evaluador de si el tramo iba hacia la página final (un desvío de alguien
+ * que después llegó no es una falla). → { resultado, llegaron, noLlegaron }
+ * @param {{ perfiles: string[] }} rama
+ * @param {Map<string, "logrado" | "fallido" | "abandonado" | "error">} resultadoDe  resultado de cada intento por id
+ */
+export function resultadoDeRama(rama, resultadoDe) {
+  const suyos = (rama.perfiles ?? []).map((id) => resultadoDe.get(id)).filter(Boolean);
+  const validos = suyos.filter((resultado) => resultado !== "error");
+  const llegaron = validos.filter((resultado) => resultado === "logrado").length;
+  const noLlegaron = validos.length - llegaron;
+  let resultado;
+  if (!validos.length) resultado = suyos.length ? "error" : "fallo";
+  else if (!noLlegaron) resultado = "exito";
+  else if (llegaron) resultado = "mixto";
+  else resultado = validos.every((r) => r === "abandonado") ? "abandono" : "fallo";
+  return { resultado, llegaron, noLlegaron };
 }
 
 /** Distancia en ramas desde el inicio; lo inalcanzable queda un paso más allá del máximo. */
@@ -603,7 +631,9 @@ function armarPasos(run, ubicacion, ruta, comoRuta) {
     // La página de antes es la del paso anterior; si no se ubicó, la de url_before.
     const previa = i === 0 ? ubicacion.paginaInicial : ubicacion.paginas[i - 1];
     const paginaAntes = previa ?? ubicacion.paginaDe(crudo.url_before, crudo.title_before);
-    const senales = crudo.signals ?? [];
+    // Volver a una página ya vista con volver_a_nodo es la herramienta del explorador para abrir otra rama, no un
+    // tropiezo: el «went_back» que el evaluador le pone no cuenta (ni en los tropiezos ni en las marcas de atasco).
+    const senales = (crudo.signals ?? []).filter((senal) => !(senal === "went_back" && esSaltoDelExplorador(crudo.action)));
     const cambio = typeof crudo.screen_change === "number" ? crudo.screen_change : null;
     const segundos = typeof crudo.seconds_since_start === "number" ? crudo.seconds_since_start : null;
     const duracion = typeof crudo.duration_s === "number" ? crudo.duration_s : null;
@@ -879,7 +909,7 @@ export function fechaIsoDe(fecha) {
  *           intentos: { perfil: string, run: object, video: boolean }[] }} entrada
  * @returns {Tanda}
  */
-export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
+export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArbol = arbol ? "ok" : "falta" }) {
   const nodosCrudos = arbol?.nodes ?? [];
   const idPorClave = new Map();
   const idPorUrl = new Map();
@@ -901,11 +931,11 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
   const nodoFinalDe = new Map(intentos.map((intento, i) => [intento.id, ubicaciones[i].nodoFinal]));
   const finalesPorNodo = finalesCorregidos(nodosCrudos, intentos, nodoFinalDe);
   const paginas = armarPaginas(grupos, finalesPorNodo, ruta, ramasUnidas, capturasDePaginas(intentos));
-  const finalesDe = new Map(paginas.map((pagina) => [pagina.id, pagina.finales]));
   const tramosDeRuta = new Set((ruta?.tramos ?? []).map((tramo) => `${tramo.origen}>${tramo.destino}`));
+  const resultadoDe = new Map(intentos.map((intento) => [intento.id, intento.resultado]));
   const ramas = ramasUnidas.map((rama) => ({
     ...rama,
-    resultado: resultadoDeRama(rama, finalesDe.get(rama.destino)),
+    ...resultadoDeRama(rama, resultadoDe),
     enRuta: tramosDeRuta.has(rama.id),
   }));
 
@@ -934,12 +964,39 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
     telarana: { paginas, ramas, ruta, alias },
     kpis: armarKpis(intentos, ruta),
     perfiles: armarPerfiles(intentos, ruta),
+    porConocimiento: porConocimiento(intentos),
+    // route_tree.json: "ok"; "falta" (tanda incompleta: el evaluador lo escribe al final) o "danado" (no es JSON).
+    arbol: estadoDelArbol,
     hallazgos: [],
     titulares: null,
   };
-  tanda.hallazgos = calcularHallazgos(tanda);
-  tanda.titulares = calcularTitulares(tanda, tanda.hallazgos);
+  // El titular mira todos los hallazgos (no depende de cuántos desvíos hubo antes del recorte).
+  const todos = calcularHallazgos(tanda, { maximo: Infinity });
+  tanda.hallazgos = recortarHallazgos(todos);
+  tanda.titulares = calcularTitulares(tanda, todos);
   return tanda;
+}
+
+/** Niveles de conocimiento de los exploradores, en el orden en que se comparan. */
+export const NIVELES_DE_CONOCIMIENTO = ["sin_contexto", "conoce_tema"];
+
+/**
+ * Resultado por nivel de conocimiento (como la tabla del report.md del evaluador): por nivel, intentos, cuántos lo
+ * lograron, mediana de pasos y de segundos, y escrituras rechazadas. null si la tanda no tiene los dos niveles.
+ * @param {{ conocimiento: string | null, resultado: string, pasos: unknown[], duracion: number | null, terminosRechazados?: string[] }[]} intentos
+ * @returns {{ nivel: string, intentos: number, logrados: number, pasosMediana: number | null, segundosMediana: number | null, rechazos: number }[] | null}
+ */
+export function porConocimiento(intentos) {
+  const niveles = NIVELES_DE_CONOCIMIENTO.map((nivel) => [nivel, intentos.filter((intento) => intento.conocimiento === nivel)]);
+  if (niveles.some(([, suyos]) => !suyos.length)) return null;
+  return niveles.map(([nivel, suyos]) => ({
+    nivel,
+    intentos: suyos.length,
+    logrados: suyos.filter((intento) => intento.resultado === "logrado").length,
+    pasosMediana: mediana(suyos.map((intento) => intento.pasos.length)),
+    segundosMediana: mediana(suyos.map((intento) => intento.duracion)),
+    rechazos: suyos.reduce((suma, intento) => suma + (intento.terminosRechazados?.length ?? 0), 0),
+  }));
 }
 
 /**
@@ -1009,5 +1066,6 @@ export function resumirTanda(tanda) {
     titular,
     captura: capturaDeTanda(tanda),
     paginas: tanda.telarana.paginas.length,
+    arbol: tanda.arbol ?? "ok",
   };
 }

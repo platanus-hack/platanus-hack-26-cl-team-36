@@ -55,6 +55,24 @@
 
 .panel-tanda { padding-block-start: var(--e-5); min-width: 0; }
 
+/* En la telaraña el mapa necesita el alto de la pantalla: la instrucción (y su versión sin contexto) va en una línea,
+   con el botón para abrirla al lado, y la cabecera ocupa menos. */
+.marco-tanda[data-pestana="telarana"] .marco-cabecera { grid-template-columns: minmax(0, 1fr) auto; gap: var(--e-1) var(--e-3); padding-block-end: var(--e-2); }
+.marco-tanda[data-pestana="telarana"] .marco-cabecera > * { grid-column: 1 / -1; }
+.marco-tanda[data-pestana="telarana"] .marco-cabecera > :is(.marco-instruccion, .marco-ver-instruccion) { grid-column: auto; }
+.marco-tanda[data-pestana="telarana"] .marco-titulo { margin-block-start: 0; }
+.marco-tanda[data-pestana="telarana"] .marco-instruccion:not(.expandida) {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden; cursor: pointer;
+}
+.marco-tanda[data-pestana="telarana"] .marco-instruccion[data-cortada] + .marco-ver-instruccion { display: inline-flex; align-self: start; }
+.marco-tanda[data-pestana="telarana"] .panel-tanda { padding-block-start: var(--e-3); }
+/* La fecha completa y los modelos quedan en Resumen (la fecha relativa dice la completa al pasar el puntero). */
+.marco-tanda[data-pestana="telarana"] :is(.marco-fecha, .marco-modelo) { display: none; }
+@container contenido (width < 900px) {
+  .marco-tanda[data-pestana="telarana"] .marco-barra { flex-wrap: nowrap; }
+  .marco-tanda[data-pestana="telarana"] .marco-etiqueta-boton { display: none; }
+}
+
 @media (max-width: 819px) {
   .pestanas { top: var(--alto-barra); margin-inline: calc(-1 * var(--e-4)); padding-inline: var(--e-4); }
 }

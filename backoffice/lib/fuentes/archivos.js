@@ -10,6 +10,9 @@ import { AGENTE, CORRIDA, HOST, MANIFIESTO, OBJETIVO, idDeTanda } from "../../pu
 const RAIZ_DEL_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const RAIZ_POR_DEFECTO = path.join(RAIZ_DEL_REPO, "agents", ".runs");
 
+// Archivos dañados ya avisados en la consola (una línea por archivo y versión, no una por pedido).
+const avisados = new Set();
+
 async function subcarpetas(carpeta) {
   try {
     const entradas = await readdir(carpeta, { withFileTypes: true });
@@ -63,10 +66,26 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
     listarPerfiles: (id) => subcarpetas(rutaDe(id)),
 
     async leerJson(id, relativa) {
+      return (await this.leerJsonDetallado(id, relativa)).datos;
+    },
+
+    async leerJsonDetallado(id, relativa) {
+      const ruta = rutaDe(id, relativa);
+      let texto;
       try {
-        return JSON.parse(await readFile(rutaDe(id, relativa), "utf8"));
+        texto = await readFile(ruta, "utf8");
       } catch {
-        return null;
+        return { datos: null, estado: "falta" };
+      }
+      try {
+        return { datos: JSON.parse(texto), estado: "ok" };
+      } catch (error) {
+        const clave = `${ruta}:${texto.length}`;
+        if (!avisados.has(clave)) {
+          avisados.add(clave);
+          console.error(`corridas: «${describirCarpeta(ruta)}» está dañado (no es JSON válido: ${error.message}).`);
+        }
+        return { datos: null, estado: "danado" };
       }
     },
 
