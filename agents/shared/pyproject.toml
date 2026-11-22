@@ -1,12 +1,14 @@
 [project]
 name = "shared"
 version = "0.1.0"
-description = "Código que comparten los agentes: almacén, navegador, Claude Code, nodos, DOM y catálogo."
+description = "Código que comparten los agentes: almacén, navegador, Claude, nodos, DOM y catálogo."
 requires-python = ">=3.12"
 dependencies = []
 
 [project.optional-dependencies]
 s3 = ["boto3>=1.35.20"]   # necesita IfNoneMatch en put_object
+bedrock = ["boto3>=1.35.20"]   # motor `bedrock` de shared.claude
+agentcore = ["bedrock-agentcore>=1.27"]   # navegador `agentcore` de shared.browser
 browser = ["playwright>=1.48"]
 pixels = ["pillow>=10.0"]
 

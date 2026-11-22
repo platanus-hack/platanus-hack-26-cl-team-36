@@ -13,6 +13,11 @@ def png_image_block(png: bytes) -> dict:
     }
 
 
+def content_blocks(parts: list[str | bytes]) -> list[dict]:
+    """Texto e imágenes PNG, en el orden en que el modelo los ve."""
+    return [{"type": "text", "text": part} if isinstance(part, str) else png_image_block(part) for part in parts]
+
+
 # Cuánto se espera cada respuesta de `claude -p` antes de darla por perdida.
 DEFAULT_TIMEOUT_S = 180
 
@@ -58,9 +63,9 @@ class ClaudeCodeProcess:
         return cls(process, log_file)
 
     async def send(self, text: str, image: bytes | None = None) -> None:
-        content: list[dict] = [{"type": "text", "text": text}]
-        if image is not None:
-            content.append(png_image_block(image))
+        await self.send_content(content_blocks([text] if image is None else [text, image]))
+
+    async def send_content(self, content: list[dict]) -> None:
         message = {"type": "user", "message": {"role": "user", "content": content}}
         self.process.stdin.write((json.dumps(message) + "\n").encode())
         await self.process.stdin.drain()

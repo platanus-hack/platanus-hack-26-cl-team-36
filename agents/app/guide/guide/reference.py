@@ -8,12 +8,12 @@ from playwright.async_api import Browser
 
 from shared.browser.session import BrowserSession, create_context
 from shared.browser.viewports import Screen
-from shared.claude.caller import ClaudeCaller
+from shared.claude.engines import make_caller
 from shared import store
 
 from guide import config
 from guide.candidates import Candidate, search_record, shorter_instruction
-from guide.decider import ClaudeDecider, Decider
+from guide.decider import ClaudeDecider, Decider, scripted_decision
 from guide.explore import Exploration, explore
 from guide.operate import Log
 from guide.output import route_document, write_reference
@@ -152,7 +152,8 @@ async def map_references(
     async def one(mapping: Mapping) -> tuple[store.RunKey, dict]:
         async with semaphore:
             with store.running(backend, mapping.prefix, model=mapping.model, inputs=mapping.inputs) as run:
-                caller = ClaudeCaller(mapping.model, mapping.effort, claude_cwd, run.workdir / "claude_code.log")
+                caller = make_caller(mapping.model, mapping.effort, claude_cwd, run.workdir / "claude_code.log",
+                                     fake=scripted_decision)
                 decider = ClaudeDecider(system_prompt(mapping.screen.width, mapping.screen.height), caller)
                 document = await map_reference(browser, mapping, decider, run.workdir)
             return run.key, document

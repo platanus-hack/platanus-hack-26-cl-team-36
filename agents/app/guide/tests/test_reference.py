@@ -6,9 +6,10 @@ import json
 from playwright.async_api import async_playwright
 
 from shared.browser.session import connect_browser
+from shared.claude.fake import FakeCaller
 
 from guide import config, reference
-from guide.decider import Decision
+from guide.decider import ClaudeDecider, Decision, scripted_decision
 from guide.explore import Exploration, _act
 from guide.page_view import read_page_view
 from guide.reference import Mapping, map_reference
@@ -19,8 +20,8 @@ from tests.conftest import DESKTOP, ScriptedDecider
 QUOTE = "Para dar de baja llama al 103."
 
 
-def _map(site, tmp_path, script, on_done=None, start_url=None, extra_routes=0):
-    decider = ScriptedDecider(script, on_done)
+def _map(site, tmp_path, script, on_done=None, start_url=None, extra_routes=0, decider=None):
+    decider = decider or ScriptedDecider(script, on_done)
     mapping = Mapping("prueba", start_url or (site / "index.html").as_uri(), "Encuentra cómo dar de baja", DESKTOP,
                       "guion", "low", extra_routes=extra_routes)
     out_dir = tmp_path / "out"
@@ -74,6 +75,12 @@ def test_unanswered_exploration_is_not_found(site, tmp_path):
     assert document["status"] == "not_found" and document["steps"] == []
     assert document["exploration"]["end_reason"] == "gave_up" and document["verification"] is None
     assert (out_dir / "step_00.png").is_file()
+
+
+def test_scripted_engine_gives_up_and_the_route_is_not_found(site, tmp_path):
+    decider = ClaudeDecider("sistema", FakeCaller("guion", "low", scripted_decision))
+    document, _, _ = _map(site, tmp_path, None, decider=decider)
+    assert document["status"] == "not_found" and document["exploration"]["end_reason"] == "gave_up"
 
 
 def test_route_that_no_longer_replays_is_unverified(site, tmp_path):

@@ -19,6 +19,7 @@ uv run playwright install chromium
 ```bash
 uv run main.py --url https://www.wom.cl/
 uv run main.py --url https://www.sii.cl/ --pages 10 --rerun
+uv run main.py --url https://www.sii.cl/ayuda/ --revision rev-1
 ```
 
 | Opción | Qué hace |
@@ -26,6 +27,7 @@ uv run main.py --url https://www.sii.cl/ --pages 10 --rerun
 | `--url` | Página inicial del sitio. El catálogo es una corrida de `<host>/cataloger/`. |
 | `--pages`, `--depth` | Topes del esquema (por defecto 30 páginas y profundidad 2). |
 | `--rerun` | Hace un catálogo nuevo. Sin esta opción, si el sitio ya tiene uno que terminó bien, no corre. |
+| `--revision` | Cataloga esa página (`--pages` 1 por defecto) en una corrida nueva con esa `revision` en el manifiesto, sin reusar otro catálogo. Sale con 0 si la corrida termina `succeeded`, aunque no haya objetivos evaluables. |
 | `--model`, `--effort` | Por defecto `claude-opus-5-5`, `high`. |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 

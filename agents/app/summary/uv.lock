@@ -70,11 +70,13 @@ source = { editable = "../../shared" }
 
 [package.metadata]
 requires-dist = [
+    { name = "bedrock-agentcore", marker = "extra == 'agentcore'", specifier = ">=1.27" },
+    { name = "boto3", marker = "extra == 'bedrock'", specifier = ">=1.35.20" },
     { name = "boto3", marker = "extra == 's3'", specifier = ">=1.35.20" },
     { name = "pillow", marker = "extra == 'pixels'", specifier = ">=10.0" },
     { name = "playwright", marker = "extra == 'browser'", specifier = ">=1.48" },
 ]
-provides-extras = ["s3", "browser", "pixels"]
+provides-extras = ["s3", "bedrock", "agentcore", "browser", "pixels"]
 
 [package.metadata.requires-dev]
 dev = [

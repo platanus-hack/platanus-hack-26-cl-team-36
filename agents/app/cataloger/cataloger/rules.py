@@ -123,12 +123,12 @@ def _repair_parents(goals: list[Goal]) -> list[str]:
 
 
 def gates(goal: Goal, outline: SiteOutline) -> list[str]:
-    """Las señales de barrera de sus páginas de evidencia (la inicial solo si es la única).
+    """Las señales de barrera de sus páginas de evidencia (la inicial solo si es la única y no sale de ella por `entry`).
 
     `personal_data` solo si el objetivo envía un formulario; `side_effect` si es `transact`.
     """
     pages = [page for page in outline.pages if page.url in goal.evidence]
-    own_pages = [page for page in pages if page.url != outline.pages[0].url] or pages
+    own_pages = [page for page in pages if page.url != outline.pages[0].url] or (pages if goal.entry is None else [])
     found = {gate for page in own_pages for gate in page.gates}
     if not (goal.submits_form or goal.intent == "transact"):
         found.discard("personal_data")
