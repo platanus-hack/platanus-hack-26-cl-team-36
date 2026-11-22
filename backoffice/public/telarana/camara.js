@@ -291,3 +291,20 @@ export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () =>
     },
   };
 }
+
+/**
+ * Cuando el mapa no cabe de alto: el desplazamiento vertical (ty, en px de escena, antes de multiplicar por el zoom)
+ * de la franja de `alto` px que deja dentro el mayor peso de puntos ({ y, peso }), con `margen` px libres arriba
+ * (para el punto) y abajo (para la etiqueta). A igual peso, la franja más cerca del tronco (y = 0). Sin puntos: null.
+ */
+export function franjaConMasEstaciones(puntos, alto, margen = 0) {
+  if (!puntos.length) return null;
+  const util = Math.max(0, alto - 2 * margen);
+  let mejor = null;
+  for (const { y: desde } of puntos) {
+    const peso = puntos.reduce((suma, p) => suma + (p.y >= desde && p.y <= desde + util ? p.peso : 0), 0);
+    const centro = Math.abs(desde + util / 2);
+    if (!mejor || peso > mejor.peso || (peso === mejor.peso && centro < mejor.centro)) mejor = { peso, centro, desde };
+  }
+  return -(mejor.desde - margen);
+}

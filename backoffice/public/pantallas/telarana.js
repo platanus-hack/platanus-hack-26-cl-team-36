@@ -14,7 +14,7 @@ import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
 import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
 import { nombreDePagina, textoDeFirma, textoDeTitular } from "../datos/textos.js";
-import { altoDeFilaPara, altoDelLienzo, crearCamara, zoomLegible } from "../telarana/camara.js";
+import { altoDeFilaPara, altoDelLienzo, crearCamara, franjaConMasEstaciones, zoomLegible } from "../telarana/camara.js";
 import {
   activosDePerfil,
   finalesPorPagina,
@@ -33,6 +33,8 @@ import { crearHistoria } from "../telarana/historia.js";
 import { etiquetasDeEstaciones } from "../telarana/nombres.js";
 
 const PASO_DE_PAN = 60;
+const MARGEN_DE_FRANJA = 40; // px de escena sobre y bajo la franja encuadrada (el punto y la etiqueta)
+const MARGEN_BAJO_EL_LIENZO = 16; // px entre la leyenda (o el lienzo) y el borde de abajo de la ventana
 const reducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 // Holgura para las etiquetas fuera de la caja de la geometría (la mitad del nombre del inicio a la izquierda, debajo
@@ -354,11 +356,20 @@ function crearPantalla(contenedor, ctx) {
     const { clientWidth: ancho, clientHeight: alto } = lienzo;
     if (caja.ancho * encuadre.k > ancho) encuadre.tx = -caja.x * encuadre.k;
     if (caja.alto * encuadre.k > alto) {
+      // La franja que deja dentro más estaciones (el inicio, la meta y las terminales valen por diez), sin vacío arriba ni
+      // abajo del mapa.
       const arriba = -caja.y * encuadre.k;
       const abajo = alto - (caja.y + caja.alto) * encuadre.k;
-      encuadre.ty = Math.min(arriba, Math.max(abajo, alto / 2));
+      const ty = franjaConMasEstaciones(puntosParaEncuadrar(), alto / encuadre.k, MARGEN_DE_FRANJA);
+      encuadre.ty = Math.min(arriba, Math.max(abajo, ty === null ? alto / 2 : ty * encuadre.k));
     }
     camara.poner(encuadre);
+  }
+
+  /** Alturas (px de escena) de las estaciones y terminales, con su peso para el encuadre. */
+  function puntosParaEncuadrar() {
+    const importantes = new Set([distribucion.tronco[0], distribucion.tronco.at(-1), ...distribucion.terminales.map((t) => t.id)]);
+    return [...distribucion.estaciones, ...distribucion.terminales].map(({ id }) => ({ y: estado.geo.posiciones.get(id).y, peso: importantes.has(id) ? 10 : 1 }));
   }
 
   function acercar() {
@@ -391,10 +402,15 @@ function crearPantalla(contenedor, ctx) {
     });
   }
 
-  /** El lienzo llena lo que queda de la ventana bajo su borde de arriba (con la página sin desplazar). */
+  /**
+   * El lienzo llena lo que queda de la ventana bajo su borde de arriba (con la página sin desplazar), dejando lugar
+   * debajo para la leyenda: sin ella no se leen los colores ni el grosor en la primera vista.
+   */
   function dimensionarLienzo() {
-    const arriba = lienzo.getBoundingClientRect().top + window.scrollY;
-    const alto = altoDelLienzo(window.innerHeight, arriba);
+    const caja = lienzo.getBoundingClientRect();
+    const arriba = caja.top + window.scrollY;
+    const bajoElLienzo = Math.max(0, leyenda.getBoundingClientRect().bottom - caja.bottom);
+    const alto = altoDelLienzo(window.innerHeight, arriba, MARGEN_BAJO_EL_LIENZO + bajoElLienzo);
     if (alto === estado.altoDelLienzo) return false;
     estado.altoDelLienzo = alto;
     contenedor.style.setProperty("--alto-del-lienzo", `${alto}px`);
