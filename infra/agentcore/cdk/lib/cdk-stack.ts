@@ -21,10 +21,10 @@ export class AgentCoreStack extends Stack {
 
     // El bucket lo crea Terraform (infra/app/almacen.tf); acá solo se referencia por nombre.
     const almacen = s3.Bucket.fromBucketName(this, 'Almacen', `chameleon-almacen-${this.account}`);
-    const runtime = this.application.runtime('web_evaluator_image');
+    const runtime = this.application.runtime('chameleon');
     runtime.addEnvironmentVariable('AGENTS_STORE', `s3://${almacen.bucketName}/`);
     runtime.grantReadWrite(almacen);
-    // El conductor invoca a este mismo runtime: comodín para no referenciar su propio ARN.
+    // El conductor (stage "revision") invoca a este mismo runtime: comodín para no referenciar su propio ARN.
     runtime.grant(
       ['bedrock-agentcore:InvokeAgentRuntime'],
       [`arn:${this.partition}:bedrock-agentcore:${this.region}:${this.account}:runtime/*`],

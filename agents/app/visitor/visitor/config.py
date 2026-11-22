@@ -29,8 +29,8 @@ EXPLORADOR_MAX_TURNOS = 70
 # Desde el 2026-11-21 el estándar son los 8 (ver .spikes/2026-11-21-exploradores-conocimiento.md).
 CONJUNTO_EXPLORADORES = "conocimiento"
 
-# Skills de Claude Code del repo (.claude/skills/): algunos perfiles cargan una en su prompt. La carpeta queda fuera
-# de la imagen de AgentCore, así que ahí no hay skills (None) y esos perfiles solo corren en local.
+# Skills de Claude Code del repo (.claude/skills/): algunos perfiles cargan una en su prompt. La imagen del runtime
+# chameleon las copia en la misma ruta; sin la carpeta (None), esos perfiles no corren.
 # Desde agents/app/visitor/visitor/config.py, la raíz del repo está cuatro carpetas arriba.
 _CARPETAS_ARRIBA = Path(__file__).resolve().parents
 _SKILLS = _CARPETAS_ARRIBA[4] / ".claude" / "skills" if len(_CARPETAS_ARRIBA) > 4 else None
@@ -51,4 +51,3 @@ BEDROCK_MODEL_PREFIX = "us.anthropic."
 # (ver actions.LEGACY_COMPUTER_MODELS). Sonnet 4.6 no acepta el esfuerzo `xhigh`.
 BEDROCK_USER_MODEL = "claude-sonnet-4-6"
 BEDROCK_JUDGE_MODEL = "claude-sonnet-4-6"
-AGENTCORE_RUNTIME_NAME = "web_evaluator_image"   # en infra/agentcore/agentcore.json

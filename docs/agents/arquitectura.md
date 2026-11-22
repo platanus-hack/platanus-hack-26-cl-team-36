@@ -20,9 +20,11 @@ agents/
     guide/                    ← GUÍA: encuentra y verifica la ruta de referencia de un objetivo, con DOM y capturas
       main.py  guide/  tests/
     visitor/                  ← VISITA: usuarios sintéticos que intentan un objetivo viendo solo capturas
-      main.py  agentcore_app.py  visitor/  tests/
+      main.py  visitor/  tests/
     summary/                  ← RESUME: compara, por objetivo, la ruta de la Guía con los intentos del Visitante
       main.py  summary/  tests/
+    runtime/                  ← la entrada del runtime chameleon en AgentCore: corre la etapa que pide el payload
+      agentcore_app.py  dispatcher.py  Dockerfile  tests/
   shared/                     ← lo que usan dos o más: almacén, navegador, Claude Code, nodos, DOM y catálogo
   tasks/<host>/<goal>.json    ← tareas escritas a mano: cada una es un objetivo de su host
   .runs/                      ← el almacén en disco (fuera de git); ver Almacén
@@ -48,8 +50,12 @@ que tiene herramientas web, debe lograrlo al menos igual de bien.
 
 - **Nombres con guion bajo o una palabra.** Python no puede importar una carpeta con guion, y el nombre de un runtime
   de AgentCore tampoco lo acepta (patrón `[a-zA-Z][a-zA-Z0-9_]{0,47}`).
-- **El runtime desplegado se llama `web_evaluator_image`.** Es una imagen: `infra/agentcore/agentcore.json` la
-  construye con `agents/app/visitor/Dockerfile` y `agents/` como contexto, para que entre `agents/shared/`.
+- **Un solo runtime, `chameleon`, para todas las etapas.** Es una imagen con cada app y su entorno
+  (`agents/app/runtime/Dockerfile`, con la raíz del repo como contexto para que entre `.claude/skills/`). La API
+  lo invoca con `{"stage": "revision", ...}`: el conductor lanza cada etapa (`catalog`, `guide`, `visitor`,
+  `improver`) como otra invocación del mismo runtime, en una sesión nueva, y espera su `manifest.json` en S3. Cada
+  invocación responde al instante y corre el CLI de su etapa (`shared.stages`) en segundo plano; si el CLI falla sin
+  dejar corrida, el runtime escribe una `failed`.
 - **El Optimizador** se propone como `web_optimizer`.
 
 ## Flujo por sitio
