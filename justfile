@@ -1,6 +1,6 @@
 # Commands are grouped by environment, and they work from anywhere in the repo:
-# `just local` lists local development (local/justfile), `just aws` the web
-# evaluator in AgentCore (infra/justfile).
+# `just local` lists local development (local/justfile), `just aws` the visitor
+# in AgentCore (infra/justfile).
 mod local
 mod aws 'infra/justfile'
 
@@ -38,7 +38,7 @@ sync: _gh
     echo "  ✔ The personal repo is at $(gh api repos/{{ personal_repo }}/commits/main --jq '.sha[0:7]'), same as main"
 
     # A push starts the deploys within seconds: Terraform if it touches backend/ or infra/app/,
-    # AgentCore if it touches the web evaluator (agents/app/web_evaluator/ or infra/agentcore/).
+    # AgentCore if it touches the visitor (agents/app/visitor/, agents/shared/ or infra/agentcore/).
     # Prints "workflow id" for each one.
     deploys_since() {
         for workflow in terraform.yml agentcore.yml; do
@@ -51,7 +51,7 @@ sync: _gh
     # Both start from the same push: give the second one a moment to show up.
     [ -z "$deploys" ] || { sleep 3; deploys="$(deploys_since)"; }
     if [ -z "$deploys" ]; then
-        echo "  ✔ Nothing to deploy: no changes in backend/, infra/app/ or the web evaluator"
+        echo "  ✔ Nothing to deploy: no changes in backend/, infra/app/ or the visitor"
         exit 0
     fi
     failed=0

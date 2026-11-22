@@ -2,17 +2,25 @@
 
 La API (`backend/`) corre en AWS como una Lambda con URL pública. Terraform la crea y la actualiza desde GitHub
 Actions, en el repo personal [brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36).
-El evaluador web (`agents/app/web_evaluator/`) corre en AgentCore Runtime; lo despliega la CLI de AgentCore desde
+El Visitante (`agents/app/visitor/`) corre en AgentCore Runtime; lo despliega la CLI de AgentCore desde
 `agentcore/`, en el mismo repo personal.
 
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
 Actions, con el plan de Terraform, quedarían a la vista. El repo personal es privado y es una copia de `main` de este.
 
-**Por qué `us-east-2`.** La cuenta de AWS se creó con el registro nuevo de AWS (*Sign up for AWS (new)*). Con ese
-registro, la cuenta es un "proyecto" dentro de una organización que administra AWS. Las políticas de esa organización
-solo dejan crear recursos regionales, como S3 o Lambda, en la región asignada al proyecto, y a Chile le corresponde
-`us-east-2` (Ohio). Cualquier otra región responde *explicit deny in a service control policy*. La región del
-proyecto se ve en [settings.aws.com](https://settings.aws.com) → Project → Additional info.
+**La cuenta de AWS.** Todo corre en una cuenta creada con el registro nuevo de AWS (*Sign up for AWS (new)*). Con ese
+registro, la cuenta es un "proyecto" dentro de una organización que administra AWS, y las políticas de esa organización
+(SCP) limitan lo que se puede hacer en ella:
+
+- Los recursos regionales, como S3 o Lambda, solo se pueden crear en la región del proyecto, `us-east-2` (Ohio). La
+  región se ve en [settings.aws.com](https://settings.aws.com) → Project → Additional info.
+- No se pueden crear grupos IAM ni usuarios IAM con contraseña. El equipo entra invitado al proyecto (ver
+  [Acceso del equipo](#acceso-del-equipo)).
+- Bedrock no da acceso a Claude Opus 4.7 ni a los modelos posteriores: responden *is not available for this account*,
+  y eso solo lo puede habilitar AWS (Sales o Support). Por eso el Visitante usa Claude Sonnet 4.6 (ver
+  [el Visitante](../agents/app/visitor/README.md#en-aws-agentcore)).
+
+Antes, el proyecto corría en una subcuenta de desarrollo de la organización de AWS de Unholster.
 
 ## Cómo llega un cambio a AWS
 
@@ -21,11 +29,11 @@ proyecto se ve en [settings.aws.com](https://settings.aws.com) → Project → A
    suele atrasarlo.
 3. Si el cambio toca `backend/` o `infra/app/`, el workflow `Terraform` del repo personal hace `plan` y `apply`.
 4. La URL de la API queda en el resumen de esa ejecución.
-5. Si el cambio toca `infra/agentcore/` o `agents/app/web_evaluator/`, el workflow `AgentCore` despliega el evaluador
-   web con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol. La CLI
-   empaqueta el código para arm64 y aplica su propio stack de CDK; no pasa por Terraform. La primera vez también
-   prepara la cuenta para CDK (`CDKToolkit`). Desde un computador: `just aws` (ver
-   [el evaluador](../agents/app/web_evaluator/README.md#en-aws-agentcore)).
+5. Si el cambio toca `infra/agentcore/`, `agents/app/visitor/` o `agents/shared/`, el workflow `AgentCore` despliega
+   el Visitante con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol.
+   La CLI construye la imagen del Visitante (`agents/app/visitor/Dockerfile`, con `agents/` como contexto) en CodeBuild,
+   para arm64, y aplica su propio stack de CDK; no pasa por Terraform. La primera vez también prepara la cuenta para
+   CDK (`CDKToolkit`). Desde un computador: `just aws` (ver [el Visitante](../agents/app/visitor/README.md#en-aws-agentcore)).
 
 Las PRs no muestran un plan. Antes de mergear un cambio de infraestructura, corre `terraform plan` en local (ver más
 abajo).
@@ -36,27 +44,52 @@ abajo).
   GitHub a AWS por OIDC (sin llaves guardadas), el rol que asume el workflow y una alerta de presupuesto. Se aplica
   una vez, a mano, y su estado queda en el computador de quien lo aplicó.
 - `app/`: la Lambda, su URL, su rol y su log. Su estado vive en el bucket.
-- `agentcore/`: el evaluador web en AgentCore Runtime. `infra/` es el proyecto de la
+- `agentcore/`: el Visitante en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime
-  `web_evaluator`, con su código en `../agents/app/web_evaluator/`, y `agentcore/cdk/` es el stack que la CLI genera.
+  `web_evaluator_image`, con su código en `../agents/app/visitor/` y `../agents/` como contexto de la imagen, para que
+  entre `../agents/shared/`; `agentcore/cdk/` es el stack que la CLI genera. El runtime se llama así porque AgentCore no
+  deja pasar un runtime de zip a imagen: el anterior, `web_evaluator`, era de zip y se reemplazó.
   `agentcore/.cli/deployed-state.json` enlaza el proyecto con lo desplegado. `agentcore/aws-targets.json` queda con el
   id de la cuenta después de desplegar desde un computador: no lo subas, el repo es público.
-- `justfile`: `just aws`, los comandos del evaluador en AgentCore (`explore`, `deploy`, `status`, `logs`).
+- `justfile`: `just aws`, los comandos del Visitante en AgentCore (`visit`, `deploy`, `status`, `logs`).
 - `../backend/lambda.js`: entrada de la Lambda. Levanta el servidor de `index.js` y le reenvía cada request, así
   `index.js` funciona igual en local y en AWS.
+
+## Acceso del equipo
+
+La cuenta no tiene usuarios IAM. Cada persona entra con su AWS Builder ID, invitada al proyecto, y saca credenciales
+temporales con `aws login`. Los invitados son administradores del proyecto, que es lo que necesitan Terraform y la CLI
+de AgentCore, pero no pueden invitar a otros ni ver la facturación.
+
+1. **Invitar**, quien es dueño del proyecto: [settings.aws.com](https://settings.aws.com) → **Team** → **Invite new
+   team member**, con el correo de la persona y el proyecto, y **Send invitation**. La invitación dura 14 días.
+2. **Aceptar**, la persona invitada: abre el correo de AWS y entra con su AWS Builder ID. Si no tiene uno, lo crea
+   ahí mismo.
+3. **Entrar desde la CLI**, con la AWS CLI 2.32 o más nueva (`aws --version`):
+
+   ```bash
+   aws login --profile grupo36          # abre el navegador: elige el proyecto
+   aws configure set region us-east-2 --profile grupo36
+   export AWS_PROFILE=grupo36
+   aws sts get-caller-identity          # confirma que es la cuenta del proyecto
+   ```
+
+   La sesión dura hasta 12 horas; después, `aws login --profile grupo36` otra vez. Si Terraform no logra leer esas
+   credenciales: `eval "$(aws configure export-credentials --format env)"`.
 
 ## Puesta en marcha (una vez)
 
 Necesitas Terraform 1.11 o más nuevo (`brew install hashicorp/tap/terraform`) y la AWS CLI con un perfil de la cuenta
-de la hackatón, con permisos de administrador.
+del proyecto, con permisos de administrador.
 
 **1. Bootstrap**, quien tenga la cuenta de AWS:
 
 ```bash
-export AWS_PROFILE=<perfil de la cuenta de la hackatón>
+export AWS_PROFILE=<perfil de la cuenta del proyecto>
 aws sts get-caller-identity          # confirma que es la cuenta correcta antes de seguir
 cd infra/bootstrap
 terraform init
+# Si Terraform no logra renovar la sesión SSO: eval "$(aws configure export-credentials --format env)"
 terraform apply -var="email_alertas=<correo para las alertas>"
 ```
 
@@ -102,7 +135,7 @@ Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resume
 
 ## Al terminar la hackatón
 
-1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El evaluador web no es parte de
+1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El Visitante no es parte de
    Terraform: en CloudFormation (us-east-2), borra el stack `AgentCore-ChameleonAgents-…` y después `CDKToolkit`.
 2. Desactiva `Sincroniza desde la organización`. Corre unas 290 veces al día y cada vez cuenta como un minuto de los
    2.000 gratis al mes de un repo privado.

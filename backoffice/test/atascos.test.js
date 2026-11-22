@@ -19,7 +19,7 @@ test("repetir la misma acción en la misma página", () => {
 });
 
 test("atascos de la tanda nueva: demora, tropiezos y sin los intentos con error", async () => {
-  const tanda = await leerTanda(RAIZ, "tarea-demo/2026-11-21_11-00-00");
+  const tanda = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z");
   const atascos = atascosPorPagina(tanda);
   // Apurado da 7 pasos seguidos en Ayuda (n2), uno sin efecto; Adulto mayor vuelve atrás desde n6.
   assert.deepEqual(atascos.get("n2"), [{ intento: "hurried", demora: 7, tropiezos: 1, repetidos: 0 }]);

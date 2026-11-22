@@ -58,7 +58,13 @@ class Backend(ABC):
         return self._exists(key)
 
     def list_runs(self, prefix: RunPrefix) -> list[RunKey]:
-        return [prefix.run(run_id) for run_id in sort_run_ids(self._children(prefix))]
+        return [prefix.run(run_id) for run_id in sort_run_ids(self._children(str(prefix)))]
+
+    def list_profiles(self, run: RunKey) -> list[str]:
+        """Carpetas de perfil de una corrida de visitor."""
+        if run.prefix.agent != "visitor":
+            raise InvalidKey(f"{run.prefix.agent} no tiene carpetas de perfil")
+        return sorted(self._children(str(run)))
 
     @abstractmethod
     def workdir(self, run: RunKey) -> Path:
@@ -81,5 +87,5 @@ class Backend(ABC):
     def _exists(self, key: str) -> bool: ...
 
     @abstractmethod
-    def _children(self, prefix: RunPrefix) -> Iterable[str]:
-        """Nombres de las subcarpetas inmediatas de `prefix`."""
+    def _children(self, folder: str) -> Iterable[str]:
+        """Nombres de las subcarpetas inmediatas de la clave `folder`."""

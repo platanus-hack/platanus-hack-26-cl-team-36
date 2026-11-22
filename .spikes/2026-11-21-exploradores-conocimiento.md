@@ -9,7 +9,7 @@ Chromium de Playwright con `--record-video`. Las tandas corrieron una a la vez, 
 - **B** = `--exploradores conocimiento`: 8 = esos 4 lugares × 2 niveles (`sin_contexto`: palabras de todos los días,
   no puede escribir términos oficiales que no haya visto en el sitio; `conoce_tema`: conoce los nombres oficiales y
   cómo funciona el trámite). Ningún nivel recibe pistas de dónde está la respuesta. Ver
-  [el README del evaluador](../agents/app/web_evaluator/README.md#exploradores-con-nivel-de-conocimiento).
+  [el README del Visitante](../agents/app/visitor/README.md#exploradores-con-nivel-de-conocimiento).
 - **A×2** = la unión de las dos tandas de A de cada tarea: 8 exploradores sin nivel. Es el control para separar el
   efecto de los niveles del de tener el doble de exploradores.
 

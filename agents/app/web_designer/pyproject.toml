@@ -4,8 +4,8 @@ version = "0.1.0"
 description = "Diseñador: genera un tema (CSS bajo html.mi-tema) con un skill y lo mide en un sitio real."
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "shared[browser,pixels]",
     "playwright>=1.48",
-    "pillow>=10.0",
 ]
 
 [dependency-groups]
@@ -15,6 +15,9 @@ dev = ["pytest>=8.0"]
 # Se corre con `uv run main.py`; no se empaqueta.
 package = false
 
+[tool.uv.sources]
+shared = { path = "../../shared", editable = true }
+
 [tool.pytest.ini_options]
-pythonpath = [".", "../web_evaluator"]
+pythonpath = ["."]
 testpaths = ["tests"]

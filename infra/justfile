@@ -1,18 +1,22 @@
-# AWS environment: the web evaluator in AgentCore Runtime, through the AgentCore CLI
+# AWS environment: the visitor in AgentCore Runtime, through the AgentCore CLI
 # (infra/agentcore/). From anywhere in the repo, as `just aws <command>`. They use your
-# AWS credentials for the hackathon account: export AWS_PROFILE=<profile>.
+# AWS credentials for the project account: export AWS_PROFILE=<profile>.
 #
-#   just aws explore wom-baja-fibra              a task from agents/tasks/, on AgentCore
-#   just aws explore <url> "<task>" [profiles]   any site, on AgentCore
+#   just aws visit wom.cl/baja-fibra             a task from agents/tasks/, on AgentCore
+#   just aws visit <url> "<task>" [profiles]     any site, on AgentCore
 #   just aws deploy                              deploys from your computer (CI does it on every merge)
 #
 # Recipes run from infra/, the AgentCore CLI project: its configuration is in infra/agentcore/ and the
-# code it deploys in agents/app/web_evaluator/.
+# code it deploys in agents/app/visitor/ (image built with agents/ as context, so agents/shared/ is in it).
 
 set positional-arguments
 
 agentcore := "../node_modules/.bin/agentcore"
-list_heading := "Run as `just aws <command>`, with AWS_PROFILE set to the hackathon account:\n"
+list_heading := "Run as `just aws <command>`, with AWS_PROFILE set to the project account:\n"
+# The deployed runtime: <project>_<target>_<runtime>. The CLI only finds it by its name in agentcore.json on the
+# computer that deployed it, and CI deploys, so visit, status and logs look it up in AWS instead.
+runtime_name := "ChameleonAgents_default_web_evaluator_image"
+runtime_arn := "aws bedrock-agentcore-control list-agent-runtimes --query \"agentRuntimes[?agentRuntimeName=='" + runtime_name + "'].agentRuntimeArn | [0]\" --output text"
 
 # What `just aws` alone runs.
 [private]
@@ -20,13 +24,13 @@ list_heading := "Run as `just aws <command>`, with AWS_PROFILE set to the hackat
 help:
     @just --list aws --unsorted --list-heading '{{ list_heading }}'
 
-# Synthetic users on AgentCore: a task id from agents/tasks/, or a URL and a task. Saves report.md in agents/.runs/aws/
+# Synthetic users on AgentCore: a task from agents/tasks/ as <host>/<goal>, or a URL and a task. Saves report.md in local/.state/aws/
 [group('Synthetic users on AgentCore · Claude on Bedrock, billed to the AWS account')]
-explore target task="" profiles="": _ready
+visit target task="" profiles="": _ready
     #!/usr/bin/env bash
     set -euo pipefail
     if [[ "$1" == http* ]]; then
-        [ -n "$2" ] || { echo "usage: just aws explore <url> \"<task>\" [profiles]" >&2; exit 1; }
+        [ -n "$2" ] || { echo "usage: just aws visit <url> \"<task>\" [profiles]" >&2; exit 1; }
         payload=$(node -e 'const [url, instruction, profiles] = process.argv.slice(1);
             console.log(JSON.stringify({url, instruction, profiles: profiles ? profiles.split(",") : undefined}))' "$1" "$2" "$3")
     else
@@ -35,10 +39,12 @@ explore target task="" profiles="": _ready
             console.log(JSON.stringify({url: t.start_url, instruction: t.description, task_id: t.id,
                 profiles: profiles ? profiles.split(",") : undefined}))' "$PWD/../agents/tasks/$1.json" "$3")
     fi
-    out="agents/.runs/aws/$(date +%Y-%m-%d_%H-%M-%S)"
+    runtime=$({{ runtime_arn }})
+    [[ "$runtime" == arn:* ]] || { echo "error: {{ runtime_name }} is not deployed in this account" >&2; exit 1; }
+    out="local/.state/aws/$(date +%Y-%m-%d_%H-%M-%S)"
     mkdir -p "../$out"
     # The runtime answers in a stream: a status line every 20 s, then the outcomes and the report.
-    {{ agentcore }} invoke --runtime web_evaluator --payload "$payload" | node -e '
+    {{ agentcore }} invoke --runtime "$runtime" --payload "$payload" | node -e '
         const fs = require("fs"), out = process.argv[1];
         require("readline").createInterface({input: process.stdin}).on("line", (line) => {
             if (!line.startsWith("data: ")) return;
@@ -54,20 +60,29 @@ explore target task="" profiles="": _ready
             }
         });' "$out"
 
-# Deploys the web evaluator to AgentCore from your computer. CI does the same on every merge to main
+# Deploys the visitor to AgentCore from your computer. CI does the same on every merge to main
 [group('Deploy')]
 deploy: _ready
     {{ agentcore }} deploy
 
-# What is deployed: the runtime, its version and its status
+# What is deployed: the runtime, its version, its status and when it was last updated
 [group('Deploy')]
-status: _ready
-    {{ agentcore }} status
+status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    runtime=$({{ runtime_arn }})
+    [[ "$runtime" == arn:* ]] || { echo "{{ runtime_name }} is not deployed in this account" >&2; exit 1; }
+    aws bedrock-agentcore-control get-agent-runtime --agent-runtime-id "${runtime##*/}" --output table \
+        --query '{name: agentRuntimeName, status: status, version: agentRuntimeVersion, updated: lastUpdatedAt}'
 
-# The runtime logs from the last 30 minutes. E.g. just aws logs --tail
+# The runtime logs from the last 30 minutes. E.g. just aws logs --follow, or just aws logs --since 2h
 [group('Deploy')]
-logs *options: _ready
-    {{ agentcore }} logs runtime --name web_evaluator --since 30m "$@"
+logs *options:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    runtime=$({{ runtime_arn }})
+    [[ "$runtime" == arn:* ]] || { echo "{{ runtime_name }} is not deployed in this account" >&2; exit 1; }
+    aws logs tail "/aws/bedrock-agentcore/runtimes/${runtime##*/}-DEFAULT" --since 30m --format short "$@"
 
 [private]
 _ready:
