@@ -132,6 +132,13 @@ def test_gates_come_from_own_evidence_pages_and_transact():
     assert gates(_goal("g", evidence=[FORM], intent="reach_page"), OUTLINE) == []
 
 
+def test_start_page_gates_only_block_goals_that_stay_on_it():
+    # Con --pages 1 toda evidencia es la página inicial: un login en ella no debe excluir lo que sale de ahí.
+    one_page = SiteOutline(START, "sitio.cl", "1024x768", [_page(START, OUTLINE.pages[0].links, ["login"])], [])
+    assert gates(_goal("telefono", evidence=[START], entry=HELP), one_page) == []
+    assert gates(_goal("ingresar", evidence=[START]), one_page) == ["login"]
+
+
 def test_outline_text_lists_each_link_once_and_the_page_gates():
     text = render_outline(OUTLINE)
     assert text.count(f"Ingresar → {LOGIN}") == 1 and "Barreras: login" in text
