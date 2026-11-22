@@ -110,10 +110,9 @@ def test_a_revision_without_options_runs_the_full_visitor(backend):
     report = conduct(backend, invoker)
     visitors = [payload for payload in invoker.payloads if "profiles" in payload]
     assert len(visitors) == 8
-    assert visitors[0]["profiles"] == "desktop,mobile,explorador,explorador_buscador" and visitors[0]["runs"] == 2
-    assert stages.command("visitor", visitors[0]).args[-4:] == (
-        "--profiles", "desktop,mobile,explorador,explorador_buscador", "--runs", "2")
-    assert report["options"]["goals_max"] == 8
+    assert visitors[0]["profiles"] == "arana" and visitors[0]["runs"] == 1
+    assert stages.command("visitor", visitors[0]).args[-4:] == ("--profiles", "arana", "--runs", "1")
+    assert report["options"]["goals_max"] == 8 and report["options"]["concurrency"] == 8
 
 
 def test_defaults_come_from_the_environment():
@@ -122,6 +121,11 @@ def test_defaults_come_from_the_environment():
     output = subprocess.run([sys.executable, "-c", code], cwd=Path(main.__file__).parent, env=env, check=True,
                             capture_output=True, text=True).stdout
     assert output.split() == ["3", "desktop", "4"]
+    env = {**os.environ, "CONDUCTOR_CONJUNTO": "otro"}
+    env.pop("CONDUCTOR_PROFILES", None)
+    output = subprocess.run([sys.executable, "-c", code], cwd=Path(main.__file__).parent, env=env, check=True,
+                            capture_output=True, text=True).stdout
+    assert output.split()[1] == "otro"
 
 
 def test_concurrency_is_capped(backend):
@@ -238,7 +242,7 @@ def test_command_writes_the_conductor_run(monkeypatch, backend):
     code, manifest, report = _main(monkeypatch, backend, FakeInvoker(backend, [goal("a")]), "--goals-max", "1")
     assert code == 0 and manifest.revision == REVISION and manifest.status == "succeeded"
     assert report["status"] == "succeeded" and report["options"]["goals_max"] == 1
-    assert report["options"]["concurrency"] == 6  # por defecto: todos los objetivos de una revisión a la vez
+    assert report["options"]["concurrency"] == 8  # por defecto: todos los objetivos de una revisión a la vez
 
 
 def test_command_fails_with_the_improver(monkeypatch, backend):
