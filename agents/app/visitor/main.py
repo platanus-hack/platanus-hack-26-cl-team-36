@@ -29,7 +29,8 @@ from visitor.batch import BatchInterrupted, run_batch
 from visitor.catalog_run import plan, run_planned
 from visitor.comparison import find_references
 from visitor.conocimiento import ConocimientoDeTarea
-from visitor.profiles import CONJUNTOS_EXPLORADORES, PERFILES_POR_DEFECTO, PROFILES, exploradores_del_conjunto
+from visitor.profiles import (CONJUNTOS_DE_PERFILES, CONJUNTOS_EXPLORADORES, PERFILES_POR_DEFECTO, PROFILES,
+                              expand_profiles, exploradores_del_conjunto)
 from visitor.stage import MissingInput, run_stage
 
 ENGINES = ("claude-code", "api", "bedrock", "fake")
@@ -60,7 +61,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--profiles",
         default=None,
         help=f"perfiles separados por coma, de: {', '.join(PROFILES)} (por defecto: {','.join(PERFILES_POR_DEFECTO)})."
-        " Los explorador* siguen la skill explorar-caminos y solo corren en local",
+        " Los explorador* siguen la skill explorar-caminos. También un conjunto con sus intentos por perfil: "
+        + "; ".join(f"{nombre} = {', '.join(f'{k}×{n}' for k, n in claves.items())}"
+                    for nombre, claves in CONJUNTOS_DE_PERFILES.items()),
     )
     parser.add_argument("--runs", type=int, default=1, help="intentos por perfil (por defecto 1)")
     parser.add_argument(
@@ -145,7 +148,8 @@ def _target(
     parser.error("falta qué probar: usa --task <host>/<objetivo>, --url con --instruction, o --site <url>")
 
 
-def _profile_keys(parser: argparse.ArgumentParser, args: argparse.Namespace) -> list[str]:
+def _profile_keys(parser: argparse.ArgumentParser, args: argparse.Namespace) -> tuple[list[str], dict[str, int]]:
+    """Las claves de los perfiles y los intentos de cada una (más de 1 solo en un conjunto, como `arana`)."""
     # argparse no valida contra `choices` un valor por defecto que viene del entorno.
     if args.engine not in ENGINES or args.browser not in BROWSERS:
         parser.error(f"AGENTS_ENGINE o AGENTS_BROWSER inválidos: usa {', '.join(ENGINES)} y {', '.join(BROWSERS)}")
@@ -161,13 +165,13 @@ def _profile_keys(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         profiles = ""  # solo los exploradores del conjunto
     else:
         profiles = args.profiles or ",".join(PERFILES_POR_DEFECTO)
-    profile_keys = [key.strip() for key in profiles.split(",") if key.strip()]
+    profile_keys, profile_runs = expand_profiles(profiles)
     if args.exploradores:
         profile_keys += [key for key in exploradores_del_conjunto(args.exploradores) if key not in profile_keys]
     unknown = [key for key in profile_keys if key not in PROFILES]
     if unknown:
         parser.error(f"perfiles desconocidos: {', '.join(unknown)}; disponibles: {', '.join(PROFILES)}")
-    return profile_keys
+    return profile_keys, profile_runs
 
 
 def _tema(parser: argparse.ArgumentParser, css: Path | None, kit: Path | None) -> str | None:
@@ -226,8 +230,8 @@ def main() -> None:
     tema = _tema(parser, args.css, args.tema)
     if not args.site and not args.revision:
         goal, url, instruction, conocimiento = _target(parser, args)
-    profile_keys = _profile_keys(parser, args)
-    options = {"engine": args.engine, "user_model": args.model, "effort": args.effort, "cdp_url": args.cdp_url,
+    profile_keys, profile_runs = _profile_keys(parser, args)
+    options = {"profile_runs": profile_runs,"engine": args.engine, "user_model": args.model, "effort": args.effort, "cdp_url": args.cdp_url,
                "browser": args.browser, "record_video": args.record_video, "runs": args.runs, "judge": args.judge,
                "tema_css": args.css, "tema_kit": args.tema, "conjunto_exploradores": args.exploradores}
     backend = store.open_backend()

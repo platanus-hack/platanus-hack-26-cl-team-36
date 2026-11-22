@@ -4,7 +4,7 @@ import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { crearFuenteS3 } from "../lib/fuentes/s3.js";
-import { avanceDeRevision, calcularResumen, crearRevisiones, partesDeTraza, resumenDeRevision } from "../lib/revisiones.js";
+import { LIMITE_DE_INTENTOS, avanceDeRevision, calcularResumen, crearRevisiones, partesDeTraza, resumenDeRevision } from "../lib/revisiones.js";
 import { leerTanda } from "../lib/tandas.js";
 import { arbolEnVivo, recorridoDe, telaranaCompacta, telaranaEnVivo } from "../lib/vivo.js";
 import { crearServidor } from "../servidor.js";
@@ -253,6 +253,15 @@ test("skipped: el Visitante no lanzado cuenta como cerrado, en el resumen guarda
   assert.deepEqual(avance.progreso, { cerrados: 4, total: 4, goalsConocidos: true });
 });
 
+test("resumen calculado: con varios intentos del Visitante suma los pasos de cada uno", () => {
+  const items = [
+    meta("varios", { goals_total: 1 }),
+    item("varios", "GOAL#horario#guide", "succeeded", { step: 3 }),
+    item("varios", "GOAL#horario#visitor", "running", { step: 1, "step#desktop": 4, "step#desktop-2": 1, "trace_at#desktop": "x" }),
+  ];
+  assert.equal(calcularResumen(items).pasos, 8);
+});
+
 test("trace_at de la proyectora sale como trazaActualizada, solo con una traza válida", () => {
   const conHora = (campos) => avanceDeRevision([meta("hora"), item("hora", "GOAL#horario#guide", "running", { run_key: GUIA, trace_at: "2026-11-22T10:40:59Z", ...campos })]).goals[0].guide;
   assert.equal(conHora({ trace_key: `${GUIA}/trace.json` }).trazaActualizada, "2026-11-22T10:40:59Z");
@@ -321,6 +330,20 @@ test("leer en curso: la Guía terminada da su route.json, el Visitante sus traza
   assert.deepEqual(tramos(contacto.telarana), ["Inicio>Ayuda:1:exito"]);
 });
 
+test("leer en curso: los 30 intentos de un goal (conjunto arana) se leen todos", async () => {
+  const almacen = objetos();
+  delete almacen[`${VISITA}/mobile/trace.json`];
+  const carpetas = Array.from({ length: 30 }, (_, n) => (n < 15 ? `explorador-${n + 1}` : `mobile-${n - 14}`).replace(/-1$/, ""));
+  for (const carpeta of carpetas) {
+    almacen[`${VISITA}/${carpeta}/trace.json`] = JSON.stringify(traza("visitor", "running", [pasoDeVisita(1, INICIO, AYUDA, "Ayuda", 3.1)]));
+  }
+  const { revisiones } = armar(EN_VIVO, almacen);
+  const horario = (await revisiones.leer("en-vivo")).goals.find((goal) => goal.goal === "horario");
+  assert.ok(LIMITE_DE_INTENTOS >= 30);
+  assert.equal(horario.visitor.intentos.length, 31);   // los 30 y el desktop de siempre
+});
+
+
 test("una traza que queda a medio escribir usa la última versión buena; lo en curso se vuelve a leer", async () => {
   const { almacen, revisiones, s3 } = armar(EN_VIVO);
   await revisiones.leer("en-vivo");
@@ -336,14 +359,14 @@ test("una traza que queda a medio escribir usa la última versión buena; lo en 
 
 test("costo por refresco de un Visitante en curso: un LIST y un GET por intento, sin run.json y con tope", async () => {
   const almacen = objetos();
-  for (let i = 1; i <= 20; i++) almacen[`${VISITA}/intento-${String(i).padStart(2, "0")}/trace.json`] = almacen[`${VISITA}/desktop/trace.json`];
+  for (let i = 1; i <= LIMITE_DE_INTENTOS + 5; i++) almacen[`${VISITA}/intento-${String(i).padStart(2, "0")}/trace.json`] = almacen[`${VISITA}/desktop/trace.json`];
   const { revisiones, s3 } = armar(EN_VIVO, almacen);
   await revisiones.leer("en-vivo");
   const antes = s3.llamadas.length;
   const avance = await revisiones.leer("en-vivo");
   const deLaVisita = s3.llamadas.slice(antes).map((c) => c.input.Key ?? `LIST ${c.input.Prefix}`).filter((clave) => clave.includes(VISITA));
   assert.equal(deLaVisita.filter((clave) => clave.startsWith("LIST")).length, 1);
-  assert.equal(deLaVisita.filter((clave) => clave.endsWith("/trace.json")).length, 12);
+  assert.equal(deLaVisita.filter((clave) => clave.endsWith("/trace.json")).length, LIMITE_DE_INTENTOS);
   assert.ok(!deLaVisita.some((clave) => clave.endsWith("/run.json")));
   const horario = avance.goals.find((goal) => goal.goal === "horario");
   assert.ok(horario.visitor.intentos.some((intento) => intento.carpeta === "desktop"), "el intento de trace_key siempre entra");

@@ -95,17 +95,17 @@ def _demand_rank(goal: Goal) -> int:
 
 def for_revision(goals: list[Goal], limit: int | None) -> list[Goal]:
     """Los que el Visitante puede intentar, en el orden en que más probablemente los busca quien llega a la página:
-    dentro del sitio, sin barreras, más demandados, más prominentes y en el orden del catálogo. Con `limit`, un tercio
-    son largos y otro tercio medianos (los que falten de un nivel los completa el siguiente) y el resto, los primeros
-    de ese orden. `backend/proyectora.js` elige igual."""
+    dentro del sitio, sin barreras, más demandados, más prominentes y en el orden del catálogo. Con `limit`, la mitad
+    son largos y un cuarto medianos (los largos que falten los completan medianos) y el resto, los primeros de ese
+    orden: con 8, 4 largos, 2 medianos y 2 más. `backend/proyectora.js` elige igual."""
     candidates = [goal for goal in goals if exclusion(goal) is None]
     candidates.sort(key=lambda goal: (leaves_site(goal), bool(goal.gates), _demand_rank(goal),
                                       -PROMINENCE_ORDER.index(goal.prominence)))
     if limit is None or limit >= len(candidates):
         return candidates
-    quota = limit // 3
+    longs = limit // 2
     chosen: set[int] = set()
-    for band, wanted in (("long", quota), ("medium", 2 * quota)):
+    for band, wanted in (("long", longs), ("medium", longs + limit // 4)):
         found = [index for index, goal in enumerate(candidates) if depth(goal) == band][:wanted - len(chosen)]
         chosen.update(found)
     chosen.update([index for index in range(len(candidates)) if index not in chosen][:limit - len(chosen)])

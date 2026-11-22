@@ -102,6 +102,49 @@ def test_resumen_de_lo_medido(tmp_path, url):
     assert peor_objetivo(sin_visitas)["id"] == "contacto"
 
 
+def test_varios_intentos_y_perfiles_por_objetivo(tmp_path, url):
+    backend = store.LocalBackend(tmp_path / "almacen")
+    _sembrar(backend, url)
+    pagar, error = url.replace("index", "pagar"), url.replace("index", "error")
+    _corrida(backend, store.visitor(url, "pagar"), {
+        "comparison.json": {"runs": [{"profile": "desktop", "run": "desktop", "reached_final_node": False},
+                                     {"profile": "desktop", "run": "desktop-2", "reached_final_node": True},
+                                     {"profile": "mobile", "run": "mobile", "reached_final_node": False}]},
+        "desktop/run.json": _intento(url, [(error, "Error")], "failed"),
+        "desktop-2/run.json": _intento(url, [(pagar, "Pagar")], "success"),
+        "mobile/run.json": {**_intento(url, [(error, "Error")], "failed"), "profile": "mobile"},
+        "explorador/run.json": {**_intento(url, [(error, "Error")], "unmeasured"), "profile": "explorador"},
+    })
+    pagar_medido = {o["id"]: o for o in resumir(backend, url, REV)[0]["objetivos"]}["pagar"]
+
+    # Cada intento con su fila, no con la del último intento de su perfil.
+    # Primero el intento 1 de cada perfil.
+    assert [(v["perfil"], v["llego"]) for v in pagar_medido["visitas"]] == [
+        ("desktop", False), ("explorador", None), ("mobile", False), ("desktop", True)]
+    assert pagar_medido["intentos"] == 4
+    assert pagar_medido["tasa_llegada"] == 0.33
+    assert pagar_medido["tasa_por_perfil"] == {"desktop": 0.5, "mobile": 0.0}
+    # El explorador no se mide, pero queda dónde se salió de la ruta.
+    assert "Error" in pagar_medido["visitas"][1]["se_desvio_en"]
+
+
+def test_con_muchos_intentos_la_tasa_usa_todos_y_el_modelo_ve_cada_perfil(tmp_path, url, monkeypatch):
+    monkeypatch.setattr(config, "MAX_VISITAS", 2)
+    backend = store.LocalBackend(tmp_path / "almacen")
+    _sembrar(backend, url)
+    pagar, error = url.replace("index", "pagar"), url.replace("index", "error")
+    archivos = {"comparison.json": {"runs": [
+        {"run": "desktop", "reached_final_node": True}, {"run": "desktop-2", "reached_final_node": True},
+        {"run": "desktop-3", "reached_final_node": True}, {"run": "mobile", "reached_final_node": False}]}}
+    for carpeta in ("desktop", "desktop-2", "desktop-3"):
+        archivos[f"{carpeta}/run.json"] = _intento(url, [(pagar, "Pagar")], "success")
+    archivos["mobile/run.json"] = {**_intento(url, [(error, "Error")], "failed"), "profile": "mobile"}
+    _corrida(backend, store.visitor(url, "pagar"), archivos)
+    pagar_medido = {o["id"]: o for o in resumir(backend, url, REV)[0]["objetivos"]}["pagar"]
+    assert [v["perfil"] for v in pagar_medido["visitas"]] == ["desktop", "mobile"]
+    assert pagar_medido["tasa_llegada"] == 0.75 and pagar_medido["intentos"] == 4
+
+
 def test_las_corridas_en_curso_no_cuentan(tmp_path, url):
     backend = store.LocalBackend(tmp_path / "almacen")
     _sembrar(backend, url)

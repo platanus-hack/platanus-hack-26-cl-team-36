@@ -60,6 +60,41 @@ def test_each_open_is_a_signed_session_and_close_stops_them_all():
     }
 
 
+def test_a_rejected_session_is_stopped_and_retried(monkeypatch):
+    FakeBrowserClient.instances.clear()
+    monkeypatch.setattr(agentcore, "OPEN_BACKOFF_S", 0)
+    failures = iter([RuntimeError("ThrottlingException")])
+
+    class FlakyChromium(FakeChromium):
+        async def connect_over_cdp(self, url, headers=None):
+            if (error := next(failures, None)) is not None:
+                raise error
+            return await super().connect_over_cdp(url, headers)
+
+    class FlakyPlaywright:
+        chromium = FlakyChromium()
+
+    async def scenario():
+        sessions = AgentCoreBrowsers(FlakyPlaywright(), "us-east-2", client_factory=FakeBrowserClient)
+        browser = await sessions.open()
+        return sessions, browser
+
+    sessions, browser = asyncio.run(scenario())
+    first, second = FakeBrowserClient.instances
+    assert first.stopped and not second.stopped and browser.url.endswith("sesion-2")
+
+
+def test_open_gives_up_after_its_attempts(monkeypatch):
+    monkeypatch.setattr(agentcore, "OPEN_BACKOFF_S", 0)
+
+    class Refused(FakeBrowserClient):
+        def start(self, **options):
+            raise RuntimeError("ServiceQuotaExceededException")
+
+    with pytest.raises(RuntimeError, match="ServiceQuota"):
+        asyncio.run(AgentCoreBrowsers(FakePlaywright(), "us-east-2", client_factory=Refused).open())
+
+
 def test_browser_kind_comes_from_the_argument_or_agents_browser(monkeypatch):
     monkeypatch.delenv(session.BROWSER_VAR, raising=False)
     assert session.browser_kind() == "local"

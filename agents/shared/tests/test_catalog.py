@@ -113,6 +113,14 @@ def test_depth_bands_from_estimated_steps_or_form():
     assert depth(_goal("a", submits_form=True)) == depth(_goal("a", submits_form=True, estimated_steps=1)) == "long"
 
 
+def test_revision_with_8_takes_4_long_2_medium_and_2_top():
+    goals = [_goal(f"top-corto-{n}", demand="top", estimated_steps=1) for n in range(4)]
+    goals += [_goal(f"medio-{n}", demand="common", estimated_steps=3) for n in range(3)]
+    goals += [_goal(f"largo-{n}", demand="rare", estimated_steps=6) for n in range(5)]
+    chosen = [goal.id for goal in for_revision(goals, 8)]
+    assert chosen == ["top-corto-0", "top-corto-1", "medio-0", "medio-1", "largo-0", "largo-1", "largo-2", "largo-3"]
+
+
 def test_revision_prefers_top_tasks_and_mixes_long_and_medium_ones():
     goals = [
         _goal("raro", demand="rare", prominence="primary", estimated_steps=1),
@@ -125,9 +133,10 @@ def test_revision_prefers_top_tasks_and_mixes_long_and_medium_ones():
     ]
     order = ["top-corto", "top-medio", "comun-largo", "comun-corto", "anterior", "raro", "raro-largo"]
     assert [goal.id for goal in for_revision(goals, None)] == order
-    assert [goal.id for goal in for_revision(goals, 2)] == ["top-corto", "top-medio"]
+    # La mitad, largos: con 2, uno largo aunque sea menos demandado.
+    assert [goal.id for goal in for_revision(goals, 2)] == ["top-corto", "comun-largo"]
     assert [goal.id for goal in for_revision(goals, 3)] == ["top-corto", "top-medio", "comun-largo"]
-    # Dos largos y dos medianos; con un solo mediano, el que falta lo completa el primero del orden.
+    # Tres largos y uno mediano: hay dos largos, así que el que falta lo completa el mediano y el resto, el orden.
     assert [goal.id for goal in for_revision(goals, 6)] == ["top-corto", "top-medio", "comun-largo", "comun-corto",
                                                            "anterior", "raro-largo"]
 

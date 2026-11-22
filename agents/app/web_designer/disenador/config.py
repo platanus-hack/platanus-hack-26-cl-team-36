@@ -58,5 +58,5 @@ GUSTOS_MEJORA = ("Legible y con buen contraste, sin distracciones; que lo que ll
                  " encuentre a la primera.")
 MAX_GOALS_SIN_CORRIDAS = 10   # objetivos del catálogo en el resumen si ninguno tiene ruta ni visitas en la revisión
 MAX_PASOS_RUTA = 12
-MAX_VISITAS = 5
+MAX_VISITAS = 16   # visitas por objetivo que ve el modelo: el intento 1 de los 14 perfiles de arana y algo más
 MAX_TEXTO = 200

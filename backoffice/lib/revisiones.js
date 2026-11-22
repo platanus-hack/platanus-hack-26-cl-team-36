@@ -16,7 +16,7 @@
 //   Los archivos leídos no viajan (leerGoal() sí los da, para lib/eventos.js). La telaraña tiene ids estables entre
 //   refrescos (URL sin consulta + título); con el Visitante terminado es la de la tanda (lib/vivo.js).
 //   progreso: { cerrados, total, goalsConocidos }
-//   estado de un paso: pending | running | succeeded | failed | skipped (Visitante no lanzado: su Guía no verificó la ruta).
+//   estado de un paso: pending | running | succeeded | failed | skipped (Visitante no lanzado porque su Guía falló, solo en revisiones viejas).
 
 import { REVISION, partesDeCorrida } from "../public/nucleo/almacen.js";
 import { leerSinVecinas } from "./tandas.js";
@@ -119,6 +119,12 @@ const ESTADOS = ["pending", "running", "succeeded", "failed", "skipped"];
 const fasesVacias = () => Object.fromEntries(FASES.map((fase) => [fase, Object.fromEntries(ESTADOS.map((e) => [e, 0]))]));
 const entero = (valor) => Math.max(0, Math.trunc(numero(valor) ?? 0));
 
+// Como pasosDelGoal de backend/proyectora.js: con varios intentos, los de cada uno (`step#<carpeta>`); si no, `step`.
+function pasosDelGoal(item) {
+  const porIntento = Object.keys(item).filter((nombre) => nombre.startsWith("step#"));
+  return porIntento.length ? porIntento.reduce((total, nombre) => total + entero(item[nombre]), 0) : entero(item.step);
+}
+
 /**
  * El resumen por fase que la proyectora guarda en META (`resumen`), calculado desde los ítems: para revisiones viejas
  * que no lo tienen. Los goals que META anuncia y todavía no tienen ítem cuentan como pendientes.
@@ -138,7 +144,7 @@ export function calcularResumen(items) {
     if (!partes) continue;
     goals.add(partes[1]);
     contar(partes[2], item.status);
-    pasos += entero(item.step);
+    pasos += pasosDelGoal(item);
   }
   const goalsTotal = Math.max(numero(meta.goals_total) ?? 0, goals.size);
   for (const fase of ["guide", "visitor"]) {
@@ -255,8 +261,9 @@ export function revisionesVigentes(metas, punteros) {
 const porFecha = (a, b) => String(b.creada ?? "").localeCompare(String(a.creada ?? "")) || a.revision.localeCompare(b.revision);
 
 const LIMITE_EN_MEMORIA = 500;
-// Por refresco, un Visitante en curso cuesta un LIST y un GET por intento: con este tope, a lo más 1 + 12.
-const LIMITE_DE_INTENTOS = 12;
+// Por refresco, un Visitante en curso cuesta un LIST y un GET por intento: con este tope, a lo más 1 + 40. Una
+// revisión lleva 30 intentos por goal (conjunto arana del Visitante): el tope deja margen sin truncarlos.
+export const LIMITE_DE_INTENTOS = 40;
 
 function recordar(mapa, clave, valor) {
   mapa.delete(clave);

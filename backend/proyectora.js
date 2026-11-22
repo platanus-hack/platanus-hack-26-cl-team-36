@@ -9,8 +9,8 @@ const META_DE = { running: "running", succeeded: "done", failed: "failed" };
 
 // Misma selección que el conductor (agents/shared, catalog/goal.py `for_revision`): user_goal
 // sin barreras que lo excluyan, ordenados: primero los que no salen del sitio, luego sin barreras,
-// los más demandados, los más prominentes y en el orden del catálogo. Hasta `goalsMax`, un tercio
-// largos y otro tercio medianos (lo que falte de un nivel lo completa el siguiente) y el resto, los primeros.
+// los más demandados, los más prominentes y en el orden del catálogo. Hasta `goalsMax`, la mitad
+// largos y un cuarto medianos (los largos que falten los completan medianos) y el resto, los primeros.
 const BARRERAS = ["login", "personal_data", "bot_check"];
 const PROMINENCIA = ["buried", "secondary", "primary"];
 const DEMANDA = ["top", "common", "rare"];
@@ -51,9 +51,9 @@ export function goalsElegidos(goals, goalsMax) {
     .sort((a, b) => comparar(a.clave, b.clave))
     .map(({ goal }) => goal);
   if (!(goalsMax < candidatos.length)) return candidatos.map((goal) => goal.id);
-  const cuota = Math.floor(goalsMax / 3);
+  const largos = Math.floor(goalsMax / 2);
   const elegidos = new Set();
-  for (const [nivel, quiero] of [["long", cuota], ["medium", 2 * cuota]]) {
+  for (const [nivel, quiero] of [["long", largos], ["medium", largos + Math.floor(goalsMax / 4)]]) {
     const faltan = quiero - elegidos.size;
     candidatos.filter((goal) => profundidad(goal) === nivel).slice(0, Math.max(faltan, 0)).forEach((goal) => elegidos.add(goal));
   }
@@ -62,6 +62,16 @@ export function goalsElegidos(goals, goalsMax) {
 }
 
 const GOAL = /^GOAL#(.+)#(guide|visitor)$/;
+// Con varios intentos, el GOAL del Visitante guarda los pasos de cada uno en `step#<carpeta>`; `step` es el del último
+// que avanzó.
+const PASOS_DEL_INTENTO = "step#";
+const INTENTOS_DEL_RESUMEN_POR_TRAZA = 3;
+
+export function pasosDelGoal(item) {
+  const porIntento = Object.entries(item).filter(([nombre, valor]) => nombre.startsWith(PASOS_DEL_INTENTO) && Number.isFinite(valor));
+  if (porIntento.length) return porIntento.reduce((total, [, valor]) => total + valor, 0);
+  return Number.isFinite(item.step) ? item.step : 0;
+}
 
 // Foto de la revisión a partir de todos sus ítems: no depende del orden de los eventos.
 export function resumir(items) {
@@ -78,7 +88,7 @@ export function resumir(items) {
     if (!goal) continue;
     goals.add(goal);
     contar(agente, item.status);
-    if (Number.isFinite(item.step)) pasos += item.step;
+    pasos += pasosDelGoal(item);
   }
   const agentes_activos = Object.values(fases).reduce((total, fase) => total + fase.running, 0);
   return { fases, agentes_activos, pasos, goals_total: goals.size };
@@ -87,7 +97,8 @@ export function resumir(items) {
 // <host>/guide/<goal>/<viewport>/<run>/trace.json o <host>/visitor/<goal>/<run>/<carpeta>/trace.json
 function rutaDeTraza(clave) {
   const [, agente, goal, ...resto] = clave.split("/");
-  return ["guide", "visitor"].includes(agente) && goal && resto.length === 3 ? { agente, goal } : null;
+  if (!["guide", "visitor"].includes(agente) || !goal || resto.length !== 3) return null;
+  return { agente, goal, carpeta: agente === "visitor" ? resto[1] : null };
 }
 
 const texto = (valor) => (typeof valor === "string" ? valor : null);
@@ -105,7 +116,7 @@ function ultimoPaso({ steps, start }) {
   };
 }
 
-export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMax = 6 }) {
+export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMax = 8 }) {
   const avanzarEtapa = (revision, SK, status, atributos) =>
     db.actualizar(claveRevision(revision, SK), { status, ...atributos }, { previos: previos(ORDEN_ETAPA, status) });
 
@@ -180,10 +191,25 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
     const SK = `GOAL#${ruta.goal}#${ruta.agente}`;
     const updated_at = ahora().toISOString();
     const avance = { step: steps.length, ...ultimoPaso({ steps, start }), trace_key: clave, trace_at, updated_at };
+    if (ruta.carpeta) {
+      // Cada intento cuenta sus pasos aparte: el aviso de un intento atrasado no se pierde ni retrocede a otro.
+      const traceAtDelIntento = `trace_at#${ruta.carpeta}`;
+      await db.actualizar(
+        claveRevision(revision, SK),
+        { [`${PASOS_DEL_INTENTO}${ruta.carpeta}`]: steps.length, [traceAtDelIntento]: trace_at },
+        { hasta: { [traceAtDelIntento]: trace_at } },
+      );
+    }
     await db.actualizar(claveRevision(revision, SK), avance, { hasta: { trace_at } });
     const status = items.find((item) => item.SK === SK)?.status;
     if (status === undefined || status === "pending") await avanzarEtapa(revision, SK, "running", { updated_at });
-    await guardarResumen(revision);
+    // Con 30 intentos por goal llegan decenas de trazas por segundo y todas reescriben el resumen de META: si choca
+    // unas veces, se deja a la próxima traza o manifiesto en vez de reintentar el evento entero.
+    try {
+      await guardarResumen(revision, INTENTOS_DEL_RESUMEN_POR_TRAZA);
+    } catch (error) {
+      console.warn(`⚠ ${clave}: resumen sin guardar, lo hará el próximo evento (${error.message})`);
+    }
   }
 
   return async function proyectar(clave) {
@@ -222,10 +248,8 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
       case "guide":
       case "visitor":
         if (typeof goal !== "string" || !goal) break;
+        // Una Guía fallida no salta al Visitante: el conductor lo corre igual, con juez.
         await avanzarEtapa(revision, `GOAL#${goal}#${agent}`, status, { run_key, updated_at });
-        if (agent === "guide" && status === "failed") {
-          await db.actualizar(claveRevision(revision, `GOAL#${goal}#visitor`), { status: "skipped", updated_at }, { previos: ["pending"] });
-        }
         break;
     }
     await guardarResumen(revision);
@@ -241,7 +265,7 @@ function iniciar() {
   iniciando ??= (async () => {
     const { almacenS3, tablaDynamo } = await import("./aws.js");
     const [db, almacen] = await Promise.all([tablaDynamo(process.env.REVISIONES_TABLA), almacenS3(process.env.ALMACEN_BUCKET)]);
-    return crearProyectora({ db, almacen, goalsMax: Number(process.env.GOALS_MAX) || 6 });
+    return crearProyectora({ db, almacen, goalsMax: Number(process.env.GOALS_MAX) || 8 });
   })().catch((error) => {
     iniciando = undefined;
     throw error;

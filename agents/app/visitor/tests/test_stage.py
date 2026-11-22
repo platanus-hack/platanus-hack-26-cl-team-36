@@ -19,7 +19,7 @@ import main
 from visitor import batch, outcome, report
 from visitor.batch import attempt_folder, attempt_slots
 from visitor.harness import SyntheticUser
-from visitor.profiles import PROFILES, system_prompt
+from visitor.profiles import PROFILES, expand_profiles, system_prompt
 from visitor.recording import Run
 from visitor.stage import MissingInput, run_stage
 
@@ -130,6 +130,71 @@ def test_runs_gives_each_profile_its_attempts_in_their_own_folders():
         attempt_slots(["desktop"], 0)
 
 
+def test_agents_visitor_parallel_caps_the_open_browsers_and_skips_one_that_fails(monkeypatch, tmp_path):
+    from contextlib import asynccontextmanager
+
+    from visitor import config
+
+    class Browsers:
+        def __init__(self):
+            self.abiertos = self.pico = self.pedidos = 0
+
+        async def open(self):
+            self.pedidos += 1
+            if self.pedidos == 2:
+                raise RuntimeError("ThrottlingException")
+            self.abiertos += 1
+            self.pico = max(self.pico, self.abiertos)
+            return object()
+
+        async def release(self, browser):
+            self.abiertos -= 1
+
+        async def close(self):
+            pass
+
+    creados = []
+
+    class Usuario:
+        def __init__(self, *args, **kwargs):
+            self.run = type("Run", (), {"start": None, "save": lambda self, path: None})()
+            self.run_dir, self.trace = tmp_path, None
+            creados.append(self)
+
+        async def attempt(self):
+            await asyncio.sleep(0.01)
+
+    @asynccontextmanager
+    async def playwright():
+        yield None
+
+    browsers = Browsers()
+    monkeypatch.setenv(config.PARALLEL_VAR, "2")
+    monkeypatch.setattr(batch, "open_browsers", lambda *args: browsers)
+    monkeypatch.setattr(batch, "async_playwright", playwright)
+    monkeypatch.setattr(batch, "SyntheticUser", Usuario)
+    slots = [("desktop", i) for i in range(1, 7)]
+    asyncio.run(batch._attempts(None, lambda key: None, slots, {}, "https://x.cl/", "tarea", tmp_path, "agentcore",
+                                None, False, None, None))
+    assert browsers.pico == 2 and browsers.abiertos == 0
+    assert len(creados) == 5   # el segundo navegador no abrió: se salta solo ese intento
+    monkeypatch.setenv(config.PARALLEL_VAR, "-1")
+    with pytest.raises(ValueError):
+        config.parallel_attempts()
+
+
+def test_arana_gives_30_users_loaded_to_the_explorers():
+    keys, runs = expand_profiles("arana")
+    slots = attempt_slots(keys, 1, runs)
+    assert len(slots) == 30 and keys[:2] == ["desktop", "mobile"]
+    assert sum(PROFILES[key].explora for key, _ in slots) == 24
+    assert [attempt_folder(*slot) for slot in slots][:4] == ["desktop", "desktop-2", "desktop-3", "mobile"]
+    assert len(attempt_slots(keys, 2, runs)) == 60   # --runs multiplica
+    # Un conjunto junto a perfiles sueltos no repite claves.
+    assert expand_profiles("desktop,arana,explorador")[0] == keys
+    assert expand_profiles("desktop, mobile") == (["desktop", "mobile"], {"desktop": 1, "mobile": 1})
+
+
 # --- etapa por revisión, de punta a punta con el usuario guionizado ---------------------------------------------
 
 PAGES = {
@@ -227,22 +292,22 @@ def test_runs_two_repeats_the_attempt_in_the_same_run(tmp_path, site):
     assert [row["run"] for row in comparison["runs"]] == ["desktop", "desktop-2"]
 
 
-def test_without_a_verified_route_of_the_revision_it_fails_without_calling_the_model(tmp_path, site, monkeypatch):
+def test_without_a_verified_route_of_the_revision_the_users_run_with_the_judge(tmp_path, site, monkeypatch):
     backend = store.LocalBackend(tmp_path / "almacen")
     goal = _goal(site)
-    _catalog(backend, site, REVISION, goal, 0)
+    catalog = _catalog(backend, site, REVISION, goal, 0)
     _route(backend, site, REVISION, goal, 1, status="unverified")
     _route(backend, site, OTHER, goal, 2)  # verificada, pero de otra revisión
+    calls = []
 
-    async def no_batch(*args, **kwargs):
-        raise AssertionError("no debía correr la tanda")
+    async def batch(*args, **kwargs):
+        calls.append((args, kwargs))
+        return "corrida"
 
-    monkeypatch.setattr("visitor.stage.run_batch", no_batch)
-    with pytest.raises(MissingInput, match="ruta verificada"):
-        _stage(backend, site)
-    failed = store.revision_run(backend, store.visitor(site, "horario"), REVISION)
-    assert store.read_manifest(backend, failed).status == "failed"
-    assert "No se corrió" in backend.read_text(failed.file("report.md"))
+    monkeypatch.setattr("visitor.stage.run_batch", batch)
+    assert _stage(backend, site) == "corrida"
+    (args, kwargs), = calls
+    assert args[5] == {} and kwargs["judge"] is True and kwargs["inputs"] == (catalog,)
 
 
 def test_a_goal_starting_on_another_site_fails_where_the_conductor_waits(tmp_path, site):

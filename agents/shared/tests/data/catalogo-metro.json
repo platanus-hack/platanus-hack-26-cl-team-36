@@ -266,8 +266,8 @@
     "consultar-estado-red",
     "ver-estaciones",
     "acceder-transparencia-activa",
-    "verificar-documentos",
-    "enviar-consulta-sugerencia-reclamo"
+    "enviar-consulta-sugerencia-reclamo",
+    "solicitar-permiso-comercial"
   ],
   "expected_all": [
     "planificar-viaje",
@@ -299,22 +299,22 @@
       "planificar-viaje",
       "consultar-estado-red",
       "ver-estaciones",
-      "acceder-transparencia-activa"
+      "enviar-consulta-sugerencia-reclamo"
     ],
     "5": [
       "planificar-viaje",
       "consultar-estado-red",
       "ver-estaciones",
       "acceder-transparencia-activa",
-      "acceder-mail-preferencial"
+      "enviar-consulta-sugerencia-reclamo"
     ],
     "6": [
       "planificar-viaje",
       "consultar-estado-red",
       "ver-estaciones",
       "acceder-transparencia-activa",
-      "verificar-documentos",
-      "enviar-consulta-sugerencia-reclamo"
+      "enviar-consulta-sugerencia-reclamo",
+      "solicitar-permiso-comercial"
     ],
     "7": [
       "planificar-viaje",
@@ -322,8 +322,8 @@
       "ver-estaciones",
       "acceder-transparencia-activa",
       "acceder-mail-preferencial",
-      "verificar-documentos",
-      "enviar-consulta-sugerencia-reclamo"
+      "enviar-consulta-sugerencia-reclamo",
+      "solicitar-permiso-comercial"
     ],
     "8": [
       "planificar-viaje",

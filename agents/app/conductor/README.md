@@ -1,7 +1,7 @@
 # conductor
 
 El **conductor** corre una **revisión** de una página: el [Catalogador](../cataloger/README.md), luego por cada
-objetivo evaluable la [Guía](../guide/README.md) y, si su ruta quedó verificada, el [Visitante](../visitor/README.md),
+objetivo evaluable la [Guía](../guide/README.md) y luego el [Visitante](../visitor/README.md) (sin ruta verificada, con juez),
 y al final la mejora del [diseñador](../web_designer/README.md), que deja `tema.css`. Cada etapa es el CLI de su app
 con `--revision`, armado por [`shared.stages`](../../shared/README.md); ninguna app importa a otra.
 
@@ -16,9 +16,9 @@ Desde la raíz, `just local revision <url>` hace lo mismo con una revisión nuev
 
 | Opción | Qué hace |
 |---|---|
-| `--goals-max` | Objetivos evaluables que se recorren (por defecto 6): sin `exclusion`, primero los que no salen del sitio ni tienen barreras, los más demandados (`demand`) y prominentes; un tercio largos y otro medianos según `estimated_steps` (`for_revision`, el mismo criterio de la proyectora). |
-| `--profiles`, `--runs` | Van al Visitante (por defecto, sus perfiles y 1 intento por perfil). |
-| `--concurrency` | Objetivos a la vez (por defecto 6, o `CONDUCTOR_CONCURRENCY`). |
+| `--goals-max` | Objetivos evaluables que se recorren (por defecto 8, o `CONDUCTOR_GOALS_MAX`): sin `exclusion`, primero los que no salen del sitio ni tienen barreras, los más demandados (`demand`) y prominentes; la mitad largos y un cuarto medianos según `estimated_steps` (`for_revision`, el mismo criterio de la proyectora). |
+| `--profiles`, `--runs` | Van al Visitante: perfiles (o un conjunto con nombre) e intentos por perfil, todos a la vez. Por defecto el conjunto `arana` (30 usuarios por objetivo, 24 exploradores) y 1, o `CONDUCTOR_PROFILES` (o `CONDUCTOR_CONJUNTO`) y `CONDUCTOR_RUNS`, que multiplica. |
+| `--concurrency` | Objetivos a la vez (por defecto 8, o `CONDUCTOR_CONCURRENCY`): con `arana`, hasta 240 sesiones de navegador por revisión. |
 
 | Variable | Qué hace |
 |---|---|
@@ -35,7 +35,7 @@ Las etapas leen `AGENTS_STORE`, `AGENTS_ENGINE`, `AGENTS_BROWSER`, `AGENTS_MODEL
 `<host>/conductor/<run>/` con `revision` en el manifiesto, `conductor.json` (cómo terminó cada etapa y cada objetivo,
 con la clave de su corrida, el error y los segundos) y, con el invocador local, la salida de cada etapa en
 `<etapa>[-<goal>].log`. Termina `succeeded` solo si la mejora terminó `succeeded`. Una Guía que falla o no verifica
-deja su objetivo sin Visitante, sin hacer fallar la revisión; un catálogo fallido o sin objetivos evaluables, o una
+no hace fallar la revisión ni deja su objetivo sin Visitante (`route_verified` en el informe); un catálogo fallido o sin objetivos evaluables, o una
 mejora fallida, la dejan `failed`. Sale con 0 solo si la corrida queda `succeeded`.
 
 ## Pruebas

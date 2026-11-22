@@ -46,7 +46,7 @@ abajo).
   de un goal cuya Guía falló). Sin `REVISIONES_TABLA` (en local),
   `/revisiones` responde 404.
   Un `POST` sobre una página cuya revisión quedó `failed`, o `queued`/`running` sin novedades hace más de una hora,
-  dispara otra. Con `revisiones_en_curso_max` (30) revisiones
+  dispara otra. Con `revisiones_en_curso_max` (3: cada revisión abre hasta 248 navegadores y la cuenta tiene 1000) revisiones
   `queued`/`running` con novedades en la última hora, un `POST` que crearía otra responde 429.
 - `agentcore/`: los agentes en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime `chameleon`

@@ -211,7 +211,7 @@ def test_real_uchile_catalog_gets_login_on_student_portal_tasks_and_the_revision
     chosen = [goal.id for goal in for_revision(goals, 6)]
     assert not set(blocked) & set(chosen)
     assert chosen == ["buscar-postgrado", "buscar-carrera-pregrado", "acceder-servicio-medico-dental",
-                      "conocer-opciones-admision-especial", "solicitar-certificado-titulo", "postular-admision-regular"]
+                      "solicitar-certificado-titulo", "postular-admision-regular", "postular-movilidad-estudiantil"]
 
 
 def test_real_metro_catalog_keeps_its_gates():

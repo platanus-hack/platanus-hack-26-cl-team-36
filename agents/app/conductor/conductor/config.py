@@ -3,9 +3,14 @@
 import os
 from pathlib import Path
 
-GOALS_MAX = 6
-RUNS = 1
-CONCURRENCY = int(os.environ.get("CONDUCTOR_CONCURRENCY") or 6)   # 6: todos los goals de una revisión a la vez
+# Lo que recorre una revisión que no pide opciones (la API manda solo url y revision). Cada objetivo lleva sus
+# usuarios del Visitante todos a la vez: `arana` (visitor/profiles.py) son 30 por objetivo, 24 de ellos exploradores,
+# y RUNS los multiplica. Con 8 objetivos a la vez son hasta 240 sesiones de navegador por revisión (ver README).
+GOALS_MAX = int(os.environ.get("CONDUCTOR_GOALS_MAX") or 8)
+# Perfiles o un conjunto con nombre del Visitante; CONDUCTOR_CONJUNTO es lo mismo, por claridad al pedir un conjunto.
+PROFILES = os.environ.get("CONDUCTOR_PROFILES") or os.environ.get("CONDUCTOR_CONJUNTO") or "arana"
+RUNS = int(os.environ.get("CONDUCTOR_RUNS") or 1)
+CONCURRENCY = int(os.environ.get("CONDUCTOR_CONCURRENCY") or 8)   # objetivos a la vez
 
 INVOKER_VAR = "CONDUCTOR_INVOKER"           # local (por defecto) o agentcore
 RUNTIME_ARN_VAR = "CONDUCTOR_RUNTIME_ARN"   # con agentcore: el runtime que corre cada etapa

@@ -101,7 +101,7 @@ test("errores de la herramienta: los cuatro motivos, el juez y sin inicio", () =
     resumen: "Page.screenshot: Protocol error (Page.captureScreenshot): Unable to capture screenshot",
     detalle: traza,
   });
-  for (const motivo of ["api_error", "no_response", "refusal"]) {
+  for (const motivo of ["api_error", "no_response", "refusal", "site_blocked"]) {
     assert.equal(errorDelIntento({ end_reason: motivo, final_message: "x", start: { url: "u" } }).tipo, motivo);
   }
   const juez = errorDelIntento({ end_reason: "done", start: { url: "u" }, verdict: { justification: "No se pudo obtener el veredicto: timeout" } });

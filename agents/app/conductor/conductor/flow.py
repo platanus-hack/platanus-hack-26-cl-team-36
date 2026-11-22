@@ -1,4 +1,7 @@
-"""Una revisión: catálogo → Guía y, con la ruta verificada, Visitante por objetivo (en paralelo con tope) → mejora.
+"""Una revisión: catálogo → Guía y Visitante por objetivo (en paralelo con tope) → mejora.
+
+El Visitante corre aunque la Guía falle o no verifique su ruta: sin ruta, el juez decide cada intento, y sus recorridos
+igual arman el mapa de caminos.
 
 La mejora no espera a todos los objetivos: con un Visitante exitoso, espera a los demás a lo más `improver_grace_s`.
 """
@@ -23,7 +26,7 @@ _NAMES = {"catalog": "catálogo", "guide": "Guía", "visitor": "Visitante", "imp
 @dataclass(frozen=True)
 class Options:
     goals_max: int = config.GOALS_MAX
-    profiles: str | None = None
+    profiles: str | None = config.PROFILES
     """Perfiles del Visitante tal cual su `--profiles`; None, los suyos por defecto."""
     runs: int = config.RUNS
     concurrency: int = config.CONCURRENCY
@@ -102,9 +105,7 @@ async def conduct(backend: store.Backend, invoker: Invoker, url: str, revision: 
             async with semaphore:
                 guide = await stage("guide", goal=goal)
                 entry["guide"] = guide.to_dict()
-                if not await asyncio.to_thread(route_verified, backend, guide):
-                    entry["skipped"] = "la ruta no quedó verificada: no se lanza el Visitante"
-                    return entry
+                entry["route_verified"] = await asyncio.to_thread(route_verified, backend, guide)
                 visitor = await stage("visitor", goal=goal, profiles=options.profiles, runs=options.runs)
                 entry["visitor"] = visitor.to_dict()
         except Exception as error:   # un objetivo que falla no cancela la mejora ni a los demás

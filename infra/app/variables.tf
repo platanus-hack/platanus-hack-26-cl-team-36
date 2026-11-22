@@ -19,13 +19,15 @@ variable "runtime_agentes" {
 variable "goals_max" {
   description = "Goals por revisión que la proyectora espera del catálogo; el mismo default que el conductor."
   type        = number
-  default     = 6
+  default     = 8
 }
 
 variable "revisiones_en_curso_max" {
+  # Una revisión tiene abiertas a la vez hasta 8 goals × (6 usuarios, AGENTS_VISITOR_PARALLEL del runtime, + 1 criterio)
+  # + 8 Guías = 64 sesiones de AgentCore Browser; la cuenta tiene 1000: con 10 revisiones, ~640.
   description = "Tope de revisiones queued/running a la vez: más allá, POST /revisiones responde 429."
   type        = number
-  default     = 30
+  default     = 10
 }
 
 variable "dominio" {

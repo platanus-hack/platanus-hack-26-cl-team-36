@@ -41,6 +41,8 @@ FRACCION_ABANICO = 0.4
 FRACCION_RESERVA = 0.1
 RESERVA_S = 45
 MAX_FINES_RECHAZADOS = 3  # después de esto se acepta el fin igual, para no forzar un bucle
+# Estados HTTP con que el firewall de un sitio corta a un navegador que hace demasiadas peticiones (ver _step).
+BLOQUEO_HTTP = (403, 429)
 MARGEN_ACCION_S = 60  # cuánto puede pasarse del límite de tiempo una acción en curso antes de cortarla
 
 
@@ -146,7 +148,10 @@ class SyntheticUser:
         await self._publish_trace(run.start["screenshot"])
         self._log(f"inicio en {url} — {title!r}")
 
+        self.bloqueos_seguidos = 1 if self.session.http_status in BLOQUEO_HTTP else 0
         try:
+            if self.bloqueos_seguidos:
+                raise AttemptEnded("site_blocked", f"La página inicial respondió HTTP {self.session.http_status}.")
             await self.engine.start(
                 system_prompt(self.profile, self.engine.name),
                 self._primer_mensaje(),
@@ -461,6 +466,12 @@ class SyntheticUser:
         await self._publish_trace(screenshot_file)
         target = f" sobre «{element.get('text')}»" if element and element.get("text") else ""
         self._log(f"paso {number}: {executed.description}{target} -> {title!r} {signals or ''}")
+        # Un 403 suelto puede ser una página prohibida del sitio (un hallazgo); dos seguidos, o un 429, son el
+        # firewall del sitio cortando a un navegador que hace demasiadas peticiones: no es lo que haría una persona.
+        self.bloqueos_seguidos = self.bloqueos_seguidos + 1 if self.session.http_status in BLOQUEO_HTTP else 0
+        if self.bloqueos_seguidos >= 2 or self.session.http_status == 429:
+            raise AttemptEnded("site_blocked", f"El sitio respondió HTTP {self.session.http_status}"
+                                               f" ({self.bloqueos_seguidos} seguidos): bloqueó al navegador.")
 
     async def _publish_trace(self, screenshot: str) -> None:
         if self.trace is not None:

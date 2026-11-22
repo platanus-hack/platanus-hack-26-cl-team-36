@@ -47,11 +47,12 @@ def attempt_folder(profile: str, attempt: int) -> str:
     return profile if attempt == 1 else f"{profile}-{attempt}"
 
 
-def attempt_slots(profile_keys: list[str], runs: int) -> list[tuple[str, int]]:
-    """(perfil, n.º de intento) de cada usuario de la tanda."""
-    if runs < 1:
+def attempt_slots(profile_keys: list[str], runs: int, profile_runs: dict[str, int] | None = None) -> list[tuple[str, int]]:
+    """(perfil, n.º de intento) de cada usuario de la tanda: `runs` por perfil, multiplicado por su `profile_runs`."""
+    if runs < 1 or any(count < 1 for count in (profile_runs or {}).values()):
         raise ValueError("`runs` debe ser al menos 1")
-    return [(key, attempt) for key in profile_keys for attempt in range(1, runs + 1)]
+    return [(key, attempt) for key in profile_keys
+            for attempt in range(1, runs * (profile_runs or {}).get(key, 1) + 1)]
 
 
 def _write_json(path: Path, data) -> None:
@@ -155,25 +156,46 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
     Con `tema_script`, todos con ese tema. Con `conocimiento`, los exploradores con nivel leen la tarea de su nivel; el criterio
     y el juez usan `instruction`.
     """
+    cap = asyncio.Semaphore(config.parallel_attempts() or len(slots) or 1)
     async with async_playwright() as playwright:
         browsers = open_browsers(playwright, browser, cdp_url)
         try:
-            # Uno por usuario y, con juez, uno para el criterio (en local, todos son el mismo Chromium).
-            opened = await asyncio.gather(*(browsers.open() for _ in range(len(slots) + (judge is not None))))
-            if tema_script is not None:
-                opened = [NavegadorConTema(item, tema_script) for item in opened]
-            criteria_task = (
-                asyncio.create_task(_criteria_for(judge, opened[-1], url, instruction)) if judge is not None else None
-            )
-            users = [
-                SyntheticUser(
-                    make_engine(key), user_browser, PROFILES[key], url, instruction,
-                    batch_dir / attempt_folder(key, attempt), record_video, conocimiento=conocimiento, attempt=attempt,
-                    trace=live(attempt_folder(key, attempt), key) if live else None,
-                )
-                for (key, attempt), user_browser in zip(slots, opened)
-            ]
-            attempts = await asyncio.gather(*(user.attempt() for user in users), return_exceptions=True)
+            # El navegador del criterio se abre al principio; el de cada usuario, recién cuando le toca navegar (dentro
+            # del tope), y se cierra al terminar: así una tanda nunca tiene abiertas más sesiones que el tope.
+            criteria_task = None
+            if judge is not None:
+                criteria_browser = await browsers.open()
+                if tema_script is not None:
+                    criteria_browser = NavegadorConTema(criteria_browser, tema_script)
+                criteria_task = asyncio.create_task(_criteria_for(judge, criteria_browser, url, instruction))
+
+            async def run_slot(key: str, attempt: int):
+                async with cap:
+                    try:
+                        opened = await browsers.open()
+                    except Exception as error:   # cuota o sesión que no abre: se salta solo este intento
+                        print(f"[{attempt_folder(key, attempt)}] se salta: no se abrió su navegador"
+                              f" ({type(error).__name__}: {error})", flush=True)
+                        return None, None
+                    user = SyntheticUser(
+                        make_engine(key), NavegadorConTema(opened, tema_script) if tema_script is not None else opened,
+                        PROFILES[key], url, instruction, batch_dir / attempt_folder(key, attempt), record_video,
+                        conocimiento=conocimiento, attempt=attempt,
+                        trace=live(attempt_folder(key, attempt), key) if live else None,
+                    )
+                    try:
+                        result = await user.attempt()
+                    except BaseException as error:   # noqa: BLE001 — se registra como error interno del intento
+                        result = error
+                    finally:
+                        await browsers.release(opened)
+                    return user, result
+
+            results = await asyncio.gather(*(run_slot(key, attempt) for key, attempt in slots))
+            users = [user for user, _ in results if user is not None]
+            attempts = [result for user, result in results if user is not None]
+            if slots and not users:
+                raise RuntimeError("no se abrió el navegador de ningún usuario de la tanda")
             criteria = await criteria_task if criteria_task else None
         finally:
             await browsers.close()
@@ -201,11 +223,13 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
     return runs, criteria
 
 
+
 async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, profile_keys: list[str], runs: int,
                        references: References, judge: bool, engine: str, user_model: str, judge_model: str,
                        effort: str, cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None,
                        tema_kit: Path | None, conocimiento: ConocimientoDeTarea | None,
-                       conjunto_exploradores: str | None, live: LiveTraces | None = None) -> int:
+                       conjunto_exploradores: str | None, live: LiveTraces | None = None,
+                       profile_runs: dict[str, int] | None = None) -> int:
     """Escribe la tanda en `batch_dir` y devuelve cuántos intentos no se interrumpieron."""
     tema_script, tema = _tema(batch_dir, tema_css, tema_kit)
     # El juez solo se llama si algún perfil queda sin ruta: con ruta, decide el programa. El motor guionizado no tiene.
@@ -214,7 +238,8 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
         client = _client(engine) if engine in ("api", "bedrock") else None
         make_engine = _engines(engine, client, user_model, effort, claude_cwd, references)
         judge_agent = _judge(engine, client, judge_model, claude_cwd) if judged else None
-        attempts, criteria = await _attempts(judge_agent, make_engine, attempt_slots(profile_keys, runs), references,
+        attempts, criteria = await _attempts(judge_agent, make_engine, attempt_slots(profile_keys, runs, profile_runs),
+                                             references,
                                              url, instruction, batch_dir, browser, cdp_url, record_video, tema_script,
                                              conocimiento, live)
 
@@ -232,6 +257,7 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
         "judge_model": judge_model if judged else None,
         "effort": effort if engine == "claude-code" or config.accepts_effort(user_model) else None,
         "runs": runs,
+        "profile_runs": profile_runs if any(count > 1 for count in (profile_runs or {}).values()) else None,
         "tema": tema,
         "conjunto_exploradores": conjunto_exploradores,
     }
@@ -296,10 +322,11 @@ async def run_batch(
     tema_kit: Path | None = None,
     conocimiento: ConocimientoDeTarea | None = None,
     conjunto_exploradores: str | None = None,
+    profile_runs: dict[str, int] | None = None,
 ) -> store.RunKey:
     """Una corrida de visitor: report.md, route_tree.json, comparison.json y una carpeta por intento.
 
-    `runs` intentos por perfil (carpetas `<perfil>`, `<perfil>-2`...). Cada intento se mide contra la ruta de
+    `runs` intentos por perfil, multiplicados por los de `profile_runs` (carpetas `<perfil>`, `<perfil>-2`...). Cada intento se mide contra la ruta de
     `references`; sin ella, con `judge` lo dictamina el juez y, sin juez, queda sin medir. `inputs`, las corridas de
     guide de `references` y `revision` quedan en el manifiesto. Si ningún intento terminó, la corrida termina `failed`
     (con su reporte) y lanza `BatchInterrupted`. Con `tema_css`, cada página de cada usuario (y la del criterio) se ve
@@ -310,7 +337,7 @@ async def run_batch(
     criterio y el juez usan siempre `instruction`. `conjunto_exploradores` se registra en `route_tree.json`:
     agrupa tandas y elige la vigente de cada conjunto.
     """
-    slots = attempt_slots(profile_keys, runs)  # valida `runs` antes de abrir la corrida
+    slots = attempt_slots(profile_keys, runs, profile_runs)  # valida `runs` antes de abrir la corrida
     user_model, judge_model = models_for(engine, user_model)
     print(f"[tanda] {len(slots)} intento(s): {', '.join(attempt_folder(*slot) for slot in slots)}", flush=True)
     with store.running(backend, prefix, model=user_model, revision=revision,
@@ -318,7 +345,8 @@ async def run_batch(
         finished = await _write_batch(run.workdir, prefix.goal, url, instruction, profile_keys, runs, references,
                                       judge, engine, user_model, judge_model, effort, cdp_url, browser, record_video,
                                       tema_css, tema_kit, conocimiento, conjunto_exploradores,
-                                      lambda folder, profile: store.LiveTrace(backend, run, "visitor", profile, folder))
+                                      lambda folder, profile: store.LiveTrace(backend, run, "visitor", profile, folder),
+                                      profile_runs)
         if not finished:
             raise BatchInterrupted(run.key)
     return run.key

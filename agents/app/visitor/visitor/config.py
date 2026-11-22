@@ -17,6 +17,19 @@ MAX_STEPS = 15      # acciones ejecutadas en la página
 MAX_SECONDS = 180   # tiempo total del intento, incluida la espera del modelo
 MAX_TURNS = 40      # tope de seguridad de llamadas al modelo por intento
 
+# Intentos de una tanda que navegan a la vez (AGENTS_VISITOR_PARALLEL); 0 o sin definir, todos. El firewall de un
+# sitio puede cortar con HTTP 403 a muchos navegadores desde la misma IP (metro.cl, con 30 a la vez): este tope dosifica
+# el tráfico a cambio de que la tanda tarde más.
+PARALLEL_VAR = "AGENTS_VISITOR_PARALLEL"
+
+
+def parallel_attempts() -> int:
+    value = os.environ.get(PARALLEL_VAR) or "0"
+    if not value.isdigit():
+        raise ValueError(f"{PARALLEL_VAR} debe ser un entero mayor o igual que 0: {value!r}")
+    return int(value)
+
+
 # Los perfiles exploradores prueban varios caminos y vuelven atrás: necesitan más presupuesto que el resto.
 EXPLORADOR_MAX_ACCIONES = 30
 # Con Haiku en esfuerzo medium y 4 exploradores en paralelo, cada acción toma 12 a 15 s (metro.cl, bibliotecanacional.cl):

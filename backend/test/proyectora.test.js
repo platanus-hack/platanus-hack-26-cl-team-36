@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { claveDeEvento, crearProyectora, goalsElegidos, profundidad } from "../proyectora.js";
+import { claveDeEvento, crearProyectora, goalsElegidos, pasosDelGoal, profundidad } from "../proyectora.js";
 import { claveRevision } from "../estados.js";
 import { almacenFalso, tablaFalsa } from "./fakes.js";
 
@@ -61,6 +61,16 @@ test("goalsElegidos elige lo mismo que el conductor ante un catálogo real", () 
   for (const [limite, esperado] of Object.entries(catalogo.expected_by_limit)) {
     assert.deepEqual(goalsElegidos(catalogo.goals, Number(limite)), esperado, `goals_max ${limite}`);
   }
+});
+
+test("con 8 goals: 4 largos, 2 medianos y 2 de los primeros, como for_revision", () => {
+  const goal = (id, demand, estimated_steps) => ({ id, level: "user_goal", start_url: "https://ejemplo.cl/", demand, prominence: "secondary", estimated_steps });
+  const goals = [
+    ...[0, 1, 2, 3].map((n) => goal(`top-corto-${n}`, "top", 1)),
+    ...[0, 1, 2].map((n) => goal(`medio-${n}`, "common", 3)),
+    ...[0, 1, 2, 3, 4].map((n) => goal(`largo-${n}`, "rare", 6)),
+  ];
+  assert.deepEqual(goalsElegidos(goals, 8), ["top-corto-0", "top-corto-1", "medio-0", "medio-1", "largo-0", "largo-1", "largo-2", "largo-3"]);
 });
 
 test("profundidad: por pasos estimados o formulario, como depth de goal.py", () => {
@@ -370,11 +380,39 @@ test("Visitante con varios intentos: el GOAL muestra el último que avanzó, sin
   const primero = [VISITA_TRAZA, traza("visitor", [pasoVisita(1), pasoVisita(2), pasoVisita(3)], { updated_at: "2026-11-21T12:00:10Z" })];
   const segundo = [VISITA_TRAZA_2, traza("visitor", [pasoVisita(1)], { updated_at: "2026-11-21T12:00:20Z" })];
   for (const orden of [[primero, segundo], [segundo, primero]]) {
-    const { publicar, item } = conTrazas();
+    const { publicar, item, resumen } = conTrazas();
     for (const [clave, contenido] of orden) await publicar(clave, contenido);
     assert.equal(item("GOAL#buscar-precio#visitor").trace_key, VISITA_TRAZA_2);
     assert.equal(item("GOAL#buscar-precio#visitor").step, 1);
+    // El resumen suma los pasos de todos los intentos, también los del que avanzó antes.
+    assert.equal(resumen().pasos, 4);
   }
+});
+
+test("Visitante con varios intentos: un aviso viejo de un intento no le baja los pasos", async () => {
+  const { publicar, almacen, proyectar, resumen } = conTrazas();
+  await publicar(VISITA_TRAZA, traza("visitor", [pasoVisita(1), pasoVisita(2)]));
+  await publicar(VISITA_TRAZA_2, traza("visitor", [pasoVisita(1), pasoVisita(2), pasoVisita(3)]));
+  almacen.archivos[VISITA_TRAZA] = traza("visitor", [pasoVisita(1)]);
+  await proyectar(VISITA_TRAZA);
+  assert.equal(resumen().pasos, 5);
+});
+
+test("una traza cuyo resumen choca siempre no lanza: lo guarda el próximo evento", async () => {
+  const { db, publicar, item } = conTrazas();
+  const actualizar = db.actualizar;
+  db.actualizar = async (clave, atributos, opciones) => (atributos.resumen ? false : actualizar(clave, atributos, opciones));
+  await publicar(VISITA_TRAZA, traza("visitor", [pasoVisita(1)]));
+  assert.equal(item("GOAL#buscar-precio#visitor").step, 1);
+  db.actualizar = actualizar;
+  await publicar(VISITA_TRAZA_2, traza("visitor", [pasoVisita(1)]));
+  assert.equal(item("META").resumen.pasos, 2);
+});
+
+test("pasosDelGoal: los de cada intento si los hay; si no, step", () => {
+  assert.equal(pasosDelGoal({ step: 3 }), 3);
+  assert.equal(pasosDelGoal({ step: 1, "step#desktop": 4, "step#mobile": 1, "trace_at#desktop": "x" }), 5);
+  assert.equal(pasosDelGoal({}), 0);
 });
 
 test("trazas malformadas, sin revisión, de una revisión inexistente o fuera del layout se ignoran sin lanzar", async () => {
@@ -442,30 +480,15 @@ test("resumen: revisión fallida", async () => {
   assert.equal(item("META").status, "failed");
 });
 
-test("Guía fallida: su Visitante queda skipped, aunque el manifiesto llegue antes que el catálogo", async () => {
-  for (const catalogoAntes of [true, false]) {
-    const { evento, resumen, item } = conTrazas();
-    if (catalogoAntes) await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
-    await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
-    await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
-    if (!catalogoAntes) await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
-    assert.equal(item("GOAL#buscar-precio#visitor").status, "skipped");
-    assert.equal(item("GOAL#ver-contacto#visitor").status, "pending");
-    assert.deepEqual(resumen().fases.visitor, { pending: 1, running: 0, succeeded: 0, failed: 0, skipped: 1 });
-  }
-});
-
-test("Guía fallida no toca un Visitante que ya salió de pending", async () => {
-  const { evento, item } = conTrazas();
+test("Guía fallida: su Visitante sigue pending y corre igual", async () => {
+  const { evento, resumen, item } = conTrazas();
   await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
-  await evento(VISITA, { agent: "visitor", goal: "buscar-precio", status: "running" });
   await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
-  assert.equal(item("GOAL#buscar-precio#visitor").status, "running");
-  // skipped es final: un manifiesto tardío del Visitante no lo reabre.
-  const { evento: otro, item: otroItem } = conTrazas();
-  await otro(GUIA, { agent: "guide", goal: "buscar-precio", status: "failed" });
-  await otro(VISITA, { agent: "visitor", goal: "buscar-precio", status: "running" });
-  assert.equal(otroItem("GOAL#buscar-precio#visitor").status, "skipped");
+  assert.equal(item("GOAL#buscar-precio#visitor").status, "pending");
+  await evento(VISITA, { agent: "visitor", goal: "buscar-precio", status: "running" });
+  await evento(VISITA, { agent: "visitor", goal: "buscar-precio", status: "succeeded" });
+  assert.equal(item("GOAL#buscar-precio#visitor").status, "succeeded");
+  assert.deepEqual(resumen().fases.visitor, { pending: 1, running: 0, succeeded: 1, failed: 0, skipped: 0 });
 });
 
 test("eventos repetidos y desordenados dejan el mismo resultado final", async () => {

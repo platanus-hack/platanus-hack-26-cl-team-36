@@ -124,7 +124,8 @@ class Run:
     started_at: str = ""                            # hora local ISO 8601 del segundo 0 del intento
     start: dict = field(default_factory=dict)       # url, title, screenshot
     steps: list[Step] = field(default_factory=list)
-    # done | blocked | gave_up | step_limit | time_limit | refusal | api_error | no_response | internal_error
+    # done | blocked | gave_up | step_limit | time_limit | refusal | api_error | no_response | internal_error |
+    # site_blocked
     end_reason: str = ""
     final_message: str = ""
     duration_s: float = 0.0

@@ -187,7 +187,7 @@ import { caminoDe, claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, 
 
 // Motivos de fin que son fallas de la herramienta, no del usuario: los _INTERRUPTED_REASONS de
 // agents/app/visitor/visitor/batch.py. El orden es el de la tabla del diseño (§2.1).
-const MOTIVOS_DE_ERROR = ["internal_error", "api_error", "no_response", "refusal"];
+const MOTIVOS_DE_ERROR = ["internal_error", "api_error", "no_response", "refusal", "site_blocked"];
 /** Motivo de fin del intento armado para un run.json que no se pudo leer (lib/tandas.js). */
 export const ARCHIVO_DANADO = "archivo_danado";
 const SIN_VEREDICTO = "No se pudo obtener el veredicto";
