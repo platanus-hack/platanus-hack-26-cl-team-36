@@ -50,6 +50,13 @@
     }
   ],
 
+  "web_accessible_resources": [
+    {
+      "resources": ["fuentes/*.woff2"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
+
   "browser_specific_settings": {
     "gecko": {
       "id": "chameleon@grupo36.hackathon",
