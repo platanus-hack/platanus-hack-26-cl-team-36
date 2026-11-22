@@ -2,14 +2,6 @@
 const plural = (n, ayudas, uno, otros) => `${n} ${ayudas.plural(n, { one: uno, other: otros })}`;
 
 export default {
-  herramientas: "Route map tools",
-  perfiles: {
-    grupo: "Filter by profile",
-    todos: "All",
-    noExiste: "There is no profile «{perfil}»; showing all.",
-    anuncio: "Profile: {nombre}",
-    anuncioTodos: "All profiles",
-  },
   lienzo: {
     etiqueta: "Route map",
     instrucciones: "Drag to move the map; ⌘ or Ctrl + wheel to zoom. With focus on the map, the arrow keys move it.",
@@ -24,28 +16,11 @@ export default {
     ajustar: "Fit to view",
   },
   leyenda: {
-    titulo: "Legend",
-    ruta: "Recommended route",
-    eje: "Most travelled path",
-    exito: "Everyone got there",
-    mixto: "Some got there",
-    fallo: "Nobody got there",
-    abandono: "Nobody got there (gave up)",
-    error: "Tool error",
-    retroceso: "Went back",
-    lateral: "Sideways step (same column)",
-    grosor: "Width = attempts",
-    columnas: "Columns = steps from the start; the goal on the right",
-    atasco: "Someone got stuck here",
-  },
-  // Pages where someone got stuck: too many steps in a row, stumbles or the same action repeated.
-  atasco: {
-    titulo: "Someone got stuck here",
-    aria: ({ n }, ayudas) => `${plural(n, ayudas, "attempt got", "attempts got")} stuck here`,
-    linea: "{nombre}: {detalle}",
-    demora: ({ n }, ayudas) => `${plural(n, ayudas, "step in a row", "steps in a row")}`,
-    tropiezos: ({ n }, ayudas) => `${plural(n, ayudas, "step with a stumble", "steps with stumbles")}`,
-    repetidos: ({ n }, ayudas) => `${plural(n, ayudas, "repeated action", "repeated actions")}`,
+    titulo: "Legend: tap a path to highlight it",
+    feliz: "Happy path",
+    felizAyuda: "The recommended route: it reaches the goal directly",
+    ineficiente: "Inefficient path",
+    ineficienteAyuda: "Detours, going back and paths that wander or never get there",
   },
   estacion: {
     inicio: "starting point",
@@ -53,10 +28,6 @@ export default {
     visitas: ({ n }, ayudas) => plural(n, ayudas, "visit", "visits"),
     variantes: ({ n }, ayudas) => plural(n, ayudas, "variant", "variants"),
     variantesDeUrl: ({ n }, ayudas) => plural(n, ayudas, "URL variant", "URL variants"),
-  },
-  terminal: {
-    etiqueta: "{resultado} {n}",
-    aria: ({ resultado, n }, ayudas) => `${resultado}: ${plural(n, ayudas, "attempt", "attempts")}`,
   },
   tramo: {
     titulo: "{desde} → {hasta}",
@@ -66,7 +37,6 @@ export default {
     errores: ({ n }, ayudas) => plural(n, ayudas, "tool error", "tool errors"),
     mediana: "median {duracion}",
     vuelta: "Went back",
-    final: ({ resultado, n }, ayudas) => `Ends: ${resultado.toLowerCase()} (${plural(n, ayudas, "attempt", "attempts")})`,
   },
   panel: {
     etiqueta: "Route map detail",
@@ -81,7 +51,6 @@ export default {
     conteo: "{n}/{de}",
     conteoAria: ({ n, de }) => `${n} of ${de} reach it`,
     terminaron: "How they ended",
-    nadieTermino: "No attempts for this profile.",
     quitar: "Clear the selection",
     abrirPagina: "Open the page in another tab",
     variantes: "URL variants",
@@ -90,7 +59,7 @@ export default {
     terminanAqui: "End here",
     salidas: "From here they went to",
     pasaron: "Attempts that went through here",
-    nadiePaso: "No attempt of this profile went through here.",
+    nadiePaso: "No attempt went through here.",
     paso: "step {n}",
     abrirEnReplay: "Open {nombre} in Replay, step {n}",
     captura: "Screenshot of the page ({perfil})",
@@ -98,37 +67,5 @@ export default {
     inicio: "Start",
     elegida: "{nombre}: selected",
   },
-  vista3d: {
-    boton: "3D view",
-    ayuda: "Tilts the map; drag to turn it.",
-  },
-  historia: {
-    boton: "Story",
-    quitar: "Leave the story",
-    intento: "Story attempt",
-    titulo: "Story · {nombre}",
-    pasoDe: "step {paso} of {total}",
-    controles: "Story controls",
-    primero: "First step",
-    anterior: "Previous step",
-    reproducir: "Play",
-    pausar: "Pause",
-    siguiente: "Next step",
-    ultimo: "Last step",
-    abrirEnReplay: "Open in Replay",
-    esperaba: "Expected",
-    senales: "Signals",
-    sinCaptura: "This step has no screenshot.",
-    captura: "Screenshot after step {n}",
-    noExiste: "There is no attempt «{intento}»; showing «{nombre}».",
-    sinPasos: "This attempt has no recorded steps.",
-    anuncio: "{nombre}: step {paso} of {total}, {pagina}",
-    error: "This attempt ended with a tool error, not because of what the user did.",
-  },
 };
 
-// Example variables for diccionarios.test.js (resultado is a text).
-export const ejemplos = {
-  "tramo.final": (n) => ({ resultado: "Succeeded", n }),
-  "terminal.aria": (n) => ({ resultado: "Succeeded", n }),
-};

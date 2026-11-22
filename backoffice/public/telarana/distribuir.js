@@ -3,17 +3,15 @@
 // La telaraña es un grafo dirigido por columnas, de izquierda a derecha:
 // - columna 0: la página de inicio;
 // - columnas intermedias: las demás páginas según cuántos pasos están del inicio;
-// - la última columna de páginas es la de la meta: el final de la ruta recomendada (sin ruta, la página donde más lo
-//   lograron) y las páginas donde alguien encontró la respuesta;
-// - una columna más a la derecha, las terminales (Logrado, Fallido, Abandonado, Error).
+// - la última columna es la de la meta: el final de la ruta recomendada (sin ruta, la página donde más lo lograron)
+//   y las páginas donde alguien encontró la respuesta.
 // distribuir() decide la columna (capa) y la altura (fila, en filas de alto) de cada página: dentro de cada columna
 // el orden sale de barridos de baricentro, con una parada virtual en cada columna que un tramo salta, para enredar lo
-// menos posible; el tronco (la ruta, o el camino más transitado) queda en una fila recta, y = 0, y las demás páginas se
-// reparten encima y debajo de él. geometria() lo convierte en coordenadas y caminos SVG: los tramos hacia la derecha
-// son rectas (o piezas casi rectas por sus paradas); las vueltas atrás y los pasos laterales, arcos bajos. Ninguna
-// forma depende de dónde quedan los nombres: si un tramo pasa por encima de uno, se arregla en la distribución.
-
-export const RESULTADOS = ["logrado", "fallido", "abandonado", "error"];
+// menos posible; el tronco (la ruta, o el camino más transitado) queda en una fila recta, y = 0, al medio de cada
+// columna: el inicio al medio a la izquierda, la meta al medio a la derecha y las demás páginas repartidas encima y
+// debajo. geometria() lo convierte en coordenadas y caminos SVG: los tramos hacia la derecha son rectas (o piezas
+// casi rectas por sus paradas); las vueltas atrás, los pasos laterales y los atajos, curvas suaves. Ninguna forma
+// depende de dónde quedan los nombres: si un tramo pasa por encima de uno, se arregla en la distribución.
 
 const comparar = (a, b) => String(a).localeCompare(String(b), "es", { numeric: true });
 const redondear = (n) => Math.round(n * 10) / 10;
@@ -21,17 +19,11 @@ const redondearFila = (n) => Math.round(n * 1000) / 1000 || 0; // sin −0
 const idDeRama = (rama) => rama.id ?? `${rama.origen}>${rama.destino}`;
 const promedio = (valores) => valores.reduce((suma, valor) => suma + valor, 0) / valores.length;
 
-/** Id de la terminal de un resultado: "fin:logrado". */
-export const idDeTerminal = (resultado) => `fin:${resultado}`;
-/** Id del tramo final de una página a una terminal: "n3>fin:logrado". */
-export const idDeTramoFinal = (pagina, resultado) => `${pagina}>${idDeTerminal(resultado)}`;
-
 /** Barridos de baricentro por omisión (el primero, de izquierda a derecha, arma el orden inicial). */
 export const BARRIDOS = 9;
 
 const VACIA = Object.freeze({
   estaciones: [],
-  terminales: [],
   tramos: [],
   tronco: [],
   troncoEsRuta: false,
@@ -41,12 +33,10 @@ const VACIA = Object.freeze({
 });
 
 // Separación mínima, en filas, entre dos elementos seguidos de una columna (de arriba hacia abajo). Una página lleva
-// su etiqueta debajo del punto; una parada virtual es solo un tramo que pasa; una terminal, un punto con la etiqueta
-// al costado.
+// su etiqueta debajo del punto; una parada virtual es solo un tramo que pasa.
 const SEPARACION = {
-  pagina: { pagina: 1, virtual: 0.75, terminal: 0.75 },
-  virtual: { pagina: 0.4, virtual: 0.25, terminal: 0.4 },
-  terminal: { pagina: 0.5, virtual: 0.25, terminal: 0.5 },
+  pagina: { pagina: 1, virtual: 0.75 },
+  virtual: { pagina: 0.4, virtual: 0.25 },
 };
 const PESO_DEL_TRONCO = 1e6;
 const VUELTAS_DE_AJUSTE = 12;
@@ -179,6 +169,27 @@ function repartirAlrededorDelTronco({ columnas, elementos, derecha, posicion, nu
   }
 }
 
+/**
+ * El tronco al medio de cada columna por la que pasa: tantas páginas encima como debajo (si sobra una, va debajo), sin
+ * cambiar el orden de las demás. Así el inicio queda al medio a la izquierda, la meta al medio a la derecha y las demás
+ * páginas se reparten a los dos lados, aunque algún tramo tenga que cruzar el tronco. Modifica `columnas`.
+ */
+function centrarElTronco({ columnas, elementos, numerar }) {
+  for (const columna of columnas) {
+    const t = columna.findIndex((id) => elementos.get(id).tronco);
+    if (t < 0) continue;
+    const resto = columna.filter((_, i) => i !== t);
+    let encima = Math.floor(resto.filter((id) => elementos.get(id).clase === "pagina").length / 2);
+    let k = 0;
+    while (encima > 0) {
+      if (elementos.get(resto[k]).clase === "pagina") encima -= 1;
+      k += 1;
+    }
+    columna.splice(0, columna.length, ...resto.slice(0, k), columna[t], ...resto.slice(k));
+    numerar(columna);
+  }
+}
+
 /** Resuelve A·x = b (A cuadrada, simétrica y definida positiva en la práctica) por eliminación con pivote parcial. */
 export function resolverSistema(A, b) {
   const n = b.length;
@@ -203,19 +214,23 @@ export function resolverSistema(A, b) {
   return x;
 }
 
-// Paso 10: lo que pesa cada cosa al buscar las alturas con los tramos largos rectos.
+// Paso 9: lo que pesa cada cosa al buscar las alturas con los tramos largos rectos.
 const PESO_DE_SEPARACION = 1e5; // una separación que no se cumple (casi una restricción dura)
-const PESO_DE_ANCLA = 1e-3; // quedarse cerca de la altura del paso 8 (desempata y fija lo que no se toca con nada)
+const PESO_DE_ANCLA = 1e-3; // quedarse cerca de la altura del paso 7 (desempata y fija lo que no se toca con nada)
 const VUELTAS_DE_NEWTON = 60;
 const VUELTAS_DE_ORDEN = 4;
 const PESO_DEL_ALTO = 5; // (filas)² de energía por (fila de alto del mapa)²
 const ALTO_DE_ATAJO = 0.3; // filas que reserva cada nivel de atajos sobre el tronco
 const PESO_DE_CRUCE_DE_ATAJO = 30; // un arco de atajo que cruza un tramo más que al ubicarlo
-const PESO_DE_CRUCE_LATERAL = 10; // un tramo que cruza el arco de un paso lateral, en (filas)² de la energía
+const PESO_DE_CRUCE_LATERAL = 10;
+// (páginas de más a un lado del tronco)² : el tronco va al medio, con páginas encima y debajo (centrarElTronco).
+const PESO_DEL_DESEQUILIBRIO = 40;
+/** Páginas encima del tronco menos páginas debajo, con sus alturas (en filas) `x`. */
+const desequilibrio = (x) => x.reduce((suma, valor) => suma + (valor < -0.01 ? 1 : valor > 0.01 ? -1 : 0), 0); // un tramo que cruza el arco de un paso lateral, en (filas)² de la energía
 
 /**
  * Alturas con cada tramo largo recto de punta a punta. La altura de una parada virtual no es libre: es la de la recta
- * entre las dos puntas de su tramo en esa columna. Las de las páginas y terminales (las del tronco quedan en 0) se
+ * entre las dos puntas de su tramo en esa columna. Las de las páginas (las del tronco quedan en 0) se
  * buscan para que (1) cada columna conserve su orden y sus separaciones, contando las paradas, y (2) los tramos sean
  * lo más cortos posible (suma de (Δy)² / columnas que salta). Es un problema cuadrático convexo con desigualdades;
  * se resuelve con una penalidad grande por separación incumplida (Newton por conjunto activo, con búsqueda lineal).
@@ -316,7 +331,7 @@ function crearEnderezador({ columnas, elementos, tramos, paradas, separacion, y 
  */
 export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
   const paginas = [...(entrada?.paginas ?? [])].filter((pagina) => pagina?.id != null).sort((a, b) => comparar(a.id, b.id));
-  if (!paginas.length) return { ...VACIA, estaciones: [], terminales: [], tramos: [], tronco: [] };
+  if (!paginas.length) return { ...VACIA, estaciones: [], tramos: [], tronco: [] };
   const porId = new Map(paginas.map((pagina) => [pagina.id, pagina]));
   const logros = (id) => Number(porId.get(id)?.finales?.logrado ?? 0);
 
@@ -393,33 +408,19 @@ export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
     return { id: idDeRama(rama), origen: rama.origen, destino: rama.destino, tipo, intentos: rama.intentos ?? 0, resultado: rama.resultado ?? null, escalas: [] };
   });
 
-  // 5. Terminales: una columna más allá de la meta, solo para los resultados presentes.
-  const totales = Object.fromEntries(RESULTADOS.map((r) => [r, 0]));
-  for (const pagina of paginas) {
-    for (const r of RESULTADOS) {
-      const n = Number(pagina.finales?.[r] ?? 0);
-      if (n > 0) {
-        totales[r] += n;
-        tramos.push({ id: idDeTramoFinal(pagina.id, r), origen: pagina.id, destino: idDeTerminal(r), tipo: "final", intentos: n, resultado: r, escalas: [] });
-      }
-    }
-  }
-
-  // 6. Elementos por columna: páginas, terminales y una parada virtual en cada columna que salta un tramo hacia la
-  // derecha (así el orden también acomoda los tramos largos). Logrado sigue la fila del tronco si la ruta llega.
-  const columnas = Array.from({ length: capas + 1 }, () => []);
+  // 5. Elementos por columna: páginas y una parada virtual en cada columna que salta un tramo hacia la derecha (así el
+  // orden también acomoda los tramos largos).
+  const columnas = Array.from({ length: capas }, () => []);
   const elementos = new Map();
   const agregar = (elemento) => {
     elementos.set(elemento.id, elemento);
     columnas[elemento.columna].push(elemento.id);
   };
   for (const pagina of paginas) agregar({ id: pagina.id, clase: "pagina", columna: capa.get(pagina.id), tronco: enTronco.has(pagina.id), visitas: pagina.visitas ?? 0 });
-  const logradoEnTronco = troncoEsRuta && logros(tronco.at(-1)) > 0;
-  for (const r of RESULTADOS) if (totales[r]) agregar({ id: idDeTerminal(r), clase: "terminal", columna: capas, tronco: r === "logrado" && logradoEnTronco, visitas: totales[r] });
 
   const izquierda = new Map();
   const derecha = new Map();
-  const enlacesDe = Array.from({ length: capas + 1 }, () => []); // enlaces entre la columna c y la c + 1
+  const enlacesDe = Array.from({ length: capas }, () => []); // enlaces entre la columna c y la c + 1
   const enlazar = (a, b) => {
     if (!derecha.has(a)) derecha.set(a, []);
     if (!izquierda.has(b)) izquierda.set(b, []);
@@ -445,7 +446,7 @@ export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
     paradas.set(tramo.id, suyas);
   }
 
-  // 7. Orden dentro de cada columna. El inicial: el tronco al medio y las demás, de la más visitada a la menos
+  // 6. Orden dentro de cada columna. El inicial: el tronco al medio y las demás, de la más visitada a la menos
   // (empate: id), alternando debajo y encima de él (así las páginas se reparten a los dos lados del tronco y los
   // tramos bajan o suben la mitad); después, un barrido de izquierda a derecha por baricentro. Luego, barridos
   // alternados (de derecha a izquierda mirando las vecinas de la derecha, y al revés) con trasposiciones de vecinos;
@@ -542,12 +543,18 @@ export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
     numerar(columna);
   });
   repartirAlrededorDelTronco({ columnas, elementos, derecha, posicion, numerar, crucesTotales });
+  centrarElTronco({ columnas, elementos, numerar });
 
-  // 8. Altura (en filas). Primero apiladas desde el tronco (que queda en 0); después, vueltas en que cada elemento se
+  // 7. Altura (en filas). Primero apiladas desde el tronco (que queda en 0); después, vueltas en que cada elemento se
   // acerca al promedio de sus vecinas de los dos lados sin cambiar el orden ni acercarse más que la separación (así
   // un callejón sin salida queda a la altura de la página de la que salió y los tramos largos van derechos).
   const y = new Map();
-  const separacion = (a, b) => SEPARACION[elementos.get(a).clase][elementos.get(b).clase];
+  // El nombre de una página va debajo de su punto: la de justo encima del tronco queda a una fila entera de él, también
+  // donde el tronco solo pasa (una parada), para que su nombre no tape la línea del camino feliz.
+  const separacion = (a, b) => {
+    const [ea, eb] = [elementos.get(a), elementos.get(b)];
+    return ea.clase === "pagina" && eb.tronco ? SEPARACION.pagina.pagina : SEPARACION[ea.clase][eb.clase];
+  };
   const ancla = (columna) => columna.findIndex((id) => elementos.get(id).tronco);
   const calcularAlturas = () => {
     for (const columna of columnas) {
@@ -578,7 +585,7 @@ export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
   };
   calcularAlturas();
 
-  // 9. Tramos largos derechos: cada parada virtual se prueba en el puesto de su columna más cercano a la recta entre
+  // 8. Tramos largos derechos: cada parada virtual se prueba en el puesto de su columna más cercano a la recta entre
   // las dos puntas de su tramo; se queda allí si no suma cruces. Así un tramo largo no sube hasta arriba de una columna
   // para bajar en la siguiente (un codo). Después, las alturas otra vez.
   for (let vuelta = 0; vuelta < 2; vuelta += 1) {
@@ -611,9 +618,9 @@ export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
     calcularAlturas();
   }
 
-  // 10. Cada tramo largo, una recta de punta a punta (C4-1): sus paradas virtuales van exactamente sobre la recta
+  // 9. Cada tramo largo, una recta de punta a punta (C4-1): sus paradas virtuales van exactamente sobre la recta
   // entre sus dos puntas, y son las páginas las que se corren para dejarles lugar (crearEnderezador). El orden de
-  // cada columna se retoca solo si no suma cruces entre tramos rectos a los que dejó el paso 7.
+  // cada columna se retoca solo si no suma cruces entre tramos rectos a los que dejó el paso 6.
   //
   // Un atajo entre dos estaciones del tronco (que está en una fila recta) no puede ser una recta sin pasar por encima
   // de las estaciones del tronco que salta: se dibuja como un arco bajo por encima del tronco (arcoDeAtajo). Sus
@@ -650,7 +657,7 @@ export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
   // Lo que se busca bajar: tramos cortos, el mapa bajo (así entra en la vista), pocos tramos por encima del arco de
   // un paso lateral y pocos cruces nuevos con los arcos de los atajos.
   const costo = ({ energia, x }) =>
-    energia + PESO_DEL_ALTO * (Math.max(0, ...x) - Math.min(0, ...x)) ** 2 + PESO_DE_CRUCE_LATERAL * crucesDeLaterales() + PESO_DE_CRUCE_DE_ATAJO * Math.max(0, crucesConAtajos() - conAtajosPermitido);
+    energia + PESO_DEL_ALTO * (Math.max(0, ...x) - Math.min(0, ...x)) ** 2 + PESO_DEL_DESEQUILIBRIO * desequilibrio(x) ** 2 + PESO_DE_CRUCE_LATERAL * crucesDeLaterales() + PESO_DE_CRUCE_DE_ATAJO * Math.max(0, crucesConAtajos() - conAtajosPermitido);
   let recto = resolver();
   recto.costo = costo(recto);
   // Con las paradas sobre su recta, el orden que convenía antes puede obligar a separar mucho las páginas: se prueban
@@ -771,7 +778,6 @@ export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
   const fila = (id) => redondearFila(y.get(id));
 
   for (const tramo of tramos) tramo.escalas = (paradas.get(tramo.id) ?? []).map((id) => ({ capa: elementos.get(id).columna, fila: fila(id) }));
-  const terminales = RESULTADOS.filter((r) => totales[r]).map((r) => ({ id: idDeTerminal(r), resultado: r, capa: capas, fila: fila(idDeTerminal(r)), total: totales[r] }));
   const estaciones = paginas
     .map((pagina) => {
       const indice = tronco.indexOf(pagina.id);
@@ -781,7 +787,7 @@ export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
     .sort((a, b) => a.capa - b.capa || a.fila - b.fila || comparar(a.id, b.id));
 
   const filas = [0, ...[...elementos.keys()].map(fila)];
-  return { estaciones, terminales, tramos, tronco, troncoEsRuta, capas, filaMin: Math.min(...filas), filaMax: Math.max(...filas) };
+  return { estaciones, tramos, tronco, troncoEsRuta, capas, filaMin: Math.min(...filas), filaMax: Math.max(...filas) };
 }
 
 // ── Geometría ───────────────────────────────────────────────────────────
@@ -798,14 +804,10 @@ export const ALTO_FILA = 96;
  * vecinas, acotada a esto). Con 14° ninguna pieza se aparta de su recta más de un 6 % de su largo.
  */
 export const GIRO_MAXIMO = 14;
-// Las vueltas atrás son arcos bajos hacia afuera del tronco: sus puntos de control quedan esta fracción de fila más
-// allá del extremo más alto (o más bajo), y la curva, a 0.75 de eso (0.375 filas).
-const ALTURA_DE_VUELTA = 0.5;
-// Pasos laterales (dentro de una columna): un arco hacia la derecha, con los puntos de control a esta fracción del
-// ancho de columna (la curva se aparta 0.75 de eso).
-const ANCHO_DE_LATERAL = 0.3;
-const ALTURA_RELATIVA_DE_ATAJO = 0.065;
-const HACIA_LA_DERECHA = new Set(["tronco", "avance", "final"]);
+// Las curvas (vueltas atrás, pasos laterales y atajos) se apartan de la recta entre sus puntas a lo más esta fracción
+// de su largo: salen y llegan a menos de 15° de la recta (tan 15° / 4 ≈ 0.067).
+const CURVATURA = 0.065;
+const HACIA_LA_DERECHA = new Set(["tronco", "avance"]);
 
 const distanciaEntre = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 const acotar = (valor, minimo, maximo) => Math.min(maximo, Math.max(minimo, valor));
@@ -829,34 +831,32 @@ export function piezasDeAvance(puntos) {
 }
 
 /**
- * Arco bajo de una vuelta atrás (de a, a la derecha, hacia b): hacia afuera del tronco (por debajo si los dos
- * extremos quedan en promedio bajo el tronco; si no, por encima), sin apartarse más de 0.375 filas de la altura de
- * sus extremos. Depende solo de los extremos.
+ * Curva suave de `a` a `b`: la recta entre las dos puntas, combada CURVATURA de su largo hacia un costado (los puntos
+ * de control a un tercio y dos tercios, desplazados lo mismo). `lado` dice hacia dónde: "derecha" (un paso lateral,
+ * dentro de una columna) o, para una vuelta atrás, hacia afuera del tronco (por debajo si los dos extremos quedan en
+ * promedio bajo el tronco; si no, por encima). Depende solo de los extremos.
  */
-export function arcoDeVuelta(a, b, altoFila) {
-  const afuera = (a.y + b.y) / 2 > 0 ? 1 : -1;
-  const y = (afuera > 0 ? Math.max(a.y, b.y) : Math.min(a.y, b.y)) + afuera * ALTURA_DE_VUELTA * altoFila;
-  const tercio = (a.x - b.x) / 3;
-  return [a, { x: a.x - tercio, y }, { x: b.x + tercio, y }, b];
+export function curvaSuave(a, b, lado = "afuera") {
+  const largo = distanciaEntre(a, b) || 1;
+  let normal = { x: -(b.y - a.y) / largo, y: (b.x - a.x) / largo };
+  const haciaAfuera = (a.y + b.y) / 2 > 0 ? 1 : -1;
+  const invertir = lado === "derecha" ? normal.x < 0 : Math.sign(normal.y || haciaAfuera) !== haciaAfuera;
+  if (invertir) normal = { x: -normal.x, y: -normal.y };
+  const control = (CURVATURA * largo) / 0.75;
+  const en = (t) => ({ x: a.x + (b.x - a.x) * t + normal.x * control, y: a.y + (b.y - a.y) * t + normal.y * control });
+  return [a, en(1 / 3), en(2 / 3), b];
 }
 
 /**
  * Arco bajo de un atajo entre dos estaciones del tronco (de a hacia b, a la derecha): por encima de ellas, a lo más
- * `altura` px y a lo más un 6.5 % de su largo (así sale y llega a menos de 15° de la recta y no se aparta de ella más
- * de un 8 %). Depende solo de los extremos y del nivel.
+ * `altura` px y a lo más CURVATURA de su largo. Depende solo de los extremos y del nivel.
  */
 export function arcoDeAtajo(a, b, altura) {
   const largo = distanciaEntre(a, b);
-  const control = Math.min(altura, ALTURA_RELATIVA_DE_ATAJO * largo) / 0.75;
+  const control = Math.min(altura, CURVATURA * largo) / 0.75;
   const y = Math.min(a.y, b.y) - control;
   const tercio = (b.x - a.x) / 3;
   return [a, { x: a.x + tercio, y }, { x: b.x - tercio, y }, b];
-}
-
-/** Arco de un paso lateral (de a hacia b, en la misma columna): hacia la derecha, entre las dos alturas. */
-export function arcoLateral(a, b, anchoCapa) {
-  const x = a.x + ANCHO_DE_LATERAL * anchoCapa;
-  return [a, { x, y: a.y }, { x, y: b.y }, b];
 }
 
 const enCubica = ([p, c1, c2, q], t) => {
@@ -881,10 +881,11 @@ function enUnaRecta(puntos) {
 
 /**
  * Coordenadas y caminos SVG: x = capa·anchoCapa, y = fila·altoFila.
- * - Tramos hacia la derecha (tronco, avances y finales): rectas; con paradas, piezas casi rectas que doblan de a
+ * - Tramos hacia la derecha (tronco y avances): rectas; con paradas, piezas casi rectas que doblan de a
  *   poco en cada parada (piezasDeAvance).
- * - Pasos laterales (dentro de una columna): un arco hacia la derecha (arcoLateral).
- * - Vueltas atrás: un arco bajo hacia afuera del tronco (arcoDeVuelta).
+ * - Pasos laterales (dentro de una columna): una curva suave hacia la derecha (curvaSuave).
+ * - Vueltas atrás: una curva suave hacia afuera del tronco (curvaSuave).
+ * - Atajos entre estaciones del tronco: un arco bajo por encima (arcoDeAtajo).
  * Ninguna forma depende de los nombres de las estaciones.
  * → { posiciones: Map<id, {x, y}>, caminos: Map<tramoId, string>, recorridos: Map<tramoId, {x, y}[]> (los puntos
  *     por los que pasa cada camino: las paradas de un avance; muestras del arco de una vuelta o un paso lateral),
@@ -894,7 +895,7 @@ export function geometria(distribucion, { anchoCapa = 220, altoFila = ALTO_FILA,
   const posiciones = new Map();
   const caminos = new Map();
   const recorridos = new Map();
-  const nodos = [...(distribucion?.estaciones ?? []), ...(distribucion?.terminales ?? [])];
+  const nodos = distribucion?.estaciones ?? [];
   if (!nodos.length) return { posiciones, caminos, recorridos, caja: { x: 0, y: 0, ancho: 0, alto: 0 } };
 
   const punto = (capa, fila) => ({ x: redondear(capa * anchoCapa), y: redondear(fila * altoFila) });
@@ -915,7 +916,7 @@ export function geometria(distribucion, { anchoCapa = 220, altoFila = ALTO_FILA,
       puntos = [a, ...(tramo.escalas ?? []).map((escala) => punto(escala.capa, escala.fila)), b];
       d = enUnaRecta(puntos) ? `M${a.x} ${a.y} L${b.x} ${b.y}` : caminoDeCubicas(piezasDeAvance(puntos));
     } else {
-      const arco = b.x === a.x ? arcoLateral(a, b, anchoCapa) : arcoDeVuelta(a, b, altoFila);
+      const arco = curvaSuave(a, b, b.x === a.x ? "derecha" : "afuera");
       puntos = muestrear(arco);
       d = caminoDeCubicas([arco]);
     }
@@ -933,7 +934,7 @@ export function geometria(distribucion, { anchoCapa = 220, altoFila = ALTO_FILA,
 }
 
 /**
- * Cruces entre tramos hacia la derecha (tronco, avances y finales), medidos tramo a tramo entre columnas vecinas
+ * Cruces entre tramos hacia la derecha (tronco y avances), medidos tramo a tramo entre columnas vecinas
  * con las paradas de cada uno. Las vueltas atrás y los pasos laterales no cuentan.
  */
 export function contarCruces(distribucion, geo) {

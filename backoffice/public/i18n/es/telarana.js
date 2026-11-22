@@ -2,14 +2,6 @@
 const plural = (n, ayudas, uno, otros) => `${n} ${ayudas.plural(n, { one: uno, other: otros })}`;
 
 export default {
-  herramientas: "Herramientas de la telaraña",
-  perfiles: {
-    grupo: "Filtrar por perfil",
-    todos: "Todos",
-    noExiste: "No existe el perfil «{perfil}»; se muestran todos.",
-    anuncio: "Perfil: {nombre}",
-    anuncioTodos: "Todos los perfiles",
-  },
   lienzo: {
     etiqueta: "Mapa de la telaraña",
     instrucciones: "Arrastra para mover el mapa; ⌘ o Ctrl + rueda para acercar. Con el foco en el mapa, las flechas lo mueven.",
@@ -24,28 +16,11 @@ export default {
     ajustar: "Ajustar a la vista",
   },
   leyenda: {
-    titulo: "Leyenda",
-    ruta: "Ruta recomendada",
-    eje: "Camino más transitado",
-    exito: "Todos llegaron",
-    mixto: "Algunos llegaron",
-    fallo: "Nadie llegó",
-    abandono: "Nadie llegó (abandonaron)",
-    error: "Error de la herramienta",
-    retroceso: "Volvió atrás",
-    lateral: "Paso lateral (misma columna)",
-    grosor: "Grosor = intentos",
-    columnas: "Columnas = pasos desde el inicio; la meta, a la derecha",
-    atasco: "Alguien se trabó aquí",
-  },
-  // Páginas donde alguien se trabó: pasos seguidos de más, tropiezos o la misma acción repetida.
-  atasco: {
-    titulo: "Alguien se trabó aquí",
-    aria: ({ n }, ayudas) => `${plural(n, ayudas, "intento se trabó", "intentos se trabaron")} aquí`,
-    linea: "{nombre}: {detalle}",
-    demora: ({ n }, ayudas) => `${plural(n, ayudas, "paso seguido", "pasos seguidos")}`,
-    tropiezos: ({ n }, ayudas) => `${plural(n, ayudas, "paso con tropiezo", "pasos con tropiezos")}`,
-    repetidos: ({ n }, ayudas) => `${plural(n, ayudas, "acción repetida", "acciones repetidas")}`,
+    titulo: "Leyenda: toca un camino para resaltarlo",
+    feliz: "Camino feliz",
+    felizAyuda: "La ruta recomendada: llega a la meta directo",
+    ineficiente: "Camino ineficiente",
+    ineficienteAyuda: "Desvíos, vueltas atrás y caminos que dan vueltas o no llegan",
   },
   estacion: {
     inicio: "punto de partida",
@@ -53,10 +28,6 @@ export default {
     visitas: ({ n }, ayudas) => plural(n, ayudas, "visita", "visitas"),
     variantes: ({ n }, ayudas) => plural(n, ayudas, "variante", "variantes"),
     variantesDeUrl: ({ n }, ayudas) => plural(n, ayudas, "variante de URL", "variantes de URL"),
-  },
-  terminal: {
-    etiqueta: "{resultado} {n}",
-    aria: ({ resultado, n }, ayudas) => `${resultado}: ${plural(n, ayudas, "intento", "intentos")}`,
   },
   tramo: {
     titulo: "{desde} → {hasta}",
@@ -66,7 +37,6 @@ export default {
     errores: ({ n }, ayudas) => plural(n, ayudas, "error de la herramienta", "errores de la herramienta"),
     mediana: "mediana {duracion}",
     vuelta: "Volvió atrás",
-    final: ({ resultado, n }, ayudas) => `Termina: ${resultado.toLowerCase()} (${plural(n, ayudas, "intento", "intentos")})`,
   },
   panel: {
     etiqueta: "Detalle de la telaraña",
@@ -81,7 +51,6 @@ export default {
     conteo: "{n}/{de}",
     conteoAria: ({ n, de }) => `${n} de ${de} llegan`,
     terminaron: "Cómo terminaron",
-    nadieTermino: "Ningún intento de este perfil.",
     quitar: "Quitar la selección",
     abrirPagina: "Abrir la página en otra pestaña",
     variantes: "Variantes de URL",
@@ -90,7 +59,7 @@ export default {
     terminanAqui: "Terminan aquí",
     salidas: "Desde aquí fueron a",
     pasaron: "Intentos que pasaron por aquí",
-    nadiePaso: "Ningún intento de este perfil pasó por aquí.",
+    nadiePaso: "Ningún intento pasó por aquí.",
     paso: "paso {n}",
     abrirEnReplay: "Abrir {nombre} en Replay, paso {n}",
     captura: "Captura de la página ({perfil})",
@@ -98,37 +67,5 @@ export default {
     inicio: "Inicio",
     elegida: "{nombre}: elegida",
   },
-  vista3d: {
-    boton: "Vista 3D",
-    ayuda: "Inclina el mapa; arrastra para girarlo.",
-  },
-  historia: {
-    boton: "Historia",
-    quitar: "Salir de la historia",
-    intento: "Intento de la historia",
-    titulo: "Historia · {nombre}",
-    pasoDe: "paso {paso} de {total}",
-    controles: "Controles de la historia",
-    primero: "Primer paso",
-    anterior: "Paso anterior",
-    reproducir: "Reproducir",
-    pausar: "Pausar",
-    siguiente: "Paso siguiente",
-    ultimo: "Último paso",
-    abrirEnReplay: "Abrir en Replay",
-    esperaba: "Esperaba",
-    senales: "Señales",
-    sinCaptura: "Este paso no tiene captura.",
-    captura: "Captura después del paso {n}",
-    noExiste: "No existe el intento «{intento}»; se muestra «{nombre}».",
-    sinPasos: "Este intento no tiene pasos registrados.",
-    anuncio: "{nombre}: paso {paso} de {total}, {pagina}",
-    error: "Este intento terminó con un error de la herramienta, no por lo que hizo el usuario.",
-  },
 };
 
-// Variables de ejemplo para diccionarios.test.js (resultado es un texto).
-export const ejemplos = {
-  "tramo.final": (n) => ({ resultado: "Logrado", n }),
-  "terminal.aria": (n) => ({ resultado: "Logrado", n }),
-};

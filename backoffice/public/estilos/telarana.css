@@ -3,7 +3,7 @@
 
 .p-telarana { container-type: inline-size; display: grid; gap: var(--e-3); min-width: 0; }
 
-/* ── Cabecera y herramientas ─────────────────────────────────────────── */
+/* ── Cabecera ─────────────────────────────────────────── */
 .p-telarana .telarana-cabecera { display: grid; gap: var(--e-2); min-width: 0; }
 .p-telarana .telarana-titular {
   font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.014em; color: var(--texto-1);
@@ -11,35 +11,6 @@
 }
 .p-telarana .telarana-avisos:empty { display: none; }
 .p-telarana .telarana-avisos { display: grid; gap: var(--e-2); }
-.p-telarana .telarana-herramientas {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-4);
-  min-width: 0;
-}
-/* Perfiles y controles de la historia en una sola fila mientras quepan (los perfiles se desplazan de lado). */
-.p-telarana .telarana-perfiles {
-  display: flex; gap: var(--e-2); flex: 1 1 0; min-width: min(100%, 280px); max-width: 100%; overflow-x: auto; scrollbar-width: none;
-  padding-block: 2px; padding-inline: 2px;
-}
-.p-telarana .telarana-perfiles::-webkit-scrollbar { display: none; }
-.p-telarana .telarana-historia-control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); min-width: 0; }
-.p-telarana .telarana-boton-historia[aria-pressed="true"] { background: var(--acento-sutil); color: var(--acento-fuerte); border-color: transparent; }
-.p-telarana .telarana-pista { display: inline-flex; }
-/* Sin flecha nativa: con `appearance: auto` la flecha de Android se dibuja sobre el relleno y tapa el final del texto
-   ("Primera vez · Lograd…"). La flecha va dibujada en el relleno derecho, así el ancho propio incluye todo el texto;
-   si no cabe en la fila, el control pasa a la línea siguiente en vez de recortarse. */
-.p-telarana .telarana-intento {
-  min-height: 32px; max-width: 100%; padding: 0 28px 0 var(--e-3);
-  border: 1px solid var(--borde); border-radius: var(--radio-2);
-  background: var(--superficie-2) no-repeat;
-  background-image: linear-gradient(45deg, transparent 50%, var(--texto-3) 50%), linear-gradient(135deg, var(--texto-3) 50%, transparent 50%);
-  background-size: 5px 5px, 5px 5px;
-  background-position: right 14px center, right 9px center;
-  color: var(--texto-1); font: inherit; font-size: 13px;
-  appearance: none; cursor: pointer;
-}
-.p-telarana .telarana-intento:hover { border-color: var(--borde-fuerte); }
-.p-telarana .telarana-intento option { background: var(--superficie-3); color: var(--texto-1); }
-
 /* ── Cuerpo: mapa + panel (panel al lado desde 1100 px de pestaña) ──── */
 .p-telarana .telarana-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--e-4); align-items: start; }
 .p-telarana .telarana-columna { display: grid; gap: var(--e-2); min-width: 0; }
@@ -74,39 +45,14 @@
   position: absolute; left: var(--x); top: var(--y); overflow: visible; pointer-events: none;
   max-width: none; max-height: none;
 }
-.p-telarana .tramo { --tono: var(--exito); }
 .p-telarana .tramo-trazo { fill: none; stroke: var(--tono); stroke-linecap: round; stroke-linejoin: round; }
 .p-telarana .tramo-golpe { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: help; }
-.p-telarana .tramo-exito { --tono: var(--exito); }
-.p-telarana .tramo-mixto { --tono: var(--aviso); }
-.p-telarana .tramo-fallo { --tono: var(--peligro); }
-.p-telarana .tramo-abandono { --tono: var(--neutro); }
-.p-telarana .tramo-abandono .tramo-trazo { stroke-dasharray: 6 4; }
-.p-telarana .tramo-error { --tono: var(--neutro); }
-.p-telarana .tramo-error .tramo-trazo { stroke-dasharray: 2 3 8 3; }
-.p-telarana .tramo-secundario { --tono: var(--texto-3); }
-/* Vueltas atrás y pasos laterales: tenues hasta que se aíslan (al pasar el puntero, elegir una página o la historia). */
-.p-telarana :is(.tramo-retroceso, .tramo-lateral) .tramo-trazo { stroke-dasharray: 4 4; opacity: 0.35; transition: opacity var(--dur-3) var(--curva-salida); }
-.p-telarana .aislando :is(.tramo-retroceso, .tramo-lateral).activo .tramo-trazo { opacity: 0.95; }
-.p-telarana .leyenda-muestra :is(.tramo-retroceso, .tramo-lateral) .tramo-trazo { opacity: 0.8; }
-.p-telarana .tramo-tronco { --tono: var(--acento); }
-.p-telarana .tramo-tronco .tramo-trazo { filter: drop-shadow(0 0 6px var(--acento-sutil)); }
-
-.p-telarana .particula { opacity: 0.9; pointer-events: none; transition: opacity var(--dur-3) var(--curva-salida); }
-.p-telarana .particula.particula-fuera { opacity: 0; }
-.p-telarana .particula-logrado { fill: var(--exito); }
-.p-telarana .particula-fallido { fill: var(--peligro); }
-.p-telarana .particula-abandonado, .p-telarana .particula-error { fill: var(--neutro); }
-.p-telarana .tramo-tronco .particula-logrado { fill: var(--acento-fuerte); }
-
-.p-telarana .cometa {
-  position: absolute; left: var(--x, 0); top: var(--y, 0); width: 12px; height: 12px; margin: -6px 0 0 -6px;
-  border-radius: 50%; background: var(--acento-fuerte); opacity: 0; pointer-events: none;
-  box-shadow: 0 0 0 3px oklch(0.77 0.13 245 / 0.35), 0 0 14px 4px oklch(0.77 0.13 245 / 0.55);
-  transform: scale(max(1, calc(0.8 / var(--k))));
-  transition: opacity var(--dur-2) var(--curva-salida);
-}
-.p-telarana .cometa.visible { opacity: 1; }
+/* Dos caminos: el feliz (la ruta recomendada), en el acento y encima; el ineficiente, en ámbar y algo tenue. */
+.p-telarana .tramo-feliz { --tono: var(--acento); }
+.p-telarana .tramo-feliz .tramo-trazo { filter: drop-shadow(0 0 6px var(--acento-sutil)); }
+.p-telarana .tramo-ineficiente { --tono: var(--aviso); }
+.p-telarana .escena .tramo-ineficiente .tramo-trazo { opacity: 0.6; }
+.p-telarana .aislando .tramo-ineficiente.activo .tramo-trazo { opacity: 0.95; }
 
 /* ── Estaciones ─────────────────────────────────────────────────────── */
 .p-telarana .estacion {
@@ -133,18 +79,6 @@
   position: absolute; inset: 0; display: grid; place-items: center;
   font-size: 10px; line-height: 1; font-weight: 600; color: var(--acento-fuerte); font-variant-numeric: tabular-nums;
 }
-/* Marca de "alguien se trabó aquí": triángulo de aviso arriba a la derecha del punto, con la cuenta si son varios. */
-.p-telarana .estacion-atasco {
-  position: absolute; left: 14px; bottom: 12px; display: inline-flex; align-items: center; gap: 1px;
-  padding: 1px 3px 1px 2px; border-radius: 999px; background: var(--fondo); box-shadow: 0 0 0 1px var(--aviso);
-  color: var(--aviso); font-size: 10px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums;
-  pointer-events: none;
-}
-.p-telarana .estacion-atasco { width: max-content; }
-.p-telarana .estacion-atasco[hidden] { display: none; }
-/* Sin flex: none, Firefox encoge el ícono a 0 px cuando la cuenta está vacía (1 intento trabado). */
-.p-telarana .estacion-atasco svg { flex: none; width: 12px; height: 12px; }
-.p-telarana .estacion-atasco-cuenta:empty { display: none; }
 .p-telarana .estacion:hover .estacion-punto::before, .p-telarana .estacion:focus-visible .estacion-punto::before { transform: scale(1.15); }
 .p-telarana .estacion[aria-pressed="true"] .estacion-punto::before { background: var(--acento); border-color: var(--acento-fuerte); }
 .p-telarana .estacion[aria-pressed="true"] .estacion-numero { color: oklch(0.18 0.03 245); }
@@ -177,36 +111,21 @@
 .p-telarana .lienzo[data-detalle="alto"] :is(.estacion-url, .estacion-visitas) { display: block; }
 .p-telarana .lienzo[data-detalle="alto"] .estacion-miniatura { display: block; }
 
-/* ── Terminales ─────────────────────────────────────────────────────── */
-.p-telarana .terminal {
-  position: absolute; left: var(--x); top: var(--y); transform: translate(-11px, -50%);
-  display: flex; align-items: center; gap: 6px; white-space: nowrap; --tono: var(--exito); color: var(--tono);
-}
-.p-telarana .terminal-punto {
-  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-  background: color-mix(in oklch, var(--tono) 16%, var(--lienzo)); border: 1.5px solid var(--tono);
-}
-.p-telarana .terminal-etiqueta {
-  display: inline-flex; gap: 4px; font-size: 13px; line-height: 16px; font-weight: 500;
-  transform-origin: left center; transform: scale(max(1, calc(0.9 / var(--k))));
-}
-.p-telarana .terminal-cuenta { color: var(--texto-1); font-variant-numeric: tabular-nums; }
-.p-telarana .terminal-fallido { --tono: var(--peligro-texto); }
-.p-telarana .terminal-abandonado { --tono: var(--neutro); }
-.p-telarana .terminal-error { --tono: var(--neutro); }
-.p-telarana .terminal-error .terminal-punto { background: var(--rayado), var(--lienzo); }
-
 /* ── Aislar: atenuar, nunca sacar ───────────────────────────────────── */
-.p-telarana :is(.estacion, .tramo, .terminal) { transition: opacity var(--dur-3) var(--curva-salida); }
-.p-telarana .aislando :is(.estacion, .tramo, .terminal):not(.activo) { opacity: 0.15; }
-.p-telarana .terminal-vacia { opacity: 0.4; }
+.p-telarana :is(.estacion, .tramo) { transition: opacity var(--dur-3) var(--curva-salida); }
+.p-telarana .aislando :is(.estacion, .tramo):not(.activo) { opacity: 0.15; }
 
-/* ── Leyenda ────────────────────────────────────────────────────────── */
-.p-telarana .telarana-leyenda ul { display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4); color: var(--texto-3); font-size: 12px; line-height: 16px; }
-.p-telarana .telarana-leyenda li { display: inline-flex; align-items: center; gap: 6px; }
+/* ── Leyenda: dos botones, uno por camino ──────────────────────────── */
+.p-telarana .telarana-leyenda { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.p-telarana .leyenda-camino {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 var(--e-3);
+  border: 1px solid var(--borde-sutil); border-radius: 999px; background: none;
+  color: var(--texto-2); font: inherit; font-size: 13px; cursor: pointer;
+}
+.p-telarana .leyenda-camino:hover { border-color: var(--borde-fuerte); color: var(--texto-1); }
+.p-telarana .leyenda-camino[aria-pressed="true"] { background: var(--superficie-2); border-color: var(--borde-fuerte); color: var(--texto-1); }
 .p-telarana .leyenda-muestra { flex: none; overflow: visible; }
-.p-telarana .leyenda-muestra .tramo-tronco .tramo-trazo { filter: none; }
-.p-telarana .leyenda-atasco svg { width: 12px; height: 12px; color: var(--aviso); }
+.p-telarana .leyenda-muestra .tramo-trazo { filter: none; }
 
 /* ── Panel ──────────────────────────────────────────────────────────── */
 .p-telarana .panel-telarana { display: grid; gap: var(--e-3); align-content: start; min-width: 0; }
@@ -230,9 +149,9 @@
   display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--acento);
   color: var(--acento-fuerte); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
 }
-.p-telarana .panel-telarana-terminales { display: grid; gap: var(--e-1); }
-.p-telarana .panel-telarana-terminales li { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); }
-.p-telarana .panel-telarana-terminales .num { color: var(--texto-1); }
+.p-telarana .panel-telarana-finales { display: grid; gap: var(--e-1); }
+.p-telarana .panel-telarana-finales li { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); }
+.p-telarana .panel-telarana-finales .num { color: var(--texto-1); }
 .p-telarana .panel-telarana-url { display: inline-flex; align-items: center; gap: var(--e-1); color: var(--texto-3); overflow-wrap: anywhere; min-width: 0; }
 .p-telarana .panel-telarana-url:hover { color: var(--texto-1); }
 .p-telarana .panel-telarana-captura {
@@ -245,44 +164,17 @@
 .p-telarana .panel-telarana-accion { padding-inline-start: 20px; font-size: 12px; line-height: 16px; }
 .p-telarana .panel-telarana-intentos li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--e-2); color: var(--texto-2); }
 .p-telarana .panel-telarana-replay { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; white-space: nowrap; }
-.p-telarana .panel-telarana-controles { display: flex; gap: 2px; padding: 2px; justify-self: start; background: var(--superficie-2); border-radius: var(--radio-2); }
-.p-telarana .panel-telarana-controles .icono + .icono { margin-inline-start: -10px; }
-.p-telarana .panel-telarana-firma { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); color: var(--texto-1); font-weight: 500; }
-.p-telarana .panel-telarana-esperaba { display: grid; gap: var(--e-1); }
-.p-telarana .panel-telarana-abrir { justify-self: start; }
-
-/* ── Vista 3D (§10.5.4): plano inclinado, estaciones y terminales de pie (billboards) ────────────────────── */
-.p-telarana .telarana-boton-3d[aria-pressed="true"] { background: var(--acento-sutil); color: var(--acento-fuerte); border-color: transparent; }
-.p-telarana .lienzo[data-vista="3d"] { perspective: 1400px; perspective-origin: 50% 30%; }
-.p-telarana .lienzo[data-vista="3d"] .escena { transform-style: preserve-3d; }
-.p-telarana .lienzo.cambiando-vista .escena,
-.p-telarana .lienzo.cambiando-vista :is(.estacion, .terminal) {
-  transition: transform var(--dur-4) var(--curva-entrada-salida);
-}
-.p-telarana .lienzo[data-vista="3d"] .estacion {
-  flex-direction: column-reverse; transform-origin: 50% calc(100% - 9px);
-  transform: translate(-50%, calc(-100% + 9px)) rotateX(-52deg);
-}
-.p-telarana .lienzo[data-vista="3d"] .estacion-miniatura { display: block; }
-.p-telarana .lienzo[data-vista="3d"] .estacion-etiqueta { transform: none; max-width: 160px; }
-.p-telarana .lienzo[data-vista="3d"] .terminal { transform-origin: 11px 50%; transform: translate(-11px, -50%) rotateX(-52deg); }
-.p-telarana .lienzo[data-vista="3d"] .terminal-etiqueta { transform: none; }
-
 /* Globos de la telaraña (contenido; el globo en sí es compartido). */
 .telarana-globo { display: grid; gap: 2px; }
 .telarana-globo-titulo { font-weight: 600; color: var(--texto-1); }
 .telarana-globo-url { font-size: 11px; color: var(--texto-3); }
 .telarana-globo-accion { display: flex; justify-content: space-between; gap: var(--e-3); }
-.telarana-globo-atasco { display: grid; gap: 2px; margin-block-start: var(--e-1); padding-block-start: var(--e-1); border-top: 1px solid var(--borde-sutil); }
-.telarana-globo-atasco-titulo { display: inline-flex; align-items: center; gap: 4px; color: var(--aviso); font-weight: 600; }
-.telarana-globo-atasco-titulo svg { width: 12px; height: 12px; }
+.telarana-globo-camino { font-size: 12px; font-weight: 500; }
+.telarana-globo-feliz { color: var(--acento-fuerte); }
+.telarana-globo-ineficiente { color: var(--aviso); }
 
 @media (pointer: coarse) {
   .p-telarana .estacion { min-height: 0; }
   .p-telarana .estacion-punto { width: 24px; height: 24px; }
   .p-telarana .estacion { transform: translate(-50%, -12px); }
-}
-@media (max-width: 640px) {
-  .p-telarana .telarana-pista { display: none; }
-  .p-telarana .telarana-intento { max-width: 160px; }
 }
