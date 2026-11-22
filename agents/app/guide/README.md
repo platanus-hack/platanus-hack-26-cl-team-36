@@ -80,7 +80,8 @@ El navegador, Claude Code, los nodos, los viewports y el objetivo del catálogo 
    en el texto que se puede mostrar (sin lo oculto ni lo recortado, como un acordeón cerrado), se rechaza. No puede ir
    a una URL, seguir un enlace a otro host ni usar un elemento oculto: primero debe abrir lo que lo muestra. Si un
    elemento que estaba a la vista se oculta al actuar, como la diapositiva de un carrusel, se espera a que vuelva; al
-   repetir la ruta también, y menos al probar quitar un paso.
+   repetir la ruta también, y menos al probar quitar un paso. Cinco rechazos iguales seguidos (misma acción y motivo)
+   terminan la exploración con `repeated_rejection`.
 2. **Destilar.** Se corta cada vuelta que regresa a un nodo ya visitado (URL normalizada más título, como en el
    Visitante), desde donde se llegó a él. Las acciones dentro de una página se conservan. Si esa candidata no verifica,
    se prueba cortar desde donde se salió del nodo, porque volver atrás puede conservar el estado de la página.
@@ -120,7 +121,8 @@ nueva de guide cuyos `inputs` son la ruta anterior y la corrida del Visitante. C
 ```
 
 Mientras explora, cada paso sube al almacén su `step_NN.png` y `trace.json` (`steps` con la forma de route.json), sin
-esperar al final. Con `--shorter`, trace.json sigue la exploración en curso: al empezar otra vuelve a cero pasos. Al
+esperar al final. Cada paso lleva, como los del Visitante, `decided_at`, `executed_at` y `settled_at` (ISO con zona;
+`decided_at` vacío en los pasos de una repetición) y `seconds_since_start`. Con `--shorter`, trace.json sigue la exploración en curso: al empezar otra vuelve a cero pasos. Al
 terminar con la ruta verificada, trace.json pasa a ella y se quitan las capturas que no usa; sin ruta verificada
 conserva los pasos explorados y sus capturas (las que route.json pisaría quedan como `explore_NN.png`).
 

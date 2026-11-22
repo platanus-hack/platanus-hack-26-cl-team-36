@@ -4,6 +4,7 @@ import functools
 import sys
 import threading
 from dataclasses import asdict
+from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -259,6 +260,9 @@ def test_a_failed_route_leaves_a_failed_trace_with_what_was_explored(served, bac
     assert trace["status"] == "failed" and trace["start"]["screenshot"] == "step_00.png"
     assert [(step["label"], step["screenshot"]) for step in trace["steps"]] == [("click «Productos»", "step_01.png")]
     assert backend.exists(run.file("step_00.png")) and backend.exists(run.file("step_01.png"))
+    [step] = trace["steps"]
+    decided, executed, settled = (datetime.fromisoformat(step[key]) for key in ("decided_at", "executed_at", "settled_at"))
+    assert decided.tzinfo is not None and decided <= executed <= settled and step["seconds_since_start"] > 0
 
 
 def test_an_unverified_route_keeps_the_exploration_captures_it_would_overwrite(served, backend, scripted, monkeypatch):

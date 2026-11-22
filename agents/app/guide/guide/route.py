@@ -29,6 +29,11 @@ class Step:
     title_after: str
     in_viewport: bool | None  # si el elemento estaba en pantalla al actuar; None sin elemento
     screenshot: bytes = field(default=b"", repr=False)
+    # Como en los pasos del Visitante: hora ISO con zona y segundos desde el inicio de la exploración o repetición.
+    decided_at: str = ""     # el modelo pidió la acción; vacío al repetir una ruta
+    executed_at: str = ""
+    settled_at: str = ""
+    seconds_since_start: float = 0.0  # hasta settled_at
 
     @property
     def label(self) -> str:

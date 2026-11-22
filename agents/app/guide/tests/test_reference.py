@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from datetime import datetime
 
 from playwright.async_api import async_playwright
 
@@ -63,6 +64,10 @@ def test_detour_and_useless_step_are_removed_and_route_verifies(site, tmp_path):
     assert document["final_node"] == document["nodes"][-1]
     assert document["verification"] == {"replays": 4, "removed_steps": 1, "error": None}
     assert document["exploration"]["steps"] == 7 and document["exploration"]["turns"] == 10
+    times = [(step["executed_at"], step["settled_at"], step["seconds_since_start"]) for step in document["steps"]]
+    assert all(datetime.fromisoformat(executed).tzinfo and executed <= settled for executed, settled, _ in times)
+    assert [seconds for *_, seconds in times] == sorted(seconds for *_, seconds in times)
+    assert {step["decided_at"] for step in document["steps"]} == {""}   # la ruta verificada sale de una repetición
     assert (document["viewport"], document["viewport_size"]) == ("desktop", "1024x768")
     saved = json.loads((out_dir / "route.json").read_text(encoding="utf-8"))
     assert saved["steps"][2]["node_after"].endswith("ayuda.html | Ayuda")
@@ -102,6 +107,25 @@ def test_route_that_no_longer_replays_is_unverified(site, tmp_path):
     assert "paso 1 (click «Productos»)" in document["verification"]["error"]
     assert [step["label"] for step in document["steps"]] == ["click «Productos»"]
     assert "**unverified**" in (out_dir / "route.md").read_text(encoding="utf-8")
+
+
+def test_repeated_rejection_ends_the_exploration(site, tmp_path):
+    bad_quote = ("done", None, {"answer": "x", "quote": "No está en la página"})
+    document, decider, _ = _map(site, tmp_path, [("click", "Productos", {}), *[bad_quote] * 6])
+    assert "«No está en la página»" in decider.prompts[2] and "TEXTO DE LA PÁGINA" in decider.prompts[2]
+    assert "n.º 4 seguido" in decider.prompts[-1]
+    exploration = document["exploration"]
+    assert (exploration["end_reason"], exploration["turns"]) == ("repeated_rejection", 1 + config.MAX_REPEATED_REJECTIONS)
+    assert len(decider.script) == 1 and document["status"] == "not_found"
+
+
+def test_a_step_between_rejections_restarts_the_count(site, tmp_path):
+    hidden = ("click", "Ayuda", {})
+    document, _, _ = _map(site, tmp_path, [
+        *[hidden] * 4, ("click", "Menú", {}), ("click", "Menú", {}), *[hidden] * 4,
+        ("give_up", None, {"text": "No está."}),
+    ])
+    assert document["exploration"]["end_reason"] == "gave_up"
 
 
 def test_step_limit_still_lets_the_model_answer(site, tmp_path, monkeypatch):

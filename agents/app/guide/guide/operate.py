@@ -3,6 +3,7 @@
 import asyncio
 import time
 from collections.abc import Callable
+from datetime import datetime
 
 from playwright.async_api import ElementHandle, Request
 from playwright.async_api import Error as PlaywrightError
@@ -89,14 +90,24 @@ async def _settle(session: BrowserSession, navigations: list[Request]) -> None:
     await session.wait_until_settled()
 
 
+def now() -> datetime:
+    return datetime.now().astimezone()
+
+
+def iso(moment: datetime | None) -> str:
+    return moment.isoformat(timespec="milliseconds") if moment else ""
+
+
 async def perform_step(
     session: BrowserSession, action: str, value: str | None, handle: ElementHandle | None, target: Target | None,
-    reappear_s: float = 0.0,
+    reappear_s: float = 0.0, started: datetime | None = None, decided: datetime | None = None,
 ) -> Step:
     """Hace la acción, espera a que la página reaccione y devuelve el paso con lo observado antes y después.
 
-    `reappear_s`: cuánto esperar a un elemento que estaba a la vista y dejó de estarlo.
+    `reappear_s`: cuánto esperar a un elemento que estaba a la vista y dejó de estarlo. `started`: inicio de la
+    exploración o repetición, para `seconds_since_start`; `decided`: cuándo el modelo pidió la acción.
     """
+    started = started or now()
     if action in ELEMENT_ACTIONS and handle is None:
         raise ActionRejected(f"La acción '{action}' necesita un elemento que exista en la página.")
     url_before, title_before = await session.url_and_title()
@@ -114,7 +125,11 @@ async def perform_step(
             if handle is not None:
                 visible, in_viewport = await _display_state(handle, reappear_s)
                 if not visible:
-                    raise ActionRejected("Ese elemento no está a la vista: primero abre el menú o control que lo muestra.")
+                    raise ActionRejected(
+                        "Ese elemento no está a la vista y así no se puede usar; repetirlo da el mismo rechazo. Haz"
+                        " clic primero en el menú, pestaña o botón que lo muestra («lo muestra eN» en la vista), o"
+                        " usa otro elemento visible que lleve al mismo lugar.")
+            executed = now()
             await _execute(session, action, value, handle)
         except InvalidKeyError as error:
             raise ActionRejected(str(error))
@@ -128,6 +143,7 @@ async def perform_step(
         screenshot = await session.screenshot()
     except PlaywrightError:
         screenshot = b""  # la acción ya ocurrió: el paso se conserva aunque no haya captura
+    settled = now()
     return Step(
         action=action,
         value=value,
@@ -138,4 +154,8 @@ async def perform_step(
         title_after=title_after,
         in_viewport=in_viewport,
         screenshot=screenshot,
+        decided_at=iso(decided),
+        executed_at=iso(executed),
+        settled_at=iso(settled),
+        seconds_since_start=round((settled - started).total_seconds(), 2),
     )

@@ -12,7 +12,7 @@ from shared.nodes.urls import node_key
 
 from guide import config
 from guide.locators import resolve_locators
-from guide.operate import ActionRejected, Log, perform_step
+from guide.operate import ActionRejected, Log, now, perform_step
 from guide.page_view import page_text
 from guide.quote import quote_in_text, quote_on_screen
 from guide.route import Step
@@ -53,10 +53,12 @@ class Verification:
 
 async def _run_steps(session: BrowserSession, route: list[Step], replay: Replay, resolve: Resolver,
                      reappear_s: float) -> None:
+    started = now()
     for number, step in enumerate(route, 1):
         try:
             handle = await resolve(session.page, step.target.locators) if step.target else None
-            replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target, reappear_s))
+            replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target, reappear_s,
+                                                    started))
         except (ActionRejected, PlaywrightError) as error:
             replay.error = f"paso {number} ({step.label}): {error}"
             return
