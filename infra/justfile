@@ -5,6 +5,7 @@
 #   just aws revision https://www.wom.cl/      reviews a page on AWS and follows its stages
 #   just aws deploy                            deploys from your computer (CI does it on every merge)
 #   just aws seed [--force] [<url>...]         revisions on the deployed API (default: agents/tasks/demo.json)
+#   just aws improve [<url>...] [--todas]      reruns only the improver on revisions already done
 #
 # Recipes run from infra/, the AgentCore CLI project: its configuration is in infra/agentcore/ and the
 # code it deploys in agents/ (image from agents/app/runtime/Dockerfile, with the repo root as context).
@@ -64,6 +65,11 @@ revision url force="":
     curl -sS --fail-with-body "$api/revisiones?url=$(node -p 'encodeURIComponent(process.argv[1])' "$1")" \
         | node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(0, "utf8")).css ?? "")' > "../$out/tema.css"
     echo "tema.css: $out/tema.css"
+
+# Reruns only the improver on the current done revision of each URL, or of all with --todas. Options: --dry-run, --concurrencia <1-3>, --tope-min <minutes>
+[group('Revisions on AgentCore · Claude on Bedrock, billed to the AWS account')]
+improve *args:
+    @node siembra/mejorar.js "$@"
 
 # Revisions on the deployed API, followed until done or failed. Without URLs, agents/tasks/demo.json. Options: --force, --api <url>, --tope-min <minutes>
 [group('Revisions on the deployed API · no AWS credentials needed')]
