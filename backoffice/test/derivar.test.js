@@ -146,9 +146,8 @@ test("lista las tandas del fixture, de la más nueva a la más vieja, con su res
   assert.equal(vieja.fechaIso, "2026-11-21T10:00:00");
   assert.deepEqual([vieja.intentos, vieja.validos, vieja.errores, vieja.logrados], [3, 3, 0, 2]);
   assert.deepEqual(vieja.captura, { perfil: "first_time", archivo: "step_00.png" });
-  assert.deepEqual([nueva.intentos, nueva.validos, nueva.errores, nueva.logrados, nueva.siguenLaRuta], [4, 3, 1, 2, 2]);
-  // La ruta del evaluador: «clic «Close»», «escribir «baja»», «clic «Buscar»» (3 pasos) y «clic «Dar de baja»» (1).
-  assert.deepEqual([nueva.pasosMediana, nueva.pasosIdeales, nueva.paginas], [4, 4, 5]);
+  assert.deepEqual([nueva.intentos, nueva.validos, nueva.errores, nueva.logrados], [4, 3, 1, 2]);
+  assert.equal(nueva.paginas, 5);
   // El primer clic que se queda en el inicio y cambia la pantalla: cerrar el aviso.
   assert.deepEqual(nueva.captura, { perfil: "first_time", archivo: "step_01.png" });
   assert.deepEqual(nueva.perfiles.map((p) => [p.intento, p.nombre, p.resultado]), [
@@ -157,8 +156,6 @@ test("lista las tandas del fixture, de la más nueva a la más vieja, con su res
     ["mobile", "Móvil", "error"],
     ["senior", "Adulto mayor", "fallido"],
   ]);
-  assert.equal(nueva.titular.clave, "datos.hallazgo.resultado");
-  assert.deepEqual(nueva.titular.vars.intentos, ["senior"]);
 });
 
 test("telaraña de la tanda vieja: ruta, distancias, capturas y ramas", async () => {
@@ -586,26 +583,6 @@ test("exploradores: sin hallazgos de demora ni titular «da N pasos seguidos»; 
   assert.equal(exploradores.hallazgos.filter((h) => h.id.startsWith("demora:")).length, 0);
   assert.notEqual(exploradores.titulares.tanda.vars.caso, "demora");
   assert.ok(exploradores.intentos.some((intento) => intento.demoras.length > 0), "las marcas de atasco de la telaraña siguen");
-});
-
-test("lista: el titular nombra la página (nunca «n4»), traducida en el navegador", async () => {
-  const { resumirTanda } = await import("../lib/derivar.js");
-  const { textoDeTitular } = await import("../public/datos/textos.js");
-  const tanda = await leerTanda(RAIZ, NUEVA);
-  // Un titular de demora (todos llegan, pero alguien da muchos pasos en una página).
-  tanda.titulares.tanda = { clave: "datos.titular.tanda", nivel: "dificultad", vars: { validos: 3, errores: 0, caso: "demora", intento: "hurried", pagina: "n2", pasos: 7 } };
-  const resumen = resumirTanda(tanda);
-  assert.equal(typeof resumen.titular.vars.pagina, "object");
-  assert.doesNotMatch(JSON.stringify(resumen.titular), /"n\d+"/);
-  assert.deepEqual(resumen.titular.vars.pagina, { tituloTipo: "sitio", tituloCorto: "Ayuda", titulo: resumen.titular.vars.pagina.titulo, url: "https://ejemplo.test/ayuda" });
-  const t = (clave, vars) => (clave === "datos.titular.tanda" ? `… da ${vars.pasos} pasos seguidos en «${vars.pagina}».` : clave);
-  assert.equal(textoDeTitular(resumen.titular, resumen, t), "… da 7 pasos seguidos en «Ayuda».");
-  // La página de inicio se nombra con el diccionario (Inicio / Home), también desde la lista.
-  tanda.titulares.tanda.vars.pagina = "n1";
-  const inicio = resumirTanda(tanda).titular;
-  assert.equal(inicio.vars.pagina.tituloTipo, "inicio");
-  const conInicio = (clave, vars) => (clave === "datos.pagina.inicio" ? "Inicio" : clave === "datos.titular.tanda" ? `«${vars.pagina}»` : clave);
-  assert.equal(textoDeTitular(inicio, resumirTanda(tanda), conInicio), "«Inicio»");
 });
 
 test("un explorador que vuelve a una página con volver_a_nodo no tropieza (ni se traba ahí)", async () => {

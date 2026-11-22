@@ -25,8 +25,9 @@ Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 
 ## Pantallas
 
-**Corridas** (`#/`) lista las tandas, más nuevas primero y agrupadas por día. Cada fila abre la tanda y ya dice su
-hallazgo. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
+**Corridas** (`#/`) lista las tandas, más nuevas primero y agrupadas por día. Cada fila abre la tanda y dice solo qué
+tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor), los errores de la herramienta si los hay y
+cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
 
 Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene un marco común (migas, tanda anterior/siguiente, instrucción,
 veredicto) y cuatro pestañas:

@@ -1034,27 +1034,11 @@ export function capturaDeTanda(tanda) {
 }
 
 /**
- * Un titular con su `pagina` (id de nodo) cambiada por lo que hace falta para nombrarla sin la tanda: tipo de título,
- * título corto y título (public/datos/textos.js, nombreDePagina; «Inicio» se traduce allá).
- */
-function conPaginaNombrada(titular, paginas) {
-  const id = titular?.vars?.pagina;
-  if (id == null) return titular;
-  const pagina = paginas.find((cada) => cada.id === id);
-  const nombre = pagina
-    ? { tituloTipo: pagina.tituloTipo ?? null, tituloCorto: pagina.tituloCorto ?? null, titulo: pagina.titulo ?? null, url: pagina.url ?? null }
-    : { tituloTipo: null, tituloCorto: null, titulo: null, url: null };
-  return { ...titular, vars: { ...titular.vars, pagina: nombre } };
-}
-
-/**
  * Lo que muestra la lista de corridas: una fila liviana por tanda (GET /api/tandas).
  * @param {Tanda} tanda
  */
 export function resumirTanda(tanda) {
   const { kpis } = tanda;
-  // La lista no trae las páginas de la tanda: la página del titular va como su título (nunca un id de nodo, «n4»).
-  const titular = conPaginaNombrada(tanda.titulares.tanda, tanda.telarana.paginas);
   return {
     id: tanda.id,
     tarea: tanda.tarea,
@@ -1067,16 +1051,12 @@ export function resumirTanda(tanda) {
     validos: kpis.validos,
     errores: kpis.errores,
     logrados: kpis.logrados,
-    siguenLaRuta: kpis.siguenLaRuta,
-    pasosMediana: kpis.pasosMediana,
-    pasosIdeales: kpis.pasosIdeales,
     perfiles: tanda.intentos.map((intento) => ({
       intento: intento.id,
       perfil: intento.perfil,
       nombre: intento.nombrePerfil,
       resultado: intento.resultado,
     })),
-    titular,
     captura: capturaDeTanda(tanda),
     paginas: tanda.telarana.paginas.length,
     arbol: tanda.arbol ?? "ok",

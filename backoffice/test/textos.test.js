@@ -105,12 +105,6 @@ test("tanda nueva: titular y hallazgos en español e inglés", async () => {
   assert.equal(textoDeTitular(tanda.titulares.perfiles, tanda, en), "Adulto mayor does not reach the answer (1 attempt per profile).");
 });
 
-test("el titular de Corridas se resuelve con el resumen de la tanda", async () => {
-  const tanda = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z");
-  const resumen = { perfiles: tanda.intentos.map((i) => ({ intento: i.id, perfil: i.perfil, nombre: i.nombrePerfil })) };
-  assert.equal(textoDeTitular(tanda.titulares.tanda, resumen, es), "2 de 3 llegan a la respuesta. No llega: Adulto mayor.");
-});
-
 test("todo lo de las dos tandas se escribe sin restos de claves ni variables", async () => {
   for (const id of ["demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z", "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z"]) {
     const tanda = await leerTanda(RAIZ, id);
@@ -240,16 +234,6 @@ test("textoDeAccion: las acciones del evaluador en el idioma de la pantalla; el 
     assert.equal(textoDeAccion(accion, t("es")), es);
     assert.equal(textoDeAccion(accion, t("en")), en);
   }
-});
-
-test("lista: la mediana de pasos con el separador decimal del idioma (C4-6)", async () => {
-  const { formatear } = await import("../public/nucleo/i18n.js");
-  const corridasEs = (await import("../public/i18n/es/corridas.js")).default;
-  const corridasEn = (await import("../public/i18n/en/corridas.js")).default;
-  const dicc = { es: { corridas: corridasEs }, en: { corridas: corridasEn } };
-  assert.equal(formatear(dicc, "corridas.fila.pasosRuta", { n: 20.5, ruta: 13 }, "es"), "20,5 pasos · ruta 13");
-  assert.equal(formatear(dicc, "corridas.fila.pasosRuta", { n: 20.5, ruta: 13 }, "en"), "20.5 steps · route 13");
-  assert.equal(formatear(dicc, "corridas.fila.pasos", { n: 1 }, "es"), "1 paso");
 });
 
 test("el nivel de conocimiento de un perfil en cada idioma, también dentro de su nombre (C4-6)", async () => {

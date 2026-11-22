@@ -43,10 +43,6 @@ export default {
     arbolFalta: "Incomplete",
     intentoResultado: "{nombre}: {resultado}",
     sinValidos: "none valid",
-    sinPasos: "No valid attempts: no steps to count",
-    pasos: ({ n }, { plural, fmt }) => `${fmt.numero(n)} ${plural(n, { one: "step", other: "steps" })}`,
-    pasosRuta: ({ n, ruta }, { plural, fmt }) => `${fmt.numero(n)} ${plural(n, { one: "step", other: "steps" })} · route ${ruta}`,
-    pasosTitulo: "Median steps of the valid attempts · steps of the recommended route",
   },
   vacio: {
     sinTandas: "No batches yet",
