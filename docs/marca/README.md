@@ -1,5 +1,14 @@
 # Marca Chameleon
 
+## Sistema de marca Chameleon Mode
+
+La propuesta de branding para **chameleonmode.app** está en [`chameleonmode-v1/`](chameleonmode-v1/README.md):
+[guía visual](chameleonmode-v1/brandbook.pdf) y [logos e íconos para producción](chameleonmode-v1/manifest-assets.json).
+Conserva estos originales y añade la firma «chameleon mode», con «mode» secundario, y los estados ON/OFF
+integrados en la extensión.
+
+## Símbolo original
+
 Un camaleón enrollado: el cuerpo es la cola en espiral, la cabeza lleva casco y ojo torreta (pupila mirando hacia
 adelante). El color recorre el cuerpo como el **espectro**: así se ve que la interfaz *se adapta*.
 
