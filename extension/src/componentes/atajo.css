@@ -163,6 +163,15 @@
 .mt-atajo__ir:hover .mt-atajo__flecha {
   transform: translateX(3px) rotate(45deg);
 }
+/* Sin href hasta completar los campos requeridos. */
+.mt-atajo__ir[aria-disabled="true"] {
+  background: var(--mt-a-campo);
+  color: var(--mt-a-texto-2);
+  cursor: not-allowed;
+}
+.mt-atajo__ir[aria-disabled="true"] .mt-atajo__flecha {
+  transform: rotate(45deg);
+}
 
 /* Angosto: un campo por fila (la consulta mira a .mt-atajo, así que solo aplica a sus hijos), el botón de intercambiar flota entre los dos que intercambia. */
 @container (max-width: 640px) {
