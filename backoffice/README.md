@@ -36,7 +36,27 @@ veredicto) y tres pestañas:
 |---|---|---|
 | **Resumen** (por defecto) | ¿Llegaron a la respuesta y qué hay que mirar? Una pantalla: el titular, cuántos llegan y los pasos (mediana contra la ruta), los dos niveles de conocimiento lado a lado, los 3 hallazgos que más pesan (quien no llega, errores, tropiezos, desvíos), cada uno con enlace al paso exacto en Replay y Telaraña, y la ruta recomendada. | `route_tree.json` y cada `<perfil>/run.json`, derivados en `lib/` |
 | **Telaraña** | ¿Por dónde fueron? Un grafo de izquierda a derecha: el inicio al medio a la izquierda, la meta (el final de la ruta y las páginas donde alguien encontró la respuesta) al medio a la derecha y las demás páginas entre ellos, repartidas encima y debajo, en columnas según los pasos desde el inicio. Dos caminos y nada más: **camino feliz** (la ruta recomendada, una fila recta) y **camino ineficiente** (desvíos, vueltas atrás y caminos que dan vueltas o no llegan); la leyenda de dos botones resalta uno u otro. Los avances son rectas; las vueltas atrás y los pasos laterales, curvas suaves. Panel por página (quién pasó, adónde fue, cómo terminó, con enlace al paso en Replay). | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
-| **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que se puede reproducir. | `<perfil>/run.json` y `step_NN.png` |
+| **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que se puede reproducir. La captura anima lo que hizo el usuario (ver abajo). | `<perfil>/run.json` y `step_NN.png` |
+
+### Animaciones del Replay
+
+Cada paso pasa de su captura de antes (`screenshot_before`) a la de después (`screenshot`) mostrando la acción, sobre
+la imagen y a su escala (las coordenadas vienen en px del `viewport` de `run.json`):
+
+| Acción | Cómo se ve |
+|---|---|
+| clic, doble clic | el cursor viaja en curva desde el punto anterior, con una estela, y deja una onda (dos si es doble) y una marca fija |
+| desplazar | la página corre como una tira en la dirección del scroll; una pastilla con la flecha queda donde estaba el mouse |
+| escribir | el texto aparece letra a letra en una etiqueta junto al último clic de esa página (o abajo, si no hay) |
+| tecla | un distintivo con la tecla (`⏎ Enter`, `Inicio`…) que se pulsa |
+| cambio de URL | la página nueva entra desde la derecha sobre la anterior, que se oscurece, con el rótulo `→ sitio/ruta` |
+| «volver a» y atrás | la página entra desde la izquierda, con el rótulo ámbar `↩ Volver a «…»` |
+
+Reproducir anima cada paso entero y lo deja quieto 0,7 s; elegir un paso a mano (lista, barra, flechas) lo anima en
+versión corta. Con `prefers-reduced-motion` no se mueve nada: se ve la captura final con la marca, el texto o la tecla.
+El plan de cada paso es puro (`public/replay/animacion.js`, con pruebas) y `public/replay/escena.js` lo dibuja con
+la Web Animations API. Sin three.js: todo es 2D sobre una captura, y CSS/WAAPI lo hace en la GPU con texto nítido
+del DOM, sin agregar una dependencia más pesada que todo el front.
 
 ## Cómo leer las cifras
 

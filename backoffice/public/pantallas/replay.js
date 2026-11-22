@@ -6,16 +6,21 @@
 // y solo aplica lo distinto (atrás, adelante, enlaces).
 //
 // Teclas de la pantalla: ← → paso anterior/siguiente, Inicio/Fin primer/último paso, Espacio reproducir/pausar.
+//
+// La captura anima lo que hizo el usuario en cada paso (replay/escena.js): completo al reproducir, corto al elegir
+// un paso a mano.
 
 import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
+import { planDelPaso } from "../replay/animacion.js";
 import { contenidoDeAnalisis } from "../replay/analisis.js";
+import { crearEscena } from "../replay/escena.js";
 import { crearLineaDeTiempo } from "../replay/linea-de-tiempo.js";
 import { crearListaDePasos } from "../replay/pasos.js";
 
-/** Cuánto se queda cada paso en pantalla al reproducir. */
-const MS_POR_PASO = 1500;
+/** Cuánto se queda cada paso quieto en pantalla al reproducir, después de su animación. */
+const MS_DE_PAUSA = 700;
 
 let ctx = null;
 let partes = null;
@@ -71,17 +76,24 @@ function pintarIntento() {
   partes.linea.pintar(intento);
 }
 
-/** Muestra el paso `estado.indice` en la lista, la captura, el análisis y la línea de tiempo. */
-function pintarPaso() {
+/**
+ * Muestra el paso `estado.indice` en la lista, la captura, el análisis y la línea de tiempo. `modo`: cómo se anima
+ * la captura ("completo", "corto" o null). Devuelve la promesa de la animación.
+ */
+function pintarPaso(modo = "corto") {
   const { intento, indice } = estado;
   const paso = intento.pasos?.[indice] ?? null;
   const archivo = paso ? paso.captura : (intento.inicio?.captura ?? null);
   const src = archivo ? ctx.urlDeArchivo(intento.id, archivo) : "";
-  if (partes.imagen.getAttribute("src") !== src) {
-    partes.captura.classList.toggle("sin-captura", !src);
-    if (src) partes.imagen.setAttribute("src", src);
-    else partes.imagen.removeAttribute("src");
-  }
+  const srcAntes = paso?.capturaAntes ? ctx.urlDeArchivo(intento.id, paso.capturaAntes) : "";
+  if (partes.imagen.getAttribute("src") !== src) partes.captura.classList.toggle("sin-captura", !src);
+  const animacion = partes.escena.mostrar({
+    plan: paso ? planDelPaso(intento.pasos, indice, { viewport: intento.viewport }) : null,
+    srcAntes,
+    srcDespues: src,
+    viewport: intento.viewport,
+    modo,
+  });
   partes.imagen.alt = paso ? ctx.t("replay.captura.alt", { n: paso.numero }) : ctx.t("replay.captura.altInicio");
   precargar(intento, indice + 1);
 
@@ -89,6 +101,7 @@ function pintarPaso() {
   partes.linea.marcar(Math.max(0, indice));
   reemplazar(partes.analisis, contenidoDeAnalisis({ intento, indice, tanda: ctx.tanda, t: ctx.t }));
   partes.analisis.scrollTop = 0;
+  return animacion;
 }
 
 function precargar(intento, indice) {
@@ -105,20 +118,25 @@ function ajustarAlto() {
   const arriba = partes.raiz.getBoundingClientRect().top + globalThis.scrollY;
   partes.raiz.style.setProperty("--alto-replay", `${Math.max(460, globalThis.innerHeight - arriba - 24)}px`);
   partes.lista.revelar();
+  partes.escena.ajustar(partes.captura);
 }
 
 // ── Moverse ───────────────────────────────────────────────────────────────
 
-/** Va al paso `indice`. `desdeUrl`: el cambio vino de la URL, así que no se vuelve a escribir. */
-function irA(indice, { desdeUrl = false } = {}) {
+/**
+ * Va al paso `indice` y devuelve la promesa de su animación. `desdeUrl`: el cambio vino de la URL, así que no se
+ * vuelve a escribir. `modo`: cómo se anima la captura.
+ */
+function irA(indice, { desdeUrl = false, modo = "corto" } = {}) {
   const total = estado.intento.pasos?.length ?? 0;
-  if (!total) return;
+  if (!total) return Promise.resolve();
   const nuevo = Math.min(total - 1, Math.max(0, indice));
   if (!desdeUrl && estado.aviso) ponerAviso(null);
-  if (nuevo === estado.indice) return;
+  if (nuevo === estado.indice) return Promise.resolve();
   estado.indice = nuevo;
-  pintarPaso();
+  const animacion = pintarPaso(modo);
   if (!desdeUrl) ctx.actualizarParametros({ paso: String(estado.intento.pasos[nuevo].numero) });
+  return animacion;
 }
 
 function elegir(indice) {
@@ -127,26 +145,37 @@ function elegir(indice) {
 }
 
 function pausar() {
-  if (!estado.temporizador) return;
-  clearInterval(estado.temporizador);
-  estado.temporizador = 0;
-  partes.linea.ponerReproduciendo(false);
+  if (!estado?.reproduccion) return;
+  estado.reproduccion = 0;
+  clearTimeout(estado.reloj);
+  partes?.linea.ponerReproduciendo(false);
 }
 
-function alternarReproduccion() {
-  if (estado.temporizador) {
+const esperar = (ms) => new Promise((listo) => (estado.reloj = setTimeout(listo, ms)));
+
+/** Reproduce desde el paso actual: anima cada paso entero, lo deja quieto un momento y pasa al siguiente. */
+async function alternarReproduccion() {
+  if (estado.reproduccion) {
     pausar();
     return;
   }
   const total = estado.intento.pasos?.length ?? 0;
   if (total < 2) return;
-  // Desde el último paso, reproducir vuelve a empezar.
-  if (estado.indice >= total - 1) irA(0);
+  const mia = Date.now();
+  estado.reproduccion = mia;
   partes.linea.ponerReproduciendo(true);
-  estado.temporizador = setInterval(() => {
-    irA(estado.indice + 1);
-    if (estado.indice >= total - 1) pausar();
-  }, MS_POR_PASO);
+  const sigue = () => estado?.reproduccion === mia;
+  // Desde el último paso, reproducir vuelve a empezar (y el primer paso también se anima).
+  if (estado.indice >= total - 1) {
+    estado.indice = -1;
+    await irA(0, { modo: "completo" });
+    if (sigue()) await esperar(MS_DE_PAUSA);
+  }
+  while (sigue() && estado.indice < total - 1) {
+    await irA(estado.indice + 1, { modo: "completo" });
+    if (sigue()) await esperar(MS_DE_PAUSA);
+  }
+  if (sigue()) pausar();
 }
 
 function cambiarIntento(id) {
@@ -184,8 +213,9 @@ function armar(contenedor) {
   );
   selector.addEventListener("change", () => cambiarIntento(selector.value), { signal: senal });
 
-  const imagen = el("img", { class: "replay-imagen", alt: "", decoding: "async" });
-  const captura = el("figure", { class: "replay-captura" }, imagen, el("p", { class: "replay-sin-imagen texto-3", texto: t("replay.captura.sinCaptura") }));
+  const escena = crearEscena({ t, senal });
+  const imagen = escena.imagen;
+  const captura = el("figure", { class: "replay-captura" }, escena.nodo, el("p", { class: "replay-sin-imagen texto-3", texto: t("replay.captura.sinCaptura") }));
   imagen.addEventListener("error", () => imagen.getAttribute("src") && captura.classList.add("sin-captura"), { signal: senal });
   imagen.addEventListener("load", () => captura.classList.remove("sin-captura"), { signal: senal });
 
@@ -215,8 +245,11 @@ function armar(contenedor) {
     linea.nodo,
   );
   contenedor.append(raiz);
-  partes = { raiz, aviso, selector, lista, linea, captura, imagen, analisis };
+  partes = { raiz, aviso, selector, lista, linea, captura, imagen, analisis, escena };
   globalThis.addEventListener("resize", ajustarAlto, { signal: senal });
+  const observador = new ResizeObserver(() => escena.ajustar(captura));
+  observador.observe(captura);
+  senal.addEventListener("abort", () => observador.disconnect(), { once: true });
   requestAnimationFrame(ajustarAlto);
 }
 
@@ -249,7 +282,7 @@ export default {
       partes = null;
       return;
     }
-    estado = { intento: null, indice: -1, aviso: null, temporizador: 0 };
+    estado = { intento: null, indice: -1, aviso: null, reproduccion: 0, reloj: 0 };
     armar(contenedor);
     registrarAtajos();
     aplicar(ctx.parametros);
@@ -263,7 +296,8 @@ export default {
   },
 
   desmontar() {
-    if (estado?.temporizador) clearInterval(estado.temporizador);
+    if (estado) clearTimeout(estado.reloj);
+    partes?.escena.detener();
     partes = null;
     estado = null;
   },

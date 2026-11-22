@@ -56,10 +56,94 @@
   position: relative; display: grid; place-items: center; margin: 0; min-height: 0; min-width: 0;
   border-radius: var(--radio-2); background: var(--superficie-2); overflow: hidden;
 }
-.p-replay .replay-imagen { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .p-replay .replay-sin-imagen { display: none; padding: var(--e-4); text-align: center; }
-.p-replay .replay-captura.sin-captura .replay-imagen { display: none; }
+.p-replay .replay-captura.sin-captura .replay-escenario { display: none; }
 .p-replay .replay-captura.sin-captura .replay-sin-imagen { display: block; }
+
+/* Escenario: el rectángulo exacto donde se ve la captura (--x, --y, --ancho, --alto, de escena.js). Encima van la
+   captura de antes (solo durante la animación), la capa SVG en coordenadas del viewport de la página y las piezas
+   del DOM ubicadas en % (--px, --py). */
+.p-replay .replay-escenario {
+  position: absolute; left: var(--x, 0); top: var(--y, 0); width: var(--ancho, 100%); height: var(--alto, 100%);
+  overflow: hidden; border-radius: var(--radio-1); isolation: isolate;
+}
+.p-replay .replay-imagen { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.p-replay .replay-imagen { z-index: 1; box-shadow: 0 0 48px oklch(0 0 0 / 0.55); }
+.p-replay .replay-imagen-antes { z-index: 0; visibility: hidden; }
+.p-replay .replay-imagen-antes.visible { visibility: visible; }
+.p-replay .replay-capa { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.p-replay .replay-capa > :not(.replay-ondas) { visibility: hidden; }
+.p-replay .replay-capa > .visible { visibility: visible; }
+
+.p-replay .replay-cursor-flecha {
+  fill: white; stroke: oklch(0.2 0 0); stroke-width: 1.4; stroke-linejoin: round;
+  filter: drop-shadow(0 2px 3px oklch(0 0 0 / 0.55));
+}
+.p-replay .replay-trazo {
+  fill: none; stroke: var(--acento); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round;
+  filter: drop-shadow(0 0 5px var(--acento));
+}
+.p-replay .replay-onda { fill: color-mix(in oklch, var(--acento) 30%, transparent); stroke: var(--acento); stroke-width: 4; filter: drop-shadow(0 0 6px var(--acento)); }
+.p-replay .replay-marca-anillo { fill: color-mix(in oklch, var(--acento) 14%, transparent); stroke: var(--acento); stroke-width: 2.5; }
+.p-replay .replay-marca-punto { fill: var(--acento); }
+
+/* Piezas del DOM sobre la captura. */
+.p-replay .replay-tecleo, .p-replay .replay-tecla, .p-replay .replay-rotulo, .p-replay .replay-desplazar {
+  position: absolute; z-index: 3; visibility: hidden; pointer-events: none;
+}
+.p-replay .replay-escenario .visible { visibility: visible; }
+.p-replay .replay-tecleo {
+  left: var(--px); top: min(calc(var(--py) + 22px), calc(100% - 52px)); transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 2px; max-width: min(80%, 420px); padding: 6px 12px;
+  font: 500 14px/20px var(--fuente-mono, ui-monospace, monospace); color: var(--texto-1);
+  background: color-mix(in oklch, var(--superficie-3) 92%, transparent); border: 1px solid var(--acento);
+  border-radius: var(--radio-2); box-shadow: var(--sombra-flotante), 0 0 0 4px var(--acento-sutil);
+}
+.p-replay .replay-tecleo.sin-punto { top: auto; bottom: 14%; left: 50%; }
+.p-replay .replay-tecleo[data-lado="derecha"] { transform: translateX(calc(-100% + 24px)); }
+.p-replay .replay-tecleo[data-lado="izquierda"] { transform: translateX(-24px); }
+.p-replay .replay-tecleo-texto { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.p-replay .replay-tecleo-cursor { display: none; flex: none; width: 2px; height: 16px; background: var(--acento); }
+.p-replay .replay-tecleo.escribiendo .replay-tecleo-cursor { display: block; animation: replay-parpadeo 0.8s steps(1) infinite; }
+@keyframes replay-parpadeo { 50% { opacity: 0; } }
+
+.p-replay .replay-tecla {
+  left: 50%; bottom: 9%; transform: translateX(-50%);
+  display: block; min-width: 48px; height: auto; padding: 9px 18px; text-align: center; white-space: nowrap;
+  font: 600 17px/22px var(--fuente); color: var(--texto-1);
+  background: linear-gradient(to bottom, var(--superficie-3), var(--superficie-2));
+  border: 1px solid var(--borde-fuerte); border-bottom-width: 1px; border-radius: 10px;
+  box-shadow: 0 3px 0 oklch(0 0 0 / 0.55), 0 0 0 4px var(--acento-sutil), var(--sombra-flotante);
+}
+
+.p-replay .replay-rotulo {
+  left: 50%; top: 12px; transform: translateX(-50%); max-width: 86%;
+  padding: 5px 12px; font-size: 13px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--texto-1); background: color-mix(in oklch, var(--superficie-3) 94%, transparent);
+  border: 1px solid var(--borde-fuerte); border-radius: 999px; box-shadow: var(--sombra-flotante);
+}
+.p-replay .replay-rotulo[data-tipo="pagina"]::before { content: "→ "; color: var(--acento-fuerte); }
+.p-replay .replay-rotulo[data-tipo="volver"] { border-color: color-mix(in oklch, var(--aviso) 60%, transparent); }
+.p-replay .replay-rotulo[data-tipo="volver"]::before { content: "↩ "; color: var(--aviso); }
+
+/* Desplazar: una pastilla con la flecha en el punto donde estaba el mouse, que empuja en la dirección. */
+.p-replay .replay-desplazar {
+  left: var(--px); top: var(--py); width: 40px; height: 40px; margin: -20px 0 0 -20px;
+  display: grid; place-items: center; border-radius: 50%;
+  color: var(--texto-1); font-size: 20px; font-weight: 600;
+  background: color-mix(in oklch, var(--superficie-3) 90%, transparent); border: 1px solid var(--acento);
+  box-shadow: var(--sombra-flotante), 0 0 0 5px var(--acento-sutil);
+}
+.p-replay .replay-desplazar::before { content: "↓"; }
+.p-replay .replay-desplazar.visible:not(.quieto)::before { animation: replay-empujar 0.5s ease-in-out infinite alternate; }
+.p-replay .replay-desplazar[data-direccion="arriba"]::before { content: "↑"; --dx: 0; --dy: -4px; }
+.p-replay .replay-desplazar[data-direccion="izquierda"]::before { content: "←"; --dx: -4px; --dy: 0; }
+.p-replay .replay-desplazar[data-direccion="derecha"]::before { content: "→"; --dx: 4px; --dy: 0; }
+@keyframes replay-empujar { to { transform: translate(var(--dx, 0), var(--dy, 4px)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .p-replay .replay-tecleo-cursor, .p-replay .replay-desplazar::before { animation: none; }
+}
 
 /* ── Análisis ─────────────────────────────────────────────────────────── */
 .p-replay .replay-analisis-contenido { display: grid; align-content: start; gap: var(--e-4); padding: var(--e-3); overflow: auto; overscroll-behavior: contain; min-height: 0; }

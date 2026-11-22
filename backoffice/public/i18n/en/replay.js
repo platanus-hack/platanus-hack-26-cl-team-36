@@ -44,6 +44,10 @@ export default {
     cortadoAntes: "The attempt stopped before the first step.",
   },
 
+  animacion: {
+    volver: "Back to «{pagina}»",
+  },
+
   linea: {
     etiqueta: "Timeline",
     reproducir: "Play",
