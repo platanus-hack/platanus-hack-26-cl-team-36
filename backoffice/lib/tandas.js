@@ -125,10 +125,14 @@ export async function listarTandas(fuente) {
  * Abre una captura o el video de un perfil, o null si lo pedido no es un archivo servible de una tanda.
  * @param {Fuente | string} fuente
  * @param {{ id: string, perfil: string, archivo: string, rango?: import("./fuente.js").RangoPedido }} pedido
+ * @param {{ esListada?: (id: string) => Promise<boolean> }} [opciones]
+ *        `esListada`: si idsDeTandas de esta misma fuente lista el id, con una lista compartida (servidor.js pasa la del
+ *        Overview, esTandaListada de lib/panel.js, que vuelve a listar si el id no está). Sin ella, se lista aquí.
  */
-export async function abrirArchivoDeIntento(fuente, { id, perfil, archivo, rango }) {
+export async function abrirArchivoDeIntento(fuente, { id, perfil, archivo, rango }, { esListada } = {}) {
   if (!NOMBRE_SEGURO.test(perfil) || !ARCHIVO_DE_PERFIL.test(archivo)) return null;
   const origen = comoFuente(fuente);
-  if (!(await idsDeTandas(origen)).includes(id)) return null;
+  const listada = esListada ? await esListada(id) : (await idsDeTandas(origen)).includes(id);
+  if (!listada) return null;
   return origen.abrirArchivo(id, `${perfil}/${archivo}`, rango);
 }
