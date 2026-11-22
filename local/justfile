@@ -44,6 +44,13 @@ setup:
     else
         fail "Node.js 22 or newer, with npm" "brew install node"
     fi
+    # On Apple Silicon, an Intel build of Node (e.g. from an old /usr/local Homebrew or nvm run under Rosetta)
+    # makes web-ext start Firefox under Rosetta too, where Firefox turns off GPU rendering: every animation stutters.
+    if [ "$(uname -s)" = Darwin ] && [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] \
+        && command -v node >/dev/null && [ "$(node -p process.arch)" != arm64 ]; then
+        fail "Node.js for Apple Silicon (this one is the Intel build, under Rosetta)" \
+            "from an arm64 terminal: nvm install 22 && nvm alias default 22, then rm -rf node_modules extension/node_modules"
+    fi
     if [ -x /Applications/Firefox.app/Contents/MacOS/firefox ]; then
         ok "Firefox"
     else
@@ -238,6 +245,11 @@ validate task="all" *options: _ready
 _ready:
     @test -x extension/node_modules/.bin/web-ext -a -x agents/app/web_evaluator/.venv/bin/python \
         || { echo "Dependencies are missing: run \`just local setup\` first." >&2; exit 1; }
+    @if [ "$(uname -s)" = Darwin ] && [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] \
+        && [ "$(node -p process.arch 2>/dev/null)" != arm64 ]; then \
+        echo "  ! Node.js is the Intel build (Rosetta): Firefox will start under Rosetta too and draw without the GPU," >&2; \
+        echo "    so the extension's animations stutter. See \`just local setup\` for the fix." >&2; \
+    fi
 
 # ── 5. Backoffice ─────────────────────────────────────────────────────────
 
