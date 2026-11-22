@@ -28,7 +28,7 @@ Desde la raíz, `just local revision <url>` hace lo mismo con una revisión nuev
 | `CONDUCTOR_IMPROVER_GRACE_S` | Tras el primer Visitante exitoso, cuánto espera la mejora a los demás objetivos antes de partir con lo que haya (por defecto 45 s; 0, sin esperar). Sin ningún Visitante exitoso espera a todos. |
 | `CONDUCTOR_TIMEOUT_<ETAPA>_S` | Tiempo máximo de `CATALOG`, `GUIDE`, `VISITOR` e `IMPROVER` (por defecto 900, 1200, 1800 y 900 s). Con `local`, al vencer se mata el proceso y su corrida queda `failed`. |
 
-Las etapas leen `AGENTS_STORE`, `AGENTS_ENGINE`, `AGENTS_BROWSER`, `AGENTS_MODEL` y `AGENTS_MODEL_FUERTE` del mismo entorno.
+Las etapas leen `AGENTS_STORE`, `AGENTS_ENGINE`, `AGENTS_BROWSER`, `AGENTS_MODEL`, `AGENTS_MODEL_FUERTE` y `AGENTS_MODEL_GUIA` del mismo entorno.
 
 ## Salida
 

@@ -7,7 +7,7 @@ otro.
 |---|---|---|
 | `shared.store` | Almacén de las salidas: claves, ids de corrida, manifiesto, disco y S3. | todos |
 | `shared.browser` | `session`: navegador (`AGENTS_BROWSER`: `local` por defecto o `agentcore`), contexto aislado con la red de seguridad de formularios y sesión de una pestaña. `agentcore`: sesiones de AgentCore Browser por CDP firmado. `viewports`: `desktop` y `mobile`. `keys`: teclas al formato de Playwright. `theme`: el tema CSS (`--css`) en cada documento. `pixels`: cuánto cambió la pantalla entre dos capturas. | cataloger, guide, visitor, summary (`theme`), web_designer |
-| `shared.claude` | `engines`: `make_caller` según `AGENTS_ENGINE`: `claude-code` (por defecto), `bedrock` (rol rápido `AGENTS_MODEL`, por defecto Haiku 5.5, y fuerte `AGENTS_MODEL_FUERTE`, por defecto Sonnet 5.5; reintenta ante throttling) o `fake` (respuestas guionizadas). `caller`: la interfaz común, llamadas con salida JSON que suman tokens y costo. `process`: el proceso de `claude -p` en stream-json. `workdir`: carpeta vacía para Claude Code. | cataloger, guide, visitor, web_designer |
+| `shared.claude` | `engines`: `make_caller` según `AGENTS_ENGINE`: `claude-code` (por defecto), `bedrock` (rol rápido `AGENTS_MODEL`, por defecto Haiku 5.5; fuerte `AGENTS_MODEL_FUERTE`, por defecto Sonnet 5.5, y el de la Guía `AGENTS_MODEL_GUIA`, por defecto Opus 5.5; reintenta ante throttling) o `fake` (respuestas guionizadas). `caller`: la interfaz común, llamadas con salida JSON que suman tokens y costo. `process`: el proceso de `claude -p` en stream-json. `workdir`: carpeta vacía para Claude Code. | cataloger, guide, visitor, web_designer |
 | `shared.nodes` | `urls`: URL normalizada, nodo de una página (URL más título) y sitio de una URL. | todos |
 | `shared.dom` | `visibility`: el JavaScript que decide qué se puede mostrar. | cataloger, guide |
 | `shared.catalog` | `goal`: el objetivo, qué se intenta y su id. `outline`: el esquema del sitio. `tasks`: las tareas escritas a mano. `files`: lectura de un catálogo del almacén. `routes`: la ruta vigente de un objetivo y su última corrida del Visitante con o sin tema. `prominence`: prominencia y complejidad. | cataloger, guide, visitor, summary |
@@ -28,7 +28,7 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
                                          tema.css
       <profile>/                         run.json step_00.png … video.webm claude_code.log
   summary/<run>/                         manifest.json summary.json summary.md
-  improver/<run>/                        manifest.json tema.css
+  improver/<run>/                        manifest.json tema.css tema.json atajos.json diagnostico.json informe.json mejora.json vistas/
   conductor/<run>/                       manifest.json conductor.json <etapa>[-<goal>].log
 ```
 

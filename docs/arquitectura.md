@@ -59,7 +59,7 @@ Hay dos lugares donde vive el estado, y nada más:
    conductor siga con los demás objetivos.
 5. **La extensión la consulta.** En cada página pide `GET /revisiones?url=…`. Con la revisión `done`, la API devuelve
    el `tema.css` (y el `tema.json`, si existe) leídos del almacén; la extensión sanea el CSS y lo inyecta. Con la
-   revisión en curso, vuelve a preguntar cada 15 s, hasta 10 min. Sin revisión, o si falló, no toca la página.
+   revisión en curso, vuelve a preguntar cada 3 s, alargando la espera hasta 15 s, por 10 min como máximo. Sin revisión, o si falló, no toca la página.
 
 | Estado de una revisión | Qué significa |
 |---|---|
@@ -137,7 +137,7 @@ Las salidas de los agentes tienen un solo árbol por sitio, igual en `agents/.ru
   visitor/<goal>/<run>/             manifest.json criteria.json route_tree.json comparison.json proposals.json report.md
       <profile>/                    run.json trace.json step_00.png … video.webm
   summary/<run>/                    manifest.json summary.json summary.md
-  improver/<run>/                   manifest.json tema.css tema.json mejora.json vistas/
+  improver/<run>/                   manifest.json tema.css tema.json atajos.json diagnostico.json informe.json mejora.json vistas/
   conductor/<run>/                  manifest.json conductor.json
 ```
 
@@ -155,7 +155,7 @@ El mismo código corre en los dos lados; cambian cuatro cosas, todas por variabl
 
 | | En tu computador | En AWS |
 |---|---|---|
-| **Modelo** (`AGENTS_ENGINE`) | `claude-code`: tu Claude Code, con tu sesión. | `bedrock`: Claude en Bedrock, un modelo rápido y uno fuerte. |
+| **Modelo** (`AGENTS_ENGINE`) | `claude-code`: tu Claude Code, con tu sesión. | `bedrock`: Claude en Bedrock, un modelo rápido, uno fuerte y uno para la Guía. |
 | **Navegador** (`AGENTS_BROWSER`) | `local`: Chromium con Playwright. | `agentcore`: AgentCore Browser. |
 | **Almacén** (`AGENTS_STORE`) | `agents/.runs/` | `s3://chameleon-almacen-<cuenta>/` |
 | **Etapas** (`CONDUCTOR_INVOKER`) | `local`: cada etapa es un proceso. | `agentcore`: cada etapa es una invocación del runtime. |
