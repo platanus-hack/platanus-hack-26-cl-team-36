@@ -153,3 +153,15 @@ def test_css_vacio_falla(tmp_path, url):
     assert not backend.exists(run.file("tema.css"))
     mejora = backend.read_json(run.file("mejora.json"))
     assert mejora["error"].startswith("TemaVacio") and mejora["rechazos"]
+
+
+def test_sin_capturas_la_mejora_sigue(tmp_path, url, monkeypatch):
+    monkeypatch.setattr(config, "EXTENSION_SRC", tmp_path / "sin-extension")
+    backend = store.LocalBackend(tmp_path / "almacen")
+    _sembrar(backend, url)
+    manifest = asyncio.run(mejorar(backend, url, REV, None, ClaudeGuion(), "guion", modo="libre"))
+
+    assert manifest.status == "succeeded" and backend.exists(manifest.key.file("tema.json"))
+    assert "vistas" not in backend.read_json(manifest.key.file("mejora.json"))
+    assert backend.read_json(manifest.key.file("informe.json"))["vistas"].startswith("sin capturas: ")
+    assert not backend.exists(manifest.key.file("escritorio-antes.png", "vistas"))
