@@ -70,6 +70,7 @@ def _sleeps():
 def no_engine_env(monkeypatch):
     monkeypatch.delenv(engines.ENGINE_VAR, raising=False)
     monkeypatch.delenv(engines.MODEL_VAR, raising=False)
+    monkeypatch.delenv(engines.STRONG_MODEL_VAR, raising=False)
 
 
 def test_the_default_engine_is_claude_code_with_the_agents_model(no_engine_env, tmp_path):
@@ -85,6 +86,19 @@ def test_bedrock_uses_agents_model_instead_of_the_fixed_one(no_engine_env, monke
     caller = engines.make_caller("claude-opus-5-5", "high", tmp_path, tmp_path / "log")
     assert isinstance(caller, BedrockCaller) and caller.model == "us.anthropic.claude-sonnet-4-6"
     assert not engines.needs_claude_cli()
+
+
+def test_bedrock_has_a_fast_and_a_strong_model(no_engine_env, monkeypatch):
+    monkeypatch.setenv(engines.ENGINE_VAR, "bedrock")
+    assert engines.model_for("claude-opus-5-5") == "us.anthropic.claude-haiku-5-5"
+    assert engines.model_for("claude-opus-5-5", strong=True) == "us.anthropic.claude-sonnet-5-5"
+    assert engines.model_for("us.anthropic.claude-sonnet-5-5") == "us.anthropic.claude-sonnet-5-5"  # ya resuelto
+    monkeypatch.setenv(engines.MODEL_VAR, "us.anthropic.claude-haiku-4-5-20251001-v1:0")
+    assert engines.model_for("m", strong=True) == "us.anthropic.claude-haiku-4-5-20251001-v1:0"  # la cuenta vieja
+    monkeypatch.setenv(engines.STRONG_MODEL_VAR, "us.anthropic.claude-opus-5-5")
+    assert engines.model_for("m", strong=True) == "us.anthropic.claude-opus-5-5"
+    monkeypatch.delenv(engines.ENGINE_VAR)
+    assert engines.model_for("claude-opus-5-5", strong=True) == "claude-opus-5-5"
 
 
 def test_fake_engine_and_unknown_engine(no_engine_env, monkeypatch, tmp_path):
@@ -109,6 +123,23 @@ def test_bedrock_forces_the_answer_tool_with_the_schema_and_sends_images(tmp_pat
     assert "effort" not in request["body"]   # Haiku 4.5 no lo acepta
     assert caller.usage["input_tokens"] == 120 and caller.usage["output_tokens"] == 30
     assert json.loads((tmp_path / "log").read_text().splitlines()[-1])["stop_reason"] == "tool_use"
+
+
+def test_bedrock_sonnet_5_lets_the_model_choose_the_tool_and_skips_thinking(tmp_path):
+    thinking = {"type": "thinking", "thinking": "pienso", "signature": "s"}
+    response = _tool_response(DONE)
+    client = FakeBedrock({**response, "content": [thinking, *response["content"]]})
+    caller = BedrockCaller("us.anthropic.claude-sonnet-5-5", "high", tmp_path / "log", client=client)
+    assert asyncio.run(caller.ask("s", SCHEMA, "texto")) == DONE
+    body = json.loads(client.requests[0]["body"])
+    assert body["tool_choice"] == {"type": "auto"} and body["output_config"] == {"effort": "high"}
+
+
+def test_bedrock_reads_the_json_of_a_text_answer(tmp_path):
+    text = {"type": "text", "text": "```json\n" + json.dumps(DONE) + "\n```"}
+    client = FakeBedrock({"content": [{"type": "thinking", "thinking": "x"}, text], "stop_reason": "end_turn", "usage": {}})
+    caller = BedrockCaller("us.anthropic.claude-sonnet-5-5", "low", tmp_path / "log", client=client)
+    assert asyncio.run(caller.ask("s", SCHEMA, "texto")) == DONE
 
 
 def test_bedrock_marks_the_block_before_each_cache_point_and_logs_cache_usage(tmp_path):
