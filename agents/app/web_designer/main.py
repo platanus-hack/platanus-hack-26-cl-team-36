@@ -49,6 +49,9 @@ def build_parser() -> argparse.ArgumentParser:
     que.add_argument("--casos", type=Path, help="casos.json: lista de {id, url, gustos, tarea?}")
     que.add_argument("--revision", help="etapa de mejora: con --url y sin --gustos, genera el tema de esa revisión"
                      " a partir de lo que midieron los agentes y lo escribe en el almacén (AGENTS_STORE)")
+    que.add_argument("--tema", default=config.MODO_TEMA, choices=config.MODOS_TEMA,
+                     help="con --revision: `motor` (el modelo elige dirección de arte y el código compone el CSS) o"
+                     f" `libre` (el modelo escribe el CSS); por defecto {config.MODO_TEMA} (WEB_DESIGNER_TEMA)")
     parser.add_argument(
         "--skill",
         default=str(config.SKILL_POR_DEFECTO),
@@ -116,7 +119,7 @@ def _mejorar(parser: argparse.ArgumentParser, args) -> None:
     try:
         manifest = asyncio.run(mejora.mejorar(
             store.open_backend(), args.url, args.revision, skill,
-            ClaudeCode(modelo, args.effort, claude_cwd), modelo, cdp_url=args.cdp_url,
+            ClaudeCode(modelo, args.effort, claude_cwd), modelo, cdp_url=args.cdp_url, modo=args.tema,
         ))
     except Exception as error:
         print(f"La mejora falló: {type(error).__name__}: {error}", file=sys.stderr)

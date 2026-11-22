@@ -15,6 +15,7 @@ from shared import store
 from shared.catalog.goal import Goal
 
 from conftest import ClaudeGuion
+from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR
 from disenador import atajos, tema_json
 from disenador.atajos import SelectDePagina
 
@@ -272,11 +273,7 @@ def texto_del_modelo(disenador) -> str:
 MENSAJE = "Los campos para destino, hora y día de salida están fuera del área visible."
 
 
-def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
-    from disenador.mejora import mejorar
-
-    url = f"{metro_local}/"
-    backend = store.LocalBackend(tmp_path / "almacen")
+def _sembrar_revision(backend, url: str, metro_local: str) -> None:
     goals = json.loads((DATOS / "goals.json").read_text(encoding="utf-8").replace(METRO, metro_local))
     _corrida(backend, store.cataloger(url), {"goals.json": goals})
     _corrida(backend, store.guide(url, "planificar-viaje", "desktop"), {"route.json": _route(metro_local)})
@@ -285,7 +282,9 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
         "desktop/run.json": {"profile": "desktop", "steps": [], "end_reason": "blocked", "final_message": MENSAJE,
                              "verdict": {"outcome": "abandoned", "justification": "Se detuvo sin llegar."}},
     })
-    disenador = ClaudeGuion(componentes=[
+
+
+COMPONENTES = [
         {"id": "planificar-viaje", "contenedor": "#no-existe",
          "textos": {"es": {"titulo": "¿A dónde vas?", "subtitulo": "", "boton": "Ver ruta"},
                     "en": {"titulo": "Where to?", "subtitulo": "", "boton": "See route"}},
@@ -294,12 +293,23 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
          "textos": {"es": {"titulo": "Lo más buscado", "subtitulo": "", "boton": ""},
                     "en": {"titulo": "Most wanted", "subtitulo": "", "boton": ""}},
          "etiquetas": [], "tareas": []},
-    ])
+]
+OCULTAR = 'html.mi-tema:not(.mt-vista-original):has([data-mt-vista="planificar-viaje"]) :has(> #home)'
+
+
+def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
+    from disenador.mejora import mejorar
+
+    url = f"{metro_local}/"
+    backend = store.LocalBackend(tmp_path / "almacen")
+    _sembrar_revision(backend, url, metro_local)
+    disenador = ClaudeGuion(componentes=COMPONENTES, eleccion={"direccion": "B", "semilla": 4,
+                                                               "ajustes": {"tipo.escala": 2}})
     manifest = asyncio.run(mejorar(backend, url, REV, None, disenador, "guion"))
     assert manifest.status == "succeeded"
 
     archivos = {n: manifest.key.file(n) for n in ("tema.css", "tema.json", "atajos.json", "diagnostico.json",
-                                                  "mejora.json")}
+                                                  "mejora.json", "informe.json")}
     assert all(backend.exists(clave) for clave in archivos.values())
     vistas = {v["id"]: v for v in backend.read_json(archivos["tema.json"])["features"]["vista"]}
     atajo, lanzador = vistas["planificar-viaje"], vistas["tareas"]
@@ -324,3 +334,29 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
 
     texto = disenador.llamadas[0]["partes"][0]
     assert MENSAJE in texto and "/el-viaje/planificador/" in texto and "componentes" in disenador.llamadas[0]["sistema"]
+
+    # El modelo eligió dirección; el código compuso, recortó el ajuste y ocultó el planificador original.
+    assert disenador.llamadas[0]["esquema"] is ESQUEMA_MOTOR and len(disenador.llamadas) == 1
+    informe = backend.read_json(archivos["informe.json"])
+    assert informe["modo"] == "motor" and informe["direccion"] == "B" and informe["semilla"] == 4
+    assert informe["parametros"]["escala"] == 1.27 and any("tipo.escala=2" in a for a in informe["avisos"])
+    assert informe["contraste"]["fallas"] == [] and informe["contraste"]["minimo"] >= 4.5 and informe["tokens"]
+    assert informe["ocultar"] == [{"vista": "planificar-viaje", "selector": ":has(> #home)"}]
+    tema_css = backend.read_text(archivos["tema.css"])
+    assert OCULTAR in tema_css and '[data-mt-vista="tareas"]' in tema_css and "#home :has(> h1)" not in tema_css
+
+
+def test_si_el_motor_falla_cae_al_css_libre(tmp_path, metro_local):
+    from disenador.mejora import mejorar
+
+    url = f"{metro_local}/"
+    backend = store.LocalBackend(tmp_path / "almacen")
+    _sembrar_revision(backend, url, metro_local)
+    disenador = ClaudeGuion(componentes=COMPONENTES, eleccion={"direccion": "Z", "semilla": 1, "ajustes": {}})
+    manifest = asyncio.run(mejorar(backend, url, REV, None, disenador, "guion"))
+    assert manifest.status == "succeeded"
+    assert [llamada["esquema"] for llamada in disenador.llamadas] == [ESQUEMA_MOTOR, ESQUEMA_KIT]
+    informe = backend.read_json(manifest.key.file("informe.json"))
+    assert informe["modo"] == "libre" and "dirección desconocida" in informe["respaldo"]
+    tema_css = backend.read_text(manifest.key.file("tema.css"))
+    assert "background: #111" in tema_css and OCULTAR in tema_css

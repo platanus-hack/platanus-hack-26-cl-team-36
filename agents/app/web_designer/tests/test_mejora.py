@@ -127,7 +127,7 @@ def test_corrida_de_mejora_en_el_almacen(tmp_path, url):
     backend = store.LocalBackend(tmp_path / "almacen")
     _sembrar(backend, url)
     disenador = ClaudeGuion()
-    manifest = asyncio.run(mejorar(backend, url, REV, None, disenador, "guion"))
+    manifest = asyncio.run(mejorar(backend, url, REV, None, disenador, "guion", modo="libre"))
 
     assert manifest.status == "succeeded" and manifest.revision == REV and manifest.agent == "improver"
     assert store.revision_run(backend, store.improver(url), REV) == manifest.key
@@ -146,7 +146,8 @@ def test_css_vacio_falla(tmp_path, url):
     backend = store.LocalBackend(tmp_path / "almacen")
     _sembrar(backend, url)
     with pytest.raises(TemaVacio):
-        asyncio.run(mejorar(backend, url, REV, None, ClaudeGuion(css="@import 'x.css'; @layer a, b;"), "guion"))
+        asyncio.run(mejorar(backend, url, REV, None, ClaudeGuion(css="@import 'x.css'; @layer a, b;"), "guion",
+                            modo="libre"))
     run = store.revision_run(backend, store.improver(url), REV)
     assert store.read_manifest(backend, run).status == "failed"
     assert not backend.exists(run.file("tema.css"))

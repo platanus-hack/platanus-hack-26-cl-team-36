@@ -45,6 +45,11 @@ UMBRAL_IDENTICA = 0.005     # fracción de píxeles distintos bajo la cual "sin 
 # Generaciones simultáneas (cada una abre dos contextos del navegador y llama a Claude).
 CONCURRENCIA = 3
 
+# Cómo sale el CSS del kit: `motor`, el modelo elige dirección de arte, semilla y ajustes y el código compone y
+# verifica; `libre`, el modelo escribe el CSS (el modo anterior, y el respaldo si el motor falla).
+MODOS_TEMA = ("motor", "libre")
+MODO_TEMA = os.environ.get("WEB_DESIGNER_TEMA") or "motor"
+
 # Etapa de mejora de una revisión (`--revision`): gustos fijos; la tarea es el objetivo que peor resultó.
 GUSTOS_MEJORA = ("Legible y con buen contraste, sin distracciones; que lo que lleva a la tarea se destaque y se"
                  " encuentre a la primera.")

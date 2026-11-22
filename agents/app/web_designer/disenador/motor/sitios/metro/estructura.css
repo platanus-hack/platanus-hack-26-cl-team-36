@@ -64,8 +64,9 @@ html.mi-tema #menu .dropdown-item:is(:hover, :focus) {
   color: var(--mt-tinta) !important;
 }
 
-/* ---------- Portada: el planificador del sitio cede su lugar al atajo ---------- */
-html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) #home :is(:has(> * > * > #formPlanificador), :has(> h1)) {
+/* ---------- Portada: el planificador del sitio cede su lugar al atajo ----------
+   El bloque del planificador lo oculta la regla que deriva el improver; aquí, la columna del titular vacío. */
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) #home :has(> h1) {
   display: none !important;
 }
 html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) #home {
