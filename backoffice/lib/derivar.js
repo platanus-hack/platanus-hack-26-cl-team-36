@@ -5,7 +5,7 @@
 // No arma frases para la pantalla: lo que es texto de la interfaz sale como clave + variables
 // ({ clave, vars }) o como campos estructurados, y public/datos/textos.js lo traduce.
 
-import { demorasDelIntento, hallazgos as calcularHallazgos, titulares as calcularTitulares } from "./hallazgos.js";
+import { demorasDelIntento, hallazgos as calcularHallazgos, recortarHallazgos, titulares as calcularTitulares } from "./hallazgos.js";
 import { titularPaginas, unirNodos } from "./paginas.js";
 import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinConsulta } from "./url.js";
 
@@ -188,6 +188,10 @@ const ANCHO_DE_ESCRITORIO = 1000;
 const ORDEN_DE_SENALES = ["visible_error", "went_back", "no_effect", "security_block"];
 const RESULTADO_DEL_JUEZ = { success: "logrado", failed: "fallido", abandoned: "abandonado" };
 const ACCIONES_DE_CLIC = new Set(["left_click", "double_click", "triple_click"]);
+
+/** Acción con que un explorador vuelve a una página ya vista para abrir otra rama (no la hace un humano). */
+export const SALTO_DEL_EXPLORADOR = "volver_a_nodo";
+export const esSaltoDelExplorador = (accion) => accion === SALTO_DEL_EXPLORADOR;
 
 // Estado de un paso. El evaluador guarda la expectativa pero no la compara con el resultado,
 // así que solo se distingue lo que delatan las señales.
@@ -617,7 +621,9 @@ function armarPasos(run, ubicacion, ruta, comoRuta) {
     // La página de antes es la del paso anterior; si no se ubicó, la de url_before.
     const previa = i === 0 ? ubicacion.paginaInicial : ubicacion.paginas[i - 1];
     const paginaAntes = previa ?? ubicacion.paginaDe(crudo.url_before, crudo.title_before);
-    const senales = crudo.signals ?? [];
+    // Volver a una página ya vista con volver_a_nodo es la herramienta del explorador para abrir otra rama, no un
+    // tropiezo: el «went_back» que el evaluador le pone no cuenta (ni en los tropiezos ni en las marcas de atasco).
+    const senales = (crudo.signals ?? []).filter((senal) => !(senal === "went_back" && esSaltoDelExplorador(crudo.action)));
     const cambio = typeof crudo.screen_change === "number" ? crudo.screen_change : null;
     const segundos = typeof crudo.seconds_since_start === "number" ? crudo.seconds_since_start : null;
     const duracion = typeof crudo.duration_s === "number" ? crudo.duration_s : null;
@@ -951,8 +957,10 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
     hallazgos: [],
     titulares: null,
   };
-  tanda.hallazgos = calcularHallazgos(tanda);
-  tanda.titulares = calcularTitulares(tanda, tanda.hallazgos);
+  // El titular mira todos los hallazgos (no depende de cuántos desvíos hubo antes del recorte).
+  const todos = calcularHallazgos(tanda, { maximo: Infinity });
+  tanda.hallazgos = recortarHallazgos(todos);
+  tanda.titulares = calcularTitulares(tanda, todos);
   return tanda;
 }
 

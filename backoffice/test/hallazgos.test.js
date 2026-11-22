@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { contarAcciones, demorasDelIntento, titulares } from "../lib/hallazgos.js";
+import { contarAcciones, demorasDelIntento, recortarHallazgos, titulares } from "../lib/hallazgos.js";
 import { leerTanda } from "../lib/tandas.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
@@ -121,4 +121,25 @@ test("titular: si todos llegan pero alguien tarda, lo dice y no queda en «bien�
   // Sin demora, costo ni tropiezos, el titular es el del resultado.
   const limpia = tandaQueLlega();
   assert.deepEqual(titulares(limpia.tanda, limpia.lista).tanda, { clave: "datos.hallazgo.resultado", nivel: "bien", vars: limpia.lista[0].vars });
+});
+
+test("recorte de los hallazgos: se van primero los desvíos; el resultado y los tropiezos nunca", () => {
+  const desvios = Array.from({ length: 9 }, (_, i) => ({ id: `desvio:e${i}` }));
+  const lista = [{ id: "resultado" }, ...desvios, { id: "demora:e1:3" }, { id: "tropiezos" }];
+  assert.deepEqual(recortarHallazgos(lista, 8).map((h) => h.id), ["resultado", "desvio:e0", "desvio:e1", "desvio:e2", "desvio:e3", "desvio:e4", "demora:e1:3", "tropiezos"]);
+  // Sin desvíos que cortar, se cortan los últimos que no son protegidos.
+  const sinDesvios = [{ id: "resultado" }, ...Array.from({ length: 8 }, (_, i) => ({ id: `detenido:e${i}` })), { id: "tropiezos" }];
+  assert.deepEqual(recortarHallazgos(sinDesvios, 3).map((h) => h.id), ["resultado", "detenido:e0", "tropiezos"]);
+  assert.equal(recortarHallazgos(lista, 99).length, lista.length);
+});
+
+test("titular: con 8 desvíos y tropiezos de verdad dice «dificultad» con el recorte o sin él", () => {
+  const desvios = Array.from({ length: 8 }, (_, i) => ({ id: `desvio:e${i}`, vars: {} }));
+  const { tanda, lista } = tandaQueLlega({ pasosApurado: 5, extra: [...desvios, { id: "tropiezos", vars: { pasos: 4 } }] });
+  tanda.intentos[2].pasos = tanda.intentos[2].pasos.slice(0, 5);
+  const sinRecorte = titulares(tanda, lista).tanda;
+  assert.equal(sinRecorte.nivel, "dificultad");
+  assert.deepEqual(titulares(tanda, recortarHallazgos(lista)).tanda, sinRecorte);
+  // Antes se cortaba con slice(0, 8): los tropiezos quedaban fuera y el titular decía «bien».
+  assert.equal(titulares(tanda, lista.slice(0, 8)).tanda.nivel, "bien");
 });

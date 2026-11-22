@@ -603,3 +603,26 @@ test("lista: el titular nombra la página (nunca «n4»), traducida en el navega
   const conInicio = (clave, vars) => (clave === "datos.pagina.inicio" ? "Inicio" : clave === "datos.titular.tanda" ? `«${vars.pagina}»` : clave);
   assert.equal(textoDeTitular(inicio, resumirTanda(tanda), conInicio), "«Inicio»");
 });
+
+test("un explorador que vuelve a una página con volver_a_nodo no tropieza (ni se traba ahí)", async () => {
+  const { atascosPorPagina } = await import("../public/telarana/atascos.js");
+  const conSaltos = (accion) => {
+    const cruda = tandaViejaCruda();
+    const apurado = cruda.intentos.find((intento) => intento.perfil === "hurried").run;
+    for (const paso of apurado.steps) {
+      paso.action = accion;
+      paso.signals = ["went_back"];
+    }
+    return armarTanda(cruda);
+  };
+  const tanda = conSaltos("volver_a_nodo");
+  const apurado = tanda.intentos.find((intento) => intento.id === "hurried");
+  assert.ok(apurado.pasos.every((paso) => paso.estado === "sin_evaluar" && !paso.senales.includes("went_back")));
+  const tropiezos = tanda.hallazgos.find((h) => h.id === "tropiezos");
+  assert.ok(!tropiezos?.vars.casos.some((caso) => caso.intento === "hurried"), "sin tropiezos de hurried");
+  for (const [, atascos] of atascosPorPagina(tanda)) assert.ok(!atascos.some((a) => a.intento === "hurried" && a.tropiezos), "sin atascos de hurried");
+  // Un «volvió atrás» de verdad (un clic que regresa) sí cuenta.
+  const conClics = conSaltos("left_click");
+  assert.ok(conClics.intentos.find((intento) => intento.id === "hurried").pasos.every((paso) => paso.estado === "no_cumplida"));
+  assert.ok(conClics.hallazgos.find((h) => h.id === "tropiezos").vars.pasos > (tropiezos?.vars.pasos ?? 0));
+});
