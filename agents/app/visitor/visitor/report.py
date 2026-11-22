@@ -34,6 +34,7 @@ _END_REASON_LABELS = {
     "api_error": "El intento se interrumpió por un error de la API",
     "no_response": "La respuesta del modelo se cortó",
     "internal_error": "El intento se interrumpió por un error interno",
+    "site_blocked": "El sitio bloqueó al navegador (HTTP 403 o 429 seguidos)",
 }
 
 

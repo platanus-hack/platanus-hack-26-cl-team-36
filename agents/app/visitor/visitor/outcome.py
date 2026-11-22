@@ -9,7 +9,7 @@ interrupted (error técnico: no cuenta en el árbol). `source`: route | judge | 
 
 from visitor.comparison import reached
 
-INTERRUPTED_REASONS = {"refusal", "api_error", "no_response", "internal_error"}
+INTERRUPTED_REASONS = {"refusal", "api_error", "no_response", "internal_error", "site_blocked"}
 
 
 def _claimed(run: dict) -> bool:

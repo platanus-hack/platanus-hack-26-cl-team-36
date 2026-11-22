@@ -1,7 +1,9 @@
 """Pruebas del ciclo de un usuario con un motor falso (sin llamar a Claude)."""
 
 import asyncio
+import threading
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from playwright.async_api import async_playwright
 
@@ -152,3 +154,55 @@ def test_expectation_alone_is_reminded_and_counted_as_turn_without_action(tmp_pa
     assert [step.expectation for step in run.steps] == ["Ir a la página dos."]
     assert run.acciones_sin_expectativa == 0 and run.turnos_sin_accion == 2
     assert not any("turno" in point for point in hesitation_points(run.to_dict()))  # es del modelo, no del sitio
+
+
+class _FirewallHandler(BaseHTTPRequestHandler):
+    """La inicial responde 200; las demás, 403 como el firewall de un sitio (o 429 en /lento)."""
+
+    def do_GET(self):
+        status = 200 if self.path == "/" else 429 if self.path == "/lento" else 403
+        body = ('<title>Sitio</title><a href="/bloqueada" style="position:absolute;left:20px;top:20px;'
+                'font-size:30px">Siguiente</a>').encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+def _clicks(n: int):
+    engine = ScriptedEngine(think_s=0)
+    engine.turns = [Turn(requests=[ActionRequest(f"{i}", "left_click", {"coordinate": [40, 35]}, True)])
+                    for i in range(n)] + [Turn(final=("gave_up", "No pude."))]
+    return engine
+
+
+def _against_firewall(tmp_path, path: str, clicks: int):
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _FirewallHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+
+    async def scenario():
+        async with async_playwright() as playwright:
+            browser = await connect_browser(playwright)
+            try:
+                url = f"http://127.0.0.1:{server.server_port}{path}"
+                return await SyntheticUser(_clicks(clicks), browser, DESKTOP, url, "x", tmp_path / "run", False).attempt()
+            finally:
+                await browser.close()
+
+    try:
+        return asyncio.run(scenario())
+    finally:
+        server.shutdown()
+
+
+def test_two_403_in_a_row_stop_the_attempt_as_site_blocked(tmp_path):
+    run = _against_firewall(tmp_path, "/", clicks=5)
+    assert run.end_reason == "site_blocked" and len(run.steps) == 2 and "403" in run.final_message
+
+
+def test_a_start_page_that_answers_429_does_not_call_the_model(tmp_path):
+    run = _against_firewall(tmp_path, "/lento", clicks=5)
+    assert run.end_reason == "site_blocked" and run.steps == [] and run.turns == 0
