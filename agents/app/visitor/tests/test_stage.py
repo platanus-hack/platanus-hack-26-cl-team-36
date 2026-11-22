@@ -19,7 +19,7 @@ import main
 from visitor import batch, outcome, report
 from visitor.batch import attempt_folder, attempt_slots
 from visitor.harness import SyntheticUser
-from visitor.profiles import PROFILES, system_prompt
+from visitor.profiles import PROFILES, expand_profiles, system_prompt
 from visitor.recording import Run
 from visitor.stage import MissingInput, run_stage
 
@@ -128,6 +128,18 @@ def test_runs_gives_each_profile_its_attempts_in_their_own_folders():
     assert [attempt_folder(*slot) for slot in slots] == ["desktop", "desktop-2", "mobile", "mobile-2"]
     with pytest.raises(ValueError):
         attempt_slots(["desktop"], 0)
+
+
+def test_arana_gives_16_users_loaded_to_the_explorers():
+    keys, runs = expand_profiles("arana")
+    slots = attempt_slots(keys, 1, runs)
+    assert len(slots) == 16 and keys[:2] == ["desktop", "mobile"]
+    assert sum(PROFILES[key].explora for key, _ in slots) == 12
+    assert [attempt_folder(*slot) for slot in slots][:4] == ["desktop", "desktop-2", "mobile", "mobile-2"]
+    assert len(attempt_slots(keys, 2, runs)) == 32   # --runs multiplica
+    # Un conjunto junto a perfiles sueltos no repite claves.
+    assert expand_profiles("desktop,arana,explorador")[0] == keys
+    assert expand_profiles("desktop, mobile") == (["desktop", "mobile"], {"desktop": 1, "mobile": 1})
 
 
 # --- etapa por revisión, de punta a punta con el usuario guionizado ---------------------------------------------

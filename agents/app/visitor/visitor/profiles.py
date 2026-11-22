@@ -160,6 +160,27 @@ PROFILES: dict[str, Profile] = {**_RECORRIDOS, **_EXPLORADORES}
 # Los que corren si no se piden perfiles; `mobile` se pide.
 PERFILES_POR_DEFECTO: tuple[str, ...] = ("desktop",)
 
+# Conjuntos de perfiles con nombre, para pedirlos en --profiles como si fueran un perfil: cada clave con sus intentos
+# (que `--runs` multiplica). `arana` son 16 usuarios por objetivo cargados a los exploradores, los que arman el mapa de
+# caminos: los 12 exploradores (base y con conocimiento) una vez, y escritorio y móvil dos veces, contra la ruta.
+CONJUNTOS_DE_PERFILES: dict[str, dict[str, int]] = {
+    "arana": {"desktop": 2, "mobile": 2, **dict.fromkeys((*CONJUNTOS_EXPLORADORES["base"],
+                                                          *CONJUNTOS_EXPLORADORES["conocimiento"]), 1)},
+}
+
+
+def expand_profiles(text: str) -> tuple[list[str], dict[str, int]]:
+    """Las claves de `--profiles` (perfiles o conjuntos, separados por coma) en orden, con los intentos de cada una."""
+    keys: list[str] = []
+    runs: dict[str, int] = {}
+    for item in (part.strip() for part in text.split(",")):
+        for key, count in CONJUNTOS_DE_PERFILES.get(item, {item: 1} if item else {}).items():
+            if key not in runs:
+                keys.append(key)
+            runs[key] = max(runs.get(key, 0), count)
+    return keys, runs
+
+
 # Perfiles retirados que siguen en corridas guardadas, con el perfil actual de su misma pantalla.
 _RETIRADOS = {"first_time": "desktop", "hurried": "desktop"}
 

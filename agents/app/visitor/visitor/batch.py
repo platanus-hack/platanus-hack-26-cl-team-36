@@ -47,11 +47,12 @@ def attempt_folder(profile: str, attempt: int) -> str:
     return profile if attempt == 1 else f"{profile}-{attempt}"
 
 
-def attempt_slots(profile_keys: list[str], runs: int) -> list[tuple[str, int]]:
-    """(perfil, n.º de intento) de cada usuario de la tanda."""
-    if runs < 1:
+def attempt_slots(profile_keys: list[str], runs: int, profile_runs: dict[str, int] | None = None) -> list[tuple[str, int]]:
+    """(perfil, n.º de intento) de cada usuario de la tanda: `runs` por perfil, multiplicado por su `profile_runs`."""
+    if runs < 1 or any(count < 1 for count in (profile_runs or {}).values()):
         raise ValueError("`runs` debe ser al menos 1")
-    return [(key, attempt) for key in profile_keys for attempt in range(1, runs + 1)]
+    return [(key, attempt) for key in profile_keys
+            for attempt in range(1, runs * (profile_runs or {}).get(key, 1) + 1)]
 
 
 def _write_json(path: Path, data) -> None:
@@ -205,7 +206,8 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
                        references: References, judge: bool, engine: str, user_model: str, judge_model: str,
                        effort: str, cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None,
                        tema_kit: Path | None, conocimiento: ConocimientoDeTarea | None,
-                       conjunto_exploradores: str | None, live: LiveTraces | None = None) -> int:
+                       conjunto_exploradores: str | None, live: LiveTraces | None = None,
+                       profile_runs: dict[str, int] | None = None) -> int:
     """Escribe la tanda en `batch_dir` y devuelve cuántos intentos no se interrumpieron."""
     tema_script, tema = _tema(batch_dir, tema_css, tema_kit)
     # El juez solo se llama si algún perfil queda sin ruta: con ruta, decide el programa. El motor guionizado no tiene.
@@ -214,7 +216,8 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
         client = _client(engine) if engine in ("api", "bedrock") else None
         make_engine = _engines(engine, client, user_model, effort, claude_cwd, references)
         judge_agent = _judge(engine, client, judge_model, claude_cwd) if judged else None
-        attempts, criteria = await _attempts(judge_agent, make_engine, attempt_slots(profile_keys, runs), references,
+        attempts, criteria = await _attempts(judge_agent, make_engine, attempt_slots(profile_keys, runs, profile_runs),
+                                             references,
                                              url, instruction, batch_dir, browser, cdp_url, record_video, tema_script,
                                              conocimiento, live)
 
@@ -232,6 +235,7 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
         "judge_model": judge_model if judged else None,
         "effort": effort if engine == "claude-code" or config.accepts_effort(user_model) else None,
         "runs": runs,
+        "profile_runs": profile_runs if any(count > 1 for count in (profile_runs or {}).values()) else None,
         "tema": tema,
         "conjunto_exploradores": conjunto_exploradores,
     }
@@ -296,10 +300,11 @@ async def run_batch(
     tema_kit: Path | None = None,
     conocimiento: ConocimientoDeTarea | None = None,
     conjunto_exploradores: str | None = None,
+    profile_runs: dict[str, int] | None = None,
 ) -> store.RunKey:
     """Una corrida de visitor: report.md, route_tree.json, comparison.json y una carpeta por intento.
 
-    `runs` intentos por perfil (carpetas `<perfil>`, `<perfil>-2`...). Cada intento se mide contra la ruta de
+    `runs` intentos por perfil, multiplicados por los de `profile_runs` (carpetas `<perfil>`, `<perfil>-2`...). Cada intento se mide contra la ruta de
     `references`; sin ella, con `judge` lo dictamina el juez y, sin juez, queda sin medir. `inputs`, las corridas de
     guide de `references` y `revision` quedan en el manifiesto. Si ningún intento terminó, la corrida termina `failed`
     (con su reporte) y lanza `BatchInterrupted`. Con `tema_css`, cada página de cada usuario (y la del criterio) se ve
@@ -310,7 +315,7 @@ async def run_batch(
     criterio y el juez usan siempre `instruction`. `conjunto_exploradores` se registra en `route_tree.json`:
     agrupa tandas y elige la vigente de cada conjunto.
     """
-    slots = attempt_slots(profile_keys, runs)  # valida `runs` antes de abrir la corrida
+    slots = attempt_slots(profile_keys, runs, profile_runs)  # valida `runs` antes de abrir la corrida
     user_model, judge_model = models_for(engine, user_model)
     print(f"[tanda] {len(slots)} intento(s): {', '.join(attempt_folder(*slot) for slot in slots)}", flush=True)
     with store.running(backend, prefix, model=user_model, revision=revision,
@@ -318,7 +323,8 @@ async def run_batch(
         finished = await _write_batch(run.workdir, prefix.goal, url, instruction, profile_keys, runs, references,
                                       judge, engine, user_model, judge_model, effort, cdp_url, browser, record_video,
                                       tema_css, tema_kit, conocimiento, conjunto_exploradores,
-                                      lambda folder, profile: store.LiveTrace(backend, run, "visitor", profile, folder))
+                                      lambda folder, profile: store.LiveTrace(backend, run, "visitor", profile, folder),
+                                      profile_runs)
         if not finished:
             raise BatchInterrupted(run.key)
     return run.key
