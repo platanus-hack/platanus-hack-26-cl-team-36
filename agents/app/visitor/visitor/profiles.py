@@ -161,11 +161,11 @@ PROFILES: dict[str, Profile] = {**_RECORRIDOS, **_EXPLORADORES}
 PERFILES_POR_DEFECTO: tuple[str, ...] = ("desktop",)
 
 # Conjuntos de perfiles con nombre, para pedirlos en --profiles como si fueran un perfil: cada clave con sus intentos
-# (que `--runs` multiplica). `arana` son 16 usuarios por objetivo cargados a los exploradores, los que arman el mapa de
-# caminos: los 12 exploradores (base y con conocimiento) una vez, y escritorio y móvil dos veces, contra la ruta.
+# (que `--runs` multiplica). `arana` son 30 usuarios por objetivo cargados a los exploradores, los que arman el mapa de
+# caminos: los 12 exploradores (base y con conocimiento) dos veces, y escritorio y móvil tres, contra la ruta.
 CONJUNTOS_DE_PERFILES: dict[str, dict[str, int]] = {
-    "arana": {"desktop": 2, "mobile": 2, **dict.fromkeys((*CONJUNTOS_EXPLORADORES["base"],
-                                                          *CONJUNTOS_EXPLORADORES["conocimiento"]), 1)},
+    "arana": {"desktop": 3, "mobile": 3, **dict.fromkeys((*CONJUNTOS_EXPLORADORES["base"],
+                                                          *CONJUNTOS_EXPLORADORES["conocimiento"]), 2)},
 }
 
 

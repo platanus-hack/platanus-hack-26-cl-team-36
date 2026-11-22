@@ -142,13 +142,13 @@ def test_a_browser_that_does_not_open_skips_only_its_attempt():
         batch._without_failed_browsers(["b1", error], slots[:1], True)
 
 
-def test_arana_gives_16_users_loaded_to_the_explorers():
+def test_arana_gives_30_users_loaded_to_the_explorers():
     keys, runs = expand_profiles("arana")
     slots = attempt_slots(keys, 1, runs)
-    assert len(slots) == 16 and keys[:2] == ["desktop", "mobile"]
-    assert sum(PROFILES[key].explora for key, _ in slots) == 12
-    assert [attempt_folder(*slot) for slot in slots][:4] == ["desktop", "desktop-2", "mobile", "mobile-2"]
-    assert len(attempt_slots(keys, 2, runs)) == 32   # --runs multiplica
+    assert len(slots) == 30 and keys[:2] == ["desktop", "mobile"]
+    assert sum(PROFILES[key].explora for key, _ in slots) == 24
+    assert [attempt_folder(*slot) for slot in slots][:4] == ["desktop", "desktop-2", "desktop-3", "mobile"]
+    assert len(attempt_slots(keys, 2, runs)) == 60   # --runs multiplica
     # Un conjunto junto a perfiles sueltos no repite claves.
     assert expand_profiles("desktop,arana,explorador")[0] == keys
     assert expand_profiles("desktop, mobile") == (["desktop", "mobile"], {"desktop": 1, "mobile": 1})
