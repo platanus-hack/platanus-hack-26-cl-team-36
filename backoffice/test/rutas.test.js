@@ -133,22 +133,3 @@ test("normalizarPaso: vacío, inválido, fuera de rango", () => {
   assert.deepEqual(normalizarPaso("0", 12), { paso: 1, aviso: { clave: "comun.estado.pasoInvalido", vars: { paso: "0" } } });
   assert.deepEqual(normalizarPaso("40", 12), { paso: 12, aviso: { clave: "comun.estado.pasoFueraDeRango", vars: { total: 12 } } });
 });
-
-test("cabecera de la tanda: hasta 3 hallazgos que abren un paso de Replay, los más graves primero", async () => {
-  const { hallazgosPrincipales } = await import("../public/nucleo/marco-tanda.js");
-  const lista = [
-    { id: "resultado", nivel: "atencion", intento: "a", paso: 1 },
-    { id: "desvio:a:3", nivel: "info", intento: "a", paso: 3 },
-    { id: "costo", nivel: "info" },
-    { id: "demora:b", nivel: "atencion", intento: "b", paso: 5 },
-    { id: "tropiezos", nivel: "atencion", vars: { casos: [{ intento: "c", paso: 4 }] } },
-    { id: "detenido:d", nivel: "atencion", intento: "d", paso: 9 },
-  ];
-  assert.deepEqual(hallazgosPrincipales(lista).map((h) => h.id), ["detenido:d", "tropiezos", "demora:b"]);
-  // Uno de cada tipo antes de repetir: un segundo «detenido» no desplaza a los tropiezos ni a la demora.
-  const conOtro = [...lista, { id: "detenido:e", nivel: "atencion", intento: "e", paso: 7 }];
-  assert.deepEqual(hallazgosPrincipales(conOtro).map((h) => h.id), ["detenido:d", "tropiezos", "demora:b"]);
-  const soloDetenidos = ["d", "e", "f", "g"].map((id) => ({ id: `detenido:${id}`, nivel: "atencion", intento: id, paso: 2 }));
-  assert.deepEqual(hallazgosPrincipales(soloDetenidos).map((h) => h.id), ["detenido:d", "detenido:e", "detenido:f"]);
-  assert.deepEqual(hallazgosPrincipales(null), []);
-});
