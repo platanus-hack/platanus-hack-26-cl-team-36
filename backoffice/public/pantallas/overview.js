@@ -1,6 +1,7 @@
 // Overview (spec §3.3–§3.5, artboards 1–5; contrato §6 y §7): el inicio del backoffice. Arriba los agentes (un solo
 // número, dividido por rol, con un cuadrito por corrida) y abajo las revisiones, con la página revisada como
-// protagonista. El título "Overview" encabeza la página (h1) con el mismo formato que "Reviews".
+// protagonista. El título "Overview" se ve en la barra superior (nucleo/shell.js); aquí queda el h1 para lectores de
+// pantalla y para el foco inicial, visualmente oculto.
 //
 // Estado en el hash: #/?dispositivo=mobile&pestana=failed&link=metro&pagina=3 (sin escribir all, recent, la búsqueda
 // vacía ni la página 1). Cambiar el filtro, la pestaña, la búsqueda o la página escribe el hash y redibuja en
@@ -204,8 +205,8 @@ export default {
         if (link !== linkDe(actual)) actual.ctx.actualizarParametros({ link: link || null, pagina: null });
       },
     });
-    const titulo = el("h1", { class: "ov-titulo", tabindex: "-1", "data-foco-inicial": "", texto: ctx.t("comun.shell.overview") });
-    reemplazar(contenedor, el("div", { class: "ov-arriba" }, el("div", { class: "ov-cabecera" }, titulo), actual.agentes.nodo), actual.revisiones.nodo);
+    const titulo = el("h1", { class: "visualmente-oculto", tabindex: "-1", "data-foco-inicial": "", texto: ctx.t("comun.shell.overview") });
+    reemplazar(contenedor, el("div", { class: "ov-arriba" }, titulo, actual.agentes.nodo), actual.revisiones.nodo);
     estado = actual;
     dibujar(actual);
 

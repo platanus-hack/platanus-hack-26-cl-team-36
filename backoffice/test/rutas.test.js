@@ -30,7 +30,9 @@ test("Overview: #/ (y el hash vacío) con dispositivo y pestaña, que van y vuel
   assert.equal(hashDe({ tipo: "overview", parametros: { pestana: "live" } }), "#/?pestana=live");
   assert.equal(hashDe({ tipo: "overview", parametros: { dispositivo: "desktop" } }), "#/?dispositivo=desktop");
   assert.deepEqual(DISPOSITIVOS, ["all", "desktop", "mobile"]);
-  assert.deepEqual(PESTANAS_DEL_OVERVIEW, ["recent", "live", "delivered", "failed"]);
+  assert.deepEqual(PESTANAS_DEL_OVERVIEW, ["recent", "live", "failed"]);
+  // Delivered ya no es un filtro: un enlace viejo cae en All (recent, que no se escribe).
+  assert.deepEqual(parsearHash("#/?pestana=delivered&pagina=2").parametros, { pagina: "2" });
   for (const dispositivo of DISPOSITIVOS) {
     for (const pestana of PESTANAS_DEL_OVERVIEW) {
       const hash = hashDe({ tipo: "overview", parametros: { dispositivo, pestana } });
@@ -62,8 +64,8 @@ test("Overview: la página va al final y la 1 no se escribe; una que no es enter
   const ruta = parsearHash("#/?pagina=3&pestana=failed&dispositivo=mobile");
   assert.deepEqual(ruta.parametros, { dispositivo: "mobile", pestana: "failed", pagina: "3" });
   assert.equal(hashDe(ruta), "#/?dispositivo=mobile&pestana=failed&pagina=3");
-  assert.equal(hashDe({ tipo: "overview", parametros: { pestana: "delivered", pagina: 12 } }), "#/?pestana=delivered&pagina=12");
-  assert.equal(hashDe({ tipo: "overview", parametros: { pestana: "delivered", pagina: 1 } }), "#/?pestana=delivered");
+  assert.equal(hashDe({ tipo: "overview", parametros: { pestana: "live", pagina: 12 } }), "#/?pestana=live&pagina=12");
+  assert.equal(hashDe({ tipo: "overview", parametros: { pestana: "live", pagina: 1 } }), "#/?pestana=live");
   assert.equal(hashDe({ tipo: "overview", parametros: { pagina: null } }), "#/");
   for (const pagina of ["0", "-1", "2.5", "02", "abc", "10000"]) {
     assert.deepEqual(parsearHash(`#/?pagina=${pagina}`).parametros, {}, pagina);

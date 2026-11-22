@@ -7,7 +7,9 @@ import { ordenarEstados } from "./agentes.js";
 import { esHex } from "./marca.js";
 import { sinAvance, tiempoDeTarjeta } from "./tiempo.js";
 
-export const PESTANAS = Object.freeze(["recent", "live", "delivered", "failed"]);
+// Los filtros de Reviews: All (id `recent`: todas, por fecha), Live y Failed. La API también trae Delivered, que ya no
+// se muestra (es el grueso de All); un enlace viejo con ?pestana=delivered cae en All.
+export const PESTANAS = Object.freeze(["recent", "live", "failed"]);
 export const leerPestana = (valor) => (PESTANAS.includes(valor) ? valor : "recent");
 
 export const ESTADOS_DE_TARJETA = Object.freeze(["running", "stalled", "queued", "delivered", "failed"]);
@@ -26,12 +28,11 @@ export const TARJETAS_SIN_PISTA = 3;
 const estadoDeTarjeta = (valor) => (ESTADOS_DE_TARJETA.includes(valor) ? valor : "queued");
 
 /**
- * Insignia de una pestaña: la cifra o null (sin insignia). Recent nunca; Live con `cuentas.live` (corriendo,
- * detenidas y en cola: el total de la pestaña); Delivered y Failed con su cuenta. Con 0 no hay insignia.
+ * Cifra de un filtro, o null (sin cifra): All con `cuentas.total`; Live con `cuentas.live` (corriendo, detenidas y
+ * en cola: el total del filtro); Failed con su cuenta. Con 0 no hay cifra.
  */
 export function insigniaDePestana(pestana, cuentas) {
-  if (pestana === "recent") return null;
-  const n = Math.floor(Number(cuentas?.[pestana]) || 0);
+  const n = Math.floor(Number(cuentas?.[pestana === "recent" ? "total" : pestana]) || 0);
   return n > 0 ? n : null;
 }
 

@@ -1,6 +1,6 @@
 // Gramática de las rutas (diseño §5.1). Puro: no toca document ni window, así node:test lo importa.
 //
-//   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|delivered|failed &link=<texto> &pagina=<n>
+//   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|failed &link=<texto> &pagina=<n>
 //   #/corridas                  Corridas   ?q= &sitio= &filtro= &orden= &vista=
 //   #/?q=…&sitio=…              (enlace viejo, de cuando Corridas era #/) → #/corridas?… con esos parámetros
 //   #/t/<tandaId>               → #/t/<tandaId>/telarana
@@ -22,7 +22,7 @@ export const PESTANA_POR_DEFECTO = "telarana";
 /** Filtro de dispositivo del Overview (el primero es el de por defecto). */
 export const DISPOSITIVOS = Object.freeze(["all", "desktop", "mobile"]);
 /** Pestañas de revisiones del Overview (la primera es la de por defecto). */
-export const PESTANAS_DEL_OVERVIEW = Object.freeze(["recent", "live", "delivered", "failed"]);
+export const PESTANAS_DEL_OVERVIEW = Object.freeze(["recent", "live", "failed"]);
 /** Filtro `estado=` de la lista de Revisiones. */
 export const ESTADOS_DE_REVISIONES = Object.freeze(["live", "done", "failed", "historial"]);
 

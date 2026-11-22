@@ -25,6 +25,7 @@ import { abrirHoja } from "./hoja.js";
 import { recargarUnaVez } from "./recarga.js";
 import { montarMarco } from "./marco-tanda.js";
 import { NOMBRES_DE_PESTANA, enlaceATanda, extraerIdioma, hashDe, origenDeHoja, parsearHash } from "./rutas.js";
+import { ponerTituloDeVista } from "./shell.js";
 import { conTransicion } from "./transiciones.js";
 
 export const EVENTO_RUTA = "backoffice:ruta";
@@ -162,6 +163,8 @@ function ponerTitulo(v) {
   if (!titulo) titulo = v.tipo === "tanda" ? t(NOMBRES_DE_PESTANA[v.pestana]) : t(TITULO_DE_VISTA[v.tipo] ?? "comun.shell.overview");
   const tanda = v.tanda ? (v.tanda.tarea ?? v.tanda.host ?? v.tanda.id) : null;
   document.title = [titulo, tanda, t("comun.marca.titulo")].filter(Boolean).join(" · ");
+  // La barra superior nombra la vista de abajo; una hoja (tanda) tiene su propia cabecera y la deja como estaba.
+  if (v.tipo !== "tanda") ponerTituloDeVista(titulo);
 }
 
 // ── Montar y desmontar ────────────────────────────────────────────────────
