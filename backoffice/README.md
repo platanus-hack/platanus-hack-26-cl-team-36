@@ -43,7 +43,8 @@ Para trabajar el diseño con muchas tandas y con todas las pantallas, incluida *
 abandonos, errores de la herramienta, desvíos, vueltas atrás y búsquedas. `route_tree.json` sale del mismo
 `build_route_tree` del Visitante y las capturas son wireframes donde cada clic cae sobre lo que se cliqueó. Las
 revisiones (en cola, en curso, una atascada, terminadas y fallidas) quedan en `.mock/revisiones.json`, y
-`mock/servir.js` las sirve en memoria al mismo servidor, en vez de leer la tabla. No hay video. Con `--semilla` se
+`mock/servir.js` las sirve en memoria al mismo servidor, en vez de leer la tabla, con el reloj fijo en el momento en
+que se generaron (`generado`): así el Overview ve en curso lo que estaba en curso. No hay video. Con `--semilla` se
 repiten los mismos datos, y `BACKOFFICE_MOCK_LATENCIA_MS=400` demora la lectura de las revisiones para ver los
 estados de carga.
 
