@@ -194,10 +194,10 @@ test("arbolEnVivo une como build_route_tree: los run.json terminados suman su fi
 test("resumen: el de META con forma fija; sin él, calculado desde los ítems", () => {
   assert.deepEqual(resumenDeRevision(EN_VIVO), {
     fases: {
-      catalog: { pending: 0, running: 0, succeeded: 1, failed: 0 },
-      guide: { pending: 0, running: 1, succeeded: 1, failed: 0 },
-      visitor: { pending: 1, running: 1, succeeded: 0, failed: 0 },
-      improver: { pending: 1, running: 0, succeeded: 0, failed: 0 },
+      catalog: { pending: 0, running: 0, succeeded: 1, failed: 0, skipped: 0 },
+      guide: { pending: 0, running: 1, succeeded: 1, failed: 0, skipped: 0 },
+      visitor: { pending: 1, running: 1, succeeded: 0, failed: 0, skipped: 0 },
+      improver: { pending: 1, running: 0, succeeded: 0, failed: 0, skipped: 0 },
     },
     agentesActivos: 2,
     pasos: 4,
@@ -212,10 +212,10 @@ test("resumen: el de META con forma fija; sin él, calculado desde los ítems", 
 
   assert.deepEqual(resumenDeRevision(FALLIDA), {
     fases: {
-      catalog: { pending: 0, running: 0, succeeded: 1, failed: 0 },
-      guide: { pending: 1, running: 1, succeeded: 0, failed: 1 },
-      visitor: { pending: 3, running: 0, succeeded: 0, failed: 0 },
-      improver: { pending: 1, running: 0, succeeded: 0, failed: 0 },
+      catalog: { pending: 0, running: 0, succeeded: 1, failed: 0, skipped: 0 },
+      guide: { pending: 1, running: 1, succeeded: 0, failed: 1, skipped: 0 },
+      visitor: { pending: 3, running: 0, succeeded: 0, failed: 0, skipped: 0 },
+      improver: { pending: 1, running: 0, succeeded: 0, failed: 0, skipped: 0 },
     },
     agentesActivos: 1,
     pasos: 0,
@@ -223,6 +223,30 @@ test("resumen: el de META con forma fija; sin él, calculado desde los ítems", 
     calculado: true,
   });
   assert.equal(resumenDeRevision([meta("rara", { resumen: "no es un objeto" })]).calculado, true);
+});
+
+test("skipped: el Visitante no lanzado cuenta como cerrado, en el resumen guardado y en el calculado", () => {
+  const items = [
+    meta("saltada", { status: "done", goals_total: 1 }),
+    item("saltada", "STAGE#cataloger", "succeeded"),
+    item("saltada", "GOAL#horario#guide", "failed", { run_key: GUIA }),
+    item("saltada", "GOAL#horario#visitor", "skipped"),
+    item("saltada", "STAGE#improver", "succeeded"),
+  ];
+  const calculado = calcularResumen(items);
+  assert.deepEqual(calculado.fases.visitor, { pending: 0, running: 0, succeeded: 0, failed: 0, skipped: 1 });
+  const guardado = resumenDeRevision([{ ...items[0], resumen: { fases: { visitor: { skipped: 1 } } } }]);
+  assert.equal(guardado.fases.visitor.skipped, 1);
+  assert.equal(guardado.fases.guide.skipped, 0);
+  const avance = avanceDeRevision(items);
+  assert.equal(avance.goals[0].visitor.estado, "skipped");
+  assert.deepEqual(avance.progreso, { cerrados: 4, total: 4, goalsConocidos: true });
+});
+
+test("trace_at de la proyectora sale como trazaActualizada, solo con una traza válida", () => {
+  const conHora = (campos) => avanceDeRevision([meta("hora"), item("hora", "GOAL#horario#guide", "running", { run_key: GUIA, trace_at: "2026-11-22T10:40:59Z", ...campos })]).goals[0].guide;
+  assert.equal(conHora({ trace_key: `${GUIA}/trace.json` }).trazaActualizada, "2026-11-22T10:40:59Z");
+  assert.equal(conHora({}).trazaActualizada, null);
 });
 
 // ── Claves ─────────────────────────────────────────────────────────────

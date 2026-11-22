@@ -4,23 +4,24 @@
 // GET /api/revisiones → { disponible, revisiones: [{ revision, url, host, estado, goalsTotal, css, creada, actualizada,
 //   resumen | null }] }
 // GET /api/revisiones/<rev> → lo mismo de su META, más:
-//   resumen: { fases: { catalog|guide|visitor|improver: { pending, running, succeeded, failed } }, agentesActivos,
+//   resumen: { fases: { catalog|guide|visitor|improver: { pending, running, succeeded, failed, skipped } }, agentesActivos,
 //              pasos, goalsTotal, calculado }   (calculado: true si META no lo traía y salió de los ítems)
 //   catalogo, improver: { estado, runKey, actualizada, resultados }
 //   goals: [{ goal,
-//     guide:   { estado, runKey, actualizada, resultados, pasos, ultimo: { accion, url, titulo } | null, traza,
+//     guide:   { estado, runKey, actualizada, resultados, pasos, ultimo: { accion, url, titulo } | null, traza, trazaActualizada,
 //                recorrido: { archivo: "route.json" | "trace.json", datos } | null },
 //     visitor: { …lo mismo sin recorrido…, intentos: [{ carpeta, archivo: "run.json" | "trace.json", datos }] },
 //     telarana: { fuente: "vivo" | "tanda", tanda: <id de tanda> | null, paginas, ramas, ruta: { paginas } | null } | null }]
 //   `datos` es el archivo tal cual (steps como en route.json / run.json). La telaraña tiene ids estables entre
 //   refrescos (URL sin consulta + título); con el Visitante terminado es la de la tanda (lib/vivo.js).
 //   progreso: { cerrados, total, goalsConocidos }
+//   estado de un paso: pending | running | succeeded | failed | skipped (Visitante no lanzado: su Guía no verificó la ruta).
 
 import { REVISION, partesDeCorrida } from "../public/nucleo/almacen.js";
 import { leerSinVecinas } from "./tandas.js";
 import { recorridoDe, telaranaCompacta, telaranaEnVivo } from "./vivo.js";
 
-const CERRADO = new Set(["succeeded", "failed"]);
+const CERRADO = new Set(["succeeded", "failed", "skipped"]);
 // Lo que se enlaza de una corrida terminada, además de su manifest.json.
 const PRINCIPAL = { cataloger: "goals.json", guide: "route.json", improver: "tema.css" };
 export const ARCHIVO_DE_RESULTADO = /^(?:manifest\.json|goals\.json|route\.json|tema\.css)$/;
@@ -88,11 +89,12 @@ function paso(item, etapa, goal) {
     pasos: numero(item?.step),
     ultimo,
     traza: trazaValida ? [trazaValida.runKey, trazaValida.carpeta, TRAZA].filter(Boolean).join("/") : null,
+    trazaActualizada: trazaValida ? textoONulo(item.trace_at) : null,
   };
 }
 
 export const FASES = ["catalog", "guide", "visitor", "improver"];
-const ESTADOS = ["pending", "running", "succeeded", "failed"];
+const ESTADOS = ["pending", "running", "succeeded", "failed", "skipped"];
 const fasesVacias = () => Object.fromEntries(FASES.map((fase) => [fase, Object.fromEntries(ESTADOS.map((e) => [e, 0]))]));
 const entero = (valor) => Math.max(0, Math.trunc(numero(valor) ?? 0));
 
@@ -153,7 +155,7 @@ export function resumenDeMeta(item) {
 
 /**
  * El avance de una revisión a partir de todos sus ítems (Query por PK = REV#<revision>), o null si no tiene META.
- * `progreso` cuenta pasos cerrados (succeeded o failed) sobre los esperados: catálogo, guide y visitor por goal, improver.
+ * `progreso` cuenta pasos cerrados (succeeded, failed o skipped) sobre los esperados: catálogo, guide y visitor por goal, improver.
  */
 export function avanceDeRevision(items) {
   const meta = items.find((item) => item.SK === "META");
@@ -289,7 +291,7 @@ export function crearLectorDeTrazas(fuente) {
         ? recorridoDe(recorridoGuia.datos, { guia: true, enCurso: enCurso(recorridoGuia.archivo, recorridoGuia.datos) })
         : null;
       const recorridos = intentosVisitante
-        .map(({ carpeta, archivo, datos }) => recorridoDe({ folder: carpeta, ...datos }, { carpeta, enCurso: goal.visitor.estado !== "failed" && enCurso(archivo, datos) }))
+        .map(({ carpeta, archivo, datos }) => recorridoDe({ folder: carpeta, ...datos }, { carpeta, enCurso: !CERRADO.has(goal.visitor.estado) && enCurso(archivo, datos) }))
         .filter(Boolean);
       const vivo = telaranaEnVivo({ goal: goal.goal, guia: deLaGuia, intentos: recorridos, guiaFallo: goal.guide.estado === "failed" });
       telarana = vivo ? { fuente: "vivo", tanda: null, ...vivo } : null;
