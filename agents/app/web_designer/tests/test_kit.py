@@ -84,6 +84,44 @@ def test_rutas_que_no_dan_un_atajo(cambio, razon):
     assert vista is None and razon in motivo
 
 
+REAL = Path(__file__).with_name("datos") / "metro-real"
+
+
+def _real(nombre: str):
+    return json.loads((REAL / nombre).read_text(encoding="utf-8"))
+
+
+def _goals_reales() -> list[Goal]:
+    return [Goal(**g) for g in _real("goals.json")["goals"] if g["exclusion"] is None]
+
+
+def test_atajo_de_una_ruta_real_de_un_solo_clic():
+    # La Guía envió el formulario con lo que traía (un clic, sin `select`); antes no salía atajo.
+    route = _real("route.json")
+    assert [p["action"] for p in route["steps"]] == ["click"] and _real("atajos.json")["atajos"] == []
+    vista, razon = atajos.atajo("planificar-viaje", route, SELECTS, INICIO)
+    assert razon == "" and vista["rutas"] == ["/"] and vista["contenedor"] == "body > :has(#binicio)"
+    # Los valores que traía el formulario son opciones válidas: ningún campo queda obligatorio.
+    assert [(c["nombre"], c["opciones"], c["requerido"]) for c in vista["datos"]] == [
+        ("inicio", "#binicio", False), ("fin", "#fin", False), ("horario", "#horario", False), ("dia", "#dia", False)]
+    assert vista["opciones"] == {"destino": "/el-viaje/planificador/", "invertir": ["inicio", "fin"]}
+
+
+def test_sin_select_solo_valen_las_claves_que_nombran_un_select():
+    route = _real("route.json")
+    # La clave sin `<select>` con su nombre va fija, aunque otro `<select>` tenga ese valor.
+    sin_dia = [*SELECTS[:3], SelectDePagina("#jornada", id="jornada", name="jornada", valores=("DL", "SA"))]
+    vista, _ = atajos.atajo("planificar-viaje", route, sin_dia, INICIO)
+    assert [c["nombre"] for c in vista["datos"]] == ["inicio", "fin", "horario"]
+    assert vista["opciones"]["fijos"] == {"dia": "DL"}
+    # Sin los `<select>` de la página, o si el clic fue en otra página, no hay atajo.
+    assert "ninguna clave" in atajos.atajo("planificar-viaje", route, [], INICIO)[1]
+    assert "ninguna clave" in atajos.atajo("planificar-viaje", route, SELECTS, f"{METRO}/otra")[1]
+    otro_sitio = copy.deepcopy(route)
+    otro_sitio["steps"][0]["url_after"] = "https://evil.com/p?inicio=SP"
+    assert atajos.atajo("planificar-viaje", otro_sitio, SELECTS, INICIO)[0] is None
+
+
 def test_lanzador_con_el_catalogo_de_metro():
     kit = atajos.derivar(_goals(), {"planificar-viaje": _route()}, SELECTS, INICIO)
     assert [a["objetivo"] for a in kit["atajos"]] == ["planificar-viaje"] and kit["descartes"] == []

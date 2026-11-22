@@ -1,0 +1,1347 @@
+{
+  "host": "metro.cl",
+  "start_url": "https://www.metro.cl/",
+  "viewport": "1024x768",
+  "pages": 1,
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "effort": "high",
+  "catalog_tokens": {
+    "input_tokens": 4528,
+    "output_tokens": 8355,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "catalog_cost_usd": 0.0,
+  "issues": [],
+  "goals": [
+    {
+      "id": "planificar-viaje",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Planifica tu viaje en metro ingresando la estación de origen, destino, hora y día.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/el-viaje/planificador",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Planifica tu viaje en metro ingresando la estación de origen, destino, hora y día.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-estado-servicio",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta el estado actual del servicio de todas las líneas de metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/el-viaje/estado-red",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta el estado actual del servicio de todas las líneas de metro.",
+      "exclusion": null
+    },
+    {
+      "id": "encontrar-informacion-estacion",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Encuentra información sobre las estaciones del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/el-viaje/estaciones",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra información sobre las estaciones del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "ver-plano-red",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Visualiza el plano de la red de metro de Santiago.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/el-viaje/plano-de-red",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Visualiza el plano de la red de metro de Santiago. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-horarios-tarifas",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta los horarios de funcionamiento y tarifas del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/el-viaje/horarios-y-tarifas",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta los horarios de funcionamiento y tarifas del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "cargar-tarjeta-bip",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Carga saldo a tu tarjeta BIP desde el sitio web.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/el-viaje/carga-bip",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Carga saldo a tu tarjeta BIP desde el sitio web. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null
+    },
+    {
+      "id": "acceder-metromuv",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Accede a la plataforma MetroMuv para gestionar tus viajes.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metromuv.cl/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a la plataforma MetroMuv para gestionar tus viajes. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null
+    },
+    {
+      "id": "obtener-voucher-digital",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Obtén un voucher digital de viajes.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/voucher-digital",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Obtén un voucher digital de viajes. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-tipos-carga",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce los diferentes tipos de carga disponibles para tu tarjeta BIP.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/el-viaje/tipos-de-carga",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce los diferentes tipos de carga disponibles para tu tarjeta BIP.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-intermodalidad",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información sobre conexiones intermodales disponibles.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/el-viaje/intermodalidad",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información sobre conexiones intermodales disponibles.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-ruta-expresa",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información sobre la Ruta Expresa de metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/el-viaje/ruta-expresa",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información sobre la Ruta Expresa de metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-experiencia-viaje",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Aprende cómo mejorar tu experiencia al viajar en metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/guia-del-usuario/experiencia-de-viaje",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Aprende cómo mejorar tu experiencia al viajar en metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-metro-accesible",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información sobre accesibilidad en las estaciones y servicios del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/guia-del-usuario/metro-accesible",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información sobre accesibilidad en las estaciones y servicios del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-servicios",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce los servicios que ofrece metro más allá del transporte.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/guia-del-usuario/nuestros-servicios",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce los servicios que ofrece metro más allá del transporte.",
+      "exclusion": null
+    },
+    {
+      "id": "leer-preguntas-frecuentes",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Lee las preguntas frecuentes y tips para viajeros.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/guia-del-usuario/tips-y-preguntas-frecuentes",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Lee las preguntas frecuentes y tips para viajeros.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-contingencias",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Aprende qué hacer en caso de contingencia en el metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/guia-del-usuario/que-hacer-en-casos-de-contingencia",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Aprende qué hacer en caso de contingencia en el metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-seguro-accidentes",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información sobre el seguro de accidentes de metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/guia-del-usuario/seguro-de-accidentes",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información sobre el seguro de accidentes de metro.",
+      "exclusion": null
+    },
+    {
+      "id": "llamar-linea-1488",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Accede a información sobre la línea de atención 1488.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/1488",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a información sobre la línea de atención 1488.",
+      "exclusion": null
+    },
+    {
+      "id": "ubicar-oficinas-atencion",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Encuentra las oficinas de atención al cliente de metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/atencion-cliente/oficinas",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra las oficinas de atención al cliente de metro.",
+      "exclusion": null
+    },
+    {
+      "id": "obtener-canales-contacto",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Obtén los canales de contacto disponibles para comunicarte con metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/atencion-cliente/canales-de-contacto",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Obtén los canales de contacto disponibles para comunicarte con metro.",
+      "exclusion": null
+    },
+    {
+      "id": "enviar-consulta-sugerencia-reclamo",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Envía una consulta, sugerencia o reclamo a metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/atencion-cliente/sugerencias-reclamos",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Envía una consulta, sugerencia o reclamo a metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null
+    },
+    {
+      "id": "reportar-objeto-perdido",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Reporta un objeto que perdiste en el metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/atencion-cliente/objetos-perdidos",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Reporta un objeto que perdiste en el metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null
+    },
+    {
+      "id": "obtener-tarjeta-adulto-mayor",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Obtén información sobre la tarjeta de adulto mayor de metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/atencion-cliente/tarjeta-adulto-mayor",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Obtén información sobre la tarjeta de adulto mayor de metro.",
+      "exclusion": null
+    },
+    {
+      "id": "acceder-red-clientes",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Accede a la red de clientes de metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/red-clientes/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a la red de clientes de metro. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-metrocomunidad",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Descubre las iniciativas de MetroComunidad y sus programas.",
+      "expected_answer": null,
+      "level": "summary",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-comunidad/metrocomunidad",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Descubre las iniciativas de MetroComunidad y sus programas.",
+      "exclusion": "nivel summary"
+    },
+    {
+      "id": "acceder-espacios-gratuitos",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Accede a información sobre espacios gratuitos en el metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "conocer-metrocomunidad",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-comunidad/espacios-gratuitos",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a información sobre espacios gratuitos en el metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-mercado-metro",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el programa Mercado a un Metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "conocer-metrocomunidad",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-comunidad/mercado-a-un-metro",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el programa Mercado a un Metro.",
+      "exclusion": null
+    },
+    {
+      "id": "acceder-ventanas-ciudadanas",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Accede a información sobre las Ventanas Ciudadanas.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "conocer-metrocomunidad",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-comunidad/ventanas-ciudadanas",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a información sobre las Ventanas Ciudadanas.",
+      "exclusion": null
+    },
+    {
+      "id": "leer-metroinforma",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Lee las publicaciones de Metroinforma.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "conocer-metrocomunidad",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-comunidad/metroinforma",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Lee las publicaciones de Metroinforma.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-historias-metro",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Descubre historias relacionadas con el metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/historias-de-metro",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Descubre historias relacionadas con el metro.",
+      "exclusion": null
+    },
+    {
+      "id": "reservar-metro-tour",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Reserva un tour guiado del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://outlook.office.com/book/metrotour3@metro.cl/?ismsaljsauthenabled=true",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Reserva un tour guiado del metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null
+    },
+    {
+      "id": "explorar-metroarte",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Explora las obras artísticas y patrimonio del metro.",
+      "expected_answer": null,
+      "level": "summary",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metroarte/#metroarte",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Explora las obras artísticas y patrimonio del metro.",
+      "exclusion": "nivel summary"
+    },
+    {
+      "id": "conocer-patrimonio-metro",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el patrimonio histórico y artístico del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "explorar-metroarte",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metroarte/patrimonio",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el patrimonio histórico y artístico del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-difusion-cultural",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta la programación de difusión cultural del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "explorar-metroarte",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metroarte/difusion",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta la programación de difusión cultural del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "explorar-mapa-patrimonial",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Explora el mapa patrimonial del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "explorar-metroarte",
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metroarte/mapa-patrimonial",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Explora el mapa patrimonial del metro. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-historia-metro",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce la historia del metro de Santiago.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/historia",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce la historia del metro de Santiago.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-proposito-mision",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el propósito, misión, visión y valores del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/proposito#proposito",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el propósito, misión, visión y valores del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-compromisos-sostenibilidad",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta los compromisos de sostenibilidad del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-sostenible/nuestros-compromisos",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta los compromisos de sostenibilidad del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-metroambiente",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta las iniciativas ambientales del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-sostenible/metroambiente",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta las iniciativas ambientales del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-diversidad-equidad-inclusion",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce las políticas de diversidad, equidad e inclusión del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-sostenible/diversidad-equidad-inclusion",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce las políticas de diversidad, equidad e inclusión del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-corporacion-cultural",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce la Corporación Cultural MetroArte.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-sostenible/corporacion-cultural",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce la Corporación Cultural MetroArte.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-memoria-integrada",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta la memoria integrada y reporte de sostenibilidad del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-sostenible/reporte-sostenibilidad",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta la memoria integrada y reporte de sostenibilidad del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-marco-financiamiento-verde",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el marco de financiamiento verde del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/metro-sostenible/marco-de-bonos-verdes",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el marco de financiamiento verde del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-informacion-inversionistas",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información financiera para inversionistas.",
+      "expected_answer": null,
+      "level": "summary",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/inversionistas/#informacionrelevante",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información financiera para inversionistas.",
+      "exclusion": "nivel summary"
+    },
+    {
+      "id": "revisar-nuevos-proyectos",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Revisa los nuevos proyectos de expansión del metro.",
+      "expected_answer": null,
+      "level": "summary",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/nuevos-proyectos/linea-7",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Revisa los nuevos proyectos de expansión del metro.",
+      "exclusion": "nivel summary"
+    },
+    {
+      "id": "conocer-linea-7",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el proyecto de la Línea 7 del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "revisar-nuevos-proyectos",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/nuevos-proyectos/linea-7",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el proyecto de la Línea 7 del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-linea-8",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el proyecto de la Línea 8 del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "revisar-nuevos-proyectos",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/nuevos-proyectos/linea-8",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el proyecto de la Línea 8 del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-linea-9",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el proyecto de la Línea 9 del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "revisar-nuevos-proyectos",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/nuevos-proyectos/linea-9",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el proyecto de la Línea 9 del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-linea-a",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el proyecto de la Línea A del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "revisar-nuevos-proyectos",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/nuevos-proyectos/linea-a",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el proyecto de la Línea A del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-extension-linea-6",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el proyecto de extensión de la Línea 6 del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "revisar-nuevos-proyectos",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/nuevos-proyectos/extension-linea-6",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el proyecto de extensión de la Línea 6 del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "realizar-denuncia",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Realiza una denuncia sobre irregularidades en el metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/canal-de-denuncias",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Realiza una denuncia sobre irregularidades en el metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-informacion-interes-mercado",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información de interés para el mercado.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "consultar-informacion-inversionistas",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/informacion-de-interes",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información de interés para el mercado.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-organizacion-remuneraciones",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información sobre organización y remuneraciones del directorio.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "consultar-informacion-inversionistas",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/informacion-del-directorio-y-del-personal",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información sobre organización y remuneraciones del directorio.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-filiales",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información sobre filiales y entidades relacionadas.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "consultar-informacion-inversionistas",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/filiales",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información sobre filiales y entidades relacionadas.",
+      "exclusion": null
+    },
+    {
+      "id": "conocer-objetivo-giro-empresa",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Conoce el objetivo o giro de la empresa Metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "consultar-informacion-inversionistas",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/objetivo-giro-empresa",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Conoce el objetivo o giro de la empresa Metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-marco-normativo",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta el marco normativo del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "consultar-informacion-inversionistas",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/marco-normativo",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta el marco normativo del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "leer-noticias",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Lee todas las noticias y novedades del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/noticias/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Lee todas las noticias y novedades del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "acceder-sala-prensa",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Accede a la sala de prensa del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/noticias/sala-de-prensa",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a la sala de prensa del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-informes-financieros",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta los informes financieros del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "consultar-informacion-inversionistas",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/gobierno-corporativo/informes-financieros",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta los informes financieros del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-licitaciones-proveedores",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información sobre licitaciones y proveedores.",
+      "expected_answer": null,
+      "level": "summary",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/licitaciones/proveedores",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información sobre licitaciones y proveedores.",
+      "exclusion": "nivel summary"
+    },
+    {
+      "id": "revisar-proximas-licitaciones",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Revisa las próximas licitaciones del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "consultar-licitaciones-proveedores",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/licitaciones/proximas-licitaciones",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Revisa las próximas licitaciones del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "contactar-licitaciones",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Contacta al área de licitaciones de metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "consultar-licitaciones-proveedores",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/licitaciones/contacto",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Contacta al área de licitaciones de metro.",
+      "exclusion": null
+    },
+    {
+      "id": "solicitar-espacio-publicitario",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Solicita un espacio publicitario en el metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/actividades-comerciales/espacios-publicitarios",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita un espacio publicitario en el metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-locales-comerciales",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información sobre locales comerciales en el metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/actividades-comerciales/gestion-espacios-comerciales",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta información sobre locales comerciales en el metro.",
+      "exclusion": null
+    },
+    {
+      "id": "solicitar-permiso-comercial",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Solicita un permiso comercial en el metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://sipec.metro.cl/",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita un permiso comercial en el metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null
+    },
+    {
+      "id": "gestionar-arriendo-terrenos",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Gestiona el arriendo de terrenos del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/actividades-comerciales/gestion-terrenos",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Gestiona el arriendo de terrenos del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "consultar-transparencia-activa",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Consulta información de transparencia activa del metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/transparencia-activa/",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Consulta información de transparencia activa del metro.",
+      "exclusion": null
+    },
+    {
+      "id": "acceder-relacion-proveedores",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Accede a información sobre la agenda de relación con proveedores.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": "consultar-licitaciones-proveedores",
+      "intent": "find_info",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "https://www.metro.cl/licitaciones/agenda",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a información sobre la agenda de relación con proveedores.",
+      "exclusion": null
+    },
+    {
+      "id": "postular-empleos",
+      "host": "metro.cl",
+      "start_url": "https://www.metro.cl/",
+      "description": "Postula a ofertas de empleo en el metro.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.metro.cl/"
+      ],
+      "entry": "http://metro.trabajando.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Postula a ofertas de empleo en el metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null
+    }
+  ]
+}

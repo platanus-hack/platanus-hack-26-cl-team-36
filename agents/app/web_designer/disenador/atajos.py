@@ -2,7 +2,8 @@
 
 - Atajo: una ruta verificada de la Guía que solo elige opciones (`select`) y termina en una URL con consulta (el deep
   link, p. ej. `/el-viaje/planificador/?inicio=SP&fin=EL`). Cada clave de la consulta es un campo cuyas opciones se
-  copian del `<select>` de la página que le corresponde; una clave sin `<select>` va fija en el enlace.
+  copian del `<select>` de la página que le corresponde; una clave sin `<select>` va fija en el enlace. Si la Guía
+  envió el formulario sin elegir nada (con lo que traía), valen solo las claves que nombran un `<select>` de la página.
 - Lanzador: los objetivos del catálogo, cada uno con la URL a la que llegó la Guía o su `entry`. Primero los que
   tienen ruta verificada (el enlace lleva de verdad a la tarea), después los que menos lograron los Visitantes (donde
   un atajo ayuda más) y, a igual medida, los más prominentes del catálogo.
@@ -96,11 +97,13 @@ def _selectores_de_ruta(pasos: list[dict]) -> list[str]:
 
 
 def _campo_para(clave: str, valor: str, selects: list[SelectDePagina], de_ruta: list[str],
-                usados: set[str]) -> SelectDePagina | None:
+                usados: set[str], solo_nombre: bool = False) -> SelectDePagina | None:
     libres = [s for s in selects if s.selector not in usados]
     for s in libres:
         if clave in (s.name, s.id):
             return s
+    if solo_nombre:
+        return None
     for s in libres:
         if s.selector in de_ruta and valor in s.valores:
             return s
@@ -119,18 +122,20 @@ def atajo(objetivo_id: str, route: dict, selects: list[SelectDePagina], inicio: 
     if not isinstance(route, dict) or route.get("status") != "verified":
         return None, "la ruta no está verificada"
     pasos = [p for p in route.get("steps") or [] if isinstance(p, dict)]
-    if len(pasos) < 2:
-        return None, "la ruta no tiene elecciones antes de llegar"
+    if not pasos:
+        return None, "la ruta no tiene pasos"
     final = pasos[-1].get("url_after") or ""
     destino = mismo_sitio(final, inicio)
     consulta = parse_qsl(urlsplit(final).query, keep_blank_values=False)
     if not destino or not consulta:
         return None, "la ruta no termina en una URL con consulta del mismo sitio"
     elecciones = pasos[:-1]
-    if not all(_es_eleccion(p) for p in elecciones) or not any(p.get("action") == "select" for p in elecciones):
+    if not all(_es_eleccion(p) for p in elecciones):
         return None, "la ruta hace algo más que elegir opciones"
-    paginas = {ruta_de(p.get("url_before") or "").rstrip("/") for p in elecciones}
-    origen = elecciones[0].get("url_before") or ""
+    # Sin `select` la Guía envió el formulario con lo que traía: solo cuenta la clave que nombra un `<select>`.
+    solo_nombre = not any(p.get("action") == "select" for p in elecciones)
+    paginas = {ruta_de(p.get("url_before") or "").rstrip("/") for p in elecciones or pasos}
+    origen = (elecciones or pasos)[0].get("url_before") or ""
     if len(paginas) != 1 or not mismo_sitio(origen, inicio):
         return None, "las elecciones no ocurren en una sola página del sitio"
     pagina = ruta_de(origen)
@@ -140,7 +145,7 @@ def atajo(objetivo_id: str, route: dict, selects: list[SelectDePagina], inicio: 
     de_ruta = _selectores_de_ruta(elecciones)
     campos, fijos, usados, por_nombre = [], {}, set(), {}
     for clave, valor in consulta:
-        select = _campo_para(clave, valor, selects, de_ruta, usados)
+        select = _campo_para(clave, valor, selects, de_ruta, usados, solo_nombre)
         if select is None:
             fijos[clave] = valor
             continue
