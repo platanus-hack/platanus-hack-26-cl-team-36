@@ -13,7 +13,7 @@ import { mostrarEnFila, seguirBordes } from "../nucleo/fila.js";
 import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
 import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
-import { nombreDePagina, textoDeFirma, textoDeTitular } from "../datos/textos.js";
+import { nombreDePagina, textoDeAccion, textoDeFirma, textoDeTitular } from "../datos/textos.js";
 import { altoDeFilaPara, altoDelLienzo, crearCamara, franjaConMasEstaciones, zoomLegible } from "../telarana/camara.js";
 import {
   activosDePerfil,
@@ -31,8 +31,11 @@ import { atascosPorPagina } from "../telarana/atascos.js";
 import { claseDeTramo, dibujarEscena } from "../telarana/escena.js";
 import { crearHistoria } from "../telarana/historia.js";
 import { etiquetasDeEstaciones } from "../telarana/nombres.js";
+import { nombreConNivel } from "../perfiles/nombres.js";
 
 const PASO_DE_PAN = 60;
+/** Las acciones de una rama, las de la gente primero y los saltos del explorador al final. */
+const accionesEnOrden = (rama) => [...(rama?.acciones ?? [])].sort((a, b) => Number(!!a.salto) - Number(!!b.salto));
 const MARGEN_DE_FRANJA = 40; // px de escena sobre y bajo la franja encuadrada (el punto y la etiqueta)
 const MARGEN_BAJO_EL_LIENZO = 16; // px entre la leyenda (o el lienzo) y el borde de abajo de la ventana
 const reducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -51,7 +54,7 @@ function crearPantalla(contenedor, ctx) {
   const ramas = new Map((tanda.telarana?.ramas ?? []).map((rama) => [rama.id, rama]));
   const intentos = new Map((tanda.intentos ?? []).map((intento) => [intento.id, intento]));
   const perfiles = (tanda.perfiles ?? []).map((perfil) => ({ id: perfil.perfil, nombre: perfil.nombre ?? perfil.perfil }));
-  const nombreDePerfil = (id) => perfiles.find((perfil) => perfil.id === id)?.nombre ?? intentos.get(id)?.nombrePerfil ?? id;
+  const nombreDePerfil = (id) => nombreConNivel(perfiles.find((perfil) => perfil.id === id)?.nombre ?? intentos.get(id)?.nombrePerfil ?? id, t);
   const nombre = (pagina) => nombreDePagina(pagina, t);
   // Lo que se ve en cada estación: si varias empiezan igual, lo que las distingue va adelante (telarana/nombres.js).
   const etiquetas = etiquetasDeEstaciones(tanda.telarana?.paginas ?? [], nombre, { primeras: tanda.telarana?.ruta?.paginas ?? [] });
@@ -287,7 +290,7 @@ function crearPantalla(contenedor, ctx) {
     const rama = ramas.get(tramo.id);
     filas.push(el("span", { class: "telarana-globo-titulo", texto: t("telarana.tramo.titulo", { desde: nombre(desde), hasta: nombre(paginas.get(tramo.destino)) }) }));
     if (tramo.tipo === "retroceso") filas.push(el("span", { class: "texto-3", texto: t("telarana.tramo.vuelta") }));
-    for (const accion of rama?.acciones ?? []) filas.push(el("span", { class: "telarana-globo-accion" }, el("span", { texto: accion.accion }), el("span", { class: "num texto-3", texto: `×${accion.intentos}` })));
+    for (const accion of accionesEnOrden(rama)) filas.push(el("span", { class: "telarana-globo-accion" }, el("span", { texto: textoDeAccion(accion.accion, t) }), el("span", { class: "num texto-3", title: t("telarana.panel.intentosDeAccion"), texto: `×${accion.intentos}` })));
     const desglose = [t("telarana.tramo.intentos", { n: rama?.intentos ?? tramo.intentos })];
     if (rama?.llegaron) desglose.push(t("telarana.tramo.llegaron", { n: rama.llegaron }));
     if (rama?.noLlegaron) desglose.push(t("telarana.tramo.noLlegaron", { n: rama.noLlegaron }));
@@ -729,8 +732,12 @@ function crearPantalla(contenedor, ctx) {
                 el(
                   "li",
                   {},
-                  el("span", { class: "panel-telarana-destino" }, icono("siguiente"), el("span", { texto: nombre(paginas.get(rama.destino)) }), el("span", { class: "num texto-3", texto: `×${rama.intentos}` })),
-                  (rama.acciones ?? []).map((accion) => el("span", { class: "texto-3 panel-telarana-accion", texto: `${accion.accion} ×${accion.intentos}` })),
+                  el("span", { class: "panel-telarana-destino" }, icono("siguiente"), el("span", { texto: nombre(paginas.get(rama.destino)) }), el("span", { class: "num texto-3", title: t("telarana.panel.intentosDeAccion"), texto: `×${rama.intentos}` })),
+                  // Cómo se llegó a esa salida: las acciones de la gente primero; un salto del explorador es una
+                  // acción más de esta salida (no otro destino).
+                  accionesEnOrden(rama).map((accion) =>
+                    el("span", { class: "texto-3 panel-telarana-accion", title: t("telarana.panel.intentosDeAccion"), texto: t(accion.salto ? "telarana.panel.accionSalto" : "telarana.panel.accion", { accion: textoDeAccion(accion.accion, t), n: accion.intentos }) }),
+                  ),
                 ),
               ),
             ),
@@ -745,7 +752,7 @@ function crearPantalla(contenedor, ctx) {
               "ul",
               { class: "panel-telarana-intentos" },
               pasaron.map(({ intento, paso }) =>
-                el("li", {}, el("span", { class: "truncar", texto: intento.nombrePerfil ?? intento.id }), insignia(intento.resultado, { logro: intento.logro, compacta: true }), enlaceAReplay(intento, paso)),
+                el("li", {}, el("span", { class: "truncar", texto: nombreConNivel(intento.nombrePerfil ?? intento.id, t) }), insignia(intento.resultado, { logro: intento.logro, compacta: true }), enlaceAReplay(intento, paso)),
               ),
             )
           : el("p", { class: "texto-3", texto: t("telarana.panel.nadiePaso") }),

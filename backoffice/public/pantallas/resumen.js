@@ -6,7 +6,8 @@
 import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea } from "../nucleo/estados.js";
 import { icono, insignia } from "../nucleo/iconos.js";
-import { nombreDePagina, textoDeError, textoDeHallazgo, textoDeTitular } from "../datos/textos.js";
+import { nombreDePagina, textoDeAccion, textoDeError, textoDeHallazgo, textoDeTitular } from "../datos/textos.js";
+import { nombreConNivel } from "../perfiles/nombres.js";
 
 const ICONO_DE_SENAL = { no_effect: "sin-efecto", went_back: "volvio", visible_error: "error-visible", security_block: "bloqueo" };
 const ACCIONES_VISIBLES = 2;
@@ -273,7 +274,10 @@ export function accionesDelTramo(ctx, c, tramo) {
     .map((accion) => ({ accion: accion.accion, salto: !!accion.salto, n: (accion.perfiles ?? []).filter((perfil) => validos.has(perfil)).length }))
     .sort((a, b) => a.salto - b.salto || (b.accion === tramo.accion) - (a.accion === tramo.accion));
   if (tramo.accion && !acciones.some((accion) => accion.accion === tramo.accion)) acciones.unshift({ accion: tramo.accion, salto: false, n: 0 });
-  const texto = (accion) => (accion.n ? ctx.t("resumen.ruta.accionVeces", { accion: accion.accion, n: accion.n }) : accion.accion);
+  const texto = (accion) => {
+    const legible = textoDeAccion(accion.accion, ctx.t);
+    return accion.n ? ctx.t("resumen.ruta.accionVeces", { accion: legible, n: accion.n }) : legible;
+  };
   const visibles = acciones.slice(0, ACCIONES_VISIBLES).map(texto);
   const resto = acciones.length - visibles.length;
   return {
@@ -331,7 +335,7 @@ function ruta(ctx, c) {
           "span",
           {
             class: "resumen-hito-cuenta",
-            title: llegan.length ? ctx.t("resumen.ruta.lleganTitulo", { nombres: ctx.fmt.lista(llegan.map((i) => i.nombrePerfil ?? i.id)) }) : ctx.t("resumen.ruta.nadieLlega"),
+            title: llegan.length ? ctx.t("resumen.ruta.lleganTitulo", { nombres: ctx.fmt.lista(llegan.map((i) => nombreConNivel(i.nombrePerfil ?? i.id, ctx.t))) }) : ctx.t("resumen.ruta.nadieLlega"),
           },
           el("span", { class: "num", texto: validos.length ? ctx.fmt.conteo({ n: llegan.length, de: validos.length }) : "—" }),
           respuesta ? el("span", { class: "resumen-hito-respuesta", title: ctx.t("resumen.ruta.respuesta") }, icono("check", { etiqueta: ctx.t("resumen.ruta.respuesta") })) : null,

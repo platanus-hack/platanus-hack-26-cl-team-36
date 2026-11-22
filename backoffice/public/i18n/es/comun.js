@@ -65,6 +65,8 @@ export default {
     usuarios: "usuarios {modelo}",
     juez: "juez {modelo}",
   },
+  // Nivel de conocimiento de un perfil, en minúscula (va entre paréntesis tras su nombre).
+  nivel: { conoce_tema: "conoce el tema", sin_contexto: "sin contexto" },
   resultado: {
     logrado: "Logrado",
     fallido: "Fallido",

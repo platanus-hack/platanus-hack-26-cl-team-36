@@ -7,7 +7,7 @@ import { conGlobo } from "../nucleo/globo.js";
 import { icono, marcaDeSenal, textoDeResultado } from "../nucleo/iconos.js";
 import { nombreDePagina } from "../datos/textos.js";
 import { destinoDeCelda, destinoDeIntento, escalaLineal, fraccionDeCelda, puntosDeMetrica } from "./escalas.js";
-import { etiquetasDePerfiles } from "./nombres.js";
+import { etiquetasDePerfiles, textoDeNivel } from "./nombres.js";
 
 /** Etiquetas cortas de los perfiles de la tanda (nombre completo → { completo, base, nivel }). */
 const etiquetasDe = (tanda) => etiquetasDePerfiles((tanda.perfiles ?? []).map((perfil) => perfil.nombre ?? perfil.perfil));
@@ -16,13 +16,14 @@ const etiquetasDe = (tanda) => etiquetasDePerfiles((tanda.perfiles ?? []).map((p
  * El nombre de un perfil en un gráfico: la base (que se corta si no cabe) y debajo el nivel, que nunca se corta en su
  * lugar. El nombre completo va en el title y, para los lectores de pantalla, como texto oculto.
  */
-function etiquetaDePerfil(etiqueta, clase = "") {
+function etiquetaDePerfil(etiqueta, ctx, clase = "") {
+  const nivel = etiqueta.nivel ? textoDeNivel(etiqueta.nivel, ctx.t) : null;
   return el(
     "span",
     { class: `perfil-etiqueta ${clase}`.trim(), title: etiqueta.completo },
-    el("span", { class: "visualmente-oculto", texto: etiqueta.completo }),
+    el("span", { class: "visualmente-oculto", texto: nivel ? `${etiqueta.base} (${nivel})` : etiqueta.completo }),
     el("span", { class: "perfil-etiqueta-base truncar", "aria-hidden": "true", texto: etiqueta.base }),
-    etiqueta.nivel ? el("span", { class: "perfil-etiqueta-nivel truncar", "aria-hidden": "true", texto: etiqueta.nivel }) : null,
+    nivel ? el("span", { class: "perfil-etiqueta-nivel truncar", "aria-hidden": "true", texto: nivel }) : null,
   );
 }
 
@@ -88,7 +89,7 @@ export function graficoDeUnidades(tanda, ctx) {
     return el(
       "li",
       { class: "unidades-fila" },
-      etiquetaDePerfil(etiquetas.get(nombre), "unidades-nombre"),
+      etiquetaDePerfil(etiquetas.get(nombre), ctx, "unidades-nombre"),
       el("ul", { class: "unidades-marcas", "aria-label": t("perfiles.unidades.lista", { nombre }) }, marcas),
       el(
         "span",
@@ -179,7 +180,7 @@ export function mapaDeHitos(tanda, ctx) {
         el(
           "tr",
           {},
-          el("th", { scope: "row", class: "calor-perfil" }, etiquetaDePerfil(etiquetas.get(perfil.nombre ?? perfil.perfil))),
+          el("th", { scope: "row", class: "calor-perfil" }, etiquetaDePerfil(etiquetas.get(perfil.nombre ?? perfil.perfil), ctx)),
           hitos.map((pagina, k) => celdaDeHito(perfil, k, pagina, tanda, ctx)),
         ),
       ),
@@ -304,7 +305,7 @@ function columnaDeMetrica(tanda, metrica, ctx) {
     el(
       "div",
       { class: "metrica-cuerpo" },
-      el("ul", { class: "metrica-nombres", "aria-hidden": "true" }, filas.map((fila) => el("li", {}, etiquetaDePerfil(etiquetas.get(fila.nombre) ?? { completo: fila.nombre, base: fila.nombre, nivel: null })))),
+      el("ul", { class: "metrica-nombres", "aria-hidden": "true" }, filas.map((fila) => el("li", {}, etiquetaDePerfil(etiquetas.get(fila.nombre) ?? { completo: fila.nombre, base: fila.nombre, nivel: null }, ctx)))),
       el("div", { class: "metrica-lienzo" }, el("div", { class: "metrica-regla" }, marcaRuta), grafico, eje),
     ),
   );

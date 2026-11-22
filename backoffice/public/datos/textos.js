@@ -39,6 +39,34 @@ export function textoDeFirma(firma, t) {
   return texto === `datos.firma.${firma.tipo}` ? t("datos.firma.otra", vars) : texto;
 }
 
+const DIRECCION_EN_INGLES = { down: "abajo", up: "arriba", left: "izquierda", right: "derecha" };
+/** La firma de una acción tal como la escribe el evaluador en route_tree.json («clic «X»», «tecla Enter»…). */
+function firmaDeAccion(accion) {
+  const texto = String(accion ?? "").trim();
+  let m;
+  if ((m = /^clic «(.*)»$/s.exec(texto))) return { tipo: "clic", objetivo: m[1] };
+  if ((m = /^volver a «(.*)»$/s.exec(texto))) return { tipo: "volver", objetivo: m[1] };
+  if ((m = /^escribir «(.*)»$/s.exec(texto))) return { tipo: "escribir", objetivo: m[1] };
+  if ((m = /^tecla (.+)$/s.exec(texto))) return { tipo: "tecla", objetivo: m[1] };
+  if (/^atr[aá]s$/i.test(texto)) return { tipo: "atras" };
+  if ((m = /^scroll (down|up|left|right)(?: x(\d+))?$/i.exec(texto))) return { tipo: "desplazar", direccion: DIRECCION_EN_INGLES[m[1].toLowerCase()], cantidad: m[2] ? Number(m[2]) : null };
+  return null;
+}
+
+/**
+ * Una acción del evaluador («clic «X»», «volver a «X»», «tecla Enter», «escribir «X»», «atrás», «scroll down x2»)
+ * en el idioma de la pantalla, con el mismo vocabulario que Replay; el objetivo (lo que dice el sitio) no se
+ * traduce. Lo que no reconoce queda como está.
+ * @param {string} accion  @param {Traductor} t
+ */
+export function textoDeAccion(accion, t) {
+  const firma = firmaDeAccion(accion);
+  if (!firma) return String(accion ?? "");
+  const clave = `datos.firma.${firma.tipo}`;
+  const texto = t(clave, { ...firma, flecha: FLECHAS[firma.direccion] ?? "" });
+  return texto === clave ? String(accion ?? "") : texto;
+}
+
 /**
  * "Lo que pasó" en un paso, en un párrafo.
  * @param {{ clave: string, vars?: Record<string, unknown> }[] | null} loQuePaso

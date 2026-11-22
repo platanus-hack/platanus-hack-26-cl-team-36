@@ -221,3 +221,49 @@ test("página de error y ruta que no sale de la página de inicio, en ES y EN (C
   assert.match(datosEn.titular.telarana(vars), /^The task is solved on the start page \(the evaluator estimates 57%\)/);
   assert.doesNotMatch(datosEs.titular.telarana(vars), /No hay una ruta/);
 });
+
+test("textoDeAccion: las acciones del evaluador en el idioma de la pantalla; el objetivo no se traduce (C4-6)", async () => {
+  const { textoDeAccion } = await import("../public/datos/textos.js");
+  const { formatear } = await import("../public/nucleo/i18n.js");
+  const dicc = { es: { datos: datosEs }, en: { datos: datosEn } };
+  const t = (idioma) => (clave, vars) => formatear(dicc, clave, vars, idioma);
+  const casos = [
+    ["clic «Ir al Centro de Ayuda»", "clic «Ir al Centro de Ayuda»", "click «Ir al Centro de Ayuda»"],
+    ["volver a «Inicio»", "volver a «Inicio»", "jump back to «Inicio»"],
+    ["tecla Enter", "tecla Enter", "key Enter"],
+    ["escribir «retracto»", "escribir «retracto»", "type «retracto»"],
+    ["atrás", "volver atrás", "go back"],
+    ["scroll down x2", "desplazar ↓ ×2", "scroll ↓ ×2"],
+    ["algo nuevo", "algo nuevo", "algo nuevo"],
+  ];
+  for (const [accion, es, en] of casos) {
+    assert.equal(textoDeAccion(accion, t("es")), es);
+    assert.equal(textoDeAccion(accion, t("en")), en);
+  }
+});
+
+test("lista: la mediana de pasos con el separador decimal del idioma (C4-6)", async () => {
+  const { formatear } = await import("../public/nucleo/i18n.js");
+  const corridasEs = (await import("../public/i18n/es/corridas.js")).default;
+  const corridasEn = (await import("../public/i18n/en/corridas.js")).default;
+  const dicc = { es: { corridas: corridasEs }, en: { corridas: corridasEn } };
+  assert.equal(formatear(dicc, "corridas.fila.pasosRuta", { n: 20.5, ruta: 13 }, "es"), "20,5 pasos · ruta 13");
+  assert.equal(formatear(dicc, "corridas.fila.pasosRuta", { n: 20.5, ruta: 13 }, "en"), "20.5 steps · route 13");
+  assert.equal(formatear(dicc, "corridas.fila.pasos", { n: 1 }, "es"), "1 paso");
+});
+
+test("el nivel de conocimiento de un perfil en cada idioma, también dentro de su nombre (C4-6)", async () => {
+  const { textoDeNivel } = await import("../public/perfiles/nombres.js");
+  const { formatear } = await import("../public/nucleo/i18n.js");
+  const comunEs = (await import("../public/i18n/es/comun.js")).default;
+  const comunEn = (await import("../public/i18n/en/comun.js")).default;
+  const dicc = { es: { comun: comunEs }, en: { comun: comunEn } };
+  const t = (idioma) => (clave, vars) => formatear(dicc, clave, vars, idioma);
+  assert.equal(textoDeNivel("conoce el tema", t("en")), "knows the topic");
+  assert.equal(textoDeNivel("sin contexto", t("en")), "no context");
+  assert.equal(textoDeNivel("sin contexto", t("es")), "sin contexto");
+  assert.equal(textoDeNivel("otro nivel", t("en")), "otro nivel");
+  const { nombreConNivel } = await import("../public/perfiles/nombres.js");
+  assert.equal(nombreConNivel("Explorador del pie (conoce el tema)", t("en")), "Explorador del pie (knows the topic)");
+  assert.equal(nombreConNivel("Senior", t("en")), "Senior");
+});

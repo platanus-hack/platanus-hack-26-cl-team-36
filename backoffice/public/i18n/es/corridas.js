@@ -44,8 +44,8 @@ export default {
     intentoResultado: "{nombre}: {resultado}",
     sinValidos: "sin válidos",
     sinPasos: "Sin intentos válidos: no hay pasos que contar",
-    pasos: ({ n }, { plural }) => `${n} ${plural(n, { one: "paso", other: "pasos" })}`,
-    pasosRuta: ({ n, ruta }, { plural }) => `${n} ${plural(n, { one: "paso", other: "pasos" })} · ruta ${ruta}`,
+    pasos: ({ n }, { plural, fmt }) => `${fmt.numero(n)} ${plural(n, { one: "paso", other: "pasos" })}`,
+    pasosRuta: ({ n, ruta }, { plural, fmt }) => `${fmt.numero(n)} ${plural(n, { one: "paso", other: "pasos" })} · ruta ${ruta}`,
     pasosTitulo: "Mediana de pasos de los intentos válidos · pasos de la ruta recomendada",
   },
   vacio: {

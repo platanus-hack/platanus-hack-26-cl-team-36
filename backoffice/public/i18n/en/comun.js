@@ -65,6 +65,8 @@ export default {
     usuarios: "users {modelo}",
     juez: "judge {modelo}",
   },
+  // Knowledge level of a profile, lowercase (goes in brackets after its name).
+  nivel: { conoce_tema: "knows the topic", sin_contexto: "no context" },
   resultado: {
     logrado: "Succeeded",
     fallido: "Failed",
