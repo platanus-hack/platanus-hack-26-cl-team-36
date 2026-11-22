@@ -209,8 +209,13 @@ del DOM, sin agregar una dependencia más pesada que todo el front.
 ## Idiomas (es / en)
 
 Inglés por defecto y español. No hay selector en la barra: el idioma se cambia con la acción de la paleta ⌘K o con
-`idioma=` en el hash de la URL (`#/?idioma=es`), y se guarda en `localStorage`. Los datos de la corrida (títulos de
-páginas, instrucciones de los goals, expectativas del agente, justificaciones, criterios) nunca se traducen.
+`idioma=` en el hash de la URL (`#/?idioma=es`), y se guarda en `localStorage` (`backoffice:idioma:v2`; lo que guardó
+el selector ES | EN de antes ya no se lee). Los datos de la corrida (títulos de páginas, instrucciones de los goals,
+expectativas del agente, justificaciones, criterios) nunca se traducen.
+
+La página pide que el navegador no la traduzca (`translate="no"` y `<meta name="google" content="notranslate">`):
+el traductor de Chrome (que se ofrece solo a quien tiene el navegador en español) traduce lo que hay al cargar y no
+lo que la vista vuelve a dibujar (el Overview se refresca cada 5 s), y deja la interfaz en spanglish.
 
 - Cada texto de la interfaz pasa por `t("<sección>.<clave>", vars)`. Hay un diccionario por sección y por idioma:
   `public/i18n/{es,en}/<sección>.js` (`comun`, `datos` y uno por pantalla). Un valor es un texto con `{variables}` o

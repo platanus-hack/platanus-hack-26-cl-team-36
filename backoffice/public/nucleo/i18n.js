@@ -11,7 +11,9 @@ import { crearFormatos } from "./formato.js";
 export const IDIOMAS = ["en", "es"];
 export const IDIOMA_POR_DEFECTO = "en";
 export const EVENTO_IDIOMA = "backoffice:idioma";
-const CLAVE_ALMACEN = "backoffice:idioma";
+// v2 desde que la interfaz es en inglés: lo que guardó el selector ES | EN de antes no deja a nadie en español sin
+// haberlo pedido con ?idioma=es.
+const CLAVE_ALMACEN = "backoffice:idioma:v2";
 
 let actual = IDIOMA_POR_DEFECTO;
 /** { en: { comun: {...}, datos: {...} }, es: {...} } */
