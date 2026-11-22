@@ -83,7 +83,9 @@ const ES = {
   "chrome.ayuda": "Necesita Chrome 148 o superior. En la Chrome Web Store, próximamente.",
   "cierre.titulo": "Mira a los agentes trabajar",
   "cierre.texto": "Los sitios revisados, las tandas de visitantes y los temas propuestos, en vivo.",
-  pie: "chameleonmode.app · Hecho en Platanus Hack 26, Santiago",
+  "pie.antes": "chameleonmode.app · Hecho en",
+  "pie.despues": ", Santiago",
+  huevo: "Platanus Hack 26: ¡plátanos!",
 };
 
 // Lo que escribe este script (descargas y versiones), en los dos idiomas.
