@@ -102,9 +102,14 @@ export function leerRango(cabecera) {
 
 const tipoDe = (nombre) => TIPOS[path.extname(nombre)] ?? "application/octet-stream";
 
+// Una captura o un video de /archivos/ es de una tanda listada, o sea de una corrida que ya terminó: no cambia más, y
+// el navegador la guarda en vez de volver a pedirla al cambiar de paso o de intento. `private`: solo ese navegador,
+// ningún caché compartido (pueden mostrar datos de quien corrió la prueba). Todo lo demás, no-store.
+const INMUTABLE = "private, max-age=31536000, immutable";
+
 // Envía un archivo abierto (de una fuente o de public/), con 206 si se pidió un rango.
-async function enviar(req, res, nombre, { cuerpo, tamano, rango }, tipo = tipoDe(nombre)) {
-  const cabeceras = { "Content-Type": tipo, "Cache-Control": "no-store", "Accept-Ranges": "bytes", ...CABECERAS_DE_SEGURIDAD };
+async function enviar(req, res, nombre, { cuerpo, tamano, rango }, { tipo = tipoDe(nombre), cache = "no-store" } = {}) {
+  const cabeceras = { "Content-Type": tipo, "Cache-Control": cache, "Accept-Ranges": "bytes", ...CABECERAS_DE_SEGURIDAD };
   if (!cuerpo) {
     res.writeHead(416, { ...CABECERAS_DE_SEGURIDAD, "Content-Range": `bytes */${tamano}` });
     return res.end();
@@ -240,18 +245,19 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
         const abierto = resultado ? await origen.abrirArchivo(resultado.runKey, resultado.archivo) : null;
         if (!abierto) return responderJson(res, 404, { error: "No existe ese resultado" });
         const archivo = resultado.archivo;
-        return enviar(req, res, archivo, abierto, TIPOS_DE_RESULTADO[path.extname(archivo)] ?? tipoDe(archivo));
+        return enviar(req, res, archivo, abierto, { tipo: TIPOS_DE_RESULTADO[path.extname(archivo)] ?? tipoDe(archivo) });
       }
 
       if (partes[0] === "archivos" && partes.length >= 4) {
         const archivo = partes.at(-1);
-        // Solo de tandas listadas, con la lista que comparte el Overview (~2 s; si el id no está, se vuelve a listar).
+        // Solo de tandas listadas (esTandaListada: las ya vistas en la lista no se vuelven a listar; si el id no está,
+        // se busca en una lista nueva).
         const abierto = await abrirArchivoDeIntento(
           origen,
           { id: partes.slice(1, -2).join("/"), perfil: partes.at(-2), archivo, rango: leerRango(req.headers.range) ?? undefined },
           { esListada: panel.esTandaListada },
         );
-        return abierto ? enviar(req, res, archivo, abierto) : responderJson(res, 404, { error: "No existe ese archivo" });
+        return abierto ? enviar(req, res, archivo, abierto, { cache: INMUTABLE }) : responderJson(res, 404, { error: "No existe ese archivo" });
       }
 
       const relativa = partes.length === 0 ? "index.html" : partes.join("/");

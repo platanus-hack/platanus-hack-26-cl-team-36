@@ -133,16 +133,23 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
   const leerIndice = memorizar(() => indice.leer(), memoriaMs);
   const leerListadas = memorizar(async () => new Set(await idsDeTandas(fuente)), memoriaMs);
 
+  // Las tandas que ya aparecieron en una lista. Una tanda listada es una corrida que terminó bien y no deja de serlo:
+  // no se vuelve a listar por ella (sin esto, cada captura pedida después de MEMORIA_MS costaba una pasada entera).
+  const confirmadas = new Set();
+
   /**
-   * ¿idsDeTandas de esta fuente lista la tanda? Mira la lista compartida (la misma de las capturas de las tarjetas) y,
-   * si el id no está, una que empezó después de la pregunta, que queda como la compartida: una tanda recién terminada
-   * se sirve igual y N capturas seguidas cuestan una sola pasada de listado. Lo usa /archivos/ (servidor.js).
+   * ¿idsDeTandas de esta fuente lista la tanda? Una ya confirmada, sin leer nada. Si no, mira la lista compartida (la
+   * misma de las capturas de las tarjetas) y, si el id no está, una que empezó después de la pregunta, que queda como
+   * la compartida: una tanda recién terminada se sirve igual y N capturas seguidas cuestan una sola pasada de listado.
+   * Lo usa /archivos/ (servidor.js).
    * @param {string} id
    */
   async function esTandaListada(id) {
+    if (confirmadas.has(id)) return true;
     const pregunta = performance.now();
-    if ((await leerListadas()).has(id)) return true;
-    return (await leerListadas({ desde: pregunta })).has(id);
+    const listada = (await leerListadas()).has(id) || (await leerListadas({ desde: pregunta })).has(id);
+    if (listada) confirmadas.add(id);
+    return listada;
   }
   const leerTabla = memorizar(async () => {
     const metas = (await revisiones.metas()).filter((meta) => meta?.SK === "META" && REVISION.test(idDe(meta)));

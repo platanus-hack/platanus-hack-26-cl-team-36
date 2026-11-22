@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { crearFuenteS3 } from "../lib/fuentes/s3.js";
-import { memorizar } from "../lib/panel.js";
+import { crearPanel, memorizar } from "../lib/panel.js";
 import { idsDeTandas } from "../lib/tandas.js";
 import { crearServidor } from "../servidor.js";
 import { clienteS3Falso, comandosS3, objetosDeCarpeta } from "./aws-falso.js";
@@ -103,6 +103,22 @@ test("la validación no cambia: un id no listado, un perfil o un archivo inváli
     }
     assert.ok(listados(cliente) > antes, "un id que no está en la lista compartida se busca en una nueva antes del 404");
   });
+});
+
+test("una tanda ya vista en la lista no se vuelve a listar, aunque la lista compartida haya vencido", async () => {
+  const { cliente, fuente } = almacen();
+  // memoriaMs 0: la lista compartida vence apenas se lee, como entre dos pasos del Replay.
+  const panel = crearPanel({ fuente, memoriaMs: 0 });
+  assert.equal(await panel.esTandaListada(ID), true);
+  const antes = listados(cliente);
+  for (let vez = 0; vez < 3; vez += 1) assert.equal(await panel.esTandaListada(ID), true);
+  assert.equal(listados(cliente), antes, "confirmada: sin listar");
+
+  // Lo que no está se sigue buscando en una lista nueva cada vez (no se recuerda un "no").
+  assert.equal(await panel.esTandaListada(EN_CURSO), false);
+  const despues = listados(cliente);
+  assert.equal(await panel.esTandaListada(EN_CURSO), false);
+  assert.ok(listados(cliente) > despues, "no listada: vuelve a listar");
 });
 
 test("memorizar con { desde }: sirve la lectura guardada solo si empezó después; si no, empieza otra y la comparte", async () => {
