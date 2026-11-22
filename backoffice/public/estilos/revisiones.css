@@ -47,3 +47,8 @@
   .p-revisiones .revisiones-fila { grid-template-columns: auto minmax(0, 1fr); }
   .p-revisiones .revisiones-fila-goals, .p-revisiones .revisiones-fila-fecha { display: none; }
 }
+
+/* ── Enlace a la telaraña en vivo de un goal ─────────────────────────── */
+.p-revisiones .revisiones-goal { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) var(--e-3); }
+.p-revisiones .revisiones-vivo { display: inline-flex; align-items: center; gap: var(--e-1); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.p-revisiones .revisiones-vivo-punto { width: 7px; height: 7px; border-radius: 50%; background: var(--acento); }

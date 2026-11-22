@@ -2,12 +2,14 @@
 // ?estado=live|done|failed; ?estado=historial muestra las reemplazadas) y el avance de una
 // por etapa y por goal (#/revisiones/<revision>), con enlaces a lo que dejó cada corrida terminada. "En vivo" es
 // volver a pedir cada INTERVALO mientras la vista está montada; solo se redibuja si la respuesta (o el filtro) cambió.
+// Un goal en curso (o recién terminado) enlaza a su telaraña en vivo (#/revisiones/<revision>/<goal>, pantallas/vivo.js).
 
 import { pedirRevision, pedirRevisiones, urlDeResultado } from "../nucleo/datos.js";
 import { conservarFoco, el, esUrlWeb, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
 import { icono } from "../nucleo/iconos.js";
-import { enlaceARevision, enlaceARevisiones, enlaceATanda } from "../nucleo/rutas.js";
+import { enlaceARevision, enlaceARevisiones, enlaceATanda, enlaceAVivo } from "../nucleo/rutas.js";
+import { goalEnVivo } from "../datos/vivo.js";
 
 const INTERVALO = 2500;
 const TONO = { queued: "neutro", pending: "neutro", running: "acento", done: "logrado", succeeded: "logrado", failed: "fallido" };
@@ -142,7 +144,27 @@ function seccion(ctx, id, ...contenido) {
   );
 }
 
-function tablaDeGoals(ctx, goals) {
+function celdaDeGoal(ctx, revision, goal) {
+  return el(
+    "th",
+    { scope: "row" },
+    el(
+      "span",
+      { class: "revisiones-goal" },
+      el("span", { class: "mono", texto: goal.goal }),
+      goalEnVivo(goal)
+        ? el(
+            "a",
+            { class: "revisiones-vivo", href: enlaceAVivo(revision, goal.goal), "aria-label": ctx.t("revisiones.verEnVivoDe", { goal: goal.goal }), "data-foco": `revisiones:vivo:${goal.goal}` },
+            el("span", { class: "revisiones-vivo-punto", "aria-hidden": "true" }),
+            el("span", { texto: ctx.t("revisiones.verEnVivo") }),
+          )
+        : null,
+    ),
+  );
+}
+
+function tablaDeGoals(ctx, revision, goals) {
   if (!goals.length) return el("p", { class: "texto-3", texto: ctx.t("revisiones.sinGoals") });
   const columnas = ["goal", "guide", "visitor"];
   return el(
@@ -156,7 +178,7 @@ function tablaDeGoals(ctx, goals) {
         "tbody",
         {},
         goals.map((goal) =>
-          el("tr", {}, el("th", { scope: "row", class: "mono", texto: goal.goal }), el("td", {}, paso(ctx, goal.guide)), el("td", {}, paso(ctx, goal.visitor))),
+          el("tr", {}, celdaDeGoal(ctx, revision, goal), el("td", {}, paso(ctx, goal.guide)), el("td", {}, paso(ctx, goal.visitor))),
         ),
       ),
     ),
@@ -190,7 +212,7 @@ function vistaDeRevision(ctx, revision, avance) {
     ),
     el("p", { class: "texto-3 t-pequeno", texto: t("revisiones.enVivo") }),
     seccion(ctx, "catalogo", paso(ctx, avance.catalogo)),
-    seccion(ctx, "goals", tablaDeGoals(ctx, avance.goals)),
+    seccion(ctx, "goals", tablaDeGoals(ctx, revision, avance.goals)),
     seccion(ctx, "improver", paso(ctx, avance.improver)),
   ];
 }
