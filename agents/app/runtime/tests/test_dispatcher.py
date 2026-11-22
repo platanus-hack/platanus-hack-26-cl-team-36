@@ -1,8 +1,10 @@
+import threading
+import time
 from pathlib import Path
 
 import pytest
 
-from dispatcher import APPS_DIR, InvalidRequest, own_runtime_arn, parse_request, run_stage
+from dispatcher import APPS_DIR, Children, InvalidRequest, own_runtime_arn, parse_request, run_stage
 from shared import store
 
 URL = "https://www.wom.cl/planes"
@@ -151,3 +153,20 @@ def test_own_runtime_arn() -> None:
     assert own_runtime_arn({"OTEL_RESOURCE_ATTRIBUTES": OTEL, "CONDUCTOR_RUNTIME_ARN": "arn:x"}) == "arn:x"
     assert own_runtime_arn({"OTEL_RESOURCE_ATTRIBUTES": "service.name=x"}) is None
     assert own_runtime_arn({}) is None
+
+
+def test_stopping_terminates_the_cli_and_fails_its_run(backend: store.Backend) -> None:
+    running = Children()
+    request = parse_request(payload("catalog"))
+    codes = []
+    thread = threading.Thread(target=lambda: codes.append(
+        run_stage(request, backend=backend, runner=lambda request, env: running.run(["sleep", "30"]), environ={})))
+    thread.start()
+    while not running._running:
+        time.sleep(0.01)
+    running.stop()
+    thread.join(5)
+    assert codes and codes[0] != 0
+    assert [m.status for m in manifests(backend, request.command.prefix)] == ["failed"]
+    with pytest.raises(RuntimeError):
+        running.run(["true"])

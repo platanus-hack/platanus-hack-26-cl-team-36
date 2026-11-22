@@ -5,11 +5,12 @@ segundo plano (modo async de AgentCore: mientras hay una tarea, el ping dice Hea
 """
 
 import logging
+import signal
 import threading
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
-from dispatcher import InvalidRequest, parse_request, run_stage
+from dispatcher import InvalidRequest, children, parse_request, run_stage
 
 app = BedrockAgentCoreApp()
 log = logging.getLogger("chameleon.runtime")
@@ -31,9 +32,12 @@ def invoke(payload):
     except InvalidRequest as error:
         return {"error": str(error)}
     task_id = app.add_async_task(request.stage, {"revision": request.revision})
-    threading.Thread(target=_work, args=(task_id, request), name=f"stage-{request.stage}").start()
+    # No daemon: al apagarse, Python espera a que el hilo deje la corrida `failed`.
+    threading.Thread(target=_work, args=(task_id, request), name=f"stage-{request.stage}", daemon=False).start()
     return {"status": "accepted", "stage": request.stage, "revision": request.revision}
 
 
 if __name__ == "__main__":
+    # uvicorn atrapa SIGTERM y, tras cerrar el servidor, lo vuelve a lanzar contra este manejador.
+    signal.signal(signal.SIGTERM, lambda *_: children.stop())
     app.run()

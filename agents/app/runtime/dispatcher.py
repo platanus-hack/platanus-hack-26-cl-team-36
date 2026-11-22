@@ -3,6 +3,7 @@
 import logging
 import os
 import subprocess
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
@@ -68,10 +69,40 @@ def stage_env(request: Request, environ: dict[str, str] = os.environ) -> dict[st
     return env
 
 
+class Children:
+    """Los CLI de etapa en curso, para terminarlos cuando AgentCore apaga el contenedor."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._running: set[subprocess.Popen] = set()
+        self._stopping = False
+
+    def run(self, argv: list[str], **options: Any) -> int:
+        with self._lock:
+            if self._stopping:
+                raise RuntimeError("el runtime se está apagando")
+            process = subprocess.Popen(argv, **options)
+            self._running.add(process)
+        try:
+            return process.wait()
+        finally:
+            with self._lock:
+                self._running.discard(process)
+
+    def stop(self) -> None:
+        with self._lock:
+            self._stopping = True
+            for process in self._running:
+                process.terminate()
+
+
+children = Children()
+
+
 def run_command(request: Request, env: dict[str, str]) -> int:
     command = request.command
     log.info("etapa %s de la revisión %s: %s", request.stage, request.revision, " ".join(command.argv))
-    return subprocess.run(command.argv, cwd=APPS_DIR / command.app, env=env, check=False).returncode
+    return children.run(command.argv, cwd=APPS_DIR / command.app, env=env)
 
 
 def close_without_trace(backend: store.Backend, request: Request, since) -> None:
