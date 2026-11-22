@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { claveDeEvento, crearProyectora, goalsElegidos } from "../proyectora.js";
+import { claveDeEvento, crearProyectora, goalsElegidos, profundidad } from "../proyectora.js";
 import { claveRevision } from "../estados.js";
 import { almacenFalso, tablaFalsa } from "./fakes.js";
 
@@ -58,6 +58,30 @@ test("goalsElegidos elige lo mismo que el conductor ante un catálogo real", () 
   const catalogo = JSON.parse(readFileSync(new URL("../../agents/shared/tests/data/catalogo-metro.json", import.meta.url)));
   assert.deepEqual(goalsElegidos(catalogo.goals, catalogo.goals_max), catalogo.expected);
   assert.deepEqual(goalsElegidos(catalogo.goals, Infinity), catalogo.expected_all);
+  for (const [limite, esperado] of Object.entries(catalogo.expected_by_limit)) {
+    assert.deepEqual(goalsElegidos(catalogo.goals, Number(limite)), esperado, `goals_max ${limite}`);
+  }
+});
+
+test("profundidad: por pasos estimados o formulario, como depth de goal.py", () => {
+  const pasos = [undefined, 1, 2, 3, 4, 5];
+  assert.deepEqual(pasos.map((estimated_steps) => profundidad({ estimated_steps })), [null, "short", "short", "medium", "medium", "long"]);
+  assert.equal(profundidad({ submits_form: true, estimated_steps: 1 }), "long");
+});
+
+test("goalsElegidos: primero las tareas principales y mezcla largas y medianas", () => {
+  const goals = [
+    goal("raro", { demand: "rare", estimated_steps: 1 }),
+    goal("top-corto", { demand: "top", prominence: "secondary", estimated_steps: 1 }),
+    goal("top-medio", { demand: "top", prominence: "secondary", estimated_steps: 3 }),
+    goal("comun-largo", { demand: "common", prominence: "secondary", estimated_steps: 7 }),
+    goal("raro-largo", { demand: "rare", prominence: "secondary", submits_form: true }),
+    goal("comun-corto", { demand: "common", prominence: "secondary", estimated_steps: 2 }),
+    goal("anterior", { prominence: "secondary" }),
+  ];
+  assert.deepEqual(goalsElegidos(goals, Infinity), ["top-corto", "top-medio", "comun-largo", "comun-corto", "anterior", "raro", "raro-largo"]);
+  assert.deepEqual(goalsElegidos(goals, 3), ["top-corto", "top-medio", "comun-largo"]);
+  assert.deepEqual(goalsElegidos(goals, 6), ["top-corto", "top-medio", "comun-largo", "comun-corto", "anterior", "raro-largo"]);
 });
 
 test("ignora manifiestos sin revisión y claves que no son manifiestos", async () => {
