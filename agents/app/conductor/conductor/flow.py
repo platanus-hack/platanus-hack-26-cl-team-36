@@ -1,4 +1,7 @@
-"""Una revisión: catálogo → Guía y, con la ruta verificada, Visitante por objetivo (en paralelo con tope) → mejora."""
+"""Una revisión: catálogo → Guía y, con la ruta verificada, Visitante por objetivo (en paralelo con tope) → mejora.
+
+La mejora no espera a todos los objetivos: con un Visitante exitoso, espera a los demás a lo más `improver_grace_s`.
+"""
 
 import asyncio
 from collections.abc import Callable
@@ -25,6 +28,7 @@ class Options:
     runs: int = config.RUNS
     concurrency: int = config.CONCURRENCY
     timeouts: dict[str, float] = field(default_factory=lambda: dict(config.TIMEOUTS_S))
+    improver_grace_s: float = config.IMPROVER_GRACE_S
 
 
 def selected_goals(backend: store.Backend, catalog_run: str, goals_max: int) -> list[str]:
@@ -40,6 +44,22 @@ def route_verified(backend: store.Backend, guide: Outcome) -> bool:
         return backend.read_json(f"{guide.run}/route.json").get("status") == "verified"
     except (OSError, ValueError, AttributeError):
         return False
+
+
+def _visited(entry: dict[str, Any]) -> bool:
+    return bool(entry["visitor"]) and entry["visitor"]["status"] == "succeeded"
+
+
+async def ready_for_improver(tasks: list[asyncio.Task], grace_s: float) -> set[asyncio.Task]:
+    """Espera a todos, o al primer Visitante exitoso y luego `grace_s` más; devuelve los que siguen corriendo."""
+    pending = set(tasks)
+    while pending:
+        done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        if any(_visited(task.result()) for task in done):
+            break
+    if pending:
+        _, pending = await asyncio.wait(pending, timeout=grace_s)
+    return pending
 
 
 async def conduct(backend: store.Backend, invoker: Invoker, url: str, revision: str, options: Options,
@@ -77,22 +97,36 @@ async def conduct(backend: store.Backend, invoker: Invoker, url: str, revision: 
     semaphore = asyncio.Semaphore(options.concurrency)
 
     async def evaluate(goal: str) -> dict[str, Any]:
+        entry: dict[str, Any] = {"id": goal, "guide": None, "visitor": None}
+        try:
+            async with semaphore:
+                guide = await stage("guide", goal=goal)
+                entry["guide"] = guide.to_dict()
+                if not await asyncio.to_thread(route_verified, backend, guide):
+                    entry["skipped"] = "la ruta no quedó verificada: no se lanza el Visitante"
+                    return entry
+                visitor = await stage("visitor", goal=goal, profiles=options.profiles, runs=options.runs)
+                entry["visitor"] = visitor.to_dict()
+        except Exception as error:   # un objetivo que falla no cancela la mejora ni a los demás
+            entry["error"] = f"{type(error).__name__}: {error}"
+            log(f"objetivo {goal}: {entry['error']}")
+        return entry
+
+    async def improve(tasks: list[asyncio.Task]) -> Outcome:
+        running = await ready_for_improver(tasks, options.improver_grace_s)
+        pending = [goal for goal, task in zip(goals, tasks) if task in running]
+        if pending:
+            log(f"mejora sin esperar a: {', '.join(pending)}")
         async with semaphore:
-            guide = await stage("guide", goal=goal)
-            entry: dict[str, Any] = {"id": goal, "guide": guide.to_dict(), "visitor": None}
-            if not await asyncio.to_thread(route_verified, backend, guide):
-                entry["skipped"] = "la ruta no quedó verificada: no se lanza el Visitante"
-                return entry
-            visitor = await stage("visitor", goal=goal, profiles=options.profiles, runs=options.runs)
-            entry["visitor"] = visitor.to_dict()
-            return entry
+            improver = await stage("improver")
+        report["stages"]["improver"] = {**improver.to_dict(), "pending_goals": pending}
+        return improver
 
     async with asyncio.TaskGroup() as group:
         tasks = [group.create_task(evaluate(goal)) for goal in goals]
+        improving = group.create_task(improve(tasks))
     report["goals"] = [task.result() for task in tasks]
-
-    improver = await stage("improver")
-    report["stages"]["improver"] = improver.to_dict()
+    improver = improving.result()
     report["status"] = improver.status
     if improver.status != "succeeded":
         report["error"] = "la mejora falló"

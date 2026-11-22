@@ -123,7 +123,7 @@ class FakeTime:
 
 
 def agentcore(backend, client, fake_time):
-    return AgentCoreInvoker(backend, "arn:runtime", client=client, poll_s=10, sleep=fake_time.sleep,
+    return AgentCoreInvoker(backend, "arn:runtime", client=client, poll_s=10, poll_first_s=10, sleep=fake_time.sleep,
                             monotonic=fake_time.monotonic)
 
 
@@ -171,6 +171,15 @@ def test_agentcore_timeout(backend):
     assert fake_time.sleeps == [10, 10, 5]
 
 
+def test_agentcore_polls_soon_and_then_less_often(backend):
+    fake_time = FakeTime()
+    invoker = AgentCoreInvoker(backend, "arn:runtime", client=FakeClient(), poll_s=5, poll_first_s=1,
+                               sleep=fake_time.sleep, monotonic=fake_time.monotonic)
+    assert asyncio.run(invoker.run("catalog", CATALOG, 20)).status == "failed"
+    assert fake_time.sleeps == [1, 1.5, 2.25, 3.375, 5, 5, 1.875]
+    assert AgentCoreInvoker(backend, "arn:runtime", client=FakeClient(), poll_s=0.5).poll_first_s == 0.5
+
+
 def test_agentcore_invoke_error(backend):
     outcome = asyncio.run(agentcore(backend, FakeClient(error=RuntimeError("sin permiso")), FakeTime())
                           .run("catalog", CATALOG, 25))
@@ -192,6 +201,19 @@ def test_timeouts_from_the_environment(monkeypatch):
     monkeypatch.setenv("CONDUCTOR_TIMEOUT_GUIDE_S", "-1")
     with pytest.raises(ValueError):
         config.timeouts()
+    monkeypatch.setenv("CONDUCTOR_TIMEOUT_GUIDE_S", "0")
+    with pytest.raises(ValueError):
+        config.timeouts()
+
+
+def test_improver_grace_from_the_environment(monkeypatch):
+    monkeypatch.delenv(config.GRACE_VAR, raising=False)
+    assert config.improver_grace_s() == 45
+    monkeypatch.setenv(config.GRACE_VAR, "0")
+    assert config.improver_grace_s() == 0
+    monkeypatch.setenv(config.GRACE_VAR, "-1")
+    with pytest.raises(ValueError):
+        config.improver_grace_s()
 
 
 def test_agentcore_client_retries_throttling(backend, monkeypatch):

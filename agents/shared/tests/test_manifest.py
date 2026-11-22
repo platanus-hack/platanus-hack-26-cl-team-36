@@ -18,6 +18,7 @@ from shared.store import (
     guide,
     latest_run,
     read_manifest,
+    revision_manifest,
     revision_run,
     running,
     start_run,
@@ -184,6 +185,8 @@ def test_revision_run_is_the_newest_of_that_revision_in_any_status(backend: Back
     finish_run(backend, other, "succeeded")
 
     assert revision_run(backend, prefix, "a1") == newest.key
+    key, manifest = revision_manifest(backend, prefix, "a1")
+    assert key == newest.key and manifest.status == "running"
     finish_run(backend, newest, "failed")
     assert revision_run(backend, prefix, "a1") == newest.key
     assert revision_run(backend, prefix, "b2") == other.key
