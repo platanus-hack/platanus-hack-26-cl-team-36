@@ -73,6 +73,9 @@ def validate(raw_goals: list[dict], outline: SiteOutline, reserved: set[str] | N
             issues.append(f"{goal_id}: nivel, intención o descripción inválidos; se descarta")
             continue
         evidence = [pages[normalize_url(url)] for url in raw.get("evidence") or [] if normalize_url(url) in pages]
+        if not evidence and len(outline.pages) == 1:
+            # Con una sola página leída, todo sale de ella aunque el modelo cite el destino de un enlace.
+            evidence = [outline.pages[0].url]
         if not evidence:
             issues.append(f"{goal_id}: ninguna URL de evidencia está en el esquema; se descarta")
             continue

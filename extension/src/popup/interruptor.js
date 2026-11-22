@@ -7,7 +7,7 @@
 //   «sutiles» (`body[data-efectos]`, lo pone popup.js) la clase es `mt-cambio-sutil`: un fundido corto.
 // - Hace que el ojo siga al puntero: pasa la dirección como propiedades personalizadas
 //   (`--mt-mirar-x`, `--mt-mirar-y`, entre -1 y 1) y la clase `mt-mirando` mientras se mueve.
-// - Le da a cada escama, brillo y runa su índice (`--mt-i`) para escalonar las animaciones.
+// - Le da a cada escama y brillo su índice (`--mt-i`) para escalonar las animaciones.
 // Lo único que escribe en `style` son propiedades personalizadas (excepción de extension/CLAUDE.md).
 
 /** Cuánto dura cada transformación (ms); igual que las animaciones más largas de interruptor.css. */
@@ -62,7 +62,7 @@ function iniciar() {
   const camaleon = document.querySelector(".mt-camaleon");
   if (!control || !camaleon) return;
 
-  for (const selector of [".mt-escama", ".mt-brillo", ".mt-runa"]) {
+  for (const selector of [".mt-escama", ".mt-brillo"]) {
     document.querySelectorAll(selector).forEach((el, i) => el.style.setProperty("--mt-i", String(i)));
   }
 

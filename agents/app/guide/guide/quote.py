@@ -7,11 +7,12 @@ from playwright.async_api import Page
 
 from shared.dom.visibility import HELPERS_JS
 
+MIN_QUOTE_WORDS = 2
 _WRAPPING_QUOTES = "\"'«»“”‘’ "
 
 # El elemento que se puede mostrar más profundo cuyo texto contiene la cita, y si su caja toca el viewport.
 _QUOTE_ON_SCREEN_JS = "(needle) => {" + HELPERS_JS + r"""
-  const norm = (s) => (s || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+  const norm = (s) => (s || '').normalize('NFKC').replace(/\s+/g, '').toLowerCase();
   if (!document.body || !norm(visibleText(document.body)).includes(needle)) return false;
   let holder = document.body;
   for (let deeper = true; deeper;) {
@@ -30,16 +31,23 @@ _QUOTE_ON_SCREEN_JS = "(needle) => {" + HELPERS_JS + r"""
 
 
 def _normalize(text: str) -> str:
-    return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", text)).strip().casefold()
+    """Sin espacios: el texto de la página pega elementos en línea («móviljulio») y el modelo los separa."""
+    return re.sub(r"\s+", "", unicodedata.normalize("NFKC", text)).casefold()
+
+
+def _needle(quote: str) -> str:
+    """Vacía si la cita no es una frase: una palabra suelta, más aún sin espacios, aparece en casi cualquier página."""
+    quote = quote.strip(_WRAPPING_QUOTES)
+    return _normalize(quote) if len(quote.split()) >= MIN_QUOTE_WORDS else ""
 
 
 def quote_in_text(quote: str, text: str) -> bool:
     """La cita, sin comillas alrededor y sin distinguir espacios ni mayúsculas, aparece en el texto."""
-    needle = _normalize(quote.strip(_WRAPPING_QUOTES))
+    needle = _needle(quote)
     return bool(needle) and needle in _normalize(text)
 
 
 async def quote_on_screen(page: Page, quote: str) -> bool:
     """Si la cita está dentro del viewport, como la vería quien solo mira la captura final."""
-    needle = _normalize(quote.strip(_WRAPPING_QUOTES))
+    needle = _needle(quote)
     return bool(needle) and await page.evaluate(_QUOTE_ON_SCREEN_JS, needle)

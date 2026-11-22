@@ -11,7 +11,7 @@ import random
 from pathlib import Path
 
 from shared import aws
-from shared.claude.caller import Answer, Caller, ClaudeCallError, Part
+from shared.claude.caller import Answer, CachePoint, Caller, ClaudeCallError, Part
 from shared.claude.process import DEFAULT_TIMEOUT_S, content_blocks
 
 MAX_TOKENS = 16_000
@@ -22,6 +22,7 @@ RETRYABLE_CODES = {"ThrottlingException", "ServiceUnavailableException", "Intern
 MAX_ATTEMPTS = 8
 BACKOFF_BASE_S = 2.0
 BACKOFF_MAX_S = 60.0
+MAX_CACHE_POINTS = 4    # el máximo de bloques con `cache_control` por request
 
 
 @functools.cache
@@ -43,8 +44,22 @@ def backoff_s(attempt: int) -> float:
     return min(BACKOFF_MAX_S, BACKOFF_BASE_S * 2 ** attempt) * (0.5 + random.random() / 2)
 
 
+def cached_content(parts: list[Part]) -> list[dict]:
+    """Los bloques del mensaje, con `cache_control` en el bloque anterior a cada `CACHE_POINT`."""
+    if sum(isinstance(part, CachePoint) for part in parts) > MAX_CACHE_POINTS:
+        raise ValueError(f"Bedrock acepta hasta {MAX_CACHE_POINTS} puntos de caché")
+    blocks: list[dict] = []
+    for part in parts:
+        if isinstance(part, CachePoint):
+            blocks[-1] = {**blocks[-1], "cache_control": {"type": "ephemeral"}}
+        else:
+            blocks.extend(content_blocks([part]))
+    return blocks
+
+
 class BedrockCaller(Caller):
     engine = "Bedrock"
+    caches_prompts = True
 
     def __init__(self, model: str, effort: str, log_path: Path, client=None, timeout_s: float = DEFAULT_TIMEOUT_S,
                  sleep=asyncio.sleep):
@@ -58,7 +73,7 @@ class BedrockCaller(Caller):
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": MAX_TOKENS,
             "system": system_prompt,
-            "messages": [{"role": "user", "content": content_blocks(parts)}],
+            "messages": [{"role": "user", "content": cached_content(parts)}],
             "tools": [{"name": ANSWER_TOOL, "description": "Entrega la respuesta pedida.", "input_schema": schema}],
             "tool_choice": {"type": "tool", "name": ANSWER_TOOL},
         })
