@@ -5,13 +5,13 @@
   display: inline-flex; align-items: center; justify-content: center; gap: var(--e-2);
   min-height: 32px; padding: 0 var(--e-3);
   border: 1px solid transparent; border-radius: var(--radio-2);
-  background: var(--acento); color: oklch(0.18 0.03 245);
+  background: var(--acento); color: var(--sobre-acento);
   font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: -0.006em;
   text-decoration: none; white-space: nowrap;
   transition: background-color var(--dur-1) var(--curva-salida), color var(--dur-1) var(--curva-salida),
               border-color var(--dur-1) var(--curva-salida), transform var(--dur-1) var(--curva-salida);
 }
-.boton:hover { background: var(--acento-fuerte); color: oklch(0.18 0.03 245); text-decoration: none; }
+.boton:hover { background: var(--acento-fuerte); color: var(--sobre-acento); text-decoration: none; }
 .boton:active:not(:disabled) { transform: scale(0.97); }
 .boton:disabled, .boton[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
 .boton-secundario { background: var(--superficie-2); color: var(--texto-1); border-color: var(--borde); }
@@ -72,10 +72,20 @@
 .medidor-tramo.insignia-logrado, .medidor-tramo.medidor-logrado { background: var(--exito); }
 .medidor-tramo.insignia-fallido, .medidor-tramo.medidor-fallido { background: var(--peligro); }
 .medidor-tramo.insignia-abandonado, .medidor-tramo.medidor-abandonado { background: var(--neutro); }
-.medidor-tramo.insignia-sin_medir, .medidor-tramo.medidor-sin_medir { background: var(--superficie-3); box-shadow: inset 0 0 0 1px var(--neutro); }
-.medidor-tramo.insignia-error, .medidor-tramo.medidor-error { background: var(--rayado), var(--superficie-3); box-shadow: inset 0 0 0 1px var(--borde); }
+.medidor-tramo.insignia-sin_medir, .medidor-tramo.medidor-sin_medir { background: var(--resultado-sin-medir); box-shadow: inset 0 0 0 1px var(--borde); }
+.medidor-tramo.insignia-error, .medidor-tramo.medidor-error { background: var(--resultado-error); }
 .medidor-tramo.medidor-aviso { background: var(--aviso); }
 .medidor-tramo.medidor-acento { background: var(--acento); }
+
+/* ── En vivo: lo que corre pulsa en turquesa (se apaga con prefers-reduced-motion) ── */
+.vivo { animation: pulso-vivo 1.8s ease-out infinite; }
+.punto-vivo { width: 7px; height: 7px; flex: none; border-radius: 50%; background: currentColor; animation: pulso-vivo 1.8s ease-out infinite; }
+@keyframes pulso-vivo {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--acento) 45%, transparent); }
+  70% { box-shadow: 0 0 0 5px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .vivo, .punto-vivo { animation: none; } }
 
 /* ── Superficies y ritmo ─────────────────────────────────────────────── */
 .tarjeta {
@@ -175,7 +185,7 @@ details.detalle-tecnico > pre {
 kbd {
   display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px;
   font: 500 11px/1 var(--fuente); font-variant-numeric: tabular-nums; color: var(--texto-3);
-  border: 1px solid var(--borde); border-bottom-width: 2px; border-radius: var(--radio-1); background: var(--superficie-2);
+  border: 1px solid var(--borde-medio); border-bottom-width: 2px; border-radius: var(--radio-1); background: var(--superficie-2);
 }
 .teclas { display: inline-flex; align-items: center; gap: 3px; }
 .teclas-separador { color: var(--texto-4); font-size: 11px; }

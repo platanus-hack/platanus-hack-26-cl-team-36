@@ -1,0 +1,282 @@
+// El Overview del backoffice: arma las respuestas de GET /api/resumen y GET /api/overview leyendo el almacén (por la
+// fuente, con el índice de lib/indice.js) y la tabla de revisiones (lib/revisiones.js). Formas exactas en el
+// contrato del Overview v3 (§1, §2); la lógica está en módulos puros: lib/overview.js (cifras, pestañas, cola),
+// lib/tarjeta.js (estado, detenida, etapas, agentes, goals, motivo, capturas), lib/sitio.js (host, nombre, acento)
+// y lib/clasificar.js (dispositivo y estado de cada intento).
+//
+// Lecturas por pasada (la página pide /api/resumen y /api/overview juntos cada 5 s):
+// - Cada lectura compartida (índice del almacén, ids de tandas, tabla) y cada respuesta se guardan MEMORIA_MS desde
+//   que terminan: dos pedidos que llegan juntos comparten la misma lectura.
+// - Tabla: un Scan de los META y una Query por cada revisión que corre (para en_cola y "detenida"). En /api/overview,
+//   además, una Query por cada revisión con tarjeta (≤ 30); los ítems de las cerradas (done, failed) se guardan.
+// - Almacén: el índice relee solo lo abierto. goals.json y el acento del tema.css de corridas cerradas se leen una vez.
+//
+// Seguridad: el almacén solo se lee con claves que listó la fuente o con run_key / css_key de la tabla validadas con
+// partesDeCorrida para el rol y el goal esperados (claveDeCorridaDelItem, claveDelTema). Las capturas solo apuntan a
+// tandas que lista idsDeTandas (las mismas que sirve /archivos/, que pregunta por esa misma lista: esTandaListada), y el
+// acento sale solo si es un hex.
+
+import { REVISION } from "../public/nucleo/almacen.js";
+import { crearIndice } from "./indice.js";
+import { contarResumen, idsConTarjeta, listasDelOverview } from "./overview.js";
+import { claveDeCorridaDelItem, claveDelTema } from "./revisiones.js";
+import { acentoDelTema, hostDeRevision, nombreDelSitio, nombreDeHost, rutaComparable } from "./sitio.js";
+import { idsDeTandas } from "./tandas.js";
+import {
+  UMBRAL_DETENIDA_MS,
+  actualizadaDe,
+  armarTarjeta,
+  elegirCapturas,
+  enColaDeRevision,
+  estaDetenida,
+  estadoDeTarjeta,
+  itemsPorEtapa,
+} from "./tarjeta.js";
+
+/** Cuánto se reutiliza una lectura o una respuesta ya terminada (los pedidos de una misma pasada llegan juntos). */
+export const MEMORIA_MS = 2000;
+// Revisiones cerradas, goals.json y acentos guardados (los más viejos se olvidan primero).
+const LIMITE_EN_MEMORIA = 500;
+const TABLA_CERRADA = new Set(["done", "failed"]);
+
+/**
+ * La función memorizada: mientras la promesa corre, todos la comparten; ya resuelta, por `ms` más. Un error no se
+ * guarda. Cuenta con el reloj del proceso, no con el inyectado (el del mock está quieto).
+ * Con `{ desde }` (un performance.now()) solo sirve una lectura que empezó en ese momento o después: si la guardada es
+ * más vieja, empieza otra, que queda como la compartida (así varios que preguntan a la vez comparten la nueva).
+ */
+export function memorizar(fn, ms = MEMORIA_MS) {
+  let guardada = null;
+  const empezar = () => {
+    const actual = { promesa: null, desde: performance.now(), hasta: null };
+    actual.promesa = Promise.resolve()
+      .then(fn)
+      .then(
+        (valor) => {
+          actual.hasta = performance.now() + ms;
+          return valor;
+        },
+        (error) => {
+          if (guardada === actual) guardada = null;
+          throw error;
+        },
+      );
+    guardada = actual;
+    return actual.promesa;
+  };
+  return ({ desde } = {}) => {
+    if (!guardada) return empezar();
+    if (desde !== undefined) return guardada.desde >= desde ? guardada.promesa : empezar();
+    return guardada.hasta === null || performance.now() < guardada.hasta ? guardada.promesa : empezar();
+  };
+}
+
+function recordar(mapa, clave, valor) {
+  mapa.delete(clave);
+  mapa.set(clave, valor);
+  if (mapa.size > LIMITE_EN_MEMORIA) mapa.delete(mapa.keys().next().value);
+  return valor;
+}
+
+const idDe = (meta) => String(meta?.PK ?? "").replace(/^REV#/, "");
+const sinMeta = (items) => items.filter((item) => item?.SK !== "META");
+const compararTexto = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+// La tanda más nueva primero (por id de corrida; desempate por clave).
+const masNuevaPrimero = (a, b) => compararTexto(b.corrida, a.corrida) || compararTexto(a.clave, b.clave);
+
+/**
+ * Lo que se busca por host en el índice: las tandas del Visitante (la más nueva primero) por host y ruta de inicio, y
+ * el título de la página de inicio de cada host.
+ */
+function porHost(corridas) {
+  const tandas = corridas.filter((corrida) => corrida.rol === "visitor").sort(masNuevaPrimero);
+  const porRuta = new Map();
+  const titulos = new Map();
+  for (const tanda of tandas) {
+    const conUrl = tanda.intentos.find((intento) => intento.url);
+    const ruta = conUrl ? rutaComparable(conUrl.url) : null;
+    if (ruta) {
+      const clave = `${tanda.host}|${ruta}`;
+      if (!porRuta.has(clave)) porRuta.set(clave, []);
+      porRuta.get(clave).push(tanda);
+    }
+    for (const intento of tanda.intentos) {
+      if (!intento.titulo) continue;
+      if (!titulos.has(tanda.host)) titulos.set(tanda.host, { inicio: null, cualquiera: null });
+      const titulo = titulos.get(tanda.host);
+      titulo.cualquiera ??= intento.titulo;
+      if (rutaComparable(intento.url) === "/") titulo.inicio ??= intento.titulo;
+    }
+  }
+  return {
+    tandasDe: (host, ruta) => porRuta.get(`${host}|${ruta}`) ?? [],
+    sitioDe: (host) => {
+      const titulo = titulos.get(host);
+      return nombreDelSitio(titulo?.inicio ?? titulo?.cualquiera ?? null, host ?? "");
+    },
+  };
+}
+
+/**
+ * @param {{ fuente: import("./fuente.js").Fuente,
+ *           revisiones?: ReturnType<typeof import("./revisiones.js").crearRevisiones> | null,
+ *           reloj?: () => Date, memoriaMs?: number }} opciones
+ *        sin `revisiones`, /api/overview dice que no está disponible y en_cola es 0; `memoriaMs` solo para pruebas
+ */
+export function crearPanel({ fuente, revisiones = null, reloj = () => new Date(), memoriaMs = MEMORIA_MS }) {
+  const indice = crearIndice(fuente);
+  const leerIndice = memorizar(() => indice.leer(), memoriaMs);
+  const leerListadas = memorizar(async () => new Set(await idsDeTandas(fuente)), memoriaMs);
+
+  /**
+   * ¿idsDeTandas de esta fuente lista la tanda? Mira la lista compartida (la misma de las capturas de las tarjetas) y,
+   * si el id no está, una que empezó después de la pregunta, que queda como la compartida: una tanda recién terminada
+   * se sirve igual y N capturas seguidas cuestan una sola pasada de listado. Lo usa /archivos/ (servidor.js).
+   * @param {string} id
+   */
+  async function esTandaListada(id) {
+    const pregunta = performance.now();
+    if ((await leerListadas()).has(id)) return true;
+    return (await leerListadas({ desde: pregunta })).has(id);
+  }
+  const leerTabla = memorizar(async () => {
+    const metas = (await revisiones.metas()).filter((meta) => meta?.SK === "META" && REVISION.test(idDe(meta)));
+    const corriendo = metas.filter((meta) => meta.status === "running");
+    const items = new Map(await Promise.all(corriendo.map(async (meta) => [idDe(meta), sinMeta(await revisiones.items(idDe(meta)))])));
+    return { metas, items };
+  }, memoriaMs);
+
+  const itemsCerrados = new Map();
+  const catalogos = new Map();
+  const acentos = new Map();
+  // Lo de cada host se arma una vez por pasada del índice (el mismo objeto mientras dura la memoria).
+  const deHostPorPasada = new WeakMap();
+  const deHostDe = (almacen) => {
+    if (!deHostPorPasada.has(almacen)) deHostPorPasada.set(almacen, porHost(almacen.corridas));
+    return deHostPorPasada.get(almacen);
+  };
+
+  async function itemsDe(meta, tabla) {
+    const id = idDe(meta);
+    if (tabla.items.has(id)) return tabla.items.get(id);
+    if (itemsCerrados.has(id)) return itemsCerrados.get(id);
+    const items = sinMeta(await revisiones.items(id));
+    return TABLA_CERRADA.has(meta.status) ? recordar(itemsCerrados, id, items) : items;
+  }
+
+  // goals.json de un catalogador que terminó bien: no cambia más.
+  async function catalogoDe(clave) {
+    if (catalogos.has(clave)) return catalogos.get(clave);
+    const datos = await fuente.leerJson(clave, "goals.json");
+    return datos ? recordar(catalogos, clave, datos) : null;
+  }
+
+  // El acento del tema.css de un improver que terminó bien: no cambia más.
+  async function acentoDe(clave) {
+    if (acentos.has(clave)) return acentos.get(clave);
+    const css = typeof fuente.leerTexto === "function" ? await fuente.leerTexto(clave, "tema.css") : null;
+    return css === null ? null : recordar(acentos, clave, acentoDelTema(css));
+  }
+
+  // Estado de tarjeta de cada META, con los ítems de las que corren (para "detenida").
+  function estadosDeLaTabla(tabla, ahora) {
+    return tabla.metas.map((meta) => {
+      const items = tabla.items.get(idDe(meta)) ?? [];
+      const detenida = estaDetenida(meta.status, actualizadaDe(meta, items), ahora);
+      return { revision: idDe(meta), creada: meta.created_at ?? null, estado: estadoDeTarjeta(meta.status, detenida), meta, items };
+    });
+  }
+
+  async function tarjetaDe(meta, { tabla, ahora, listadas, almacen, deHost }) {
+    const items = await itemsDe(meta, tabla);
+    const { catalogo: itemCatalogo, improver, goals } = itemsPorEtapa(items);
+
+    const claveCatalogo = itemCatalogo?.status === "succeeded" ? claveDeCorridaDelItem(itemCatalogo, "cataloger") : null;
+    const claveTema = (improver?.status === "succeeded" ? claveDeCorridaDelItem(improver, "improver") : null) ?? claveDelTema(meta.css_key);
+    const tandas = new Map();
+    // La tanda del Visitante de cada goal en esta revisión (nunca otra del mismo goal), si /archivos/ la sirve.
+    const listadaDe = new Map();
+    const [catalogo, acento] = await Promise.all([
+      claveCatalogo ? catalogoDe(claveCatalogo) : null,
+      claveTema ? acentoDe(claveTema) : null,
+      ...[...goals].map(async ([goal, { visitor }]) => {
+        const clave = claveDeCorridaDelItem(visitor, "visitor", goal);
+        if (clave && listadas.has(clave)) listadaDe.set(goal, clave);
+        const tanda = clave ? (almacen.porClave.get(clave) ?? (await indice.corrida(clave))) : null;
+        if (tanda) tandas.set(goal, tanda);
+      }),
+    ]);
+
+    const host = hostDeRevision(meta);
+    const ruta = rutaComparable(meta.url);
+    const comoGrupo = (lista) =>
+      lista.filter((tanda) => listadas.has(tanda.clave)).map((tanda) => ({ tanda: tanda.clave, intentos: tanda.intentos }));
+    const capturas = elegirCapturas([
+      comoGrupo([...tandas.values()].sort(masNuevaPrimero)),
+      comoGrupo(host && ruta ? deHost.tandasDe(host, ruta) : []),
+    ]);
+    return armarTarjeta({
+      meta,
+      items,
+      ahora,
+      catalogo,
+      intentosDe: (goal) => tandas.get(goal)?.intentos ?? [],
+      tandaDe: (goal) => listadaDe.get(goal) ?? null,
+      capturas,
+      acento,
+      sitio: host ? deHost.sitioDe(host) : nombreDeHost(""),
+    });
+  }
+
+  async function resumen() {
+    const ahora = reloj();
+    const [almacen, tabla] = await Promise.all([leerIndice(), revisiones ? leerTabla() : null]);
+    const enCola = { cataloger: 0, guide: 0, visitor: 0, improver: 0 };
+    for (const { meta, items, estado } of tabla ? estadosDeLaTabla(tabla, ahora) : []) {
+      if (estado !== "running") continue;
+      const deEsta = enColaDeRevision(meta, items, false);
+      for (const rol of Object.keys(enCola)) enCola[rol] += deEsta[rol];
+    }
+    const intentos = almacen.corridas.flatMap((corrida) => (corrida.rol === "visitor" ? corrida.intentos : []));
+    return { ahora: ahora.toISOString(), roles: contarResumen({ corridas: almacen.corridas, intentos, enCola }) };
+  }
+
+  async function overview() {
+    const ahora = reloj();
+    if (!revisiones) return { ahora: ahora.toISOString(), disponible: false };
+    const [tabla, almacen, listadas] = await Promise.all([leerTabla(), leerIndice(), leerListadas()]);
+    const estados = estadosDeLaTabla(tabla, ahora);
+    const { cuentas, pestanas, cola } = listasDelOverview(estados);
+    const ids = idsConTarjeta({ pestanas, cola });
+    const porId = new Map(estados.map((estado) => [estado.revision, estado.meta]));
+    const contexto = { tabla, ahora, listadas, almacen, deHost: deHostDe(almacen) };
+    const tarjetas = await Promise.all(ids.map((id) => tarjetaDe(porId.get(id), contexto)));
+    return {
+      ahora: ahora.toISOString(),
+      disponible: true,
+      umbralDetenidaMin: UMBRAL_DETENIDA_MS / 60_000,
+      cuentas,
+      pestanas,
+      cola,
+      tarjetas: Object.fromEntries(ids.map((id, i) => [id, tarjetas[i]])),
+    };
+  }
+
+  return {
+    esTandaListada,
+    /** GET /api/resumen (contrato §1). */
+    resumen: memorizar(resumen, memoriaMs),
+    /** GET /api/overview (contrato §2). */
+    overview: memorizar(overview, memoriaMs),
+    /** Una tarjeta cualquiera (aunque no esté en una pestaña), o null si la revisión no existe. Para pruebas. */
+    async tarjeta(revision) {
+      if (!revisiones || !REVISION.test(String(revision ?? ""))) return null;
+      const ahora = reloj();
+      const tabla = await leerTabla();
+      const meta = tabla.metas.find((otra) => idDe(otra) === revision);
+      if (!meta) return null;
+      const [almacen, listadas] = await Promise.all([leerIndice(), leerListadas()]);
+      return tarjetaDe(meta, { tabla, ahora, listadas, almacen, deHost: deHostDe(almacen) });
+    },
+  };
+}

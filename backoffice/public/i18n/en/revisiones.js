@@ -2,6 +2,15 @@
 
 export default {
   cuenta: ({ n }, { plural }) => `${n} ${plural(n, { one: "review", other: "reviews" })}`,
+  cuentaFiltrada: ({ n, total }) => `${n} of ${total}`,
+  // Filter of the list (?estado=), the same cut as the Overview tabs: Live = running and queued.
+  filtro: {
+    live: "Live",
+    done: "Delivered",
+    failed: "Failed",
+    quitar: "Show all reviews",
+    vacio: "No reviews with this status.",
+  },
   enVivo: "Refreshes every few seconds.",
   errorAlRefrescar: "Couldn't refresh; it will retry on its own.",
   noDisponible: {
@@ -13,7 +22,7 @@ export default {
   estado: {
     queued: "Queued",
     running: "Running",
-    done: "Done",
+    done: "Delivered",
     failed: "Failed",
     pending: "Pending",
     succeeded: "Finished",

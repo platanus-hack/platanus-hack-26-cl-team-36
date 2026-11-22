@@ -2,6 +2,7 @@
 // Recibe el cliente y las clases de comando del SDK (lib/aws.js), así las pruebas usan un cliente falso sin red.
 
 import { AGENTE, CORRIDA, HOST, MANIFIESTO, OBJETIVO, idDeTanda } from "../../public/nucleo/almacen.js";
+import { listarCorridasCon } from "./corridas.js";
 import { resolverRango } from "./rango.js";
 
 const CERRADA = new Set(["succeeded", "failed"]);
@@ -58,7 +59,7 @@ export function crearFuenteS3({ bucket, prefijo = "", cliente, comandos }) {
     return { carpetas, archivos };
   }
 
-  async function leerTexto(clave) {
+  async function textoDeLaClave(clave) {
     try {
       return await textoDe((await enviar(GetObjectCommand, { Key: clave })).Body);
     } catch (error) {
@@ -72,7 +73,7 @@ export function crearFuenteS3({ bucket, prefijo = "", cliente, comandos }) {
     if (cerradas.has(id)) return cerradas.get(id);
     let estado = null;
     try {
-      estado = JSON.parse((await leerTexto(claveDe(id, MANIFIESTO))) ?? "null")?.status ?? null;
+      estado = JSON.parse((await textoDeLaClave(claveDe(id, MANIFIESTO))) ?? "null")?.status ?? null;
     } catch {
       // Manifiesto ilegible: como si no hubiera terminado.
     }
@@ -103,6 +104,9 @@ export function crearFuenteS3({ bucket, prefijo = "", cliente, comandos }) {
       return porHost.flat();
     },
 
+    // Cada pedido vuelve a listar (puede haber corridas nuevas); lo que se lee de las cerradas queda guardado.
+    listarCorridas: () => listarCorridasCon(async (carpeta) => (await listar(carpeta)).carpetas),
+
     listarPerfiles: async (id) => (await corrida(id)).perfiles,
 
     async leerJson(id, relativa) {
@@ -112,7 +116,7 @@ export function crearFuenteS3({ bucket, prefijo = "", cliente, comandos }) {
     async leerJsonDetallado(id, relativa) {
       const clave = claveDe(id, relativa);
       const leer = async () => {
-        const texto = await leerTexto(clave);
+        const texto = await textoDeLaClave(clave);
         if (texto === null) return { datos: null, estado: "falta" };
         try {
           return { datos: JSON.parse(texto), estado: "ok" };
@@ -125,6 +129,13 @@ export function crearFuenteS3({ bucket, prefijo = "", cliente, comandos }) {
         }
       };
       return relativa === MANIFIESTO ? leer() : recordar(id, clave, leer);
+    },
+
+    // El manifiesto primero (corrida()): el texto de una corrida cerrada se lee una sola vez.
+    async leerTexto(id, relativa) {
+      const clave = claveDe(id, relativa);
+      await corrida(id);
+      return recordar(id, `texto:${clave}`, () => textoDeLaClave(clave));
     },
 
     async existe(id, relativa) {

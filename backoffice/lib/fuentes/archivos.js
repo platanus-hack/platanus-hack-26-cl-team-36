@@ -1,11 +1,13 @@
 // Fuente de corridas en el sistema de archivos (layout en public/nucleo/almacen.js): cada tanda es una corrida
 // del Visitante que terminó bien, con route_tree.json, una carpeta por intento y, si corrió el juez, criteria.json.
+// listarCorridas() además ve las corridas de los cuatro roles, terminadas o no (para el Overview).
 
 import { createReadStream, existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AGENTE, CORRIDA, HOST, MANIFIESTO, OBJETIVO, idDeTanda } from "../../public/nucleo/almacen.js";
+import { listarCorridasCon } from "./corridas.js";
 import { resolverRango } from "./rango.js";
 
 const RAIZ_DEL_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -51,18 +53,26 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
   return {
     descripcion: describirCarpeta(base),
 
+    // Cada carpeta en paralelo (el Overview y cada captura de /archivos/ lo piden): mismas tandas, mismo orden.
     async listarIds() {
-      const ids = [];
-      for (const host of (await subcarpetas(base)).filter((nombre) => HOST.test(nombre))) {
-        for (const objetivo of (await subcarpetas(path.join(base, host, AGENTE))).filter((nombre) => OBJETIVO.test(nombre))) {
-          for (const corrida of await subcarpetas(path.join(base, host, AGENTE, objetivo))) {
-            const id = idDeTanda(host, objetivo, corrida);
-            if (CORRIDA.test(corrida) && existsSync(rutaDe(id, "route_tree.json")) && (await terminoBien(id))) ids.push(id);
-          }
-        }
-      }
-      return ids;
+      const porHost = await Promise.all(
+        (await subcarpetas(base)).filter((nombre) => HOST.test(nombre)).map(async (host) => {
+          const porObjetivo = await Promise.all(
+            (await subcarpetas(path.join(base, host, AGENTE))).filter((nombre) => OBJETIVO.test(nombre)).map(async (objetivo) => {
+              const ids = (await subcarpetas(path.join(base, host, AGENTE, objetivo)))
+                .filter((corrida) => CORRIDA.test(corrida))
+                .map((corrida) => idDeTanda(host, objetivo, corrida));
+              const terminaron = await Promise.all(ids.map(async (id) => existsSync(rutaDe(id, "route_tree.json")) && (await terminoBien(id))));
+              return ids.filter((_, i) => terminaron[i]);
+            }),
+          );
+          return porObjetivo.flat();
+        }),
+      );
+      return porHost.flat();
     },
+
+    listarCorridas: () => listarCorridasCon((carpeta) => subcarpetas(path.join(base, ...carpeta.split("/").filter(Boolean)))),
 
     listarPerfiles: (id) => subcarpetas(rutaDe(id)),
 
@@ -87,6 +97,14 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
           console.error(`corridas: «${describirCarpeta(ruta)}» está dañado (no es JSON válido: ${error.message}).`);
         }
         return { datos: null, estado: "danado" };
+      }
+    },
+
+    async leerTexto(id, relativa) {
+      try {
+        return await readFile(rutaDe(id, relativa), "utf8");
+      } catch {
+        return null;
       }
     },
 

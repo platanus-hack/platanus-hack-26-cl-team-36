@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { IDIOMAS, formatear } from "../public/nucleo/i18n.js";
+import { IDIOMAS, IDIOMA_POR_DEFECTO, formatear } from "../public/nucleo/i18n.js";
 
 const dicc = {
   es: {
@@ -8,7 +8,6 @@ const dicc = {
       esperaba: "Esperaba",
       pasoDeTotal: "Paso {n} de {total}",
       pasos: ({ n }, { plural }) => `${n} ${plural(n, { one: "paso", other: "pasos" })}`,
-      soloEnEspanol: "Solo aquí",
       duracion: ({ s }, { fmt }) => `a los ${fmt.duracion(s)}`,
     },
   },
@@ -17,13 +16,16 @@ const dicc = {
       esperaba: "Expected",
       pasoDeTotal: "Step {n} of {total}",
       pasos: ({ n }, { plural }) => `${n} ${plural(n, { one: "step", other: "steps" })}`,
+      soloEnIngles: "Only here",
       duracion: ({ s }, { fmt }) => `at ${fmt.duracion(s)}`,
     },
   },
 };
 
-test("idiomas", () => {
-  assert.deepEqual(IDIOMAS, ["es", "en"]);
+test("idiomas: inglés por defecto, y el selector los muestra en este orden (EN | ES)", () => {
+  assert.deepEqual(IDIOMAS, ["en", "es"]);
+  assert.equal(IDIOMA_POR_DEFECTO, "en");
+  assert.equal(formatear(dicc, "replay.esperaba"), "Expected");
 });
 
 test("interpolación", () => {
@@ -47,13 +49,18 @@ test("las funciones reciben fmt del idioma del texto", () => {
   assert.equal(formatear(dicc, "replay.duracion", { s: 65 }, "en"), "at 1 min 5 s");
 });
 
-test("respaldo: en → es → la clave, y avisa de lo que falta", () => {
+test("respaldo: es → en → la clave, y avisa de lo que falta", () => {
   const faltas = [];
   const alFaltar = (clave, idioma) => faltas.push(`${idioma}:${clave}`);
-  assert.equal(formatear(dicc, "replay.soloEnEspanol", {}, "en", alFaltar), "Solo aquí");
-  assert.equal(formatear(dicc, "replay.noExiste", {}, "en", alFaltar), "replay.noExiste");
-  assert.equal(formatear(dicc, "otra.seccion.clave", {}, "es", alFaltar), "otra.seccion.clave");
-  assert.deepEqual(faltas, ["en:replay.soloEnEspanol", "en:replay.noExiste", "es:otra.seccion.clave"]);
+  assert.equal(formatear(dicc, "replay.soloEnIngles", {}, "es", alFaltar), "Only here");
+  assert.equal(formatear(dicc, "replay.noExiste", {}, "es", alFaltar), "replay.noExiste");
+  assert.equal(formatear(dicc, "otra.seccion.clave", {}, "en", alFaltar), "otra.seccion.clave");
+  assert.deepEqual(faltas, ["es:replay.soloEnIngles", "es:replay.noExiste", "en:otra.seccion.clave"]);
+});
+
+test("el texto de respaldo usa el plural y los formatos de su idioma (inglés), no los del pedido", () => {
+  const soloEnIngles = { en: { x: { pasos: ({ n }, { plural }) => `${n} ${plural(n, { one: "step", other: "steps" })}` } }, es: { x: {} } };
+  assert.equal(formatear(soloEnIngles, "x.pasos", { n: 1 }, "es"), "1 step");
 });
 
 test("una clave que apunta a un objeto no es un texto", () => {
