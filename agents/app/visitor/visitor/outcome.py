@@ -27,13 +27,17 @@ def interrupted(run: dict) -> dict:
 
 def by_route(run: dict, route: dict) -> dict:
     claimed = _claimed(run)
-    if route["final_node"] in visited_nodes(run):
+    # Si la ruta termina en la página inicial, llegar no prueba nada: cuenta solo si además declaró que terminó.
+    trivial = route["final_node"] == route.get("start", {}).get("node")
+    if route["final_node"] in visited_nodes(run) and (claimed or not trivial):
         outcome = "success"
         justification = "Llegó a la página final de la ruta de la Guía."
         if not claimed:
             justification += " No declaró que había terminado."
     elif claimed:
         outcome, justification = "failed", "Declaró que terminó, pero no llegó a la página final de la ruta de la Guía."
+    elif trivial:
+        outcome, justification = "abandoned", "Se detuvo sin declarar que terminó; la ruta termina en la página inicial."
     else:
         outcome, justification = "abandoned", "Se detuvo sin llegar a la página final de la ruta de la Guía."
     return {"outcome": outcome, "source": "route", "claimed_done": claimed, "justification": justification}

@@ -58,6 +58,18 @@ def test_not_reaching_is_abandoned_and_claiming_done_without_reaching_is_failed(
     assert "Declaró que terminó" in claimed["justification"]
 
 
+def test_a_route_ending_on_the_start_page_counts_only_if_the_user_claims_done():
+    route = {"final_node": node_key(*HOME), "start": {"node": node_key(*HOME)}}
+    assert outcome.by_route(_run([]), route)["outcome"] == "success"
+    assert outcome.by_route(_run([], "gave_up"), route)["outcome"] == "abandoned"
+    assert outcome.by_route(_run([HELP], "step_limit"), route)["outcome"] == "abandoned"
+
+
+def test_the_final_page_matches_with_www_trailing_slash_and_tracking_params():
+    run = _run([("https://www.s.cl/horario/?utm_source=x", "Horario")])
+    assert outcome.by_route(run, ROUTE)["outcome"] == "success"
+
+
 def _recorded(tmp_path, references, judge=None, criteria=None, end_reason="done") -> dict:
     run = Run(profile="desktop", profile_name="Escritorio", viewport="1024x768", model="m", start_url=HOME[0],
               instruction="i", folder="desktop", start={"url": HOME[0], "title": HOME[1]}, end_reason=end_reason,
