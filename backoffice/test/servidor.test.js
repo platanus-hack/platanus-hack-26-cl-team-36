@@ -67,6 +67,35 @@ test("sirve capturas y nada más de una corrida", async () => {
   }
 });
 
+test("GET /api/propuestas/<tanda> devuelve la propuesta del Diseñador que leyó la tanda", async () => {
+  const respuesta = await pedir(`/api/propuestas/${TANDA}`);
+  assert.equal(respuesta.status, 200);
+  const propuesta = await respuesta.json();
+  assert.equal(propuesta.estado, "succeeded");
+  assert.equal(propuesta.corrida, "demo.cl/improver/2026-11-21T10-30-00Z");
+  assert.deepEqual(propuesta.cambios.map((cambio) => cambio.tipo), ["texto", "interlineado", "enlaces"]);
+  assert.equal(propuesta.vistas[0].capturas.desktop.despues, "demo.cl/improver/2026-11-21T10-30-00Z/vistas/01-desktop-despues.png");
+  // Una tanda que ningún Diseñador leyó no tiene propuesta; una que no existe, 404.
+  assert.equal((await (await pedir(`/api/propuestas/${NUEVA}`)).json()).estado, "ninguna");
+  assert.equal((await pedir("/api/propuestas/demo.cl/visitor/tarea-demo/2099-01-01T00-00-00Z")).status, 404);
+  assert.equal((await pedir("/api/propuestas/..%2F..%2Fpackage.json")).status, 404);
+});
+
+test("de una corrida del Diseñador solo sirve sus capturas vistas/*.png", async () => {
+  const captura = await pedir("/propuestas/demo.cl/improver/2026-11-21T10-30-00Z/vistas/01-desktop-antes.png");
+  assert.equal(captura.status, 200);
+  assert.equal(captura.headers.get("content-type"), "image/png");
+  for (const ruta of [
+    "/propuestas/demo.cl/improver/2026-11-21T10-30-00Z/mejora.json",
+    "/propuestas/demo.cl/improver/2026-11-21T10-30-00Z/manifest.json",
+    "/propuestas/demo.cl/improver/2026-11-21T10-30-00Z/vistas/%2E%2E/manifest.json",
+    "/propuestas/demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z/first_time/step_01.png",
+    "/propuestas/demo.cl/improver/2026-11-21T10-30-00Z/vistas/no-existe.png",
+  ]) {
+    assert.equal((await pedir(ruta)).status, 404, ruta);
+  }
+});
+
 test("sirve la página con su política de seguridad", async () => {
   const pagina = await pedir("/");
   assert.equal(pagina.status, 200);

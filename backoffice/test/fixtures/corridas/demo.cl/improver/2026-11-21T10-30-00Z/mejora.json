@@ -1,0 +1,10 @@
+{
+ "resumen_tema": "Letra más grande y enlaces subrayados para que el paso siguiente se vea.",
+ "decisiones": ["Subrayar los enlaces", "Letra 10 % más grande"],
+ "tarea": {"id": "tarea-demo", "descripcion": "Encontrar la demo"},
+ "vistas": [
+  {"url": "https://demo.cl/", "titulo": "Inicio - Demo",
+   "capturas": {"desktop": {"antes": "vistas/01-desktop-antes.png", "despues": "vistas/01-desktop-despues.png"}},
+   "marcas": [{"tipo": "siguiente", "dispositivo": "desktop", "caja": [0.1, 0.2, 0.3, 0.25]}]}
+ ]
+}

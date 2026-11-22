@@ -4,6 +4,7 @@
 
 import { kbd, registrarAtajos } from "./atajos.js";
 import { copiarEnlace } from "./avisos.js";
+import { EVENTO_PROPUESTA, pedirPropuesta } from "./datos.js";
 import { nombreDePagina as nombreDePaginaConT } from "../datos/textos.js";
 import { el, esUrlWeb } from "./dom.js";
 import { conGlobo } from "./globo.js";
@@ -106,10 +107,23 @@ export function montarMarco({ tanda, ruta, navegar }) {
         "a",
         { class: "pestana", href: enlaceATanda(tanda.id, pestana), "data-foco": `marco:pestana:${pestana}`, "aria-keyshortcuts": String(indice + 1) },
         el("span", { texto: t(NOMBRES_DE_PESTANA[pestana]) }),
+        pestana === "propuesta" ? el("span", { class: "pestana-punto", "aria-hidden": "true" }) : null,
         el("span", { class: "marco-pista", "aria-hidden": "true" }, kbd(String(indice + 1))),
       ),
     ]),
   );
+
+  // La pestaña Propuesta late mientras el Diseñador diseña: lo dice el primer pedido y, después, la propia pantalla.
+  const ponerEstadoDePropuesta = (estado) => {
+    const enlace = enlacesDePestana.get("propuesta");
+    enlace?.classList.toggle("pestana-en-curso", estado === "running");
+    if (estado === "running") enlace?.setAttribute("title", t("comun.marco.disenando"));
+    else enlace?.removeAttribute("title");
+  };
+  document.addEventListener(EVENTO_PROPUESTA, (evento) => evento.detail?.tandaId === tanda.id && ponerEstadoDePropuesta(evento.detail.estado), { signal: senal });
+  pedirPropuesta(tanda.id)
+    .then((propuesta) => !senal.aborted && ponerEstadoDePropuesta(propuesta?.estado))
+    .catch(() => {});
 
   const panel = el("section", { id: "panel-tanda", class: "panel-tanda", tabindex: "-1" });
 
