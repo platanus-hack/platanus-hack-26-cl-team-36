@@ -148,14 +148,17 @@
   }
 
   // Lo maneja el content script y no el background, que el navegador descarga tras un rato sin uso.
-  function esperarRevision({ intervaloMs, topeMs }, pagina = paginaActual(), inicio = Date.now()) {
+  // Pregunta seguido al principio y cada vez más espaciado, hasta `maximoMs`.
+  function esperarRevision(espera, pagina = paginaActual(), inicio = Date.now(), demoraMs = espera.intervaloMs) {
     setTimeout(async () => {
-      if (tema || paginaActual() !== pagina || Date.now() - inicio > topeMs) return;
-      const respuesta = await browser.runtime.sendMessage({ tipo: "tema:revision" }).catch(() => null);
+      if (tema || paginaActual() !== pagina || Date.now() - inicio > espera.topeMs) return;
+      // Si el background no contesta, se reintenta en la próxima vuelta.
+      const respuesta = await browser.runtime.sendMessage({ tipo: "tema:revision" }).catch(() => ({ esperarRevision: espera }));
       if (tema || paginaActual() !== pagina) return;
-      if (respuesta?.esperarRevision) esperarRevision(respuesta.esperarRevision, pagina, inicio);
+      const { esperarRevision: siguiente } = respuesta ?? {};
+      if (siguiente) esperarRevision(siguiente, pagina, inicio, Math.min(demoraMs * siguiente.factor, siguiente.maximoMs));
       else if (respuesta) activarTema(respuesta);
-    }, intervaloMs);
+    }, demoraMs);
   }
 
   iniciar().catch((error) => console.error("[mi-tema] No se pudo iniciar:", error));
