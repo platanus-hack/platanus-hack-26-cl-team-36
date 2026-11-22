@@ -332,6 +332,7 @@ test("modelo de tarjeta: key revisión + dispositivo, tiempo contra `ahora`, ace
   assert.equal(modeloDeTarjeta({ ...CLINICA, acento: "red;background:url(x)" }, { ahora: AHORA }).acento, null);
   assert.equal(modeloDeTarjeta({ ...MOVILSUR, acento: "#007e86" }, { ahora: AHORA }).acento, null);
   assert.equal(modeloDeTarjeta({ ...MOVILSUR, estado: "otro" }, { ahora: AHORA }).estado, "queued");
+  assert.deepEqual([3, 0, -1, "2", undefined].map((anteriores) => modeloDeTarjeta({ ...MOVILSUR, anteriores }).anteriores), [3, 0, 0, 0, 0]);
   assert.deepEqual(modeloDeTarjeta({ ...MOVILSUR, capturas: { desktop: { tanda: "x" }, mobile: null } }).capturas, { desktop: null, mobile: null });
   assert.equal(modeloDeTarjeta({ ...BANCO, sitio: "" }).sitio, "bancoandino.test");
 });

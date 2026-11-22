@@ -11,7 +11,8 @@
 //   GET /backoffice/api/tandas            → { carpeta, tandas: resumen de cada tanda, de la más nueva a la más vieja }
 //   GET /backoffice/api/tandas/<host>/visitor/<objetivo>/<corrida>  → la tanda completa, ya derivada para las pantallas
 //   GET /backoffice/archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<step_NN.png | video.webm>
-//   GET /backoffice/api/revisiones        → { disponible, revisiones } (DynamoDB; solo con BACKOFFICE_FUENTE=s3)
+//   GET /backoffice/api/revisiones        → { disponible, revisiones, historial }: la vigente de cada página y las que
+//                                           reemplazó (DynamoDB; solo con BACKOFFICE_FUENTE=s3)
 //   GET /backoffice/api/revisiones/<revision>  → el avance de una revisión por etapa y por goal
 //   GET /backoffice/api/resumen           → { ahora, roles }: las corridas de los cuatro agentes por rol y estado, y los
 //                                           visitantes por dispositivo (lib/panel.js; contrato del Overview v3, §1)
@@ -214,7 +215,7 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
 
       if (partes[0] === "api" && partes[1] === "revisiones" && partes.length <= 3) {
         if (partes.length === 2) {
-          return responderJson(res, 200, revisiones ? { disponible: true, revisiones: await revisiones.listar() } : { disponible: false, revisiones: [] });
+          return responderJson(res, 200, revisiones ? { disponible: true, ...(await revisiones.listar()) } : { disponible: false, revisiones: [], historial: [] });
         }
         const avance = revisiones ? await revisiones.leer(partes[2]) : null;
         return avance ? responderJson(res, 200, avance) : responderJson(res, 404, { error: "No existe esa revisión" });

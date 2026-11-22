@@ -4,10 +4,12 @@ export default {
   cuenta: ({ n }, { plural }) => `${n} ${plural(n, { one: "review", other: "reviews" })}`,
   cuentaFiltrada: ({ n, total }) => `${n} of ${total}`,
   // Filter of the list (?estado=), the same cut as the Overview tabs: Live = running and queued.
+  // History: the reviews a newer one of the same page replaced.
   filtro: {
     live: "Live",
     done: "Delivered",
     failed: "Failed",
+    historial: "History",
     quitar: "Show all reviews",
     vacio: "No reviews with this status.",
   },

@@ -1,7 +1,7 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { avanceDeRevision, crearRevisiones, partesDeResultado } from "../lib/revisiones.js";
+import { avanceDeRevision, crearRevisiones, paginaDeRevision, partesDeResultado, revisionesVigentes } from "../lib/revisiones.js";
 import { crearServidor } from "../servidor.js";
 import { clienteDynamoFalso, comandosDynamo } from "./aws-falso.js";
 
@@ -122,8 +122,9 @@ const TODOS = [...RECIEN, ...A_MEDIAS, ...LISTA, ...FALLIDA];
 test("crearRevisiones: lista las META de la más nueva a la más vieja y lee una revisión, paginando", async () => {
   const cliente = clienteDynamoFalso(TABLA, TODOS);
   const revisiones = crearRevisiones({ tabla: TABLA, cliente, comandos: comandosDynamo });
-  const lista = await revisiones.listar();
-  assert.deepEqual(lista.map((r) => r.revision), ["lista", "a-medias", "recien", "fallida"]);
+  const { revisiones: lista, historial } = await revisiones.listar();
+  assert.deepEqual(lista.map((r) => r.revision), ["lista", "a-medias", "recien", "fallida"], "sin URL#, todas son vigentes");
+  assert.deepEqual(historial, []);
   assert.deepEqual(lista[0], {
     revision: "lista",
     url: "https://wom.cl/planes",
@@ -134,12 +135,37 @@ test("crearRevisiones: lista las META de la más nueva a la más vieja y lee una
     creada: "2026-11-21T11:00:00Z",
     actualizada: "2026-11-21T10:00:00Z",
     resumen: null,
+    anteriores: 0,
   });
   assert.deepEqual(await revisiones.leer("a-medias"), avanceDeRevision(A_MEDIAS));
   assert.equal(await revisiones.leer("no-existe"), null);
   const antes = cliente.llamadas.length;
   assert.equal(await revisiones.leer("REV#x"), null);
   assert.equal(cliente.llamadas.length, antes, "una revisión inválida no llega a DynamoDB");
+});
+
+const puntero = (url, revision) => ({ PK: `URL#${url}`, SK: "URL", revision, created_at: "2026-11-21T11:00:00Z" });
+
+test("revisionesVigentes: la que apunta URL#<url> de su página; sin URL# o con uno sin META, todas las de esa página", () => {
+  const metas = [
+    meta("vieja", { url: "https://www.wom.cl/planes/" }),
+    meta("nueva", {}),
+    meta("otra", { url: "https://wom.cl/otra" }),
+    meta("huerfana-1", { url: "https://wom.cl/huerfana" }),
+    meta("huerfana-2", { url: "https://wom.cl/huerfana" }),
+  ];
+  const { vigentes, anteriores } = revisionesVigentes(metas, [puntero("https://wom.cl/planes", "nueva"), puntero("https://wom.cl/huerfana", "borrada")]);
+  assert.deepEqual([...vigentes].sort(), ["huerfana-1", "huerfana-2", "nueva", "otra"]);
+  assert.deepEqual([...anteriores], [["nueva", 1]]);
+  assert.equal(paginaDeRevision("https://WWW.Wom.cl:8443/Planes//"), "https://wom.cl:8443/Planes");
+  assert.equal(paginaDeRevision("no es url"), null);
+});
+
+test("crearRevisiones: listar() deja la vigente de cada página y manda las reemplazadas (también fallidas) al historial", async () => {
+  const revisiones = crearRevisiones({ tabla: TABLA, cliente: clienteDynamoFalso(TABLA, [...TODOS, puntero("https://wom.cl/planes", "a-medias")]), comandos: comandosDynamo });
+  const { revisiones: lista, historial } = await revisiones.listar();
+  assert.deepEqual(lista.map((r) => [r.revision, r.estado, r.anteriores]), [["a-medias", "running", 3]]);
+  assert.deepEqual(historial.map((r) => [r.revision, r.estado]), [["lista", "done"], ["recien", "queued"], ["fallida", "failed"]]);
 });
 
 let servidor;
@@ -161,12 +187,13 @@ test("/api/revisiones: lista y avance; sin tabla dice que no está disponible", 
   const lista = await (await fetch(`${base(servidor)}/api/revisiones`)).json();
   assert.equal(lista.disponible, true);
   assert.equal(lista.revisiones.length, 4);
+  assert.deepEqual(lista.historial, []);
   const avance = await (await fetch(`${base(servidor)}/api/revisiones/lista`)).json();
   assert.equal(avance.improver.estado, "succeeded");
   assert.equal((await fetch(`${base(servidor)}/api/revisiones/no-existe`)).status, 404);
   assert.equal((await fetch(`${base(servidor)}/api/revisiones/a/b`)).status, 404);
 
-  assert.deepEqual(await (await fetch(`${base(sinTabla)}/api/revisiones`)).json(), { disponible: false, revisiones: [] });
+  assert.deepEqual(await (await fetch(`${base(sinTabla)}/api/revisiones`)).json(), { disponible: false, revisiones: [], historial: [] });
   assert.equal((await fetch(`${base(sinTabla)}/api/revisiones/lista`)).status, 404);
 });
 

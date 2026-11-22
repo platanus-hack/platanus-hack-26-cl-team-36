@@ -9,6 +9,7 @@
     "dev": "node --watch servidor.js",
     "test": "node --test test/*.test.js",
     "mock": "node --watch mock/servir.js",
+    "historial": "node historial.js --dry-run",
     "mock:generar": "uv run --project ../agents/app/visitor python mock/generar.py"
   },
   "engines": {

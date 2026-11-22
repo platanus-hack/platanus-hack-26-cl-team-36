@@ -4,10 +4,12 @@ export default {
   cuenta: ({ n }, { plural }) => `${n} ${plural(n, { one: "revisión", other: "revisiones" })}`,
   cuentaFiltrada: ({ n, total }) => `${n} de ${total}`,
   // Filtro de la lista (?estado=), el mismo corte que las pestañas del Overview: En vivo = en curso y en cola.
+  // Historial: las revisiones que otra más nueva de la misma página reemplazó.
   filtro: {
     live: "En vivo",
     done: "Entregadas",
     failed: "Fallidas",
+    historial: "Historial",
     quitar: "Ver todas las revisiones",
     vacio: "No hay revisiones con este estado.",
   },
