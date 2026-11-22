@@ -3,7 +3,9 @@
 - Atajo: una ruta verificada de la Guía que solo elige opciones (`select`) y termina en una URL con consulta (el deep
   link, p. ej. `/el-viaje/planificador/?inicio=SP&fin=EL`). Cada clave de la consulta es un campo cuyas opciones se
   copian del `<select>` de la página que le corresponde; una clave sin `<select>` va fija en el enlace.
-- Lanzador: los objetivos del catálogo por prominencia, cada uno con la URL a la que llegó la Guía o su `entry`.
+- Lanzador: los objetivos del catálogo, cada uno con la URL a la que llegó la Guía o su `entry`. Primero los que
+  tienen ruta verificada (el enlace lleva de verdad a la tarea), después los que menos lograron los Visitantes (donde
+  un atajo ayuda más) y, a igual medida, los más prominentes del catálogo.
 - Buscador: todos los objetivos del catálogo con enlace (hasta `MAX_BUSCADOR`, también el del atajo), con el mismo
   título y detalle que el lanzador y, si el catálogo los agrupa (`parent`), el título del objetivo padre como grupo.
 
@@ -21,7 +23,7 @@ MAX_TAREAS = 8
 MOSTRAR_TAREAS = 6
 ID_BUSCADOR = "buscar"
 MAX_BUSCADOR = 40
-_PROMINENCIA = {"primary": 0, "secondary": 1, "buried": 2}
+_PROMINENCIA = {"primary": 1, "secondary": 0.5, "buried": 0}
 _ELECCIONES = {"select", "check", "uncheck"}
 _ROLES_ELECCION = {"combobox", "listbox", "option", "radio", "checkbox"}
 _ID_CSS = re.compile(r"^#([A-Za-z][\w-]*)$")
@@ -215,16 +217,23 @@ def _tarea(goal, enlace: str) -> dict:
     return tarea
 
 
-def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str],
-               sin_consulta: bool = False) -> list[tuple[str, object]]:
-    """`(enlace, goal)` sin enlaces repetidos, por prominencia, ruta verificada antes y en el orden del catálogo."""
+def puntaje_de_tarea(prominencia: str | None, verificada: bool, tasa: float | None) -> float:
+    """Cuánto conviene la tarea en el lanzador: ruta verificada, poca llegada del Visitante y prominencia."""
+    necesidad = 0.5 if tasa is None else 1 - tasa
+    return 2 * verificada + 1.5 * necesidad + _PROMINENCIA.get(prominencia, 0.25)
+
+
+def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str], sin_consulta: bool = False,
+               tasas: dict[str, float | None] | None = None) -> list[tuple[str, object]]:
+    """`(enlace, goal)` sin enlaces repetidos, por `puntaje_de_tarea` y en el orden del catálogo."""
     candidatos = []
     for posicion, goal in enumerate(goals):
         if goal.id in excluir:
             continue
         enlace, verificada = _enlace(goal, rutas, inicio, sin_consulta)
         if enlace:
-            candidatos.append(((_PROMINENCIA.get(goal.prominence, 3), not verificada, posicion), enlace, goal))
+            puntaje = puntaje_de_tarea(goal.prominence, verificada, (tasas or {}).get(goal.id))
+            candidatos.append(((-puntaje, posicion), enlace, goal))
     ordenadas, vistos = [], set()
     for _, enlace, goal in sorted(candidatos, key=lambda c: c[0]):
         if enlace not in vistos:
@@ -233,9 +242,12 @@ def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[st
     return ordenadas
 
 
-def lanzador(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str]) -> dict | None:
-    """La vista `lanzador` con los objetivos del catálogo (sin los de `excluir`), o None si ninguno tiene enlace."""
-    tareas = [_tarea(goal, enlace) for enlace, goal in _ordenadas(goals, rutas, inicio, excluir)[:MAX_TAREAS]]
+def lanzador(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str],
+             tasas: dict[str, float | None] | None = None) -> dict | None:
+    """La vista `lanzador` con los objetivos del catálogo (sin los de `excluir`), o None si ninguno tiene enlace.
+    `tasas`: la tasa de llegada del Visitante por objetivo, si se midió."""
+    ordenadas = _ordenadas(goals, rutas, inicio, excluir, tasas=tasas)
+    tareas = [_tarea(goal, enlace) for enlace, goal in ordenadas[:MAX_TAREAS]]
     if not tareas:
         return None
     return {"id": ID_LANZADOR, "rutas": [ruta_de(inicio)], "contenedor": "main", "reemplazar": False,
@@ -262,7 +274,7 @@ def buscador(goals: list, rutas: dict[str, dict], inicio: str, catalogo: list | 
 
 
 def derivar(goals: list, rutas: dict[str, dict], selects: list[SelectDePagina], inicio: str,
-            catalogo: list | None = None) -> dict:
+            tasas: dict[str, float | None] | None = None, catalogo: list | None = None) -> dict:
     """`{atajos: [{objetivo, vista}], lanzador: vista | None, buscador: vista | None, descartes: [{objetivo, razon}]}`."""
     atajos, descartes = [], []
     for goal in goals:
@@ -273,7 +285,7 @@ def derivar(goals: list, rutas: dict[str, dict], selects: list[SelectDePagina], 
             atajos.append({"objetivo": goal.id, "vista": vista})
         else:
             descartes.append({"objetivo": goal.id, "razon": razon})
-    vista_lanzador = lanzador(goals, rutas, inicio, {a["objetivo"] for a in atajos})
+    vista_lanzador = lanzador(goals, rutas, inicio, {a["objetivo"] for a in atajos}, tasas)
     if vista_lanzador and atajos:
         # Junto al primer atajo: lo que la página ya muestra para empezar.
         vista_lanzador["contenedor"] = atajos[0]["vista"]["contenedor"]

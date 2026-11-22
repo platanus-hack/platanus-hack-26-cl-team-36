@@ -260,7 +260,7 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                 contexto, page = await pagina.abrir(browser, url, "revision")
                 try:
                     mapa_texto, captura = mapa.como_texto(await mapa.construir_mapa(page)), await pagina.capturar(page)
-                    kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url, leida.catalogo)
+                    kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url, catalogo=leida.catalogo)
                     _escribir_json(run.workdir / "atajos.json", kit)
                     diag = diagnostico(resumen, kit)
                     _escribir_json(run.workdir / "diagnostico.json", diag)
