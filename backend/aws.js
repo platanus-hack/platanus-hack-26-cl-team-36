@@ -35,6 +35,15 @@ export function expresionActualizar(atributos, { previos, existente = false } = 
   };
 }
 
+export function condicionRegistro(reemplaza) {
+  if (reemplaza == null) return { ConditionExpression: "attribute_not_exists(PK)" };
+  return {
+    ConditionExpression: "#revision = :revision",
+    ExpressionAttributeNames: { "#revision": "revision" },
+    ExpressionAttributeValues: { ":revision": reemplaza },
+  };
+}
+
 export async function tablaDynamo(tabla) {
   const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
   const { DynamoDBDocumentClient, GetCommand, TransactWriteCommand, UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
@@ -47,19 +56,22 @@ export async function tablaDynamo(tabla) {
       return true;
     } catch (error) {
       if (error.name === "ConditionalCheckFailedException") return false;
-      if (error.CancellationReasons?.some((razon) => razon.Code === "ConditionalCheckFailed")) return false;
+      // TransactionConflict: otra transacción tocaba el mismo ítem; quien llama vuelve a mirar.
+      if (error.CancellationReasons?.some(({ Code }) => Code === "ConditionalCheckFailed" || Code === "TransactionConflict")) {
+        return false;
+      }
       throw error;
     }
   }
 
   return {
     obtener: async (Key) => (await cliente.send(new GetCommand({ TableName: tabla, Key, ConsistentRead: true }))).Item ?? null,
-    // Puts atómicos; los `nueva` fallan si el ítem ya existe.
+    // Puts atómicos; cada uno exige que el ítem no exista (`reemplaza` null) o que apunte a esa revisión.
     registrar: (puts) =>
       condicional(
         new TransactWriteCommand({
-          TransactItems: puts.map(({ item, nueva }) => ({
-            Put: { TableName: tabla, Item: item, ...(nueva && { ConditionExpression: "attribute_not_exists(PK)" }) },
+          TransactItems: puts.map(({ item, reemplaza }) => ({
+            Put: { TableName: tabla, Item: item, ...condicionRegistro(reemplaza) },
           })),
         }),
       ),

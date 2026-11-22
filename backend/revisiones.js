@@ -11,6 +11,9 @@ export function nuevaRevision(ahora = new Date()) {
 }
 
 const NO_EXISTE = { estado: 404, datos: { success: false } };
+const EN_CURSO = ["queued", "running"];
+// Solo lo que escribe el improver en el almacén (ver proyectora.js).
+const CSS = /^[a-z0-9.:-]+\/improver\/[^/]+\/tema\.css$/;
 
 export function crearRevisiones({ db, almacen, agentes, ahora = () => new Date(), idRevision = nuevaRevision }) {
   async function vista(url) {
@@ -18,7 +21,7 @@ export function crearRevisiones({ db, almacen, agentes, ahora = () => new Date()
     if (!marca) return null;
     const meta = await db.obtener(claveRevision(marca.revision));
     const datos = { success: true, revision: marca.revision, status: meta?.status ?? "queued" };
-    if (datos.status === "done" && meta.css_key) datos.css = await almacen.leerTexto(meta.css_key);
+    if (datos.status === "done" && CSS.test(meta.css_key ?? "")) datos.css = await almacen.leerTexto(meta.css_key);
     return { estado: 200, datos };
   }
 
@@ -26,27 +29,29 @@ export function crearRevisiones({ db, almacen, agentes, ahora = () => new Date()
     return (await vista(normalizarUrl(texto).url)) ?? NO_EXISTE;
   }
 
-  async function solicitar(texto, { force = false } = {}) {
-    const { url, host } = normalizarUrl(texto);
-    if (!force) {
-      const respuesta = await vista(url);
-      if (respuesta) return respuesta;
-    }
+  // Dos solicitudes simultáneas: solo una registra la revisión; la otra responde con ella.
+  async function solicitar(texto, { force = false } = {}, intentos = 3) {
+    const { url, host, pagina } = normalizarUrl(texto);
+    const previa = await vista(url);
+    // force no duplica una revisión en curso.
+    if (previa && (!force || EN_CURSO.includes(previa.datos.status))) return previa;
 
     const revision = idRevision();
     const momento = ahora().toISOString();
     const registrada = await db.registrar([
-      { item: { ...claveUrl(url), revision, created_at: momento }, nueva: !force },
+      { item: { ...claveUrl(url), revision, created_at: momento }, reemplaza: previa?.datos.revision ?? null },
       {
-        item: { ...claveRevision(revision), url: texto, host, status: "queued", created_at: momento, updated_at: momento },
-        nueva: true,
+        item: { ...claveRevision(revision), url: pagina, host, status: "queued", created_at: momento, updated_at: momento },
+        reemplaza: null,
       },
     ]);
-    // Otra solicitud por la misma página ganó la carrera.
-    if (!registrada) return (await vista(url)) ?? NO_EXISTE;
+    if (!registrada) {
+      if (intentos <= 1) throw new Error(`No se pudo registrar la revisión de ${url}`);
+      return solicitar(texto, { force: false }, intentos - 1);
+    }
 
     try {
-      await agentes.invocar({ stage: "revision", revision, url: texto });
+      await agentes.invocar({ stage: "revision", revision, url: pagina });
     } catch (error) {
       const motivo = `${error.name}: ${error.message}`.slice(0, 200);
       console.error(`✖ revisión ${revision}: no se pudo invocar el runtime (${motivo})`);

@@ -12,7 +12,9 @@ export function tablaFalsa() {
       return item ? structuredClone(item) : null;
     },
     async registrar(puts) {
-      if (puts.some(({ item, nueva }) => nueva && items.has(id(item)))) return false;
+      const cumple = ({ item, reemplaza }) =>
+        reemplaza == null ? !items.has(id(item)) : items.get(id(item))?.revision === reemplaza;
+      if (!puts.every(cumple)) return false;
       for (const { item } of puts) items.set(id(item), structuredClone(item));
       return true;
     },

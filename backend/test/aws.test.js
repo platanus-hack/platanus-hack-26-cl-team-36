@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coincideRuntime, expresionActualizar } from "../aws.js";
+import { coincideRuntime, condicionRegistro, expresionActualizar } from "../aws.js";
 
 test("expresionActualizar: SET de los atributos, sin los undefined", () => {
   assert.deepEqual(expresionActualizar({ css_key: "a/tema.css", nada: undefined }), {
@@ -32,4 +32,13 @@ test("coincideRuntime: por nombre exacto o como sufijo del nombre de la CLI", ()
   assert.ok(coincideRuntime("ChameleonAgents_default_chameleon", "chameleon"));
   assert.ok(!coincideRuntime("ChameleonAgents_default_web_evaluator_image", "chameleon"));
   assert.ok(!coincideRuntime("otro_chameleon2", "chameleon"));
+});
+
+test("condicionRegistro: ítem nuevo o reemplazo de la revisión vista", () => {
+  assert.deepEqual(condicionRegistro(null), { ConditionExpression: "attribute_not_exists(PK)" });
+  assert.deepEqual(condicionRegistro("rev-1"), {
+    ConditionExpression: "#revision = :revision",
+    ExpressionAttributeNames: { "#revision": "revision" },
+    ExpressionAttributeValues: { ":revision": "rev-1" },
+  });
 });
