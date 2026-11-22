@@ -25,10 +25,11 @@ def write_route(backend, item: Goal, status: str = "verified") -> store.RunKey:
 
 
 def write_visit(backend, goal_id: str, instruction: str | None = None, status: str = "succeeded",
-                tema: str | None = None) -> None:
+                tema: str | None = None, conjunto_exploradores: str | None = None) -> None:
     run = store.start_run(backend, store.visitor(START, goal_id), model="m")
     backend.write_json(run.key.file("route_tree.json"), {"url": START, "instruction": instruction or f"Tarea {goal_id}.",
-                                                         "tema": {"sha256": tema} if tema else None})
+                                                         "tema": {"sha256": tema} if tema else None,
+                                                         "conjunto_exploradores": conjunto_exploradores})
     store.finish_run(backend, run, status)
 
 
@@ -99,3 +100,15 @@ def test_con_tema_no_se_salta_ni_se_mezcla_con_las_corridas_sin_tema(tmp_path):
         "ya evaluado (--rerun para repetirlo)"
     )
     assert _skips(plan(backend, [item], PROFILES, [], None, False, tema="otro"))["s-a"] is None
+
+
+def test_con_un_conjunto_de_exploradores_no_se_salta_ni_se_mezcla_con_las_corridas_sin_el(tmp_path):
+    backend = store.LocalBackend(tmp_path)
+    item = goal("s-a")
+    write_route(backend, item)
+    write_visit(backend, "s-a", conjunto_exploradores="conocimiento")
+    assert _skips(plan(backend, [item], PROFILES, [], None, False))["s-a"] is None
+    assert _skips(plan(backend, [item], PROFILES, [], None, False, None, "conocimiento"))["s-a"] == (
+        "ya evaluado (--rerun para repetirlo)"
+    )
+    assert _skips(plan(backend, [item], PROFILES, [], None, False, None, "base"))["s-a"] is None

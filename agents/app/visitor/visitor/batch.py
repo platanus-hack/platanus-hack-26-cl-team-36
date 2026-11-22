@@ -237,7 +237,8 @@ async def run_batch(
     `route_tree.json` (`tema`), para distinguirla de una sin tema.
 
     Con `conocimiento` (lo que la tarea dice de su tema), los exploradores con nivel leen la tarea de su nivel; el
-    criterio y el juez usan siempre `instruction`. `conjunto_exploradores` solo se registra, para agrupar tandas.
+    criterio y el juez usan siempre `instruction`. `conjunto_exploradores` se registra en `route_tree.json`:
+    agrupa tandas y elige la vigente de cada conjunto.
     """
     user_model, judge_model = models_for(engine, user_model)
     with store.running(backend, prefix, model=user_model,

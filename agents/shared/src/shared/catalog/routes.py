@@ -39,12 +39,15 @@ def visit_tema(tree: dict) -> str | None:
 
 
 def current_visit(backend: store.Backend, url: str, goal: str, instruction: str,
-                  tema: str | None = None) -> Found | None:
-    """La corrida de visitor vigente con ese tema (None = sin tema) y su route_tree.json.
+                  tema: str | None = None, conjunto_exploradores: str | None = None) -> Found | None:
+    """La corrida de visitor vigente con ese tema (None = sin tema) y ese conjunto de exploradores (None = sin
+    `--exploradores`), y su route_tree.json.
 
-    Con y sin tema van al mismo prefijo: una corrida con tema nunca es la vigente sin tema, ni al revés.
+    Todas van al mismo prefijo: una corrida con tema nunca es la vigente sin tema, ni al revés, y una con un conjunto
+    de exploradores nunca es la vigente sin conjunto ni la de otro conjunto.
     """
     return _first_matching(backend, store.visitor(url, goal), "route_tree.json",
-                           lambda tree: (tree.get("url"), tree.get("instruction"), visit_tema(tree))
-                           == (url, instruction, tema))
+                           lambda tree: (tree.get("url"), tree.get("instruction"), visit_tema(tree),
+                                         tree.get("conjunto_exploradores"))
+                           == (url, instruction, tema, conjunto_exploradores))
 

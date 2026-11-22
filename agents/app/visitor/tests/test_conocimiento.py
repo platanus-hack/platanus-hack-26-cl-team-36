@@ -42,6 +42,10 @@ from visitor.turns import ActionRequest, Turn
 
 TAREAS = sorted((Path(__file__).resolve().parents[3] / "tasks").glob("*/*.json"))
 
+
+def test_hay_tareas_que_revisar():
+    assert TAREAS
+
 # --- Conjuntos y perfiles ------------------------------------------------------------------------------------------
 
 

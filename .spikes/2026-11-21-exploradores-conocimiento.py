@@ -35,9 +35,11 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 RAIZ = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(RAIZ / "agents" / "app" / "web_evaluator"))
+sys.path.insert(0, str(RAIZ / "agents" / "app" / "visitor"))
+sys.path.insert(0, str(RAIZ / "agents" / "shared" / "src"))
 
-from route_tree import normalize_url, registrable_domain
+from shared.nodes.urls import normalize_url
+from visitor.route_tree import registrable_domain
 
 LUGARES = ("menu", "buscador", "pie", "contenido")
 NIVELES = ("sin_contexto", "conoce_tema")
