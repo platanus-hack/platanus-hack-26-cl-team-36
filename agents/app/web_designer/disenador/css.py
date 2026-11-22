@@ -20,7 +20,7 @@ Saneamiento (se revisa cada texto que se vuelve a escribir: selectores, declarac
   apagado (un `@layer a, b;` reordena las capas del sitio; un `@keyframes fadeIn` pisa la animación del sitio con ese
   nombre). Por eso `@layer` no se acepta y un `@keyframes` solo con nombre propio, `mt-*`.
 - Una at-regla sin bloque dentro de una regla (`@layer a, b;` anidado) se descarta. Más de `MAX_PROFUNDIDAD` bloques
-  anidados descartan todo el CSS.
+  anidados o más de `MAX_BYTES_CSS` caracteres descartan todo el CSS.
 - Cada selector de primer nivel debe empezar por `html.mi-tema`. Si no, se antepone (`body` pasa a
   `html.mi-tema body`, `html`/`:root` a `html.mi-tema`) y se informa como violación. Una regla anidada debe empezar
   por `&` o no usarlo (`:not(&) b` saldría del ámbito y se descarta). No se reescribe nada más: `!important` se
@@ -37,6 +37,7 @@ PERMITIDAS = {"media", "supports", "container"}          # además de @keyframes
 KEYFRAMES = {"keyframes", "-webkit-keyframes"}
 _NOMBRE_KEYFRAMES = re.compile(r"^mt-[\w-]+$")
 MAX_CADENA = 200    # caracteres de una cadena (el texto de `content:`, o de una variable que lo lleve)
+MAX_BYTES_CSS = 200_000
 # La lectura es recursiva: sin tope, `a{a{a{…` agota la pila o multiplica la sangría de la salida.
 MAX_PROFUNDIDAD = 16
 
@@ -444,6 +445,8 @@ def _sanear_lista(items: list, rechazos: list[dict], fuera: list[dict], en_keyfr
 
 def sanear(css: str) -> Saneado:
     """`css` es el texto ya decodificado del JSON (un `\\n` del JSON es un salto de línea, no una barra)."""
+    if len(css) > MAX_BYTES_CSS:  # como la extensión, que lo rechaza entero
+        return Saneado("", [], [{"motivo": "css demasiado grande", "texto": ""}], [])
     css = re.sub(r"^\s*```[a-z]*\s*\n|\n\s*```\s*$", "", css)  # por si el modelo lo envolvió en un bloque
     rechazos: list[dict] = []
     fuera: list[dict] = []

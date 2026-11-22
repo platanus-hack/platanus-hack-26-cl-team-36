@@ -130,6 +130,12 @@ def test_anidamiento_hostil_no_revienta():
     assert "color:red" in sanear("html.mi-tema a{" + "& b{" * 10 + "color:red" + "}" * 11).css
 
 
+def test_css_demasiado_grande_se_rechaza_entero():
+    regla = "html.mi-tema a { color: red; }\n"
+    saneado = sanear(regla * (200_000 // len(regla) + 1))
+    assert saneado.css == "" and saneado.rechazos[0]["motivo"] == "css demasiado grande"
+
+
 def test_at_regla_sin_bloque_anidada_se_rechaza():
     saneado = sanear("html.mi-tema a { @layer a, b; color: red; @media print { color: blue } }")
     assert "@layer" not in saneado.css and "color: red" in saneado.css and "@media print" in saneado.css
