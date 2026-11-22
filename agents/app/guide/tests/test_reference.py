@@ -84,11 +84,11 @@ def test_unanswered_exploration_is_not_found(site, tmp_path):
     assert (out_dir / "step_00.png").is_file()
 
 
-def test_scripted_engine_verifies_the_start_page_citing_its_first_line(site, tmp_path):
+def test_scripted_engine_verifies_the_start_page_citing_its_first_phrase(site, tmp_path):
     decider = ClaudeDecider("sistema", FakeCaller("guion", "low", scripted_decision))
-    document, _, _ = _map(site, tmp_path, None, decider=decider)
+    document, _, _ = _map(site, tmp_path, None, start_url=(site / "productos.html").as_uri(), decider=decider)
     assert document["status"] == "verified" and document["steps"] == []
-    assert document["quote_found"] and document["quote"] == document["answer"]
+    assert document["quote_found"] and document["quote"] == document["answer"] == "Volver al inicio"
 
 
 def test_claude_decider_sends_the_page_before_the_history_with_cache_points():

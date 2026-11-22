@@ -23,9 +23,9 @@ from guide.route import Step, Target
 
 _FINAL_REASONS = {"blocked": "blocked", "give_up": "gave_up"}
 _STEP_LIMIT_OUTCOME = "rechazada: se alcanzó el máximo de acciones; solo puedes terminar con done, blocked o give_up"
-_QUOTE_REJECTED = ("rechazada: la cita no está en el texto visible de la página. Copia tal cual un fragmento corto"
-                   " (una línea) de la sección TEXTO DE LA PÁGINA, no del título de la pestaña, la URL ni la captura;"
-                   " si la respuesta no está en ese texto, ve a la página que la muestra")
+_QUOTE_REJECTED = ("rechazada: la cita no está en el texto visible de la página o es una sola palabra. Copia tal cual"
+                   " una frase corta (una línea) de la sección TEXTO DE LA PÁGINA, no del título de la pestaña, la URL"
+                   " ni la captura; si la respuesta no está en ese texto, ve a la página que la muestra")
 _LEAVES_SITE = ("rechazada: ese enlace lleva a otro sitio y ningún enlace hacia allá se puede seguir. Usa otro enlace"
                 " de este sitio o, si la tarea continúa allá, termina con done citando el texto de ese enlace")
 

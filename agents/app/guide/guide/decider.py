@@ -6,6 +6,7 @@ from typing import Protocol
 from shared.claude.caller import CACHE_POINT, Caller
 
 from guide.prompts import DECISION_SCHEMA, TEXT_HEADING, TurnPrompt
+from guide.quote import MIN_QUOTE_WORDS
 
 
 @dataclass
@@ -49,9 +50,10 @@ class ClaudeDecider:
 
 
 def scripted_decision(system_prompt: str, schema: dict, parts: list) -> dict:
-    """La respuesta del motor guionizado: termina en la página inicial citando su primera línea de texto, o se rinde."""
+    """La respuesta del motor guionizado: termina en la página inicial citando su primera frase de texto, o se rinde."""
     text = parts[0].split(TEXT_HEADING, 1)[-1]
-    line = next((line.strip() for line in text.splitlines() if line.strip() and not line.startswith("(")), None)
+    phrases = (line.strip() for line in text.splitlines() if not line.startswith("("))
+    line = next((phrase for phrase in phrases if len(phrase.split()) >= MIN_QUOTE_WORDS), None)
     if line is None:
         return {"reason": "motor guionizado", "action": "give_up", "text": "respuesta guionizada, sin texto que citar"}
     return {"reason": "motor guionizado", "action": "done", "answer": line, "quote": line}

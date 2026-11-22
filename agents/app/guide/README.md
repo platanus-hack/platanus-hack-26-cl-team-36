@@ -76,9 +76,9 @@ El navegador, Claude Code, los nodos, los viewports y el objetivo del catálogo 
 
 1. **Explorar.** En cada turno el modelo recibe la vista del DOM y una captura, y responde una acción: `click`,
    `fill` o `select` sobre una ref, `press`, `back`, `scroll`, o el final `done`, `blocked` o `give_up`. El texto de la
-   página llega desde la pantalla actual. `done` lleva la respuesta y una cita textual de la página; si la cita no está
-   en el texto que se puede mostrar (sin lo oculto ni lo recortado, como un acordeón cerrado), se rechaza. No puede ir
-   a una URL, seguir un enlace a otro host ni usar un elemento oculto: primero debe abrir lo que lo muestra. Si un
+   página llega desde la pantalla actual. `done` lleva la respuesta y una cita textual de la página (dos palabras o
+   más; se compara sin espacios ni mayúsculas); si la cita no está en el texto que se puede mostrar (sin lo oculto ni
+   lo recortado, como un acordeón cerrado), se rechaza. No puede ir a una URL, seguir un enlace a otro host ni usar un elemento oculto: primero debe abrir lo que lo muestra. Si un
    elemento que estaba a la vista se oculta al actuar, como la diapositiva de un carrusel, se espera a que vuelva; al
    repetir la ruta también, y menos al probar quitar un paso. Cinco rechazos iguales seguidos (misma acción y motivo)
    terminan la exploración con `repeated_rejection`.
