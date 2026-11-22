@@ -9,3 +9,9 @@ variable "nombre" {
   type        = string
   default     = "chameleon-backend"
 }
+
+variable "goals_max" {
+  description = "Goals por revisión que la proyectora espera del catálogo; el mismo default que el conductor."
+  type        = number
+  default     = 3
+}
