@@ -31,6 +31,7 @@ export function formaDeResultado(resultado, logro) {
   if (resultado === "logrado") return logro === "indirecto" ? { icono: "indirecto", clase: "indirecto" } : { icono: "logrado", clase: "directo" };
   if (resultado === "fallido") return { icono: "fallido", clase: "fallido" };
   if (resultado === "error") return { icono: "error-herramienta", clase: "error" };
+  if (resultado === "sin_medir") return { icono: "sin-medir", clase: "sin_medir" };
   return { icono: "abandonado", clase: "abandonado" };
 }
 
@@ -49,6 +50,7 @@ function leyendaDeResultados(ctx) {
     ["logrado", "indirecto", "unidades.indirecto"],
     ["fallido", null, "unidades.fallido"],
     ["abandonado", null, "unidades.abandonado"],
+    ["sin_medir", null, "unidades.sin_medir"],
     ["error", null, "unidades.error"],
   ];
   return el(
@@ -93,7 +95,7 @@ export function graficoDeUnidades(tanda, ctx) {
       el(
         "span",
         { class: "unidades-conteo" },
-        el("span", { class: "num texto-1", texto: fmt.conteo({ n: perfil.logrados ?? 0, de: perfil.validos ?? 0 }) }),
+        el("span", { class: "num texto-1", texto: fmt.conteo({ n: perfil.logrados ?? 0, de: perfil.medidos ?? perfil.validos ?? 0 }) }),
         errores ? el("span", { class: "unidades-errores" }, " · ", t("perfiles.unidades.conError", { n: errores })) : null,
       ),
     );

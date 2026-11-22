@@ -13,7 +13,7 @@ export function intentosDePerfil(tanda, perfil = null) {
 
 /**
  * Finales por página para un perfil. Sin perfil, los de la API (pagina.finales); con perfil, se cuentan desde la
- * última página del camino de cada intento del perfil. → Map<paginaId, { logrado, fallido, abandonado, error }>.
+ * última página del camino de cada intento del perfil. → Map<paginaId, { logrado, fallido, abandonado, sin_medir, error }>.
  */
 export function finalesPorPagina(tanda, perfil = null) {
   const resultado = new Map();

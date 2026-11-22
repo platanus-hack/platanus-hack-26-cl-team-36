@@ -1,5 +1,5 @@
 // Fuente de corridas en el sistema de archivos (layout en public/nucleo/almacen.js): cada tanda es una corrida
-// del Visitante que terminó bien, con route_tree.json, criteria.json y una carpeta por perfil.
+// del Visitante que terminó bien, con route_tree.json, una carpeta por intento y, si corrió el juez, criteria.json.
 
 import { createReadStream, existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";

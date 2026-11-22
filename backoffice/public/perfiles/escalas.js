@@ -102,11 +102,11 @@ export function filasDeIntentos(tanda) {
 
 export const COLUMNAS_ORDENABLES = ["perfil", "resultado", "pasos", "delta", "hitos", "tropiezos", "tiempo", "costo"];
 
-const RANGO_DE_RESULTADO = { "logrado:directo": 0, "logrado:indirecto": 1, logrado: 1, fallido: 2, abandonado: 3, error: 4 };
+const RANGO_DE_RESULTADO = { "logrado:directo": 0, "logrado:indirecto": 1, logrado: 1, "fallido:declaro_sin_llegar": 2, fallido: 2, abandonado: 3, sin_medir: 4, error: 5 };
 
 const VALOR_DE_COLUMNA = {
   perfil: (fila) => fila.ordenDePerfil,
-  resultado: (fila) => RANGO_DE_RESULTADO[fila.logro ? `${fila.resultado}:${fila.logro}` : fila.resultado] ?? 5,
+  resultado: (fila) => RANGO_DE_RESULTADO[fila.logro ? `${fila.resultado}:${fila.logro}` : fila.resultado] ?? 6,
   pasos: (fila) => fila.pasos,
   delta: (fila) => fila.delta,
   hitos: (fila) => fila.hitos?.n ?? null,

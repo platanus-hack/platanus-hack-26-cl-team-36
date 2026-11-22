@@ -205,7 +205,7 @@ test("intentos de la tanda vieja: quién sigue la ruta, dónde se separa y si vu
 test("KPIs y métricas por perfil: pares {n, de} y null cuando no aplica", async () => {
   const tanda = await leerTanda(RAIZ, VIEJA);
   assert.deepEqual(tanda.kpis, {
-    intentos: 3, validos: 3, errores: 0, logrados: 2, directos: 2, siguenLaRuta: 2,
+    intentos: 3, validos: 3, medidos: 3, errores: 0, logrados: 2, directos: 2, siguenLaRuta: 2,
     pasosMediana: 2, segundosMediana: 10, pasosIdeales: 2, tramos: 2, hitos: 3, sinEfecto: 1, noCumplidas: 2,
   });
   const porPerfil = Object.fromEntries(tanda.perfiles.map((p) => [p.perfil, p]));
@@ -277,7 +277,7 @@ test("tanda nueva: el error de la herramienta se marca y no cuenta", async () =>
   ]);
   assert.equal(inicioAyuda.accion, "clic «Ayuda»");
   const ayuda = tanda.telarana.paginas.find((p) => p.id === "n2");
-  assert.deepEqual(ayuda.finales, { logrado: 0, fallido: 0, abandonado: 0, error: 1 });
+  assert.deepEqual(ayuda.finales, { logrado: 0, fallido: 0, abandonado: 0, sin_medir: 0, error: 1 });
 
   const movil = tanda.perfiles.find((p) => p.perfil === "mobile");
   assert.deepEqual([movil.validos, movil.errores, movil.metricas.exito, movil.metricas.eficiencia], [0, 1, null, null]);
@@ -485,7 +485,7 @@ test("una ruta recomendada vacía (0 pasos) es «sin ruta»: las cifras de la ru
   }
   for (const intento of tanda.intentos) assert.equal(intento.logro, null);
   // El titular no dice que nadie llegó (2 llegaron) ni cuenta quiénes siguen una ruta que no hay.
-  assert.deepEqual(tanda.titulares.telarana.vars, { hayRuta: false, tramos: 0, pasosIdeales: null, siguen: null, validos: 3, logrados: 2 });
+  assert.deepEqual(tanda.titulares.telarana.vars, { hayRuta: false, tramos: 0, pasosIdeales: null, siguen: null, validos: 3, medidos: 3, logrados: 2 });
   assert.equal(tanda.hallazgos[0].vars.directos, null);
 });
 

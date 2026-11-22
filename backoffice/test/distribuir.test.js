@@ -383,9 +383,9 @@ test("sii 16-24-12 (tanda real, 27 páginas): inicio a la izquierda, meta a la d
 test("cuentas por perfil: finales, terminales, activos y hitos de la ruta", async () => {
   const tanda = await leerTanda(RAIZ, NUEVA);
   const todos = totalesDeTerminales(finalesPorPagina(tanda));
-  assert.deepEqual(todos, { logrado: 2, fallido: 1, abandonado: 0, error: 1 });
+  assert.deepEqual(todos, { logrado: 2, fallido: 1, abandonado: 0, sin_medir: 0, error: 1 });
   const movil = totalesDeTerminales(finalesPorPagina(tanda, "mobile"));
-  assert.deepEqual(movil, { logrado: 0, fallido: 0, abandonado: 0, error: 1 });
+  assert.deepEqual(movil, { logrado: 0, fallido: 0, abandonado: 0, sin_medir: 0, error: 1 });
   assert.equal(activosDePerfil(tanda, null), null);
   const activos = activosDePerfil(tanda, "senior");
   for (const id of ["n1", "n5", "n6", "n1>n5", "n5>n6", "n6>n5", "n5>fin:fallido", "fin:fallido"]) assert.ok(activos.has(id), id);

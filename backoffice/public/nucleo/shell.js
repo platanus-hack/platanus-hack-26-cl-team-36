@@ -24,12 +24,15 @@ export function estadoDeTanda(resumen) {
   const intentos = typeof resumen.intentos === "number" ? resumen.intentos : 0;
   const errores = resumen.errores ?? 0;
   const validos = resumen.validos ?? intentos - errores;
+  const medidos = resumen.medidos ?? validos;
   const logrados = resumen.logrados ?? resumen.exitos ?? 0;
-  const tipo = validos === 0 ? "error" : validos > logrados ? "fallido" : errores ? "error" : "logrado";
-  return { tipo, intentos, errores, validos, logrados };
+  let tipo = medidos > logrados ? "fallido" : errores ? "error" : "logrado";
+  if (validos === 0) tipo = "error";
+  else if (medidos === 0) tipo = "sin_medir";
+  return { tipo, intentos, errores, validos, medidos, logrados };
 }
 
-const ICONO_DE_ESTADO = { logrado: "logrado", fallido: "fallido", error: "error-herramienta" };
+const ICONO_DE_ESTADO = { logrado: "logrado", fallido: "fallido", sin_medir: "sin-medir", error: "error-herramienta" };
 
 function marca() {
   return el(

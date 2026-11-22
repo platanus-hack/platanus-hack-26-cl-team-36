@@ -1,0 +1,14 @@
+{
+  "agent": "visitor",
+  "host": "ejemplo.test",
+  "goal": "horario",
+  "viewport": null,
+  "run_id": "2026-11-22T10-30-00Z",
+  "started_at": "2026-11-22T10:30:00Z",
+  "status": "succeeded",
+  "model": "us.anthropic.claude-haiku-4-5",
+  "inputs": [],
+  "finished_at": "2026-11-22T10:30:00Z",
+  "schema_version": 1,
+  "revision": "r2"
+}

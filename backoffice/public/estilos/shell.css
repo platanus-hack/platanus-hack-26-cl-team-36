@@ -79,7 +79,7 @@
 .lateral-tanda-fecha { color: var(--texto-4); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .estado-logrado { color: var(--exito); }
 .estado-fallido { color: var(--peligro); }
-.estado-error { color: var(--neutro); }
+.estado-error, .estado-sin_medir { color: var(--neutro); }
 
 .lateral-pie { display: grid; gap: 2px; margin-block-start: auto; padding-block-start: var(--e-3); }
 .lateral-proximamente > summary { list-style: none; }

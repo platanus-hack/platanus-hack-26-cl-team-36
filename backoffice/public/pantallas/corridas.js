@@ -46,7 +46,7 @@ function miniatura(resumen, ctx) {
   return reemplazar(caja, imagen);
 }
 
-/** Un tramo por intento: logrado (menta), fallido (bermellón), abandonado (gris), error (rayado). */
+/** Un tramo por intento: logrado (menta), fallido (bermellón), abandonado (gris), sin medir (contorno), error (rayado). */
 function medidor(resumen, ctx) {
   const resultados = resultadosParaMedidor(resumen.perfiles);
   if (!resultados.length) return el("span", { class: "medidor corridas-medidor", "aria-hidden": "true" });
@@ -78,9 +78,10 @@ function puntos(resumen, ctx) {
 }
 
 function textoLlegan(resumen, ctx) {
-  const { validos, logrados } = cifrasDeTanda(resumen);
+  const { validos, medidos, logrados } = cifrasDeTanda(resumen);
   if (!validos) return ctx.t("corridas.fila.sinValidos");
-  return ctx.t("comun.marco.llegan", { n: logrados, de: validos });
+  if (!medidos) return ctx.t("corridas.fila.sinMedir");
+  return ctx.t("comun.marco.llegan", { n: logrados, de: medidos });
 }
 
 function textoPasos(resumen, ctx) {
