@@ -216,7 +216,9 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
         // null y no undefined: sin tema.json, el de la corrida anterior ya no corresponde.
         const tema_key = (await existeTema(`${run_key}/tema.json`)) ? `${run_key}/tema.json` : null;
         const css_key = `${run_key}/tema.css`;
-        await actualizarMeta(revision, { css_key, tema_key, updated_at }, { hasta: { css_key } });
+        // El tema listo termina la revisión en la misma escritura: done nunca llega antes que su css_key. Pasa
+        // también sobre un failed del conductor, que es del mismo orden y pudo llegar antes por el desorden de S3.
+        await actualizarMeta(revision, { css_key, tema_key, status: "done", updated_at }, { hasta: { css_key } });
         break;
       }
       case "guide":
@@ -237,15 +239,23 @@ export const claveDeEvento = (registro) => decodeURIComponent(registro.s3.object
 
 let proyectar;
 
-export async function handler(evento) {
-  if (!proyectar) {
+function iniciar() {
+  proyectar ??= (async () => {
     const { almacenS3, tablaDynamo } = await import("./aws.js");
-    proyectar = crearProyectora({
-      db: await tablaDynamo(process.env.REVISIONES_TABLA),
-      almacen: await almacenS3(process.env.ALMACEN_BUCKET),
-      goalsMax: Number(process.env.GOALS_MAX) || 6,
-    });
-  }
+    const [db, almacen] = await Promise.all([tablaDynamo(process.env.REVISIONES_TABLA), almacenS3(process.env.ALMACEN_BUCKET)]);
+    return crearProyectora({ db, almacen, goalsMax: Number(process.env.GOALS_MAX) || 6 });
+  })().catch((error) => {
+    proyectar = undefined;
+    throw error;
+  });
+  return proyectar;
+}
+
+// Carga el SDK durante el arranque en frío; si falla, el evento lo reintenta.
+if (process.env.REVISIONES_TABLA) iniciar().catch(() => {});
+
+export async function handler(evento) {
+  const proyectarClave = await iniciar();
   // Si algo falla, Lambda reintenta el evento entero: proyectar es idempotente.
-  for (const registro of evento.Records ?? []) await proyectar(claveDeEvento(registro));
+  for (const registro of evento.Records ?? []) await proyectarClave(claveDeEvento(registro));
 }

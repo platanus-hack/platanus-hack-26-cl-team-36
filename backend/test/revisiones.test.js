@@ -43,7 +43,7 @@ test("POST de una página nueva: 202, URL y META queued, invoca el conductor", a
 });
 
 test("POST de una página ya vista: 200 con su estado, sin disparar otra revisión", async () => {
-  for (const status of ["queued", "running", "done"]) {
+  for (const status of ["queued", "running"]) {
     const { db, agentes, api } = escenario();
     await api.solicitar(URL_PAGINA);
     await db.actualizar(claveRevision("rev-1"), { status });
@@ -111,11 +111,30 @@ test("tema solo de un tema.json del improver", async () => {
   assert.equal(Object.hasOwn(datos, "tema"), false);
 });
 
-test("css solo de un tema.css del improver", async () => {
-  const { db, api } = escenario({ archivos: { "otro/secreto.json": "{}" } });
+test("una revisión done sin un tema.css del improver responde running, sin leer nada", async () => {
+  for (const css_key of [undefined, "otro/secreto.json"]) {
+    const { db, api, almacen } = escenario({ archivos: { "otro/secreto.json": "{}" } });
+    await api.solicitar(URL_PAGINA);
+    await db.actualizar(claveRevision("rev-1"), { status: "done", css_key });
+    const esperado = { estado: 200, datos: { success: true, revision: "rev-1", status: "running" } };
+    assert.deepEqual(await api.consultar(URL_PAGINA), esperado);
+    assert.deepEqual(await api.solicitar(URL_PAGINA), esperado);
+    assert.deepEqual(almacen.leidos, []);
+  }
+});
+
+test("conductor done antes que el improver: running hasta que llega el tema, luego done con css", async () => {
+  const { db, api, almacen } = escenario({ archivos: { [CSS_KEY]: "a{}" } });
   await api.solicitar(URL_PAGINA);
-  await db.actualizar(claveRevision("rev-1"), { status: "done", css_key: "otro/secreto.json" });
-  assert.deepEqual((await api.consultar(URL_PAGINA)).datos, { success: true, revision: "rev-1", status: "done" });
+  const proyectar = crearProyectora({ db, almacen });
+  const publicar = (runKey, manifiesto) => {
+    almacen.archivos[`${runKey}/manifest.json`] = { revision: "rev-1", ...manifiesto };
+    return proyectar(`${runKey}/manifest.json`);
+  };
+  await publicar("ejemplo.cl/conductor/r0", { agent: "conductor", status: "succeeded" });
+  assert.equal((await api.consultar(URL_PAGINA)).datos.status, "running");
+  await publicar("ejemplo.cl/improver/r1", { agent: "improver", status: "succeeded" });
+  assert.deepEqual((await api.consultar(URL_PAGINA)).datos, { success: true, revision: "rev-1", status: "done", css: "a{}" });
 });
 
 test("force no duplica una revisión en curso", async () => {

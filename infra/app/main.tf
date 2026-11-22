@@ -81,7 +81,7 @@ resource "aws_lambda_function" "backend" {
   handler          = "lambda.handler"
   filename         = data.archive_file.backend.output_path
   source_code_hash = data.archive_file.backend.output_base64sha256
-  memory_size      = 256
+  memory_size      = 512
   # POST /revisiones espera a que AgentCore acepte la invocación del conductor (hasta 5 s + 20 s).
   timeout = 30
 

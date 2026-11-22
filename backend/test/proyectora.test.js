@@ -186,6 +186,35 @@ test("improver terminado guarda css_key en META", async () => {
   assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
 });
 
+test("improver terminado deja la revisión done con su css_key, aunque el conductor siga corriendo", async () => {
+  const { evento, item } = escenario();
+  await evento(CONDUCTOR, { agent: "conductor", status: "running" });
+  await evento(MEJORA, { agent: "improver", status: "succeeded" });
+  assert.equal(item("META").status, "done");
+  assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
+
+  await evento(CONDUCTOR, { agent: "conductor", status: "failed" });
+  await evento(CONDUCTOR, { agent: "conductor", status: "succeeded" });
+  assert.equal(item("META").status, "done");
+});
+
+test("improver terminado después de un conductor failed: el tema gana y queda done", async () => {
+  const { evento, item } = escenario();
+  await evento(CONDUCTOR, { agent: "conductor", status: "failed" });
+  await evento(MEJORA, { agent: "improver", status: "succeeded" });
+  assert.equal(item("META").status, "done");
+  assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
+});
+
+test("improver corriendo o fallido no termina la revisión", async () => {
+  for (const status of ["running", "failed"]) {
+    const { evento, item } = escenario();
+    await evento(CONDUCTOR, { agent: "conductor", status: "running" });
+    await evento(MEJORA, { agent: "improver", status });
+    assert.equal(item("META").status, "running", status);
+  }
+});
+
 test("improver con tema.json guarda también tema_key; sin él, no", async () => {
   const conTema = escenario();
   conTema.almacen.archivos[`${MEJORA}/tema.json`] = { features: {} };

@@ -36,13 +36,14 @@ export function crearRevisiones({
   }
 
   async function responder({ revision, meta }) {
-    const datos = { success: true, revision, status: meta.status ?? "queued" };
-    if (datos.status === "done" && CSS.test(meta.css_key ?? "")) {
-      datos.css = await almacen.leerTexto(meta.css_key);
-      if (TEMA.test(meta.tema_key ?? "")) {
-        const tema = await leerTema(meta.tema_key);
-        if (tema) datos.tema = tema;
-      }
+    const status = meta.status ?? "queued";
+    if (status !== "done") return { estado: 200, datos: { success: true, revision, status } };
+    // Un done sin tema (el conductor llegó antes que el improver) aún no sirve: el cliente sigue consultando.
+    if (!CSS.test(meta.css_key ?? "")) return { estado: 200, datos: { success: true, revision, status: "running" } };
+    const datos = { success: true, revision, status, css: await almacen.leerTexto(meta.css_key) };
+    if (TEMA.test(meta.tema_key ?? "")) {
+      const tema = await leerTema(meta.tema_key);
+      if (tema) datos.tema = tema;
     }
     return { estado: 200, datos };
   }

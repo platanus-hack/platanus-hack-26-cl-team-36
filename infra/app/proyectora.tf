@@ -48,7 +48,7 @@ resource "aws_lambda_function" "proyectora" {
   handler          = "proyectora.handler"
   filename         = data.archive_file.backend.output_path
   source_code_hash = data.archive_file.backend.output_base64sha256
-  memory_size      = 256
+  memory_size      = 512
   timeout          = 30
 
   environment {
