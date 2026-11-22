@@ -4,6 +4,8 @@ export default {
   marca: {
     nombre: "chameleon mode",
     titulo: "Backoffice",
+    // La etiqueta del enlace de la marca, que lleva a la portada.
+    inicio: "Chameleon Mode, home",
   },
   // Top bar (brand, reviews running, search) and the names of the views.
   shell: {
