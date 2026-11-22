@@ -26,6 +26,23 @@
     }
   }
 
+  const sinWww = (host) => host.replace(/^www\./, "");
+
+  // Para los enlaces que trae un tema remoto: solo a la misma página (mismo protocolo, puerto y
+  // host, con o sin `www.`). Así un tema no puede mandar al usuario a otro sitio ni colar un
+  // `//evil.com` o `/\evil.com`, que el navegador lee como otro host.
+  function urlMismoSitio(valor) {
+    if (!valor) return null;
+    try {
+      const url = new URL(valor, location.href);
+      const pagina = new URL(location.href);
+      const mismo = url.protocol === pagina.protocol && url.port === pagina.port && sinWww(url.hostname) === sinWww(pagina.hostname);
+      return mismo && (url.protocol === "https:" || url.protocol === "http:") ? url.href : null;
+    } catch {
+      return null;
+    }
+  }
+
   function transformar(valor, { patron, formato = "$1" }) {
     const coincidencia = valor.match(new RegExp(patron));
     if (!coincidencia) return "";
@@ -97,6 +114,6 @@
     return { ...genericos, ...planos, ...(porIdioma && typeof porIdioma === "object" ? porIdioma : {}) };
   }
 
-  MiTema.plantillas = { leer, leerCampos, transformar, urlSegura, enIdioma, textosDe };
+  MiTema.plantillas = { leer, leerCampos, transformar, urlSegura, urlMismoSitio, enIdioma, textosDe };
   MiTema.dom = { crear };
 })();

@@ -161,6 +161,16 @@ test("enIdioma y textosDe: datos por idioma y textos del tema sobre los del dicc
   assert.equal(t.titulo, MiTema.idioma.t("en", "atajo.titulo"));
 });
 
+test("urlMismoSitio: solo enlaces de la misma página, con o sin www", () => {
+  const { urlMismoSitio } = cargar().plantillas;
+  for (const ajena of ["//evil.com/x", "/\\evil.com/x", "\\\\evil.com", "https://otro.cl", "http://www.metro.cl/", "javascript:alert(1)", "https://www.metro.cl.evil.com/", ""]) {
+    assert.equal(urlMismoSitio(ajena), null, ajena);
+  }
+  assert.equal(urlMismoSitio("/el-viaje/planificador/?a=1"), "https://www.metro.cl/el-viaje/planificador/?a=1");
+  assert.equal(urlMismoSitio("https://www.metro.cl/estaciones"), "https://www.metro.cl/estaciones");
+  assert.equal(urlMismoSitio("https://metro.cl/estaciones"), "https://metro.cl/estaciones");
+});
+
 // ---------- lanzador ----------
 
 test("lanzador: una tarea por item con su enlace, en el idioma actual y con tope", () => {
@@ -182,6 +192,19 @@ test("lanzador: una tarea por item con su enlace, en el idioma actual y con tope
   assert.equal(nodo.getAttribute("aria-label"), "Top tasks");
 });
 
+test("lanzador: descarta enlaces e imágenes de otro sitio", () => {
+  const { dibujar } = cargar().componentes.get("lanzador");
+  const nodo = dibujar([
+    { titulo: "Ajena", enlace: "//evil.com/x" },
+    { titulo: "Rastreo", enlace: "/plano", imagen: "https://evil.com/pixel.png" },
+    { titulo: "Ícono", enlace: "/bip", imagen: "/img/bip.svg" },
+  ], {}, contextoVista);
+  const tareas = nodo.querySelectorAll(".mt-lanzador__tarea");
+  assert.deepEqual(Array.from(tareas, (a) => a.getAttribute("href")), ["https://www.metro.cl/plano", "https://www.metro.cl/bip"]);
+  assert.equal(tareas[0].querySelector("img"), null);
+  assert.equal(tareas[1].querySelector("img").getAttribute("src"), "https://www.metro.cl/img/bip.svg");
+});
+
 test("lanzador: sin tareas válidas no dibuja nada", () => {
   const { dibujar } = cargar().componentes.get("lanzador");
   assert.equal(dibujar([{ titulo: "x", enlace: "data:text/html,hola" }, { enlace: "/sin-titulo" }], {}, contextoVista), null);
@@ -196,6 +219,8 @@ test("armarEnlace: parámetros en el orden de los campos, después los fijos, si
     "https://www.metro.cl/el-viaje/planificador/?inicio=SP&fin=EL&horario=VALLE",
   );
   assert.equal(armarEnlace("javascript:alert(1)", { a: "1" }), "");
+  assert.equal(armarEnlace("//evil.com/planificador", { a: "1" }), "");
+  assert.equal(armarEnlace("https://otro.cl/", { a: "1" }), "");
 });
 
 test("leerOpciones: copia las opciones del <select> de la página con su grupo y la elegida", () => {

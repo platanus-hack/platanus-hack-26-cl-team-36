@@ -11,7 +11,7 @@
 //   valor     el elegido al empezar (si no, el de la página o el primero)
 //
 // Opciones:
-//   destino   URL de la página de resultados (http/https; relativa a la página)
+//   destino   URL de la página de resultados, del mismo sitio (relativa a la página)
 //   fijos     { parametro: valor } que van siempre en el enlace
 //   invertir  [nombreA, nombreB]: un botón entre esos dos campos intercambia lo elegido
 //   textos    por idioma, para reemplazar los genéricos del diccionario (claves `atajo.*`
@@ -21,13 +21,13 @@
 
 (() => {
   const { crear } = MiTema.dom;
-  const { enIdioma, textosDe, urlSegura } = MiTema.plantillas;
+  const { enIdioma, textosDe, urlMismoSitio } = MiTema.plantillas;
 
   const CLAVES = ["titulo", "subtitulo", "boton", "invertir"];
 
   // Los parámetros van en el orden de los campos y después los fijos, como los arma el sitio.
   function armarEnlace(destino, valores = {}, fijos = {}) {
-    const base = urlSegura(destino);
+    const base = urlMismoSitio(destino);
     if (!base) return "";
     const url = new URL(base);
     for (const [nombre, valor] of Object.entries(valores)) if (valor) url.searchParams.set(nombre, valor);

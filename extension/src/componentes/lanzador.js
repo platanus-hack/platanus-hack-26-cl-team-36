@@ -5,6 +5,7 @@
 // Campos de cada item (en `datos` del tema, o leídos de la página con una plantilla):
 //   titulo, enlace, detalle (opcional), insignia (opcional), imagen (opcional, un ícono)
 //   titulo, detalle e insignia pueden venir por idioma: { es, en }.
+//   enlace e imagen, solo del mismo sitio: una imagen de otro host serviría para rastrear.
 //
 // Opciones:
 //   max     cuántas tareas mostrar (por defecto 6)
@@ -13,15 +14,16 @@
 
 (() => {
   const { crear } = MiTema.dom;
-  const { enIdioma, textosDe, urlSegura } = MiTema.plantillas;
+  const { enIdioma, textosDe, urlMismoSitio } = MiTema.plantillas;
 
   const CLAVES = ["titulo", "subtitulo"];
 
   function tarea(item, idioma, contexto) {
     const insignia = enIdioma(item.insignia, idioma);
     const detalle = enIdioma(item.detalle, idioma);
-    const a = crear("a", { clase: "mt-lanzador__tarea", href: item.enlace }, [
-      item.imagen && crear("img", { clase: "mt-lanzador__icono", src: item.imagen, alt: "" }),
+    const imagen = urlMismoSitio(item.imagen);
+    const a = crear("a", { clase: "mt-lanzador__tarea", href: urlMismoSitio(item.enlace) }, [
+      imagen && crear("img", { clase: "mt-lanzador__icono", src: imagen, alt: "" }),
       crear("span", { clase: "mt-lanzador__textos" }, [
         crear("span", { clase: "mt-lanzador__titulo", texto: enIdioma(item.titulo, idioma) }),
         detalle && crear("span", { clase: "mt-lanzador__detalle", texto: detalle }),
@@ -36,7 +38,7 @@
   function dibujar(items, opciones, contexto) {
     const idioma = MiTema.idioma.actual();
     const t = textosDe("lanzador", CLAVES, opciones.textos, idioma);
-    const tareas = items.filter((item) => item.titulo && urlSegura(item.enlace)).slice(0, opciones.max ?? 6);
+    const tareas = items.filter((item) => item.titulo && urlMismoSitio(item.enlace)).slice(0, opciones.max ?? 6);
     if (tareas.length === 0) return null;
 
     return crear("nav", { clase: "mt-lanzador", "aria-label": t.titulo }, [
