@@ -137,7 +137,7 @@ def vocabulario(voz: dict, catalogo: list) -> set[str]:
 
 
 def _par(texto: str) -> dict:
-    return {"es": texto, "en": texto}
+    return {"es": texto}
 
 
 def con_voz(vista: dict, comp: dict | None) -> dict:

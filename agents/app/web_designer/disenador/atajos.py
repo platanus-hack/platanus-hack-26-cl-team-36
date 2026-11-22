@@ -11,7 +11,8 @@
 - Buscador: todos los objetivos del catálogo con enlace (hasta `MAX_BUSCADOR`, también el del atajo), con el mismo
   título y detalle que el lanzador y, si el catálogo los agrupa (`parent`), el título del objetivo padre como grupo.
 
-Todos los enlaces quedan como rutas relativas del mismo sitio; lo que apunta a otro sitio no entra.
+Todos los enlaces quedan como rutas relativas del mismo sitio; lo que apunta a otro sitio no entra. Los textos van solo
+en español (`{"es": …}`): el inglés lo escribe el modelo, y sin él la extensión muestra el español.
 """
 
 import re
@@ -184,7 +185,7 @@ def atajo(objetivo_id: str, route: dict, selects: list[SelectDePagina], inicio: 
         por_nombre[clave] = select
         etiqueta = select.etiqueta or clave.capitalize()
         vacio = bool(select.valores) and select.elegido not in select.valores
-        campos.append({"nombre": clave, "etiqueta": {"es": etiqueta, "en": etiqueta}, "opciones": select.selector,
+        campos.append({"nombre": clave, "etiqueta": {"es": etiqueta}, "opciones": select.selector,
                        "requerido": select.selector in de_ruta or vacio})
     if not campos:
         return None, "ninguna clave de la consulta tiene un <select> en la página"
@@ -315,12 +316,12 @@ def _enlace(goal, rutas: dict[str, dict], inicio: str) -> tuple[str | None, bool
 
 def _tarea(goal, enlace: str) -> dict:
     titulo = _titulo(goal.description)
-    tarea = {"titulo": {"es": titulo, "en": titulo}, "enlace": enlace}
+    tarea = {"titulo": {"es": titulo}, "enlace": enlace}
     detalle = " ".join(goal.description.split()).rstrip(".")
     detalle = _mayuscula(_NAVEGAR.sub("", detalle)) or detalle  # «Llega a la página de…» no agrega nada al título
     detalle = sin_instruccion(detalle, articulo=True)  # «Encuentra el valor de la UTM del mes» → «El valor de…»
     if detalle and detalle.lower() != titulo.lower():
-        tarea["detalle"] = {"es": detalle[:160], "en": detalle[:160]}
+        tarea["detalle"] = {"es": detalle[:160]}
     return tarea
 
 
@@ -370,7 +371,7 @@ def buscador(goals: list, rutas: dict[str, dict], inicio: str, catalogo: list | 
     for enlace, goal in _ordenadas(goals, rutas, inicio, set(), a_mano=a_mano)[:MAX_BUSCADOR]:
         tarea = _tarea(goal, enlace)
         if grupo := grupos.get(goal.parent or ""):
-            tarea["grupo"] = {"es": grupo, "en": grupo}
+            tarea["grupo"] = {"es": grupo}
         tareas.append(tarea)
     if not tareas:
         return None

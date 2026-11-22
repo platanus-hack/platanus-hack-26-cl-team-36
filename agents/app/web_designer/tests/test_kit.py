@@ -16,8 +16,8 @@ from shared import store
 from shared.catalog.goal import Goal
 
 from conftest import ClaudeGuion
-from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR
-from disenador import atajos, tema_json
+from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR, prompt_de_sistema
+from disenador import atajos, mejora, tema_json
 from disenador.atajos import SelectDePagina
 
 DATOS = Path(__file__).with_name("datos") / "metro"
@@ -52,7 +52,7 @@ def test_atajo_del_planificador_de_metro():
     # Las claves del deep link verificado, en su orden; `inicio` se encuentra por el name de su <select>.
     assert [(c["nombre"], c["opciones"], c["requerido"]) for c in vista["datos"]] == [
         ("inicio", "#binicio", True), ("fin", "#fin", True), ("horario", "#horario", False), ("dia", "#dia", False)]
-    assert vista["datos"][0]["etiqueta"] == {"es": "Origen", "en": "Origen"}
+    assert vista["datos"][0]["etiqueta"] == {"es": "Origen"}
     assert vista["opciones"] == {"destino": "/el-viaje/planificador/", "invertir": ["inicio", "fin"]}
 
 
@@ -235,7 +235,7 @@ def test_el_buscador_agrupa_por_el_objetivo_padre_y_tiene_tope():
     goals[1].parent = goals[2].parent = "viajar"
     buscador = atajos.buscador(goals, {}, INICIO, [padre, *goals])
     grupos = {t["enlace"]: t.get("grupo") for t in buscador["datos"]}
-    assert grupos["/el-viaje/estado-red"] == {"es": "Viajar en Metro", "en": "Viajar en Metro"}
+    assert grupos["/el-viaje/estado-red"] == {"es": "Viajar en Metro"}
     assert grupos["/el-viaje/planificador"] is None and buscador["opciones"]["agrupar"] is True
     muchos = [Goal(**{**goals[0].__dict__, "id": f"g{i}", "entry": f"{METRO}/t{i}"}) for i in range(50)]
     assert len(atajos.buscador(muchos, {}, INICIO)["datos"]) == atajos.MAX_BUSCADOR
@@ -282,7 +282,8 @@ def test_enlaces_fuera_del_sitio_se_descartan(enlace):
     (lambda v: v["opciones"].update(destino="//evil.com/x"), "$.opciones.destino"),
     (lambda v: v["opciones"].update(invertir=["inicio", "otro"]), "invertir"),
     (lambda v: v["opciones"].update(textos={"es": {"titulo": "x" * 200}}), "$.opciones.textos.es.titulo"),
-    (lambda v: v.update(datos=[{"nombre": "a", "etiqueta": {"es": "Desde"}, "opciones": "#a"}]), "$.datos"),
+    # Sin español no hay texto; sin inglés sí (se muestra el español).
+    (lambda v: v.update(datos=[{"nombre": "a", "etiqueta": {"en": "From"}, "opciones": "#a"}]), "$.datos"),
     (lambda v: v.update(datos=[{"nombre": "inicio", "etiqueta": {"es": "A", "en": "A"}}]), "$.datos"),
     (lambda v: v.update(script="alert(1)"), "clave no permitida"),
     # Los mismos topes que tema-remoto.js: un `\n` final no pasa el patrón (fullmatch, no search).
@@ -325,8 +326,8 @@ def test_la_propuesta_del_modelo_pone_las_palabras():
     assert atajo["contenedor"] == "body > :has(#binicio)"
     assert atajo["opciones"]["textos"] == {"es": {"titulo": "¿A dónde vas?", "boton": "Ver ruta"},
                                            "en": {"titulo": "Where to?", "boton": "See route"}}
-    # Una etiqueta sin inglés deja la derivada.
-    assert [c["etiqueta"]["en"] for c in atajo["datos"][:2]] == ["From", "Fin"]
+    # Una etiqueta sin inglés queda solo en español, sin copiarlo.
+    assert [c["etiqueta"] for c in atajo["datos"][:2]] == [{"es": "Desde", "en": "From"}, {"es": "Hasta"}]
     lanzador = tema_json.con_propuesta(lanzador, {"contenedor": "main", "tareas": [
         {"enlace": "/el-viaje/estaciones", "titulo_es": "Estaciones", "titulo_en": "Stations", "detalle_es": "",
          "detalle_en": ""}]})
@@ -545,3 +546,32 @@ def test_si_el_motor_falla_cae_al_css_libre(tmp_path, metro_local):
     assert informe["modo"] == "libre" and "dirección desconocida" in informe["respaldo"]
     tema_css = backend.read_text(manifest.key.file("tema.css"))
     assert "background: #111" in tema_css and OCULTAR in tema_css
+
+
+def test_el_modelo_recibe_todas_las_tareas_visibles_para_titular_y_traducir():
+    diag = json.loads((Path(__file__).with_name("datos") / "sii-real" / "diagnostico.json").read_text(encoding="utf-8"))
+    lanzador, buscador = (next(c for c in diag["componentes"] if c["componente"] == nombre)
+                          for nombre in ("lanzador", "buscador"))
+    pedido = mejora.tareas_a_escribir({"lanzador": lanzador, "buscador": buscador})
+    visibles = [t["enlace"] for t in lanzador["datos"]] + [t["enlace"] for t in buscador["datos"][:6]]
+    assert set(visibles) <= set(pedido["completas"]) and len(pedido["completas"]) == len(set(pedido["completas"]))
+    assert set(pedido["completas"]) | set(pedido["solo_titulo"]) == {t["enlace"] for t in buscador["datos"]} | {
+        t["enlace"] for t in lanzador["datos"]}
+    assert not set(pedido["completas"]) & set(pedido["solo_titulo"])
+    contrato = prompt_de_sistema(None, kit=True, con_motor=True)
+    assert "tareas_a_escribir" in contrato and "sin omitir ninguna" in contrato and "nunca una copia" in contrato
+    # El esquema deja escribir todas en una sola respuesta.
+    assert ESQUEMA_MOTOR["properties"]["componentes"]["items"]["properties"]["tareas"]["maxItems"] >= len(
+        pedido["completas"]) + len(pedido["solo_titulo"])
+
+
+def test_lo_que_el_modelo_no_tradujo_queda_en_espanol_y_anotado():
+    _, lanzador = _vistas_derivadas()
+    assert all(set(t["titulo"]) == {"es"} for t in lanzador["datos"])
+    enlace = lanzador["datos"][0]["enlace"]
+    propuesta = tema_json.con_propuesta(lanzador, {"tareas": [
+        {"enlace": enlace, "titulo_es": "Estaciones", "titulo_en": "", "detalle_es": "", "detalle_en": ""}]})
+    assert propuesta["datos"][0]["titulo"] == {"es": "Estaciones"}
+    faltan = {f["item"]: f["textos"] for f in tema_json.sin_traduccion([propuesta])}
+    assert "titulo" in faltan[enlace] and set(faltan) == {t["enlace"] for t in lanzador["datos"]}
+
