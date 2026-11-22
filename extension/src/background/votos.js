@@ -2,10 +2,11 @@
 // para poder testearla con Node (ver test/votos.test.js).
 //
 // Por cada voto se guarda en el equipo del usuario un registro con el voto, el
-// comentario, un id aleatorio del usuario (no identifica a la persona) y el HTML de la
-// página antes y después del tema, comprimidos con gzip. La captura la hace
+// comentario, un id aleatorio del usuario (no identifica a la persona) y, si la página
+// tiene tema, su HTML antes y después del tema, comprimidos con gzip. La captura la hace
 // content/captura.js; el background (index.js) arma el registro con crearRegistroVoto y
-// lo guarda en IndexedDB (almacen-votos-idb.js).
+// lo guarda en IndexedDB (almacen-votos-idb.js). En una página sin tema (solo se puede
+// comentar) no se captura nada, y en ventanas privadas no se guarda ningún voto.
 //
 // Forma del registro (versión 1):
 //
@@ -17,9 +18,12 @@
 //     compresion: "gzip",
 //     original: Uint8Array | null,   // HTML gzip de la página sin lo que agrega Chameleon
 //     editado: Uint8Array | null,    // HTML gzip tal como se ve, con el CSS del tema incrustado
-//     bytes: { original, originalComprimido, editado, editadoComprimido },  // 0 si se omitió
+//     bytes: { original, originalComprimido, editado, editadoComprimido },  // 0 si no hay HTML
 //     originalOmitido: false, editadoOmitido: false,   // true si se descartó por tamaño
 //   }
+//
+// `original`/`editado` en null con `*Omitido: false`: no se capturó la página (no tenía tema).
+// El `temaId` lo decide el background (el tema que él mismo aplicó en la pestaña), no el DOM.
 //
 // El `editado` lleva el CSS del tema (y el de las features) dentro de un
 // `<style data-mt-css-tema>` al final del <head>: Chameleon lo inyecta con
@@ -31,8 +35,9 @@
 //   - un HTML que comprimido pasa de MAX_BYTES_COMPRIMIDO (o que sin comprimir pasa de
 //     MAX_CARACTERES_HTML, para no gastar en comprimirlo) no se guarda: queda en null y
 //     se marca `originalOmitido`/`editadoOmitido`. El voto se guarda igual.
-//   - como mucho MAX_PENDIENTES votos sin subir: al guardar uno nuevo sobre el tope se
-//     borran los más antiguos. Mientras no exista la subida, el equipo guarda los últimos.
+//   - como mucho MAX_PENDIENTES votos sin subir: antes de guardar uno nuevo sobre el tope se
+//     borran los más antiguos (antes y no después, para que un disco lleno no deje de
+//     guardar para siempre). Mientras no exista la subida, el equipo guarda los últimos.
 //
 // ---------- Subida al servidor (PENDIENTE: no se llama desde ningún lado) ----------
 //
@@ -124,6 +129,7 @@ const bytesDeTexto = (texto) => new TextEncoder().encode(texto).length;
 
 // Comprime un HTML respetando los topes → { datos, bytes, bytesComprimido, omitido }.
 async function empaquetar(html, { maxBytes, maxCaracteres }) {
+  if (html == null) return { datos: null, bytes: 0, bytesComprimido: 0, omitido: false }; // no se capturó
   if (typeof html !== "string" || html.length === 0) return { datos: null, bytes: 0, bytesComprimido: 0, omitido: true };
   if (html.length > maxCaracteres) return { datos: null, bytes: 0, bytesComprimido: 0, omitido: true };
   const datos = await comprimir(html);
@@ -214,14 +220,16 @@ export function crearAdaptadorMemoria() {
 
 export function crearAlmacenVotos(adaptador, { maxPendientes = MAX_PENDIENTES } = {}) {
   return {
-    // Guarda el voto y, si quedan más de `maxPendientes`, borra los más antiguos.
+    // Hace lugar (borra los más antiguos si con el nuevo pasarían de `maxPendientes`) y
+    // después guarda: si el disco se llenó, borrar primero libera el espacio que el nuevo
+    // necesita, en vez de fallar siempre sin liberar nada.
     async guardar(registro) {
-      await adaptador.poner(registro);
-      const sobran = (await adaptador.contar()) - maxPendientes;
+      const sobran = (await adaptador.contar()) + 1 - maxPendientes;
       if (sobran > 0) {
         const ids = (await adaptador.listarIds()).filter((id) => id !== registro.id).slice(0, sobran);
         for (const id of ids) await adaptador.borrar(id);
       }
+      await adaptador.poner(registro);
     },
     // Del más antiguo al más nuevo. Ojo: carga todos los HTML en memoria.
     async listarPendientes() {

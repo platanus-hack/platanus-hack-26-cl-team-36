@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -11,14 +11,25 @@ import { leerTanda, listarTandas } from "../lib/tandas.js";
 import { crearServidor } from "../servidor.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
-const ID = "tarea-demo/2026-11-21_10-00-00";
+const ID = "demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
 const leer = (relativa) => readFileSync(`${RAIZ}/${ID}/${relativa}`);
 const texto = async (cuerpo) => Buffer.concat(await cuerpo.toArray()).toString("latin1");
+
+test("fuente de archivos: solo corridas que terminaron bien, también de un host con puerto", async () => {
+  const raiz = mkdtempSync(path.join(tmpdir(), "corridas-"));
+  const origen = `${RAIZ}/demo.cl/visitor/tarea-demo`;
+  for (const corrida of ["2026-11-21T10-00-00Z", "2026-11-21T12-00-00Z", "2026-11-21T13-00-00Z"]) {
+    cpSync(`${origen}/${corrida}`, `${raiz}/localhost:8080/visitor/tarea-demo/${corrida}`, { recursive: true });
+  }
+  cpSync(`${origen}/2026-11-21T10-00-00Z`, `${raiz}/demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z_00`, { recursive: true });
+  const ids = await crearFuenteDeArchivos({ raiz }).listarIds();
+  assert.deepEqual(ids, ["localhost:8080/visitor/tarea-demo/2026-11-21T10-00-00Z"]);
+});
 
 test("fuente de archivos: ids, perfiles, JSON, archivos y rangos", async () => {
   const fuente = crearFuenteDeArchivos({ raiz: RAIZ });
   assert.equal(fuente.descripcion, "backoffice/test/fixtures/corridas");
-  assert.deepEqual((await fuente.listarIds()).sort(), [ID, "tarea-demo/2026-11-21_11-00-00"]);
+  assert.deepEqual((await fuente.listarIds()).sort(), [ID, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z"]);
   assert.deepEqual((await fuente.listarPerfiles(ID)).sort(), ["first_time", "hurried", "mobile"]);
   assert.equal((await fuente.leerJson(ID, "route_tree.json")).task_id, "tarea-demo");
   assert.equal((await fuente.leerJson(ID, "first_time/run.json")).profile, "first_time");
@@ -44,24 +55,6 @@ test("fuente de archivos: ids, perfiles, JSON, archivos y rangos", async () => {
   assert.deepEqual([fuera.cuerpo, fuera.rango], [null, null]);
 });
 
-test("fuente de archivos: la carpeta archivo/ nunca se lista, y se puede abrir como raíz", async () => {
-  const raiz = mkdtempSync(path.join(tmpdir(), "corridas-"));
-  const tanda = (...partes) => {
-    mkdirSync(path.join(raiz, ...partes), { recursive: true });
-    writeFileSync(path.join(raiz, ...partes, "route_tree.json"), "{}");
-  };
-  try {
-    tanda("tarea", "2026-11-21_20-00-00");
-    tanda("archivo", "2026-11-21_10-00-00");
-    tanda("archivo", "2026-11-21-4-exploradores", "tarea", "2026-11-21_10-00-00");
-    assert.deepEqual(await crearFuenteDeArchivos({ raiz }).listarIds(), ["tarea/2026-11-21_20-00-00"]);
-    const archivada = crearFuenteDeArchivos({ raiz: path.join(raiz, "archivo", "2026-11-21-4-exploradores") });
-    assert.deepEqual(await archivada.listarIds(), ["tarea/2026-11-21_10-00-00"]);
-  } finally {
-    rmSync(raiz, { recursive: true, force: true });
-  }
-});
-
 test("crearFuente elige la fuente por tipo", () => {
   assert.equal(crearFuente({ tipo: "archivos", raiz: RAIZ }).descripcion, "backoffice/test/fixtures/corridas");
   assert.throws(() => crearFuente({ tipo: "s3" }), /Fuente desconocida: s3/);
@@ -69,13 +62,13 @@ test("crearFuente elige la fuente por tipo", () => {
 
 // Una fuente en memoria: prueba que tandas.js y el servidor funcionan con cualquier implementación.
 function crearFuenteFalsa(archivos) {
-  const ids = [...new Set(Object.keys(archivos).map((ruta) => ruta.split("/").slice(0, 2).join("/")))];
+  const ids = [...new Set(Object.keys(archivos).map((ruta) => ruta.split("/").slice(0, 4).join("/")))];
   const de = (id, relativa) => archivos[`${id}/${relativa}`];
   return {
     descripcion: "memoria://corridas",
     listarIds: async () => ids,
     listarPerfiles: async (id) =>
-      [...new Set(Object.keys(archivos).filter((r) => r.startsWith(`${id}/`)).map((r) => r.split("/")[2]).filter((p) => !p.includes(".")))],
+      [...new Set(Object.keys(archivos).filter((r) => r.startsWith(`${id}/`)).map((r) => r.split("/")[4]).filter((p) => !p.includes(".")))],
     leerJson: async (id, relativa) => (de(id, relativa) ? JSON.parse(de(id, relativa)) : null),
     existe: async (id, relativa) => de(id, relativa) !== undefined,
     abrirArchivo: async (id, relativa, rango) => {
@@ -110,7 +103,7 @@ test("tandas.js lee de una fuente en memoria", async () => {
   assert.deepEqual(tandas.map((t) => t.id), [ID]);
   const tanda = await leerTanda(fuente, ID);
   assert.deepEqual(tanda.intentos.map((i) => i.id), ["first_time", "hurried", "mobile"]);
-  assert.equal(await leerTanda(fuente, "tarea-demo/2099-01-01_00-00-00"), null);
+  assert.equal(await leerTanda(fuente, "demo.cl/visitor/tarea-demo/2099-01-01T00-00-00Z"), null);
 });
 
 test("el servidor funciona con una fuente en memoria", async () => {

@@ -4,12 +4,11 @@
   "managedBy": "CDK",
   "runtimes": [
     {
-      "name": "web_evaluator",
+      "name": "web_evaluator_image",
       "description": "Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos",
-      "build": "CodeZip",
+      "build": "Container",
       "entrypoint": "agentcore_app.py",
-      "codeLocation": "../agents/app/web_evaluator",
-      "runtimeVersion": "PYTHON_3_12",
+      "codeLocation": "../agents/app/visitor",
       "protocol": "HTTP",
       "lifecycleConfiguration": {
         "idleRuntimeSessionTimeout": 900,
@@ -23,7 +22,9 @@
           },
           "description": "AgentCore Browser administrado por AWS: una sesión por usuario sintético"
         }
-      ]
+      ],
+      "buildContextPath": "../agents",
+      "dockerfile": "app/visitor/Dockerfile"
     }
   ],
   "memories": [],

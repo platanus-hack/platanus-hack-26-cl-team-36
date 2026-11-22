@@ -1,6 +1,6 @@
 ---
 name: explorar-caminos
-description: Procedimiento para que un usuario sintético del evaluador web explore varias ramas distintas hacia una tarea (abrir una rama, volver, abrir otra) y anote con evidencia lo que encuentra relevante para el usuario. Usar en los perfiles exploradores del evaluador (agents/app/web_evaluator, perfiles `explorador*`) o al escribir o ajustar prompts de agentes que deban recorrer un sitio a lo ancho en vez de en línea recta.
+description: Procedimiento para que un usuario sintético del evaluador web explore varias ramas distintas hacia una tarea (abrir una rama, volver, abrir otra) y anote con evidencia lo que encuentra relevante para el usuario. Usar en los perfiles exploradores del evaluador (agents/app/visitor, perfiles `explorador*`) o al escribir o ajustar prompts de agentes que deban recorrer un sitio a lo ancho en vez de en línea recta.
 ---
 
 # Explorar caminos

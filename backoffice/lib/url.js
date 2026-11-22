@@ -1,4 +1,4 @@
-// Normaliza una URL igual que `normalize_url` de agents/app/web_evaluator/route_tree.py,
+// Normaliza una URL igual que `normalize_url` de agents/shared/src/shared/nodes/urls.py,
 // para ubicar cada paso de un intento en el nodo de la telaraña que le corresponde.
 
 const PARAMETROS_DE_SEGUIMIENTO =

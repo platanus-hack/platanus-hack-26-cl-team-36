@@ -1,5 +1,7 @@
 # Especificación del backoffice, versión 0
 
+> Evaluador = Visitante ([`agents/app/visitor/`](../agents/app/visitor/README.md)).
+
 | | |
 |---|---|
 | **Estado** | Listo para que alguien lo tome (2026-11-21) |
@@ -60,7 +62,7 @@ Tres cosas que ninguna herramienta hace, y que el diseño pone al centro:
 | 1. Recorrido | No existe | — |
 | 2. Inventario | No existe. Lo más cercano es el inventario de antes y después del spike. | `.spikes/2026-11-21-alcance-cambios-wom.py` |
 | 3. Happy path con DOM | No existe | — |
-| 4. Usuarios de visión | **Existe** | [`agents/app/web_evaluator`](../agents/app/web_evaluator/README.md) |
+| 4. Usuarios de visión | **Existe** | [`agents/app/visitor`](../agents/app/visitor/README.md) |
 | 5. Refinador | No existe. En el spike, Claude escribió los parches a mano. | [spike de alcance](../.spikes/2026-11-21-alcance-cambios-wom.md) |
 
 ## 4. Alcance de la v0
@@ -139,6 +141,6 @@ iteración y los datos de la sección 4 no cambian.
 
 - [Claude Design del backoffice](https://claude.ai/artifact/6qTPUK8RCgK9tZgXEbwQos)
 - [Spike de alcance en wom.cl](../.spikes/2026-11-21-alcance-cambios-wom.md)
-- [Evaluador web](../agents/app/web_evaluator/README.md) y [su documento](../docs/agents/evaluador.md)
+- [Visitante](../agents/app/visitor/README.md) y [su documento](../docs/agents/evaluador.md)
 - [Niveles de cambio](../docs/agents/niveles-de-cambio.md): el origen de L0 a L4 en las propuestas
 - [Formas de datos](../docs/formas-de-datos.md)

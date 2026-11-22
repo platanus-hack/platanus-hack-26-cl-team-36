@@ -262,7 +262,7 @@ oklch con el tono azul del sitio (255)"]
    ocultos; claro suave = cabecera suavizada).
 5. **Tarea:** el objetivo (acción, camino o sección) tiene el estilo de la receta y se ve en la captura.
 6. **Desborde:** sin anchos fijos > 360 px, `100vw`, `nowrap`, `word-break` ni `position` nuevos.
-7. **Filtro y cascada:** sin `url(`, `@import`, `@font-face` ni barra invertida (tampoco un "\n" escrito); `!important` en cada declaración; sin clases
+7. **Filtro y cascada:** sin `url(`, `@import`, `@font-face`, `@layer` ni barra invertida (tampoco un "\n" escrito); un `@keyframes`, solo con nombre `mt-*`; `!important` en cada declaración; sin clases
    generadas.
 8. **Foco y movimiento:** regla `:focus-visible` y bloque de movimiento reducido presentes.
 9. **Tamaño:** ≤ 120 reglas, ≤ 12 000 caracteres; la respuesta es solo el JSON.

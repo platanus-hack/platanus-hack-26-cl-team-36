@@ -24,8 +24,8 @@ import {
 } from "../public/telarana/cuentas.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
-const VIEJA = "tarea-demo/2026-11-21_10-00-00";
-const NUEVA = "tarea-demo/2026-11-21_11-00-00";
+const VIEJA = "demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
+const NUEVA = "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z";
 
 const SIN_FINALES = { logrado: 0, fallido: 0, abandonado: 0, error: 0 };
 const pagina = (id, extra = {}) => ({ id, esInicio: false, visitas: 1, finales: { ...SIN_FINALES }, ...extra });

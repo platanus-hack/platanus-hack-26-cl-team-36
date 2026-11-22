@@ -1,0 +1,250 @@
+"""Una tanda: criterio de éxito, usuarios en paralelo, veredictos, árbol de rutas y reporte."""
+
+import asyncio
+import functools
+import json
+from datetime import datetime
+from pathlib import Path
+
+from playwright.async_api import Browser, async_playwright
+
+from shared import store
+from shared.browser.session import BrowserSession, create_context
+from shared.browser.theme import NavegadorConTema, describir_tema
+from shared.browser.viewports import SCREENS
+from shared.claude.workdir import claude_workdir
+
+from visitor import config, report
+from visitor.api_engine import ApiEngine
+from visitor.browsers import open_browsers
+from visitor.claude_code_engine import ClaudeCodeEngine
+from visitor.comparison import References, compare_batch
+from visitor.conocimiento import SIN_CONTEXTO, ConocimientoDeTarea
+from visitor.harness import SyntheticUser
+from visitor.judge import ApiJudge, ClaudeCodeJudge, judge_run, propose_criteria
+from visitor.profiles import PROFILES
+from visitor.proposal import proposals
+from visitor.recording import Run
+from visitor.route_tree import build_route_tree
+
+_CRITERIA_SCREEN = SCREENS["desktop"]
+_INTERRUPTED_REASONS = {"refusal", "api_error", "no_response", "internal_error"}
+_EXHAUSTED_REASONS = {
+    "step_limit": "Se agotaron las acciones disponibles",
+    "time_limit": "Se agotó el tiempo disponible",
+}
+
+
+def _write_json(path: Path, data) -> None:
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+async def _criteria_for(judge, browser: Browser, url: str, instruction: str) -> dict:
+    fallback = {"criterion": f"La pantalla final muestra que se cumplió la tarea: {instruction}", "evidence": []}
+    context = await create_context(browser, _CRITERIA_SCREEN)
+    try:
+        session = BrowserSession(context, _CRITERIA_SCREEN)
+        await session.open(url)
+        start_screenshot = await session.screenshot()
+    except Exception as error:  # si la página inicial no carga, la tanda sigue con el criterio de la tarea
+        print(f"[criterio] no se pudo abrir la página inicial ({error}); se usa la tarea como criterio", flush=True)
+        criteria = fallback
+    else:
+        try:
+            criteria = await propose_criteria(judge, instruction, start_screenshot)
+        except Exception as error:  # sin criterio igual se puede juzgar con la tarea
+            print(f"[criterio] no se pudo generar ({error}); se usa la tarea como criterio", flush=True)
+            criteria = fallback
+    finally:
+        await context.close()
+    print(f"[criterio] {criteria['criterion']}", flush=True)
+    return criteria
+
+
+async def _record_verdict(judge, instruction: str, criteria: dict, run: Run, run_dir: Path) -> None:
+    if run.end_reason in _INTERRUPTED_REASONS:
+        # Un error técnico no es un abandono del usuario: se reporta aparte y no cuenta en el árbol.
+        run.verdict = {
+            "outcome": "interrupted",
+            "justification": f"El intento se interrumpió por un error técnico ({run.end_reason}): {run.final_message}",
+        }
+    else:
+        final_screenshot = (run_dir / run.final_screenshot).read_bytes()
+        try:
+            verdict = await judge_run(judge, instruction, criteria, final_screenshot, run.end_reason, run.final_message)
+        except Exception as error:
+            verdict = {"outcome": "abandoned", "justification": f"No se pudo obtener el veredicto: {error}"}
+        if run.end_reason in _EXHAUSTED_REASONS:
+            run.verdict = {
+                "outcome": "abandoned",
+                "justification": f"{_EXHAUSTED_REASONS[run.end_reason]}.",
+                "model_verdict": verdict,
+            }
+        else:
+            run.verdict = verdict
+    run.save(run_dir)
+    print(f"[{run.profile}] veredicto: {run.verdict['outcome']} — {run.verdict['justification']}", flush=True)
+
+
+def models_for(engine: str, user_model: str | None = None) -> tuple[str, str]:
+    """Los modelos (usuarios, juez). En AWS (bedrock) solo Sonnet 4.6; en local, Sonnet 5.5 y Opus (ver config.py)."""
+    if engine == "bedrock":
+        return user_model or config.BEDROCK_USER_MODEL, config.BEDROCK_JUDGE_MODEL
+    return user_model or config.USER_MODEL, config.JUDGE_MODEL
+
+
+def _judge_and_engines(engine: str, user_model: str, judge_model: str, effort: str, claude_cwd: Path):
+    """El juez y la fábrica de motores de los usuarios para `engine`."""
+    if engine in ("api", "bedrock"):
+        import anthropic
+
+        if engine == "bedrock":
+            client = anthropic.AsyncAnthropicBedrock(aws_region=config.AWS_REGION)  # bedrock-runtime; ver config.py
+            model_prefix = config.BEDROCK_MODEL_PREFIX
+        else:
+            client = anthropic.AsyncAnthropic()
+            model_prefix = ""
+        judge = ApiJudge(client, model=model_prefix + judge_model, fallbacks=engine == "api")
+        return judge, functools.partial(ApiEngine, client, model_prefix + user_model, effort)
+    judge = ClaudeCodeJudge(claude_cwd, model=judge_model)
+    return judge, functools.partial(ClaudeCodeEngine, user_model, effort, claude_cwd)
+
+
+async def _attempts(judge, make_engine, profile_keys: list[str], url: str, instruction: str, batch_dir: Path,
+                    browser: str, cdp_url: str | None, record_video: bool, css: str | None,
+                    conocimiento: ConocimientoDeTarea | None) -> tuple[list[Run], dict]:
+    """Los intentos que cargaron la página, con su veredicto, y el criterio de éxito; con `css`, todos con ese tema.
+
+    Con `conocimiento`, los exploradores con nivel leen la tarea de su nivel; el criterio y el juez usan `instruction`.
+    """
+    async with async_playwright() as playwright:
+        browsers = open_browsers(playwright, browser, cdp_url)
+        try:
+            # Uno para el criterio y uno por usuario (en local, todos son el mismo Chromium).
+            criteria_browser, *user_browsers = await asyncio.gather(
+                *(browsers.open() for _ in range(len(profile_keys) + 1))
+            )
+            if css is not None:
+                criteria_browser = NavegadorConTema(criteria_browser, css)
+                user_browsers = [NavegadorConTema(user_browser, css) for user_browser in user_browsers]
+            criteria_task = asyncio.create_task(_criteria_for(judge, criteria_browser, url, instruction))
+            users = [
+                SyntheticUser(
+                    make_engine(), user_browser, PROFILES[key], url, instruction, batch_dir / key, record_video,
+                    conocimiento=conocimiento,
+                )
+                for key, user_browser in zip(profile_keys, user_browsers)
+            ]
+            attempts = await asyncio.gather(*(user.attempt() for user in users), return_exceptions=True)
+            criteria = await criteria_task
+        finally:
+            await browsers.close()
+
+    runs: list[Run] = []
+    for user, attempt in zip(users, attempts):
+        run = user.run
+        if isinstance(attempt, BaseException):
+            run.end_reason = "internal_error"
+            run.final_message = f"{type(attempt).__name__}: {attempt}"[:300]
+            print(f"[{run.profile}] error interno: {run.final_message}", flush=True)
+        if not run.start:
+            run.save(user.run_dir)
+            continue  # ni siquiera cargó la página: no aporta al árbol
+        runs.append(run)
+
+    await asyncio.gather(*(
+        _record_verdict(judge, instruction, criteria, run, batch_dir / run.profile) for run in runs
+    ))
+    return runs, criteria
+
+
+async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, profile_keys: list[str],
+                       references: References, engine: str, user_model: str, judge_model: str, effort: str,
+                       cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None,
+                       conocimiento: ConocimientoDeTarea | None, conjunto_exploradores: str | None) -> int:
+    """Escribe la tanda en `batch_dir` y devuelve cuántos intentos no se interrumpieron."""
+    css, tema = describir_tema(tema_css) if tema_css else (None, None)
+    if css is not None:
+        (batch_dir / "tema.css").write_text(css, encoding="utf-8")
+        print(f"[tema] {tema['archivo']} (sha256 {tema['sha256']})", flush=True)
+    with claude_workdir("visitor") as claude_cwd:
+        judge, make_engine = _judge_and_engines(engine, user_model, judge_model, effort, claude_cwd)
+        runs, criteria = await _attempts(judge, make_engine, profile_keys, url, instruction, batch_dir, browser,
+                                         cdp_url, record_video, css, conocimiento)
+
+    run_dicts = [run.to_dict() for run in runs]
+    # El árbol y la ruta recomendada solo usan intentos reales; los interrumpidos quedan en el reporte.
+    tree = build_route_tree([r for r in run_dicts if r["verdict"].get("outcome") != "interrupted"])
+    meta = {
+        "url": url,
+        "instruction": instruction,
+        "task_id": goal,
+        "timestamp": datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+        "engine": engine,
+        "browser": browser,
+        "user_model": user_model,
+        "judge_model": judge_model,
+        "effort": effort,
+        "tema": tema,
+        "conjunto_exploradores": conjunto_exploradores,
+    }
+    if any(PROFILES[key].conocimiento == SIN_CONTEXTO for key in profile_keys):
+        meta["tarea_sin_contexto"] = (conocimiento or ConocimientoDeTarea()).description_sin_contexto
+    _write_json(batch_dir / "criteria.json", criteria)
+    _write_json(batch_dir / "route_tree.json", {**meta, "criteria": criteria, **tree})
+    comparison = compare_batch(references, run_dicts)
+    if comparison:
+        found = proposals(run_dicts, comparison, references)
+        comparison["proposals"] = [item["route"] for item in found]
+        _write_json(batch_dir / "comparison.json", comparison)
+        if found:
+            _write_json(batch_dir / "proposals.json", found)
+    (batch_dir / "report.md").write_text(report.generate(meta, criteria, run_dicts, tree, comparison), encoding="utf-8")
+    return sum(run["verdict"].get("outcome") != "interrupted" for run in run_dicts)
+
+
+class BatchInterrupted(Exception):
+    """Ningún intento terminó: todos se interrumpieron por un error técnico o no cargaron la página."""
+
+    def __init__(self, run: store.RunKey):
+        super().__init__(f"todos los intentos se interrumpieron; la corrida {run} termina failed")
+        self.run = run
+
+
+async def run_batch(
+    backend: store.Backend,
+    prefix: store.RunPrefix,
+    url: str,
+    instruction: str,
+    profile_keys: list[str],
+    references: References,
+    inputs: tuple[store.RunKey, ...] = (),
+    engine: str = "claude-code",
+    user_model: str | None = None,
+    effort: str = config.USER_EFFORT,
+    cdp_url: str | None = None,
+    browser: str = "local",
+    record_video: bool = False,
+    tema_css: Path | None = None,
+    conocimiento: ConocimientoDeTarea | None = None,
+    conjunto_exploradores: str | None = None,
+) -> store.RunKey:
+    """Una corrida de visitor: report.md, route_tree.json, comparison.json y una carpeta por perfil.
+
+    `inputs` y las corridas de guide de `references` quedan en el manifiesto. Si ningún intento terminó, la corrida
+    termina `failed` (con su reporte) y lanza `BatchInterrupted`. Con `tema_css`, cada página de cada usuario (y la del
+    criterio) se ve con ese tema, como con la extensión; la corrida deja una copia en `tema.css` y lo registra en
+    `route_tree.json` (`tema`), para distinguirla de una sin tema.
+
+    Con `conocimiento` (lo que la tarea dice de su tema), los exploradores con nivel leen la tarea de su nivel; el
+    criterio y el juez usan siempre `instruction`. `conjunto_exploradores` solo se registra, para agrupar tandas.
+    """
+    user_model, judge_model = models_for(engine, user_model)
+    with store.running(backend, prefix, model=user_model,
+                       inputs=(*inputs, *(key for key, _ in references.values()))) as run:
+        finished = await _write_batch(run.workdir, prefix.goal, url, instruction, profile_keys, references, engine,
+                                      user_model, judge_model, effort, cdp_url, browser, record_video, tema_css,
+                                      conocimiento, conjunto_exploradores)
+        if not finished:
+            raise BatchInterrupted(run.key)
+    return run.key

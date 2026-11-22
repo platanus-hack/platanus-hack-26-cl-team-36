@@ -1,0 +1,16 @@
+{
+  "id": "socio-prestamo-domicilio",
+  "host": "bibliotecanacional.gob.cl",
+  "start_url": "https://www.bibliotecanacional.gob.cl/",
+  "description": "Quieres llevarte libros de la Biblioteca Nacional a tu casa: averigua qué documentos tienes que presentar para inscribirte si tienes más de 14 años.",
+  "expected_answer": "Fotocopia de la cédula de identidad por ambos lados (o pasaporte o Tarjeta Nacional Estudiantil) y un comprobante de domicilio a tu nombre, emitido en los últimos tres meses (boleta de servicios, certificado de residencia o cartola).",
+  "description_sin_contexto": "Quieres sacar libros de la Biblioteca Nacional para leerlos en tu casa: averigua qué papeles tienes que llevar para que te dejen hacerlo. Tienes más de 14 años.",
+  "terminos_oficiales": [
+    "préstamo a domicilio",
+    "socio",
+    "inscripción de socios",
+    "credencial",
+    "comprobante de domicilio"
+  ],
+  "conocimiento_del_tema": "Para llevarse libros a la casa hay que hacerse socio de la biblioteca: el servicio se llama préstamo a domicilio y la inscripción de socios entrega una credencial. Para inscribirse se piden documentos de identidad y de domicilio, y los menores de cierta edad necesitan a un adulto responsable."
+}

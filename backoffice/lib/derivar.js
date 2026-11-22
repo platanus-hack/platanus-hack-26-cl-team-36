@@ -176,7 +176,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  */
 
 // Motivos de fin que son fallas de la herramienta, no del usuario: los _INTERRUPTED_REASONS de
-// agents/app/web_evaluator/batch.py. El orden es el de la tabla del diseño (§2.1).
+// agents/app/visitor/visitor/batch.py. El orden es el de la tabla del diseño (§2.1).
 const MOTIVOS_DE_ERROR = ["internal_error", "api_error", "no_response", "refusal"];
 const SIN_VEREDICTO = "No se pudo obtener el veredicto";
 const LARGO_DEL_RESUMEN = 140;
@@ -847,10 +847,10 @@ function armarKpis(intentos, ruta) {
   };
 }
 
-/** "2026-11-21_07-28-42" → "2026-11-21T07:28:42" (hora local, sin zona), o null. */
+/** "2026-11-21_07-28-42" → "2026-11-21T07:28:42" (hora local); un id de corrida "2026-11-21T10-28-42Z" queda en UTC. */
 export function fechaIsoDe(fecha) {
-  const partes = /^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})$/.exec(String(fecha ?? ""));
-  return partes ? `${partes[1]}T${partes[2]}:${partes[3]}:${partes[4]}` : null;
+  const partes = /^(\d{4}-\d{2}-\d{2})[_T](\d{2})-(\d{2})-(\d{2})(Z?)/.exec(String(fecha ?? ""));
+  return partes ? `${partes[1]}T${partes[2]}:${partes[3]}:${partes[4]}${partes[5]}` : null;
 }
 
 /**
@@ -895,7 +895,7 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
   const textoDelCriterio = criterio?.criterion ?? arbol?.criteria?.criterion ?? null;
   const tanda = {
     id,
-    tarea: arbol?.task_id ?? (id.includes("/") ? id.split("/")[0] : null),
+    tarea: arbol?.task_id ?? id.split("/")[2] ?? null,
     instruccion: arbol?.instruction ?? "",
     // La tarea en palabras de alguien sin contexto (la que leen los exploradores «sin contexto»), si la tanda la tiene.
     instruccionSinContexto: typeof arbol?.tarea_sin_contexto === "string" && arbol.tarea_sin_contexto.trim() ? arbol.tarea_sin_contexto.trim() : null,

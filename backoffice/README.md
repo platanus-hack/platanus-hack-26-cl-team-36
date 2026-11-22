@@ -1,6 +1,6 @@
 # Backoffice
 
-Visor de solo lectura de las corridas del evaluador (`agents/.runs/`). Parte de
+Visor de solo lectura de las corridas del Visitante en el almacén (`agents/.runs/`). Parte de
 [la especificación del backoffice](../.specs/backoffice-v0.md): muestra cada tanda (los intentos de los perfiles
 sobre una misma tarea) y responde qué pasó, por dónde fueron y dónde se separaron de la ruta. No gatilla nada ni
 llama a Claude. Sin build ni dependencias: Node 22 o superior, `node:http` y módulos ES en el navegador.
@@ -11,8 +11,8 @@ llama a Claude. Sin build ni dependencias: Node 22 o superior, `node:http` y mó
 just local backoffice        # o: npm run backoffice, desde la raíz (dentro de backoffice/, npm run dev reinicia el servidor al guardar)
 ```
 
-Abre <http://localhost:4848>. Para tener algo que ver, primero hay que correr el evaluador, por ejemplo
-`just local validate wom` o `just local explore <url> "<tarea>"`; la tanda aparece al recargar.
+Abre <http://localhost:4848>. Para tener algo que ver, primero hay que correr el Visitante, por ejemplo
+`just local visit-tasks wom` o `just local visit <url> "<tarea>"`; la tanda aparece al recargar.
 
 | Variable | Por defecto | Qué cambia |
 |---|---|---|
@@ -21,12 +21,6 @@ Abre <http://localhost:4848>. Para tener algo que ver, primero hay que correr el
 | `BACKOFFICE_FUENTE` | `archivos` | De dónde se leen las corridas. Hoy solo existe `archivos`; otro valor hace fallar el arranque. |
 | `BACKOFFICE_HOSTS` | (vacío) | Valores extra aceptados en la cabecera `Host` (con puerto, p. ej. `otro.host:8080`), separados por coma. Por defecto solo `localhost`, `127.0.0.1` y `[::1]`. |
 
-**Tandas archivadas.** La carpeta `agents/.runs/archivo/` nunca se lista: ahí van las tandas viejas que ya no se
-quieren mostrar, para no mezclar series distintas. Desde 2026-11-21 la lista muestra solo las tandas con los 8
-exploradores (`--exploradores conocimiento`); las anteriores (4 exploradores y los perfiles por defecto) quedaron en
-`agents/.runs/archivo/2026-11-21-4-exploradores/<tarea>/<fecha-hora>/`. Para verlas:
-`BACKOFFICE_CORRIDAS=agents/.runs/archivo/2026-11-21-4-exploradores npm run backoffice`.
-
 Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 
 ## Pantallas
@@ -34,7 +28,7 @@ Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 **Corridas** (`#/`) lista las tandas, más nuevas primero y agrupadas por día. Cada fila abre la tanda y ya dice su
 hallazgo. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
 
-Una tanda (`#/t/<tarea>/<fecha-hora>/<pestaña>`) tiene un marco común (migas, tanda anterior/siguiente, instrucción,
+Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene un marco común (migas, tanda anterior/siguiente, instrucción,
 veredicto) y cuatro pestañas:
 
 | Pestaña | Qué pregunta responde | De dónde sale |
@@ -119,14 +113,14 @@ Una fuente S3 (no construida) necesitaría:
 
 ```
 backoffice/
-├── servidor.js          ← node:http: la página, /api/tandas, /api/tandas/<tarea>/<fecha-hora> y /archivos/…
+├── servidor.js          ← node:http: la página, /api/tandas, /api/tandas/<host>/visitor/<objetivo>/<corrida> y /archivos/…
 ├── lib/                 ← lado del servidor, lógica pura salvo la fuente
 │   ├── tandas.js        ← lista y lee tandas a través de la fuente; valida todo lo que llega de afuera
 │   ├── fuente.js        ← la interfaz Fuente y crearFuente(); fuentes/archivos.js la implementa con node:fs
 │   ├── derivar.js       ← de route_tree.json + run.json + criteria.json a la tanda que dibujan las pantallas
 │   ├── paginas.js       ← une nodos en páginas y les da un título corto
 │   ├── hallazgos.js     ← hallazgos y titulares (clave + vars)
-│   └── url.js           ← normalize_url de route_tree.py, en JavaScript
+│   └── url.js           ← normalize_url de shared.nodes.urls, en JavaScript
 ├── public/
 │   ├── index.html, app.js   ← arranque: idioma, menú, paleta, atajos globales, enrutador
 │   ├── nucleo/          ← enrutador por hash, marco de la tanda, atajos, paleta ⌘K, i18n, formatos, estados, íconos
@@ -164,6 +158,8 @@ Las corridas muestran páginas de terceros y a veces datos de quien corrió la p
 fusionadas, los hallazgos, la fuente (incluida una fuente falsa en memoria), el servidor, los módulos puros de las
 pantallas y los diccionarios.
 
-Las tandas de `test/fixtures/corridas/tarea-demo/` son sintéticas, con la forma de `agents/.runs/`. Sus
-`route_tree.json` los generó `build_route_tree` del evaluador (`agents/app/web_evaluator/route_tree.py`) a partir de
+Las tandas de `test/fixtures/corridas/demo.cl/visitor/tarea-demo/` son sintéticas, con la forma de `agents/.runs/`; la
+fuente solo lista las corridas cuyo `manifest.json` dice `succeeded`, y el fixture trae una fallida y una en curso. El
+layout que lee el backoffice está en `public/nucleo/almacen.js`. Sus
+`route_tree.json` los generó `build_route_tree` del Visitante (`agents/app/visitor/visitor/route_tree.py`) a partir de
 los `run.json`; si cambia el formato del evaluador, hay que regenerarlos igual.

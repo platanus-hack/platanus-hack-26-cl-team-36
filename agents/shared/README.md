@@ -1,22 +1,37 @@
-# shared.store
+# shared
 
-Almacén de las salidas de los agentes. Define las claves, los ids de corrida y el manifiesto, y escribe en disco
-(`agents/.runs/`) o en S3 con el mismo árbol. Ninguna clave se arma a mano fuera de este paquete.
+Lo que usan dos o más agentes de `agents/app/`. Cada pieza tiene un solo lugar; ningún agente importa la carpeta de
+otro.
 
-## Layout
+| Paquete | Qué es | Lo usan |
+|---|---|---|
+| `shared.store` | Almacén de las salidas: claves, ids de corrida, manifiesto, disco y S3. | todos |
+| `shared.browser` | `session`: navegador, contexto aislado con la red de seguridad de formularios y sesión de una pestaña. `viewports`: `desktop` y `mobile`. `keys`: teclas al formato de Playwright. `theme`: el tema CSS (`--css`) en cada documento. `pixels`: cuánto cambió la pantalla entre dos capturas. | cataloger, guide, visitor, summary (`theme`), web_designer |
+| `shared.claude` | `process`: el proceso de `claude -p` en stream-json. `caller`: llamadas con salida JSON que suman tokens y costo. `workdir`: carpeta vacía para Claude Code. | cataloger, guide, visitor, web_designer |
+| `shared.nodes` | `urls`: URL normalizada, nodo de una página (URL más título) y sitio de una URL. | todos |
+| `shared.dom` | `visibility`: el JavaScript que decide qué se puede mostrar. | cataloger, guide |
+| `shared.catalog` | `goal`: el objetivo, qué se intenta y su id. `outline`: el esquema del sitio. `tasks`: las tareas escritas a mano. `files`: lectura de un catálogo del almacén. `routes`: la ruta vigente de un objetivo y su última corrida del Visitante con o sin tema. `prominence`: prominencia y complejidad. | cataloger, guide, visitor, summary |
+
+## shared.store
+
+Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agents/.runs/`) o en S3 con el mismo
+árbol. Ninguna clave se arma a mano fuera de este paquete.
+
+### Layout
 
 ```
 <host>/                                  host normalizado: minúsculas, sin "www.", puerto si no es el por defecto
-  cataloger/<run>/                       manifest.json outline.json goals.json goals.md
-  guide/<goal>/<viewport>/<run>/         manifest.json route.json route.md step_00.png …
-  visitor/<goal>/<run>/                  manifest.json criteria.json route_tree.json comparison.json report.md
-      <profile>/                         run.json step_00.png … video.webm
+  cataloger/<run>/                       manifest.json outline.json goals.json goals.md claude_code.log
+  guide/<goal>/<viewport>/<run>/         manifest.json route.json route.md step_00.png … claude_code.log
+  visitor/<goal>/<run>/                  manifest.json criteria.json route_tree.json comparison.json proposals.json report.md
+                                         tema.css
+      <profile>/                         run.json step_00.png … video.webm claude_code.log
   summary/<run>/                         manifest.json summary.json summary.md
 ```
 
-## Reglas
+### Reglas
 
-- `<host>` se normaliza igual que `normalize_url` del evaluador; un host suelto se toma como https.
+- `<host>` se normaliza igual que `shared.nodes.urls.normalize_url`; un host suelto se toma como https.
 - Un host internacional queda en punycode (`ñandú.cl` → `xn--and-6ma2c.cl`); uno con `_` se rechaza: no es un host.
 - `<goal>` es kebab-case y no lleva el host (`baja-fibra`); `<viewport>` es `desktop` o `mobile`; `<profile>` es la
   clave de un perfil del visitante.
@@ -27,9 +42,24 @@ Almacén de las salidas de los agentes. Define las claves, los ids de corrida y 
   terminada no se vuelve a publicar.
 - `status` es `running`, `succeeded` o `failed`; `running` es una corrida en curso o abandonada.
 - Todo nombre de archivo lleva extensión y ningún perfil la lleva; cualquier otro segmento se rechaza.
-- `manifest.json` dice qué es la carpeta y, en `inputs`, las claves de las corridas que consumió.
+- `manifest.json` dice qué es la carpeta y, en `inputs`, las claves de las corridas que consumió: una corrida de
+  guide, la del catálogo de donde vino su objetivo; una de visitor, las de guide con que se comparó y la del catálogo;
+  una de guide adoptada, la ruta anterior y la corrida de visitor que la propuso; una de summary, todas las que leyó.
+- `comparison.json` existe si alguna ruta de guide sirvió de referencia, y `proposals.json` si un intento la superó.
+- Una corrida de guide con `adoption.json` es la revisión de una propuesta: `succeeded` si la adoptó, `failed` si no.
+- Una corrida de visitor cuyos intentos se interrumpieron todos termina `failed`.
+- Un tema no es un segmento de la clave: una corrida de visitor con `--css` va al mismo prefijo, guarda el CSS en
+  `tema.css` y su `route_tree.json` lo registra en `tema` (`archivo`, `sha256` corto, `bytes`); sin tema, `tema` es
+  `null`. Una de summary con `--css` registra el sha256 en `tema` de `summary.json`. La vigente se elige por tema como
+  por instrucción: una corrida con tema nunca es la vigente sin tema, ni al revés.
+- Una tarea de `agents/tasks/<host>/<goal>.json` es un objetivo de su host con su propio id. Un objetivo libre, que
+  solo tiene instrucción, se llama `libre-<primeras palabras>-<8 hex del sha256 de la instrucción>`; el catálogo y las
+  tareas no aceptan ese prefijo.
+- Un mismo `<goal>` puede tener corridas de instrucciones distintas: la vigente para una instrucción es la más nueva que
+  terminó bien y es de esa instrucción (`shared.catalog.routes`). `runs_with_status` las recorre de la más nueva a la
+  más vieja y salta las de manifiesto ilegible.
 
-## Uso
+### Uso
 
 ```python
 from shared.store import finish_run, guide, latest_run, open_backend, start_run, visitor
@@ -43,12 +73,16 @@ run = start_run(store, visitor("wom.cl", "baja-fibra"), model="claude-haiku-5-5"
 # Playwright y el agente escriben en run.workdir: report.md, first_time/step_00.png, first_time/video.webm …
 (run.workdir / "report.md").write_text(report)
 finish_run(store, run, "succeeded")                      # publica la carpeta y cierra el manifiesto
+store.list_profiles(run.key)                             # ["first_time"]: las carpetas de perfil de la corrida
 ```
+
+`with running(store, prefix, model=..., inputs=[...]) as run:` hace lo mismo y cierra la corrida como `failed` si el
+bloque lanza una excepción; los consumidores ignoran las corridas que no terminaron bien.
 
 En disco, `run.workdir` es la carpeta de la corrida. En S3 es una carpeta temporal que `finish_run` sube y borra. Los
 archivos ocultos (`.DS_Store`) no se publican.
 
-## Local y S3
+### Local y S3
 
 `AGENTS_STORE` elige el backend:
 
@@ -68,10 +102,12 @@ Desde un agente en `agents/app/<agente>/`, como dependencia de ruta editable (si
 
 ```toml
 [project]
-dependencies = ["shared[s3]"]
+dependencies = ["shared[browser]"]
 
 [tool.uv.sources]
 shared = { path = "../../shared", editable = true }
 ```
 
-`boto3` solo se instala con el extra `s3`. Las pruebas corren sin red: `uv run pytest -q`.
+`playwright` solo se instala con el extra `browser`, `pillow` con `pixels` y `boto3` con `s3`; sin `boto3`, un
+almacén `s3://` falla con un mensaje que lo nombra. Las pruebas corren sin red:
+`uv run pytest -q`.
