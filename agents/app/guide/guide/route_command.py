@@ -2,19 +2,20 @@
 
 import argparse
 import asyncio
+import sys
 import time
 
 from shared import store
 from shared.browser.session import open_browser
 from shared.browser.viewports import SCREENS
 from shared.catalog.files import read_catalog
-from shared.catalog.goal import instruction_goal_id
+from shared.catalog.goal import exclusion, instruction_goal_id
 from shared.catalog.tasks import available_tasks, load_task
 from shared.claude.workdir import claude_workdir
 
 from guide import config
 from guide.catalog_routes import goal_mappings, pending_routes
-from guide.reference import Mapping, map_references
+from guide.reference import Mapping, RouteNotVerified, map_references
 
 
 def _route_limit(value: str) -> int | None:
@@ -29,11 +30,13 @@ def _route_limit(value: str) -> int | None:
 
 def add_parser(commands: argparse._SubParsersAction) -> None:
     route = commands.add_parser("route", help="encuentra y verifica la ruta de referencia de una tarea u objetivo")
-    target = route.add_argument_group("qué mapear: --task, --url con --instruction, o --site")
+    target = route.add_argument_group("qué mapear: --task, --url con --instruction o con --revision y --goal, o --site")
     target.add_argument("--task", help=f"tarea de agents/tasks/ como <host>/<objetivo> ({', '.join(available_tasks()) or 'ninguna'})")
     target.add_argument("--url", help="URL inicial del sitio")
     target.add_argument("--instruction", help="Tarea en lenguaje natural")
     target.add_argument("--site", help="URL de un sitio: rutas de los objetivos de su último catálogo, en desktop")
+    target.add_argument("--revision", help="con --url y --goal: el objetivo del catálogo de esta revisión, en desktop")
+    target.add_argument("--goal", help="con --revision: id del objetivo en goals.json")
     catalog = route.add_argument_group("con --site")
     catalog.add_argument("--routes", type=_route_limit, default=0,
                          help="deja hasta N objetivos con ruta verificada, o todos con all (por defecto: 0)")
@@ -74,6 +77,25 @@ def _task_mappings(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
             for key in viewports]
 
 
+def _revision_mappings(parser: argparse.ArgumentParser, args: argparse.Namespace, backend: store.Backend) -> list[Mapping]:
+    """El objetivo `--goal` del catálogo de la revisión; sin catálogo, sin el objetivo o excluido, no crea corrida."""
+    if not (args.url and args.goal) or args.task or args.instruction or args.site:
+        parser.error("usa --revision con --url y --goal, sin --task, --instruction ni --site")
+    try:
+        store.validate_revision(args.revision)
+        catalog = store.revision_run(backend, store.cataloger(args.url), args.revision)
+    except ValueError as error:
+        parser.error(str(error))
+    if catalog is None or store.read_manifest(backend, catalog).status != "succeeded":
+        parser.error(f"no hay catálogo terminado de la revisión {args.revision} para {args.url}")
+    goal = next((goal for goal in read_catalog(backend, catalog)[1] if goal.id == args.goal), None)
+    if goal is None:
+        parser.error(f"el catálogo {catalog} no tiene el objetivo {args.goal}")
+    if exclusion(goal):
+        parser.error(f"el objetivo {args.goal} está excluido: {exclusion(goal)}")
+    return goal_mappings([goal], catalog, args.model, args.effort, args.shorter, revision=args.revision)
+
+
 def _catalog_mappings(parser: argparse.ArgumentParser, args: argparse.Namespace, backend: store.Backend) -> list[Mapping]:
     if args.task or args.url or args.instruction:
         parser.error("usa --site sin --task ni --url")
@@ -99,7 +121,11 @@ async def _map(backend: store.Backend, mappings: list[Mapping], cdp_url: str | N
 
 def run(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     backend = store.open_backend()
-    if args.site:
+    if args.goal and not args.revision:
+        parser.error("--goal va con --revision")
+    if args.revision:
+        mappings, concurrency = _revision_mappings(parser, args, backend), 1
+    elif args.site:
         mappings, concurrency = _catalog_mappings(parser, args, backend), config.ROUTE_CONCURRENCY
     else:
         mappings = _task_mappings(parser, args)
@@ -111,9 +137,13 @@ def run(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     results = asyncio.run(_map(backend, mappings, args.cdp_url, concurrency))
     print(f"\nListo en {time.monotonic() - started:.0f} s.")
     for mapping, result in zip(mappings, results):
-        if isinstance(result, BaseException):
+        if isinstance(result, RouteNotVerified):
+            print(f"  {mapping.label}: {result.document['status']}, la corrida queda failed — {result.run.file('route.md')}")
+        elif isinstance(result, BaseException):
             print(f"  {mapping.label}: error interno, {type(result).__name__}: {result}")
         else:
             run, document = result
             print(f"  {mapping.label}: {document['status']}, {document['totals']['min_steps']} pasos mínimos"
                   f" — {run.file('route.md')}")
+    if args.revision and not all(isinstance(result, tuple) for result in results):
+        sys.exit(1)
