@@ -36,9 +36,10 @@ function esqueletoDeVista(ruta) {
   return "lista";
 }
 
-// Corridas y la tanda trabajan sobre la lista de tandas y la esperan. El Overview y Revisiones traen sus propios
-// datos: no esperan /api/tandas (que con S3 tarda) y la usan si ya llegó; mientras, la lista se carga en segundo plano.
-const ESPERAN_LA_LISTA = new Set(["corridas", "tanda"]);
+// Corridas trabaja sobre la lista de tandas y la espera. Las demás traen sus propios datos (una tanda, sus vecinas):
+// no esperan /api/tandas (que con S3 tarda) y la usan si ya llegó; mientras, la lista se carga en segundo plano. Solo
+// el aviso de una tanda que no existe la espera, para sugerir otras de la misma tarea.
+const ESPERAN_LA_LISTA = new Set(["corridas"]);
 // Vistas cuyos parámetros cambian sin remontar (actualizarParametros → actualizar(ctx) de la pantalla).
 const CON_PARAMETROS = new Set(["overview", "corridas", "tanda", "revisiones"]);
 // Título de respaldo de una vista sin título propio.
@@ -511,6 +512,8 @@ async function procesar({ origen = "historial" } = {}) {
   fijarRuta(nueva, hash);
 
   if (nueva.tipo === "tanda" && !cargado.tanda) {
+    listaDeTandas = await pedirTandas().catch(() => listaDeTandas);
+    if (miTurno !== turno) return;
     await conTransicion(() => vistaDeEstado(noExisteLaTanda(nueva.tandaId)), { direccion: direccionEntre(anterior, nueva) });
     document.title = [t("comun.estado.tandaNoExiste", { id: nueva.tandaId }), t("comun.marca.titulo")].join(" · ");
     enfocarDespues({ clave: null, completa: true });
