@@ -85,7 +85,7 @@ data "aws_iam_policy_document" "corridas_escritura" {
   }
 
   statement {
-    actions   = ["s3:GetObject", "s3:PutObject"]
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:PutObjectTagging"]
     resources = ["${aws_s3_bucket.corridas.arn}/*"]
   }
 }
