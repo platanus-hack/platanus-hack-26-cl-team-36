@@ -1,0 +1,114 @@
+/*
+ * Fuentes variables empaquetadas para los temas remotos, que no pueden usar url() ni @font-face.
+ * Un tema las usa solo nombrándolas: font-family: "MT Inter", "MT Inter Fallback", Inter, system-ui, sans-serif;
+ * El background inyecta esta hoja con scripting.insertCSS solo si el tema de la página nombra una "MT …"
+ * (background/fuentes.js). Las url() son relativas a esta hoja (moz-extension://<uuid>/fuentes/).
+ *
+ * Archivos: subconjunto latino (Latin-1, ¿¡«»—– y comillas tipográficas) de @fontsource-variable 5.3,
+ * sin modificar. Licencia SIL OFL 1.1 de cada familia en OFL-<familia>.txt, copiada de su repo oficial.
+ *   inter.woff2         Inter 4 (rsms/inter)                 wght 100–900, opsz 14–32
+ *   source-serif.woff2  Source Serif 4 (adobe-fonts)         wght 200–900, opsz 8–60
+ *   archivo.woff2       Archivo (Omnibus-Type/Archivo)       wght 100–900, wdth 62–125
+ *   geist.woff2         Geist (vercel/geist-font)            wght 100–900
+ *   geist-mono.woff2    Geist Mono (vercel/geist-font)       wght 100–900
+ *
+ * Las caras "… Fallback" son una fuente local con las métricas de la variable (size-adjust y overrides
+ * calculados con fontTools), para que el texto no salte al terminar de cargar (font-display: swap).
+ */
+
+@font-face {
+  font-family: "MT Inter";
+  src: url("inter.woff2") format("woff2-variations"), url("inter.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "MT Source Serif";
+  src: url("source-serif.woff2") format("woff2-variations"), url("source-serif.woff2") format("woff2");
+  font-weight: 200 900;
+  font-stretch: 100%;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "MT Archivo";
+  src: url("archivo.woff2") format("woff2-variations"), url("archivo.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "MT Geist";
+  src: url("geist.woff2") format("woff2-variations"), url("geist.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "MT Geist Mono";
+  src: url("geist-mono.woff2") format("woff2-variations"), url("geist-mono.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Respaldos con métricas ajustadas (Liberation es métricamente igual a Arial/Times/Courier en Linux). */
+
+@font-face {
+  font-family: "MT Inter Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans");
+  size-adjust: 106.78%;
+  ascent-override: 90.73%;
+  descent-override: 22.59%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "MT Source Serif Fallback";
+  src: local("Times New Roman"), local("TimesNewRomanPSMT"), local("Liberation Serif");
+  size-adjust: 111.99%;
+  ascent-override: 92.51%;
+  descent-override: 29.91%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "MT Archivo Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans");
+  size-adjust: 102.14%;
+  ascent-override: 85.96%;
+  descent-override: 20.56%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "MT Geist Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans");
+  size-adjust: 104.44%;
+  ascent-override: 96.23%;
+  descent-override: 28.25%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "MT Geist Mono Fallback";
+  src: local("Courier New"), local("CourierNewPSMT"), local("Liberation Mono");
+  size-adjust: 99.98%;
+  ascent-override: 100.52%;
+  descent-override: 29.5%;
+  line-gap-override: 0%;
+}
