@@ -11,8 +11,8 @@ llama a Claude. Sin build ni dependencias: Node 22 o superior, `node:http` y mó
 just local backoffice        # o: npm run backoffice, desde la raíz (dentro de backoffice/, npm run dev reinicia el servidor al guardar)
 ```
 
-Abre <http://localhost:4848>. Para tener algo que ver, primero hay que correr el evaluador, por ejemplo
-`just local validate wom` o `just local explore <url> "<tarea>"`; la tanda aparece al recargar.
+Abre <http://localhost:4848>. Para tener algo que ver, primero hay que correr el Visitante, por ejemplo
+`just local visit-tasks wom` o `just local visit <url> "<tarea>"`; la tanda aparece al recargar.
 
 | Variable | Por defecto | Qué cambia |
 |---|---|---|
@@ -120,7 +120,7 @@ backoffice/
 │   ├── derivar.js       ← de route_tree.json + run.json + criteria.json a la tanda que dibujan las pantallas
 │   ├── paginas.js       ← une nodos en páginas y les da un título corto
 │   ├── hallazgos.js     ← hallazgos y titulares (clave + vars)
-│   └── url.js           ← normalize_url de route_tree.py, en JavaScript
+│   └── url.js           ← normalize_url de shared.nodes.urls, en JavaScript
 ├── public/
 │   ├── index.html, app.js   ← arranque: idioma, menú, paleta, atajos globales, enrutador
 │   ├── nucleo/          ← enrutador por hash, marco de la tanda, atajos, paleta ⌘K, i18n, formatos, estados, íconos
@@ -159,5 +159,5 @@ fusionadas, los hallazgos, la fuente (incluida una fuente falsa en memoria), el 
 pantallas y los diccionarios.
 
 Las tandas de `test/fixtures/corridas/tarea-demo/` son sintéticas, con la forma de `agents/.runs/`. Sus
-`route_tree.json` los generó `build_route_tree` del evaluador (`agents/app/web_evaluator/route_tree.py`) a partir de
+`route_tree.json` los generó `build_route_tree` del Visitante (`agents/app/visitor/visitor/route_tree.py`) a partir de
 los `run.json`; si cambia el formato del evaluador, hay que regenerarlos igual.

@@ -15,9 +15,8 @@ uv sync
 uv run playwright install chromium
 ```
 
-Usa módulos del [evaluador](../web_evaluator/README.md) (navegador, `claude -p`, comparación de capturas) desde
-`../web_evaluator`, como el [Mapeador](../web_mapper/README.md). Llama a tu Claude Code local (`claude` instalado y
-con sesión iniciada) y consume los límites de tu plan: cada generación es una llamada al modelo y tres al juez.
+Usa el navegador, `claude -p` y la comparación de capturas de [`shared`](../../shared/README.md). Llama a tu Claude
+Code local (`claude` instalado y con sesión iniciada) y consume los límites de tu plan: cada generación es una llamada al modelo y tres al juez.
 
 ## Uso
 
@@ -44,8 +43,8 @@ uv run main.py --comparar <corrida_a>/resumen.json <corrida_b>/resumen.json
 | `--concurrencia` | Generaciones simultáneas (por defecto 3). |
 | `--cdp-url` | Un navegador remoto vía CDP. |
 
-Para probar un tema con usuarios sintéticos, pásale su `tema.css` al evaluador:
-`uv run main.py --task wom-baja-fibra --css <ruta>/tema.css` desde `../web_evaluator`.
+Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitante](../visitor/README.md):
+`uv run main.py --task wom-baja-fibra --css <ruta>/tema.css` desde `../visitor`.
 
 ## Cómo funciona
 

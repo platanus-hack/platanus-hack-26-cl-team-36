@@ -4,7 +4,8 @@ import asyncio
 
 from playwright.async_api import async_playwright
 
-from browser import connect_browser
+from shared.browser.session import connect_browser
+
 from disenador import pagina
 from disenador.css import sanear
 from test_css import CARGA_CONTENT, CARGA_FONT_FACE, CARGA_LAYER

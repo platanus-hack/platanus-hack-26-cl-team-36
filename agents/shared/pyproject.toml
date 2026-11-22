@@ -1,22 +1,24 @@
 [project]
 name = "shared"
 version = "0.1.0"
-description = "Almacén de las salidas de los agentes: las mismas claves en disco y en S3."
+description = "Código que comparten los agentes: almacén, navegador, Claude Code, nodos, DOM y catálogo."
 requires-python = ">=3.12"
 dependencies = []
 
 [project.optional-dependencies]
 s3 = ["boto3>=1.35.20"]   # necesita IfNoneMatch en put_object
+browser = ["playwright>=1.48"]
+pixels = ["pillow>=10.0"]
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "playwright>=1.48", "pillow>=10.0"]
 
 [build-system]
 requires = ["uv_build>=0.8,<0.12"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-module-name = "shared.store"
+module-name = "shared"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

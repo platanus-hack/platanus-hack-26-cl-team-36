@@ -1,0 +1,23 @@
+[project]
+name = "cataloger"
+version = "0.1.0"
+description = "Catalogador: recorre un sitio y cataloga sus objetivos clasificados."
+requires-python = ">=3.12"
+dependencies = [
+    "shared[browser]",
+    "playwright>=1.48",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.uv]
+# Se corre con `uv run main.py`; no se empaqueta.
+package = false
+
+[tool.uv.sources]
+shared = { path = "../../shared", editable = true }
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

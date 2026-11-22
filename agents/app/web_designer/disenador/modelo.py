@@ -1,6 +1,6 @@
-"""El modelo que diseña el tema y el juez, llamados por el Claude Code local (`claude -p`) como en el evaluador.
+"""El modelo que diseña el tema y el juez, llamados por el Claude Code local (`claude -p`) como en el Visitante.
 
-Sin herramientas, sin MCP, sin skills ni configuración del usuario (`ClaudeCodeProcess` del evaluador), y con
+Sin herramientas, sin MCP, sin skills ni configuración del usuario (`ClaudeCodeProcess` de `shared.claude`), y con
 salida estructurada validada contra un esquema JSON. El skill no se carga como skill de Claude Code: su cuerpo va
 en el prompt de sistema, igual que lo usaría la extensión.
 """
@@ -14,8 +14,9 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from shared.claude.process import ClaudeCodeError, ClaudeCodeProcess, png_image_block
+
 from disenador import config
-from engines import ClaudeCodeError, ClaudeCodeProcess, png_image_block
 
 ESQUEMA_TEMA = {
     "type": "object",
@@ -140,7 +141,7 @@ class ClaudeCode:
             proceso.process.stdin.write((json.dumps(mensaje) + "\n").encode())
             await proceso.process.stdin.drain()
             # El tope es el `asyncio.wait_for` de abajo (`self.timeout_s`), que además mata el proceso. Sin el
-            # `math.inf`, `wait_for_result` cortaría antes con el tope del evaluador (`CLAUDE_CODE_TIMEOUT_S`).
+            # `math.inf`, `wait_for_result` cortaría antes con su tope por defecto (`DEFAULT_TIMEOUT_S`).
             return await proceso.wait_for_result(timeout_s=math.inf)
 
         try:

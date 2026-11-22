@@ -173,7 +173,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  */
 
 // Motivos de fin que son fallas de la herramienta, no del usuario: los _INTERRUPTED_REASONS de
-// agents/app/web_evaluator/batch.py. El orden es el de la tabla del diseño (§2.1).
+// agents/app/visitor/visitor/batch.py. El orden es el de la tabla del diseño (§2.1).
 const MOTIVOS_DE_ERROR = ["internal_error", "api_error", "no_response", "refusal"];
 const SIN_VEREDICTO = "No se pudo obtener el veredicto";
 const LARGO_DEL_RESUMEN = 140;

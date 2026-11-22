@@ -16,7 +16,7 @@ team-36
 ## Desarrollo local
 
 Requisitos: [`just`](https://github.com/casey/just) (`brew install just`), Node.js 22 o más reciente con npm, Firefox
-y, para los pasos 4, 6 y 7, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
+y, para los pasos 4, 5, 6 y 8, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
 clon nuevo, en este orden:
 
 ```bash
@@ -25,11 +25,12 @@ just local up                         # 2. backend + a separate Firefox with the
 just local up sesion                  #    same, with a copy of your Firefox profile (made the first time)
 just local down                       #    stops them (just local logs follows their logs)
 just local test                       # 3. before pushing: every test that does not call Claude
-just local explore <url> "<task>"     # 4. synthetic users try a task on a site (calls Claude)
-just local validate [wom|sii|dt]      #    the reference tasks in agents/tasks/ (calls Claude)
-just local route <task>               # 6. reference route of a task in agents/tasks/ (calls Claude)
-just local goals <url>                #    goal catalog of a site and, with --routes, their routes (calls Claude)
-just local site <url> [goals]         # 7. catalog, routes, synthetic users and a summary per site (calls Claude)
+just local catalog <url>              # 4. cataloger: goal catalog of a site (calls Claude)
+just local guide <task>               # 5. guide: reference route of a task in agents/tasks/ (calls Claude)
+just local visit <url> "<task>"       # 6. visitor: synthetic users try a task on a site (calls Claude)
+just local visit-tasks [wom|sii|dt]   #    visitor on the tasks in agents/tasks/ (calls Claude)
+just local backoffice                 # 7. viewer of the visitor runs
+just local site <url> [goals]         # 8. catalog, guide and visitor per goal, and a summary per site (calls Claude)
 just local summary <url>              #    rewrites that summary from the files on disk
 ```
 
@@ -49,17 +50,20 @@ just publish v0.3.0                   # signs that version of the extension and 
 Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del repo; los comandos están en
 [`local/justfile`](local/justfile).
 
-El evaluador también corre en AWS, en AgentCore Runtime, con Claude en Bedrock y la cuenta de la hackatón
-(`export AWS_PROFILE=<perfil>`): `just aws explore wom-baja-fibra` o `just aws explore <url> "<task>"`. Se despliega
-solo al mergear a `main`; los detalles están en [el evaluador](agents/app/web_evaluator/README.md#en-aws-agentcore) y
+El Visitante también corre en AWS, en AgentCore Runtime, con Claude en Bedrock y la cuenta de la hackatón
+(`export AWS_PROFILE=<perfil>`): `just aws visit wom-baja-fibra` o `just aws visit <url> "<task>"`. Se despliega
+solo al mergear a `main`; los detalles están en [el Visitante](agents/app/visitor/README.md#en-aws-agentcore) y
 en [la infraestructura](infra/README.md).
 
 | Pieza | Qué es |
 |---|---|
 | [`extension/`](extension/README.md) | Extensión de Firefox que cambia el diseño de cada sitio aplicando un tema |
 | `backend/` | API que le dice a la extensión qué tema corresponde a cada página |
-| [`agents/app/web_evaluator/`](agents/app/web_evaluator/README.md) | Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos |
-| [`agents/app/web_mapper/`](agents/app/web_mapper/README.md) | Mapeador: lee el DOM para catalogar los objetivos de un sitio y encontrar la ruta de referencia de cada uno |
+| [`agents/app/cataloger/`](agents/app/cataloger/README.md) | Catalogador: lee el DOM de un sitio y cataloga sus objetivos, clasificados |
+| [`agents/app/guide/`](agents/app/guide/README.md) | Guía: encuentra y verifica la ruta de referencia de un objetivo, con el DOM y capturas |
+| [`agents/app/visitor/`](agents/app/visitor/README.md) | Visitante: usuarios sintéticos que intentan un objetivo viendo solo capturas |
+| [`agents/app/summary/`](agents/app/summary/README.md) | Resumen de un sitio: la ruta de la Guía contra los intentos del Visitante, por objetivo |
+| [`agents/shared/`](agents/shared/README.md) | Lo que usan dos o más agentes: almacén, navegador, Claude Code, nodos, DOM y catálogo |
 
 Before Submitting:
 

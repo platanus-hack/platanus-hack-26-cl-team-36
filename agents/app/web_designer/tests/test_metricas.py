@@ -5,7 +5,8 @@ import json
 
 from playwright.async_api import async_playwright
 
-from browser import connect_browser
+from shared.browser.session import connect_browser
+
 from conftest import CSS_GUION
 from disenador import mapa, metricas, pagina
 from disenador.css import sanear

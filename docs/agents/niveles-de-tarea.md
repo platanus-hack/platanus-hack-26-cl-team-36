@@ -1,11 +1,11 @@
 # Niveles de tarea: cómo clasificar los objetivos de un sitio
 
-**Qué es este documento.** Una investigación para el **mapeador** (`web_mapper`), el agente que lee el DOM de un
-sitio, descubre todos los objetivos que ofrece a sus visitantes y, para cada uno, busca la **ruta de referencia**: el
-camino más corto que lo logra. Responde si la práctica de UX, la investigación en HCI y los benchmarks de agentes web
+**Qué es este documento.** Una investigación para el **Catalogador** (`cataloger`), el agente que lee el DOM de un
+sitio y descubre todos los objetivos que ofrece a sus visitantes, y para la **Guía** (`guide`), que para cada uno
+busca la **ruta de referencia**: el camino más corto que lo logra. Responde si la práctica de UX, la investigación en HCI y los benchmarks de agentes web
 clasifican tareas por niveles, qué clasificación adopta nuestro catálogo de objetivos y con qué regla se asigna cada
-valor sin analítica ni personas reales. Es para quien construye el mapeador y para quien compara sus rutas con las
-del [evaluador](evaluador.md). Los términos están en el [glosario](../glosario.md). Fecha: 2026-11-21.
+valor sin analítica ni personas reales. Es para quien construye esos agentes y para quien compara sus rutas con los
+intentos del Visitante ([diseño](evaluador.md)). Los términos están en el [glosario](../glosario.md). Fecha: 2026-11-21.
 
 ## Resumen
 
@@ -15,7 +15,7 @@ del [evaluador](evaluador.md). Los términos están en el [glosario](../glosario
 - **Sin personas se puede calcular** el nivel, la intención, la complejidad y las barreras. **No se puede** calcular
   la importancia: Top Tasks necesita votos, las red routes frecuencia de uso y los CUJ indicadores de negocio. El DOM
   da la **prominencia**, que mide lo que el sitio destaca, no lo que el visitante necesita.
-- **Solo los objetivos `user_goal` van al evaluador.** Los `summary` agrupan; los `subfunction` (iniciar sesión,
+- **Solo los objetivos `user_goal` van al Visitante.** Los `summary` agrupan; los `subfunction` (iniciar sesión,
   buscar) son tramos de otros.
 - **La complejidad sale de las acciones de la ruta de referencia, sin scrolls:** hasta 5 es `easy`, de 6 a 10
   `medium`, 11 o más `hard`.
@@ -59,8 +59,8 @@ pedir confirmación antes de operaciones irreversibles (borrar, comprar) o de en
 
 ## 3. El esquema de un objetivo
 
-Ejemplo sobre la tarea de WOM de [`agents/tasks/`](../../agents/tasks/); la ruta no está medida. Se conservan los
-campos de [formas de datos](../formas-de-datos.md), sección 5.
+Ejemplo de un objetivo de `goals.json` sobre la tarea de WOM de [`agents/tasks/`](../../agents/tasks/). Se conservan
+los campos de [formas de datos](../formas-de-datos.md), sección 5.
 
 ```json
 {
@@ -68,22 +68,17 @@ campos de [formas de datos](../formas-de-datos.md), sección 5.
   "host": "www.wom.cl",
   "start_url": "https://www.wom.cl/",
   "description": "Encuentra cómo dar de baja tu servicio de Internet Fibra.",
+  "expected_answer": null,
   "level": "user_goal",
   "parent": "wom-gestionar-servicio",
   "intent": "find_info",
+  "evidence": ["https://www.wom.cl/ayuda/"],
+  "entry": "https://www.wom.cl/ayuda/",
   "submits_form": false,
   "prominence": "buried",
-  "complexity": "easy",
   "gates": [],
-  "expected_answer": "Llamar al 103 desde una línea WOM, o al 22 337 7600.",
-  "success": { "element_visible": { "role": "heading", "name": "Baja de servicios" } },
-  "reference_route": {
-    "steps": 4,
-    "actions": 2,
-    "pages": 3,
-    "nodes": ["wom.cl/ | WOM", "wom.cl/ayuda | Ayuda", "wom.cl/ayuda/baja | Baja de servicios"],
-    "key_nodes": ["wom.cl/ayuda/baja | Baja de servicios"]
-  }
+  "instruction": "Encuentra cómo dar de baja tu servicio de Internet Fibra.",
+  "exclusion": null
 }
 ```
 
@@ -96,22 +91,25 @@ campos de [formas de datos](../formas-de-datos.md), sección 5.
 | `prominence` | `primary`, `secondary`, `buried` | Por el primer elemento de la ruta en `start_url`, viewport de escritorio. `primary`: visible en la primera pantalla sin interactuar. `secondary`: está en las tres primeras pantallas o en un menú del encabezado. Si no, `buried`. |
 | `complexity` | `easy`, `medium`, `hard` | Por `reference_route.actions`, sin scrolls: ≤5, 6–10, ≥11. |
 | `gates` | Lista de `login`, `personal_data`, `side_effect`, `bot_check`; vacía = abierto | `login`: un `input type=password` o `autocomplete` `username`, `current-password`, `new-password` u `one-time-code`. `personal_data`, solo si `submits_form` o `transact`, en un campo visible que no sea búsqueda ni lista: `autocomplete` de nombre, `email`, `tel`, dirección, `bday` o `cc-*`, o una etiqueta o `name` de RUT, nombre de la persona, teléfono, correo o dirección (muchos formularios no declaran `autocomplete`). `side_effect`: es `transact`. `bot_check`: iframe de reCAPTCHA, hCaptcha o Turnstile. |
-| `reference_route.steps` | entero | Pasos de la ruta más corta, contados con las acciones del evaluador: clic, campo escrito, tecla o desplazamiento. Es una cota inferior para quien solo ve la pantalla: un desplazamiento por cada elemento fuera de ella y a lo más uno para leer la respuesta. |
+| `reference_route.steps` | entero | Pasos de la ruta más corta, contados con las acciones del Visitante: clic, campo escrito, tecla o desplazamiento. Es una cota inferior para quien solo ve la pantalla: un desplazamiento por cada elemento fuera de ella y a lo más uno para leer la respuesta. |
 | `reference_route.actions` | entero | Acciones de la ruta sin los desplazamientos: clic, campo escrito, opción elegida o tecla. Online-Mind2Web y Mind2Web no registran scroll. |
 | `reference_route.pages` | entero | Páginas distintas de la ruta, incluida `start_url`. |
-| `reference_route.nodes` | lista | Nodos con la identidad del árbol de rutas del evaluador: URL normalizada más título. |
+| `reference_route.nodes` | lista | Nodos con la identidad del árbol de rutas del Visitante: URL normalizada más título. |
 | `reference_route.key_nodes` | lista | Nodos por los que pasa toda ruta que logra el objetivo. Con una ruta, su nodo final; con varias, los nodos comunes a todas. |
+
+`complexity`, la prominencia por ruta y los números de `reference_route` están en `summary.json`; la respuesta, en
+`answer` del `route.json` de la Guía.
 
 Los cortes de `prominence` siguen a NN/g: el 57 % del tiempo de visualización ocurre en la primera pantalla y el 81 %
 en las tres primeras (2018, pantalla de 1920×1080). Equiparar abrir un menú con desplazarse es decisión propia.
 
-**Qué hace el evaluador con cada barrera.** Sin barreras, evalúa entero. Con `side_effect`, hasta el paso anterior al
+**Qué hace el Visitante con cada barrera.** Sin barreras, evalúa entero. Con `side_effect`, hasta el paso anterior al
 envío: el éxito es llegar a la confirmación sin enviar, como el *Click (Fake)* de Mind2Web; el harness ya cancela el
 envío de formularios `method=post` o con contraseña; no bloquea `fetch`/XHR. Con `login` o `personal_data`, queda
 fuera salvo que haya cuenta de prueba. Con `bot_check`, queda fuera.
 
 **Qué se descarta.** Los objetivos de final abierto (recolectar y navegar sin meta en Kellar, la búsqueda sin
-dirección de Rose y Levinson). NN/g exige una sola interpretación y un final claro para medir éxito. El mapeador los
+dirección de Rose y Levinson). NN/g exige una sola interpretación y un final claro para medir éxito. El Catalogador los
 reescribe como tarea cerrada o no los incluye.
 
 ## 4. Lo que la ruta de referencia tiene que entregar
@@ -158,16 +156,16 @@ secuencia de nodos y s ∈ {0, 1}, el veredicto del juez.
 
 - **La importancia real.** Sin votos ni analítica no se sabe cuáles son las Top Tasks. Una baja de servicio
   `buried` es un hallazgo, no una tarea menor; las salvaguardas del glosario suelen ser poco prominentes.
-- **El límite de acciones del evaluador.** Con 15 acciones, un `hard` deja poco margen: falta fijar `max_steps` en
+- **El límite de acciones del Visitante.** Con 15 acciones, un `hard` deja poco margen: falta fijar `max_steps` en
   función de ℓ.
 - **La fórmula original de la desorientación** (definición de R, umbral), hasta leer Smith 1996.
-- **Rutas más cortas que la del mapeador.** La ruta de referencia es la más corta verificada entre las exploradas, no
-  la mínima del sitio: el mapeador busca una más corta después de la primera. Si un intento usa menos pasos que ℓ, e
-  vale 1 por el max(p, ℓ); se registra el caso para corregir la ruta: queda como propuesta que el mapeador verifica
+- **Rutas más cortas que la de la Guía.** La ruta de referencia es la más corta verificada entre las exploradas, no
+  la mínima del sitio: la Guía busca una más corta después de la primera. Si un intento usa menos pasos que ℓ, e
+  vale 1 por el max(p, ℓ); se registra el caso para corregir la ruta: queda como propuesta que la Guía verifica
   antes de adoptarla. Falta saber cuántas exploraciones extra bastan y si la ruta es estable entre corridas.
 - **Escritorio y móvil.** La prominencia y la ruta cambian con el viewport; `mobile` necesitaría su propia ruta.
 - **El acuerdo del modelo en `level` e `intent`.** Clasificar a mano los objetivos de los tres sitios de
-  [tareas en sitios chilenos](../tareas-sitios-chilenos.md) y medir cuántos coinciden con el mapeador.
+  [tareas en sitios chilenos](../tareas-sitios-chilenos.md) y medir cuántos coinciden con el Catalogador.
 
 ## Fuentes
 

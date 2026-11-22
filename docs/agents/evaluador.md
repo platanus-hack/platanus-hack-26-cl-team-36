@@ -1,5 +1,7 @@
 # Evaluador: agentes que usan la página como una persona
 
+> Evaluador = Visitante ([`agents/app/visitor/`](../../agents/app/visitor/README.md)).
+
 **Qué es este documento.** El diseño del **evaluador**, la pieza que lanza agentes a intentar una tarea en una
 página ([la propuesta](../index.md), sección 3). Detalla lo que [el plan](../plan.md) deja abierto en el spike 2 y en los
 PR 4 y 5, lo ordena en avances y define qué le entrega el evaluador al optimizador. Es para quien vaya a construirlo.
@@ -319,7 +321,7 @@ parte de la tanda por defecto.
   hasta la página final; lo explorado y abandonado cuenta como fallo, así la exploración no infla la ruta.
 
 El backoffice dibuja este grafo en la pestaña «Telaraña». Cómo correrlos y las tareas pensadas para ellos están en el
-[README del evaluador](../../agents/app/web_evaluator/README.md#exploradores).
+[README del Visitante](../../agents/app/visitor/README.md#exploradores).
 
 ### Avance 5 · AgentCore
 
