@@ -184,14 +184,20 @@ def _visitas(backend: store.Backend, tanda: store.RunKey, nodos_ruta: list[str])
     return visitas[:config.MAX_VISITAS]
 
 
+def _terminada(backend: store.Backend, prefijo: store.RunPrefix, revision: str) -> store.RunKey | None:
+    """La corrida de la revisión si ya terminó: el conductor puede lanzar la mejora con objetivos aún en curso."""
+    corrida = store.revision_run(backend, prefijo, revision)
+    return corrida if corrida and store.read_manifest(backend, corrida).status != "running" else None
+
+
 def _objetivo(backend: store.Backend, url: str, revision: str, goal) -> tuple[dict, list[store.RunKey], dict | None]:
     entradas = []
     route = None
-    corrida_guia = store.revision_run(backend, store.guide(url, goal.id, "desktop"), revision)
+    corrida_guia = _terminada(backend, store.guide(url, goal.id, "desktop"), revision)
     if corrida_guia:
         entradas.append(corrida_guia)
         route = _leer(backend, corrida_guia.file("route.json"))
-    tanda = store.revision_run(backend, store.visitor(url, goal.id), revision)
+    tanda = _terminada(backend, store.visitor(url, goal.id), revision)
     nodos_ruta = route.get("nodes") or [] if isinstance(route, dict) else []
     visitas = _visitas(backend, tanda, nodos_ruta) if tanda else []
     if tanda:

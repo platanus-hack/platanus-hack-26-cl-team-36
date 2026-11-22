@@ -120,9 +120,13 @@ class LocalInvoker:
 
 
 class AgentCoreInvoker:
-    """InvokeAgentRuntime con una sesión nueva por etapa; espera mirando el manifiesto de la etapa en el almacén."""
+    """InvokeAgentRuntime con una sesión nueva por etapa; espera mirando el manifiesto de la etapa en el almacén.
+
+    Las lecturas empiezan seguidas y se espacian hasta `poll_s`: las etapas cortas se notan pronto sin cargar S3.
+    """
 
     def __init__(self, backend: store.Backend, runtime_arn: str, client=None, poll_s: float = config.POLL_S,
+                 poll_first_s: float = config.POLL_FIRST_S,
                  sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
                  monotonic: Callable[[], float] = time.monotonic):
         if client is None:
@@ -136,6 +140,7 @@ class AgentCoreInvoker:
         self.runtime_arn = runtime_arn
         self.client = client
         self.poll_s = poll_s
+        self.poll_first_s = min(poll_first_s, poll_s)
         self.sleep = sleep
         self.monotonic = monotonic
 
@@ -148,6 +153,7 @@ class AgentCoreInvoker:
         except Exception as error:
             return _outcome(None, f"no se pudo invocar el runtime: {type(error).__name__}: {error}",
                             self.monotonic() - started)
+        wait = self.poll_first_s
         while True:
             found = await asyncio.to_thread(_find, self.backend, command, payload["revision"], since)
             if found and found[1] != "running":
@@ -156,7 +162,8 @@ class AgentCoreInvoker:
             if remaining <= 0:
                 return _outcome(found, f"superó el tiempo máximo de {timeout_s:g} s",
                                 self.monotonic() - started)
-            await self.sleep(min(self.poll_s, remaining))
+            await self.sleep(min(wait, remaining))
+            wait = min(wait * config.POLL_GROWTH, self.poll_s)
 
     def _invoke(self, body: dict[str, Any]) -> None:
         # El runtime responde al instante (modo async) y sigue trabajando; el id de sesión pide 33 caracteres o más.

@@ -29,13 +29,17 @@ def goal(goal_id: str, prominence: str = "buried", level: str = "user_goal", gat
 
 
 class FakeInvoker:
-    """Cada etapa deja su corrida de la revisión; `results[(etapa, goal)]` puede ser failed, timeout o raise."""
+    """Cada etapa deja su corrida de la revisión; `results[(etapa, goal)]` puede ser failed, timeout o raise.
 
-    def __init__(self, backend: store.Backend, goals: list[dict], results=None, delay: float = 0.01):
+    `delays[(etapa, goal)]` cambia lo que tarda esa etapa.
+    """
+
+    def __init__(self, backend: store.Backend, goals: list[dict], results=None, delay: float = 0.01, delays=None):
         self.backend = backend
         self.goals = goals
         self.results = results or {}
         self.delay = delay
+        self.delays = delays or {}
         self.calls: list[tuple[str, str | None]] = []
         self.payloads: list[dict] = []
         self.active = self.max_active = 0
@@ -46,7 +50,7 @@ class FakeInvoker:
         self.active += 1
         self.max_active = max(self.max_active, self.active)
         try:
-            await asyncio.sleep(self.delay)
+            await asyncio.sleep(self.delays.get((stage, payload.get("goal")), self.delay))
         finally:
             self.active -= 1
         result = self.results.get((stage, payload.get("goal")), "succeeded")
@@ -87,6 +91,7 @@ def test_order_selection_and_payloads(backend):
     assert [entry["id"] for entry in report["goals"]] == ["b", "f", "c"]
     assert all(entry["visitor"]["status"] == "succeeded" for entry in report["goals"])
     assert report["stages"]["improver"]["run"].startswith("sitio.cl/improver/")
+    assert report["stages"]["improver"]["pending_goals"] == []
 
 
 def test_concurrency_is_capped(backend):
@@ -112,6 +117,36 @@ def test_stage_timeout_and_errors_do_not_stop_the_others(backend):
     assert a["guide"]["error"] == "superó el tiempo máximo de 7 s" and a["visitor"] is None
     assert b["visitor"] == {"status": "failed", "run": None, "error": "RuntimeError: se cayó", "seconds": 0.0}
     assert invoker.calls[-1] == ("improver", None) and report["status"] == "succeeded"
+
+
+def test_the_improver_starts_after_the_grace_with_a_visitor_done(backend):
+    invoker = FakeInvoker(backend, [goal("a"), goal("b")], delays={("guide", "b"): 0.5})
+    report = conduct(backend, invoker, improver_grace_s=0.05)
+    assert invoker.calls.index(("improver", None)) < invoker.calls.index(("visitor", "b"))
+    assert report["stages"]["improver"]["pending_goals"] == ["b"] and report["status"] == "succeeded"
+    assert [entry["visitor"]["status"] for entry in report["goals"]] == ["succeeded", "succeeded"]
+
+
+def test_the_improver_waits_the_grace_for_the_others(backend):
+    invoker = FakeInvoker(backend, [goal("a"), goal("b")], delays={("guide", "b"): 0.1})
+    report = conduct(backend, invoker, improver_grace_s=5)
+    assert invoker.calls[-1] == ("improver", None) and report["stages"]["improver"]["pending_goals"] == []
+
+
+def test_without_a_successful_visitor_the_improver_waits_for_all(backend):
+    invoker = FakeInvoker(backend, [goal("a"), goal("b"), goal("c")],
+                          {("guide", "a"): "failed", ("visitor", "b"): "failed", ("guide", "c"): "failed"},
+                          delays={("guide", "c"): 0.3})
+    report = conduct(backend, invoker, improver_grace_s=0)
+    assert invoker.calls[-1] == ("improver", None) and report["stages"]["improver"]["pending_goals"] == []
+
+
+def test_a_late_goal_does_not_change_what_the_improver_reported(backend):
+    invoker = FakeInvoker(backend, [goal("a"), goal("b")], {("visitor", "b"): "failed"},
+                          delays={("guide", "b"): 0.2, ("improver", None): 0.4})
+    report = conduct(backend, invoker, improver_grace_s=0)
+    assert report["stages"]["improver"]["pending_goals"] == ["b"] and report["status"] == "succeeded"
+    assert report["goals"][1]["visitor"]["status"] == "failed"
 
 
 @pytest.mark.parametrize("goals", [[], [goal("d", level="subfunction"), goal("e", gates=["bot_check"])]])

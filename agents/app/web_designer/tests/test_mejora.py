@@ -102,6 +102,20 @@ def test_resumen_de_lo_medido(tmp_path, url):
     assert peor_objetivo(sin_visitas)["id"] == "contacto"
 
 
+def test_las_corridas_en_curso_no_cuentan(tmp_path, url):
+    backend = store.LocalBackend(tmp_path / "almacen")
+    _sembrar(backend, url)
+    store.start_run(backend, store.visitor(url, "buscar"), model="guion", revision=REV)
+    sin_ruta = store.start_run(backend, store.guide(url, "sin-correr", "desktop"), model="guion", revision=REV)
+    (sin_ruta.workdir / "route.json").write_text(json.dumps(_ruta(url, [])), encoding="utf-8")
+    resumen, entradas = resumir(backend, url, REV)
+
+    objetivos = {o["id"]: o for o in resumen["objetivos"]}
+    assert list(objetivos) == ["pagar", "ayuda", "contacto", "buscar"]
+    assert objetivos["buscar"]["ruta"]["estado"] == "verified" and objetivos["buscar"]["visitas"] == []
+    assert len(entradas) == 7 and all(store.read_manifest(backend, k).status != "running" for k in entradas)
+
+
 def test_el_mensaje_del_visitante_va_antes_que_la_justificacion():
     intento = {"profile": "desktop", "steps": [], "final_message": "los campos están fuera del área visible",
                "verdict": {"outcome": "abandoned", "justification": "Se detuvo sin llegar a la página final."}}
