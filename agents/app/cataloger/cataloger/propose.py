@@ -74,6 +74,9 @@ CADA OBJETIVO
   en el pie). Medio 3–4: abrir un menú y elegir una subpágina, o buscar y abrir un resultado. Largo 5 o más:
   llenar un formulario, elegir varias opciones o recorrer varias páginas (planificar un viaje con origen,
   destino y hora).
+  Cuenta hasta ver la respuesta, no hasta la primera página del tema: si el dato está en una subpágina, una pestaña,
+  un acordeón o un listado que hay que filtrar, cada uno es un paso más. En metro.cl, cargar la tarjeta Bip (elegir
+  dónde o cómo cargar), los requisitos de la tarjeta adulto mayor y objetos perdidos son medios o largos, no cortos.
 - "requires_login": true si no se cumple sin iniciar sesión:
   · La tarea es sobre datos o trámites propios de la persona: sus notas, su matrícula, inscribir asignaturas, su
     saldo o cartola, sus trámites, su perfil, su correo institucional, un portal del alumno o del cliente, una
