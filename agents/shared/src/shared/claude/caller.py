@@ -11,7 +11,14 @@ from shared.claude.process import DEFAULT_TIMEOUT_S, ClaudeCodeError, ClaudeCode
 
 USAGE_KEYS = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
 
-Part = str | bytes
+
+class CachePoint:
+    """Marca en `parts`: el prefijo hasta aquí queda en la caché de prompts del motor que la soporta."""
+
+
+CACHE_POINT = CachePoint()
+
+Part = str | bytes | CachePoint
 
 
 class ClaudeCallError(Exception):
@@ -30,6 +37,7 @@ class Caller:
     """La interfaz que ven los agentes; cada motor implementa `_answer`."""
 
     engine = ""
+    caches_prompts = False   # si no, las marcas `CACHE_POINT` se quitan antes de llamar al motor
 
     def __init__(self, model: str, effort: str):
         self.model = model
@@ -42,6 +50,8 @@ class Caller:
 
     async def answer(self, system_prompt: str, schema: dict, parts: list[Part]) -> Answer:
         """`parts` alterna texto e imágenes PNG; la respuesta lleva el uso de esta llamada."""
+        if not self.caches_prompts:
+            parts = [part for part in parts if not isinstance(part, CachePoint)]
         answer = await self._answer(system_prompt, schema, parts)
         for key in USAGE_KEYS:
             self.usage[key] += answer.usage.get(key) or 0

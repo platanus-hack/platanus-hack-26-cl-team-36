@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { crearRevisiones, nuevaRevision } from "../revisiones.js";
+import { crearProyectora } from "../proyectora.js";
 import { claveRevision, claveUrl } from "../estados.js";
 import { agentesFalsos, almacenFalso, tablaFalsa } from "./fakes.js";
 
@@ -153,6 +154,27 @@ test("si la invocación falla, META queda failed con el error", async () => {
   const meta = db.item(claveRevision("rev-1"));
   assert.equal(meta.status, "failed");
   assert.equal(meta.error, "ResourceNotFoundException: sin runtime");
+});
+
+const TIMEOUT = Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError", incierta: true });
+
+test("si la invocación no se confirma (timeout), META queda queued y se reintenta pasada la hora", async () => {
+  const { db, api } = escenario({ falla: TIMEOUT });
+  const respuesta = await api.solicitar(URL_PAGINA);
+  assert.deepEqual(respuesta, { estado: 202, datos: { success: true, revision: "rev-1", status: "queued" } });
+  assert.equal(db.item(claveRevision("rev-1")).status, "queued");
+  assert.equal((await api.solicitar(URL_PAGINA)).estado, 200);
+  await db.actualizar(claveRevision("rev-1"), { updated_at: "2026-11-21T10:59:59.000Z" });
+  assert.equal((await api.solicitar(URL_PAGINA)).datos.revision, "rev-2");
+});
+
+test("un conductor que sí recibió la invocación con timeout lleva META a done", async () => {
+  const { db, api } = escenario({ falla: TIMEOUT });
+  await api.solicitar(URL_PAGINA);
+  const clave = "ejemplo.cl/conductor/20261121T120000Z/manifest.json";
+  const almacen = almacenFalso({ [clave]: { agent: "conductor", status: "succeeded", revision: "rev-1" } });
+  await crearProyectora({ db, almacen })(clave);
+  assert.equal(db.item(claveRevision("rev-1")).status, "done");
 });
 
 test("GET de una página no vista: 404", async () => {

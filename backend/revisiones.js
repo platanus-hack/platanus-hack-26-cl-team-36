@@ -79,6 +79,11 @@ export function crearRevisiones({
       await agentes.invocar({ stage: "revision", revision, url: pagina });
     } catch (error) {
       const motivo = `${error.name}: ${error.message}`.slice(0, 200);
+      // Puede haber llegado: si no, queda queued y la ventana de una hora permite reintentarla.
+      if (error.incierta) {
+        console.warn(`⚠ revisión ${revision}: invocación del runtime sin confirmar (${motivo})`);
+        return { estado: 202, datos: { success: true, revision, status: "queued" } };
+      }
       console.error(`✖ revisión ${revision}: no se pudo invocar el runtime (${motivo})`);
       await db.actualizar(
         claveRevision(revision),
