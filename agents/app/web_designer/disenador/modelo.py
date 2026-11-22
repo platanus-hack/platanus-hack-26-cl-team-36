@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from shared.claude.caller import ClaudeCallError, tolerant_json
+from shared.claude.caller import ClaudeCallError
 from shared.claude.engines import make_caller
 
 from disenador import config
@@ -90,9 +90,6 @@ def mensaje_de_diseno(url: str, gustos: str, tarea: str | None, mapa_texto: str,
         f"{viewport['width']}x{viewport['height']}):\n{mapa_texto}\n\n"
         "La imagen adjunta es la parte visible de la página, sin tema."
     )
-
-
-json_tolerante = tolerant_json
 
 
 def respuesta_guionizada(sistema: str, esquema: dict, partes: list) -> dict | None:

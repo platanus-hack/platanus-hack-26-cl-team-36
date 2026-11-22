@@ -2,9 +2,11 @@
 
 import asyncio
 
+from shared.claude.caller import tolerant_json as json_tolerante
+
 from disenador.css import CADENA_ROTA, analizar, con_ambito, quitar_comentarios, sanear
 from disenador.juez import ESQUEMA_PAR
-from disenador.modelo import CONTRATO, ESQUEMA_TEMA, ClaudeCode, json_tolerante, leer_skill, prompt_de_sistema
+from disenador.modelo import CONTRATO, ESQUEMA_TEMA, ClaudeCode, leer_skill, prompt_de_sistema
 
 
 def test_con_ambito():
