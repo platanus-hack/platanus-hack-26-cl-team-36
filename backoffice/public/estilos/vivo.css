@@ -1,0 +1,14 @@
+/* En vivo (#/revisiones/<revision>/<goal>). Todo selector va bajo .p-vivo; la telaraña trae su propio CSS. */
+
+.p-vivo { display: grid; gap: var(--e-4); min-width: 0; }
+.p-vivo .vivo-migas { display: flex; flex-wrap: wrap; gap: var(--e-1); font-size: 12px; color: var(--texto-3); }
+.p-vivo .vivo-cabecera { display: flex; align-items: center; flex-wrap: wrap; gap: var(--e-2) var(--e-3); }
+.p-vivo .vivo-cabecera h1 { overflow-wrap: anywhere; }
+.p-vivo .vivo-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--e-1) var(--e-3); font-size: 12px; margin: 0; }
+.p-vivo .vivo-fin:empty { display: none; }
+.p-vivo .vivo-aviso { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-3); padding: var(--e-3) var(--e-4); }
+
+/* El ícono del indicador late mientras llegan pasos. */
+.p-vivo .vivo-latiendo .icono { animation: vivo-latido 1.6s var(--curva-salida, ease-out) infinite; }
+@keyframes vivo-latido { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .p-vivo .vivo-latiendo .icono { animation: none; } }

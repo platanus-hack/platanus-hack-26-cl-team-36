@@ -133,6 +133,12 @@ test("al conectar manda lo conocido y la ruta; después solo lo nuevo de la traz
   assert.deepEqual(ruta.data.map((p) => p.title), ["Inicio", "Ayuda", "Horario"]);
   assert.equal(ruta.data[0].url, "https://ejemplo.test/");
   assert.equal(mensajes.filter((m) => m.event === "ruta").length, 1, "la ruta sale una vez mientras no cambia");
+  // `listo` cierra lo conocido al conectar (con la ruta) y queda antes de lo que llegó con la traza que creció.
+  const listo = mensajes.findIndex((m) => m.event === "listo");
+  assert.deepEqual(mensajes[listo].data, { revision: "en-curso", goal: "horario" });
+  assert.ok(listo > mensajes.indexOf(ruta), "listo va después de la ruta");
+  assert.ok(listo < mensajes.findIndex((m) => m.data?.agent === "visitor" && m.data.step === 2), "listo va antes de lo nuevo");
+  assert.equal(mensajes.filter((m) => m.event === "listo").length, 1);
 });
 
 test("Last-Event-ID: no reenvía lo de su intento hasta ese paso; lo de los demás sí (el cliente deduplica)", async () => {
@@ -223,7 +229,7 @@ test("goal terminado: quien se cortó antes del end lo recibe con fin; sin nada 
   const { mensajes, cerrado } = await escuchar(`${base}/en-curso/horario`);
   assert.equal(cerrado, true);
   assert.equal(eventos(mensajes).length, 8);
-  assert.equal(mensajes.at(-1).event, "fin");
+  assert.deepEqual(mensajes.slice(-2).map((m) => m.event), ["listo", "fin"]);
 });
 
 test("revisión o goal que no están en la tabla: 404, sin abrir el flujo", async () => {

@@ -240,7 +240,7 @@ function desplazarDespues({ origen, completa, conservar }) {
 
 // ── Navegación ─────────────────────────────────────────────────────────────
 
-const profundidad = (r) => (r?.tipo === "tanda" || r?.revision ? 1 : 0);
+const profundidad = (r) => (r?.tipo === "vivo" ? 2 : r?.tipo === "tanda" || r?.revision ? 1 : 0);
 
 function direccionEntre(anterior, nueva) {
   if (!anterior) return "lado";
@@ -348,7 +348,7 @@ async function procesar({ origen = "historial" } = {}) {
     hash = nueva.destino;
     nueva = parsearHash(hash);
   }
-  if (CON_PARAMETROS.has(nueva.tipo)) {
+  if (CON_PARAMETROS.has(nueva.tipo) || nueva.tipo === "vivo") {
     const canonico = hashDe(nueva);
     if (canonico !== hash) {
       history.replaceState(history.state, "", canonico);
@@ -368,6 +368,7 @@ async function procesar({ origen = "historial" } = {}) {
     ((nueva.tipo === "overview" && vista.tipo === "overview") ||
       (nueva.tipo === "corridas" && vista.tipo === "corridas") ||
       (nueva.tipo === "revisiones" && vista.tipo === "revisiones" && vista.ruta.revision === nueva.revision) ||
+      (nueva.tipo === "vivo" && vista.tipo === "vivo" && vista.ruta.revision === nueva.revision && vista.ruta.goal === nueva.goal) ||
       (nueva.tipo === "tanda" && vista.tipo === "tanda" && vista.tandaId === nueva.tandaId && vista.pestana === nueva.pestana));
   if (mismaVista) {
     fijarRuta(nueva, hash);

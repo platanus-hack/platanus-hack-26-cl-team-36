@@ -1,4 +1,5 @@
-// GET /api/vivo/<revision>/<goal> por SSE: eventos de lib/eventos.js, `event: ruta`, `event: fin` (y cierre), `: ping`.
+// GET /api/vivo/<revision>/<goal> por SSE: eventos de lib/eventos.js, `event: ruta`, `event: listo` (lo conocido al
+// conectar ya salió), `event: fin` (y cierre), `: ping`.
 
 import { crearSeguimiento, eventosDelGoal, goalTerminado, rutaDeLaGuia } from "./eventos.js";
 
@@ -94,7 +95,7 @@ export function crearTransmisor({ revisiones, cabeceras = {}, intervaloMs = 2000
       res.end();
     };
 
-    function enviar(lectura) {
+    function enviar(lectura, inicial = false) {
       if (cerrada) return;
       if (!lectura) return cerrar();
       for (const evento of nuevos(eventosDelGoal(lectura))) res.write(mensaje({ id: evento.id, datos: evento }));
@@ -103,6 +104,8 @@ export function crearTransmisor({ revisiones, cabeceras = {}, intervaloMs = 2000
         ruta = JSON.stringify(rutaNueva);
         res.write(mensaje({ evento: "ruta", datos: rutaNueva }));
       }
+      // El cliente dibuja de una vez lo que llegó antes de `listo` y anima lo que llega después.
+      if (inicial) res.write(mensaje({ evento: "listo", datos: { revision, goal } }));
       if (goalTerminado(lectura)) {
         res.write(mensaje({ evento: "fin", datos: { revision, goal, estado: lectura.goal.visitor.estado } }));
         cerrar();
@@ -111,7 +114,7 @@ export function crearTransmisor({ revisiones, cabeceras = {}, intervaloMs = 2000
 
     req.on("close", cerrar);
     res.on("close", cerrar);
-    enviar(leido);
+    enviar(leido, true);
     if (cerrada) return;
     sondeador = sondeadorDe(revision, goal, leido);
     sondeador.suscriptores.add(enviar);

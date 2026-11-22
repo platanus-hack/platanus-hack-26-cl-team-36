@@ -37,6 +37,8 @@ export default {
   actualizada: "updated {cuando}",
   verTema: "View tema.css",
   abrirTanda: "Open batch",
+  verEnVivo: "Watch live",
+  verEnVivoDe: "Watch live: {goal}",
   etapa: {
     catalogo: "Catalog",
     goals: "Goals",
