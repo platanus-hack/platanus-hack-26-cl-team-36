@@ -1,6 +1,6 @@
 # Backoffice
 
-Visor de solo lectura de las corridas del evaluador (`agents/.runs/`). Parte de
+Visor de solo lectura de las corridas del Visitante en el almacén (`agents/.runs/`). Parte de
 [la especificación del backoffice](../.specs/backoffice-v0.md): muestra cada tanda (los intentos de los perfiles
 sobre una misma tarea) y responde qué pasó, por dónde fueron y dónde se separaron de la ruta. No gatilla nada ni
 llama a Claude. Sin build ni dependencias: Node 22 o superior, `node:http` y módulos ES en el navegador.

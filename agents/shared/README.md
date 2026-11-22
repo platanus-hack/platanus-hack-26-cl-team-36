@@ -24,6 +24,7 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
   cataloger/<run>/                       manifest.json outline.json goals.json goals.md claude_code.log
   guide/<goal>/<viewport>/<run>/         manifest.json route.json route.md step_00.png … claude_code.log
   visitor/<goal>/<run>/                  manifest.json criteria.json route_tree.json comparison.json proposals.json report.md
+                                         tema.css
       <profile>/                         run.json step_00.png … video.webm claude_code.log
   summary/<run>/                         manifest.json summary.json summary.md
 ```
@@ -47,6 +48,10 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
 - `comparison.json` existe si alguna ruta de guide sirvió de referencia, y `proposals.json` si un intento la superó.
 - Una corrida de guide con `adoption.json` es la revisión de una propuesta: `succeeded` si la adoptó, `failed` si no.
 - Una corrida de visitor cuyos intentos se interrumpieron todos termina `failed`.
+- Un tema no es un segmento de la clave: una corrida de visitor con `--css` va al mismo prefijo, guarda el CSS en
+  `tema.css` y su `route_tree.json` lo registra en `tema` (`archivo`, `sha256` corto, `bytes`); sin tema, `tema` es
+  `null`. Una de summary con `--css` registra el sha256 en `tema` de `summary.json`. La vigente se elige por tema como
+  por instrucción: una corrida con tema nunca es la vigente sin tema, ni al revés.
 - Una tarea de `agents/tasks/<host>/<goal>.json` es un objetivo de su host con su propio id. Un objetivo libre, que
   solo tiene instrucción, se llama `libre-<primeras palabras>-<8 hex del sha256 de la instrucción>`; el catálogo y las
   tareas no aceptan ese prefijo.

@@ -44,7 +44,7 @@ uv run main.py --comparar <corrida_a>/resumen.json <corrida_b>/resumen.json
 | `--cdp-url` | Un navegador remoto vía CDP. |
 
 Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitante](../visitor/README.md):
-`uv run main.py --task wom-baja-fibra --css <ruta>/tema.css` desde `../visitor`.
+`uv run main.py --task wom.cl/baja-fibra --css <ruta>/tema.css` desde `../visitor`.
 
 ## Cómo funciona
 

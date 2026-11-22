@@ -44,7 +44,7 @@ Dos palabras se usan siempre con un solo sentido:
 | **Salvaguarda** | Una tarea contraria que no debe volverse más difícil, como cancelar o rechazar un extra. | `guardrail` |
 | **Intento** | Un agente tratando de completar una tarea una vez. | `run` |
 | **Paso** | Una acción de un agente dentro de un intento. | `step` |
-| **Recorrido** | El registro paso a paso de un intento. Solo de agentes. | archivo en `runs/` (se propone `agents/.runs/`) |
+| **Recorrido** | El registro paso a paso de un intento. Solo de agentes. | archivo del almacén (`agents/.runs/` o S3) |
 | **Objetivo** | Algo que un sitio ofrece a un visitante, escrito como tarea cerrada y clasificado según [niveles de tarea](agents/niveles-de-tarea.md). Un objetivo se promueve a tarea copiándolo. | `goal` |
 | **Catálogo de objetivos** | Todos los objetivos que el Catalogador descubre en un sitio. | `goals.json` |
 | **Ruta de referencia** | El camino más corto que cumple una tarea entre los que la Guía exploró y verificó. Con ella se comparan los recorridos. | `reference route` |

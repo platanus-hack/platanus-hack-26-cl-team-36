@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Visor de solo lectura de las corridas del evaluador. Sin dependencias: solo node:http.",
+  "description": "Visor de solo lectura de las corridas del Visitante. Sin dependencias: solo node:http.",
   "scripts": {
     "start": "node servidor.js",
     "dev": "node --watch servidor.js",

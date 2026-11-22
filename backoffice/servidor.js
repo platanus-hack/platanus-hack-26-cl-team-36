@@ -1,4 +1,4 @@
-// Backoffice: visor de solo lectura de las corridas del evaluador (.specs/backoffice-v0.md).
+// Backoffice: visor de solo lectura de las corridas del Visitante (.specs/backoffice-v0.md).
 // Sirve la página de public/ y una API que lee las corridas a través de una fuente (lib/fuente.js;
 // por defecto, la carpeta agents/.runs/). No gatilla nada ni llama a Claude.
 //
