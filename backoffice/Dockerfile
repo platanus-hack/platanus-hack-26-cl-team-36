@@ -11,6 +11,7 @@ RUN npm ci --omit=dev --no-audit --no-fund
 COPY servidor.js ./
 COPY lib ./lib
 COPY public ./public
+COPY portada ./portada
 
 USER node
 EXPOSE 4848

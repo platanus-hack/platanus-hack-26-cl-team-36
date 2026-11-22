@@ -17,7 +17,9 @@ before(async () => {
 });
 after(() => servidor.close());
 
-const pedir = (ruta, opciones) => fetch(`${base}${ruta}`, opciones);
+// El backoffice cuelga de /backoffice/; pedirEnRaiz pide fuera de él (la portada).
+const pedir = (ruta, opciones) => fetch(`${base}/backoffice${ruta}`, opciones);
+const pedirEnRaiz = (ruta, opciones) => fetch(`${base}${ruta}`, opciones);
 
 test("GET /api/tandas lista las tandas con la carpeta de donde salen", async () => {
   const respuesta = await pedir("/api/tandas");
@@ -73,6 +75,49 @@ test("sirve la página con su política de seguridad", async () => {
   assert.equal((await pedir("/app.js")).status, 200);
 });
 
+test("la raíz es la portada: dice work in progress y no enlaza al backoffice", async () => {
+  const portada = await pedirEnRaiz("/");
+  assert.equal(portada.status, 200);
+  assert.equal(portada.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.match(portada.headers.get("content-security-policy"), /script-src 'self'/);
+  const html = await portada.text();
+  assert.match(html, /Work in progress/);
+  assert.doesNotMatch(html, /backoffice/i);
+  assert.equal((await pedirEnRaiz("/estilos.css")).headers.get("content-type"), "text/css; charset=utf-8");
+  for (const archivo of ["/logo.svg", "/favicon.svg"]) {
+    const respuesta = await pedirEnRaiz(archivo);
+    assert.equal(respuesta.status, 200, archivo);
+    assert.equal(respuesta.headers.get("content-type"), "image/svg+xml", archivo);
+  }
+});
+
+test("/backoffice redirige a /backoffice/, con la consulta", async () => {
+  const sinBarra = await pedirEnRaiz("/backoffice", { redirect: "manual" });
+  assert.equal(sinBarra.status, 301);
+  assert.equal(sinBarra.headers.get("location"), "/backoffice/");
+  const conConsulta = await pedirEnRaiz("/backoffice?idioma=en", { redirect: "manual" });
+  assert.equal(conConsulta.headers.get("location"), "/backoffice/?idioma=en");
+});
+
+test("fuera de /backoffice/ no se sirve nada del backoffice", async () => {
+  for (const ruta of [
+    "/api/tandas",
+    `/archivos/${TANDA}/first_time/step_01.png`,
+    "/resultados/demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z/manifest.json",
+    "/app.js",
+    "/i18n/es/datos.js",
+    "/index.html/x",
+    "/servidor.js",
+    "/package.json",
+    "/portada/index.html",
+    "/backofficex/app.js",
+    "/%62ackoffice/api/tandas",
+  ]) {
+    const respuesta = await pedirEnRaiz(ruta);
+    assert.ok([400, 404].includes(respuesta.status), `${ruta} respondió ${respuesta.status}`);
+  }
+});
+
 test("sirve cualquier archivo de public/, también en subcarpetas", async () => {
   const diccionario = await pedir("/i18n/es/datos.js");
   assert.equal(diccionario.status, 200);
@@ -125,12 +170,13 @@ function pedirConHost(ruta, host) {
 test("solo responde a Host de este computador con su puerto (DNS rebinding)", async () => {
   const { port } = servidor.address();
   for (const host of [`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`, `LOCALHOST:${port}`]) {
-    assert.equal(await pedirConHost("/api/tandas", host), 200, host);
+    assert.equal(await pedirConHost("/backoffice/api/tandas", host), 200, host);
   }
   for (const host of [`atacante.example:${port}`, "atacante.example", `localhost:${port + 1}`, `localhost.atacante.example:${port}`]) {
-    assert.equal(await pedirConHost("/api/tandas", host), 403, host);
+    assert.equal(await pedirConHost("/backoffice/api/tandas", host), 403, host);
   }
-  assert.equal(await pedirConHost(`/archivos/${TANDA}/first_time/step_00.png`, `atacante.example:${port}`), 403);
+  assert.equal(await pedirConHost(`/backoffice/archivos/${TANDA}/first_time/step_00.png`, `atacante.example:${port}`), 403);
+  assert.equal(await pedirConHost("/", `atacante.example:${port}`), 403);
 });
 
 test("GET /salud responde con cualquier Host (health check del balanceador); el resto sigue cerrado", async () => {
@@ -140,8 +186,8 @@ test("GET /salud responde con cualquier Host (health check del balanceador); el 
   }
   assert.equal(await pedirConHost("/salud/", "10.0.1.23:4848"), 403);
   assert.equal(await pedirConHost("/salud?x=/api/tandas", "10.0.1.23:4848"), 403);
-  assert.equal(await pedirConHost("/api/tandas", "10.0.1.23:4848"), 403);
-  assert.deepEqual(await (await pedir("/salud")).json(), { ok: true });
+  assert.equal(await pedirConHost("/backoffice/api/tandas", "10.0.1.23:4848"), 403);
+  assert.deepEqual(await (await pedirEnRaiz("/salud")).json(), { ok: true });
 });
 
 test("hostPermitido: puerto por defecto y hosts extra", () => {

@@ -34,7 +34,7 @@ output "revisiones_tabla" {
 
 output "backoffice_url" {
   description = "URL pública del backoffice."
-  value       = "https://${var.dominio}"
+  value       = "https://${var.dominio}/backoffice/"
 }
 
 output "backoffice_alb" {
