@@ -125,6 +125,7 @@
         "opciones": {
           "max": 8,
           "sugeridas": 16,
+          "teclas": true,
           "agrupar": true,
           "textos": {
             "es": { "boton": "Buscar una tarea en metro.cl…" },

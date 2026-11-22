@@ -279,8 +279,8 @@ test("buscador: con `agrupar` cada grupo es un role=group con su título, en el 
   assert.equal(grupos[0].querySelectorAll("[role=option]").length, 2);
 });
 
-test("buscador: ⌘K / Ctrl+K y / lo abren, pero / no se roba lo que se escribe en la página", () => {
-  const { parte, document } = abrirBuscador();
+test("buscador: con `teclas: true`, ⌘K / Ctrl+K y / lo abren, pero / no se roba lo que se escribe en la página", () => {
+  const { parte, document } = abrirBuscador({ teclas: true });
   const dialogo = parte("dialogo");
   assert.equal(document.tecla({ key: "k", metaKey: true }).defaultPrevented, true);
   assert.equal(dialogo.open, true);
@@ -300,7 +300,7 @@ test("buscador: ⌘K / Ctrl+K y / lo abren, pero / no se roba lo que se escribe 
 
 test("buscador: las teclas no hacen nada si la página ya las usó, viendo el original o si la vista se quitó", () => {
   let original = false;
-  const { nodo, parte, document } = abrirBuscador({}, { viendoOriginal: () => original });
+  const { nodo, parte, document } = abrirBuscador({ teclas: true }, { viendoOriginal: () => original });
   const dialogo = parte("dialogo");
   document.tecla({ key: "k", ctrlKey: true, defaultPrevented: true });
   assert.equal(dialogo.open, false);
@@ -312,9 +312,13 @@ test("buscador: las teclas no hacen nada si la página ya las usó, viendo el or
   assert.equal(document.tecla({ key: "k", ctrlKey: true }).defaultPrevented, false);
 });
 
-test("buscador: con `teclas: false` no escucha atajos globales", () => {
-  const { parte, document } = abrirBuscador({ teclas: false });
-  document.tecla({ key: "k", ctrlKey: true });
-  assert.equal(parte("dialogo").open, false);
-  assert.equal(parte("disparador").hasAttribute("aria-keyshortcuts"), false);
+test("buscador: por omisión (o con `teclas: false`) no escucha atajos globales ni los anuncia", () => {
+  for (const opciones of [{}, { teclas: false }]) {
+    const { parte, document } = abrirBuscador(opciones);
+    assert.equal(document.tecla({ key: "k", ctrlKey: true }).defaultPrevented, false);
+    assert.equal(document.tecla({ key: "/" }).defaultPrevented, false);
+    assert.equal(parte("dialogo").open, false);
+    assert.equal(parte("disparador").hasAttribute("aria-keyshortcuts"), false);
+    assert.equal(parte("teclas"), null);
+  }
 });

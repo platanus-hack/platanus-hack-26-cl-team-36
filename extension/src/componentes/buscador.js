@@ -1,7 +1,7 @@
 // Componente "buscador": una paleta de comandos (⌘K) para saltar a cualquier tarea de un sitio
 // escribiendo lo que se quiere hacer. La vista inserta un botón discreto («Buscar una tarea…»)
-// que abre un <dialog> modal con un campo y la lista filtrada; también se abre con ⌘K / Ctrl+K
-// o con `/` (este último no, si se está escribiendo en un campo de la página).
+// que abre un <dialog> modal con un campo y la lista filtrada. Con `teclas: true` también se abre
+// con ⌘K / Ctrl+K o con `/` (este último no, si se está escribiendo en un campo de la página).
 //
 // Items, una tarea cada uno (en `datos` del tema; típicamente el catálogo de objetivos del sitio):
 //   titulo    lo que se busca, por idioma { es, en }
@@ -14,7 +14,8 @@
 //   max       cuántos resultados mostrar (por defecto 8)
 //   sugeridas cuántas tareas mostrar antes de escribir, en el orden del tema (por defecto `max`)
 //   agrupar   true: los resultados van bajo el `grupo` de cada tarea
-//   teclas    false: sin los atajos globales (solo el botón)
+//   teclas    true: suma los atajos globales. Por omisión no, para no quitarle Ctrl+K (la barra
+//             de búsqueda) ni `/` (buscar en la página) a Firefox en un sitio que no lo pidió
 //   textos    por idioma, para reemplazar los genéricos del diccionario (claves `buscador.*`
 //             de comun/idioma.js): { es: { boton, titulo, campo, … }, en: {…} }
 //
@@ -197,7 +198,7 @@
     const max = opciones.max ?? 8;
     const id = `mt-buscador-${++vistas}`;
     const atajo = esMac() ? t["atajo-mac"] : t.atajo;
-    const teclas = opciones.teclas !== false;
+    const teclas = opciones.teclas === true;
 
     const disparador = crear("button", {
       clase: "mt-buscador__disparador",
