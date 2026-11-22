@@ -9,6 +9,7 @@ import { crearFuente } from "../lib/fuente.js";
 import { crearFuenteDeArchivos } from "../lib/fuentes/archivos.js";
 import { leerTanda, listarTandas } from "../lib/tandas.js";
 import { crearServidor } from "../servidor.js";
+import { CLAVES_DE_EJEMPLO, CORRIDAS_DE_EJEMPLO } from "./almacen-en-memoria.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
 const ID = "demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
@@ -53,6 +54,32 @@ test("fuente de archivos: ids, perfiles, JSON, archivos y rangos", async () => {
   final.cuerpo.destroy();
   const fuera = await fuente.abrirArchivo(ID, "first_time/step_01.png", { inicio: 10_000 });
   assert.deepEqual([fuera.cuerpo, fuera.rango], [null, null]);
+});
+
+test("fuente de archivos: listarCorridas ve las corridas de los cuatro roles, terminadas o no, y nada fuera del layout", async (t) => {
+  const raiz = mkdtempSync(path.join(tmpdir(), "almacen-"));
+  t.after(() => rmSync(raiz, { recursive: true, force: true }));
+  for (const [clave, contenido] of Object.entries(CORRIDAS_DE_EJEMPLO)) {
+    mkdirSync(path.dirname(path.join(raiz, clave)), { recursive: true });
+    writeFileSync(path.join(raiz, clave), contenido);
+  }
+  const fuente = crearFuenteDeArchivos({ raiz });
+  assert.deepEqual((await fuente.listarCorridas()).sort(), CLAVES_DE_EJEMPLO);
+  // listarIds sigue igual: solo tandas del Visitante terminadas con route_tree.json (aquí no hay).
+  assert.deepEqual(await fuente.listarIds(), []);
+  assert.deepEqual(await crearFuenteDeArchivos({ raiz: path.join(raiz, "no-existe") }).listarCorridas(), []);
+});
+
+test("fuente de archivos: leerTexto lee el texto de una corrida o da null", async () => {
+  const raiz = mkdtempSync(path.join(tmpdir(), "almacen-"));
+  const mejora = "demo.cl/improver/2026-11-21T14-00-00Z";
+  mkdirSync(path.join(raiz, mejora), { recursive: true });
+  writeFileSync(path.join(raiz, mejora, "tema.css"), "html.mi-tema { --mi-acento: #ABC; }");
+  const fuente = crearFuenteDeArchivos({ raiz });
+  assert.equal(await fuente.leerTexto(mejora, "tema.css"), "html.mi-tema { --mi-acento: #ABC; }");
+  assert.equal(await fuente.leerTexto(mejora, "no-existe.css"), null);
+  assert.equal(await fuente.leerTexto(mejora, ""), null, "una carpeta no es un texto");
+  rmSync(raiz, { recursive: true, force: true });
 });
 
 test("crearFuente elige la fuente por tipo", () => {

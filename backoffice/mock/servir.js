@@ -69,7 +69,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   });
   const fuente = crearFuente({ tipo: "archivos", raiz: corridas });
   const puerto = Number(process.env.PORT) || 4849;
-  const servidor = crearServidor({ fuente, revisiones });
+  // Los datos de prueba son estáticos: el reloj del servidor queda en el momento en que se generaron. Con la hora
+  // real, las revisiones en curso se verían detenidas y los tiempos del Overview crecerían sin parar.
+  const servidor = crearServidor({ fuente, revisiones, reloj: () => new Date(generado) });
   servidor.on("error", (error) => {
     if (error.code !== "EADDRINUSE") throw error;
     console.error(`✘ El puerto ${puerto} ya está ocupado (¿otro backoffice?). Usa otro con PORT=4850.`);
