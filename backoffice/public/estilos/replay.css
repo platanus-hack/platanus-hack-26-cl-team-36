@@ -83,8 +83,8 @@
   fill: none; stroke: var(--acento); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round;
   filter: drop-shadow(0 0 5px var(--acento));
 }
-.p-replay .replay-onda { fill: color-mix(in oklch, var(--acento) 30%, transparent); stroke: var(--acento); stroke-width: 4; filter: drop-shadow(0 0 6px var(--acento)); }
-.p-replay .replay-marca-anillo { fill: color-mix(in oklch, var(--acento) 14%, transparent); stroke: var(--acento); stroke-width: 2.5; }
+.p-replay .replay-onda { fill: color-mix(in srgb, var(--acento) 30%, transparent); stroke: var(--acento); stroke-width: 4; filter: drop-shadow(0 0 6px var(--acento)); }
+.p-replay .replay-marca-anillo { fill: color-mix(in srgb, var(--acento) 14%, transparent); stroke: var(--acento); stroke-width: 2.5; }
 .p-replay .replay-marca-punto { fill: var(--acento); }
 
 /* Piezas del DOM sobre la captura. */
@@ -96,7 +96,7 @@
   left: var(--px); top: min(calc(var(--py) + 22px), calc(100% - 52px)); transform: translateX(-50%);
   display: inline-flex; align-items: center; gap: 2px; max-width: min(80%, 420px); padding: 6px 12px;
   font: 500 14px/20px var(--fuente-mono, ui-monospace, monospace); color: var(--texto-1);
-  background: color-mix(in oklch, var(--superficie-3) 92%, transparent); border: 1px solid var(--acento);
+  background: color-mix(in srgb, var(--superficie-3) 92%, transparent); border: 1px solid var(--acento);
   border-radius: var(--radio-2); box-shadow: var(--sombra-flotante), 0 0 0 4px var(--acento-sutil);
 }
 .p-replay .replay-tecleo.sin-punto { top: auto; bottom: 14%; left: 50%; }
@@ -119,11 +119,11 @@
 .p-replay .replay-rotulo {
   left: 50%; top: 12px; transform: translateX(-50%); max-width: 86%;
   padding: 5px 12px; font-size: 13px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  color: var(--texto-1); background: color-mix(in oklch, var(--superficie-3) 94%, transparent);
+  color: var(--texto-1); background: color-mix(in srgb, var(--superficie-3) 94%, transparent);
   border: 1px solid var(--borde-fuerte); border-radius: 999px; box-shadow: var(--sombra-flotante);
 }
 .p-replay .replay-rotulo[data-tipo="pagina"]::before { content: "→ "; color: var(--acento-fuerte); }
-.p-replay .replay-rotulo[data-tipo="volver"] { border-color: color-mix(in oklch, var(--aviso) 60%, transparent); }
+.p-replay .replay-rotulo[data-tipo="volver"] { border-color: color-mix(in srgb, var(--aviso) 60%, transparent); }
 .p-replay .replay-rotulo[data-tipo="volver"]::before { content: "↩ "; color: var(--aviso); }
 
 /* Desplazar: una pastilla con la flecha en el punto donde estaba el mouse, que empuja en la dirección. */
@@ -131,7 +131,7 @@
   left: var(--px); top: var(--py); width: 40px; height: 40px; margin: -20px 0 0 -20px;
   display: grid; place-items: center; border-radius: 50%;
   color: var(--texto-1); font-size: 20px; font-weight: 600;
-  background: color-mix(in oklch, var(--superficie-3) 90%, transparent); border: 1px solid var(--acento);
+  background: color-mix(in srgb, var(--superficie-3) 90%, transparent); border: 1px solid var(--acento);
   box-shadow: var(--sombra-flotante), 0 0 0 5px var(--acento-sutil);
 }
 .p-replay .replay-desplazar::before { content: "↓"; }
@@ -181,7 +181,7 @@
 }
 .p-replay .riel-meta.riel-pendiente .riel-punto { border-color: var(--peligro-texto); }
 .p-replay .riel-linea { flex: 1; width: 0; min-height: 10px; border-left: 2px dashed var(--borde-fuerte); }
-.p-replay .riel-sigue .riel-linea { border-left-style: solid; border-left-color: color-mix(in oklch, var(--texto-2) 45%, transparent); }
+.p-replay .riel-sigue .riel-linea { border-left-style: solid; border-left-color: color-mix(in srgb, var(--texto-2) 45%, transparent); }
 .p-replay .riel-texto {
   display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: 4px var(--e-2);
   min-width: 0; padding: 1px 0 var(--e-2);
