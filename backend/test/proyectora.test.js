@@ -171,7 +171,7 @@ test("improver con tema.json guarda también tema_key; sin él, no", async () =>
   const sinTema = escenario();
   await sinTema.evento(MEJORA, { agent: "improver", status: "succeeded" });
   assert.equal(sinTema.item("META").css_key, `${MEJORA}/tema.css`);
-  assert.equal(Object.hasOwn(sinTema.item("META"), "tema_key"), false);
+  assert.equal(sinTema.item("META").tema_key, null);
 });
 
 test("improver: cualquier error al buscar el tema.json cuenta como sin tema, sin frenar css_key", async (t) => {
@@ -185,7 +185,7 @@ test("improver: cualquier error al buscar el tema.json cuenta como sin tema, sin
     const antes = avisos.mock.callCount();
     await evento(MEJORA, { agent: "improver", status: "succeeded" });
     assert.equal(item("META").css_key, `${MEJORA}/tema.css`, name);
-    assert.equal(item("META").tema_key, undefined, name);
+    assert.equal(item("META").tema_key, null, name);
     assert.equal(avisos.mock.callCount() > antes, avisa, name);
   }
 });
@@ -203,6 +203,43 @@ test("improver fallido no guarda css_key", async () => {
   await evento(MEJORA, { agent: "improver", status: "failed" });
   assert.equal(item("STAGE#improver").status, "failed");
   assert.equal(item("META").css_key, undefined);
+});
+
+const MEJORA_NUEVA = "ejemplo.cl/improver/20261122T090000Z";
+
+test("improver de nuevo sobre una revisión done: el tema y la corrida pasan a la nueva, sin tocar el status", async () => {
+  const { almacen, evento, item } = escenario();
+  almacen.archivos[`${MEJORA}/tema.json`] = { features: {} };
+  await evento(MEJORA, { agent: "improver", status: "succeeded" });
+  await evento(CONDUCTOR, { agent: "conductor", status: "succeeded" });
+
+  await evento(MEJORA_NUEVA, { agent: "improver", status: "running" });
+  assert.equal(item("STAGE#improver").status, "succeeded");
+  assert.equal(item("STAGE#improver").run_key, MEJORA);
+  assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
+
+  await evento(MEJORA_NUEVA, { agent: "improver", status: "succeeded" });
+  assert.equal(item("STAGE#improver").run_key, MEJORA_NUEVA);
+  assert.equal(item("META").css_key, `${MEJORA_NUEVA}/tema.css`);
+  assert.equal(item("META").tema_key, null, "sin tema.json no queda el de la corrida anterior");
+  assert.equal(item("META").status, "done");
+  assert.equal(item("META").resumen.fases.improver.succeeded, 1);
+
+  // Lambda reintenta eventos viejos: la corrida anterior no vuelve.
+  await evento(MEJORA, { agent: "improver", status: "succeeded" });
+  assert.equal(item("STAGE#improver").run_key, MEJORA_NUEVA);
+  assert.equal(item("META").css_key, `${MEJORA_NUEVA}/tema.css`);
+});
+
+test("improver de nuevo que falla deja el tema de la corrida anterior", async () => {
+  const { evento, item } = escenario();
+  await evento(MEJORA, { agent: "improver", status: "succeeded" });
+  await evento(CONDUCTOR, { agent: "conductor", status: "succeeded" });
+  await evento(MEJORA_NUEVA, { agent: "improver", status: "failed" });
+  assert.equal(item("STAGE#improver").status, "succeeded");
+  assert.equal(item("STAGE#improver").run_key, MEJORA);
+  assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
+  assert.equal(item("META").status, "done");
 });
 
 test("claveDeEvento decodifica la clave del evento S3", () => {
