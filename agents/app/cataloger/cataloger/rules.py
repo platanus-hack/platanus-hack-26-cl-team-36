@@ -1,6 +1,7 @@
 """Reglas sin modelo del catálogo: barreras de cada página, validación, prominencia y barreras de cada objetivo."""
 
 import re
+from urllib.parse import urljoin, urlsplit
 
 from shared.catalog.goal import DEMANDS, FREE_GOAL_PREFIX, INTENTS, LEVELS, Goal, fill_evaluation, is_free_goal_id, slugify
 from shared.catalog.outline import Field, PageOutline, SiteOutline
@@ -22,6 +23,18 @@ _PERSONAL_LABEL = re.compile(
     re.IGNORECASE,
 )
 _SEARCH_LABEL = re.compile(r"buscar|b[uú]squeda|search", re.IGNORECASE)
+# Login sin mirar la página: la entrada va a un subdominio o ruta de autenticación, o la tarea es sobre datos propios
+# («tus notas», «matricularse», «Mi Uchile»); «información de matrícula» o «dar de baja tu servicio» no cuentan.
+_LOGIN_HOST_LABELS = {"login", "sso", "auth", "cas", "idp", "intranet", "mi", "portal", "ucampus", "accounts"}
+_LOGIN_PATH_SEGMENTS = {"login", "signin", "sign-in", "iniciar-sesion", "sso", "auth", "oauth", "cas", "intranet",
+                        "mi-cuenta", "micuenta", "my-account", "myaccount"}
+_OWN_DATA = re.compile(
+    r"\btus? (notas|calificaciones|saldo|cartola|movimientos|matr[ií]cula|asignaturas|ramos|cursos|perfil|portafolio)\b"
+    r"|\bmatric[uú]la(te|rse)\b|\bmis tr[aá]mites\b|\bcorreo institucional\b|\bintranet\b",
+    re.IGNORECASE,
+)
+_MI_PLATFORM = re.compile(r"\bMi [A-ZÁÉÍÓÚ]")
+_GATE_ORDER = ("login", "personal_data", "side_effect", "bot_check")
 TOP_MAX = 6
 _STEPS_MAX = 50
 
@@ -94,6 +107,7 @@ def validate(raw_goals: list[dict], outline: SiteOutline, reserved: set[str] | N
             submits_form=bool(raw.get("submits_form")),
             demand=raw.get("demand") if raw.get("demand") in DEMANDS else None,
             estimated_steps=_steps(raw.get("estimated_steps")),
+            gates=["login"] if raw.get("requires_login") is True else [],
         ))
     issues += _limit_top(goals)
     issues += _rename_reserved(goals, reserved)
@@ -154,14 +168,35 @@ def gates(goal: Goal, outline: SiteOutline) -> list[str]:
         found.discard("personal_data")
     if goal.intent == "transact":
         found.add("side_effect")
-    return [gate for gate in ("login", "personal_data", "side_effect", "bot_check") if gate in found]
+    return [gate for gate in _GATE_ORDER if gate in found]
+
+
+def login_reason(goal: Goal) -> str | None:
+    """Por qué el objetivo exige iniciar sesión aunque sus páginas no lo muestren, o None."""
+    if goal.entry:
+        url = urlsplit(urljoin(goal.start_url, goal.entry))
+        labels = (url.hostname or "").split(".")[:-2]
+        if _LOGIN_HOST_LABELS.intersection(labels):
+            return f"la entrada va a {url.hostname}, un portal con sesión"
+        segments = {segment.split(".")[0] for segment in url.path.lower().split("/")}
+        if _LOGIN_PATH_SEGMENTS & segments:
+            return f"la entrada {url.path} es de inicio de sesión"
+    if _OWN_DATA.search(goal.description) or _MI_PLATFORM.search(goal.description):
+        return "la tarea es sobre datos propios de la persona"
+    return None
 
 
 def classify(raw_goals: list[dict], outline: SiteOutline, viewport_height: int) -> tuple[list[Goal], list[str]]:
-    """Valida lo que propuso el modelo y completa `prominence`, `gates`, `instruction` y `exclusion`."""
+    """Valida lo que propuso el modelo y completa `prominence`, `gates` (con el login que diga el modelo o
+    `login_reason`), `instruction` y `exclusion`."""
     goals, issues = validate(raw_goals, outline)
     for goal in goals:
         goal.prominence = prominence(goal, outline, viewport_height)
-        goal.gates = gates(goal, outline)
+        found = set(goal.gates) | set(gates(goal, outline))
+        reason = login_reason(goal)
+        if reason and "login" not in found:
+            found.add("login")
+            issues.append(f"{goal.id}: {reason}; queda con barrera login")
+        goal.gates = [gate for gate in _GATE_ORDER if gate in found]
         fill_evaluation(goal)
     return goals, issues

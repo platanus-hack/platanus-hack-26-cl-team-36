@@ -1,0 +1,1928 @@
+{
+  "start_url": "https://uchile.cl/",
+  "host": "uchile.cl",
+  "viewport": "1024x768",
+  "pages": [
+    {
+      "url": "https://uchile.cl/",
+      "title": "Universidad de Chile",
+      "depth": 0,
+      "headings": [
+        "Destacados",
+        "Agenda",
+        "TRÁMITES Y SERVICIOS PARA"
+      ],
+      "links": [
+        {
+          "text": "Portada Universidad de Chile",
+          "href": "https://uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Arquitectura y Urbanismo",
+          "href": "https://fau.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Artes",
+          "href": "https://artes.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Ciencias",
+          "href": "https://ciencias.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Ciencias Agronómicas y Ambientales",
+          "href": "https://agronomia.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Ciencias Físicas y Matemáticas",
+          "href": "https://ingenieria.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Ciencias Forestales y Conservación",
+          "href": "https://forestal.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Ciencias Químicas y Farmacéuticas",
+          "href": "https://quimica.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Ciencias Sociales",
+          "href": "https://facso.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Ciencias Veterinarias y Pecuarias",
+          "href": "https://veterinaria.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Comunicación e Imagen",
+          "href": "https://fcei.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Derecho",
+          "href": "https://derecho.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Economía y Negocios",
+          "href": "https://fen.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Filosofía y Humanidades",
+          "href": "https://filosofia.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Gobierno",
+          "href": "https://gobierno.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Medicina",
+          "href": "https://medicina.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Odontología",
+          "href": "https://odontologia.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Estudios Avanzados en Educación",
+          "href": "https://ie.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Estudios Internacionales",
+          "href": "https://iei.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Nutrición y Tecnología de los Alimentos",
+          "href": "https://inta.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Bachillerato",
+          "href": "https://uchile.cl/u5026",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Hospital Clínico",
+          "href": "https://www.redclinica.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Postulantes",
+          "href": "https://uchile.cl/postulantes",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Estudiantes",
+          "href": "https://uchile.cl/estudiantes",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Académicas/os",
+          "href": "https://uchile.cl/academicos",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Funcionarias/os",
+          "href": "https://uchile.cl/funcionarios",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Egresadas/os",
+          "href": "https://uchile.cl/egresados",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Alumni",
+          "href": "https://uchile.cl/alumni",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "U-Cursos",
+          "href": "https://www.u-cursos.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Ucampus",
+          "href": "https://ucampus.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Mi Uchile",
+          "href": "https://mi.uchile.cl/",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "en",
+          "href": "https://uchile.cl/english",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "fr",
+          "href": "https://uchile.cl/francais",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "pt",
+          "href": "https://uchile.cl/portugues",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Admisión",
+          "href": "https://uchile.cl/admision",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Carreras",
+          "href": "https://uchile.cl/pregrado",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Postgrados",
+          "href": "https://uchile.cl/postgrado",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Diplomados",
+          "href": "https://uchile.cl/diplomados",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Investigación",
+          "href": "https://uchile.cl/investigacion",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Extensión",
+          "href": "https://uchile.cl/extension",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Bibliotecas",
+          "href": "https://uchile.cl/bibliotecas",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "La Universidad",
+          "href": "https://uchile.cl/universidad",
+          "zone": "nav",
+          "visible": false,
+          "top": 0
+        },
+        {
+          "text": "Portada Universidad de Chile",
+          "href": "https://uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 12
+        },
+        {
+          "text": "Admisión y matrículas",
+          "href": "https://uchile.cl/admision",
+          "zone": "nav",
+          "visible": false,
+          "top": 74
+        },
+        {
+          "text": "Carreras de pregrado",
+          "href": "https://uchile.cl/pregrado",
+          "zone": "nav",
+          "visible": false,
+          "top": 130
+        },
+        {
+          "text": "Postgrados, postítulos y diplomados",
+          "href": "https://uchile.cl/postgrado",
+          "zone": "nav",
+          "visible": false,
+          "top": 186
+        },
+        {
+          "text": "Diplomas de postítulo, desarrollo laboral y profesional y extensión",
+          "href": "https://uchile.cl/diplomados",
+          "zone": "nav",
+          "visible": false,
+          "top": 242
+        },
+        {
+          "text": "Investigación, creación artística e innovación",
+          "href": "https://uchile.cl/investigacion",
+          "zone": "nav",
+          "visible": false,
+          "top": 298
+        },
+        {
+          "text": "Extensión y cultura",
+          "href": "https://uchile.cl/extension",
+          "zone": "nav",
+          "visible": false,
+          "top": 354
+        },
+        {
+          "text": "Información y bibliotecas",
+          "href": "https://uchile.cl/bibliotecas",
+          "zone": "nav",
+          "visible": false,
+          "top": 410
+        },
+        {
+          "text": "Presentación de la Universidad de Chile",
+          "href": "https://uchile.cl/universidad",
+          "zone": "nav",
+          "visible": false,
+          "top": 466
+        },
+        {
+          "text": "Información y servicios para postulantes",
+          "href": "https://uchile.cl/postulantes",
+          "zone": "nav",
+          "visible": false,
+          "top": 522
+        },
+        {
+          "text": "Información y servicios para estudiantes",
+          "href": "https://uchile.cl/estudiantes",
+          "zone": "nav",
+          "visible": false,
+          "top": 578
+        },
+        {
+          "text": "Información y servicios para académicas y académicos",
+          "href": "https://uchile.cl/academicos",
+          "zone": "nav",
+          "visible": false,
+          "top": 634
+        },
+        {
+          "text": "Información y servicios para funcionarias y funcionarios",
+          "href": "https://uchile.cl/funcionarios",
+          "zone": "nav",
+          "visible": false,
+          "top": 690
+        },
+        {
+          "text": "Información y servicios para egresadas y egresados",
+          "href": "https://uchile.cl/egresados",
+          "zone": "nav",
+          "visible": false,
+          "top": 746
+        },
+        {
+          "text": "Red de egresadas y egresados de la Universidad de Chile",
+          "href": "https://uchile.cl/alumni",
+          "zone": "nav",
+          "visible": false,
+          "top": 802
+        },
+        {
+          "text": "Ceremonia oficial de aniversario: Universidad de Chile celebra 184 años construy",
+          "href": "https://uchile.cl/noticias/247547/universidad-de-chile-celebra-184-anos-construyendo-futuro-para-el-pais",
+          "zone": "main",
+          "visible": true,
+          "top": 414
+        },
+        {
+          "text": "Rectora Mizala en el aniversario 184: “Las transformaciones de nuestro tiempo no",
+          "href": "https://uchile.cl/noticias/247538/fortalecer-la-u-adquiere-especial-relevancia-ante-las-transformaciones",
+          "zone": "main",
+          "visible": false,
+          "top": 359
+        },
+        {
+          "text": "Tiburones vendidos como albacora o “albacorilla” muestran señales genéticas de d",
+          "href": "https://uchile.cl/noticias/247585/tiburones-muestran-senales-geneticas-de-disminucion-de-sus-poblaciones",
+          "zone": "main",
+          "visible": false,
+          "top": 359
+        },
+        {
+          "text": "Estudiantes U. de Chile construyen un gigantesco Caballo de Troya de madera",
+          "href": "https://uchile.cl/noticias/247128/fau-inaugura-caballo-de-troya-construido-por-90-estudiantes0",
+          "zone": "main",
+          "visible": false,
+          "top": 469
+        },
+        {
+          "text": "Programa del aniversario",
+          "href": "https://uchile.cl/u246488",
+          "zone": "main",
+          "visible": true,
+          "top": 667
+        },
+        {
+          "text": "Conversatorio \"Foucault anárquico\"",
+          "href": "https://uchile.cl/agenda/246461/conversatorio-foucault-anarquico",
+          "zone": "main",
+          "visible": true,
+          "top": 1025
+        },
+        {
+          "text": "Seminario \"América Latina en los escenarios globales\"",
+          "href": "https://uchile.cl/agenda/247459/seminario-america-latina-en-los-escenarios-globales",
+          "zone": "main",
+          "visible": true,
+          "top": 1006
+        },
+        {
+          "text": "Foro Hablemos TodUs \"Desastres naturales: de la emergencia a la prevención\"",
+          "href": "https://uchile.cl/agenda/247404/hablemos-todus-desastres-naturales-de-la-emergencia-a-la-prevencion",
+          "zone": "main",
+          "visible": true,
+          "top": 997
+        },
+        {
+          "text": "Seminario “Migración y desarrollo: balance socioeconómico y oportunidades global",
+          "href": "https://uchile.cl/agenda/247333/seminario-sobre-migracion-y-desarrollo",
+          "zone": "main",
+          "visible": false,
+          "top": 987
+        },
+        {
+          "text": "Conferencia \"El consejo de Europa y la situación de Ucrania\"",
+          "href": "https://uchile.cl/agenda/247103/el-consejo-de-europa-y-la-situacion-de-ucrania",
+          "zone": "main",
+          "visible": false,
+          "top": 1006
+        },
+        {
+          "text": "Encuesta de Caracterización Socioeconómica Nacional CASEN 2026",
+          "href": "https://www.microdatos.cl/comienzoterrenocasen",
+          "zone": "main",
+          "visible": false,
+          "top": 1006
+        },
+        {
+          "text": "10:00 Exposición sobre cerámica, territorio y cuerpo \"La veta\" en el MAPA",
+          "href": "https://uchile.cl/agenda/241542/mapa-inaugura-la-veta-una-expo-sobre-ceramica-territorio-y-cuerpo",
+          "zone": "main",
+          "visible": true,
+          "top": 1384
+        },
+        {
+          "text": "10:30 Exposición \"Sistema Público de Fluidos\" en MAC Quinta Normal",
+          "href": "https://uchile.cl/agenda/244431/exposicion-sistema-publico-de-fluidos-en-sede-quinta-normal-del-mac",
+          "zone": "main",
+          "visible": true,
+          "top": 1384
+        },
+        {
+          "text": "10:30 Muestra \"Trazos\" de Lily Garafulic en MAC Parque Forestal",
+          "href": "https://uchile.cl/agenda/246075/trazos-de-lily-garafulic-en-mac-parque-forestal",
+          "zone": "main",
+          "visible": true,
+          "top": 1384
+        },
+        {
+          "text": "11:00 Exhibición \"Por ambos lados\" en el Museo de Arte Contemporáneo",
+          "href": "https://uchile.cl/agenda/244489/exhibicion-por-ambos-lados-en-el-museo-de-arte-contemporaneo-mac",
+          "zone": "main",
+          "visible": true,
+          "top": 1384
+        },
+        {
+          "text": "Más actividades",
+          "href": "https://uchile.cl/agenda",
+          "zone": "main",
+          "visible": false,
+          "top": 1599
+        },
+        {
+          "text": "Universidad de Chile estrena nueva portada en uchile.cl",
+          "href": "https://uchile.cl/noticias/247536/universidad-de-chile-estrena-nueva-portada-en-uchilecl",
+          "zone": "main",
+          "visible": false,
+          "top": 1958
+        },
+        {
+          "text": "Ex Rectora Rosa Devés recibe distinción por su trayectoria en favor de la equida",
+          "href": "https://uchile.cl/noticias/247600/exrectora-rosa-deves-recibe-distincion-por-su-aporte-a-la-equidad-de-genero",
+          "zone": "main",
+          "visible": false,
+          "top": 1958
+        },
+        {
+          "text": "Teatro Nacional Chileno cierra 2026 con funciones gratuitas y se prepara para Te",
+          "href": "https://uchile.cl/noticias/247598/tnch-inicia-recta-final-2026-con-cartelera-ciudadana0",
+          "zone": "main",
+          "visible": false,
+          "top": 1958
+        },
+        {
+          "text": "Estudio liderado por la U. de Chile reúne más de 35 mil registros de biodiversid",
+          "href": "https://uchile.cl/noticias/247593/nuevos-35-mil-registros-de-biodiversidad-deja-inedito-estudio-en-la-rm0",
+          "zone": "main",
+          "visible": false,
+          "top": 1958
+        },
+        {
+          "text": "Egresada U. de Chile desarrolla herramienta con IA para agilizar tareas del Inst",
+          "href": "https://uchile.cl/noticias/247590/alumni-daniela-schulz-desarrolla-herramienta-tecnologica-para-apoyar-al-isp0",
+          "zone": "main",
+          "visible": false,
+          "top": 2368
+        },
+        {
+          "text": "Universidad de Chile distingue a las y los mejores docentes de pregrado 2026",
+          "href": "https://uchile.cl/noticias/247310/universidad-de-chile-distingue-a-sus-mejores-docentes-de-pregrado-2026",
+          "zone": "main",
+          "visible": false,
+          "top": 2368
+        },
+        {
+          "text": "U. de Chile reconoció a 74 integrantes de la comunidad con la Medalla 40 años de",
+          "href": "https://uchile.cl/noticias/247470/u-de-chile-entrega-a-74-integrantes-la-medalla-40-anos-de-servicio",
+          "zone": "main",
+          "visible": false,
+          "top": 2368
+        },
+        {
+          "text": "Más noticias",
+          "href": "https://uchile.cl/noticias",
+          "zone": "main",
+          "visible": false,
+          "top": 2521
+        },
+        {
+          "text": "UchileTV",
+          "href": "https://tv.uchile.cl/",
+          "zone": "main",
+          "visible": false,
+          "top": 2638
+        },
+        {
+          "text": "Radio U. de Chile",
+          "href": "https://radio.uchile.cl/",
+          "zone": "main",
+          "visible": false,
+          "top": 2638
+        },
+        {
+          "text": "Palabra Pública",
+          "href": "https://palabrapublica.uchile.cl/",
+          "zone": "main",
+          "visible": false,
+          "top": 2638
+        },
+        {
+          "text": "Tantaku",
+          "href": "https://tantaku.cl/",
+          "zone": "main",
+          "visible": false,
+          "top": 2638
+        },
+        {
+          "text": "Videos",
+          "href": "https://uchile.cl/multimedia",
+          "zone": "main",
+          "visible": false,
+          "top": 2638
+        },
+        {
+          "text": "Fotos",
+          "href": "https://uchile.cl/fotos",
+          "zone": "main",
+          "visible": false,
+          "top": 2638
+        },
+        {
+          "text": "Diario Mural Universitario",
+          "href": "https://uchile.cl/diario-mural",
+          "zone": "main",
+          "visible": false,
+          "top": 2700
+        },
+        {
+          "text": "Carreras: títulos profesionales y licenciaturas",
+          "href": "https://uchile.cl/carreras",
+          "zone": "main",
+          "visible": false,
+          "top": 3355
+        },
+        {
+          "text": "Programa de Bachillerato",
+          "href": "https://uchile.cl/u5026",
+          "zone": "main",
+          "visible": false,
+          "top": 3459
+        },
+        {
+          "text": "Admisión regular",
+          "href": "https://uchile.cl/admision-y-matriculas/admision-regular-pregrado",
+          "zone": "main",
+          "visible": false,
+          "top": 3575
+        },
+        {
+          "text": "Admisión especial",
+          "href": "https://uchile.cl/portal/presentacion/asuntos-academicos/pregrado/admision-especial",
+          "zone": "main",
+          "visible": false,
+          "top": 3629
+        },
+        {
+          "text": "Gratuidad",
+          "href": "https://uchile.cl/u129334",
+          "zone": "main",
+          "visible": false,
+          "top": 3691
+        },
+        {
+          "text": "Aranceles y créditos",
+          "href": "https://uchile.cl/arancelesycredito",
+          "zone": "main",
+          "visible": false,
+          "top": 3745
+        },
+        {
+          "text": "Becas y ayuda",
+          "href": "https://uchile.cl/presentacion/vicerrectoria-de-asuntos-estudiantiles-y-comunitarios/direccion-de-bienestar-y-desarrollo-estudiantil/becas-y-beneficios/becas-y-beneficios-para-estudiantes",
+          "zone": "main",
+          "visible": false,
+          "top": 3799
+        },
+        {
+          "text": "Doctorado",
+          "href": "https://uchile.cl/postgrados/doctorados",
+          "zone": "main",
+          "visible": false,
+          "top": 3390
+        },
+        {
+          "text": "Magíster",
+          "href": "https://uchile.cl/postgrados/magisteres",
+          "zone": "main",
+          "visible": false,
+          "top": 3452
+        },
+        {
+          "text": "Profesional especialista",
+          "href": "https://uchile.cl/postgrados/especialidades",
+          "zone": "main",
+          "visible": false,
+          "top": 3514
+        },
+        {
+          "text": "Especialización de postítulo",
+          "href": "https://uchile.cl/postgrados/postitulos",
+          "zone": "main",
+          "visible": false,
+          "top": 3576
+        },
+        {
+          "text": "Diplomados",
+          "href": "https://uchile.cl/diplomados",
+          "zone": "main",
+          "visible": false,
+          "top": 3390
+        },
+        {
+          "text": "Cursos y talleres",
+          "href": "https://uchile.cl/cursos",
+          "zone": "main",
+          "visible": false,
+          "top": 3452
+        },
+        {
+          "text": "Plataformas de educación a distancia",
+          "href": "https://uchile.cl/educacion-continua/programas-de-educacion-a-distancia",
+          "zone": "main",
+          "visible": false,
+          "top": 3514
+        },
+        {
+          "text": "X Feria del Libro Beauchef: 25 a 28 de noviembre",
+          "href": "https://uchile.cl/agenda/247339/x-feria-del-libro-beauchef-ciencia-y-literatura-chilena",
+          "zone": "main",
+          "visible": false,
+          "top": 4293
+        },
+        {
+          "text": "Concierto \"Poemas, danzas y gloria\" en la Gran Sala Sinfónica Nacional",
+          "href": "https://ceacuchile.ticketplus.cl/events/concierto-n-20",
+          "zone": "main",
+          "visible": false,
+          "top": 4293
+        },
+        {
+          "text": "Exposición \"Love From Afar\" del fotógrafo Bruce Weber en MAC Parque Forestal, ha",
+          "href": "https://uchile.cl/agenda/246092/exposicion-love-from-afar-se-presenta-en-mac-parque-forestal-",
+          "zone": "main",
+          "visible": false,
+          "top": 4293
+        },
+        {
+          "text": "Museos",
+          "href": "https://uchile.cl/u8248",
+          "zone": "main",
+          "visible": false,
+          "top": 4494
+        },
+        {
+          "text": "Teatros y salas",
+          "href": "https://uchile.cl/u8247",
+          "zone": "main",
+          "visible": false,
+          "top": 4494
+        },
+        {
+          "text": "Andrés Bello",
+          "href": "https://uchile.cl/portal/presentacion/campus/7983/campus-andres-bello",
+          "zone": "nav",
+          "visible": true,
+          "top": 4744
+        },
+        {
+          "text": "Arquitectura y Urbanismo",
+          "href": "https://fau.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 4743
+        },
+        {
+          "text": "Derecho",
+          "href": "https://derecho.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 4743
+        },
+        {
+          "text": "Economía y Negocios",
+          "href": "https://fen.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 4743
+        },
+        {
+          "text": "Estudios Avanzados en Educación",
+          "href": "https://ie.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 4803
+        },
+        {
+          "text": "Estudios Internacionales",
+          "href": "https://iei.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 4803
+        },
+        {
+          "text": "Gobierno",
+          "href": "https://gobierno.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 4863
+        },
+        {
+          "text": "Beauchef",
+          "href": "https://uchile.cl/portal/presentacion/campus/7986/campus-beauchef",
+          "zone": "nav",
+          "visible": true,
+          "top": 4940
+        },
+        {
+          "text": "Ciencias Físicas y Matemáticas",
+          "href": "https://ingenieria.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 4939
+        },
+        {
+          "text": "Dra. Eloísa Díaz",
+          "href": "https://uchile.cl/portal/presentacion/campus/7985/campus-dra-eloisa-diaz",
+          "zone": "nav",
+          "visible": true,
+          "top": 5016
+        },
+        {
+          "text": "Ciencias Químicas y Farmacéuticas",
+          "href": "https://quimica.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5015
+        },
+        {
+          "text": "Medicina",
+          "href": "https://medicina.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5015
+        },
+        {
+          "text": "Odontología",
+          "href": "https://odontologia.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5015
+        },
+        {
+          "text": "Juan Gómez Millas",
+          "href": "https://uchile.cl/portal/presentacion/campus/7984/campus-juan-gomez-millas",
+          "zone": "nav",
+          "visible": true,
+          "top": 5092
+        },
+        {
+          "text": "Artes",
+          "href": "https://artes.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5091
+        },
+        {
+          "text": "Ciencias",
+          "href": "https://ciencias.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5091
+        },
+        {
+          "text": "Ciencias Sociales",
+          "href": "https://facso.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5091
+        },
+        {
+          "text": "Comunicación e Imagen",
+          "href": "https://fcei.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5151
+        },
+        {
+          "text": "Filosofía y Humanidades",
+          "href": "https://filosofia.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5151
+        },
+        {
+          "text": "Sur",
+          "href": "https://uchile.cl/presentacion/campus/campus-sur",
+          "zone": "nav",
+          "visible": true,
+          "top": 5228
+        },
+        {
+          "text": "Ciencias Agronómicas y Ambientales",
+          "href": "https://agronomia.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5227
+        },
+        {
+          "text": "Ciencias Forestales y Conservación",
+          "href": "https://forestal.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5287
+        },
+        {
+          "text": "Ciencias Veterinarias y Pecuarias",
+          "href": "https://veterinaria.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5347
+        },
+        {
+          "text": "Nutrición y Tecnología de los Alimentos",
+          "href": "https://inta.uchile.cl/",
+          "zone": "nav",
+          "visible": true,
+          "top": 5407
+        },
+        {
+          "text": "Universidad de Chile impulsa la electrificación y descarbonización de la minería",
+          "href": "https://uchile.cl/noticias/246486/u-de-chile-impulsa-la-electrificacion-y-descarbonizacion-de-la-mineria0",
+          "zone": "main",
+          "visible": false,
+          "top": 6032
+        },
+        {
+          "text": "De La Pintana a Puerto Williams: el proyecto de la U. de Chile que instala casas",
+          "href": "https://uchile.cl/noticias/246755/proyecto-cajas-anideras-se-extiende-a-campus-jgm-y-a-puerto-williams0",
+          "zone": "main",
+          "visible": false,
+          "top": 5792
+        },
+        {
+          "text": "U. de Chile presenta estudio sobre los desafíos para implementar la reforma de G",
+          "href": "https://uchile.cl/noticias/246996/cesc-presenta-aportes-tecnicos-para-la-implementacion-de-la-reforma-genchi0",
+          "zone": "main",
+          "visible": false,
+          "top": 6018
+        },
+        {
+          "text": "Más información",
+          "href": "https://uchile.cl/investigacion",
+          "zone": "main",
+          "visible": false,
+          "top": 6214
+        },
+        {
+          "text": "Comienza Encuesta Casen 2026: encuestadores ya recorren Chile para llegar a más ",
+          "href": "https://uchile.cl/noticias/246602/comienza-encuesta-casen-2026",
+          "zone": "main",
+          "visible": false,
+          "top": 6579
+        },
+        {
+          "text": "U. de Chile avanza en la investigación y puesta en valor de la Colección Domingo",
+          "href": "https://uchile.cl/noticias/246543/u-de-chile-avanza-en-la-investigacion-de-la-coleccion-edwards-matte",
+          "zone": "main",
+          "visible": false,
+          "top": 6579
+        },
+        {
+          "text": "U. de Chile reúne a dirigentes sociales de La Pintana para fortalecer el trabajo",
+          "href": "https://uchile.cl/noticias/246770/facso-fortalece-vinculos-con-organizaciones-comunitarias-de-la-pintana0",
+          "zone": "main",
+          "visible": false,
+          "top": 6579
+        },
+        {
+          "text": "Más información",
+          "href": "https://uchile.cl/extension",
+          "zone": "main",
+          "visible": false,
+          "top": 6964
+        },
+        {
+          "text": "Nueve estudiantes U. de Chile realizarán intercambios en el extranjero con becas",
+          "href": "https://uchile.cl/noticias/247293/ceremonia-reconocimiento-beca-uchile-santander0",
+          "zone": "main",
+          "visible": false,
+          "top": 7671
+        },
+        {
+          "text": "Ana María Ibáñez, vicepresidenta del BID: “Tenemos muchas oportunidades en nuest",
+          "href": "https://uchile.cl/noticias/247581/ana-maria-ibanez-tenemos-muchas-oportunidades-en-nuestros-paises",
+          "zone": "main",
+          "visible": false,
+          "top": 7671
+        },
+        {
+          "text": "Relaciones internacionales",
+          "href": "https://uchile.cl/rrii",
+          "zone": "main",
+          "visible": false,
+          "top": 7939
+        },
+        {
+          "text": "Entrevistas a visitantes",
+          "href": "https://uchile.cl/noticias/visitantes",
+          "zone": "main",
+          "visible": false,
+          "top": 7939
+        },
+        {
+          "text": "“Ese teatro tenía la función de vivir, de vivir a toda costa”",
+          "href": "https://uchile.cl/noticias/247440/marco-antonio-de-la-parra-ese-teatro-tenia-la-funcion-de-vivir",
+          "zone": "main",
+          "visible": false,
+          "top": 8384
+        },
+        {
+          "text": "Postulantes",
+          "href": "https://uchile.cl/postulantes",
+          "zone": "main",
+          "visible": false,
+          "top": 8694
+        },
+        {
+          "text": "Estudiantes",
+          "href": "https://uchile.cl/estudiantes",
+          "zone": "main",
+          "visible": false,
+          "top": 8694
+        },
+        {
+          "text": "Académicas/os",
+          "href": "https://uchile.cl/academicos",
+          "zone": "main",
+          "visible": false,
+          "top": 8694
+        },
+        {
+          "text": "Funcionarias/os",
+          "href": "https://uchile.cl/funcionarios",
+          "zone": "main",
+          "visible": false,
+          "top": 8694
+        },
+        {
+          "text": "Egresadas/os",
+          "href": "https://uchile.cl/egresados",
+          "zone": "main",
+          "visible": false,
+          "top": 8694
+        },
+        {
+          "text": "Alumni",
+          "href": "https://uchile.cl/alumni",
+          "zone": "main",
+          "visible": false,
+          "top": 8694
+        },
+        {
+          "text": "U. de Chile abre encuesta en 22 países para investigar las brechas de género en ",
+          "href": "https://uchile.cl/noticias/247239/encuesta-busca-conocer-condiciones-laborales-y-desigualdades-de-genero-en-0",
+          "zone": "main",
+          "visible": false,
+          "top": 9044
+        },
+        {
+          "text": "Equipos de la red de bibliotecas de la U. de Chile se capacitaron en trato neuro",
+          "href": "https://uchile.cl/noticias/245122/bibliotecas-uchile-se-capacitaron-en-trato-neuroafirmativo-e-inclusion",
+          "zone": "main",
+          "visible": false,
+          "top": 9044
+        },
+        {
+          "text": "Egresada U. de Chile, Bernardita Ried, recibe premio internacional por defender ",
+          "href": "https://uchile.cl/noticias/247233/astrofisica-chilena-es-premiada-por-su-defensa-de-los-cielos-oscuros0",
+          "zone": "main",
+          "visible": false,
+          "top": 9044
+        },
+        {
+          "text": "Equidad e inclusión",
+          "href": "https://uchile.cl/Equidad-Inclusion",
+          "zone": "main",
+          "visible": false,
+          "top": 9428
+        },
+        {
+          "text": "Igualdad de género y diversidades",
+          "href": "https://uchile.cl/genero",
+          "zone": "main",
+          "visible": false,
+          "top": 9428
+        },
+        {
+          "text": "Sustentabilidad",
+          "href": "https://uchile.cl/sustentabilidad",
+          "zone": "main",
+          "visible": false,
+          "top": 9428
+        },
+        {
+          "text": "184 años al servicio del país",
+          "href": "https://uchile.cl/u54561",
+          "zone": "main",
+          "visible": false,
+          "top": 9776
+        },
+        {
+          "text": "N°1 de Chile en producción científica",
+          "href": "https://uchile.cl/u54564",
+          "zone": "main",
+          "visible": false,
+          "top": 9776
+        },
+        {
+          "text": "218 Premios Nacionales y 2 Premios Nobel",
+          "href": "https://uchile.cl/u54562",
+          "zone": "main",
+          "visible": false,
+          "top": 9776
+        },
+        {
+          "text": "46.120 estudiantes de pregrado y postgrado",
+          "href": "https://uchile.cl/u54563",
+          "zone": "main",
+          "visible": false,
+          "top": 9776
+        },
+        {
+          "text": "264 postgrados y especializaciones",
+          "href": "https://uchile.cl/u54563",
+          "zone": "main",
+          "visible": false,
+          "top": 9776
+        },
+        {
+          "text": "21 Presidentes de Chile exestudiantes",
+          "href": "https://uchile.cl/u54562",
+          "zone": "main",
+          "visible": false,
+          "top": 9776
+        },
+        {
+          "text": "N°1 del país en el ranking Shanghai",
+          "href": "https://uchile.cl/u54561",
+          "zone": "main",
+          "visible": false,
+          "top": 9776
+        },
+        {
+          "text": "21.651 publicaciones indexadas desde 2020",
+          "href": "https://uchile.cl/u54564",
+          "zone": "main",
+          "visible": false,
+          "top": 9776
+        },
+        {
+          "text": "Hechos y cifras",
+          "href": "https://uchile.cl/hechosycifras",
+          "zone": "main",
+          "visible": false,
+          "top": 9986
+        },
+        {
+          "text": "Matrícula en línea",
+          "href": "https://matricula.uchile.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10188
+        },
+        {
+          "text": "Inscripción y cambio de asignaturas",
+          "href": "https://ucampus.uchile.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10217
+        },
+        {
+          "text": "Consulta de notas",
+          "href": "https://ucampus.uchile.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10265
+        },
+        {
+          "text": "Solicitud de certificados de alumno regular y notas",
+          "href": "https://ucampus.uchile.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10294
+        },
+        {
+          "text": "Servicio Médico y Dental",
+          "href": "https://uchile.cl/u5044",
+          "zone": "footer",
+          "visible": false,
+          "top": 10323
+        },
+        {
+          "text": "Pago de aranceles y crédito para alumnos",
+          "href": "https://uchile.cl/arancelesycredito",
+          "zone": "footer",
+          "visible": false,
+          "top": 10351
+        },
+        {
+          "text": "Pago de aranceles y crédito para exalumnos",
+          "href": "https://uchile.cl/arancelesycredito/exalumnos",
+          "zone": "footer",
+          "visible": false,
+          "top": 10399
+        },
+        {
+          "text": "Solicitud de certificados de títulos y grados",
+          "href": "https://uchile.cl/u124419",
+          "zone": "footer",
+          "visible": false,
+          "top": 10447
+        },
+        {
+          "text": "Postulación a concursos internos de investigación",
+          "href": "https://www.jotform.com/form/42526321456653",
+          "zone": "footer",
+          "visible": false,
+          "top": 10188
+        },
+        {
+          "text": "Consulta a bases de datos",
+          "href": "https://uchile.cl/u57681",
+          "zone": "footer",
+          "visible": false,
+          "top": 10311
+        },
+        {
+          "text": "Desarrollo y perfeccionamiento",
+          "href": "https://uchile.cl/uperdoc",
+          "zone": "footer",
+          "visible": false,
+          "top": 10378
+        },
+        {
+          "text": "Edición del Portafolio Académico",
+          "href": "https://mu3-portafolio.uchile.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10407
+        },
+        {
+          "text": "Apoyo a la docencia presencial",
+          "href": "https://www.u-cursos.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10474
+        },
+        {
+          "text": "Calificación académica",
+          "href": "https://calificacion.uchile.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10521
+        },
+        {
+          "text": "Postulaciones al Asignación académica AUCAI",
+          "href": "https://aucai.uchile.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10569
+        },
+        {
+          "text": "Cursos de capacitación",
+          "href": "https://uchile.cl/capacitacion.html",
+          "zone": "footer",
+          "visible": false,
+          "top": 10188
+        },
+        {
+          "text": "Bienestar del personal",
+          "href": "https://uchile.cl/bienestar",
+          "zone": "footer",
+          "visible": false,
+          "top": 10236
+        },
+        {
+          "text": "Portal de movilidad interna",
+          "href": "https://internouchile.trabajando.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10284
+        },
+        {
+          "text": "Solicitud de certificado de renta (contrato)",
+          "href": "https://certificados.uchile.cl/certificados-funcionarios",
+          "zone": "footer",
+          "visible": false,
+          "top": 10331
+        },
+        {
+          "text": "Solicitud de certificado de renta (honorarios)",
+          "href": "https://honorarios.uchile.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10379
+        },
+        {
+          "text": "Administración y creación de correo institucional",
+          "href": "https://mi.uchile.cl/administrar_correo_institucional_223",
+          "zone": "footer",
+          "visible": false,
+          "top": 10427
+        },
+        {
+          "text": "Editar perfil Mi uchile",
+          "href": "https://uchile.cl/u129369",
+          "zone": "footer",
+          "visible": false,
+          "top": 10475
+        },
+        {
+          "text": "Reválida de títulos",
+          "href": "https://uchile.cl/revalidacion",
+          "zone": "footer",
+          "visible": false,
+          "top": 10188
+        },
+        {
+          "text": "Postulación al Programa de Movilidad Estudiantil (PME)",
+          "href": "https://uchile.cl/u6719",
+          "zone": "footer",
+          "visible": false,
+          "top": 10255
+        },
+        {
+          "text": "Inscripción de asignaturas PME",
+          "href": "https://mi.uchile.cl/inscripcion_de_asignaturas_pme_106",
+          "zone": "footer",
+          "visible": false,
+          "top": 10340
+        },
+        {
+          "text": "Programas de español",
+          "href": "https://uchile.cl/u6694",
+          "zone": "footer",
+          "visible": false,
+          "top": 10388
+        },
+        {
+          "text": "Intranet de servicios personalizados",
+          "href": "https://mi.uchile.cl/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10202
+        },
+        {
+          "text": "Mesa de ayuda tecnológica VTI",
+          "href": "https://vti.uchile.cl/ayudatecnologica",
+          "zone": "footer",
+          "visible": false,
+          "top": 10202
+        },
+        {
+          "text": "Tarjeta Universitaria Inteligente",
+          "href": "https://vti.uchile.cl/ayudatecnologica/categoria/tarjeta-universitaria-inteligente/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10202
+        },
+        {
+          "text": "Red Wifi eduroam",
+          "href": "https://vti.uchile.cl/ayudatecnologica/categoria/eduroam-red-wifi/",
+          "zone": "footer",
+          "visible": false,
+          "top": 10202
+        },
+        {
+          "text": "Prevención del acoso sexual, acoso laboral y violencia en el trabajo",
+          "href": "https://uchile.cl/acoso-laboral",
+          "zone": "footer",
+          "visible": false,
+          "top": 10202
+        },
+        {
+          "text": "Canal de denuncias de la Contraloría U. de Chile",
+          "href": "https://uchile.cl/u186671",
+          "zone": "footer",
+          "visible": false,
+          "top": 10202
+        },
+        {
+          "text": "Carreras y licenciaturas",
+          "href": "https://uchile.cl/carreras",
+          "zone": "footer",
+          "visible": true,
+          "top": 10317
+        },
+        {
+          "text": "Bachillerato",
+          "href": "https://uchile.cl/u5026",
+          "zone": "footer",
+          "visible": true,
+          "top": 10344
+        },
+        {
+          "text": "Diplomados",
+          "href": "https://uchile.cl/diplomados",
+          "zone": "footer",
+          "visible": true,
+          "top": 10372
+        },
+        {
+          "text": "Doctorados",
+          "href": "https://uchile.cl/postgrados/doctorados",
+          "zone": "footer",
+          "visible": true,
+          "top": 10399
+        },
+        {
+          "text": "Magísteres",
+          "href": "https://uchile.cl/postgrados/magisteres",
+          "zone": "footer",
+          "visible": true,
+          "top": 10427
+        },
+        {
+          "text": "Profesional especialista",
+          "href": "https://uchile.cl/postgrados/especialidades",
+          "zone": "footer",
+          "visible": true,
+          "top": 10454
+        },
+        {
+          "text": "Cursos de especialización",
+          "href": "https://uchile.cl/postgrados/postitulos",
+          "zone": "footer",
+          "visible": true,
+          "top": 10482
+        },
+        {
+          "text": "Educación continua",
+          "href": "https://uchile.cl/educacioncontinua",
+          "zone": "footer",
+          "visible": true,
+          "top": 10509
+        },
+        {
+          "text": "Programas a distancia",
+          "href": "https://uchile.cl/portal/educacion-continua/136107/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10537
+        },
+        {
+          "text": "DEMRE",
+          "href": "https://demre.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10298
+        },
+        {
+          "text": "Postulaciones",
+          "href": "https://uchile.cl/u44257",
+          "zone": "footer",
+          "visible": true,
+          "top": 10326
+        },
+        {
+          "text": "Admisión especial",
+          "href": "https://uchile.cl/portal/presentacion/asuntos-academicos/pregrado/admision-especial",
+          "zone": "footer",
+          "visible": true,
+          "top": 10353
+        },
+        {
+          "text": "Aranceles y créditos",
+          "href": "https://uchile.cl/arancelesycredito",
+          "zone": "footer",
+          "visible": true,
+          "top": 10381
+        },
+        {
+          "text": "Becas y beneficios",
+          "href": "https://uchile.cl/u5076",
+          "zone": "footer",
+          "visible": true,
+          "top": 10408
+        },
+        {
+          "text": "Intercambio estudiantil",
+          "href": "https://uchile.cl/PME",
+          "zone": "footer",
+          "visible": true,
+          "top": 10436
+        },
+        {
+          "text": "Oficina de Títulos y Grados",
+          "href": "https://uchile.cl/u7827",
+          "zone": "footer",
+          "visible": true,
+          "top": 10463
+        },
+        {
+          "text": "Revalidación de títulos extranjeros",
+          "href": "https://uchile.cl/u6676",
+          "zone": "footer",
+          "visible": true,
+          "top": 10491
+        },
+        {
+          "text": "Rectoría",
+          "href": "https://uchile.cl/rectoria",
+          "zone": "footer",
+          "visible": true,
+          "top": 10298
+        },
+        {
+          "text": "Consejo Universitario",
+          "href": "https://uchile.cl/consejoUniversitario",
+          "zone": "footer",
+          "visible": true,
+          "top": 10326
+        },
+        {
+          "text": "Senado Universitario",
+          "href": "https://uchile.cl/senado",
+          "zone": "footer",
+          "visible": true,
+          "top": 10353
+        },
+        {
+          "text": "Consejo de Evaluación",
+          "href": "https://uchile.cl/ConsejoEvaluacion",
+          "zone": "footer",
+          "visible": true,
+          "top": 10381
+        },
+        {
+          "text": "Facultades e institutos",
+          "href": "https://uchile.cl/facultades",
+          "zone": "footer",
+          "visible": true,
+          "top": 10408
+        },
+        {
+          "text": "Hospital Clínico",
+          "href": "https://www.redclinica.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10436
+        },
+        {
+          "text": "Centros y programas",
+          "href": "https://uchile.cl/centrosyprogramas",
+          "zone": "footer",
+          "visible": true,
+          "top": 10463
+        },
+        {
+          "text": "Relaciones internacionales",
+          "href": "https://uchile.cl/rrii",
+          "zone": "footer",
+          "visible": true,
+          "top": 10491
+        },
+        {
+          "text": "Unidades administrativas",
+          "href": "https://uchile.cl/estructura",
+          "zone": "footer",
+          "visible": true,
+          "top": 10518
+        },
+        {
+          "text": "Noticias",
+          "href": "https://uchile.cl/noticias",
+          "zone": "footer",
+          "visible": true,
+          "top": 10317
+        },
+        {
+          "text": "Agenda de actividades",
+          "href": "https://uchile.cl/agenda",
+          "zone": "footer",
+          "visible": true,
+          "top": 10344
+        },
+        {
+          "text": "Multimedia",
+          "href": "https://uchile.cl/multimedia",
+          "zone": "footer",
+          "visible": true,
+          "top": 10372
+        },
+        {
+          "text": "Radio U. de Chile",
+          "href": "https://radio.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10400
+        },
+        {
+          "text": "UchileTV",
+          "href": "https://tv.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10400
+        },
+        {
+          "text": "Deportes",
+          "href": "https://uchile.cl/deportes",
+          "zone": "footer",
+          "visible": true,
+          "top": 10428
+        },
+        {
+          "text": "Museos y teatros",
+          "href": "https://uchile.cl/u8248",
+          "zone": "footer",
+          "visible": true,
+          "top": 10455
+        },
+        {
+          "text": "Orquesta, ballet y coro",
+          "href": "https://uchile.cl/u132135",
+          "zone": "footer",
+          "visible": true,
+          "top": 10483
+        },
+        {
+          "text": "Publicaciones",
+          "href": "https://uchile.cl/publicaciones",
+          "zone": "footer",
+          "visible": true,
+          "top": 10510
+        },
+        {
+          "text": "Editorial Universitaria",
+          "href": "https://www.universitaria.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10538
+        },
+        {
+          "text": "U-Cursos",
+          "href": "https://www.u-cursos.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10299
+        },
+        {
+          "text": "Ucampus",
+          "href": "https://ucampus.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10299
+        },
+        {
+          "text": "Biblioteca digital",
+          "href": "https://bibliotecadigital.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10327
+        },
+        {
+          "text": "Repositorio Académico",
+          "href": "https://repositorio.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10354
+        },
+        {
+          "text": "Libros electrónicos",
+          "href": "https://libros.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10382
+        },
+        {
+          "text": "Tesis U. de Chile",
+          "href": "https://repositorio.uchile.cl/discover?filtertype=type&filter_relational_operator=equals&filter=Tesis",
+          "zone": "footer",
+          "visible": true,
+          "top": 10409
+        },
+        {
+          "text": "Revistas académicas",
+          "href": "https://revistas.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10437
+        },
+        {
+          "text": "Portafolio académico",
+          "href": "https://portafolio-academico.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10464
+        },
+        {
+          "text": "Sismos en Chile",
+          "href": "http://www.csn.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10492
+        },
+        {
+          "text": "Solicitud de salas Casa Central",
+          "href": "https://uchile.cl/presentacion/historia/patrimonio-historico-y-cultural/casa-central-uchile",
+          "zone": "footer",
+          "visible": true,
+          "top": 10519
+        },
+        {
+          "text": "WhatsApp",
+          "href": "https://www.whatsapp.com/channel/0029Va51V3dKrWQv8BS1dB1D",
+          "zone": "footer",
+          "visible": true,
+          "top": 10593
+        },
+        {
+          "text": "Instagram",
+          "href": "https://www.instagram.com/uchile",
+          "zone": "footer",
+          "visible": true,
+          "top": 10593
+        },
+        {
+          "text": "YouTube",
+          "href": "https://www.youtube.com/uchile",
+          "zone": "footer",
+          "visible": true,
+          "top": 10593
+        },
+        {
+          "text": "TikTok",
+          "href": "https://www.tiktok.com/@uchileoficial",
+          "zone": "footer",
+          "visible": true,
+          "top": 10593
+        },
+        {
+          "text": "X",
+          "href": "https://x.com/uchile",
+          "zone": "footer",
+          "visible": true,
+          "top": 10593
+        },
+        {
+          "text": "Threads",
+          "href": "https://www.threads.net/@uchile",
+          "zone": "footer",
+          "visible": true,
+          "top": 10593
+        },
+        {
+          "text": "Facebook",
+          "href": "https://www.facebook.com/uchile",
+          "zone": "footer",
+          "visible": true,
+          "top": 10593
+        },
+        {
+          "text": "LinkedIn",
+          "href": "https://cl.linkedin.com/school/uchile",
+          "zone": "footer",
+          "visible": true,
+          "top": 10593
+        },
+        {
+          "text": "Bluesky",
+          "href": "https://bsky.app/profile/uchile.bsky.social",
+          "zone": "footer",
+          "visible": true,
+          "top": 10593
+        },
+        {
+          "text": "Acceso a información pública",
+          "href": "https://uchile.cl/transparencia",
+          "zone": "footer",
+          "visible": true,
+          "top": 10709
+        },
+        {
+          "text": "Solicitud de información",
+          "href": "https://uchile.cl/u103255",
+          "zone": "footer",
+          "visible": true,
+          "top": 10730
+        },
+        {
+          "text": "Casa Central",
+          "href": "https://uchile.cl/u7982",
+          "zone": "footer",
+          "visible": true,
+          "top": 10708
+        },
+        {
+          "text": "Campus",
+          "href": "https://uchile.cl/portal/presentacion/campus",
+          "zone": "footer",
+          "visible": true,
+          "top": 10750
+        },
+        {
+          "text": "Andrés Bello",
+          "href": "https://uchile.cl/portal/presentacion/campus/7983/campus-andres-bello",
+          "zone": "footer",
+          "visible": true,
+          "top": 10750
+        },
+        {
+          "text": "Beauchef",
+          "href": "https://uchile.cl/portal/presentacion/campus/7986/campus-beauchef",
+          "zone": "footer",
+          "visible": true,
+          "top": 10750
+        },
+        {
+          "text": "Dra. Eloísa Díaz",
+          "href": "https://uchile.cl/portal/presentacion/campus/7985/campus-dra-eloisa-diaz",
+          "zone": "footer",
+          "visible": true,
+          "top": 10765
+        },
+        {
+          "text": "Juan Gómez Millas",
+          "href": "https://uchile.cl/portal/presentacion/campus/7984/campus-juan-gomez-millas",
+          "zone": "footer",
+          "visible": true,
+          "top": 10765
+        },
+        {
+          "text": "Sur",
+          "href": "https://uchile.cl/presentacion/campus/campus-sur",
+          "zone": "footer",
+          "visible": true,
+          "top": 10780
+        },
+        {
+          "text": "más recintos",
+          "href": "https://uchile.cl/u8003",
+          "zone": "footer",
+          "visible": true,
+          "top": 10780
+        },
+        {
+          "text": "Teléfonos y correos",
+          "href": "https://blancas.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10807
+        },
+        {
+          "text": "Mapa del portal",
+          "href": "https://uchile.cl/portal/presentacion/servicios-portal/mapa/8023/mapa-del-portal-web",
+          "zone": "footer",
+          "visible": true,
+          "top": 10822
+        },
+        {
+          "text": "Contacto",
+          "href": "https://uchile.cl/portal/presentacion/servicios-portal/contacto/8021/contacto",
+          "zone": "footer",
+          "visible": true,
+          "top": 10837
+        },
+        {
+          "text": "SISIB",
+          "href": "https://uchile.cl/sisib",
+          "zone": "footer",
+          "visible": true,
+          "top": 10864
+        },
+        {
+          "text": "Universidad de Chile",
+          "href": "https://uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10864
+        },
+        {
+          "text": "Política de privacidad",
+          "href": "https://uchile.cl/informacion-general/politica-de-privacidad-de-la-informacion-y-datos-personales",
+          "zone": "footer",
+          "visible": true,
+          "top": 10879
+        },
+        {
+          "text": "UNIVERSIDAD ACREDITADA Nivel de excelencia en todas las áreas: Docencia y result",
+          "href": "https://uchile.cl/acreditacion",
+          "zone": "footer",
+          "visible": true,
+          "top": 10683
+        },
+        {
+          "text": "Certificación en estándares de igualdad de género",
+          "href": "https://sellogeneraigualdad.uchile.cl/",
+          "zone": "footer",
+          "visible": true,
+          "top": 10801
+        }
+      ],
+      "forms": [],
+      "buttons": [
+        "Facultades",
+        "Información para",
+        "Buscar",
+        "MENÚ",
+        "Noticia 1",
+        "Noticia 2",
+        "Noticia 3",
+        "Noticia 4",
+        "Pausar carrusel",
+        "Alumnas/os y exalumnas/os",
+        "Docentes",
+        "Funcionarias/os",
+        "Extranjeras/os"
+      ],
+      "captcha": false,
+      "gates": []
+    }
+  ],
+  "failures": []
+}

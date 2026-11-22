@@ -26,9 +26,10 @@ CATALOG_SCHEMA = {
                     "entry": {"type": ["string", "null"]},
                     "demand": {"type": "string", "enum": list(DEMANDS)},
                     "estimated_steps": {"type": "integer"},
+                    "requires_login": {"type": "boolean"},
                 },
                 "required": ["id", "description", "level", "parent", "intent", "submits_form", "evidence", "entry",
-                             "demand", "estimated_steps"],
+                             "demand", "estimated_steps", "requires_login"],
                 "additionalProperties": False,
             },
         },
@@ -73,6 +74,14 @@ CADA OBJETIVO
   en el pie). Medio 3–4: abrir un menú y elegir una subpágina, o buscar y abrir un resultado. Largo 5 o más:
   llenar un formulario, elegir varias opciones o recorrer varias páginas (planificar un viaje con origen,
   destino y hora).
+- "requires_login": true si no se cumple sin iniciar sesión:
+  · La tarea es sobre datos o trámites propios de la persona: sus notas, su matrícula, inscribir asignaturas, su
+    saldo o cartola, sus trámites, su perfil, su correo institucional, un portal del alumno o del cliente, una
+    intranet, «Mi …» (Mi Uchile, Mi SII) o «acceder a <plataforma>» (Ucampus, U-Cursos).
+  · O su entrada va a un dominio, subdominio o ruta de autenticación o de portal: ucampus., login., sso., auth.,
+    intranet., mi., portal., /login, /mi-cuenta.
+  Ejemplos: "Consulta tus notas del semestre" → true; "Matricúlate para el próximo período" → true; "Encuentra las
+  fechas del proceso de matrícula" → false; "Encuentra el horario de la biblioteca" → false.
 
 CRITERIOS
 - Cubre todo lo que el sitio ofrece, incluidas las tareas que el sitio no destaca: dar de baja, reclamar, cancelar, devolver.
@@ -125,5 +134,5 @@ def scripted_catalog(system_prompt: str, schema: dict, parts: list) -> dict:
     return {"goals": [{
         "id": "pagina-inicial", "description": "Llega a la página inicial del sitio.", "level": "user_goal",
         "parent": None, "intent": "reach_page", "submits_form": False, "evidence": [start_url], "entry": None,
-        "demand": "top", "estimated_steps": 1,
+        "demand": "top", "estimated_steps": 1, "requires_login": False,
     }]}
