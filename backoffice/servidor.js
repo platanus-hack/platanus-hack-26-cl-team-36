@@ -27,6 +27,7 @@
 //   GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>  → la propuesta del Diseñador para esa tanda
 //   GET /backoffice/propuestas/<host>/improver/<corrida>/vistas/<nombre>.png  → una captura antes/después del tema
 //   GET /backoffice/<ruta>.{html,js,css,svg,woff2}  → archivos de public/ (también public/vendor/<lib>@<versión>/)
+//   GET /backoffice/v/<versión>/<ruta>    → lo mismo, de la versión actual de public/ (lib/estaticos.js), inmutable
 //   GET /salud                            → { ok: true }, con cualquier Host (el health check del balanceador)
 //
 // Solo responde a pedidos dirigidos a este computador (Host localhost, 127.0.0.1 o [::1] con el puerto del
@@ -37,14 +38,28 @@
 // `ahora` de /api/resumen y /api/overview sale del reloj del servidor (`reloj` de crearServidor, por defecto la
 // hora real): contra él se decide qué revisión está detenida, y la página calcula "12 min" y "5 h ago" contra ese
 // valor, nunca contra su propio reloj. El servidor de los datos de prueba lo fija en el momento en que se generaron.
+//
+// Caché y compresión: JS, CSS, JSON, SVG y HTML van con brotli o gzip si el navegador los acepta (Vary:
+// Accept-Encoding); nunca una respuesta con Range ni el SSE de /api/vivo. La página (index.html) y los archivos sin
+// versión se revalidan con ETag (304); v/<versión>/ y vendor/<lib>@<x.y.z>/ no cambian nunca (inmutables).
 
-import { createReadStream, existsSync } from "node:fs";
-import { stat } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { createServer } from "node:http";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
-import { responderJsonConEtiqueta } from "./lib/etiqueta.js";
+import { coincide, etiquetaDe } from "./lib/etiqueta.js";
+import {
+  MINIMO_PARA_COMPRIMIR,
+  PREFIJO_DE_VERSION,
+  comprimir,
+  crearEstaticos,
+  cuerpoDe,
+  elegirCodificacion,
+  esComprimible,
+  etagDe,
+  sigueVigente,
+} from "./lib/estaticos.js";
 import { crearFuente } from "./lib/fuente.js";
 import { RANCIO_MS, crearPanel } from "./lib/panel.js";
 import { ARCHIVO_DE_VISTA, crearPropuestas } from "./lib/propuestas.js";
@@ -90,13 +105,45 @@ const cabecerasDeSeguridad = (descargas = "") => ({
 });
 const CABECERAS_DE_SEGURIDAD = cabecerasDeSeguridad();
 
-function responder(res, estado, tipo, cuerpo) {
-  res.writeHead(estado, { "Content-Type": tipo, "Cache-Control": "no-store", ...CABECERAS_DE_SEGURIDAD });
-  res.end(cuerpo);
+// La codificación para responder a `req` con `tipo`, o null: sin compresión si el tipo no lo vale o se pidió un rango.
+function codificacionPara(req, tipo) {
+  if (!esComprimible(tipo) || req?.headers.range) return null;
+  return elegirCodificacion(req?.headers["accept-encoding"]);
+}
+
+// Vary: Accept-Encoding en todo lo que podría ir comprimido, aunque esta vez no vaya (un caché no lo confunde).
+const variaSegun = (tipo) => (esComprimible(tipo) ? { Vary: "Accept-Encoding" } : {});
+
+async function responder(res, estado, tipo, cuerpo, extra = {}) {
+  const datos = Buffer.from(cuerpo ?? "");
+  const codificacion = datos.length >= MINIMO_PARA_COMPRIMIR ? codificacionPara(res.req, tipo) : null;
+  const enviado = codificacion ? await comprimir(datos, codificacion) : datos;
+  res.writeHead(estado, {
+    "Content-Type": tipo,
+    "Cache-Control": "no-store",
+    ...variaSegun(tipo),
+    ...(codificacion ? { "Content-Encoding": codificacion } : {}),
+    "Content-Length": enviado.length,
+    ...CABECERAS_DE_SEGURIDAD,
+    ...extra,
+  });
+  res.end(enviado);
 }
 
 const responderJson = (res, estado, datos) =>
   responder(res, estado, "application/json; charset=utf-8", JSON.stringify(datos));
+
+// JSON con ETag (lib/etiqueta.js): 304 si If-None-Match la nombra; si no, comprimido como cualquier JSON. La etiqueta
+// es la del JSON sin comprimir, igual en cualquier codificación (no-store: nadie lo guarda, solo lo compara).
+function responderJsonConEtiqueta(req, res, datos) {
+  const cuerpo = JSON.stringify(datos);
+  const etiqueta = etiquetaDe(cuerpo);
+  if (coincide(req.headers["if-none-match"], etiqueta)) {
+    res.writeHead(304, { ETag: etiqueta, "Cache-Control": "no-store", ...CABECERAS_DE_SEGURIDAD });
+    return res.end();
+  }
+  return responder(res, 200, "application/json; charset=utf-8", cuerpo, { ETag: etiqueta });
+}
 
 // Lee la cabecera Range ("bytes=0-99", "bytes=100-", "bytes=-500"); null si no hay o no se entiende.
 export function leerRango(cabecera) {
@@ -144,18 +191,48 @@ async function enviar(req, res, nombre, { cuerpo, tamano, rango }, { tipo = tipo
   }
 }
 
-async function servirPublico(req, res, ruta, seguridad) {
-  const info = await stat(ruta);
-  if (!info.isFile()) return responderJson(res, 404, { error: "No encontrado" });
-  const size = info.size;
-  return enviar(req, res, ruta, { cuerpo: createReadStream(ruta), tamano: size, rango: null }, { seguridad });
+// Caché de lo estático: lo versionado no cambia nunca; lo demás se guarda pero se revalida siempre con su ETag.
+const INMUTABLE_PUBLICO = "public, max-age=31536000, immutable";
+const REVALIDAR = "no-cache";
+// public/vendor/<lib>@<x.y.z>/: una biblioteca con su versión en la ruta.
+const VENDOR = /^vendor\/[a-z0-9-]+@\d+\.\d+\.\d+\//;
+
+/**
+ * Envía un archivo estático en memoria (lib/estaticos.js): comprimido según Accept-Encoding, con su ETag y 304 si
+ * If-None-Match lo nombra. Un Range se ignora (va el archivo entero, sin comprimir).
+ * @param {import("./lib/estaticos.js").Estatico} archivo
+ */
+async function enviarEstatico(req, res, archivo, { tipo, cache, seguridad = CABECERAS_DE_SEGURIDAD }) {
+  const codificacion = archivo.cuerpo.length >= MINIMO_PARA_COMPRIMIR ? codificacionPara(req, tipo) : null;
+  const cabeceras = { "Cache-Control": cache, ETag: etagDe(archivo, codificacion), ...variaSegun(tipo), ...seguridad };
+  if (sigueVigente(req.headers["if-none-match"], archivo)) {
+    res.writeHead(304, cabeceras);
+    return res.end();
+  }
+  const cuerpo = await cuerpoDe(archivo, codificacion);
+  res.writeHead(200, {
+    "Content-Type": tipo,
+    ...cabeceras,
+    ...(codificacion ? { "Content-Encoding": codificacion } : {}),
+    "Content-Length": cuerpo.length,
+  });
+  res.end(req.method === "HEAD" ? undefined : cuerpo);
+}
+
+const PUBLICOS = crearEstaticos(PUBLICO);
+const DE_PORTADA = crearEstaticos(PORTADA);
+
+async function servirEstatico(req, res, estaticos, ruta, cache, seguridad) {
+  const archivo = await estaticos.leer(ruta);
+  if (!archivo) return responderJson(res, 404, { error: "No encontrado" });
+  return enviarEstatico(req, res, archivo, { tipo: tipoDe(ruta), cache, seguridad });
 }
 
 // La portada de la raíz: index.html y los archivos que pide, nada más.
 function servirPortada(req, res, partes) {
   const archivo = partes.length === 0 ? "index.html" : partes.length === 1 ? partes[0] : "";
   const ruta = path.join(PORTADA, archivo);
-  if (RUTA_DE_PORTADA.test(archivo) && existsSync(ruta)) return servirPublico(req, res, ruta);
+  if (RUTA_DE_PORTADA.test(archivo) && existsSync(ruta)) return servirEstatico(req, res, DE_PORTADA, ruta, REVALIDAR);
   return responderJson(res, 404, { error: "No encontrado" });
 }
 
@@ -188,7 +265,7 @@ const hostsDelEntorno = () =>
  *        no está disponible y /api/resumen cuenta 0 en cola.
  *        `reloj`: la hora de referencia del Overview (`ahora`); por defecto, la real.
  *        `vivo`: opciones de lib/transmision.js (intervaloMs, latidoMs, tope).
- *        `rancioMs`: lib/panel.js (RANCIO_MS).
+ *        `publico`: otra carpeta en lugar de public/ (pruebas de versiones). `rancioMs`: lib/panel.js (RANCIO_MS).
  */
 export function crearServidor({
   fuente,
@@ -197,10 +274,13 @@ export function crearServidor({
   revisiones = null,
   reloj = () => new Date(),
   vivo = {},
+  publico = null,
   rancioMs = RANCIO_MS,
 } = {}) {
   const origen = fuente ?? crearFuente({ tipo: "archivos", raiz: raizCorridas });
   const panel = crearPanel({ fuente: origen, revisiones, reloj, rancioMs });
+  const raizPublica = publico ?? PUBLICO;
+  const estaticos = publico ? crearEstaticos(publico) : PUBLICOS;
   const transmitir = crearTransmisor({ revisiones, cabeceras: CABECERAS_DE_SEGURIDAD, ...vivo });
   const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   const propuestas = crearPropuestas(origen);
@@ -257,10 +337,10 @@ export function crearServidor({
       if (partes[0] === "api" && partes[1] === "revisiones" && partes.length <= 3) {
         if (partes.length === 2) {
           const lista = revisiones ? { disponible: true, ...(await revisiones.listar()) } : { disponible: false, revisiones: [], historial: [] };
-          return responderJsonConEtiqueta(req, res, lista, CABECERAS_DE_SEGURIDAD);
+          return responderJsonConEtiqueta(req, res, lista);
         }
         const avance = revisiones ? await revisiones.leer(partes[2]) : null;
-        return avance ? responderJsonConEtiqueta(req, res, avance, CABECERAS_DE_SEGURIDAD) : responderJson(res, 404, { error: "No existe esa revisión" });
+        return avance ? responderJsonConEtiqueta(req, res, avance) : responderJson(res, 404, { error: "No existe esa revisión" });
       }
 
       if (partes[0] === "api" && partes[1] === "vivo" && partes.length === 4) {
@@ -313,10 +393,20 @@ export function crearServidor({
         return;
       }
 
-      const relativa = partes.length === 0 ? "index.html" : partes.join("/");
+      if (partes.length === 0 || (partes.length === 1 && partes[0] === "index.html")) {
+        const { archivo } = await estaticos.pagina();
+        if (archivo) return enviarEstatico(req, res, archivo, { tipo: TIPOS[".html"], cache: REVALIDAR, seguridad });
+        return responderJson(res, 404, { error: "No encontrado" });
+      }
+
+      // v/<versión>/<ruta>: solo la versión actual (una página de otro despliegue recibe 404, nunca una mezcla).
+      const versionada = partes[0] === PREFIJO_DE_VERSION && partes.length >= 3;
+      if (versionada && partes[1] !== (await estaticos.version())) return responderJson(res, 404, { error: "Otra versión" });
+      const relativa = (versionada ? partes.slice(2) : partes).join("/");
       if (RUTA_PUBLICA.test(relativa)) {
-        const ruta = path.join(PUBLICO, relativa);
-        if (ruta.startsWith(PUBLICO + path.sep) && existsSync(ruta)) return servirPublico(req, res, ruta, seguridad);
+        const ruta = path.join(raizPublica, relativa);
+        const cache = versionada || VENDOR.test(relativa) ? INMUTABLE_PUBLICO : REVALIDAR;
+        if (ruta.startsWith(raizPublica + path.sep)) return servirEstatico(req, res, estaticos, ruta, cache, seguridad);
       }
       return responderJson(res, 404, { error: "No encontrado" });
     } catch (error) {
@@ -349,6 +439,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(1);
   });
   servidor.listen(puerto, escucha, () => {
+    // Lee y comprime public/ de una vez (unos segundos, por detrás): el primer pedido no espera el brotli de three.js.
+    PUBLICOS.calentar((relativa) => tipoDe(relativa));
     const conRevisiones = revisiones ? ` · revisiones de ${revisiones.descripcion} (${aws.region})` : "";
     const abierto = escucha === "127.0.0.1" ? "" : ` · escucha en ${escucha}:${puerto}`;
     console.log(`Backoffice en http://localhost:${puerto}${PREFIJO}/${abierto} · corridas de ${fuente.descripcion}${conRevisiones}`);
