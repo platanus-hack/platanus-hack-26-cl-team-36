@@ -15,7 +15,7 @@
 //   sugeridas cuántas tareas mostrar antes de escribir, en el orden del tema (por defecto `max`)
 //   agrupar   true: los resultados van bajo el `grupo` de cada tarea
 //   teclas    true: suma los atajos globales. Por omisión no, para no quitarle Ctrl+K (la barra
-//             de búsqueda) ni `/` (buscar en la página) a Firefox en un sitio que no lo pidió
+//             de búsqueda) ni `/` (buscar en la página) al navegador en un sitio que no lo pidió
 //   textos    por idioma, para reemplazar los genéricos del diccionario (claves `buscador.*`
 //             de comun/idioma.js): { es: { boton, titulo, campo, … }, en: {…} }
 //

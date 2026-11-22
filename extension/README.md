@@ -1,6 +1,6 @@
-# Chameleon — extensión de Firefox
+# Chameleon — extensión de Firefox y Chrome
 
-Extensión de Firefox que cambia el diseño de sitios web aplicando **temas**.
+Extensión de Firefox y Chrome (el mismo código para los dos) que cambia el diseño de sitios web aplicando **temas**.
 Un tema es CSS + la lista de features (comportamientos JS) que se activan en ese sitio.
 
 En cada página, la extensión le consulta al backend (`backend/`) la **revisión** de esa página: el
@@ -13,7 +13,7 @@ revisiones. Ver [La API](#la-api).
 
 ```
 extension/
-├── src/                      ← todo lo que va dentro de la extensión (.xpi)
+├── src/                      ← todo lo que va dentro de la extensión (.xpi de Firefox, .zip de Chrome)
 │   ├── manifest.json
 │   ├── background/
 │   │   ├── index.js          ← badge ON/OFF + consulta la revisión de cada página e inyecta su CSS + votos
@@ -59,7 +59,7 @@ extension/
 
 ## Requisitos
 
-- Firefox 140 o superior
+- Firefox 140 o superior, o Chrome 148 o superior
 - Node.js 22 o superior
 
 ## Probarla localmente
@@ -94,23 +94,44 @@ pregunte: `npm run perfil:clonar -- --perfil "<nombre>"`.
 **Sin Node:** en Firefox abre `about:debugging` → "Este Firefox" →
 "Cargar complemento temporal…" y elige `src/manifest.json`.
 
+### En Chrome
+
+```bash
+npm run dev:chrome    # Chrome con la extensión
+```
+
+Igual que `npm run dev`, pero abre un Chrome aparte (perfil temporal) con la extensión cargada en
+metro.cl. Al guardar un archivo de `src/` se recarga y refresca las pestañas con tema.
+
+**Sin Node, o en tu Chrome de siempre:** abre `chrome://extensions`, activa **Modo de desarrollador**
+(arriba a la derecha), aprieta **Cargar descomprimida** y elige la carpeta `src/`. Queda instalada
+también después de reiniciar Chrome. Después de cambiar algo, aprieta el botón de recargar de su
+tarjeta: las pestañas con tema se refrescan solas.
+
+Chrome 148 o superior es obligatorio (`minimum_chrome_version`): desde esa versión Chrome tiene la
+API `browser.*` que usa la extensión.
+
 Si el diseño no se aplica: revisa que la página tenga una revisión terminada
 (`curl "https://api.chameleonmode.app/revisiones?url=<url>"`), que el interruptor esté
-encendido, y en `about:addons` → la extensión → "Permisos" que tenga acceso a los sitios.
+encendido, y en `about:addons` → la extensión → "Permisos" (en Chrome, `chrome://extensions` → la
+extensión → "Detalles" → "Acceso a sitios") que tenga acceso a los sitios.
 
 | Comando | Qué hace |
 | --- | --- |
 | `npm run dev` | Firefox con la extensión, recarga al guardar |
 | `npm run dev:sesion` | Igual, con perfil persistente |
+| `npm run dev:chrome` | Chrome con la extensión, recarga al guardar |
 | `npm run perfil:clonar` | Copia tu perfil de Firefox a `.perfil-dev/` |
 | `npm run dev:backend` | La API en `localhost:4747` (desde la raíz; ver [La API](#la-api) para usarla) |
 | `npm test` | Tests de la lógica (revisiones, saneamiento del CSS, votos, popup…) |
 | `npm run lint` | Valida la extensión con `web-ext lint` |
 | `npm run check` | `test` + `lint` |
 | `npm run build` | Genera el .zip en `web-ext-artifacts/` |
+| `npm run build:chrome` | El mismo .zip, como `chameleon-mode-chrome-<versión>.zip`, para instalar en Chrome |
 
 Para depurar: el motor y las features se ven en la consola de la pestaña; el
-background en `about:debugging` → la extensión → "Inspeccionar".
+background en `about:debugging` → la extensión → "Inspeccionar" (en Chrome: `chrome://extensions` →
+la extensión → "service worker").
 
 ## De dónde sale el tema de una página
 
@@ -227,8 +248,8 @@ La URL de la API sale de `src/background/config.js`:
   [infra/README.md](../infra/README.md)), instalada o en modo desarrollo (`npm run dev`,
   `just local up`). Los cambios de `backend/` llegan ahí solos después de mergearse.
 - **La API local** (`npm run dev:backend`, `http://localhost:4747`), solo en modo desarrollo y si se
-  pide, para probar cambios del backend: en `about:debugging` → la extensión → "Inspeccionar", en la
-  consola, `browser.storage.local.set({ apiLocal: true })` (`false` vuelve a AWS). Sin
+  pide, para probar cambios del backend: en la consola del background (ver arriba cómo abrirla),
+  `browser.storage.local.set({ apiLocal: true })` (`false` vuelve a AWS). Sin
   `REVISIONES_TABLA`, `ALMACEN_BUCKET` y credenciales de AWS, el backend local no tiene revisiones.
 
 `host_permissions` del manifest debe cubrir los dos dominios **sin puerto**: Firefox no
@@ -237,7 +258,7 @@ cubren `http://*/*` y `https://*/*`.
 
 Lo que hay que tener en cuenta:
 
-- **La API solo puede mandar datos (CSS + config), nunca JS.** MV3 y Mozilla prohíben
+- **La API solo puede mandar datos (CSS + config), nunca JS.** MV3, Mozilla y Google prohíben
   ejecutar código remoto. Los comportamientos tienen que existir como features en la extensión.
 - **Las features de la API** pasan por `sanearTema` (`background/tema-remoto.js`) en `temaDeRevision`
   (`background/revisiones.js`); `normalizarTema` es el contrato. Una feature o un componente nuevo
@@ -251,7 +272,7 @@ Lo que hay que tener en cuenta:
 - **Latencia:** el tema se aplica cuando la API responde. Con la API desplegada, una
   respuesta lenta muestra un instante el diseño original; ahí conviene guardar respuestas en caché.
 
-## Instalarla de forma permanente (.xpi no listado)
+## Instalarla de forma permanente en Firefox (.xpi no listado)
 
 Firefox solo instala de forma permanente extensiones firmadas por Mozilla. La firmamos
 como **no listada**: no aparece en la tienda y se distribuye como `.xpi` descargable.
@@ -266,7 +287,8 @@ just publish v0.3.0
 
 Crea el tag `v0.3.0` sobre `main` tal como está en GitHub y lo sube a este repo y al repo
 personal ([infra/README.md](../infra/README.md)). Ahí el workflow `Publicar extensión` toma la
-versión del tag, corre los tests, firma en Mozilla y crea un release con el `.xpi` en
+versión del tag, corre los tests, firma en Mozilla y crea un release con el `.xpi` (y el `.zip` para
+Chrome, ver [Instalarla en Chrome](#instalarla-en-chrome-zip)) en
 [brayanmoreno/hackathon-grupo36/releases](https://github.com/brayanmoreno/hackathon-grupo36/releases).
 El comando espera a que termine (unos minutos) y muestra el link. Ese repo es privado: solo el
 equipo puede descargarlo.
@@ -300,3 +322,23 @@ levantar el backend.
   No cambies el id: AMO lo trataría como otra extensión.
 - Instálala en tu Firefox normal, no en el de `npm run dev:sesion`: ahí web-ext carga la
   versión de desarrollo con el mismo id.
+
+## Instalarla en Chrome (.zip)
+
+Chrome no instala extensiones de fuera de su tienda con un archivo, como Firefox con el `.xpi`. Lo que
+sí se puede, sin publicarla, es cargarla **desempaquetada** en modo desarrollador:
+
+1. Descarga `chameleon-mode-chrome-<versión>.zip` del release (`just publish` lo adjunta junto al `.xpi`),
+   o genéralo con `npm run build:chrome` (queda en `extension/web-ext-artifacts/`).
+2. Descomprímelo en una carpeta que no vayas a borrar: Chrome la lee desde ahí.
+3. En `chrome://extensions`, activa **Modo de desarrollador** y aprieta **Cargar descomprimida**; elige
+   esa carpeta.
+
+- Necesita Chrome 148 o superior.
+- No se actualiza sola: para una versión nueva, reemplaza el contenido de la carpeta y aprieta el
+  botón de recargar en la tarjeta de la extensión.
+- Para Chrome, una extensión desempaquetada siempre está "en modo desarrollo" (`installType`
+  "development"): por eso refresca las pestañas con tema al recargarla, y acepta `apiLocal` (ver
+  [La API](#la-api)). Sin `apiLocal`, usa la API de AWS como la instalada en Firefox.
+- La opción para que no haga falta el modo desarrollador es publicarla en la Chrome Web Store como
+  "no listada" (solo se encuentra con el link), pero eso pasa por la revisión de Google.

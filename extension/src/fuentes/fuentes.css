@@ -2,7 +2,8 @@
  * Fuentes variables empaquetadas para los temas remotos, que no pueden usar url() ni @font-face.
  * Un tema las usa solo nombrándolas: font-family: "MT Inter", "MT Inter Fallback", Inter, system-ui, sans-serif;
  * El background inyecta esta hoja con scripting.insertCSS solo si el tema de la página nombra una "MT …"
- * (background/fuentes.js). Las url() son relativas a esta hoja (moz-extension://<uuid>/fuentes/).
+ * (background/fuentes.js). Las url() son relativas a esta hoja y el background las vuelve absolutas antes de
+ * inyectarla (hojaConUrlsAbsolutas: Chrome las resolvería contra la página).
  *
  * Archivos: subconjunto latino (Latin-1, ¿¡«»—– y comillas tipográficas) de @fontsource-variable 5.3,
  * sin modificar. Licencia SIL OFL 1.1 de cada familia en OFL-<familia>.txt, copiada de su repo oficial.

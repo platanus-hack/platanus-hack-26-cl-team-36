@@ -1,5 +1,6 @@
-# Firma la extensión en Mozilla (no listada) y la publica como release, con el .xpi
-# adjunto. Se dispara con un tag vX.Y.Z (ver extension/README.md):
+# Firma la extensión en Mozilla (no listada) y la publica como release, con el .xpi para
+# Firefox y el .zip para Chrome (se carga desempaquetado) adjuntos. Se dispara con un tag
+# vX.Y.Z (ver extension/README.md):
 #
 #   just publish v0.3.0      (o: git tag v0.3.0 && git push origin v0.3.0)
 #
@@ -70,11 +71,17 @@ jobs:
           fi
           npm run sign
 
+      - name: Paquete para Chrome
+        run: npm run build:chrome
+
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" web-ext-artifacts/*.xpi \
+          gh release create "$GITHUB_REF_NAME" web-ext-artifacts/*.xpi "web-ext-artifacts/chameleon-mode-chrome-$VERSION.zip" \
             --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "Extensión $VERSION" \
-            --notes "Versión $VERSION, firmada por Mozilla. Para instalarla, descarga el .xpi y arrástralo a una ventana de Firefox."
+            --notes "Versión $VERSION.
+
+          - **Firefox:** descarga el .xpi (firmado por Mozilla) y arrástralo a una ventana de Firefox.
+          - **Chrome 148 o superior:** descarga chameleon-mode-chrome-$VERSION.zip y descomprímelo en una carpeta que no vayas a borrar. En chrome://extensions activa Modo de desarrollador, aprieta Cargar descomprimida y elige esa carpeta. Para actualizarla, reemplaza la carpeta y aprieta recargar en la tarjeta de la extensión."

@@ -3,15 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Extensión de Firefox que cambia el diseño de sitios web aplicando temas (CSS + features).",
+  "description": "Extensión de Firefox y Chrome que cambia el diseño de sitios web aplicando temas (CSS + features).",
   "scripts": {
     "dev": "web-ext run --start-url https://www.metro.cl/",
     "dev:sesion": "web-ext run --start-url https://www.metro.cl/ --firefox-profile=./.perfil-dev --profile-create-if-missing --keep-profile-changes --pref=browser.profiles.enabled=false --pref=toolkit.profiles.storeID=",
+    "dev:chrome": "web-ext run --target=chromium --start-url https://www.metro.cl/",
     "perfil:clonar": "node scripts/clonar-perfil.js",
     "test": "node --test test/*.test.js",
     "lint": "web-ext lint",
     "check": "npm run brand:check && npm test && npm run lint",
     "build": "web-ext build --overwrite-dest",
+    "build:chrome": "web-ext build --overwrite-dest --filename=chameleon-mode-chrome-{version}.zip",
     "sign": "node --env-file-if-exists=.env node_modules/web-ext/bin/web-ext.js sign --channel=unlisted",
     "brand:sync": "node scripts/sincronizar-marca.js",
     "brand:check": "node scripts/sincronizar-marca.js --check"

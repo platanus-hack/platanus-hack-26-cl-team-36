@@ -32,7 +32,7 @@
 
   --mt-radio: 12px;
   --mt-transicion: 180ms ease;
-  /* Alto fijo para las dos vistas: Firefox no cambia el tamaño del popup al alternar. Elegido para que la vista
+  /* Alto fijo para las dos vistas: así el popup no cambia de tamaño al alternar. Elegido para que la vista
      de opinión quepa en los tres modos y en los dos idiomas. */
   --mt-alto: 400px;
 }

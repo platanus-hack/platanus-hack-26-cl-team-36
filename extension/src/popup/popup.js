@@ -345,7 +345,7 @@ async function pestanaObjetivo() {
 }
 
 // En una ventana privada no se guardan opiniones: ni se le pregunta a la página.
-// Pestañas sin content script (about:, addons.mozilla.org, abiertas antes de instalar)
+// Pestañas sin content script (about:, chrome://, las tiendas de extensiones, abiertas antes de instalar)
 // hacen fallar sendMessage: se tratan como no alcanzables.
 async function consultarPagina(pestana) {
   if (pestana?.incognito) return { alcanzable: false, privada: true, temaId: null };

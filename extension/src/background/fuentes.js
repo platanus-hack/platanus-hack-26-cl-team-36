@@ -1,7 +1,7 @@
 // Fuentes empaquetadas para los temas (src/fuentes/). Lógica pura, sin `browser.*`.
 // Un tema remoto no puede declarar @font-face ni url() (css-remoto.js): nombra la familia, p. ej.
 // `font-family: "MT Inter", "MT Inter Fallback", Inter, system-ui, sans-serif`, y el background inyecta
-// fuentes/fuentes.css junto al tema. Firefox descarga cada archivo solo si algún texto lo usa.
+// fuentes/fuentes.css junto al tema. El navegador descarga cada archivo solo si algún texto lo usa.
 
 export const HOJA_FUENTES = "fuentes/fuentes.css";
 
@@ -25,17 +25,26 @@ export function usaFuentes(css) {
   return typeof css === "string" && NOMBRADA.test(css);
 }
 
-// Inyecta el CSS del tema y, si nombra una fuente empaquetada, la hoja de las @font-face. La hoja va en un archivo y
-// no en un string porque sus url() se resuelven contra ella (moz-extension://<uuid>/fuentes/). Si la hoja falla, el
-// tema queda con sus fuentes de respaldo. `insertCSS` es browser.scripting.insertCSS (aquí no se toca `browser.*`).
-// Al apagar Chameleon solo se quita la clase mi-tema: las caras quedan registradas pero sin uso, lo que es inocuo.
-export async function inyectarCssDeTema(css, target, insertCSS) {
-  await Promise.all([insertCSS({ target, css }), usaFuentes(css) && inyectarHoja(target, insertCSS)]);
+// Inyecta el CSS del tema y, si nombra una fuente empaquetada, la hoja de las @font-face, que `leerHoja` entrega como
+// texto con las url() ya absolutas (hojaConUrlsAbsolutas). Si la hoja falla, el tema queda con sus fuentes de respaldo.
+// `insertCSS` es browser.scripting.insertCSS (aquí no se toca `browser.*`). Al apagar Chameleon solo se quita la
+// clase mi-tema: las caras quedan registradas pero sin uso, lo que es inocuo.
+export async function inyectarCssDeTema(css, target, insertCSS, leerHoja) {
+  await Promise.all([insertCSS({ target, css }), usaFuentes(css) && inyectarHoja(target, insertCSS, leerHoja)]);
 }
 
-async function inyectarHoja(target, insertCSS) {
+// Las url() de fuentes.css son relativas a la hoja ("inter.woff2"). Con insertCSS({ files }), Firefox las resuelve
+// contra la hoja, pero Chrome contra la página: pediría https://<sitio>/inter.woff2 (404, y el sitio lo vería). Por eso
+// la hoja va como texto con las url() absolutas. `urlDe` es browser.runtime.getURL (moz-extension://<uuid>/… en
+// Firefox, chrome-extension://<id>/… en Chrome).
+export function hojaConUrlsAbsolutas(texto, urlDe) {
+  const carpeta = HOJA_FUENTES.slice(0, HOJA_FUENTES.lastIndexOf("/") + 1);
+  return texto.replace(/url\("([\w.-]+)"\)/g, (_, archivo) => `url("${urlDe(carpeta + archivo)}")`);
+}
+
+async function inyectarHoja(target, insertCSS, leerHoja) {
   try {
-    await insertCSS({ target, files: [HOJA_FUENTES] });
+    await insertCSS({ target, css: await leerHoja() });
   } catch (error) {
     console.warn("[mi-tema] No se pudieron inyectar las fuentes del tema:", error);
   }

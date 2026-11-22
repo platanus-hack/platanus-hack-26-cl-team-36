@@ -16,6 +16,7 @@ team-36
 ## Desarrollo local
 
 Requisitos: [`just`](https://github.com/casey/just) (`brew install just`), Node.js 22 o más reciente con npm, Firefox
+(la extensión también corre en Chrome 148 o superior: `npm run dev:chrome`, ver [extension/README.md](extension/README.md))
 y, para los pasos 4, 5, 6, 8 y 9, [Claude Code](https://claude.com/claude-code) con la sesión iniciada. Probado en macOS. Desde un
 clon nuevo, en este orden:
 
@@ -58,7 +59,7 @@ Visitante y tema), igual que `just local revision <url>`, y muestra su avance. S
 
 | Pieza | Qué es |
 |---|---|
-| [`extension/`](extension/README.md) | Extensión de Firefox que cambia el diseño de cada sitio aplicando un tema |
+| [`extension/`](extension/README.md) | Extensión de Firefox y Chrome que cambia el diseño de cada sitio aplicando un tema |
 | `backend/` | API que le dice a la extensión qué tema corresponde a cada página |
 | [`agents/app/cataloger/`](agents/app/cataloger/README.md) | Catalogador: lee el DOM de un sitio y cataloga sus objetivos, clasificados |
 | [`agents/app/guide/`](agents/app/guide/README.md) | Guía: encuentra y verifica la ruta de referencia de un objetivo, con el DOM y capturas |
