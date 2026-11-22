@@ -261,8 +261,9 @@ export function revisionesVigentes(metas, punteros) {
 const porFecha = (a, b) => String(b.creada ?? "").localeCompare(String(a.creada ?? "")) || a.revision.localeCompare(b.revision);
 
 const LIMITE_EN_MEMORIA = 500;
-// Por refresco, un Visitante en curso cuesta un LIST y un GET por intento: con este tope, a lo más 1 + 12.
-const LIMITE_DE_INTENTOS = 12;
+// Por refresco, un Visitante en curso cuesta un LIST y un GET por intento: con este tope, a lo más 1 + 40. Una
+// revisión lleva 30 intentos por goal (conjunto arana del Visitante): el tope deja margen sin truncarlos.
+export const LIMITE_DE_INTENTOS = 40;
 
 function recordar(mapa, clave, valor) {
   mapa.delete(clave);
