@@ -13,14 +13,35 @@
 import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
-import { planDelPaso } from "../replay/animacion.js";
+import { cambiarVelocidad, factorDeTiempo, planDelPaso, velocidadValida } from "../replay/animacion.js";
 import { contenidoDeAnalisis } from "../replay/analisis.js";
 import { crearEscena } from "../replay/escena.js";
 import { crearLineaDeTiempo } from "../replay/linea-de-tiempo.js";
 import { crearListaDePasos } from "../replay/pasos.js";
 
-/** Cuánto se queda cada paso quieto en pantalla al reproducir, después de su animación. */
+/** Cuánto se queda cada paso quieto en pantalla al reproducir, después de su animación (a 1×, antes de RITMO_BASE). */
 const MS_DE_PAUSA = 700;
+
+/** La velocidad elegida queda guardada en este navegador. */
+const CLAVE_VELOCIDAD = "backoffice:replay-velocidad";
+
+function leerVelocidadGuardada() {
+  try {
+    return velocidadValida(globalThis.localStorage?.getItem(CLAVE_VELOCIDAD));
+  } catch {
+    return velocidadValida(null);
+  }
+}
+
+function guardarVelocidad(valor) {
+  try {
+    globalThis.localStorage?.setItem(CLAVE_VELOCIDAD, String(valor));
+  } catch {
+    // Sin almacenamiento (modo privado, sitio bloqueado): la velocidad vale solo para esta visita.
+  }
+}
+
+const movimientoReducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 let ctx = null;
 let partes = null;
@@ -93,6 +114,7 @@ function pintarPaso(modo = "corto") {
     srcDespues: src,
     viewport: intento.viewport,
     modo,
+    velocidad: estado.velocidad,
   });
   partes.imagen.alt = paso ? ctx.t("replay.captura.alt", { n: paso.numero }) : ctx.t("replay.captura.altInicio");
   precargar(intento, indice + 1);
@@ -151,7 +173,15 @@ function pausar() {
   partes?.linea.ponerReproduciendo(false);
 }
 
-const esperar = (ms) => new Promise((listo) => (estado.reloj = setTimeout(listo, ms)));
+const esperar = (ms) => new Promise((listo) => (estado.reloj = setTimeout(listo, ms * factorDeTiempo(estado.velocidad))));
+
+/** Aplica una velocidad (desde el selector o las teclas , y .), la guarda y la anuncia; vale desde el paso siguiente. */
+function ponerVelocidad(valor) {
+  estado.velocidad = velocidadValida(valor);
+  guardarVelocidad(estado.velocidad);
+  partes.linea.ponerVelocidad(estado.velocidad);
+  ctx.anunciar?.(ctx.t("replay.linea.velocidadValor", { v: ctx.fmt.numero(estado.velocidad) }));
+}
 
 /** Reproduce desde el paso actual: anima cada paso entero, lo deja quieto un momento y pasa al siguiente. */
 async function alternarReproduccion() {
@@ -195,6 +225,8 @@ function aplicar(parametros) {
     estado.indice = pedido.indice;
     pintarIntento();
     pintarPaso();
+    // El Replay parte reproduciendo (al abrirlo y al cambiar de intento), salvo con movimiento reducido.
+    if (!movimientoReducido()) alternarReproduccion();
   } else if (pedido.indice !== estado.indice) irA(pedido.indice, { desdeUrl: true });
   if (Object.keys(pedido.cambios).length) ctx.actualizarParametros(pedido.cambios);
 }
@@ -204,7 +236,7 @@ function aplicar(parametros) {
 function armar(contenedor) {
   const { t, senal } = ctx;
   const lista = crearListaDePasos({ t, elegir, mover: (delta) => elegir(estado.indice + delta), senal });
-  const linea = crearLineaDeTiempo({ t, senal, elegir, alternar: () => alternarReproduccion() });
+  const linea = crearLineaDeTiempo({ t, fmt: ctx.fmt, senal, elegir, alternar: () => alternarReproduccion(), velocidad: (valor) => ponerVelocidad(valor) });
 
   const selector = el(
     "select",
@@ -261,6 +293,8 @@ function registrarAtajos() {
     Home: { descripcion: d("extremos"), accion: () => elegir(0) },
     End: { descripcion: d("extremos"), accion: () => elegir((estado.intento.pasos?.length ?? 1) - 1) },
     Space: { descripcion: d("reproducir"), accion: () => alternarReproduccion() },
+    ",": { descripcion: d("velocidad"), accion: () => ponerVelocidad(cambiarVelocidad(estado.velocidad, -1)) },
+    ".": { descripcion: d("velocidad"), accion: () => ponerVelocidad(cambiarVelocidad(estado.velocidad, 1)) },
   });
 }
 
@@ -282,8 +316,9 @@ export default {
       partes = null;
       return;
     }
-    estado = { intento: null, indice: -1, aviso: null, reproduccion: 0, reloj: 0 };
+    estado = { intento: null, indice: -1, aviso: null, reproduccion: 0, reloj: 0, velocidad: leerVelocidadGuardada() };
     armar(contenedor);
+    partes.linea.ponerVelocidad(estado.velocidad);
     registrarAtajos();
     aplicar(ctx.parametros);
   },

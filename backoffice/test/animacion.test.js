@@ -137,3 +137,19 @@ test("textoDeTecla y vectorDeDesplazamiento", () => {
   assert.deepEqual(vectorDeDesplazamiento("izquierda"), [1, 0]);
   assert.deepEqual(vectorDeDesplazamiento(undefined), [0, -1]);
 });
+
+test("velocidades del Replay: las de antes, 1× un 15 % más rápido y solo acelera al reproducir", async () => {
+  const { VELOCIDADES, VELOCIDAD_POR_DEFECTO, DURACIONES, duracionesA, factorDeTiempo, cambiarVelocidad, velocidadValida } = await import("../public/replay/animacion.js");
+  assert.deepEqual(VELOCIDADES, [0.25, 0.5, 0.75, 1, 1.5, 2, 4]);
+  assert.equal(VELOCIDAD_POR_DEFECTO, 1);
+  assert.equal(duracionesA("completo", 1).viaje, Math.round(DURACIONES.completo.viaje / 1.15));
+  assert.equal(duracionesA("completo", 2).viaje, Math.round(DURACIONES.completo.viaje / 2.3));
+  assert.deepEqual(duracionesA("corto", 4), DURACIONES.corto, "elegir un paso a mano no cambia con la velocidad");
+  assert.ok(Math.abs(factorDeTiempo(0.5) - 1 / 0.575) < 1e-9);
+  assert.equal(cambiarVelocidad(1, 1), 1.5);
+  assert.equal(cambiarVelocidad(0.25, -1), 0.25);
+  assert.equal(cambiarVelocidad(4, 1), 4);
+  assert.equal(velocidadValida("2"), 2);
+  assert.equal(velocidadValida("3"), 1);
+  assert.equal(velocidadValida(null), 1);
+});

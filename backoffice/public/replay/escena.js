@@ -8,7 +8,7 @@
 // prefers-reduced-motion: nada se mueve, se muestra el estado final con una marca fija.
 
 import { el, svg } from "../nucleo/dom.js";
-import { aPorcentaje, curvaDelCursor, DURACIONES, rectanguloDeImagen, textoDeTecla, vectorDeDesplazamiento } from "./animacion.js";
+import { aPorcentaje, curvaDelCursor, duracionesA, rectanguloDeImagen, textoDeTecla, vectorDeDesplazamiento } from "./animacion.js";
 
 const movimientoReducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 const SUAVE = "cubic-bezier(.45,0,.2,1)";
@@ -267,9 +267,10 @@ export function crearEscena({ t, senal }) {
   /**
    * Muestra un paso. `modo`: "completo" (al reproducir), "corto" (al elegirlo) o null (sin animar).
    * Resuelve cuando termina la animación, o antes si otra llamada la reemplazó.
-   * @param {{ plan: object|null, srcAntes: string, srcDespues: string, viewport: object, modo: "completo"|"corto"|null }} datos
+   * `velocidad` (una de VELOCIDADES) acelera o frena la animación "completo".
+   * @param {{ plan: object|null, srcAntes: string, srcDespues: string, viewport: object, modo: "completo"|"corto"|null, velocidad?: number }} datos
    */
-  async function mostrar({ plan, srcAntes, srcDespues, viewport: nuevo, modo }) {
+  async function mostrar({ plan, srcAntes, srcDespues, viewport: nuevo, modo, velocidad }) {
     limpiar();
     const mio = turno;
     const sigue = () => mio === turno && !senal.aborted;
@@ -288,7 +289,7 @@ export function crearEscena({ t, senal }) {
     await Promise.all([lista(antes), lista(imagen)]);
     if (!sigue()) return;
 
-    const d = DURACIONES[modo] ?? DURACIONES.corto;
+    const d = duracionesA(modo, velocidad);
     if (plan.tipo === "clic" || plan.tipo === "doble_clic") await clic(plan, d, sigue);
     else if (plan.tipo === "escribir") await escribir(plan, d, sigue);
     else if (plan.tipo === "tecla") await pulsarTecla(plan, d);
