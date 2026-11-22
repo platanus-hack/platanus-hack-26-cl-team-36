@@ -1,6 +1,6 @@
-// Claves de página en el navegador: la misma normalización que lib/url.js (normalizarUrl, claveDeNodo) y la misma
-// regla de unión que lib/paginas.js (claveDePagina). Es una copia porque public/ no importa de lib/;
-// test/url.test.js comprueba que ambas dan lo mismo.
+// Claves de página en el navegador: la misma normalización que lib/url.js (normalizarUrl, claveDeNodo) y, para las
+// páginas con título, la misma unión que lib/paginas.js (claveDePagina). Es una copia porque public/ no importa de
+// lib/; test/url.test.js comprueba que ambas dan lo mismo.
 
 const PARAMETROS_DE_SEGUIMIENTO =
   /^(utm_.*|gclid|gbraid|wbraid|fbclid|msclkid|mc_cid|mc_eid|_ga|_gl|yclid)$/i;
@@ -40,7 +40,10 @@ export function rutaSinConsulta(texto) {
   }
 }
 
-/** La página de un nodo: URL sin consulta + título; sin título, el nodo queda solo (con su consulta). */
+/**
+ * La página de un nodo: URL sin consulta + título. Sin título, lib/paginas.js deja el nodo solo con su id del árbol
+ * («nodo:<id>»), que un evento no trae: aquí queda solo con su URL completa, consulta incluida.
+ */
 export function claveDePagina(url, titulo) {
   const limpio = String(titulo ?? "").trim();
   return limpio ? `${rutaSinConsulta(url)} | ${limpio}` : claveDeNodo(url, "");
