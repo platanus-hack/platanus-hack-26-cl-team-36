@@ -1,0 +1,118 @@
+{
+  "url": "https://www.ejemplo.test/",
+  "instruction": "Encontrar el horario de atención",
+  "task_id": "horario",
+  "timestamp": "2026-11-22_10-30-00",
+  "engine": "bedrock",
+  "browser": "agentcore",
+  "user_model": "us.anthropic.claude-haiku-4-5",
+  "judge_model": null,
+  "effort": null,
+  "runs": 1,
+  "tema": null,
+  "conjunto_exploradores": null,
+  "criteria": null,
+  "nodes": [
+    {
+      "id": "n1",
+      "url": "https://ejemplo.test/",
+      "title": "Inicio",
+      "visits": 1,
+      "profiles": [
+        "desktop"
+      ],
+      "is_start": true,
+      "endings": {
+        "success": 0,
+        "failed": 0,
+        "abandoned": 0,
+        "unmeasured": 0
+      }
+    },
+    {
+      "id": "n2",
+      "url": "https://ejemplo.test/ayuda",
+      "title": "Ayuda",
+      "visits": 1,
+      "profiles": [
+        "desktop"
+      ],
+      "is_start": false,
+      "endings": {
+        "success": 0,
+        "failed": 0,
+        "abandoned": 0,
+        "unmeasured": 0
+      }
+    },
+    {
+      "id": "n3",
+      "url": "https://ejemplo.test/ayuda/horario",
+      "title": "Horario",
+      "visits": 1,
+      "profiles": [
+        "desktop"
+      ],
+      "is_start": false,
+      "endings": {
+        "success": 0,
+        "failed": 0,
+        "abandoned": 0,
+        "unmeasured": 1
+      }
+    }
+  ],
+  "branches": [
+    {
+      "source": "n1",
+      "target": "n2",
+      "action": "clic «Ayuda»",
+      "successes": 0,
+      "failures": 1,
+      "times_s": [
+        4.0
+      ],
+      "steps": [
+        1
+      ],
+      "profiles": [
+        "desktop"
+      ],
+      "preceding_actions": [
+        {
+          "profile": "desktop",
+          "success": false,
+          "actions": []
+        }
+      ],
+      "median_time_s": 4.0,
+      "cost": 1.0986
+    },
+    {
+      "source": "n2",
+      "target": "n3",
+      "action": "clic «Horario»",
+      "successes": 0,
+      "failures": 1,
+      "times_s": [
+        4.0
+      ],
+      "steps": [
+        1
+      ],
+      "profiles": [
+        "desktop"
+      ],
+      "preceding_actions": [
+        {
+          "profile": "desktop",
+          "success": false,
+          "actions": []
+        }
+      ],
+      "median_time_s": 4.0,
+      "cost": 1.0986
+    }
+  ],
+  "recommended_route": null
+}

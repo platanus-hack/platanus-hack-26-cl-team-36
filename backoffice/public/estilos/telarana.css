@@ -80,7 +80,7 @@
 .p-telarana .tramo-exito { --tono: var(--exito); }
 .p-telarana .tramo-mixto { --tono: var(--aviso); }
 .p-telarana .tramo-fallo { --tono: var(--peligro); }
-.p-telarana .tramo-abandono { --tono: var(--neutro); }
+.p-telarana :is(.tramo-abandono, .tramo-sin_medir) { --tono: var(--neutro); }
 .p-telarana .tramo-abandono .tramo-trazo { stroke-dasharray: 6 4; }
 .p-telarana .tramo-error { --tono: var(--neutro); }
 .p-telarana .tramo-error .tramo-trazo { stroke-dasharray: 2 3 8 3; }
@@ -96,7 +96,7 @@
 .p-telarana .particula.particula-fuera { opacity: 0; }
 .p-telarana .particula-logrado { fill: var(--exito); }
 .p-telarana .particula-fallido { fill: var(--peligro); }
-.p-telarana .particula-abandonado, .p-telarana .particula-error { fill: var(--neutro); }
+.p-telarana .particula-abandonado, .p-telarana .particula-sin_medir, .p-telarana .particula-error { fill: var(--neutro); }
 .p-telarana .tramo-tronco .particula-logrado { fill: var(--acento-fuerte); }
 
 .p-telarana .cometa {
@@ -192,7 +192,7 @@
 }
 .p-telarana .terminal-cuenta { color: var(--texto-1); font-variant-numeric: tabular-nums; }
 .p-telarana .terminal-fallido { --tono: var(--peligro-texto); }
-.p-telarana .terminal-abandonado { --tono: var(--neutro); }
+.p-telarana :is(.terminal-abandonado, .terminal-sin_medir) { --tono: var(--neutro); }
 .p-telarana .terminal-error { --tono: var(--neutro); }
 .p-telarana .terminal-error .terminal-punto { background: var(--rayado), var(--lienzo); }
 

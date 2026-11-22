@@ -38,6 +38,7 @@ export default {
     indirecto: "por otro camino",
     fallido: "fallido",
     abandonado: "abandonado",
+    sin_medir: "sin medir",
     error: "error (no cuenta)",
   },
   calor: {
@@ -94,7 +95,7 @@ export default {
     },
     definicion: {
       perfil: "El perfil del usuario simulado",
-      resultado: "Veredicto del juez y si llegó por la ruta recomendada",
+      resultado: "Resultado (según la ruta de la Guía o el juez) y si llegó por la ruta recomendada",
       pasos: "Acciones que hizo el agente",
       delta: "Pasos de más (+) o de menos (−) que la ruta recomendada",
       hitos: "Páginas de la ruta recomendada a las que llegó",

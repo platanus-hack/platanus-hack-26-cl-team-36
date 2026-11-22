@@ -97,19 +97,26 @@ class LocalInvoker:
             except TimeoutError:
                 error = f"superó el tiempo máximo de {timeout_s:g} s"
             finally:
-                if process.returncode is None:
-                    # `uv run` deja a la app en un proceso hijo: se mata el grupo entero.
-                    with contextlib.suppress(ProcessLookupError):
-                        os.killpg(process.pid, signal.SIGKILL)
-                    await process.wait()
+                # `uv run` deja a la app en un proceso hijo, y la app a su navegador: se mata el grupo entero.
+                with contextlib.suppress(ProcessLookupError, PermissionError):
+                    os.killpg(process.pid, signal.SIGKILL)
+                await process.wait()
+        except asyncio.CancelledError:
+            # Cancelada (Ctrl-C, SIGTERM): su corrida tampoco queda `running`.
+            await asyncio.to_thread(self._found, command, payload["revision"], since)
+            raise
         finally:
             if log:
                 log.close()
-        found = await asyncio.to_thread(_find, self.backend, command, payload["revision"], since)
-        if found and found[1] == "running":
-            await asyncio.to_thread(_close_abandoned, self.backend, found[0])
-            found = (found[0], "failed")
+        found = await asyncio.to_thread(self._found, command, payload["revision"], since)
         return _outcome(found, error, time.monotonic() - started)
+
+    def _found(self, command: stages.StageCommand, revision: str, since) -> Found | None:
+        found = _find(self.backend, command, revision, since)
+        if found and found[1] == "running":
+            _close_abandoned(self.backend, found[0])
+            found = (found[0], "failed")
+        return found
 
 
 class AgentCoreInvoker:
@@ -120,8 +127,11 @@ class AgentCoreInvoker:
                  monotonic: Callable[[], float] = time.monotonic):
         if client is None:
             import boto3
+            from botocore.config import Config
 
-            client = boto3.client("bedrock-agentcore", region_name=aws.region())
+            # Reintentos con espera ante throttling o un 5xx de la invocación.
+            client = boto3.client("bedrock-agentcore", region_name=aws.region(),
+                                  config=Config(retries={"mode": "standard", "total_max_attempts": 6}))
         self.backend = backend
         self.runtime_arn = runtime_arn
         self.client = client

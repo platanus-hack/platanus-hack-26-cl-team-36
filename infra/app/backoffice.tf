@@ -8,12 +8,6 @@
 # con docker, la sube a ECR con un tag que es el hash de esos archivos y la tarea nueva usa ese tag. Por eso el apply
 # necesita docker y la AWS CLI (el runner de GitHub Actions los trae).
 
-variable "dominio" {
-  description = "Dominio público del backoffice. Su DNS está en Cloudflare."
-  type        = string
-  default     = "chameleonmode.app"
-}
-
 locals {
   backoffice_nombre = "chameleon-backoffice"
   backoffice_puerto = 4848

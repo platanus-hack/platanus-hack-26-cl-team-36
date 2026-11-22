@@ -75,6 +75,22 @@ def test_local_timeout_kills_the_stage_and_closes_its_run(local, backend, monkey
     assert store.read_manifest(backend, store.parse_key(outcome.run).run).status == "failed"
 
 
+def test_local_cancellation_kills_the_stage_and_closes_its_run(local, backend, monkeypatch):
+    monkeypatch.setenv("APP_MODE", "sleep")
+
+    async def cancel_once_started():
+        task = asyncio.create_task(local.run("catalog", CATALOG, 60))
+        while store.revision_run(backend, store.cataloger(URL), REVISION) is None:
+            await asyncio.sleep(0.05)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(asyncio.wait_for(cancel_once_started(), 20))
+    run = store.revision_run(backend, store.cataloger(URL), REVISION)
+    assert store.read_manifest(backend, run).status == "failed"
+
+
 class FakeClient:
     def __init__(self, on_invoke=None, error=None):
         self.calls = []
@@ -176,3 +192,11 @@ def test_timeouts_from_the_environment(monkeypatch):
     monkeypatch.setenv("CONDUCTOR_TIMEOUT_GUIDE_S", "-1")
     with pytest.raises(ValueError):
         config.timeouts()
+
+
+def test_agentcore_client_retries_throttling(backend, monkeypatch):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "x")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "x")
+    client = AgentCoreInvoker(backend, "arn:runtime").client
+    assert client.meta.service_model.service_name == "bedrock-agentcore"
+    assert client.meta.config.retries == {"mode": "standard", "total_max_attempts": 6}

@@ -1,0 +1,214 @@
+{
+  "url": "https://www.ejemplo.test/",
+  "instruction": "Encontrar el horario de atención",
+  "task_id": "horario",
+  "timestamp": "2026-11-22_10-00-00",
+  "engine": "bedrock",
+  "browser": "agentcore",
+  "user_model": "us.anthropic.claude-haiku-4-5",
+  "judge_model": null,
+  "effort": null,
+  "runs": 2,
+  "tema": null,
+  "conjunto_exploradores": null,
+  "criteria": null,
+  "nodes": [
+    {
+      "id": "n1",
+      "url": "https://ejemplo.test/",
+      "title": "Inicio",
+      "visits": 4,
+      "profiles": [
+        "desktop",
+        "mobile"
+      ],
+      "is_start": true,
+      "endings": {
+        "success": 0,
+        "failed": 0,
+        "abandoned": 0,
+        "unmeasured": 0
+      }
+    },
+    {
+      "id": "n2",
+      "url": "https://ejemplo.test/ayuda",
+      "title": "Ayuda",
+      "visits": 3,
+      "profiles": [
+        "desktop",
+        "mobile"
+      ],
+      "is_start": false,
+      "endings": {
+        "success": 0,
+        "failed": 0,
+        "abandoned": 1,
+        "unmeasured": 0
+      }
+    },
+    {
+      "id": "n3",
+      "url": "https://ejemplo.test/ayuda/horario",
+      "title": "Horario",
+      "visits": 2,
+      "profiles": [
+        "desktop",
+        "mobile"
+      ],
+      "is_start": false,
+      "endings": {
+        "success": 2,
+        "failed": 0,
+        "abandoned": 0,
+        "unmeasured": 0
+      }
+    },
+    {
+      "id": "n4",
+      "url": "https://ejemplo.test/contacto",
+      "title": "Contacto",
+      "visits": 1,
+      "profiles": [
+        "desktop"
+      ],
+      "is_start": false,
+      "endings": {
+        "success": 0,
+        "failed": 1,
+        "abandoned": 0,
+        "unmeasured": 0
+      }
+    }
+  ],
+  "branches": [
+    {
+      "source": "n1",
+      "target": "n2",
+      "action": "clic «Ayuda»",
+      "successes": 2,
+      "failures": 1,
+      "times_s": [
+        4.0,
+        4.0,
+        4.0
+      ],
+      "steps": [
+        1,
+        1,
+        1
+      ],
+      "profiles": [
+        "desktop",
+        "mobile",
+        "mobile"
+      ],
+      "preceding_actions": [
+        {
+          "profile": "desktop",
+          "success": true,
+          "actions": []
+        },
+        {
+          "profile": "mobile",
+          "success": false,
+          "actions": []
+        },
+        {
+          "profile": "mobile",
+          "success": true,
+          "actions": []
+        }
+      ],
+      "median_time_s": 4.0,
+      "cost": 0.5108
+    },
+    {
+      "source": "n2",
+      "target": "n3",
+      "action": "clic «Horario»",
+      "successes": 2,
+      "failures": 0,
+      "times_s": [
+        4.0,
+        4.0
+      ],
+      "steps": [
+        1,
+        1
+      ],
+      "profiles": [
+        "desktop",
+        "mobile"
+      ],
+      "preceding_actions": [
+        {
+          "profile": "desktop",
+          "success": true,
+          "actions": []
+        },
+        {
+          "profile": "mobile",
+          "success": true,
+          "actions": []
+        }
+      ],
+      "median_time_s": 4.0,
+      "cost": 0.2877
+    },
+    {
+      "source": "n1",
+      "target": "n4",
+      "action": "clic «Contacto»",
+      "successes": 0,
+      "failures": 1,
+      "times_s": [
+        4.0
+      ],
+      "steps": [
+        1
+      ],
+      "profiles": [
+        "desktop"
+      ],
+      "preceding_actions": [
+        {
+          "profile": "desktop",
+          "success": false,
+          "actions": []
+        }
+      ],
+      "median_time_s": 4.0,
+      "cost": 1.0986
+    }
+  ],
+  "recommended_route": {
+    "start_node": "n1",
+    "end_node": "n3",
+    "steps": [
+      {
+        "source": "n1",
+        "target": "n2",
+        "action": "clic «Ayuda»",
+        "successes": 2,
+        "failures": 1,
+        "median_time_s": 4.0,
+        "cost": 0.5108,
+        "preceding_actions": []
+      },
+      {
+        "source": "n2",
+        "target": "n3",
+        "action": "clic «Horario»",
+        "successes": 2,
+        "failures": 0,
+        "median_time_s": 4.0,
+        "cost": 0.2877,
+        "preceding_actions": []
+      }
+    ],
+    "total_cost": 1.0862,
+    "estimated_probability": 0.338,
+    "total_median_time_s": 8.0
+  }
+}

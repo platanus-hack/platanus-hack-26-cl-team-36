@@ -5,9 +5,9 @@
 import { el, recortarAlMedio, svg } from "../nucleo/dom.js";
 import { icono } from "../nucleo/iconos.js";
 
-const CLASE_DE_RAMA = { exito: "exito", mixto: "mixto", fallo: "fallo", abandono: "abandono", error: "error" };
-const CLASE_DE_FINAL = { logrado: "exito", fallido: "fallo", abandonado: "abandono", error: "error" };
-const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", error: "error-herramienta" };
+const CLASE_DE_RAMA = { exito: "exito", mixto: "mixto", fallo: "fallo", abandono: "abandono", sin_medir: "sin_medir", error: "error" };
+const CLASE_DE_FINAL = { logrado: "exito", fallido: "fallo", abandonado: "abandono", sin_medir: "sin_medir", error: "error" };
+const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", sin_medir: "sin-medir", error: "error-herramienta" };
 const ORDEN_DE_CAPA = { retroceso: 0, lateral: 0, avance: 1, final: 1, tronco: 2 };
 /** Tramos secundarios (vueltas atrás y pasos laterales): finos, tenues y sin partículas, para no tapar el avance. */
 const SECUNDARIOS = new Set(["retroceso", "lateral"]);

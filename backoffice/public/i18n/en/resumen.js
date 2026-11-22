@@ -21,6 +21,8 @@ export default {
     ninguno: "none",
     erroresContexto: "not counted in the figures",
     sinValidos: "Not applicable: no valid attempts",
+    sinMedir: "{n} not measured",
+    sinMedirTitulo: "Not measured: no Guide route nor judge",
   },
   hallazgo: {
     titulo: "Findings",

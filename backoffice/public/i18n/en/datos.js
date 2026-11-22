@@ -99,11 +99,18 @@ export default {
       const sujeto = nombres.length === 1 ? "One attempt does not count" : `${nombres.length} attempts do not count`;
       return `${sujeto}: tool error (${unir(nombres)}).`;
     },
+    sinMedir: ({ todos, cuantos, intentos }) => {
+      const c = n(cuantos);
+      if (todos) return `${c === 1 ? "The only attempt was not measured" : `None of the ${c} attempts was measured`}: there is no Guide route nor judge.`;
+      return `${c === 1 ? "One attempt was not measured" : `${c} attempts were not measured`} (no Guide route nor judge): ${unir(intentos)}.`;
+    },
     desvio: ({ intento, desdePagina, haciaPagina, paso, vuelveEnPaso }) =>
       `${intento ?? ""} leaves the route at «${desdePagina ?? ""}» towards «${haciaPagina ?? ""}» (step ${n(paso)}) and ` +
       `${vuelveEnPaso === null || vuelveEnPaso === undefined ? "does not come back" : `comes back at step ${vuelveEnPaso}`}.`,
     detenido: ({ intento, pagina, pasos: cuenta, motivo }) =>
       `${intento ?? ""} ends at «${pagina ?? ""}» after ${pasos(n(cuenta))}: ${motivo ?? ""}.`,
+    declaro: ({ intento, pagina, pasos: cuenta }) =>
+      `${intento ?? ""} said it was done without reaching the route's final page: it stopped at «${pagina ?? ""}» after ${pasos(n(cuenta))}.`,
     demora: ({ intento, pasos: cuenta, pagina, rutaPasos, conteos }) =>
       `${intento ?? ""} takes ${n(cuenta)} steps in a row on «${pagina ?? ""}»` +
       `${rutaPasos === null || rutaPasos === undefined ? "" : ` (the route: ${rutaPasos})`}: ${conteos ?? ""}.`,
@@ -131,7 +138,10 @@ export default {
       if (caso === "demora") return `${sujeto} the answer, but ${intento ?? ""} takes ${n(cuenta)} steps in a row on «${pagina ?? ""}».`;
       return `${sujeto} the answer, but ${pasos(n(cuenta))} ${segun(n(cuenta), "has", "have")} stumbles.`;
     },
-    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos, logrados }) => {
+    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos, medidos, logrados }) => {
+      if (!hayRuta && n(validos) > 0 && medidos !== undefined && n(medidos) === 0) {
+        return "Nobody's arrival was measured (no Guide route nor judge): the axis is the busiest path.";
+      }
       if (!hayRuta && n(logrados) > 0) return "There is no recommended route to follow: the axis is the busiest path.";
       if (!hayRuta) return "Nobody reached the answer: the axis is the busiest path.";
       const [s, v] = [n(siguen), n(validos)];
@@ -144,6 +154,7 @@ export default {
       const nombres = Array.isArray(intentos) ? intentos : [];
       const nota = unoPorPerfil ? "(1 attempt per profile)" : "";
       if (caso === "sinValidos") return "No profile has valid attempts.";
+      if (caso === "sinMedir") return "It was not measured whether the profiles reach the answer: there is no Guide route nor judge.";
       if (caso === "noLlegan") {
         return conNota(`${unir(nombres)} ${segun(nombres.length, "does", "do")} not reach the answer.`, nota);
       }

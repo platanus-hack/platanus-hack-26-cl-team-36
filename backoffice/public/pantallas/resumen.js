@@ -70,7 +70,9 @@ function titular(ctx, c) {
   const resultado = (tanda.hallazgos ?? []).find((hallazgo) => hallazgo.id === "resultado");
   // "dificultad": todos llegan, pero alguien tarda o tropieza; no es un check verde.
   const nivel = tanda.titulares?.tanda?.nivel ?? resultado?.nivel ?? (kpis.validos && kpis.logrados === kpis.validos ? "bien" : "atencion");
-  const nombreIcono = !kpis.validos ? "error-herramienta" : nivel === "bien" ? "logrado" : nivel === "dificultad" ? "dificultad" : "fallido";
+  // "info": ningún intento se midió (sin ruta de la Guía ni juez).
+  const iconoDeNivel = { bien: "logrado", dificultad: "dificultad", info: "sin-medir" };
+  const nombreIcono = !kpis.validos ? "error-herramienta" : (iconoDeNivel[nivel] ?? "fallido");
   const texto = tanda.titulares?.tanda
     ? textoDeTitular(tanda.titulares.tanda, tanda, ctx.t)
     : resultado
@@ -97,6 +99,7 @@ function cifra(etiqueta, valor, contextoTexto = null, { titulo = null } = {}) {
 function cifras(ctx, c) {
   const kpis = c.tanda.kpis ?? {};
   const validos = kpis.validos ?? 0;
+  const medidos = kpis.medidos ?? validos;
   const sinValidos = !validos;
   const noAplica = ctx.t("resumen.cifra.sinValidos");
   const sinEfecto = kpis.sinEfecto ?? 0;
@@ -110,7 +113,12 @@ function cifras(ctx, c) {
   return el(
     "dl",
     { class: "fila-cifras resumen-cifras" },
-    cifra(ctx.t("resumen.cifra.llegan"), sinValidos ? "—" : ctx.fmt.conteo({ n: kpis.logrados ?? 0, de: validos }), null, { titulo: sinValidos ? noAplica : null }),
+    cifra(
+      ctx.t("resumen.cifra.llegan"),
+      medidos ? ctx.fmt.conteo({ n: kpis.logrados ?? 0, de: medidos }) : "—",
+      !sinValidos && medidos < validos ? ctx.t("resumen.cifra.sinMedir", { n: validos - medidos }) : null,
+      { titulo: sinValidos ? noAplica : !medidos ? ctx.t("resumen.cifra.sinMedirTitulo") : null },
+    ),
     cifra(
       ctx.t("resumen.cifra.siguen"),
       sinValidos || !hayRuta ? "—" : ctx.fmt.conteo({ n: kpis.siguenLaRuta ?? 0, de: validos }),
@@ -139,7 +147,8 @@ function iconoDeHallazgo(hallazgo) {
   const tipo = hallazgo.id.split(":")[0];
   if (tipo === "errores") return "error-herramienta";
   if (tipo === "desvio") return "fuera-de-ruta";
-  if (tipo === "detenido") return "fallido";
+  if (tipo === "detenido" || tipo === "declaro") return "fallido";
+  if (tipo === "sinMedir" || hallazgo.clave === "datos.hallazgo.sinMedir") return "sin-medir";
   if (tipo === "demora") return "proximamente";
   if (tipo === "tropiezos") return ICONO_DE_SENAL[hallazgo.vars?.casos?.[0]?.senal] ?? "sin-efecto";
   if (tipo === "costo") return "info";

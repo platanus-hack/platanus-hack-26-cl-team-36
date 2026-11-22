@@ -7,6 +7,7 @@ Uso, desde agents/app/conductor/:
 """
 
 import argparse
+import signal
 import sys
 
 from conductor import command
@@ -23,7 +24,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     parser = build_parser()
-    sys.exit(0 if command.run(parser, parser.parse_args()) else 1)
+    # SIGTERM como Ctrl-C: se cancelan las etapas en curso y la corrida termina `failed`.
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
+    try:
+        succeeded = command.run(parser, parser.parse_args())
+    except KeyboardInterrupt:
+        succeeded = False
+    sys.exit(0 if succeeded else 1)
 
 
 if __name__ == "__main__":

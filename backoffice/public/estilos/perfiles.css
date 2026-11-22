@@ -18,7 +18,7 @@
 .p-perfiles .unidad-directo { color: var(--exito); }
 .p-perfiles .unidad-indirecto { color: var(--exito); }
 .p-perfiles .unidad-fallido { color: var(--peligro); }
-.p-perfiles .unidad-abandonado { color: var(--neutro); }
+.p-perfiles :is(.unidad-abandonado, .unidad-sin_medir) { color: var(--neutro); }
 .p-perfiles .unidad-error { color: var(--texto-2); }
 
 /* ── 1. Resultado: un punto por intento ─────────────────────────────── */
