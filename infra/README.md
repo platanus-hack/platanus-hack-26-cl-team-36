@@ -43,7 +43,8 @@ abajo).
 - `bootstrap/`: lo que debe existir antes de que Actions pueda correr Terraform: el bucket del estado, la entrada de
   GitHub a AWS por OIDC (sin llaves guardadas), el rol que asume el workflow y una alerta de presupuesto. Se aplica
   una vez, a mano, y su estado queda en el computador de quien lo aplicó.
-- `app/`: la Lambda, su URL, su rol y su log. Su estado vive en el bucket.
+- `app/`: la Lambda, su URL, su rol y su log, y el bucket de corridas de los agentes con sus políticas. Su estado vive
+  en el bucket del estado.
 - `agentcore/`: el evaluador web en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime
   `web_evaluator_image`, con su código en `../agents/app/web_evaluator/`, y `agentcore/cdk/` es el stack que la CLI
@@ -51,7 +52,8 @@ abajo).
   `web_evaluator`, era de zip y se reemplazó.
   `agentcore/.cli/deployed-state.json` enlaza el proyecto con lo desplegado. `agentcore/aws-targets.json` queda con el
   id de la cuenta después de desplegar desde un computador: no lo subas, el repo es público.
-- `justfile`: `just aws`, los comandos del evaluador en AgentCore (`explore`, `deploy`, `status`, `logs`).
+- `justfile`: `just aws`, los comandos del evaluador en AgentCore (`explore`, `deploy`, `status`, `logs`) y de las
+  corridas en S3 (`runs-sync`, `runs`).
 - `../backend/lambda.js`: entrada de la Lambda. Levanta el servidor de `index.js` y le reenvía cada request, así
   `index.js` funciona igual en local y en AWS.
 
@@ -133,11 +135,38 @@ Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resume
   El estado tiene un candado: si Actions está aplicando, tu `plan` falla con un error de candado (reintenta en un
   rato), y al revés.
 
+## Corridas de los agentes en S3
+
+`app/corridas.tf` crea el bucket `chameleon-corridas-<id de la cuenta>`, privado, donde `shared.store` guarda las
+corridas de los agentes con el mismo árbol que `agents/.runs/`:
+`<host>/<agente>/[<objetivo>/][<viewport>/]<corrida>/<archivo>`
+(ver [`agents/shared/README.md`](../agents/shared/README.md)). Nada se borra, salvo los objetos con la etiqueta
+`tipo=video`, que expiran a los `dias_videos` días (30 por defecto).
+
+- **Apuntar un agente al bucket**: `AGENTS_STORE=$(terraform -chdir=infra/app output -raw agents_store)`, con
+  credenciales de la cuenta del proyecto.
+- **Subir las corridas locales**: `just aws runs-sync` (`aws s3 sync agents/.runs/ s3://<bucket>/`, sin archivos
+  ocultos); `just aws runs-sync --dryrun` muestra lo que subiría. **Ver las de un host**: `just aws runs wom.cl`.
+  Ambos leen el bucket de `terraform output`, así que necesitan el `terraform init` de [Día a día](#día-a-día).
+- **Permisos**: dos políticas administradas. `chameleon-corridas-escritura` (listar, leer y escribir, sin borrar) y
+  `chameleon-corridas-lectura` (listar y leer); sus ARN salen en `terraform output`.
+
+Conectado: el runtime `web_evaluator_image` en AgentCore tiene la política de escritura y `AGENTS_STORE`
+(`agentcore/cdk/lib/cdk-stack.ts`). Si AgentCore se despliega antes de que Terraform cree la política, el despliegue
+falla: se vuelve a correr cuando `Terraform` termine.
+
+A mano: el backoffice lee una carpeta local, así que nadie usa todavía la política de lectura. Cuando lea desde S3,
+se adjunta `politica_lectura_corridas_arn` a su rol. Para que los videos expiren, `shared.store` tiene que subirlos con
+la etiqueta `tipo=video` (`Tagging` al subir), y la política de escritura necesita además `s3:PutObjectTagging`.
+
 ## Al terminar la hackatón
 
-1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El evaluador web no es parte de
-   Terraform: en CloudFormation (us-east-2), borra el stack `AgentCore-ChameleonAgents-…` y después `CDKToolkit`.
-2. Desactiva `Sincroniza desde la organización`. Corre unas 290 veces al día y cada vez cuenta como un minuto de los
+1. El evaluador web no es parte de Terraform: en CloudFormation (us-east-2), borra el stack
+   `AgentCore-ChameleonAgents-…` y después `CDKToolkit`. Va primero porque su rol usa la política de escritura de
+   corridas, y IAM no borra una política adjunta.
+2. Vacía el bucket de corridas (Terraform no borra un bucket con objetos) y, en el repo personal, Actions →
+   `Terraform` → *Run workflow* → `destroy`.
+3. Desactiva `Sincroniza desde la organización`. Corre unas 290 veces al día y cada vez cuenta como un minuto de los
    2.000 gratis al mes de un repo privado.
-3. Para borrar también lo de `bootstrap/`, quita `prevent_destroy` del bucket, vacíalo (incluidas las versiones
+4. Para borrar también lo de `bootstrap/`, quita `prevent_destroy` del bucket, vacíalo (incluidas las versiones
    anteriores) y corre `terraform destroy` en `infra/bootstrap`. Si se cierra la cuenta de AWS, no hace falta.
