@@ -43,7 +43,8 @@ uv run main.py --url https://www.wom.cl/ --revision <rev>   # etapa de mejora de
 | `--output` | La carpeta de la corrida (por defecto `agents/.runs/diseno/<id o host>/<fecha-hora>/`; con `--casos`, el nombre del archivo en vez del host). |
 | `--concurrencia` | Generaciones simultáneas (por defecto 3). |
 | `--cdp-url` | Un navegador remoto vía CDP. |
-| `--revision <rev>` | Etapa de mejora (con `--url`, sin `--gustos`): con lo que midieron en esa revisión el Catalogador, la Guía y el Visitante, genera un kit en el viewport del Visitante (tarea: el objetivo que peor resultó; gustos: `GUSTOS_MEJORA`) y escribe en `<host>/improver/<run>/` (`AGENTS_STORE`) `tema.css` saneado, `tema.json` (componentes `atajo`, `lanzador` y `buscador`, validados; el buscador no pasa por el modelo), `atajos.json`, `diagnostico.json` y `mejora.json`. Sale con 0 solo si la corrida queda `succeeded`. |
+| `--revision <rev>` | Etapa de mejora (con `--url`, sin `--gustos`): con lo que midieron en esa revisión el Catalogador, la Guía y el Visitante, genera un kit en el viewport del Visitante (tarea: el objetivo que peor resultó; gustos: `GUSTOS_MEJORA`) y escribe en `<host>/improver/<run>/` (`AGENTS_STORE`) `tema.css` saneado, `tema.json` (componentes `atajo`, `lanzador` y `buscador`, validados; el buscador no pasa por el modelo), `atajos.json`, `diagnostico.json`, `informe.json` (dirección, semilla, recetas, tokens, contraste y avisos) y `mejora.json`. Sale con 0 solo si la corrida queda `succeeded`. |
+| `--tema motor\|libre` | Con `--revision`: `motor` (por defecto, o `WEB_DESIGNER_TEMA`) el modelo elige dirección de arte, semilla y ajustes y el código compone el CSS; si falla, cae al CSS libre y lo anota. `libre`: el modelo escribe el CSS. |
 
 Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitante](../visitor/README.md):
 `uv run main.py --task wom.cl/baja-fibra --css <ruta>/tema.css` desde `../visitor`.
@@ -65,6 +66,7 @@ Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitant
 | `disenador/mejora.py` | La etapa de mejora de una revisión (`--revision`): resumen de lo medido y corrida en el almacén. |
 | `disenador/atajos.py` | El atajo (rutas verificadas que terminan en un deep link), el lanzador (objetivos del catálogo) y el buscador (hasta 40 objetivos con enlace del sitio), sin modelo. |
 | `disenador/tema_json.py` | Arma el `tema.json` con la microcopia del modelo y lo valida contra su esquema. |
+| `disenador/motor/` | Motor de direcciones de arte: `componer(rasgos_del_sitio(host, mapa), direccion, semilla, ajustes)` da `tema.css` (elegancia + tokens + kit + estructura del sitio + recetas, saneado) con la paleta verificada AA; direcciones, recetas y sitios conocidos son archivos de datos. |
 
 Por cada caso:
 
