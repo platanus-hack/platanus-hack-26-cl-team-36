@@ -23,7 +23,7 @@ MAX_TAREAS = 8
 MOSTRAR_TAREAS = 6
 ID_BUSCADOR = "buscar"
 MAX_BUSCADOR = 40
-_PROMINENCIA = {"primary": 1, "secondary": 0.5, "buried": 0}
+_PROMINENCIA = {"primary": 0, "secondary": 1, "buried": 2}
 _ELECCIONES = {"select", "check", "uncheck"}
 _ROLES_ELECCION = {"combobox", "listbox", "option", "radio", "checkbox"}
 _ID_CSS = re.compile(r"^#([A-Za-z][\w-]*)$")
@@ -217,23 +217,19 @@ def _tarea(goal, enlace: str) -> dict:
     return tarea
 
 
-def puntaje_de_tarea(prominencia: str | None, verificada: bool, tasa: float | None) -> float:
-    """Cuánto conviene la tarea en el lanzador: ruta verificada, poca llegada del Visitante y prominencia."""
-    necesidad = 0.5 if tasa is None else 1 - tasa
-    return 2 * verificada + 1.5 * necesidad + _PROMINENCIA.get(prominencia, 0.25)
-
-
 def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str], sin_consulta: bool = False,
                tasas: dict[str, float | None] | None = None) -> list[tuple[str, object]]:
-    """`(enlace, goal)` sin enlaces repetidos, por `puntaje_de_tarea` y en el orden del catálogo."""
+    """`(enlace, goal)` sin enlaces repetidos, en orden lexicográfico: ruta verificada, menor tasa de llegada (sin
+    medir cuenta como 0.5), mayor prominencia y el orden del catálogo."""
     candidatos = []
     for posicion, goal in enumerate(goals):
         if goal.id in excluir:
             continue
         enlace, verificada = _enlace(goal, rutas, inicio, sin_consulta)
         if enlace:
-            puntaje = puntaje_de_tarea(goal.prominence, verificada, (tasas or {}).get(goal.id))
-            candidatos.append(((-puntaje, posicion), enlace, goal))
+            tasa = (tasas or {}).get(goal.id)
+            clave = (not verificada, 0.5 if tasa is None else tasa, _PROMINENCIA.get(goal.prominence, 3), posicion)
+            candidatos.append((clave, enlace, goal))
     ordenadas, vistos = [], set()
     for _, enlace, goal in sorted(candidatos, key=lambda c: c[0]):
         if enlace not in vistos:

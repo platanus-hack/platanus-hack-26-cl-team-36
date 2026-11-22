@@ -158,7 +158,7 @@ def _ruta_verificada(destino: str) -> dict:
     return {"status": "verified", "steps": [{"action": "click", "url_after": f"https://ejemplo.cl{destino}"}]}
 
 
-def test_orden_del_lanzador_pondera_llegada_y_ruta():
+def test_orden_del_lanzador_verificada_tasa_y_prominencia():
     goals = [_goal("prominente", "primary", "/a"), _goal("verificada", "secondary", "/b"),
              _goal("facil", "secondary", "/c"), _goal("dificil", "buried", "/d")]
     rutas = {"verificada": _ruta_verificada("/b"), "facil": _ruta_verificada("/c"), "dificil": _ruta_verificada("/d")}
@@ -168,7 +168,11 @@ def test_orden_del_lanzador_pondera_llegada_y_ruta():
     assert [t["enlace"] for t in vista["datos"]] == ["/d", "/b", "/c", "/a"]
     # Sin medidas, manda la prominencia del catálogo.
     assert [t["enlace"] for t in atajos.lanzador(goals, {}, "https://ejemplo.cl/", set())["datos"]][0] == "/a"
-    assert atajos.puntaje_de_tarea("primary", False, None) < atajos.puntaje_de_tarea("buried", True, None)
+    # Lexicográfico: una ruta verificada gana aunque la otra sea más prominente y nadie haya llegado a ella.
+    goals = [_goal("prominente", "primary", "/a"), _goal("verificada", "buried", "/b")]
+    vista = atajos.lanzador(goals, {"verificada": _ruta_verificada("/b")}, "https://ejemplo.cl/", set(),
+                            {"prominente": 0.0, "verificada": 1.0})
+    assert [t["enlace"] for t in vista["datos"]] == ["/b", "/a"]
 
 
 def test_las_hojas_del_motor_solo_usan_marcadores_conocidos():
