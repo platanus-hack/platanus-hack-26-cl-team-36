@@ -269,7 +269,8 @@ function conAmbito(selector) {
 
 function sanearDeclaraciones(declaraciones, rechazos) {
   return declaraciones.filter((declaracion) => {
-    const motivo = prohibidoEn(declaracion);
+    // `@layer a, b;` anidado también fija el orden global de las capas, con el tema apagado o no.
+    const motivo = declaracion.startsWith("@") ? "at-regla sin bloque" : prohibidoEn(declaracion);
     if (motivo) rechazos.push(motivo);
     return !motivo;
   });

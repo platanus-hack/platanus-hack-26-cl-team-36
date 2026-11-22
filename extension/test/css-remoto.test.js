@@ -77,3 +77,9 @@ test("un anidamiento hostil no agota la pila: CSS vacío sin lanzar", () => {
   }
   assert.match(sin(`${"a{".repeat(MAX_PROFUNDIDAD)}color:red`), /color:red;/);
 });
+
+test("descarta at-reglas sin bloque dentro de una regla", () => {
+  for (const sentencia of ["@layer reset, base", "@namespace svg x", "@charset x"]) {
+    assert.equal(sin(`a { ${sentencia}; color: red }`), "html.mi-tema a {\n  color: red;\n}\n", sentencia);
+  }
+});
