@@ -28,6 +28,23 @@ Abre <http://localhost:4848/backoffice/>. Para tener algo que ver, primero hay q
 
 Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 
+### Con datos de prueba (mucho volumen, solo local)
+
+```bash
+npm --prefix backoffice run mock:generar    # backoffice/.mock/: ~270 tandas y ~90 revisiones en ~10 s (-- --escala 3 para más)
+npm --prefix backoffice run mock            # http://localhost:4849/backoffice/, se reinicia al cambiar el servidor
+```
+
+Para trabajar el diseño con muchas tandas y con todas las pantallas, incluida **Revisiones**, sin AWS ni Claude.
+`mock/generar.py` inventa 12 sitios `.test` con sus páginas y simula intentos de los perfiles reales del Visitante
+(recorrido único de escritorio y móvil, los 4 u 8 exploradores, y los perfiles antiguos), con éxitos, fracasos,
+abandonos, errores de la herramienta, desvíos, vueltas atrás y búsquedas. `route_tree.json` sale del mismo
+`build_route_tree` del Visitante y las capturas son wireframes donde cada clic cae sobre lo que se cliqueó. Las
+revisiones (en cola, en curso, una atascada, terminadas y fallidas) quedan en `.mock/revisiones.json`, y
+`mock/servir.js` las sirve en memoria al mismo servidor, en vez de leer la tabla. No hay video. Con `--semilla` se
+repiten los mismos datos, y `BACKOFFICE_MOCK_LATENCIA_MS=400` demora la lectura de las revisiones para ver los
+estados de carga.
+
 ### Contra AWS
 
 ```bash
