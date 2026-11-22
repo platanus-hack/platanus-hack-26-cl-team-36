@@ -291,7 +291,10 @@ versión del tag, corre los tests, firma en Mozilla y crea un release con el `.x
 Chrome, ver [Instalarla en Chrome](#instalarla-en-chrome-zip)) en
 [brayanmoreno/hackathon-grupo36/releases](https://github.com/brayanmoreno/hackathon-grupo36/releases).
 El comando espera a que termine (unos minutos) y muestra el link. Ese repo es privado: solo el
-equipo puede descargarlo.
+equipo puede descargarlo desde ahí. Para el resto, al terminar corre `Descarga pública de la extensión`
+(`.github/workflows/descarga-extension.yml`), que copia el `.xpi` y el `.zip` al almacén y los deja en
+https://chameleonmode.app/descargas/firefox y https://chameleonmode.app/descargas/chrome, los botones de descarga de
+la portada ([backoffice/README.md](../backoffice/README.md#la-descarga-de-la-extensión)).
 
 - No hace falta cambiar `version` en `manifest.json`: manda el tag.
 - Mozilla no firma dos veces la misma versión. Si la firma falla después de subirla, usa el
