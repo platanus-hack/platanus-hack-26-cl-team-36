@@ -463,3 +463,26 @@ p { text-wrap: pretty; }
     .fila-imagen .ventana { animation: acercar linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
   }
 }
+
+/* ---------- Huevo de pascua de la Platanus Hack 26 (huevo-de-pascua.js) ---------- */
+/* «Platanus Hack 26» en el pie es un botón con aspecto de texto: al pasar encima toma el degradado del logo; al
+   apretarlo sus letras saltan en ola y suelta los plátanos. Sin JavaScript es solo texto. */
+.huevo {
+  display: inline; padding: 0; border: 0; border-radius: 4px; background: none;
+  color: inherit; font: inherit; letter-spacing: inherit; cursor: pointer;
+}
+.huevo:hover, .huevo:focus-visible {
+  background: linear-gradient(90deg, #B8FF5C, #2EE6C5, #4C8DFF, #8B5CF6, #F472B6);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.sin-js .huevo { cursor: text; pointer-events: none; }
+/* Las letras, para la ola (las arma huevo-de-pascua.js). */
+.huevo-letra { display: inline-block; white-space: pre; }
+/* Los plátanos: una capa fija sobre todo, que no recibe clics (un lienzo WebGL, o SVG sin WebGL o con menos movimiento). */
+.platanos-lienzo { position: fixed; inset: 0; z-index: 90; overflow: hidden; pointer-events: none; }
+.platanos-lienzo > * { position: absolute; left: var(--x); top: var(--y); will-change: transform, opacity; }
+.platano { margin: -18px 0 0 -18px; filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.35)); }
+.platanos-anillo {
+  width: 8px; height: 8px; border: 2px solid var(--color); border-radius: 50%; transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px var(--color);
+}

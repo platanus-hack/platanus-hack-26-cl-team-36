@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="/estilos.css">
   <script src="/portada.js" defer></script>
+  <script type="module" src="/huevo-de-pascua.js"></script>
 </head>
 <!-- La página está en inglés; portada.js la pasa a español (su diccionario ES, por las claves data-i18n*). -->
 <body>
@@ -304,7 +305,8 @@
   <footer class="pie">
     <div class="contenedor pie-interior">
       <img src="/logo.svg" alt="Chameleon Mode" width="492" height="128" loading="lazy">
-      <p data-i18n="pie">chameleonmode.app · Made at Platanus Hack 26, Santiago</p>
+      <!-- Huevo de pascua: «Platanus Hack 26» es un botón (huevo-de-pascua.js); el resto de la frase se traduce aparte. -->
+      <p><span data-i18n="pie.antes">chameleonmode.app · Made at</span> <button type="button" class="huevo" aria-label="Platanus Hack 26: bananas!" data-i18n-aria-label="huevo">Platanus Hack 26</button><span data-i18n="pie.despues">, Santiago</span></p>
     </div>
   </footer>
 </body>

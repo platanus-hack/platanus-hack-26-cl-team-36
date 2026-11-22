@@ -96,7 +96,9 @@ const ES = {
     "No se actualiza sola. La versión de esta página es siempre la última: en Firefox, descárgala e instálala encima de la anterior; en Chrome, reemplaza la carpeta y aprieta el botón de recargar de la extensión en <code>chrome://extensions</code>.",
   "cierre.titulo": "Mira a los agentes trabajar",
   "cierre.texto": "Los sitios revisados, las tandas de visitantes y los temas propuestos, en vivo.",
-  pie: "chameleonmode.app · Hecho en Platanus Hack 26, Santiago",
+  "pie.antes": "chameleonmode.app · Hecho en",
+  "pie.despues": ", Santiago",
+  huevo: "Platanus Hack 26: ¡plátanos!",
 };
 
 // Lo que escribe este script (descargas y versiones), en los dos idiomas.
