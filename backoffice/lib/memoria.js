@@ -6,8 +6,8 @@ export const MEMORIA_MS = 2000;
 /**
  * La función memorizada: mientras la promesa corre, todos la comparten; ya resuelta, por `ms` más. Un error no se
  * guarda. Cuenta con el reloj del proceso, no con el inyectado (el del mock está quieto).
- * Con `{ desde }` (un performance.now()) solo sirve una lectura que empezó en ese momento o después: si la guardada es
- * más vieja, empieza otra, que queda como la compartida (así varios que preguntan a la vez comparten la nueva).
+ * Con `{ desde }` (un performance.now()) solo sirve una lectura que empezó en ese momento o después: si la guardada
+ * es más vieja, empieza otra, que queda como la compartida (así varios que preguntan a la vez comparten la nueva).
  * Con `rancioMs`, una lectura vencida hace menos de `rancioMs` se sirve igual mientras otra empieza por detrás: quien
  * pregunta no espera, y la siguiente pregunta recibe la nueva.
  * @template T
@@ -26,7 +26,8 @@ export function memorizar(fn, ms = MEMORIA_MS, { rancioMs = 0 } = {}) {
       .then(
         (valor) => {
           actual.hasta = performance.now() + ms;
-          lista = actual;
+          // Una lectura vieja que termina tarde no pisa a una más nueva.
+          if (!lista || actual.desde >= lista.desde) lista = actual;
           return valor;
         },
         (error) => {
@@ -48,7 +49,7 @@ export function memorizar(fn, ms = MEMORIA_MS, { rancioMs = 0 } = {}) {
     }
     if (ahora < guardada.hasta + rancioMs) {
       const vieja = guardada.promesa;
-      empezar().catch(() => {});
+      empezar().catch((error) => console.warn("memoria: falló el recálculo por detrás; se reintenta.", error));
       return vieja;
     }
     return empezar();
