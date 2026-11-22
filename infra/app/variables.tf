@@ -23,11 +23,11 @@ variable "goals_max" {
 }
 
 variable "revisiones_en_curso_max" {
-  # Cada revisión abre hasta 8 goals × 30 usuarios + 8 Guías = 248 sesiones de AgentCore Browser a la vez, y la cuenta
-  # tiene 1000: con 3 quedan ~750. Subirlo pide subir antes esa cuota (o bajar CONDUCTOR_CONCURRENCY en el runtime).
+  # Una revisión abre a la vez hasta 8 goals × 6 usuarios (AGENTS_VISITOR_PARALLEL del runtime) + 8 Guías = 56 sesiones
+  # de AgentCore Browser; la cuenta tiene 1000: con 10 revisiones, ~560.
   description = "Tope de revisiones queued/running a la vez: más allá, POST /revisiones responde 429."
   type        = number
-  default     = 3
+  default     = 10
 }
 
 variable "dominio" {
