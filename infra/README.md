@@ -2,6 +2,8 @@
 
 La API (`backend/`) corre en AWS como una Lambda con URL pública. Terraform la crea y la actualiza desde GitHub
 Actions, en el repo personal [brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36).
+El backoffice (`backoffice/`) corre en ECS Fargate, en https://chameleonmode.app, y también lo crea Terraform
+(ver [El backoffice en chameleonmode.app](#el-backoffice-en-chameleonmodeapp)).
 El Visitante (`agents/app/visitor/`) corre en AgentCore Runtime; lo despliega la CLI de AgentCore desde
 `agentcore/`, en el mismo repo personal.
 
@@ -27,7 +29,8 @@ Antes, el proyecto corría en una subcuenta de desarrollo de la organización de
 1. Se mergea una PR en este repo.
 2. El workflow `Sincroniza desde la organización` copia `main` al repo personal. Corre cada 5 minutos, aunque GitHub
    suele atrasarlo.
-3. Si el cambio toca `backend/` o `infra/app/`, el workflow `Terraform` del repo personal hace `plan` y `apply`.
+3. Si el cambio toca `backend/`, `backoffice/` (menos sus pruebas) o `infra/app/`, el workflow `Terraform` del repo
+   personal hace `plan` y `apply`.
 4. La URL de la API queda en el resumen de esa ejecución.
 5. Si el cambio toca `infra/agentcore/`, `agents/app/visitor/` o `agents/shared/`, el workflow `AgentCore` despliega
    el Visitante con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol.
@@ -44,7 +47,8 @@ abajo).
   GitHub a AWS por OIDC (sin llaves guardadas), el rol que asume el workflow y una alerta de presupuesto. Se aplica
   una vez, a mano, y su estado queda en el computador de quien lo aplicó.
 - `app/`: la Lambda, su URL, su rol y su log; el almacén de los agentes (bucket `chameleon-almacen-<cuenta>`,
-  privado) y la tabla `chameleon-revisiones` (DynamoDB, `PK`/`SK`). Su estado vive en el bucket del estado.
+  privado) y la tabla `chameleon-revisiones` (DynamoDB, `PK`/`SK`); el backoffice en ECS (`backoffice.tf`). Su estado
+  vive en el bucket del estado.
 - `agentcore/`: el Visitante en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime
   `web_evaluator_image`, con su código en `../agents/app/visitor/` y `../agents/` como contexto de la imagen, para que
@@ -120,6 +124,42 @@ git push git@github.com:brayanmoreno/hackathon-grupo36.git main
 Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resumen en `API_URL_AWS` de
 `extension/src/background/config.js`, sin el `/` final.
 
+## El backoffice en chameleonmode.app
+
+[`app/backoffice.tf`](app/backoffice.tf) pone el backoffice (`backoffice/`) en https://chameleonmode.app: una tarea de
+ECS Fargate en la VPC por defecto, detrás de un balanceador (ALB) con certificado de ACM, que lee el almacén y la tabla
+de revisiones con un rol de solo lectura. **Es público, sin login**, por decisión del equipo: lo que está en el almacén
+lo ve cualquiera. Terraform también construye la imagen (`backoffice/Dockerfile`) con docker y la sube a ECR cuando
+cambia algo de lo que entra en ella; el runner de Actions trae docker, así que un `apply` en local también lo necesita.
+
+Cuesta unos 40 USD al mes, casi todo el balanceador y las IP públicas: pasa la alerta de 20 USD de `bootstrap/`.
+
+El dominio se compró en Cloudflare y su DNS está allá, fuera de Terraform. Dos registros se crean a mano, los dos
+**DNS only** (nube gris): el certificado lo pone el balanceador, no Cloudflare.
+
+**La primera vez**, al mergear:
+
+1. Terraform crea el certificado y espera hasta 45 min a que se valide. Mientras espera, saca el registro:
+
+   ```bash
+   arn=$(aws acm list-certificates --query "CertificateSummaryList[?DomainName=='chameleonmode.app'].CertificateArn" --output text)
+   aws acm describe-certificate --certificate-arn "$arn" --query "Certificate.DomainValidationOptions[0].ResourceRecord"
+   ```
+
+2. En Cloudflare → `chameleonmode.app` → DNS → *Add record*: tipo `CNAME`, el `Name` y el `Value` de arriba, *DNS
+   only*. ACM lo valida en unos minutos y Terraform sigue: sube la imagen, crea el balanceador y el servicio, y espera a
+   que la tarea quede sana. Ese registro no se borra: con él ACM renueva el certificado solo.
+3. Cuando termine, otro `CNAME` en Cloudflare: `Name` `@`, `Value` el balanceador que muestra el resumen del workflow
+   (`terraform output -raw backoffice_alb`), *DNS only*.
+
+Si el apply se corta por tiempo antes del paso 2, crea el registro y vuelve a correr `Terraform`: reutiliza el
+certificado.
+
+**Día a día.** Un cambio en `backoffice/` (menos `test/`) dispara `Terraform` y despliega una imagen nueva; si la
+tarea nueva no queda sana, ECS vuelve a la anterior y el apply falla. Los logs: `aws logs tail
+/ecs/chameleon-backoffice --follow`. El backoffice muestra lo que hay en el almacén: lo que escribe el Visitante en
+AgentCore o lo que se sube a mano con `aws s3 sync agents/.runs/ s3://chameleon-almacen-<cuenta>/` (queda público).
+
 ## Día a día
 
 - Para no esperar la copia automática, o si GitHub no la está lanzando: `just sync`. Copia `main` al repo personal
@@ -140,6 +180,7 @@ Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resume
 
 1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El Visitante no es parte de
    Terraform: en CloudFormation (us-east-2), borra el stack `AgentCore-ChameleonAgents-…` y después `CDKToolkit`.
+   El dominio sigue en Cloudflare: borra los dos `CNAME` y decide si se renueva (la renovación automática está activa).
 2. Desactiva `Sincroniza desde la organización`. Corre unas 290 veces al día y cada vez cuenta como un minuto de los
    2.000 gratis al mes de un repo privado.
 3. Para borrar también lo de `bootstrap/`, quita `prevent_destroy` del bucket, vacíalo (incluidas las versiones
