@@ -180,7 +180,7 @@ def exploradores_del_conjunto(nombre: str) -> tuple[str, ...]:
 # Todos los perfiles por clave. Los exploradores son opcionales: se piden por nombre (--profiles explorador,...).
 PROFILES: dict[str, Profile] = {**_POR_DEFECTO, **_EXPLORADORES}
 
-# Los que corren si no se piden perfiles (main.py y agentcore_app.py).
+# Los que corren si no se piden perfiles.
 PERFILES_POR_DEFECTO: tuple[str, ...] = ("first_time", "hurried", "mobile")
 
 _FRONTMATTER = re.compile(r"\A---\s*\n.*?\n---\s*\n", re.DOTALL)
