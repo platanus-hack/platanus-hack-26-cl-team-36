@@ -1,6 +1,8 @@
 // En vivo (#/revisiones/<revision>/<goal>): la telaraña viva (public/telarana/viva.js) de un goal mientras corre su
 // revisión, alimentada por el SSE de api/vivo (telarana/fuente-sse.js). Se monta cuando llegó lo conocido al
-// conectar, así el histórico se dibuja de una vez y solo se anima lo nuevo. Al terminar el Visitante ofrece su tanda.
+// conectar (o al tope de fuenteSSE), así el histórico se dibuja de una vez y solo se anima lo nuevo. Al terminar el
+// Visitante ofrece su tanda. "No existe" solo cuando la revisión respondió y el goal no está; un corte de la
+// transmisión deja la vista con un aviso y «Reintentar».
 
 import { pedirRevision } from "../nucleo/datos.js";
 import { el, reemplazar } from "../nucleo/dom.js";
@@ -36,10 +38,11 @@ function crearPantalla(contenedor, ctx) {
   const meta = el("p", { class: "vivo-meta texto-3" });
   const zonaDeFin = el("div", { class: "vivo-fin" });
   const cuerpo = el("div", { class: "vivo-cuerpo" }, esqueleto("lienzo"));
+  const cabecera = el("header", { class: "vivo-cabecera" }, el("h1", { tabindex: "-1", "data-foco-inicial": "", texto: t("vivo.titulo", { goal }) }), indicador);
   reemplazar(
     contenedor,
     el("nav", { class: "vivo-migas", "aria-label": t("comun.shell.revisiones") }, el("a", { href: enlaceARevision(), texto: t("comun.shell.revisiones") }), " / ", el("a", { class: "mono", href: enlaceARevision(revision), texto: revision })),
-    el("header", { class: "vivo-cabecera" }, el("h1", { tabindex: "-1", "data-foco-inicial": "", texto: t("vivo.titulo", { goal }) }), indicador),
+    cabecera,
     meta,
     zonaDeFin,
     cuerpo,
@@ -58,9 +61,25 @@ function crearPantalla(contenedor, ctx) {
   }
 
   function pintarFin(actual) {
-    if (!estado.avance) return reemplazar(zonaDeFin);
-    if (actual === "error" && !estado.vista) return reemplazar(zonaDeFin);
-    if (actual === "error") return reemplazar(zonaDeFin, avisoEnLinea(t("vivo.sinConexion"), "atencion"));
+    // Antes de montar la vista no hay a qué reintentar: montar() pinta de nuevo al terminar.
+    if (!estado.vista) return reemplazar(zonaDeFin);
+    if (actual === "error") {
+      // Se arma una vez: rehacerlo en cada relectura le quitaría el foco al botón.
+      if (!zonaDeFin.querySelector(".vivo-reintentar")) {
+        reemplazar(
+          zonaDeFin,
+          el(
+            "div",
+            { class: "vivo-aviso" },
+            avisoEnLinea(t("vivo.sinConexion"), "atencion"),
+            el("button", { type: "button", class: "boton boton-secundario vivo-reintentar", texto: t("comun.accion.reintentar"), onclick: reintentar }),
+          ),
+        );
+      }
+      // Un 204 o un 503 al reconectar a un goal que ya cerró: la revisión dice si en realidad terminó.
+      if (estado.reintentos < REINTENTOS) releer();
+      return;
+    }
     if (actual !== "terminado") return reemplazar(zonaDeFin);
     const tanda = tandaDelGoal(delGoal());
     if (tanda) {
@@ -74,7 +93,8 @@ function crearPantalla(contenedor, ctx) {
         ),
       );
     }
-    const esperando = delGoal()?.visitor?.estado !== "failed" && delGoal()?.visitor?.estado !== "skipped" && estado.reintentos < REINTENTOS;
+    const visitante = delGoal()?.visitor?.estado;
+    const esperando = visitante !== "failed" && visitante !== "skipped" && estado.reintentos < REINTENTOS;
     reemplazar(zonaDeFin, avisoEnLinea(t(esperando ? "vivo.terminado.esperandoTanda" : "vivo.terminado.sinTanda")));
     if (esperando) releer();
   }
@@ -93,6 +113,30 @@ function crearPantalla(contenedor, ctx) {
       estado.reloj = null;
       if (estado.vivo) pintarEstado();
     }, REINTENTO_MS);
+  }
+
+  function conectar() {
+    // fuenteSSE avisa «conectando» antes de devolver la fuente; los avisos de una fuente reemplazada se ignoran.
+    const vigente = () => !estado.fuente || estado.fuente === fuente;
+    estado.fuente = null;
+    const fuente = fuenteSSE(revision, goal, {
+      alRuta: (ruta) => vigente() && estado.vista?.ponerRuta(ruta),
+      alEstado: () => vigente() && pintarEstado(),
+    });
+    estado.fuente = fuente;
+    return fuente;
+  }
+
+  // Una fuente nueva; cuando llega lo conocido, reemplaza a la cortada (el componente rehace el estado sin animar).
+  async function reintentar() {
+    estado.fuente?.cerrar();
+    estado.reintentos = 0;
+    const fuente = conectar();
+    pintarEstado();
+    await fuente.listo;
+    if (!estado.vivo || estado.fuente !== fuente) return;
+    estado.vista.cambiarFuente(fuente);
+    pintarEstado();
   }
 
   function montarVista(fuente) {
@@ -121,31 +165,31 @@ function crearPantalla(contenedor, ctx) {
   return {
     async montar() {
       // Se conecta mientras cargan los estilos y la revisión: lo que llegue antes de montar se dibuja sin animar.
-      const fuente = fuenteSSE(revision, goal, {
-        alRuta: (ruta) => estado.vista?.ponerRuta(ruta),
-        alEstado: () => pintarEstado(),
-      });
-      estado.fuente = fuente;
-      const [avance] = await Promise.all([
-        pedirRevision(revision).catch(() => null),
+      const fuente = conectar();
+      const [lectura] = await Promise.all([
+        pedirRevision(revision).then(
+          (avance) => ({ avance }),
+          () => ({ avance: null, fallo: true }),
+        ),
         ctx.cargarEstilos("estilos/telarana.css"),
         ctx.cargarEstilos("estilos/vivo.css"),
         cargarSeccion("telarana"),
         fuente.listo,
       ]);
       if (ctx.senal.aborted || !estado.vivo) return fuente.cerrar();
-      estado.avance = avance;
-      pintarMeta();
-      if (fuente.estado === "error" && !delGoal()) {
+      estado.avance = lectura.avance;
+      // pedirRevision da null con un 404: la revisión o el goal no existen de verdad.
+      if (!lectura.fallo && !delGoal()) {
         fuente.cerrar();
-        indicador.hidden = true;
+        cabecera.hidden = true;
         meta.hidden = true;
         return reemplazar(
           cuerpo,
-          vacio({ titulo: t("vivo.noExiste", { goal, revision }), accion: { texto: t("vivo.volver"), href: enlaceARevision(revision) } }),
+          vacio({ titulo: t("vivo.noExiste", { goal, revision }), nivel: 1, accion: { texto: t("vivo.volver"), href: enlaceARevision(revision) } }),
         );
       }
-      montarVista(fuente);
+      pintarMeta();
+      montarVista(estado.fuente);
       pintarEstado();
     },
     desmontar() {
