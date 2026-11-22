@@ -7,7 +7,7 @@ Uso, desde agents/app/visitor/:
     uv run main.py --site https://www.wom.cl/ --limit 3
     uv run main.py --url https://www.wom.cl/ --revision r1 --goal baja-fibra --profiles desktop --runs 1
     uv run main.py --task wom.cl/baja-fibra --css tema.css
-    uv run main.py --site https://www.metro.cl/ --goal planificar-viaje --tema ../../../extension/src/temas/metro/tema.json
+    uv run main.py --site https://www.metro.cl/ --goal planificar-viaje --tema ../../../extension/test/fixtures/metro/tema.json
     uv run main.py --task sii.cl/exencion-contribuciones --exploradores conocimiento --model claude-haiku-5-5
 """
 

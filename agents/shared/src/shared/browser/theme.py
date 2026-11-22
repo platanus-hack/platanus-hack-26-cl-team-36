@@ -114,7 +114,9 @@ _MOTOR_SCRIPT = r"""
 def script_de_kit(tema_json: Path, css_tema: str) -> str:
     """El script que monta un kit como la extensión: el tema (CSS de los componentes y `css_tema`), los content scripts
     del manifest que no usan `browser.*`, en su orden, y las features de `tema_json`. Solo en el frame principal."""
-    src = next(carpeta for carpeta in tema_json.parents if (carpeta / "manifest.json").is_file())
+    # El kit puede estar dentro de `src/` o fuera (los de ejemplo viven en `extension/test/fixtures/`).
+    src = next(carpeta for padre in tema_json.parents for carpeta in (padre, padre / "src")
+               if (carpeta / "manifest.json").is_file())
     contenido = json.loads((src / "manifest.json").read_text(encoding="utf-8"))["content_scripts"][0]
 
     def leer(tipo: str) -> list[str]:

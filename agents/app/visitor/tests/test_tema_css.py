@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import json
+from pathlib import Path
 
 import pytest
 from playwright.async_api import async_playwright
@@ -241,3 +242,13 @@ def test_un_kit_monta_sus_features_y_las_repone(site, tmp_path):
         assert await aviso(session) == ["Hola", "rgb(4, 5, 6)"]
 
     _con_tema(site, "uno.html", body, script=script)
+
+
+def test_un_kit_fuera_de_src_encuentra_el_manifest_vecino(tmp_path):
+    raiz = tmp_path / "extension"
+    for ruta, contenido in EXTENSION.items():
+        destino = raiz / ("test/fixtures" / Path(ruta).relative_to("temas") if ruta.startswith("temas/") else "src" / Path(ruta))
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_text(contenido, encoding="utf-8")
+    script, _ = describir_kit(raiz / "test/fixtures/demo/tema.json")
+    assert "registrarFeature('aviso'" in script and '"texto": "Hola"' in script

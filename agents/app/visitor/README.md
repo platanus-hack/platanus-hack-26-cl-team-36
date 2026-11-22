@@ -23,7 +23,7 @@ uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de l
 uv run main.py --site https://www.wom.cl/ --limit 3
 uv run main.py --url https://www.wom.cl/ --revision r1 --goal baja-fibra --profiles desktop --runs 1
 uv run main.py --task wom.cl/baja-fibra --css ../../.runs/diseno/www.wom.cl/<fecha-hora>/rep-01/tema.css
-uv run main.py --site https://www.metro.cl/ --goal planificar-viaje --tema ../../../extension/src/temas/metro/tema.json
+uv run main.py --site https://www.metro.cl/ --goal planificar-viaje --tema ../../../extension/test/fixtures/metro/tema.json
 ```
 
 | Opción | Qué hace |
