@@ -46,7 +46,7 @@ import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { responderJsonConEtiqueta } from "./lib/etiqueta.js";
 import { crearFuente } from "./lib/fuente.js";
-import { crearPanel } from "./lib/panel.js";
+import { RANCIO_MS, crearPanel } from "./lib/panel.js";
 import { ARCHIVO_DE_VISTA, crearPropuestas } from "./lib/propuestas.js";
 import { crearRevisiones, partesDeResultado } from "./lib/revisiones.js";
 import { esArchivoDeIntento, leerTanda, listarTandas } from "./lib/tandas.js";
@@ -188,10 +188,19 @@ const hostsDelEntorno = () =>
  *        no está disponible y /api/resumen cuenta 0 en cola.
  *        `reloj`: la hora de referencia del Overview (`ahora`); por defecto, la real.
  *        `vivo`: opciones de lib/transmision.js (intervaloMs, latidoMs, tope).
+ *        `rancioMs`: lib/panel.js (RANCIO_MS).
  */
-export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisiones = null, reloj = () => new Date(), vivo = {} } = {}) {
+export function crearServidor({
+  fuente,
+  raizCorridas,
+  hostsPermitidos,
+  revisiones = null,
+  reloj = () => new Date(),
+  vivo = {},
+  rancioMs = RANCIO_MS,
+} = {}) {
   const origen = fuente ?? crearFuente({ tipo: "archivos", raiz: raizCorridas });
-  const panel = crearPanel({ fuente: origen, revisiones, reloj });
+  const panel = crearPanel({ fuente: origen, revisiones, reloj, rancioMs });
   const transmitir = crearTransmisor({ revisiones, cabeceras: CABECERAS_DE_SEGURIDAD, ...vivo });
   const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   const propuestas = crearPropuestas(origen);

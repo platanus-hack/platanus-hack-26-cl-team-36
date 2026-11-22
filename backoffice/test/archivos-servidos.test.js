@@ -7,7 +7,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { crearFuenteS3 } from "../lib/fuentes/s3.js";
-import { crearPanel, memorizar } from "../lib/panel.js";
+import { memorizar } from "../lib/memoria.js";
+import { crearPanel } from "../lib/panel.js";
 import { crearServidor } from "../servidor.js";
 import { clienteS3Falso, comandosS3, firmarFalso, objetosDeCarpeta } from "./aws-falso.js";
 

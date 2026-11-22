@@ -125,14 +125,16 @@ export async function leerSinVecinas(fuente, id, { guia = null } = {}) {
     fuente.leerJson(id, "criteria.json"),
   ]);
   const perfiles = (await fuente.listarPerfiles(id)).filter((perfil) => NOMBRE_SEGURO.test(perfil));
-  const intentos = [];
-  for (const perfil of perfiles) {
-    // Sin run.json (todavía no termina): no es un intento. Con un run.json dañado: un intento con error.
-    const { datos: run, estado } = await leerDetallado(fuente, id, `${perfil}/run.json`);
-    if (estado === "danado") intentos.push({ perfil, run: runDanado(perfil), video: false });
-    if (!run) continue;
-    intentos.push({ perfil, run, video: await fuente.existe(id, `${perfil}/video.webm`) });
-  }
+  const leidos = await Promise.all(
+    perfiles.map(async (perfil) => {
+      // Sin run.json (todavía no termina): no es un intento. Con un run.json dañado: un intento con error.
+      const { datos: run, estado } = await leerDetallado(fuente, id, `${perfil}/run.json`);
+      if (estado === "danado") return { perfil, run: runDanado(perfil), video: false };
+      if (!run) return null;
+      return { perfil, run, video: await fuente.existe(id, `${perfil}/video.webm`) };
+    }),
+  );
+  const intentos = leidos.filter(Boolean);
   const perfilDe = ({ perfil, run }) => perfilDelRun(run, perfil);
   const posicion = (intento) => {
     const indice = ORDEN_DE_PERFILES.indexOf(perfilDe(intento));

@@ -22,6 +22,7 @@
 // acento sale solo si es un hex.
 
 import { REVISION } from "../public/nucleo/almacen.js";
+import { MEMORIA_MS, memorizar } from "./memoria.js";
 import { LISTADO_MS, crearIndice } from "./indice.js";
 import { vistasDeMejora } from "./propuestas.js";
 import { contarResumen, idsConTarjeta, listasDelOverview, parametrosDelOverview } from "./overview.js";
@@ -40,46 +41,18 @@ import {
   itemsPorEtapa,
 } from "./tarjeta.js";
 
-/** Cuánto se reutiliza una lectura o una respuesta ya terminada (los pedidos de una misma pasada llegan juntos). */
-export const MEMORIA_MS = 2000;
+export { MEMORIA_MS };
 // Revisiones cerradas, goals.json y acentos guardados (los más viejos se olvidan primero): caben las tarjetas de
 // cientos de páginas con holgura.
 const LIMITE_EN_MEMORIA = 2000;
 // Páginas de /api/overview distintas guardadas a la vez (cada una MEMORIA_MS).
 const PAGINAS_EN_MEMORIA = 16;
 const TABLA_CERRADA = new Set(["done", "failed"]);
-
 /**
- * La función memorizada: mientras la promesa corre, todos la comparten; ya resuelta, por `ms` más. Un error no se
- * guarda. Cuenta con el reloj del proceso, no con el inyectado (el del mock está quieto).
- * Con `{ desde }` (un performance.now()) solo sirve una lectura que empezó en ese momento o después: si la guardada es
- * más vieja, empieza otra, que queda como la compartida (así varios que preguntan a la vez comparten la nueva).
+ * Cuánto se sirve una respuesta vencida de /api/resumen y /api/overview mientras se arma la nueva: la página refresca
+ * cada 5 s, así cada refresco recibe la del anterior sin esperar; sin refrescos por este plazo, se espera la nueva.
  */
-export function memorizar(fn, ms = MEMORIA_MS) {
-  let guardada = null;
-  const empezar = () => {
-    const actual = { promesa: null, desde: performance.now(), hasta: null };
-    actual.promesa = Promise.resolve()
-      .then(fn)
-      .then(
-        (valor) => {
-          actual.hasta = performance.now() + ms;
-          return valor;
-        },
-        (error) => {
-          if (guardada === actual) guardada = null;
-          throw error;
-        },
-      );
-    guardada = actual;
-    return actual.promesa;
-  };
-  return ({ desde } = {}) => {
-    if (!guardada) return empezar();
-    if (desde !== undefined) return guardada.desde >= desde ? guardada.promesa : empezar();
-    return guardada.hasta === null || performance.now() < guardada.hasta ? guardada.promesa : empezar();
-  };
-}
+export const RANCIO_MS = 30_000;
 
 function recordar(mapa, clave, valor, limite = LIMITE_EN_MEMORIA) {
   mapa.delete(clave);
@@ -132,9 +105,11 @@ function porHost(corridas) {
  *           revisiones?: ReturnType<typeof import("./revisiones.js").crearRevisiones> | null,
  *           reloj?: () => Date, memoriaMs?: number, listadoMs?: number }} opciones
  *        sin `revisiones`, /api/overview dice que no está disponible y en_cola es 0; `memoriaMs` y `listadoMs` (cada
- *        cuánto se vuelve a listar el almacén, LISTADO_MS) solo para pruebas
+ *        cuánto se vuelve a listar el almacén, LISTADO_MS) solo para pruebas. `rancioMs`: cuánto después de vencer
+ *        todavía se sirven /api/resumen y /api/overview mientras se arman de nuevo por detrás (memorizar); servidor.js
+ *        pasa RANCIO_MS, así el refresco de la página no espera la pasada por el almacén y la tabla.
  */
-export function crearPanel({ fuente, revisiones = null, reloj = () => new Date(), memoriaMs = MEMORIA_MS, listadoMs = LISTADO_MS }) {
+export function crearPanel({ fuente, revisiones = null, reloj = () => new Date(), memoriaMs = MEMORIA_MS, listadoMs = LISTADO_MS, rancioMs = 0 }) {
   const indice = crearIndice(fuente, { listadoMs });
   const leerIndice = memorizar(() => indice.leer(), memoriaMs);
   // Las tandas que lista idsDeTandas, sin volver a listar el almacén: las del índice que terminaron bien y tienen
@@ -167,6 +142,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     if (listada) confirmadas.add(id);
     return listada;
   }
+
   const leerTabla = memorizar(async () => {
     const leidas = await revisiones.metasYPunteros();
     const todas = leidas.metas.filter((meta) => meta?.SK === "META" && REVISION.test(idDe(meta)));
@@ -307,7 +283,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
   return {
     esTandaListada,
     /** GET /api/resumen (contrato §1). */
-    resumen: memorizar(resumen, memoriaMs),
+    resumen: memorizar(resumen, memoriaMs, { rancioMs }),
     /**
      * GET /api/overview (contrato §2 y §7.4): `parametros` tal como llegan en la URL ({ pestana, pagina, link });
      * cada página normalizada (con su búsqueda) se guarda aparte.
@@ -315,7 +291,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     overview(parametros = {}) {
       const pagina = parametrosDelOverview(parametros);
       const clave = JSON.stringify([pagina.pestana, pagina.pagina, pagina.link]);
-      const guardada = paginas.get(clave) ?? memorizar(() => armarOverview(pagina), memoriaMs);
+      const guardada = paginas.get(clave) ?? memorizar(() => armarOverview(pagina), memoriaMs, { rancioMs });
       recordar(paginas, clave, guardada, PAGINAS_EN_MEMORIA);
       return guardada();
     },
