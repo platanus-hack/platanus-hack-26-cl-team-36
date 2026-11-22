@@ -3,12 +3,12 @@
 
 import { armarTanda, resumirTanda } from "./derivar.js";
 import { crearFuenteDeArchivos } from "./fuentes/archivos.js";
+import { AGENTE, partesDeTanda } from "../public/nucleo/almacen.js";
 
-const NOMBRE_DE_TANDA = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
 const NOMBRE_SEGURO = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
 // Solo estos archivos de un perfil se sirven al navegador.
 export const ARCHIVO_DE_PERFIL = /^(step_\d{2,3}\.png|video\.webm)$/;
-// El orden de los perfiles en el evaluador: first_time, hurried, mobile; los demás, por nombre.
+// El orden de los perfiles en el Visitante: first_time, hurried, mobile; los demás, por nombre.
 const ORDEN_DE_PERFILES = ["first_time", "hurried", "mobile"];
 
 /** @typedef {import("./fuente.js").Fuente} Fuente */
@@ -16,17 +16,16 @@ const ORDEN_DE_PERFILES = ["first_time", "hurried", "mobile"];
 /** Acepta una fuente o, por comodidad, la ruta de una carpeta de corridas. */
 const comoFuente = (fuente) => (typeof fuente === "string" ? crearFuenteDeArchivos({ raiz: fuente }) : fuente);
 
-const esIdValido = (id) => {
-  const partes = String(id).split("/");
-  if (partes.length === 1) return NOMBRE_DE_TANDA.test(partes[0]);
-  return partes.length === 2 && NOMBRE_SEGURO.test(partes[0]) && NOMBRE_DE_TANDA.test(partes[1]);
+const esIdValido = (id) => partesDeTanda(id) !== null;
+
+const fechaDe = (id) => partesDeTanda(id).corrida;
+const tareaDe = (id) => {
+  const { host, objetivo } = partesDeTanda(id);
+  return `${host}/${AGENTE}/${objetivo}`;
 };
 
-const fechaDe = (id) => id.split("/").at(-1);
-const tareaDe = (id) => (id.includes("/") ? id.split("/")[0] : null);
-
 /**
- * Ids de las tandas, de la más nueva a la más vieja: "wom-baja-fibra/2026-11-21_07-16-33".
+ * Ids de las tandas, de la más nueva a la más vieja: "wom.cl/visitor/baja-fibra/2026-11-21T07-16-33Z".
  * @param {Fuente | string} fuente
  */
 export async function idsDeTandas(fuente) {

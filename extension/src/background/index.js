@@ -75,14 +75,15 @@ async function refrescarPestanasConTema() {
 // content script solo lo que necesita para las features.
 async function aplicarTema(sender) {
   const tema = await resolverTema(sender.url, { consultarApi: consultarTema, cargarTema: cargarTemaLocal });
+  const origen = new URL(sender.url).origin;
+  if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen, temaId: tema?.id ?? null, css: tema?.css ?? "" });
   if (!tema) return null;
-  console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${new URL(sender.url).origin}`);
+  console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${origen}`);
 
   await browser.scripting.insertCSS({
     target: { tabId: sender.tab.id, frameIds: [sender.frameId] },
     css: tema.css,
   });
-  if (sender.frameId === 0) cssPorPestana.set(sender.tab.id, { temaId: tema.id, css: tema.css });
 
   const { css, ...resto } = tema;
   return resto;
@@ -94,11 +95,26 @@ async function aplicarTema(sender) {
 // La subida al servidor todavía no existe: ver sincronizarVotos en votos.js.
 const almacenVotos = crearAlmacenVotos(crearAdaptadorIndexedDB());
 
-// CSS que aplicarTema inyectó en cada pestaña, para incrustarlo en el HTML "editado".
-// Firefox descarga el background tras un rato sin uso y esto se pierde: por eso, si no
-// está (o es de otro tema), se vuelve a cargar el tema por su id.
-const cssPorPestana = new Map(); // tabId → { temaId, css }
-browser.tabs.onRemoved.addListener((tabId) => cssPorPestana.delete(tabId));
+// Tema que aplicarTema resolvió para la página de cada pestaña (frame principal), con su
+// origen y su CSS (para incrustarlo en el HTML "editado"). El voto toma el tema de acá y
+// no del DOM, que la página controla: un sitio cualquiera podría poner
+// `data-mt-tema="youtube"` en su <html>. Firefox descarga el background tras un rato sin
+// uso y esto se pierde: por eso, si no está o es de otro origen, se vuelve a resolver.
+const temaPorPestana = new Map(); // tabId → { origen, temaId | null, css }
+browser.tabs.onRemoved.addListener((tabId) => temaPorPestana.delete(tabId));
+
+async function temaDePestana(tabId, url) {
+  const origen = new URL(url).origin;
+  const conocido = temaPorPestana.get(tabId);
+  if (conocido?.origen === origen) return conocido;
+  const tema = await resolverTema(url, { consultarApi: consultarTema, cargarTema: cargarTemaLocal }).catch((error) => {
+    console.warn("[mi-tema] No se pudo resolver el tema para el voto:", error);
+    return null;
+  });
+  const resuelto = { origen, temaId: tema?.id ?? null, css: tema?.css ?? "" };
+  temaPorPestana.set(tabId, resuelto);
+  return resuelto;
+}
 
 // CSS base de las features y componentes (los `css` de content_scripts). Sin él, el
 // editado mostraría la vista sin estilo y la sección original sin ocultar. Se omite
@@ -127,10 +143,9 @@ function leerCssFeatures() {
   return cssFeatures;
 }
 
-async function cssParaEditado(tabId, temaId) {
+async function cssParaEditado({ temaId, css }) {
   if (!temaId) return "";
-  const inyectado = cssPorPestana.get(tabId);
-  let cssTema = inyectado?.temaId === temaId ? inyectado.css : null;
+  let cssTema = css || null;
   if (cssTema === null) {
     try {
       cssTema = (await cargarTemaLocal(temaId)).css;
@@ -146,36 +161,51 @@ async function cssParaEditado(tabId, temaId) {
   return `${features}\n/* tema ${temaId} */\n${cssTema}`;
 }
 
+// Pide la captura a la pestaña. → captura | null. Si la pestaña ya navegó a otro origen
+// (el tema resuelto no le corresponde), tampoco vale.
+async function capturarPestana(tabId, origen) {
+  try {
+    const captura = await browser.tabs.sendMessage(tabId, { tipo: "voto:capturar" }, { frameId: 0 });
+    return captura && new URL(captura.url).origin === origen ? captura : null;
+  } catch (error) {
+    console.warn("[mi-tema] No se pudo capturar la página para el voto:", error);
+    return null;
+  }
+}
+
 // `voto:guardar` { tabId?, voto, comentario } → { ok: true, id, pendientes } | { ok: false, codigo, error }
 // `tabId` hace falta si el mensaje no viene de un content script (p. ej. un popup).
 // `codigo` se traduce con la clave `error.<codigo>` del diccionario (comun/idioma.js).
+//   - Ventana privada: no se guarda nada (Firefox espera que lo de esas ventanas no quede en disco).
+//   - Página sin tema: solo se puede comentar, y se guarda el comentario sin capturar la página.
+//   - Página con tema: se captura el HTML sin y con el tema (content/captura.js).
 async function guardarVoto(mensaje, sender) {
   const validacion = validarVoto(mensaje);
   if (!validacion.ok) return validacion;
 
   const tabId = mensaje.tabId ?? sender.tab?.id;
   if (!Number.isInteger(tabId)) return falloVoto("sin-pestana");
+  const pestana = await browser.tabs.get(tabId).catch(() => null);
+  if (!pestana) return falloVoto("sin-pestana");
+  if (pestana.incognito) return falloVoto("privada");
+  if (!/^https?:/.test(pestana.url ?? "")) return falloVoto("sin-captura");
 
-  let captura;
-  try {
-    captura = await browser.tabs.sendMessage(tabId, { tipo: "voto:capturar" }, { frameId: 0 });
-  } catch (error) {
-    console.warn("[mi-tema] No se pudo capturar la página para el voto:", error);
-    captura = null;
+  const tema = await temaDePestana(tabId, pestana.url);
+  if (!tema.temaId && validacion.voto !== "comentario") return falloVoto("sin-tema");
+
+  let captura = { url: pestana.url, temaActivo: false }; // sin tema: sin HTML
+  if (tema.temaId) {
+    captura = await capturarPestana(tabId, tema.origen);
+    if (!captura) return falloVoto("sin-captura");
   }
-  if (!captura) return falloVoto("sin-captura");
-  if (!captura.temaId && validacion.voto !== "comentario") return falloVoto("sin-tema");
 
   try {
-    const [cssTema, idUsuario] = await Promise.all([
-      cssParaEditado(tabId, captura.temaId),
-      obtenerIdUsuario(browser.storage.local),
-    ]);
+    const [cssTema, idUsuario] = await Promise.all([cssParaEditado(tema), obtenerIdUsuario(browser.storage.local)]);
     const registro = await crearRegistroVoto({
       idUsuario,
       voto: validacion.voto,
       comentario: validacion.comentario,
-      captura,
+      captura: { ...captura, temaId: tema.temaId },
       cssTema,
       versionExtension: browser.runtime.getManifest().version,
     });

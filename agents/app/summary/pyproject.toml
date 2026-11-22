@@ -1,0 +1,20 @@
+[project]
+name = "summary"
+version = "0.1.0"
+description = "Resumen de un sitio: catálogo, rutas de la Guía y tandas del Visitante, leídos de disco."
+requires-python = ">=3.12"
+dependencies = ["shared"]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.uv]
+# Se corre con `uv run main.py`; no se empaqueta.
+package = false
+
+[tool.uv.sources]
+shared = { path = "../../shared", editable = true }
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

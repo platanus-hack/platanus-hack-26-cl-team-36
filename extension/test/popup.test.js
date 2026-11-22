@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { AVISOS, MAX_COMENTARIO, crearCola, decidirVista, textoPendientes, validarEnvio } from "../src/popup/estado.js";
+import { AVISOS, MAX_COMENTARIO, PRIVACIDAD, crearCola, decidirVista, textoPendientes, validarEnvio } from "../src/popup/estado.js";
 
 const { TEXTOS } = globalThis.MiTema.idioma; // lo carga estado.js
 
@@ -13,17 +13,24 @@ const leer = (ruta) => readFileSync(new URL(ruta, src), "utf8");
 // ---------- decidirVista ----------
 
 test("decidirVista: con tema y encendido pregunta Mejor/Peor", () => {
-  assert.deepEqual(decidirVista({ activo: true, pagina: { alcanzable: true, temaId: "youtube" } }), { modo: "completa", aviso: null });
+  assert.deepEqual(decidirVista({ activo: true, pagina: { alcanzable: true, temaId: "youtube" } }), {
+    modo: "completa",
+    aviso: null,
+    privacidad: PRIVACIDAD.conCopia,
+  });
 });
 
 test("decidirVista: sin tema, o apagado, deja solo el comentario y explica por qué", () => {
+  // Sin tema el background no copia la página: el pie lo dice.
   assert.deepEqual(decidirVista({ activo: true, pagina: { alcanzable: true, temaId: null } }), {
     modo: "solo-comentario",
     aviso: AVISOS.sinTema,
+    privacidad: PRIVACIDAD.sinCopia,
   });
   assert.deepEqual(decidirVista({ activo: false, pagina: { alcanzable: true, temaId: "youtube" } }), {
     modo: "solo-comentario",
     aviso: AVISOS.apagado,
+    privacidad: PRIVACIDAD.conCopia,
   });
   // Sin tema manda el aviso de "sin tema" aunque esté apagado: encenderlo no cambiaría nada.
   assert.equal(decidirVista({ activo: false, pagina: { alcanzable: true, temaId: null } }).aviso, AVISOS.sinTema);
@@ -31,7 +38,17 @@ test("decidirVista: sin tema, o apagado, deja solo el comentario y explica por q
 
 test("decidirVista: si no se puede hablar con la pestaña no hay formulario", () => {
   for (const pagina of [{ alcanzable: false, temaId: null }, null, undefined]) {
-    assert.deepEqual(decidirVista({ activo: true, pagina }), { modo: "no-disponible", aviso: AVISOS.noDisponible });
+    assert.deepEqual(decidirVista({ activo: true, pagina }), { modo: "no-disponible", aviso: AVISOS.noDisponible, privacidad: null });
+  }
+});
+
+test("decidirVista: en una ventana privada no hay formulario, tenga tema o no", () => {
+  for (const temaId of ["youtube", null]) {
+    assert.deepEqual(decidirVista({ activo: true, pagina: { alcanzable: false, privada: true, temaId } }), {
+      modo: "no-disponible",
+      aviso: AVISOS.privada,
+      privacidad: null,
+    });
   }
 });
 
@@ -95,7 +112,14 @@ test("textoPendientes: en inglés", () => {
 });
 
 test("avisos y motivos son claves del diccionario en ambos idiomas", () => {
-  const claves = [...Object.values(AVISOS), "motivo.noDisponible", "motivo.elegir", "motivo.escribir", "motivo.largo"];
+  const claves = [
+    ...Object.values(AVISOS),
+    ...Object.values(PRIVACIDAD),
+    "motivo.noDisponible",
+    "motivo.elegir",
+    "motivo.escribir",
+    "motivo.largo",
+  ];
   for (const idioma of ["es", "en"]) {
     for (const clave of claves) assert.ok(TEXTOS[idioma][clave], `falta "${clave}" en ${idioma}`);
   }
@@ -177,7 +201,7 @@ test("popup.js: los ids que busca existen en el HTML, sin innerHTML ni estilos i
 test("popup.html: cada data-mt-texto* existe en el diccionario y el HTML trae el texto en español", () => {
   const html = leer("popup/popup.html");
   const usados = [...html.matchAll(/data-mt-texto(?:-[a-z-]+)?="([^"]+)"/g)].map((m) => m[1]);
-  assert.ok(usados.length >= 8);
+  assert.ok(usados.length >= 7); // el texto de privacidad lo pone popup.js (depende de si hay tema)
   for (const clave of usados) assert.ok(TEXTOS.es[clave] && TEXTOS.en[clave], `falta "${clave}" en el diccionario`);
   // El texto del HTML es el de español (lo que se ve si el JS no alcanzara a correr).
   for (const [, clave, texto] of html.matchAll(/data-mt-texto="([^"]+)"[^>]*>([^<]+)</g)) {

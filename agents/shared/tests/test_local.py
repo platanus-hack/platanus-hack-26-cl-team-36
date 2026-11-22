@@ -24,6 +24,14 @@ def test_run_end_to_end(tmp_path: Path) -> None:
     assert backend.exists(run.key.file("manifest.json"))
     assert not backend.exists(run.key.file("route.json"))
     assert backend.list_runs(prefix) == [run.key]
+    assert backend.list_profiles(run.key) == ["first_time"]
+
+
+def test_profiles_only_exist_in_visitor_runs(tmp_path: Path) -> None:
+    backend = LocalBackend(tmp_path)
+    run = start_run(backend, cataloger("wom.cl"), model=None, clock=lambda: MOMENT)
+    with pytest.raises(InvalidKey):
+        backend.list_profiles(run.key)
 
 
 def test_same_second_never_overwrites(tmp_path: Path) -> None:
@@ -62,3 +70,10 @@ def test_publish_checks_layout(tmp_path: Path) -> None:
         finish_run(backend, run, "failed")
     with pytest.raises(ValueError):
         backend.publish(run.key, tmp_path)
+
+
+def test_writes_leave_no_temporary_files(tmp_path: Path) -> None:
+    backend = LocalBackend(tmp_path)
+    run = start_run(backend, cataloger("wom.cl"), model=None, clock=lambda: MOMENT)
+    backend.write_json(run.key.file("goals.json"), [])
+    assert sorted(path.name for path in run.workdir.iterdir()) == ["goals.json", "manifest.json"]

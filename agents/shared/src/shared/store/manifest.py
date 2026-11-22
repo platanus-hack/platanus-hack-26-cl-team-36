@@ -1,6 +1,7 @@
 """Manifiesto de cada corrida: qué es, de qué corridas viene y cómo terminó."""
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, fields, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -101,13 +102,54 @@ def finish_run(
     return manifest
 
 
+@contextmanager
+def running(
+    backend: Backend,
+    prefix: RunPrefix,
+    *,
+    model: str | None,
+    inputs: Sequence[RunKey] = (),
+    clock: Clock = utc_now,
+) -> Iterator[Run]:
+    """Una corrida entre `start_run` y `finish_run`: `succeeded` si el bloque termina, `failed` si lanza.
+
+    Si publicar falla, la corrida también termina `failed` y se propaga el error original.
+    """
+    run = start_run(backend, prefix, model=model, inputs=inputs, clock=clock)
+    try:
+        yield run
+        finish_run(backend, run, "succeeded", clock)
+    except BaseException:
+        _fail(backend, run, clock)
+        raise
+
+
+def _fail(backend: Backend, run: Run, clock: Clock) -> None:
+    """Cierra la corrida como `failed`; si no se puede publicar, cierra solo el manifiesto."""
+    if read_manifest(backend, run.key).status != "running":
+        return
+    try:
+        finish_run(backend, run, "failed", clock)
+    except Exception:
+        manifest = replace(run.manifest, status="failed", finished_at=_timestamp(clock()))
+        backend.write_json(run.key.file(MANIFEST), manifest.to_dict())
+
+
 def read_manifest(backend: Backend, run: RunKey) -> Manifest:
     return Manifest.from_dict(backend.read_json(run.file(MANIFEST)))
 
 
+def runs_with_status(backend: Backend, prefix: RunPrefix, status: Status = "succeeded") -> Iterator[RunKey]:
+    """Las corridas de `prefix` con `status`, de la más nueva a la más vieja; las de manifiesto ilegible se saltan."""
+    for run in reversed(backend.list_runs(prefix)):
+        try:
+            manifest = read_manifest(backend, run)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        if manifest.status == status:
+            yield run
+
+
 def latest_run(backend: Backend, prefix: RunPrefix, status: Status = "succeeded") -> RunKey | None:
     """Última corrida de `prefix` cuyo manifiesto tiene `status`."""
-    for run in reversed(backend.list_runs(prefix)):
-        if read_manifest(backend, run).status == status:
-            return run
-    return None
+    return next(runs_with_status(backend, prefix, status), None)

@@ -21,7 +21,7 @@ import { crearFuenteDeArchivos } from "./fuentes/archivos.js";
  * @typedef {Object} Fuente
  * @property {string} descripcion     para el estado vacío: "agents/.runs" (relativa al repo) o una URI
  * @property {() => Promise<string[]>} listarIds
- *           ids de tanda "<tarea>/<fecha-hora>" o "<fecha-hora>" que tienen route_tree.json, en cualquier orden
+ *           ids de tanda "<host>/visitor/<objetivo>/<corrida>" que tienen route_tree.json, en cualquier orden
  * @property {(id: string) => Promise<string[]>} listarPerfiles
  *           subcarpetas de una tanda (nombres sin validar)
  * @property {(id: string, relativa: string) => Promise<object | null>} leerJson

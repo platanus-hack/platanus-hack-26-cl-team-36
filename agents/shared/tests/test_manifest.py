@@ -8,6 +8,7 @@ from fake_s3 import FakeS3
 from shared.store import (
     Backend,
     Clock,
+    InvalidKey,
     LocalBackend,
     Manifest,
     S3Backend,
@@ -16,6 +17,7 @@ from shared.store import (
     guide,
     latest_run,
     read_manifest,
+    running,
     start_run,
 )
 from shared.store.run_ids import MAX_SEQUENCE
@@ -120,3 +122,32 @@ def test_manifest_ignores_unknown_fields() -> None:
         "cost_usd": 0.12,
     }
     assert Manifest.from_dict(data).schema_version == 2
+
+
+def test_running_finishes_succeeded_or_failed(tmp_path: Path) -> None:
+    backend = LocalBackend(tmp_path)
+    prefix = cataloger("wom.cl")
+    with running(backend, prefix, model=None) as done:
+        (done.workdir / "goals.json").write_text("[]")
+    with pytest.raises(RuntimeError), running(backend, prefix, model=None) as broken:
+        raise RuntimeError("falla")
+    assert [read_manifest(backend, run.key).status for run in (done, broken)] == ["succeeded", "failed"]
+
+
+def test_a_run_that_cannot_be_published_ends_failed_with_the_original_error(tmp_path: Path) -> None:
+    backend = LocalBackend(tmp_path)
+    with pytest.raises(InvalidKey), running(backend, cataloger("wom.cl"), model=None) as run:
+        (run.workdir / "Sin Extension").write_text("x")
+    assert read_manifest(backend, run.key).status == "failed"
+
+
+def test_latest_run_skips_empty_folders_and_unreadable_manifests(tmp_path: Path) -> None:
+    backend = LocalBackend(tmp_path)
+    prefix = cataloger("wom.cl")
+    good = start_run(backend, prefix, model=None, clock=lambda: MOMENT)
+    finish_run(backend, good, "succeeded")
+    (tmp_path / str(prefix) / "2026-11-21T11-00-00Z").mkdir()
+    truncated = tmp_path / str(prefix) / "2026-11-21T12-00-00Z"
+    truncated.mkdir()
+    (truncated / "manifest.json").write_text('{"agent": "catal')
+    assert latest_run(backend, prefix) == good.key
