@@ -1,12 +1,14 @@
 """Catálogo sin Claude: validación de lo que propone el modelo y reglas deterministas."""
 
 import asyncio
+import json
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import pytest
 
-from shared.catalog.files import read_catalog
-from shared.catalog.goal import Goal, instruction
+from shared.catalog.files import read_catalog, read_outline
+from shared.catalog.goal import Goal, for_revision, instruction
 from shared.catalog import tasks
 from shared.catalog.outline import Field, Form, Link, PageOutline, SiteOutline
 from shared.claude.fake import FakeCaller
@@ -15,7 +17,7 @@ from shared import store
 from cataloger import command
 from cataloger.output import goals_markdown, write_catalog
 from cataloger.propose import SYSTEM_PROMPT, propose_goals, render_outline, scripted_catalog
-from cataloger.rules import gates, page_gates, validate
+from cataloger.rules import classify, gates, login_reason, page_gates, validate
 from main import build_parser
 
 START = "https://www.sitio.cl/"
@@ -157,6 +159,66 @@ def test_start_page_gates_only_block_goals_that_stay_on_it():
     one_page = SiteOutline(START, "sitio.cl", "1024x768", [_page(START, OUTLINE.pages[0].links, ["login"])], [])
     assert gates(_goal("telefono", evidence=[START], entry=HELP), one_page) == []
     assert gates(_goal("ingresar", evidence=[START]), one_page) == ["login"]
+
+
+def test_login_reason_from_auth_hosts_paths_or_own_data_and_not_from_public_pages():
+    def reason(description="Encuentra algo.", entry=None):
+        return login_reason(_goal("a", description=description, entry=entry))
+
+    assert "ucampus.uchile.cl" in reason(entry="https://ucampus.uchile.cl/")
+    assert "mi.uchile.cl" in reason(entry="https://mi.uchile.cl/correo_223")
+    assert "/cuenta/login.php" in reason(entry="/cuenta/login.php")
+    assert reason("Consulta tus notas del semestre.") and reason("Matricúlate para el próximo período.")
+    assert reason("Accede a tu cuenta personal Mi SII.")
+    assert reason("Encuentra las fechas del proceso de matrícula.") is None
+    assert reason("Encuentra cómo dar de baja tu servicio de Internet Fibra.") is None
+    assert reason(entry="https://uchile.cl/portal/presentacion/campus") is None
+    assert reason(entry="https://www.metro.cl/el-viaje/estado-red") is None
+
+
+def test_model_login_and_the_rule_correcting_it_both_end_in_gates():
+    raw = [_raw("ingresar", requires_login=True), _raw("notas", description="Consulta tus notas."), _raw("telefono")]
+    goals, issues = classify(raw, OUTLINE, HEIGHT)
+    assert [goal.gates for goal in goals] == [["login"], ["login"], []]
+    assert issues == ["notas: la tarea es sobre datos propios de la persona; queda con barrera login"]
+
+
+class _Files:
+    def __init__(self, folder: Path):
+        self.folder = folder
+
+    def read_json(self, name: str) -> dict:
+        return json.loads((self.folder / name).read_text(encoding="utf-8"))
+
+
+class _Run:
+    def file(self, name: str) -> str:
+        return name
+
+
+def test_real_uchile_catalog_gets_login_on_student_portal_tasks_and_the_revision_skips_them():
+    # Revisión mwrksrlc-3fe63f: Haiku propuso como top tareas de Ucampus y matrícula sin barrera y sus Guías fallaron.
+    files = _Files(Path(__file__).parent / "data" / "uchile")
+    outline = read_outline(files, _Run())
+    keys = ("id", "description", "level", "parent", "intent", "submits_form", "evidence", "entry", "demand",
+            "estimated_steps")
+    raw = [{key: goal[key] for key in keys} for goal in files.read_json("goals.json")["goals"]]
+    goals, issues = classify(raw, outline, HEIGHT)
+    by_id = {goal.id: goal for goal in goals}
+    blocked = ("acceder-ucampus", "consultar-notas", "inscribir-asignaturas", "matricularse")
+    assert all("login" in by_id[goal_id].gates for goal_id in blocked)
+    assert sum("queda con barrera login" in issue for issue in issues) == 11
+    chosen = [goal.id for goal in for_revision(goals, 6)]
+    assert not set(blocked) & set(chosen)
+    assert chosen == ["buscar-postgrado", "buscar-carrera-pregrado", "acceder-servicio-medico-dental",
+                      "conocer-opciones-admision-especial", "solicitar-certificado-titulo", "postular-admision-regular"]
+
+
+def test_real_metro_catalog_keeps_its_gates():
+    data = json.loads((Path(__file__).parents[3] / "shared" / "tests" / "data" / "catalogo-metro.json").read_text())
+    fields = Goal.__dataclass_fields__
+    goals = [Goal(**{key: value for key, value in raw.items() if key in fields}) for raw in data["goals"]]
+    assert [login_reason(goal) for goal in goals] == [None] * len(goals)
 
 
 def test_outline_text_lists_each_link_once_and_the_page_gates():

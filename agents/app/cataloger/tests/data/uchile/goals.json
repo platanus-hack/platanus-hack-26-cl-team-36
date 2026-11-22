@@ -1,0 +1,1289 @@
+{
+  "host": "uchile.cl",
+  "start_url": "https://uchile.cl/",
+  "viewport": "1024x768",
+  "pages": 1,
+  "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "effort": "high",
+  "catalog_tokens": {
+    "input_tokens": 9144,
+    "output_tokens": 7919,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "catalog_cost_usd": 0.0,
+  "issues": [
+    "acceder-mesa-ayuda-tecnologica: la entrada https://vti.uchile.cl/ayudatecnica no es un enlace de la página inicial; queda sin entrada",
+    "postular-admision-regular: ya hay 6 tareas principales; queda common",
+    "acceder-plataforma-cursos: ya hay 6 tareas principales; queda common",
+    "acceder-ucampus: ya hay 6 tareas principales; queda common",
+    "acceder-mi-uchile: ya hay 6 tareas principales; queda common",
+    "inscribir-asignaturas-pme: el padre postular-movilidad-estudiantil no es un summary del catálogo; queda sin padre"
+  ],
+  "goals": [
+    {
+      "id": "consultar-notas",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta tus notas académicas del semestre.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://ucampus.uchile.cl/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Consulta tus notas académicas del semestre.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 1
+    },
+    {
+      "id": "inscribir-asignaturas",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Inscribe o cambia tus asignaturas para el próximo semestre.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://ucampus.uchile.cl/",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Inscribe o cambia tus asignaturas para el próximo semestre. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 2
+    },
+    {
+      "id": "pagar-arancel",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Paga tus aranceles y cuotas de crédito como estudiante de pregrado o postgrado.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/arancelesycredito",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Paga tus aranceles y cuotas de crédito como estudiante de pregrado o postgrado. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 2
+    },
+    {
+      "id": "matricularse",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Completa tu matrícula como estudiante de pregrado o postgrado para el próximo período.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://matricula.uchile.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Completa tu matrícula como estudiante de pregrado o postgrado para el próximo período. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 3
+    },
+    {
+      "id": "solicitar-certificado-alumno-regular",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Solicita un certificado de alumno regular o de notas.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://ucampus.uchile.cl/",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita un certificado de alumno regular o de notas. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 3
+    },
+    {
+      "id": "solicitar-certificado-titulo",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Solicita un certificado de tu título profesional o grado académico.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u124419",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita un certificado de tu título profesional o grado académico. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 3
+    },
+    {
+      "id": "pagar-arancel-exalumno",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Paga tus aranceles pendientes como exalumno de la universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/arancelesycredito/exalumnos",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Paga tus aranceles pendientes como exalumno de la universidad. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "acceder-servicio-medico-dental",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a los servicios médico y dental disponibles para estudiantes.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u5044",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a los servicios médico y dental disponibles para estudiantes. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "buscar-carrera-pregrado",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Explora las carreras de pregrado disponibles en la Universidad de Chile.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/carreras",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Explora las carreras de pregrado disponibles en la Universidad de Chile.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 2
+    },
+    {
+      "id": "buscar-postgrado",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Busca programas de postgrado, magíster, doctorado o especialización.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/postgrado",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Busca programas de postgrado, magíster, doctorado o especialización.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 2
+    },
+    {
+      "id": "postular-admision-regular",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Postula a través del proceso de admisión regular para ingresar a la Universidad de Chile.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/admision-y-matriculas/admision-regular-pregrado",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Postula a través del proceso de admisión regular para ingresar a la Universidad de Chile. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 4
+    },
+    {
+      "id": "conocer-opciones-admision-especial",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Encuentra información sobre los procesos especiales de admisión disponibles.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/portal/presentacion/asuntos-academicos/pregrado/admision-especial",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Encuentra información sobre los procesos especiales de admisión disponibles.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "consultar-gratuidad",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta información sobre la gratuidad y cómo acceder a ella.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u129334",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta información sobre la gratuidad y cómo acceder a ella.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "buscar-becas-beneficios",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Busca becas y beneficios disponibles para estudiantes.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/presentacion/vicerrectoria-de-asuntos-estudiantiles-y-comunitarios/direccion-de-bienestar-y-desarrollo-estudiantil/becas-y-beneficios/becas-y-beneficios-para-estudiantes",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Busca becas y beneficios disponibles para estudiantes.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "postular-movilidad-estudiantil",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Postula al Programa de Movilidad Estudiantil (PME) para intercambio académico.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u6719",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Postula al Programa de Movilidad Estudiantil (PME) para intercambio académico. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 3
+    },
+    {
+      "id": "inscribir-asignaturas-pme",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Inscribe asignaturas como estudiante en programa de movilidad.",
+      "expected_answer": null,
+      "level": "subfunction",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://mi.uchile.cl/inscripcion_de_asignaturas_pme_106",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Inscribe asignaturas como estudiante en programa de movilidad. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": "nivel subfunction",
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "revalidar-titulo-extranjero",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Inicia el trámite para revalidar tu título profesional obtenido en el extranjero.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/revalidacion",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Inicia el trámite para revalidar tu título profesional obtenido en el extranjero. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 3
+    },
+    {
+      "id": "editar-perfil-mi-uchile",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Edita tu perfil personal en la plataforma Mi Uchile.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u129369",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Edita tu perfil personal en la plataforma Mi Uchile. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "acceder-correo-institucional",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Administra y accede a tu correo electrónico institucional.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://mi.uchile.cl/administrar_correo_institucional_223",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Administra y accede a tu correo electrónico institucional. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "desarrollar-perfeccionamiento-academico",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a programas de desarrollo y perfeccionamiento docente.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/uperdoc",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a programas de desarrollo y perfeccionamiento docente. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "editar-portafolio-academico",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Edita tu portafolio académico con tus logros y productos intelectuales.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://mu3-portafolio.uchile.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Edita tu portafolio académico con tus logros y productos intelectuales. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "acceder-plataforma-cursos",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a la plataforma U-Cursos para gestionar tus cursos.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://www.u-cursos.cl/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a la plataforma U-Cursos para gestionar tus cursos. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "postular-concurso-investigacion",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Postula a los concursos internos de investigación de la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://www.jotform.com/form/42526321456653",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Postula a los concursos internos de investigación de la Universidad. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 3
+    },
+    {
+      "id": "solicitar-certificado-renta-funcionario",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Solicita un certificado de renta por contrato como funcionario.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://certificados.uchile.cl/certificados-funcionarios",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita un certificado de renta por contrato como funcionario. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "solicitar-certificado-renta-honorarios",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Solicita un certificado de renta por honorarios profesionales.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://honorarios.uchile.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita un certificado de renta por honorarios profesionales. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "postular-movilidad-interna",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Postula a procesos de movilidad interna para cambiar de cargo o posición.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://internouchile.trabajando.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Postula a procesos de movilidad interna para cambiar de cargo o posición. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 3
+    },
+    {
+      "id": "acceder-bienestar-personal",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a programas y servicios de bienestar para el personal.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/bienestar",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a programas y servicios de bienestar para el personal. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "participar-capacitacion-funcionarios",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a cursos de capacitación disponibles para funcionarios.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/capacitacion.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a cursos de capacitación disponibles para funcionarios. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "calificar-docencia",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a la plataforma de calificación académica para evaluar docencia.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://calificacion.uchile.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Accede a la plataforma de calificación académica para evaluar docencia. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "postular-asignacion-academica-aucai",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Postula a la Asignación Académica AUCAI para obtener reconocimiento académico.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://aucai.uchile.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Postula a la Asignación Académica AUCAI para obtener reconocimiento académico. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 3
+    },
+    {
+      "id": "consultar-bases-datos",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta las bases de datos académicas disponibles.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u57681",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta las bases de datos académicas disponibles.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "acceder-mesa-ayuda-tecnologica",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a la mesa de ayuda tecnológica para resolver problemas informáticos.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": null,
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a la mesa de ayuda tecnológica para resolver problemas informáticos. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "solicitar-tarjeta-universitaria",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Solicita o gestiona tu Tarjeta Universitaria Inteligente.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://vti.uchile.cl/ayudatecnologica/categoria/tarjeta-universitaria-inteligente/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita o gestiona tu Tarjeta Universitaria Inteligente. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "acceder-red-wifi-eduroam",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Obtén acceso a la red WiFi eduroam institucional.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://vti.uchile.cl/ayudatecnologica/categoria/eduroam-red-wifi/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Obtén acceso a la red WiFi eduroam institucional. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "buscar-cursos-talleres",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Busca cursos y talleres de educación continua o capacitación.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/cursos",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Busca cursos y talleres de educación continua o capacitación.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "acceder-educacion-distancia",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a programas de educación a distancia disponibles.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/educacion-continua/programas-de-educacion-a-distancia",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a programas de educación a distancia disponibles. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "denunciar-acoso-violencia",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Realiza una denuncia sobre acoso sexual, laboral o violencia en el trabajo.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/acoso-laboral",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Realiza una denuncia sobre acoso sexual, laboral o violencia en el trabajo. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 3
+    },
+    {
+      "id": "presentar-denuncia-contraloria",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Presenta una denuncia a través del canal de denuncias de la Contraloría.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u186671",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Presenta una denuncia a través del canal de denuncias de la Contraloría. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 3
+    },
+    {
+      "id": "acceder-ucampus",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a la plataforma Ucampus para gestionar tu vida estudiantil.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://ucampus.uchile.cl/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a la plataforma Ucampus para gestionar tu vida estudiantil. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "acceder-mi-uchile",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a la intranet de servicios personalizados Mi Uchile.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://mi.uchile.cl/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Accede a la intranet de servicios personalizados Mi Uchile. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "acceder-repositorio-academico",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Busca tesis y trabajos académicos en el repositorio institucional.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://repositorio.uchile.cl/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Busca tesis y trabajos académicos en el repositorio institucional.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "acceder-biblioteca-digital",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a la biblioteca digital para consultar recursos electrónicos.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://bibliotecadigital.uchile.cl/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a la biblioteca digital para consultar recursos electrónicos. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "consultar-revistas-academicas",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta las revistas académicas publicadas por la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://revistas.uchile.cl/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta las revistas académicas publicadas por la Universidad.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "acceder-libros-electronicos",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a la colección de libros electrónicos de la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://libros.uchile.cl/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a la colección de libros electrónicos de la Universidad. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "ver-noticias-universidad",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta las noticias y novedades de la Universidad de Chile.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/noticias",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta las noticias y novedades de la Universidad de Chile.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "consultar-agenda-actividades",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta la agenda de actividades, seminarios y eventos universitarios.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/agenda",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta la agenda de actividades, seminarios y eventos universitarios.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "acceder-contenido-multimedia",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a videos, fotos y contenido multimedia de la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/multimedia",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a videos, fotos y contenido multimedia de la Universidad. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "acceder-museos-teatros",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta información sobre los museos y teatros de la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u8248",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta información sobre los museos y teatros de la Universidad.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "consultar-informacion-publica",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a la información pública de transparencia de la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/transparencia",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a la información pública de transparencia de la Universidad.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "solicitar-informacion",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Solicita información específica a la Universidad de Chile.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u103255",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita información específica a la Universidad de Chile. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 3
+    },
+    {
+      "id": "obtener-contacto-universidad",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Obtén teléfonos y correos de contacto de la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://blancas.uchile.cl/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Obtén teléfonos y correos de contacto de la Universidad.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "conocer-campus-recintos",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Conoce la ubicación y características de los campus y recintos.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/portal/presentacion/campus",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Conoce la ubicación y características de los campus y recintos.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "solicitar-sala-casa-central",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Solicita el uso de salas en la Casa Central de la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/presentacion/historia/patrimonio-historico-y-cultural/casa-central-uchile",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita el uso de salas en la Casa Central de la Universidad. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 3
+    },
+    {
+      "id": "consultar-informacion-acreditacion",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta información sobre la acreditación institucional de la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/acreditacion",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta información sobre la acreditación institucional de la Universidad.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "consultar-politica-privacidad",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta la política de privacidad y protección de datos personales.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/informacion-general/politica-de-privacidad-de-la-informacion-y-datos-personales",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta la política de privacidad y protección de datos personales.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "acceder-editorial-universitaria",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Accede a la Editorial Universitaria para consultar publicaciones.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://www.universitaria.cl/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Accede a la Editorial Universitaria para consultar publicaciones. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "consultar-programas-espanol",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta información sobre programas de español para extranjeros.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/u6694",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta información sobre programas de español para extranjeros.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "acceder-estructura-administrativa",
+      "host": "uchile.cl",
+      "start_url": "https://uchile.cl/",
+      "description": "Consulta la estructura administrativa y organizacional de la Universidad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://uchile.cl/"
+      ],
+      "entry": "https://uchile.cl/estructura",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Consulta la estructura administrativa y organizacional de la Universidad.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    }
+  ]
+}
