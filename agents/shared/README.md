@@ -27,6 +27,8 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
                                          tema.css
       <profile>/                         run.json step_00.png … video.webm claude_code.log
   summary/<run>/                         manifest.json summary.json summary.md
+  improver/<run>/                        manifest.json tema.css
+  conductor/<run>/                       manifest.json
 ```
 
 ### Reglas
@@ -58,6 +60,9 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
 - Un mismo `<goal>` puede tener corridas de instrucciones distintas: la vigente para una instrucción es la más nueva que
   terminó bien y es de esa instrucción (`shared.catalog.routes`). `runs_with_status` las recorre de la más nueva a la
   más vieja y salta las de manifiesto ilegible.
+- `start_run(..., revision=...)` agrupa las corridas de las etapas de una revisión (`[a-z0-9]+(-[a-z0-9]+)*`, máx.
+  40); sin ella el manifiesto no lleva el campo. `revision_run(store, prefix, revision)` es la más nueva de esa
+  revisión, con cualquier estado: las etapas encuentran así sus entradas y el conductor sabe si una terminó.
 
 ### Uso
 
