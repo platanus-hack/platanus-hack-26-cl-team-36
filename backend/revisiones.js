@@ -20,6 +20,8 @@ export const MAX_BYTES_TEMA = 64 * 1024;
 // Una revisión queued/running sin novedades en este rato (un runtime caído la deja así) no cuenta para el tope y
 // un POST la reemplaza.
 const VENTANA_EN_CURSO_MS = 60 * 60_000;
+// Un done sin css_key espera este rato el evento del improver (llegan desordenados); después se da por fallida.
+const VENTANA_SIN_TEMA_MS = 10 * 60_000;
 
 export function crearRevisiones({
   db,
@@ -35,15 +37,25 @@ export function crearRevisiones({
     return { revision: marca.revision, meta: (await db.obtener(claveRevision(marca.revision))) ?? {} };
   }
 
-  async function responder({ revision, meta }) {
+  // El tema listo es done para el cliente aunque el conductor siga con los goals; META no cambia, así la revisión
+  // sigue contando para el tope y force no la duplica.
+  function estadoVisible(meta) {
     const status = meta.status ?? "queued";
-    if (status !== "done") return { estado: 200, datos: { success: true, revision, status } };
-    // Un done sin tema (el conductor llegó antes que el improver) aún no sirve: el cliente sigue consultando.
-    if (!CSS.test(meta.css_key ?? "")) return { estado: 200, datos: { success: true, revision, status: "running" } };
-    const datos = { success: true, revision, status, css: await almacen.leerTexto(meta.css_key) };
-    if (TEMA.test(meta.tema_key ?? "")) {
-      const tema = await leerTema(meta.tema_key);
-      if (tema) datos.tema = tema;
+    if (status === "failed") return status;
+    if (CSS.test(meta.css_key ?? "")) return "done";
+    if (status !== "done") return status;
+    const desde = new Date(ahora().getTime() - VENTANA_SIN_TEMA_MS).toISOString();
+    return (meta.updated_at ?? "") < desde ? "failed" : "running";
+  }
+
+  async function responder({ revision, meta }) {
+    const datos = { success: true, revision, status: estadoVisible(meta) };
+    if (datos.status === "done") {
+      datos.css = await almacen.leerTexto(meta.css_key);
+      if (TEMA.test(meta.tema_key ?? "")) {
+        const tema = await leerTema(meta.tema_key);
+        if (tema) datos.tema = tema;
+      }
     }
     return { estado: 200, datos };
   }
@@ -75,8 +87,10 @@ export function crearRevisiones({
     const previo = await registro(url);
     const desde = new Date(ahora().getTime() - VENTANA_EN_CURSO_MS).toISOString();
     const status = previo?.meta.status ?? "queued";
-    // failed o en curso sin novedades en la ventana se reintenta sin force; force no duplica una en curso.
-    const abandonada = status === "failed" || (EN_CURSO.includes(status) && (previo?.meta.updated_at ?? "") < desde);
+    // failed (o done sin tema pasada su ventana) o en curso sin novedades en la ventana se reintenta sin force;
+    // force no duplica una en curso.
+    const abandonada =
+      (previo && estadoVisible(previo.meta) === "failed") || (EN_CURSO.includes(status) && (previo?.meta.updated_at ?? "") < desde);
     if (previo && !abandonada && (!force || EN_CURSO.includes(status))) return responder(previo);
 
     // Aproximado: solicitudes simultáneas pueden pasar el tope (cuentan antes de que las otras registren).

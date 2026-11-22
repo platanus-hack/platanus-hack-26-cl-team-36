@@ -216,9 +216,7 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
         // null y no undefined: sin tema.json, el de la corrida anterior ya no corresponde.
         const tema_key = (await existeTema(`${run_key}/tema.json`)) ? `${run_key}/tema.json` : null;
         const css_key = `${run_key}/tema.css`;
-        // El tema listo termina la revisión en la misma escritura: done nunca llega antes que su css_key. Pasa
-        // también sobre un failed del conductor, que es del mismo orden y pudo llegar antes por el desorden de S3.
-        await actualizarMeta(revision, { css_key, tema_key, status: "done", updated_at }, { hasta: { css_key } });
+        await actualizarMeta(revision, { css_key, tema_key, updated_at }, { hasta: { css_key } });
         break;
       }
       case "guide":
@@ -237,25 +235,25 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
 // Las claves de los eventos S3 vienen codificadas como en un formulario.
 export const claveDeEvento = (registro) => decodeURIComponent(registro.s3.object.key.replace(/\+/g, " "));
 
-let proyectar;
+let iniciando;
 
 function iniciar() {
-  proyectar ??= (async () => {
+  iniciando ??= (async () => {
     const { almacenS3, tablaDynamo } = await import("./aws.js");
     const [db, almacen] = await Promise.all([tablaDynamo(process.env.REVISIONES_TABLA), almacenS3(process.env.ALMACEN_BUCKET)]);
     return crearProyectora({ db, almacen, goalsMax: Number(process.env.GOALS_MAX) || 6 });
   })().catch((error) => {
-    proyectar = undefined;
+    iniciando = undefined;
     throw error;
   });
-  return proyectar;
+  return iniciando;
 }
 
-// Carga el SDK durante el arranque en frío; si falla, el evento lo reintenta.
+// El SDK empieza a cargarse al importar el módulo, a la par con la llegada del primer evento; si falla, el evento reintenta.
 if (process.env.REVISIONES_TABLA) iniciar().catch(() => {});
 
 export async function handler(evento) {
-  const proyectarClave = await iniciar();
-  // Si algo falla, Lambda reintenta el evento entero: proyectar es idempotente.
-  for (const registro of evento.Records ?? []) await proyectarClave(claveDeEvento(registro));
+  const proyectar = await iniciar();
+  // Si algo falla, Lambda reintenta el evento entero: cada proyección es idempotente.
+  for (const registro of evento.Records ?? []) await proyectar(claveDeEvento(registro));
 }

@@ -35,7 +35,7 @@ function revisiones() {
   return servicio;
 }
 
-// Carga el SDK durante el arranque en frío, no en la primera request; si falla, la request lo reintenta.
+// El SDK empieza a cargarse al importar el módulo, a la par con la primera request; si falla, la request reintenta.
 revisiones()?.catch(() => {});
 
 // POST /revisiones  { "url": "<url completa>", "force"?: true }  (force: revisión nueva si la anterior terminó)
