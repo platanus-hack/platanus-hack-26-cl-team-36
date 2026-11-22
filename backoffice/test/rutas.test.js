@@ -8,6 +8,7 @@ import {
   enlaceARevision,
   enlaceARevisiones,
   enlaceATanda,
+  enlaceAVivo,
   extraerIdioma,
   hashDe,
   normalizarPaso,
@@ -90,7 +91,17 @@ test("Revisiones: #/revisiones y #/revisiones/<revision>; una revisión inválid
   assert.equal(hashDe(parsearHash("#/revisiones/abc-123?x=1")), "#/revisiones/abc-123");
   assert.equal(hashDe(parsearHash("#/revisiones/abc-123?estado=failed")), "#/revisiones/abc-123");
   assert.equal(enlaceARevision(), "#/revisiones");
-  for (const hash of ["#/revisiones/ABC", "#/revisiones/..%2Fx", `#/revisiones/${"a".repeat(41)}`, "#/revisiones/a/b"]) {
+  for (const hash of ["#/revisiones/ABC", "#/revisiones/..%2Fx", `#/revisiones/${"a".repeat(41)}`, "#/revisiones/a/b/c"]) {
+    assert.equal(parsearHash(hash).tipo, "desconocida", hash);
+  }
+});
+
+test("En vivo: #/revisiones/<revision>/<goal> va y vuelve; un goal inválido no es ruta", () => {
+  const ruta = parsearHash("#/revisiones/abc-123/planificar-viaje?x=1");
+  assert.deepEqual(ruta, { tipo: "vivo", revision: "abc-123", goal: "planificar-viaje", parametros: {} });
+  assert.equal(hashDe(ruta), "#/revisiones/abc-123/planificar-viaje");
+  assert.equal(enlaceAVivo("abc-123", "horario"), "#/revisiones/abc-123/horario");
+  for (const hash of ["#/revisiones/abc/Horario", "#/revisiones/abc/..%2Fx", "#/revisiones/ABC/horario", "#/revisiones/abc/a_b"]) {
     assert.equal(parsearHash(hash).tipo, "desconocida", hash);
   }
 });

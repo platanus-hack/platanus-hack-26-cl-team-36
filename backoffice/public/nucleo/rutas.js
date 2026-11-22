@@ -7,12 +7,13 @@
 //   #/t/<tandaId>/<pestaña>     telarana · replay · propuesta   (#/t/<tandaId>/resumen, de cuando existía, → telarana)
 //   #/revisiones                Revisiones (DynamoDB)   ?estado=live|done|failed|historial   (live = running + queued)
 //   #/revisiones/<revision>     el avance de una revisión
+//   #/revisiones/<revision>/<goal>   la telaraña en vivo de un goal (SSE)
 //
 // Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
 // saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan. En el Overview y en el filtro de
 // Revisiones un valor desconocido se descarta, y los valores por defecto (all, recent) nunca se escriben.
 
-import { CORRIDA, REVISION, partesDeTanda } from "./almacen.js";
+import { CORRIDA, OBJETIVO, REVISION, partesDeTanda } from "./almacen.js";
 
 export const PESTANAS = ["telarana", "replay", "propuesta"];
 export const PESTANA_POR_DEFECTO = "telarana";
@@ -146,10 +147,12 @@ export function parsearHash(hash) {
 
   if (partes[0] === "corridas" && partes.length === 1) return { tipo: "corridas", parametros };
 
-  if (partes[0] === "revisiones" && partes.length <= 2) {
-    const revision = partes[1] ?? null;
+  if (partes[0] === "revisiones" && partes.length <= 3) {
+    const [, revision = null, goal = null] = partes;
     if (revision !== null && !REVISION.test(revision)) return { tipo: "desconocida", hash: original };
-    return { tipo: "revisiones", revision, parametros: revision === null ? soloValidos("revisiones", parametros) : {} };
+    if (goal === null) return { tipo: "revisiones", revision, parametros: revision === null ? soloValidos("revisiones", parametros) : {} };
+    if (!OBJETIVO.test(goal)) return { tipo: "desconocida", hash: original };
+    return { tipo: "vivo", revision, goal, parametros: {} };
   }
 
   if (partes[0] === "t") {
@@ -195,11 +198,12 @@ function consultaCanonica(clave, parametros) {
  * Hash canónico: orden estable de parámetros, sin valores vacíos ni por defecto, sin `idioma`. Sin `tipo` (o con uno
  * que no es una vista) es el Overview.
  */
-export function hashDe({ tipo, tandaId, revision = null, pestana = PESTANA_POR_DEFECTO, parametros = {} }) {
+export function hashDe({ tipo, tandaId, revision = null, goal = null, pestana = PESTANA_POR_DEFECTO, parametros = {} }) {
   if (tipo === "revisiones") {
     if (revision) return enlaceARevision(revision);
     return `#/revisiones${consultaCanonica("revisiones", soloValidos("revisiones", parametros))}`;
   }
+  if (tipo === "vivo") return enlaceAVivo(revision, goal);
   if (tipo === "tanda") {
     const id = String(tandaId).split("/").map(encodeURIComponent).join("/");
     const limpios = aplicarAlias(pestana, parametros);
@@ -221,6 +225,11 @@ export function enlaceARevision(revision = null) {
 /** La lista de Revisiones, filtrada: "#/revisiones" o "#/revisiones?estado=failed" (live = running + queued). */
 export function enlaceARevisiones(estado = null) {
   return hashDe({ tipo: "revisiones", parametros: { estado } });
+}
+
+/** "#/revisiones/<revision>/<goal>": la telaraña en vivo del goal. */
+export function enlaceAVivo(revision, goal) {
+  return `${enlaceARevision(revision)}/${encodeURIComponent(goal)}`;
 }
 
 /**
