@@ -1,7 +1,10 @@
 """Saneamiento, ámbito html.mi-tema y riesgos del CSS; lectura del skill y del JSON del modelo."""
 
+import asyncio
+
 from disenador.css import CADENA_ROTA, analizar, con_ambito, quitar_comentarios, sanear
-from disenador.modelo import CONTRATO, json_tolerante, leer_skill, prompt_de_sistema
+from disenador.juez import ESQUEMA_PAR
+from disenador.modelo import CONTRATO, ESQUEMA_TEMA, ClaudeCode, json_tolerante, leer_skill, prompt_de_sistema
 
 
 def test_con_ambito():
@@ -161,3 +164,12 @@ def test_estructura_y_recursos():
     ]
     assert "html.mi-tema a" not in saneado.css and ":not(&)" not in saneado.css
     assert "&:hover, .c {" in saneado.css and "y" * 200 in saneado.css
+
+
+def test_motor_guionizado_disena_un_tema_limpio_y_el_juez_responde_su_esquema(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGENTS_ENGINE", "fake")
+    cliente = ClaudeCode("guion", "low", tmp_path)
+    tema = asyncio.run(cliente.pedir(prompt_de_sistema(None), ESQUEMA_TEMA, ["diseña", b"\x89PNG"], tmp_path / "log"))
+    assert not sanear(tema.datos["css"]).rechazos and tema.datos["css"].startswith("html.mi-tema")
+    par = asyncio.run(cliente.pedir("rúbrica", ESQUEMA_PAR, ["A", b"\x89PNG", "B", b"\x89PNG"], tmp_path / "log"))
+    assert par.datos == {"preferido": "A", "razon": "respuesta guionizada"} and par.costo_usd == 0.0

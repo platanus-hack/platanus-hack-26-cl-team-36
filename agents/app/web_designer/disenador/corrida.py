@@ -13,10 +13,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from playwright.async_api import Browser, async_playwright
+from playwright.async_api import Browser
 
 from shared.browser.pixels import screen_change_ratio
-from shared.browser.session import connect_browser
+from shared.browser.session import open_browser
 
 from disenador import config, juez, mapa, metricas, pagina
 from disenador.css import analizar, sanear
@@ -201,24 +201,20 @@ async def correr(casos: list[Caso], opciones: Opciones, salida: Path, disenador,
         async with semaforo:
             return await generacion(*args)
 
-    async with async_playwright() as playwright:
-        browser = await connect_browser(playwright, cdp_url)
-        try:
-            pendientes, filas = [], []
-            for caso in casos:
-                carpeta_caso = salida if len(casos) == 1 else salida / caso.id
-                try:
-                    preparado = await preparar(browser, caso)
-                except Exception as error:
-                    mensaje = f"no se pudo abrir la página: {type(error).__name__}: {error}"[:300]
-                    print(f"[{caso.id}] {mensaje}", flush=True)
-                    filas += [{"caso": caso.id, "rep": rep, "error": mensaje} for rep in range(1, opciones.repeticiones + 1)]
-                    continue
-                print(f"[{caso.id}] mapa listo: {len(mapa.como_texto(preparado.mapa))} caracteres", flush=True)
-                for rep in range(1, opciones.repeticiones + 1):
-                    pendientes.append(limitada(browser, caso, preparado, rep, carpeta_caso / f"rep-{rep:02d}", opciones,
-                                               disenador, cliente_juez, salida))
-            filas += await asyncio.gather(*pendientes)
-        finally:
-            await browser.close()
+    async with open_browser(cdp_url) as browser:
+        pendientes, filas = [], []
+        for caso in casos:
+            carpeta_caso = salida if len(casos) == 1 else salida / caso.id
+            try:
+                preparado = await preparar(browser, caso)
+            except Exception as error:
+                mensaje = f"no se pudo abrir la página: {type(error).__name__}: {error}"[:300]
+                print(f"[{caso.id}] {mensaje}", flush=True)
+                filas += [{"caso": caso.id, "rep": rep, "error": mensaje} for rep in range(1, opciones.repeticiones + 1)]
+                continue
+            print(f"[{caso.id}] mapa listo: {len(mapa.como_texto(preparado.mapa))} caracteres", flush=True)
+            for rep in range(1, opciones.repeticiones + 1):
+                pendientes.append(limitada(browser, caso, preparado, rep, carpeta_caso / f"rep-{rep:02d}", opciones,
+                                           disenador, cliente_juez, salida))
+        filas += await asyncio.gather(*pendientes)
     return sorted(filas, key=lambda fila: ([c.id for c in casos].index(fila["caso"]), fila["rep"]))

@@ -7,14 +7,15 @@ from pathlib import Path
 
 from shared.browser.session import open_browser
 from shared.browser.viewports import SCREENS
-from shared.claude.caller import ClaudeCallError, ClaudeCaller
+from shared.claude.caller import ClaudeCallError
+from shared.claude.engines import make_caller
 from shared.claude.workdir import claude_workdir
 from shared import store
 
 from cataloger import config
 from cataloger.crawl import crawl
 from cataloger.output import write_catalog, write_outline
-from cataloger.propose import propose_goals
+from cataloger.propose import propose_goals, scripted_catalog
 from cataloger.rules import classify
 
 
@@ -42,7 +43,7 @@ async def catalog(args: argparse.Namespace, out_dir: Path) -> int:
         write_outline(out_dir, outline)
         if not outline.pages:
             raise CrawlError("la página inicial no cargó: " + ("; ".join(outline.failures) or "sin páginas"))
-        caller = ClaudeCaller(args.model, args.effort, claude_cwd, out_dir / "claude_code.log")
+        caller = make_caller(args.model, args.effort, claude_cwd, out_dir / "claude_code.log", fake=scripted_catalog)
         log(f"el modelo lee {len(outline.pages)} páginas")
         goals, issues = classify(await propose_goals(caller, outline), outline, screen.height)
     for issue in issues:

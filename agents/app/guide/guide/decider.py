@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from shared.claude.caller import ClaudeCaller
+from shared.claude.caller import Caller
 
 from guide.prompts import DECISION_SCHEMA
 
@@ -28,7 +28,7 @@ class Decider(Protocol):
 class ClaudeDecider:
     """Una llamada independiente por turno: cada una lleva la tarea, el historial y la página, así el contexto no crece."""
 
-    def __init__(self, system_prompt: str, caller: ClaudeCaller):
+    def __init__(self, system_prompt: str, caller: Caller):
         self.system_prompt = system_prompt
         self.caller = caller
 
@@ -43,3 +43,8 @@ class ClaudeDecider:
     async def decide(self, text: str, screenshot: bytes) -> Decision:
         output = await self.caller.ask(self.system_prompt, DECISION_SCHEMA, text, screenshot)
         return Decision(**{key: output.get(key) for key in Decision.__dataclass_fields__})
+
+
+def scripted_decision(system_prompt: str, schema: dict, parts: list) -> dict:
+    """La respuesta del motor guionizado: rendirse en el primer turno, así la exploración termina sin ruta."""
+    return {"reason": "motor guionizado", "action": "give_up", "text": "respuesta guionizada, sin modelo"}

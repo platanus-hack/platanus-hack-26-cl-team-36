@@ -1,39 +1,111 @@
-"""Llamadas independientes al Claude Code local con salida JSON, sumando tokens y costo."""
+"""Llamadas independientes a Claude con salida JSON, sumando tokens y costo. `ClaudeCaller` es el Claude Code local."""
 
+import asyncio
+import json
+import math
+import re
+from dataclasses import dataclass, field
 from pathlib import Path
 
-from shared.claude.process import ClaudeCodeError, ClaudeCodeProcess
+from shared.claude.process import DEFAULT_TIMEOUT_S, ClaudeCodeError, ClaudeCodeProcess, content_blocks
 
-_USAGE_KEYS = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+USAGE_KEYS = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
+
+Part = str | bytes
 
 
 class ClaudeCallError(Exception):
-    """Claude Code no devolvió una salida estructurada."""
+    """Claude no devolvió una salida estructurada."""
 
 
-class ClaudeCaller:
-    def __init__(self, model: str, effort: str, cwd: Path, log_path: Path):
+@dataclass
+class Answer:
+    output: dict | None
+    usage: dict = field(default_factory=dict)
+    cost_usd: float = 0.0
+    detail: str = ""     # por qué no hay `output`
+
+
+class Caller:
+    """La interfaz que ven los agentes; cada motor implementa `_answer`."""
+
+    engine = ""
+
+    def __init__(self, model: str, effort: str):
         self.model = model
         self.effort = effort
-        self.cwd = cwd
-        self.log_path = log_path
-        self.usage = dict.fromkeys(_USAGE_KEYS, 0)
+        self.usage = dict.fromkeys(USAGE_KEYS, 0)
         self.cost_usd = 0.0
 
     async def ask(self, system_prompt: str, schema: dict, text: str, image: bytes | None = None) -> dict:
+        return (await self.answer(system_prompt, schema, [text] if image is None else [text, image])).output
+
+    async def answer(self, system_prompt: str, schema: dict, parts: list[Part]) -> Answer:
+        """`parts` alterna texto e imágenes PNG; la respuesta lleva el uso de esta llamada."""
+        answer = await self._answer(system_prompt, schema, parts)
+        for key in USAGE_KEYS:
+            self.usage[key] += answer.usage.get(key) or 0
+        self.cost_usd += answer.cost_usd
+        if not isinstance(answer.output, dict):
+            raise ClaudeCallError(f"{self.engine} no devolvió una respuesta estructurada: {answer.detail[:300]}")
+        return answer
+
+    async def _answer(self, system_prompt: str, schema: dict, parts: list[Part]) -> Answer:
+        raise NotImplementedError
+
+
+def tolerant_json(text) -> dict | None:
+    """Un objeto JSON dentro de un texto, aunque venga envuelto en un bloque ```json; None si no hay."""
+    if not isinstance(text, str):
+        return None
+    fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.S)
+    candidate = fenced.group(1) if fenced else text[text.find("{"): text.rfind("}") + 1]
+    try:
+        data = json.loads(candidate)
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+class ClaudeCaller(Caller):
+    """Un `claude -p` por llamada. Si no entrega el resultado en `timeout_s`, se mata el proceso."""
+
+    engine = "Claude Code"
+
+    def __init__(self, model: str, effort: str, cwd: Path, log_path: Path, timeout_s: float = DEFAULT_TIMEOUT_S):
+        super().__init__(model, effort)
+        self.cwd = cwd
+        self.log_path = log_path
+        self.timeout_s = timeout_s
+
+    async def _answer(self, system_prompt: str, schema: dict, parts: list[Part]) -> Answer:
         process = await ClaudeCodeProcess.open(system_prompt, self.model, self.effort, schema, self.cwd, self.log_path)
+
+        async def converse() -> dict:
+            await process.send_content(content_blocks(parts))
+            # El único tope es el `wait_for` de abajo, que además mata el proceso.
+            return await process.wait_for_result(timeout_s=math.inf)
+
         try:
-            await process.send(text, image)
-            event = await process.wait_for_result()
+            event = await asyncio.wait_for(converse(), timeout=self.timeout_s)
+        except TimeoutError as error:
+            _kill(process)
+            raise ClaudeCallError(f"claude no respondió en {self.timeout_s:g} s; se detuvo el proceso") from error
         except ClaudeCodeError as error:
-            raise ClaudeCallError(str(error))
+            raise ClaudeCallError(str(error)) from error
         finally:
             await process.close()
-        usage = event.get("usage") or {}
-        for key in _USAGE_KEYS:
-            self.usage[key] += usage.get(key) or 0
-        self.cost_usd += event.get("total_cost_usd") or 0.0
         output = event.get("structured_output")
-        if event.get("is_error") or not isinstance(output, dict):
-            raise ClaudeCallError(f"Claude Code no devolvió una respuesta estructurada: {str(event.get('result'))[:300]}")
-        return output
+        if not isinstance(output, dict) and not event.get("is_error"):
+            output = tolerant_json(event.get("result"))
+        if event.get("is_error") or event.get("subtype", "success") != "success":
+            output = None
+        detail = str(event.get("result") or event.get("subtype") or "sin detalle")
+        return Answer(output, event.get("usage") or {}, event.get("total_cost_usd") or 0.0, detail)
+
+
+def _kill(process: ClaudeCodeProcess) -> None:
+    try:
+        process.process.kill()
+    except ProcessLookupError:
+        pass

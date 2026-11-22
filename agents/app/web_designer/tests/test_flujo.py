@@ -140,21 +140,19 @@ def test_tema_rechazado_por_el_navegador(sitio, tmp_path, monkeypatch):
 
 def test_modelo_colgado_falla_sin_detener_la_corrida(sitio, tmp_path, monkeypatch):
     """Un `claude` que nunca responde se mata al vencer el plazo; la generación queda con error y la corrida sigue."""
+    from shared.claude import caller
+
     from disenador import modelo
 
     procesos = []
 
-    class Entrada:
-        def write(self, datos):
-            pass
-
-        async def drain(self):
-            pass
-
     class ProcesoColgado:
         def __init__(self):
-            self.stdin, self.matado, self.cerrado = Entrada(), False, False
+            self.matado, self.cerrado = False, False
             self.process = self
+
+        async def send_content(self, contenido):
+            pass
 
         def kill(self):
             self.matado = True
@@ -171,7 +169,8 @@ def test_modelo_colgado_falla_sin_detener_la_corrida(sitio, tmp_path, monkeypatc
         async def close(self):
             self.cerrado = True
 
-    monkeypatch.setattr(modelo, "ClaudeCodeProcess", ProcesoColgado)
+    monkeypatch.delenv("AGENTS_ENGINE", raising=False)
+    monkeypatch.setattr(caller, "ClaudeCodeProcess", ProcesoColgado)
     disenador = modelo.ClaudeCode("haiku", "medium", tmp_path, timeout_s=0.2)
     casos = [Caso("colgado", sitio.as_uri(), "oscuro")]
     filas = asyncio.run(correr(casos, _opciones(repeticiones=2, concurrencia=2), tmp_path / "salida", disenador,

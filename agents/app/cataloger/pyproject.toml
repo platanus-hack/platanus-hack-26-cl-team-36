@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Catalogador: recorre un sitio y cataloga sus objetivos clasificados."
 requires-python = ">=3.12"
 dependencies = [
-    "shared[browser]",
+    "shared[browser,bedrock,agentcore]",   # motor y navegador en AWS (AGENTS_ENGINE, AGENTS_BROWSER)
     "playwright>=1.48",
 ]
 

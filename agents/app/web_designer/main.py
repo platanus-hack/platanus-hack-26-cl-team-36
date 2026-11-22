@@ -18,6 +18,8 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+from shared.claude import engines
+
 from disenador import config, resumen
 from disenador.corrida import Caso, Opciones, correr, id_de_url, leer_casos
 from disenador.modelo import ClaudeCode, leer_skill
@@ -91,8 +93,9 @@ def main() -> None:
     casos, nombre = _casos(parser, args)
     if args.repeticiones < 1:
         parser.error("--repeticiones debe ser al menos 1")
-    if not shutil.which("claude"):
+    if engines.needs_claude_cli() and not shutil.which("claude"):
         parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión")
+    args.model, args.juez_model = engines.model_for(args.model), engines.model_for(args.juez_model)
     skill = None
     if args.skill.lower() != "none":
         ruta_skill = Path(args.skill)

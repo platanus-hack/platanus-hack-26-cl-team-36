@@ -1,20 +1,18 @@
-"""El modelo que diseña el tema y el juez, llamados por el Claude Code local (`claude -p`) como en el Visitante.
+"""El modelo que diseña el tema y el juez, llamados con el motor de `shared.claude` (`AGENTS_ENGINE`).
 
-Sin herramientas, sin MCP, sin skills ni configuración del usuario (`ClaudeCodeProcess` de `shared.claude`), y con
-salida estructurada validada contra un esquema JSON. El skill no se carga como skill de Claude Code: su cuerpo va
-en el prompt de sistema, igual que lo usaría la extensión.
+Con Claude Code, sin herramientas, sin MCP, sin skills ni configuración del usuario, y con salida estructurada
+validada contra un esquema JSON. El skill no se carga como skill de Claude Code: su cuerpo va en el prompt de
+sistema, igual que lo usaría la extensión.
 """
 
-import asyncio
 import hashlib
-import json
-import math
 import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from shared.claude.process import ClaudeCodeError, ClaudeCodeProcess, png_image_block
+from shared.claude.caller import ClaudeCallError, tolerant_json
+from shared.claude.engines import make_caller
 
 from disenador import config
 
@@ -94,17 +92,15 @@ def mensaje_de_diseno(url: str, gustos: str, tarea: str | None, mapa_texto: str,
     )
 
 
-def json_tolerante(texto) -> dict | None:
-    """Un objeto JSON dentro de un texto, aunque venga envuelto en un bloque ```json; None si no hay."""
-    if not isinstance(texto, str):
+json_tolerante = tolerant_json
+
+
+def respuesta_guionizada(sistema: str, esquema: dict, partes: list) -> dict | None:
+    """La respuesta del motor guionizado al diseño; el juez responde lo que dicta su esquema."""
+    if esquema is not ESQUEMA_TEMA:
         return None
-    cercado = re.search(r"```(?:json)?\s*(\{.*\})\s*```", texto, re.S)
-    candidato = cercado.group(1) if cercado else texto[texto.find("{"): texto.rfind("}") + 1]
-    try:
-        datos = json.loads(candidato)
-    except ValueError:
-        return None
-    return datos if isinstance(datos, dict) else None
+    return {"css": "html.mi-tema body { background-color: #fdfcf8; color: #1a1a1a; }",
+            "resumen": "Tema guionizado, sin modelo.", "decisiones": ["fondo claro", "texto oscuro"]}
 
 
 @dataclass
@@ -116,9 +112,9 @@ class Respuesta:
 
 
 class ClaudeCode:
-    """Una llamada a `claude -p` con texto, varias imágenes y salida JSON.
+    """Una llamada con texto, varias imágenes y salida JSON, por el motor de `AGENTS_ENGINE`.
 
-    Si `claude` no entrega el resultado en `timeout_s` segundos, se mata el proceso y la llamada falla con
+    Si la respuesta no llega en `timeout_s` segundos (con Claude Code se mata el proceso), la llamada falla con
     `ErrorDeModelo`: una generación colgada queda como error en el resumen y no detiene la corrida.
     """
 
@@ -131,41 +127,10 @@ class ClaudeCode:
     async def pedir(self, sistema: str, esquema: dict, partes: list[str | bytes], log: Path) -> Respuesta:
         """`partes` alterna texto e imágenes PNG, en el orden en que el modelo las ve."""
         inicio = time.monotonic()
-        proceso = await ClaudeCodeProcess.open(sistema, self.model, self.effort, esquema, self.cwd, log)
-        contenido = [
-            {"type": "text", "text": parte} if isinstance(parte, str) else png_image_block(parte) for parte in partes
-        ]
-        mensaje = {"type": "user", "message": {"role": "user", "content": contenido}}
-
-        async def conversar() -> dict:
-            proceso.process.stdin.write((json.dumps(mensaje) + "\n").encode())
-            await proceso.process.stdin.drain()
-            # El tope es el `asyncio.wait_for` de abajo (`self.timeout_s`), que además mata el proceso. Sin el
-            # `math.inf`, `wait_for_result` cortaría antes con su tope por defecto (`DEFAULT_TIMEOUT_S`).
-            return await proceso.wait_for_result(timeout_s=math.inf)
-
+        caller = make_caller(self.model, self.effort, self.cwd, log, self.timeout_s, fake=respuesta_guionizada)
         try:
-            evento = await asyncio.wait_for(conversar(), timeout=self.timeout_s)
-        except TimeoutError as error:
-            _matar(proceso)
-            raise ErrorDeModelo(f"claude no respondió en {self.timeout_s:g} s; se detuvo el proceso") from error
-        except ClaudeCodeError as error:
+            respuesta = await caller.answer(sistema, esquema, partes)
+        except ClaudeCallError as error:
             raise ErrorDeModelo(str(error)) from error
-        finally:
-            await proceso.close()
-        salida = evento.get("structured_output")
-        if not isinstance(salida, dict) and not evento.get("is_error"):
-            salida = json_tolerante(evento.get("result"))
-        if evento.get("is_error") or evento.get("subtype") != "success" or not isinstance(salida, dict):
-            detalle = evento.get("result") or evento.get("subtype") or "sin detalle"
-            raise ErrorDeModelo(f"Claude Code no devolvió una respuesta estructurada: {str(detalle)[:300]}")
-        uso = {k: (evento.get("usage") or {}).get(k) or 0 for k in ("input_tokens", "output_tokens",
-                                                                    "cache_read_input_tokens")}
-        return Respuesta(salida, uso, evento.get("total_cost_usd") or 0.0, round(time.monotonic() - inicio, 1))
-
-
-def _matar(proceso) -> None:
-    try:
-        proceso.process.kill()
-    except ProcessLookupError:
-        pass
+        uso = {k: respuesta.usage.get(k) or 0 for k in ("input_tokens", "output_tokens", "cache_read_input_tokens")}
+        return Respuesta(respuesta.output, uso, respuesta.cost_usd, round(time.monotonic() - inicio, 1))
