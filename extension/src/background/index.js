@@ -12,7 +12,7 @@
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
 import { consultarRevision } from "./api.js";
 import { recargadaEnDesarrollo } from "./config.js";
-import { inyectarCssDeTema } from "./fuentes.js";
+import { HOJA_FUENTES, hojaConUrlsAbsolutas, inyectarCssDeTema } from "./fuentes.js";
 import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
 import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
 
@@ -117,10 +117,17 @@ async function inyectarTema(tema, sender, pagina) {
   console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${pagina}`);
 
   const target = { tabId: sender.tab.id, frameIds: [sender.frameId] };
-  await inyectarCssDeTema(tema.css, target, (detalles) => browser.scripting.insertCSS(detalles));
+  await inyectarCssDeTema(tema.css, target, (detalles) => browser.scripting.insertCSS(detalles), leerHojaFuentes);
 
   const { css, ...resto } = tema;
   return { ...resto, pagina };
+}
+
+// fuentes/fuentes.css como texto, con las url() absolutas para que valgan en los dos navegadores (ver fuentes.js).
+async function leerHojaFuentes() {
+  const respuesta = await fetch(browser.runtime.getURL(HOJA_FUENTES));
+  if (!respuesta.ok) throw new Error(`${HOJA_FUENTES}: ${respuesta.status}`);
+  return hojaConUrlsAbsolutas(await respuesta.text(), (archivo) => browser.runtime.getURL(archivo));
 }
 
 // ---------- 3. Votos ----------

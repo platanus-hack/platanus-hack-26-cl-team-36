@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { FUENTES, HOJA_FUENTES, inyectarCssDeTema, usaFuentes } from "../src/background/fuentes.js";
+import { FUENTES, HOJA_FUENTES, hojaConUrlsAbsolutas, inyectarCssDeTema, usaFuentes } from "../src/background/fuentes.js";
 import { sanearCss } from "../src/background/css-remoto.js";
 
 const ruta = (archivo) => new URL(`../src/${archivo}`, import.meta.url);
@@ -81,28 +81,47 @@ test("inyectarCssDeTema: agrega fuentes.css solo si el tema nombra una fuente", 
   const sinFuente = "html.mi-tema body { color: red; }";
   const llamadas = [];
   const insertCSS = async (detalles) => { llamadas.push(detalles); };
+  let lecturas = 0;
+  const leerHoja = async () => { lecturas++; return "/* hoja */"; };
 
-  await inyectarCssDeTema(conFuente, target, insertCSS);
-  assert.deepEqual(llamadas, [{ target, css: conFuente }, { target, files: [HOJA_FUENTES] }]);
+  await inyectarCssDeTema(conFuente, target, insertCSS, leerHoja);
+  // Como texto, nunca con `files`: ver hojaConUrlsAbsolutas.
+  assert.deepEqual(llamadas, [{ target, css: conFuente }, { target, css: "/* hoja */" }]);
 
   llamadas.length = 0;
-  await inyectarCssDeTema(sinFuente, target, insertCSS);
+  await inyectarCssDeTema(sinFuente, target, insertCSS, leerHoja);
   assert.deepEqual(llamadas, [{ target, css: sinFuente }]);
+  assert.equal(lecturas, 1);
+});
+
+test("hojaConUrlsAbsolutas: cada url() de fuentes.css apunta a su woff2 dentro de la extensión", () => {
+  const base = "chrome-extension://abc/";
+  const absoluta = hojaConUrlsAbsolutas(hoja, (archivo) => base + archivo);
+  const urls = [...absoluta.matchAll(/url\("([^"]+)"\)/g)].map(([, url]) => url);
+  assert.equal(urls.length, [...hoja.matchAll(/url\("/g)].length);
+  const archivos = new Set(FUENTES.map((f) => base + f.archivo));
+  for (const url of urls) assert.ok(archivos.has(url), `${url} no es un woff2 de FUENTES`);
+  for (const { archivo } of FUENTES) assert.ok(urls.includes(base + archivo), `nadie usa ${archivo}`);
 });
 
 test("inyectarCssDeTema: si fuentes.css falla, el tema queda inyectado sin error", async (t) => {
   t.mock.method(console, "warn", () => {});
-  const temas = [];
-  const insertCSS = async (detalles) => {
-    if (detalles.files) throw new Error("sin permiso");
-    temas.push(detalles.css);
-  };
-  await inyectarCssDeTema('html.mi-tema p { font-family: "MT Geist"; }', { tabId: 1 }, insertCSS);
-  assert.equal(temas.length, 1);
-  assert.equal(console.warn.mock.callCount(), 1);
+  // Falla la lectura de la hoja o su inyección.
+  const casos = [
+    [async () => { throw new Error("404"); }, () => {}],
+    [async () => "/* hoja */", (css) => { if (css === "/* hoja */") throw new Error("sin permiso"); }],
+  ];
+  for (const [leerHoja, fallar] of casos) {
+    const temas = [];
+    const insertCSS = async ({ css }) => { fallar(css); temas.push(css); };
+    await inyectarCssDeTema('html.mi-tema p { font-family: "MT Geist"; }', { tabId: 1 }, insertCSS, leerHoja);
+    assert.equal(temas.length, 1);
+  }
+  assert.equal(console.warn.mock.callCount(), 2);
 });
 
 test("inyectarCssDeTema: si el CSS del tema falla, el error sube", async () => {
-  const insertCSS = async (detalles) => { if (detalles.css) throw new Error("pestaña cerrada"); };
-  await assert.rejects(inyectarCssDeTema('html.mi-tema p { font-family: "MT Geist"; }', { tabId: 1 }, insertCSS), /pestaña cerrada/);
+  const insertCSS = async ({ css }) => { if (css.includes("mi-tema")) throw new Error("pestaña cerrada"); };
+  const leerHoja = async () => "/* hoja */";
+  await assert.rejects(inyectarCssDeTema('html.mi-tema p { font-family: "MT Geist"; }', { tabId: 1 }, insertCSS, leerHoja), /pestaña cerrada/);
 });
