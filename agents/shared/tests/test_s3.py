@@ -1,9 +1,11 @@
+import sys
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fake_s3 import ClientError, FakeS3
 
 from shared.store import Clock, S3Backend, cataloger, finish_run, start_run, visitor
+from shared.store.s3 import MissingBoto3
 
 MOMENT = datetime(2026, 11, 21, 10, 44, 22, tzinfo=UTC)
 
@@ -32,6 +34,7 @@ def test_publish_uploads_with_content_types_and_cleans_workdir() -> None:
         f"{base}/first_time/video.webm": "video/webm",
     }
     assert not run.workdir.exists()
+    assert backend.list_profiles(run.key) == ["first_time"]
     assert sorted(client.uploaded) == sorted(key for (_, key) in client.objects if not key.endswith("manifest.json"))
 
 
@@ -69,3 +72,9 @@ def test_conditional_write_conflict_takes_next_id() -> None:
     client.conflicts.add("wom.cl/cataloger/2026-11-21T10-44-22Z/manifest.json")
     run = start_run(backend, cataloger("wom.cl"), model=None, clock=lambda: MOMENT)
     assert run.key.run_id == "2026-11-21T10-44-22Z_01"
+
+
+def test_missing_boto3_names_the_extra(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "boto3", None)
+    with pytest.raises(MissingBoto3, match=r"shared\[s3\]"):
+        S3Backend("bucket").client

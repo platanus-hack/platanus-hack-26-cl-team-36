@@ -7,6 +7,8 @@
 // Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
 // saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan.
 
+import { CORRIDA, partesDeTanda } from "./almacen.js";
+
 export const PESTANAS = ["resumen", "telarana", "replay", "perfiles"];
 export const PESTANA_POR_DEFECTO = "resumen";
 
@@ -18,10 +20,6 @@ export const NOMBRES_DE_PESTANA = Object.freeze({
   perfiles: "comun.pestana.perfiles",
 });
 
-const FECHA_HORA = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
-// La tarea de un tandaId (lo que va antes de la fecha): un solo segmento que no empieza con "." ni trae "/", "\\"
-// o caracteres de control, para que el id nunca arme otra ruta al pedirlo ("..%2F..%2Fx" → "../../x").
-const TAREA_SEGURA = /^[^./\\\u0000-\u001f][^/\\\u0000-\u001f]*$/;
 
 // Orden estable de los parámetros conocidos; los demás van después, en orden alfabético.
 const ORDEN_DE_PARAMETROS = {
@@ -97,9 +95,9 @@ export function parsearHash(hash) {
 
   if (partes[0] === "t") {
     const resto = partes.slice(1);
-    const fin = resto.findIndex((parte) => FECHA_HORA.test(parte));
-    if (fin === -1) return { tipo: "desconocida", hash: original };
-    if (fin > 1 || (fin === 1 && !TAREA_SEGURA.test(resto[0]))) return { tipo: "desconocida", hash: original };
+    // Un id que no sigue el layout no es una tanda: así nunca arma otra ruta al pedirlo ("..%2F..%2Fx" → "../../x").
+    const fin = resto.findIndex((parte) => CORRIDA.test(parte));
+    if (fin !== 3 || !partesDeTanda(resto.slice(0, 4).join("/"))) return { tipo: "desconocida", hash: original };
     const tandaId = resto.slice(0, fin + 1).join("/");
     const despues = resto.slice(fin + 1);
     if (despues.length > 1) return { tipo: "desconocida", hash: original };

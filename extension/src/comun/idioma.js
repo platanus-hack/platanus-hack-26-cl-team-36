@@ -50,10 +50,12 @@
         otros: "{n} opiniones guardadas en tu equipo.",
       },
       "opinion.privacidad": "Al enviar se guarda una copia de esta página (antes y después del tema) solo en tu equipo.",
+      "opinion.privacidadSinCopia": "Al enviar se guarda solo tu comentario, sin copiar la página, y solo en tu equipo.",
 
       // Avisos según la pestaña (estado.js → decidirVista)
       "aviso.noDisponible":
         "Chameleon no puede leer esta pestaña. Las páginas internas de Firefox no lo permiten; si es un sitio web, recárgalo.",
+      "aviso.privada": "En las ventanas privadas Chameleon no guarda opiniones. El interruptor funciona igual.",
       "aviso.sinTema": "Esta página todavía no tiene un tema de Chameleon. Cuéntanos qué te gustaría cambiar.",
       "aviso.apagado": "Chameleon está apagado. Enciéndelo para comparar con la página original, o déjanos un comentario.",
 
@@ -71,6 +73,7 @@
       "error.sin-pestana": "No se sabe de qué pestaña es tu opinión.",
       "error.sin-captura": "No se pudo leer esta página. Recárgala e inténtalo de nuevo.",
       "error.sin-tema": "Esta página no tiene un tema de Chameleon: no hay con qué comparar.",
+      "error.privada": "En las ventanas privadas no se guardan opiniones.",
       "error.guardar": "No se pudo guardar tu opinión. Inténtalo de nuevo.",
       "error.contar": "No se pudieron leer las opiniones guardadas.",
 
@@ -123,8 +126,10 @@
         otros: "{n} responses saved on this device.",
       },
       "opinion.privacidad": "Sending saves a copy of this page (before and after the theme) only on this device.",
+      "opinion.privacidadSinCopia": "Sending saves only your comment, without copying the page, and only on this device.",
 
       "aviso.noDisponible": "Chameleon can't read this tab. Firefox's internal pages don't allow it; if it's a website, reload it.",
+      "aviso.privada": "Chameleon doesn't save feedback in private windows. The switch still works.",
       "aviso.sinTema": "This page doesn't have a Chameleon theme yet. Tell us what you'd like to change.",
       "aviso.apagado": "Chameleon is off. Turn it on to compare with the original page, or leave us a comment.",
 
@@ -140,6 +145,7 @@
       "error.sin-pestana": "We couldn't tell which tab your feedback is about.",
       "error.sin-captura": "Couldn't read this page. Reload it and try again.",
       "error.sin-tema": "This page has no Chameleon theme, so there's nothing to compare.",
+      "error.privada": "Feedback isn't saved in private windows.",
       "error.guardar": "Couldn't save your feedback. Please try again.",
       "error.contar": "Couldn't read your saved feedback.",
 

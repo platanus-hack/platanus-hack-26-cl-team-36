@@ -46,6 +46,7 @@ const el = {
   enviar: $("mt-enviar"),
   mensaje: $("mt-mensaje"),
   pendientes: $("mt-pendientes"),
+  privacidad: $("mt-privacidad"),
 };
 
 const estado = {
@@ -53,7 +54,7 @@ const estado = {
   activo: null, // null mientras se lee storage
   efectos: EFECTOS_POR_OMISION, // "llamativos" | "sutiles"
   tabId: null,
-  pagina: null, // { alcanzable, temaId } | null mientras se consulta
+  pagina: null, // { alcanzable, privada, temaId } | null mientras se consulta
   opcion: null, // "mejor" | "peor" | "comentario" | null
   guardando: false,
   pendientes: null,
@@ -102,9 +103,10 @@ function dibujarInterruptor() {
 
 function dibujarOpinion() {
   const cargando = estado.pagina === null || estado.activo === null;
-  const vista = cargando ? { modo: "cargando", aviso: null } : decidirVista(estado);
+  const vista = cargando ? { modo: "cargando", aviso: null, privacidad: null } : decidirVista(estado);
   el.opinion.dataset.modo = vista.modo;
   ponerTexto(el.aviso, vista.aviso ? tx(vista.aviso) : "");
+  ponerTexto(el.privacidad, vista.privacidad ? tx(vista.privacidad) : "");
 
   // Si "Mejor"/"Peor" se ocultan (p. ej. al apagar), la elección deja de valer.
   if (vista.modo !== "completa" && estado.opcion !== "comentario") estado.opcion = null;
@@ -156,6 +158,7 @@ function elementosConTexto() {
     el.pista,
     el.enviar,
     el.pendientes,
+    el.privacidad,
     el.estado,
     el.ayuda,
   ];
@@ -283,22 +286,25 @@ async function pestanaDePrueba() {
   return extension.installType === "development" ? id : null;
 }
 
+// → la pestaña (tabs.Tab) sobre la que se opina, o null.
 async function pestanaObjetivo() {
   const deprueba = await pestanaDePrueba();
-  if (deprueba !== null) return deprueba;
+  if (deprueba !== null) return browser.tabs.get(deprueba).catch(() => null);
   const [pestana] = await browser.tabs.query({ active: true, currentWindow: true });
-  return pestana?.id ?? null;
+  return pestana ?? null;
 }
 
+// En una ventana privada no se guardan opiniones: ni se le pregunta a la página.
 // Pestañas sin content script (about:, addons.mozilla.org, abiertas antes de instalar)
 // hacen fallar sendMessage: se tratan como no alcanzables.
-async function consultarPagina(tabId) {
-  if (!Number.isInteger(tabId)) return { alcanzable: false, temaId: null };
+async function consultarPagina(pestana) {
+  if (pestana?.incognito) return { alcanzable: false, privada: true, temaId: null };
+  if (!Number.isInteger(pestana?.id)) return { alcanzable: false, privada: false, temaId: null };
   try {
-    const respuesta = await browser.tabs.sendMessage(tabId, { tipo: "estado:pagina" }, { frameId: 0 });
-    return { alcanzable: Boolean(respuesta), temaId: respuesta?.temaId ?? null };
+    const respuesta = await browser.tabs.sendMessage(pestana.id, { tipo: "estado:pagina" }, { frameId: 0 });
+    return { alcanzable: Boolean(respuesta), privada: false, temaId: respuesta?.temaId ?? null };
   } catch {
-    return { alcanzable: false, temaId: null };
+    return { alcanzable: false, privada: false, temaId: null };
   }
 }
 
@@ -314,17 +320,20 @@ async function leerIdioma() {
 async function iniciar() {
   // El idioma primero: el panel no se muestra hasta tenerlo (idioma.css), así no parpadea en español.
   aplicarIdioma(await leerIdioma(), { animar: false });
-  const [almacenado, votos] = await Promise.all([
-    browser.storage.local.get(["activo", CLAVE_EFECTOS]),
-    browser.runtime.sendMessage({ tipo: "votos:estado" }).catch(() => ({ pendientes: null })),
-  ]);
+  // El interruptor primero, solo con storage: no espera al background ni a IndexedDB (contar
+  // las opiniones), que pueden tardar en despertar o colgarse.
+  const votos = browser.runtime.sendMessage({ tipo: "votos:estado" }).catch(() => ({ pendientes: null }));
+  const almacenado = await browser.storage.local.get(["activo", CLAVE_EFECTOS]);
   estado.activo ??= almacenado.activo ?? true; // si el interruptor ya cambió, manda ese valor
   estado.efectos = normalizarEfectos(almacenado[CLAVE_EFECTOS]);
-  estado.pendientes = votos?.pendientes ?? null;
   dibujar();
 
-  estado.tabId = await pestanaObjetivo();
-  estado.pagina = await consultarPagina(estado.tabId);
+  const pestana = await pestanaObjetivo();
+  estado.tabId = pestana?.id ?? null;
+  estado.pagina = await consultarPagina(pestana);
+  dibujar();
+
+  estado.pendientes = (await votos)?.pendientes ?? null;
   dibujar();
 }
 
@@ -332,6 +341,6 @@ iniciar().catch((error) => {
   console.error("[mi-tema] No se pudo iniciar el popup:", error);
   estado.idioma ??= IDIOMA_POR_DEFECTO;
   estado.activo ??= true;
-  estado.pagina ??= { alcanzable: false, temaId: null };
+  estado.pagina ??= { alcanzable: false, privada: false, temaId: null };
   dibujar();
 });

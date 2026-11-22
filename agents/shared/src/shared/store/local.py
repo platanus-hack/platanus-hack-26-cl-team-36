@@ -1,10 +1,12 @@
 """Backend de disco: la clave es la ruta relativa a la raíz."""
 
+import os
+import tempfile
 from collections.abc import Iterable
 from pathlib import Path
 
 from shared.store.backend import Backend, workdir_files
-from shared.store.keys import RunKey, RunPrefix
+from shared.store.keys import RunKey
 
 
 class LocalBackend(Backend):
@@ -23,19 +25,28 @@ class LocalBackend(Backend):
         workdir_files(run, workdir)
 
     def _put(self, key: str, data: bytes) -> None:
-        path = self.root / key
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
+        temporary = self._temporary(key, data)
+        os.replace(temporary, self.root / key)
 
     def _create(self, key: str, data: bytes) -> bool:
-        path = self.root / key
-        path.parent.mkdir(parents=True, exist_ok=True)
+        # Un enlace duro falla si la clave ya existe: el archivo aparece completo o no aparece.
+        temporary = self._temporary(key, data)
         try:
-            with path.open("xb") as file:
-                file.write(data)
+            os.link(temporary, self.root / key)
         except FileExistsError:
             return False
+        finally:
+            temporary.unlink()
         return True
+
+    def _temporary(self, key: str, data: bytes) -> Path:
+        """`data` en un archivo oculto junto a la clave, para reemplazarla de una vez."""
+        path = self.root / key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        with os.fdopen(descriptor, "wb") as file:
+            file.write(data)
+        return Path(name)
 
     def _get(self, key: str) -> bytes:
         return (self.root / key).read_bytes()
@@ -43,6 +54,6 @@ class LocalBackend(Backend):
     def _exists(self, key: str) -> bool:
         return (self.root / key).is_file()
 
-    def _children(self, prefix: RunPrefix) -> Iterable[str]:
-        folder = self.root / str(prefix)
-        return [path.name for path in folder.iterdir() if path.is_dir()] if folder.is_dir() else []
+    def _children(self, folder: str) -> Iterable[str]:
+        path = self.root / folder
+        return [child.name for child in path.iterdir() if child.is_dir()] if path.is_dir() else []

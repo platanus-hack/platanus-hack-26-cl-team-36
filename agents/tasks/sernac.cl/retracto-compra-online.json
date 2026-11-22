@@ -1,0 +1,16 @@
+{
+  "id": "retracto-compra-online",
+  "host": "sernac.cl",
+  "start_url": "https://www.sernac.cl/portal/617/w3-channel.html",
+  "description": "Compraste un producto por internet y te arrepentiste: averigua cuántos días tienes para devolverlo.",
+  "expected_answer": "10 días desde que recibiste el producto (y antes de usarlo), salvo que la empresa haya informado que no aplica el derecho a retracto.",
+  "description_sin_contexto": "Compraste algo por internet y te arrepentiste: averigua cuántos días tienes para devolverlo.",
+  "terminos_oficiales": [
+    "derecho a retracto",
+    "retracto",
+    "comercio electrónico",
+    "Ley del Consumidor",
+    "compras a distancia"
+  ],
+  "conocimiento_del_tema": "Arrepentirse de una compra hecha por internet o a distancia se llama derecho a retracto. Lo regula la Ley del Consumidor para el comercio electrónico y las compras a distancia, y tiene un plazo en días que se cuenta desde que se recibe el producto."
+}

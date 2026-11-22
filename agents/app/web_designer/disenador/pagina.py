@@ -5,13 +5,15 @@ import asyncio
 from playwright.async_api import Browser, BrowserContext, Page
 from playwright.async_api import Error as PlaywrightError
 
-from browser import MOBILE_USER_AGENT, TEMA_CLASE, TEMA_ESTILO_ID
+from shared.browser.session import MOBILE_USER_AGENT
+from shared.browser.theme import TEMA_CLASE, TEMA_ESTILO_ID
+
 from disenador import config
 
 VIEWPORTS = {"escritorio": config.ESCRITORIO, "movil": config.MOVIL}
 
 # Aplica el tema en la página ya cargada, como la extensión: clase `mi-tema` en <html> y un <style> propio al final
-# del <head>. A diferencia del script del evaluador, no lo repone si el sitio lo quita: aquí hay que poder apagarlo.
+# del <head>. A diferencia de `shared.browser.theme`, no lo repone si el sitio lo quita: aquí hay que poder apagarlo.
 _APLICAR = """([css, id, clase]) => {
   document.getElementById(id)?.remove();
   const estilo = document.createElement("style");
@@ -92,14 +94,14 @@ async def capturar(page: Page) -> bytes:
 # Lee el CSS con el parser de Chromium, en un documento inerte (sin red: `@import` y `url()` no se cargan), y recorre
 # sus reglas. Cada regla de estilo de primer nivel debe empezar por `html.mi-tema` en cada selector de la lista; una
 # anidada, por `&` (Chromium escribe `& .b` para la relativa `.b`). Solo se aceptan los tipos de regla del
-# saneamiento, y ningún texto puede cargar recursos.
+# saneamiento (sin `@layer`, y `@keyframes` solo con nombre `mt-*`), y ningún texto puede cargar recursos.
 _VERIFICAR = r"""(css) => {
   const doc = document.implementation.createHTMLDocument("");
   const estilo = doc.createElement("style");
   estilo.textContent = css;
   doc.head.appendChild(estilo);
-  const TIPOS = new Set(["CSSStyleRule", "CSSMediaRule", "CSSSupportsRule", "CSSLayerBlockRule", "CSSLayerStatementRule",
-    "CSSContainerRule", "CSSKeyframesRule", "CSSKeyframeRule", "CSSNestedDeclarations"]);
+  const TIPOS = new Set(["CSSStyleRule", "CSSMediaRule", "CSSSupportsRule", "CSSContainerRule", "CSSKeyframesRule",
+    "CSSKeyframeRule", "CSSNestedDeclarations"]);
   const PELIGROSO = /url\s*\(|(?<![\w-])src\s*\(|(?<![\w-])(?:-webkit-)?image(?:-set)?\s*\(|@import|expression\s*\(|javascript\s*:|-moz-binding|(?<![\w-])behavior\s*:/i;
   const AMBITO = /^html\.mi-tema(?![\w-])/;
   const partes = (lista) => {
@@ -122,6 +124,10 @@ _VERIFICAR = r"""(css) => {
     for (const regla of reglas) {
       const tipo = regla.constructor.name;
       if (!TIPOS.has(tipo)) { agregar(`regla ${tipo} no permitida`, regla); continue; }
+      if (tipo === "CSSKeyframesRule" && !/^mt-[\w-]+$/.test(regla.name)) {
+        agregar(`@keyframes sin el prefijo mt-: ${regla.name}`, regla);
+        continue;
+      }
       if (tipo === "CSSStyleRule") {
         const fuera = partes(regla.selectorText).filter((p) => (anidada ? !p.startsWith("&") : !AMBITO.test(p)));
         if (fuera.length) agregar(`selector fuera de html.mi-tema: ${fuera.join(", ")}`, regla);

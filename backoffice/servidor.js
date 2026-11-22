@@ -1,10 +1,10 @@
-// Backoffice: visor de solo lectura de las corridas del evaluador (.specs/backoffice-v0.md).
+// Backoffice: visor de solo lectura de las corridas del Visitante (.specs/backoffice-v0.md).
 // Sirve la página de public/ y una API que lee las corridas a través de una fuente (lib/fuente.js;
 // por defecto, la carpeta agents/.runs/). No gatilla nada ni llama a Claude.
 //
 //   GET /api/tandas                       → { carpeta, tandas: resumen de cada tanda, de la más nueva a la más vieja }
-//   GET /api/tandas/<tarea>/<fecha-hora>  → la tanda completa, ya derivada para las pantallas
-//   GET /archivos/<tarea>/<fecha-hora>/<perfil>/<step_NN.png | video.webm>
+//   GET /api/tandas/<host>/visitor/<objetivo>/<corrida>  → la tanda completa, ya derivada para las pantallas
+//   GET /archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<step_NN.png | video.webm>
 //   GET /<ruta>.{html,js,css,svg,woff2}   → archivos de public/
 //
 // Solo responde a pedidos dirigidos a este computador (Host localhost, 127.0.0.1 o [::1] con el puerto del

@@ -23,8 +23,8 @@ import { consultaDe, normalizarUrl, rutaSinConsulta } from "../lib/url.js";
 
 // Tandas sintéticas con la forma de agents/.runs/; sus route_tree.json los armó build_route_tree del evaluador.
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
-const VIEJA = "tarea-demo/2026-11-21_10-00-00";
-const NUEVA = "tarea-demo/2026-11-21_11-00-00";
+const VIEJA = "demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
+const NUEVA = "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z";
 
 test("normalizarUrl coincide con normalize_url del evaluador", () => {
   assert.equal(normalizarUrl("https://www.Ejemplo.test/planes/?utm_source=x&b=2&a=1#seccion"), "https://ejemplo.test/planes?a=1&b=2");
@@ -307,7 +307,7 @@ test("vecinas: la tanda anterior, la siguiente y las de la misma tarea", async (
   assert.deepEqual(nueva.vecinas, {
     anterior: VIEJA,
     siguiente: null,
-    mismaTarea: [{ id: VIEJA, fecha: "2026-11-21_10-00-00" }],
+    mismaTarea: [{ id: VIEJA, fecha: "2026-11-21T10-00-00Z" }],
   });
   const vieja = await leerTanda(RAIZ, VIEJA);
   assert.deepEqual([vieja.vecinas.anterior, vieja.vecinas.siguiente], [null, NUEVA]);
@@ -316,7 +316,7 @@ test("vecinas: la tanda anterior, la siguiente y las de la misma tarea", async (
 
 test("un id que no es una tanda no se lee", async () => {
   assert.equal(await leerTanda(RAIZ, "../corridas"), null);
-  assert.equal(await leerTanda(RAIZ, "tarea-demo"), null);
+  assert.equal(await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo"), null);
   assert.equal(await leerTanda(RAIZ, `${VIEJA}/first_time`), null);
 });
 
@@ -403,10 +403,10 @@ test("una tanda que no se puede derivar se omite de la lista, sin tumbar las dem
   const buena = tandaViejaCruda();
   const fuente = {
     descripcion: "memoria",
-    listarIds: async () => ["tarea-demo/2026-11-21_10-00-00", "rota/2026-11-21_12-00-00"],
-    listarPerfiles: async (id) => (id.startsWith("rota") ? [] : ["first_time", "hurried", "mobile"]),
+    listarIds: async () => ["demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z", "demo.cl/visitor/rota/2026-11-21T12-00-00Z"],
+    listarPerfiles: async (id) => (id.includes("/rota/") ? [] : ["first_time", "hurried", "mobile"]),
     leerJson: async (id, relativa) => {
-      if (id.startsWith("rota")) return relativa === "route_tree.json" ? { nodes: 5 } : null;
+      if (id.includes("/rota/")) return relativa === "route_tree.json" ? { nodes: 5 } : null;
       if (relativa === "route_tree.json") return buena.arbol;
       if (relativa === "criteria.json") return buena.criterio;
       return buena.intentos.find((i) => relativa === `${i.perfil}/run.json`)?.run ?? null;
@@ -416,7 +416,7 @@ test("una tanda que no se puede derivar se omite de la lista, sin tumbar las dem
   };
   const errores = t.mock.method(console, "error", () => {});
   const { tandas } = await listarTandas(fuente);
-  assert.deepEqual(tandas.map((tanda) => tanda.id), ["tarea-demo/2026-11-21_10-00-00"]);
+  assert.deepEqual(tandas.map((tanda) => tanda.id), ["demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z"]);
   assert.equal(errores.mock.callCount(), 1);
 });
 

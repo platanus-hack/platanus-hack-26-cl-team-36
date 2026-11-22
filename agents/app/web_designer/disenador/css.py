@@ -14,8 +14,11 @@ Saneamiento (se revisa cada texto que se vuelve a escribir: selectores, declarac
   una cadena rota o sin cerrar, una llave o un comentario fuera de una cadena, o paréntesis o corchetes sin cerrar.
   Una declaración así se descarta sola; una regla cuyo selector la tenga, entera.
 - Una cadena de más de `MAX_CADENA` caracteres (el texto de `content:`) también se descarta.
-- Solo se aceptan las at-reglas `@media`, `@supports`, `@layer`, `@container` y `@keyframes`; las demás
-  (`@font-face`, `@import`, `@namespace`, `@page`, `@property`, `@scope`...) se descartan enteras.
+- Solo se aceptan las at-reglas `@media`, `@supports`, `@container` y `@keyframes`; las demás
+  (`@layer`, `@font-face`, `@import`, `@namespace`, `@page`, `@property`, `@scope`...) se descartan enteras.
+  `@layer` y el nombre de un `@keyframes` son globales: no dependen de `html.mi-tema` y seguirían actuando con el tema
+  apagado (un `@layer a, b;` reordena las capas del sitio; un `@keyframes fadeIn` pisa la animación del sitio con ese
+  nombre). Por eso `@layer` no se acepta y un `@keyframes` solo con nombre propio, `mt-*`.
 - Cada selector de primer nivel debe empezar por `html.mi-tema`. Si no, se antepone (`body` pasa a
   `html.mi-tema body`, `html`/`:root` a `html.mi-tema`) y se informa como violación. Una regla anidada debe empezar
   por `&` o no usarlo (`:not(&) b` saldría del ámbito y se descarta). No se reescribe nada más: `!important` se
@@ -28,8 +31,9 @@ import re
 from dataclasses import dataclass, field
 
 AGRUPADORAS = {"media", "supports", "layer", "container", "document", "scope", "starting-style"}
-PERMITIDAS = {"media", "supports", "layer", "container"}          # además de @keyframes
+PERMITIDAS = {"media", "supports", "container"}          # además de @keyframes
 KEYFRAMES = {"keyframes", "-webkit-keyframes"}
+_NOMBRE_KEYFRAMES = re.compile(r"^mt-[\w-]+$")
 MAX_CADENA = 200    # caracteres de una cadena (el texto de `content:`, o de una variable que lo lleve)
 
 # Marca que deja la lectura donde una cadena terminó en un salto de línea o en el final del texto. Nunca se escribe:
@@ -406,6 +410,10 @@ def _sanear_lista(items: list, rechazos: list[dict], fuera: list[dict], en_keyfr
             if motivo:
                 rechazos.append({"motivo": f"{motivo} en @{item.nombre}", "texto": _recortar(item.preludio)})
                 continue
+            if item.nombre in KEYFRAMES and not _NOMBRE_KEYFRAMES.match(item.preludio.strip()):
+                rechazos.append({"motivo": f"@{item.nombre} sin el prefijo mt-",
+                                 "texto": _recortar(f"@{item.nombre} {item.preludio}")})
+                continue
             hijos = _sanear_lista(item.hijos, rechazos, fuera, item.nombre in KEYFRAMES)
             if hijos:
                 limpios.append(AtBloque(item.nombre, item.preludio, hijos))
@@ -413,11 +421,9 @@ def _sanear_lista(items: list, rechazos: list[dict], fuera: list[dict], en_keyfr
             rechazos.append({"motivo": f"@{item.nombre} no permitida",
                              "texto": _recortar(f"@{item.nombre} {item.preludio}")})
         elif isinstance(item, AtSentencia):
+            # Ninguna sentencia se acepta (@import, @charset, @namespace, @layer a, b;...).
             motivo = "@import" if item.nombre == "import" else prohibido_en(item.texto)
-            if motivo or item.nombre != "layer" or en_keyframes:
-                rechazos.append({"motivo": motivo or f"@{item.nombre} no permitida", "texto": _recortar(item.texto)})
-            else:
-                limpios.append(item)
+            rechazos.append({"motivo": motivo or f"@{item.nombre} no permitida", "texto": _recortar(item.texto)})
         elif isinstance(item, Suelto) and item.texto:
             rechazos.append({"motivo": "texto fuera de una regla", "texto": _recortar(item.texto)})
     return limpios
