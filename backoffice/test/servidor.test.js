@@ -169,7 +169,7 @@ test("una captura se guarda en el navegador; un 404 y la API, no", async () => {
   assert.equal(captura.headers.get("cache-control"), "private, max-age=31536000, immutable");
   const parte = await pedir(`/archivos/${TANDA}/first_time/step_01.png`, { headers: { Range: "bytes=0-3" } });
   assert.equal(parte.headers.get("cache-control"), "private, max-age=31536000, immutable");
-  for (const ruta of [`/archivos/${TANDA}/first_time/step_99.png`, "/api/tandas", `/api/tandas/${TANDA}`, "/app.js"]) {
+  for (const ruta of [`/archivos/${TANDA}/first_time/step_99.png`, "/api/tandas", `/api/tandas/${TANDA}`]) {
     assert.equal((await pedir(ruta)).headers.get("cache-control"), "no-store", ruta);
   }
 });

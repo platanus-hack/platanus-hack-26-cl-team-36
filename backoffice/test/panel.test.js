@@ -2,7 +2,8 @@
 // por pasada, lo que se guarda y lo que nunca se lee.
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { crearPanel, memorizar } from "../lib/panel.js";
+import { memorizar } from "../lib/memoria.js";
+import { crearPanel } from "../lib/panel.js";
 import { crearRevisiones } from "../lib/revisiones.js";
 import { crearServidor } from "../servidor.js";
 import { almacenEnMemoria } from "./almacen-en-memoria.js";

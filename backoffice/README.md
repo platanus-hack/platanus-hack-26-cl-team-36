@@ -72,8 +72,17 @@ con cualquier `Host` y no lee nada.
 
 Las capturas y los videos (`archivos/`) pasan por el servidor, que los lee de S3. Como son de tandas que ya
 terminaron, salen con `Cache-Control: private, max-age=31536000, immutable`: el navegador no los vuelve a pedir al
-cambiar de paso o de intento. Lo demás (la API, la página) sale con `no-store`. Una tanda que ya apareció en la lista
+cambiar de paso o de intento. La API sale con `no-store`. Una tanda que ya apareció en la lista
 no se vuelve a listar para servir sus archivos, y una captura entera es un solo `GetObject`.
+
+La página pide sus módulos y hojas bajo `v/<versión>/` (un hash del contenido de `public/` que el servidor calcula al
+arrancar, [`lib/estaticos.js`](lib/estaticos.js)), con caché inmutable, igual que `vendor/<lib>@x.y.z/`: un
+despliegue nunca deja un módulo viejo guardado. Una página de antes del despliegue recibe el archivo actual con
+`no-store`, y si una pantalla no carga, se recarga una vez (`nucleo/recarga.js`). En local, `npm run dev` y
+`npm run mock` (`BACKOFFICE_DEV=1`) recalculan la versión al editar un archivo. `index.html` y lo demás de
+`public/` se revalidan con `ETag` (304). JS, CSS, JSON, SVG y HTML van con brotli o gzip (lo estático se comprime una
+vez, al arrancar); nunca un pedido con `Range` ni el SSE de `/api/vivo`. La página precarga (`modulepreload`) todo lo
+que importa `app.js` y, según la ruta, la pantalla que va a abrir y los datos de la tanda (`precarga.js`).
 
 ### La raíz es una portada
 
@@ -279,7 +288,9 @@ backoffice/
 │   │                      fuentes/corridas.js (el recorrido de las corridas de todos los agentes, común a las dos)
 │   ├── revisiones.js    ← lee la tabla de revisiones y deriva el avance por etapa y goal; aws.js carga el SDK
 │   ├── panel.js         ← arma /api/resumen y /api/overview: lee el almacén (indice.js) y la tabla, con caché de lo
-│   │                      cerrado y una sola lectura compartida por pedidos que llegan juntos
+│   │                      cerrado y una sola lectura compartida por pedidos que llegan juntos (memoria.js); el
+│   │                      refresco recibe la respuesta anterior mientras se arma la nueva
+│   ├── estaticos.js     ← public/ en memoria: ETag, brotli/gzip, la versión y la página con sus precargas
 │   ├── indice.js        ← el índice del almacén: corridas por rol y estado, intentos con resultado y dispositivo
 │   ├── overview.js      ← cifras del resumen, cuentas, pestañas y su paginado (puro)
 │   ├── tarjeta.js       ← una tarjeta: detenida, etapas, agentes, goals, motivo, capturas (puro)
@@ -292,6 +303,7 @@ backoffice/
 │   └── url.js           ← normalize_url de shared.nodes.urls, en JavaScript
 ├── public/
 │   ├── index.html, app.js   ← arranque: idioma, barra superior, atajos globales, enrutador
+│   ├── precarga.js      ← precarga la pantalla de la ruta (y los datos de una tanda) antes que el enrutador
 │   ├── marca/           ← el logo y el símbolo de la marca (copias de docs/marca)
 │   ├── nucleo/          ← enrutador por hash, barra superior, marco de la tanda, atajos, i18n, formatos, estados,
 │   │                      íconos, links.js (buscar por link: lo comparten la página y lib/overview.js)

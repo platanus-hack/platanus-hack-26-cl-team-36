@@ -22,6 +22,7 @@ import { conCarga, errorDePantalla, esqueleto, vacio } from "./estados.js";
 import { EVENTO_IDIOMA, IDIOMAS, cambiarIdioma, cargarSeccion, fmt, idioma, t } from "./i18n.js";
 import { registrarAtajos } from "./atajos.js";
 import { abrirHoja } from "./hoja.js";
+import { recargarUnaVez } from "./recarga.js";
 import { montarMarco } from "./marco-tanda.js";
 import { NOMBRES_DE_PESTANA, enlaceATanda, extraerIdioma, hashDe, origenDeHoja, parsearHash } from "./rutas.js";
 import { conTransicion } from "./transiciones.js";
@@ -36,9 +37,10 @@ function esqueletoDeVista(ruta) {
   return "lista";
 }
 
-// Corridas y la tanda trabajan sobre la lista de tandas y la esperan. El Overview y Revisiones traen sus propios
-// datos: no esperan /api/tandas (que con S3 tarda) y la usan si ya llegó; mientras, la lista se carga en segundo plano.
-const ESPERAN_LA_LISTA = new Set(["corridas", "tanda"]);
+// Corridas trabaja sobre la lista de tandas y la espera. Las demás traen sus propios datos (una tanda, sus vecinas):
+// no esperan /api/tandas (que con S3 tarda) y la usan si ya llegó; mientras, la lista se carga en segundo plano. Solo
+// el aviso de una tanda que no existe la espera, para sugerir otras de la misma tarea.
+const ESPERAN_LA_LISTA = new Set(["corridas"]);
 // Vistas cuyos parámetros cambian sin remontar (actualizarParametros → actualizar(ctx) de la pantalla).
 const CON_PARAMETROS = new Set(["overview", "corridas", "tanda", "revisiones"]);
 // Título de respaldo de una vista sin título propio.
@@ -93,6 +95,8 @@ function cargarPantalla(id) {
         return pantalla;
       })
       .catch((error) => {
+        // Lo más probable: un despliegue nuevo y esta página es de antes. Se recarga una vez por versión.
+        if (recargarUnaVez()) return new Promise(() => {});
         console.warn(`enrutador: la pantalla «${id}» no está lista; se muestra el aviso.`, error?.message ?? error);
         modulos.delete(id); // se reintenta en la próxima navegación (puede aparecer mientras corre el servidor)
         return pantallaPendiente(id);
@@ -511,6 +515,8 @@ async function procesar({ origen = "historial" } = {}) {
   fijarRuta(nueva, hash);
 
   if (nueva.tipo === "tanda" && !cargado.tanda) {
+    listaDeTandas = await pedirTandas().catch(() => listaDeTandas);
+    if (miTurno !== turno) return;
     await conTransicion(() => vistaDeEstado(noExisteLaTanda(nueva.tandaId)), { direccion: direccionEntre(anterior, nueva) });
     document.title = [t("comun.estado.tandaNoExiste", { id: nueva.tandaId }), t("comun.marca.titulo")].join(" · ");
     enfocarDespues({ clave: null, completa: true });
