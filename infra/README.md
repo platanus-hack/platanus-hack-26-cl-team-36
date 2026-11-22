@@ -1,8 +1,8 @@
 # Infraestructura en AWS
 
 La API (`backend/`) corre en AWS como una Lambda, en https://api.chameleonmode.app (API Gateway) y en su URL pública
-de Lambda. Terraform la crea y la actualiza desde GitHub Actions, en el repo personal
-[brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36).
+de Lambda. Terraform la crea y la actualiza desde GitHub Actions, en el repo personal y privado
+`brayanmoreno/hackathon-grupo36`.
 El backoffice (`backoffice/`) corre en ECS Fargate, en https://chameleonmode.app/backoffice/, y también lo crea Terraform
 (ver [El backoffice en chameleonmode.app](#el-backoffice-en-chameleonmodeapp)).
 Los agentes (`agents/`) corren en AgentCore Runtime, en un solo runtime, `chameleon`; lo despliega la CLI de

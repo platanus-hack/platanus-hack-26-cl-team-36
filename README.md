@@ -52,6 +52,22 @@ a los agentes trabajando mientras avanzan.
 Más detalle en [docs/](docs/index.md): [arquitectura](docs/arquitectura.md),
 [objetivos y métricas](docs/objetivos-y-metricas.md) y [glosario](docs/glosario.md).
 
+## Probarlo
+
+No hace falta clonar nada:
+
+1. Instala la extensión desde [chameleonmode.app](https://chameleonmode.app/#download). Todavía no está en las
+   tiendas: la de Firefox (140 o superior) viene firmada por Mozilla y se instala desde el botón; la de Chrome (148 o
+   superior) es un `.zip` que se carga en `chrome://extensions` con el modo desarrollador.
+2. Entra a una de las páginas de la demo, las que siembra `just aws seed`: las 8 de
+   [`agents/tasks/demo.json`](agents/tasks/demo.json) (metro.cl, sii.cl, wom.cl, dt.gob.cl y otras). El tema es de
+   esa página: las demás del mismo sitio quedan tal cual.
+3. El ícono de la extensión abre un interruptor que prende y apaga el tema; apagado, la página queda como la dejó el
+   sitio.
+
+El [backoffice](https://chameleonmode.app/backoffice/) muestra cada revisión: los objetivos que encontró, el recorrido
+de cada usuario sintético y el tema que quedó.
+
 ## Desarrollo local
 
 Requisitos: [`just`](https://github.com/casey/just) (`brew install just`), Node.js 22 o más reciente con npm,
@@ -80,9 +96,8 @@ Cada pull request a `main` corre las mismas pruebas en GitHub Actions ([`pruebas
 `npm run check` y `pytest` en cada proyecto de Python bajo `agents/` que tenga `tests/`, sin llamar a Claude ni a AWS.
 El check **Todas las pruebas** tiene que pasar para mergear.
 
-Los despliegues y las versiones de la extensión corren como GitHub Actions en el repo personal
-[brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36), una copia de `main` de este
-(ver [infra/README.md](infra/README.md)). Necesitan [`gh`](https://cli.github.com) con la sesión iniciada:
+Los despliegues y las versiones de la extensión corren como GitHub Actions en un repo personal y privado,
+`brayanmoreno/hackathon-grupo36`, una copia de `main` de este (ver [infra/README.md](infra/README.md)). Necesitan [`gh`](https://cli.github.com) con la sesión iniciada:
 
 ```bash
 just sync                             # copies main to the personal repo now and follows the deploy, if any
