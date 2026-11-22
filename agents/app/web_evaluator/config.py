@@ -54,6 +54,6 @@ BEDROCK_MODEL_PREFIX = "us.anthropic."
 # (ver actions.LEGACY_COMPUTER_MODELS). Sonnet 4.6 no acepta el esfuerzo `xhigh`.
 BEDROCK_USER_MODEL = "claude-sonnet-4-6"
 BEDROCK_JUDGE_MODEL = "claude-sonnet-4-6"
-AGENTCORE_RUNTIME_NAME = "web_evaluator"
+AGENTCORE_RUNTIME_NAME = "web_evaluator_image"   # en infra/agentcore/agentcore.json
 AGENTCORE_BROWSER_VIEWPORT = {"width": 1280, "height": 800}   # la ventana; cada perfil fija su propia vista
 AGENTCORE_BROWSER_TIMEOUT_SECONDS = 1800

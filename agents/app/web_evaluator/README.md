@@ -94,9 +94,14 @@ uv run main.py --task metro-tarifa-sabado \
 
 El mismo evaluador corre en [AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/), con Claude en Amazon
 Bedrock y AgentCore Browser, y gasta de la cuenta de AWS del proyecto en vez de tu plan. La
-[CLI de AgentCore](https://github.com/aws/agentcore-cli) empaqueta esta carpeta para arm64 y la despliega; su
-configuración está en [`infra/agentcore/`](../../../infra/README.md#carpetas), junto al resto de la infraestructura. La
-entrada en AWS es `agentcore_app.py`; `main.py` sigue siendo el comando local.
+[CLI de AgentCore](https://github.com/aws/agentcore-cli) construye una imagen con esta carpeta, según el `Dockerfile`,
+y la despliega; su configuración está en [`infra/agentcore/`](../../../infra/README.md#carpetas), junto al resto de la
+infraestructura. La entrada en AWS es `agentcore_app.py`; `main.py` sigue siendo el comando local.
+
+La imagen hace falta porque el driver de Playwright es un binario de Node que necesita `libatomic`, y la imagen que
+AgentCore usa para el código en zip no la trae: sin ella, cada tanda termina a los 2 s con *Connection closed while
+reading from the driver*. La imagen no instala Chromium, porque en AWS el navegador es AgentCore Browser. La construye
+CodeBuild en arm64 al desplegar; para revisarla en local: `docker build --platform linux/arm64 .`.
 
 En AWS se usa solo Claude Sonnet 4.6, tanto para los usuarios sintéticos como para el juez (`BEDROCK_USER_MODEL` y
 `BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. La cuenta del proyecto no tiene acceso en Bedrock a
@@ -120,7 +125,8 @@ just aws deploy                            # 2. despliega (al mergear a main lo 
 just aws explore wom-baja-fibra            # 3. la tanda corre en AgentCore; el reporte queda en agents/.runs/aws/
 ```
 
-`just aws status` muestra lo desplegado y `just aws logs` los logs del runtime. La respuesta llega en stream: un
+`just aws status` muestra lo desplegado y `just aws logs` los logs del runtime (`--follow` para seguirlos). Los tres
+buscan el runtime en la cuenta, así que funcionan aunque lo haya desplegado el CI. La respuesta llega en stream: un
 aviso cada 20 s y, al final, el resultado de cada perfil y `report.md`. Las capturas de cada paso quedan en AWS y
 se pierden al cerrar la sesión.
 

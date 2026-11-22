@@ -2,7 +2,7 @@
 name = "web_evaluator"
 version = "0.1.0"
 description = "Usuarios sintéticos que intentan una tarea en un sitio web y unen sus recorridos en un árbol de rutas."
-requires-python = ">=3.12,<3.13"   # el runtime de AgentCore usa la misma versión (agentcore.json)
+requires-python = ">=3.12,<3.13"   # la imagen de AgentCore usa la misma versión (Dockerfile)
 dependencies = [
     "anthropic[bedrock]>=2.12",
     "playwright>=1.48",

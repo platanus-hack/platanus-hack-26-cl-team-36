@@ -1,0 +1,7 @@
+# Lo que no entra a la imagen de AgentCore (ver Dockerfile).
+.venv
+.env*
+__pycache__
+.pytest_cache
+.DS_Store
+tests
