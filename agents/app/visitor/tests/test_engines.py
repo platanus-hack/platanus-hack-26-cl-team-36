@@ -66,8 +66,6 @@ def test_api_engine_marks_only_the_last_block_for_caching(tmp_path):
     assert all("cache_control" not in block for block in engine.messages[0]["content"])  # el historial queda igual
 
 
-
-
 def test_api_engine_uses_the_legacy_computer_tool_on_bedrock(tmp_path):
     """El modelo de AWS (anterior a Opus 4.7) no acepta el toolset: va la herramienta `computer`, con beta."""
     import asyncio
@@ -95,8 +93,6 @@ def test_api_engine_uses_the_legacy_computer_tool_on_bedrock(tmp_path):
     asyncio.run(engine.respond([ActionResult(action, "OK")], _png_header(390, 844)))
     [result] = engine.messages[-1]["content"]
     assert result["tool_use_id"] == "t1" and "toolset_name" not in result
-
-
 
 
 def test_api_engine_sends_errors_as_text_and_the_screenshot_apart(tmp_path):
