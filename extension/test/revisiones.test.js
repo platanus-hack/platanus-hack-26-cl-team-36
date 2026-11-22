@@ -1,6 +1,7 @@
 // Tests de las revisiones (src/background/revisiones.js + pedirRevision/consultarRevision de api.js) con fetch simulado.
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { consultarRevision, pedirRevision } from "../src/background/api.js";
 import { API_URL_AWS } from "../src/background/config.js";
 import { leerRevision, resolverRevision, urlDePagina } from "../src/background/revisiones.js";
@@ -92,4 +93,42 @@ test("leerRevision rechaza ids de revisión que no cumplen el formato", () => {
   for (const revision of ["../x", "ABC", "a--b", "x".repeat(41), 7]) {
     assert.deepEqual(leerRevision({ success: true, revision, status: "queued" }), { estado: "fin" });
   }
+});
+
+const METRO = JSON.parse(readFileSync(new URL("fixtures/metro/tema.json", import.meta.url), "utf8"));
+
+test("leerRevision acepta el tema.json (un objeto) junto al css; si no es un objeto, lo ignora", () => {
+  const tema = { features: { vista: [] } };
+  assert.deepEqual(leerRevision({ success: true, revision: "r1", status: "done", css: CSS, tema }), {
+    estado: "listo",
+    revision: "r1",
+    css: CSS,
+    tema,
+  });
+  for (const raro of [null, "x", [1]]) {
+    assert.deepEqual(leerRevision({ success: true, revision: "r1", status: "done", css: CSS, tema: raro }), {
+      estado: "listo",
+      revision: "r1",
+      css: CSS,
+    });
+  }
+  assert.deepEqual(leerRevision({ success: true, revision: "r1", status: "done", tema }), { estado: "fin" });
+});
+
+test("revisión con tema: el tema llega al motor con sus features saneadas", async () => {
+  const fuera = { id: "fuera", contenedor: "a", componente: "lanzador", datos: [{ titulo: "x", enlace: "//evil.com" }] };
+  const tema = { features: { ...METRO.features, vista: [...METRO.features.vista, fuera] } };
+  simularFetch(Response.json({ success: true, revision: "r1", status: "done", css: CSS, tema }));
+  const avisos = [];
+  const log = { ...silencioso, warn: (...args) => avisos.push(args) };
+  const listo = await resolverRevision(PAGINA, { consultar: consultarRevision, log });
+  assert.equal(listo.estado, "listo");
+  assert.deepEqual(listo.tema.features, METRO.features);
+  assert.equal(avisos.length, 1);
+  assert.match(avisos[0][1][0], /^vista "fuera"/);
+});
+
+test("revisión con tema pero sin CSS aplicable: sin tema", async () => {
+  simularFetch(Response.json({ success: true, revision: "r1", status: "done", css: "", tema: METRO }));
+  assert.deepEqual(await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso }), { estado: "fin" });
 });

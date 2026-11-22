@@ -38,7 +38,8 @@ function revisiones() {
 // GET  /revisiones?url=<url>
 //   202 { success: true, revision, status: "queued" }       → página nueva o anterior failed/abandonada (>1 h), disparada
 //   429 { success: false, error: "..." }                    → POST con REVISIONES_EN_CURSO_MAX (5) revisiones en curso
-//   200 { success: true, revision, status, css? }           → ya vista; css cuando status es "done"
+//   200 { success: true, revision, status, css?, tema? }    → ya vista; css cuando status es "done", y tema (el
+//                                                             tema.json del improver, hasta 64 KB) si lo dejó
 //   404 { success: false }                                  → GET de una página no vista
 //   400 { success: false, error: "..." }                    → request inválida
 async function atenderRevisiones(req, res, consulta) {

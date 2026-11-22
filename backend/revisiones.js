@@ -14,6 +14,8 @@ const NO_EXISTE = { estado: 404, datos: { success: false } };
 const EN_CURSO = ["queued", "running"];
 // Solo lo que escribe el improver en el almacén (ver proyectora.js).
 const CSS = /^[a-z0-9.:-]+\/improver\/[^/]+\/tema\.css$/;
+const TEMA = /^[a-z0-9.:-]+\/improver\/[^/]+\/tema\.json$/;
+export const MAX_BYTES_TEMA = 64 * 1024;
 
 // Una revisión queued/running sin novedades en este rato (un runtime caído la deja así) no cuenta para el tope y
 // un POST la reemplaza.
@@ -35,8 +37,30 @@ export function crearRevisiones({
 
   async function responder({ revision, meta }) {
     const datos = { success: true, revision, status: meta.status ?? "queued" };
-    if (datos.status === "done" && CSS.test(meta.css_key ?? "")) datos.css = await almacen.leerTexto(meta.css_key);
+    if (datos.status === "done" && CSS.test(meta.css_key ?? "")) {
+      datos.css = await almacen.leerTexto(meta.css_key);
+      if (TEMA.test(meta.tema_key ?? "")) {
+        const tema = await leerTema(meta.tema_key);
+        if (tema) datos.tema = tema;
+      }
+    }
     return { estado: 200, datos };
+  }
+
+  // El tema.json es opcional: si no se puede usar, la revisión se entrega solo con su CSS.
+  async function leerTema(clave) {
+    try {
+      const { bytes } = await almacen.cabecera(clave);
+      if (bytes > MAX_BYTES_TEMA) throw new Error(`pesa ${bytes} bytes, más de ${MAX_BYTES_TEMA}`);
+      const texto = await almacen.leerTexto(clave);
+      if (Buffer.byteLength(texto) > MAX_BYTES_TEMA) throw new Error(`pesa más de ${MAX_BYTES_TEMA} bytes`);
+      const tema = JSON.parse(texto);
+      if (!tema || typeof tema !== "object" || Array.isArray(tema)) throw new Error("no es un objeto");
+      return tema;
+    } catch (error) {
+      console.warn(`✖ ${clave}: se omite el tema (${error.message})`);
+      return null;
+    }
   }
 
   async function consultar(texto) {
