@@ -19,7 +19,7 @@ variable "runtime_agentes" {
 variable "goals_max" {
   description = "Goals por revisión que la proyectora espera del catálogo; el mismo default que el conductor."
   type        = number
-  default     = 3
+  default     = 6
 }
 
 variable "revisiones_en_curso_max" {

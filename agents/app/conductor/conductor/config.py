@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-GOALS_MAX = 3
+GOALS_MAX = 6
 RUNS = 1
 CONCURRENCY = 3
 
