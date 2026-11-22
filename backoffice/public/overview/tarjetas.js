@@ -90,6 +90,22 @@ export function tandaDeTarjeta(tarjeta) {
   return tandaValida(tarjeta?.capturas?.desktop?.tanda) ?? tandaValida(tarjeta?.capturas?.mobile?.tanda);
 }
 
+/** Estados de tarjeta con agentes corriendo (o detenidos a medio camino): sus goals sin tanda se ven en vivo. */
+const EN_CURSO = new Set(["running", "stalled"]);
+export const estaEnCurso = (tarjeta) => EN_CURSO.has(estadoDeTarjeta(tarjeta?.estado));
+
+/**
+ * El goal que abre la tarjeta en vivo (#/revisiones/<revision>/<goal>), o null: en una revisión en curso, el primero
+ * sin tanda que tiene intentos corriendo o, si ninguno, el primero sin tanda. Gana a la tanda de la captura (es de
+ * otra revisión) y a la de un goal que ya terminó (su fila enlaza a ella).
+ */
+export function goalEnVivoDeTarjeta(tarjeta) {
+  if (!estaEnCurso(tarjeta)) return null;
+  const sinTanda = (tarjeta?.goals ?? []).filter((goal) => goal?.goal && !tandaDeGoal(goal));
+  const corriendo = sinTanda.find((goal) => (goal.intentos ?? []).some((intento) => intento?.estado === "en_curso"));
+  return (corriendo ?? sinTanda[0])?.goal ?? null;
+}
+
 /**
  * Medidor de un goal con el filtro: { goal, instruccion, tanda, tramos, texto, tono, logrados, medidos }.
  *  - tramos: un tramo por intento visible, ordenados; "espera" si el goal todavía no tiene intentos.
@@ -117,6 +133,9 @@ export function medidoresDeTarjeta(tarjeta, dispositivo = "all", maximo = MAX_GO
   const goals = tarjeta?.goals ?? [];
   return { visibles: goals.slice(0, maximo).map((goal) => medidorDeGoal(goal, dispositivo)), mas: Math.max(0, goals.length - maximo) };
 }
+
+/** Marca `vivo` en los medidores sin tanda de una revisión en curso: su fila lleva al goal en vivo. */
+const conVivo = ({ visibles, mas }, enCurso) => ({ visibles: visibles.map((medidor) => ({ ...medidor, vivo: enCurso && !medidor.tanda && !!medidor.goal })), mas });
 
 /**
  * Las 4 etapas (Catalog, Routes, Visits, Theme) con su estado y la línea que las une a la anterior: "fuerte" si la
@@ -180,10 +199,11 @@ export function modeloDeTarjeta(tarjeta, { dispositivo = "all", ahora = null } =
     estado,
     tanda: tandaDeTarjeta(tarjeta),
     falla: abreLaFalla(tarjeta),
+    vivo: goalEnVivoDeTarjeta(tarjeta),
     capturas: { desktop: captura(tarjeta?.capturas?.desktop), mobile: captura(tarjeta?.capturas?.mobile) },
     cuadritos: cuadritosDeTarjeta(tarjeta, dispositivo),
     etapas: etapasDeTarjeta(tarjeta),
-    medidores: medidoresDeTarjeta(tarjeta, dispositivo),
+    medidores: conVivo(medidoresDeTarjeta(tarjeta, dispositivo), estaEnCurso(tarjeta)),
     aviso: avisoDeTarjeta({ ...tarjeta, estado }, ahora),
     tiempo: tiempoDeTarjeta({ ...tarjeta, estado }, ahora),
     acento: estado === "delivered" && esHex(tarjeta?.acento) ? tarjeta.acento.toLowerCase() : null,

@@ -152,8 +152,10 @@ muestra páginas de 6 tarjetas, paginadas en el servidor (`/api/overview?pestana
 (el rango que se ve y `‹ 1 … 4 5 6 … 11 ›`). Mientras
 llega otra página, la grilla muestra tarjetas esqueleto. Si la página pedida ya no existe, el servidor da la última y la
 URL se corrige. Otra pestaña empieza en su página 1, que ya llegó con la primera respuesta. Una tarjeta lleva directo
-a Path map / Replay: la telaraña de su primer goal con tanda terminada (cada goal, a la suya); si la revisión todavía
-no tiene una, la de la tanda de su captura (la más nueva del mismo host y ruta); solo si no hay ninguna, al avance de
+a Path map / Replay: si la revisión corre y le queda un goal sin tanda, la hoja en vivo de ese goal (la misma hoja, con
+Path map en vivo, Replay y Proposal apagadas hasta que terminen, y a la izquierda los goals de la revisión: el que
+corre late y uno con tanda abre su Path map); si no, la telaraña de su primer goal con tanda terminada (cada goal, a
+la suya; en una revisión en curso, los goals sin tanda llevan a su vivo); si no tiene una, la de la tanda de su captura (la más nueva del mismo host y ruta); solo si no hay ninguna, al avance de
 la revisión.
 Hay una tarjeta por página: la revisión vigente (la que apunta el ítem `URL#<url>` de la tabla), aunque esté en curso;
 las que reemplazó un `force` no cuentan y la tarjeta enlaza a ellas ("2 previous reviews").
@@ -167,7 +169,8 @@ medidor), los errores de la herramienta si los hay y cuándo corrió. Búsqueda,
 quedan en la URL.
 
 **Revisiones** (`#/revisiones`, con `?estado=live|done|failed` para filtrar) lista las revisiones vigentes y abre
-el avance de cada una por etapa y por goal; `?estado=historial` lista las reemplazadas. `npm run historial` (con
+el avance de cada una por etapa y por goal; «Watch live» abre la hoja en vivo del goal (`#/revisiones/<revision>/<goal>`).
+`?estado=historial` lista las reemplazadas. `npm run historial` (con
 `AWS_PROFILE`) imprime esas mismas en la terminal, las que se podrían archivar: solo lee, no archiva ni borra.
 
 Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene una cabecera mínima, común a sus pestañas:

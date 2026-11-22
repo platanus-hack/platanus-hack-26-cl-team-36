@@ -17,6 +17,10 @@ export default {
     sinTanda: "El goal terminó sin tanda del Visitante.",
     verTanda: "Ver la tanda",
   },
+  riel: {
+    titulo: "Goals",
+    fase: { ruta: "Ruta", visita: "En vivo", tanda: "Listo", fallido: "Falló", espera: "En cola" },
+  },
   sinConexion: "Se cortó la transmisión en vivo.",
   noExiste: "No existe el goal «{goal}» en la revisión «{revision}».",
   volver: "Volver a la revisión",
