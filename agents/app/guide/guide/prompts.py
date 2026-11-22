@@ -18,7 +18,7 @@ DECISION_SCHEMA = {
         "answer": {"type": "string", "description": "Con done: la respuesta a la tarea."},
         "quote": {"type": "string", "description": "Con done: frase copiada tal cual del texto de la página que respalda la respuesta."},
     },
-    "required": ["reason", "action"],
+    "required": ["action"],   # Haiku a veces omite "reason"; sin ella la decisión igual sirve
     "additionalProperties": False,
 }
 
@@ -28,6 +28,9 @@ class HistoryEntry:
     reason: str
     action: str
     outcome: str
+
+    def __str__(self) -> str:
+        return f"{self.action} — {self.outcome}" + (f" (razón: {self.reason})" if self.reason else "")
 
 
 def system_prompt(width: int, height: int) -> str:
@@ -116,7 +119,7 @@ def _text_window(view: PageView) -> str:
 
 
 def render_turn(instruction: str, history: list[HistoryEntry], view: PageView) -> str:
-    past = [f"{number}. {entry.action} — {entry.outcome} (razón: {entry.reason})" for number, entry in enumerate(history, 1)]
+    past = [f"{number}. {entry}" for number, entry in enumerate(history, 1)]
     return "\n".join([
         f"TAREA: {instruction}",
         "",

@@ -42,7 +42,8 @@ class ClaudeDecider:
 
     async def decide(self, text: str, screenshot: bytes) -> Decision:
         output = await self.caller.ask(self.system_prompt, DECISION_SCHEMA, text, screenshot)
-        return Decision(**{key: output.get(key) for key in Decision.__dataclass_fields__})
+        fields = {key: output.get(key) for key in Decision.__dataclass_fields__}
+        return Decision(**{**fields, "reason": fields["reason"] or ""})
 
 
 def scripted_decision(system_prompt: str, schema: dict, parts: list) -> dict:

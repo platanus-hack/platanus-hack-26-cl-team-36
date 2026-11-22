@@ -55,6 +55,19 @@ async def _execute(session: BrowserSession, action: str, value: str | None, hand
         raise ActionRejected(f"La acción '{action}' no existe.")
 
 
+def _browser_error(error: PlaywrightError) -> str:
+    """Un clic que agota el tiempo suele ser un elemento tapado o dentro de un menú cerrado: se le dice al modelo."""
+    lines = error.message.splitlines()
+    message = f"El navegador no pudo hacer la acción: {lines[0]}"
+    if "Timeout" not in lines[0]:
+        return message
+    cause = next((line.strip(" -") for line in reversed(lines) if "intercepts pointer events" in line), None)
+    if cause:
+        message += f" ({cause[:200]})"
+    return (message + " Puede estar tapado por otro elemento o dentro de un menú o panel cerrado: abre primero ese"
+            " menú o panel, o usa otro enlace que lleve al mismo lugar.")
+
+
 async def _display_state(handle: ElementHandle, reappear_s: float) -> tuple[bool, bool]:
     """Como `display_state`, esperando hasta `reappear_s` a que se vuelva a mostrar (un carrusel que rota)."""
     deadline = time.monotonic() + reappear_s
@@ -106,7 +119,7 @@ async def perform_step(
         except InvalidKeyError as error:
             raise ActionRejected(str(error))
         except PlaywrightError as error:
-            raise ActionRejected(f"El navegador no pudo hacer la acción: {error.message.splitlines()[0]}")
+            raise ActionRejected(_browser_error(error))
         await _settle(session, navigations)
     finally:
         page.remove_listener("request", on_request)
