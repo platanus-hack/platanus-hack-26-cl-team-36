@@ -10,8 +10,10 @@ import pytest
 
 from shared import store
 from shared.catalog.goal import Goal, instruction_goal_id
+from shared.claude.fake import FakeCaller
 
 from guide import config, reference, route_command
+from guide.replay import Replay, Verification
 import main
 from main import build_parser
 from tests.conftest import ScriptedDecider
@@ -241,11 +243,44 @@ def test_the_trace_is_in_the_store_after_each_step_and_ends_as_the_route(served,
                      "step_03.png", "trace.json"]
 
 
-def test_a_failed_route_leaves_a_failed_trace(served, backend, scripted):
-    _catalog(backend, served, "rev-a", [_goal("baja", served, "Encuentra cómo dar de baja")])
-    scripted["script"] = [("click", "Productos", {}), ("give_up", None, {"text": "No está."})]
+def _failed_route(backend, served):
     with pytest.raises(SystemExit):
         _route("--url", served, "--revision", "rev-a", "--goal", "baja")
     [run] = _guide_runs(backend, served, "baja")
-    trace = backend.read_json(run.file("trace.json"))
-    assert (trace["status"], trace["steps"]) == ("failed", backend.read_json(run.file("route.json"))["steps"])
+    return run, backend.read_json(run.file("route.json")), backend.read_json(run.file("trace.json"))
+
+
+def test_a_failed_route_leaves_a_failed_trace_with_what_was_explored(served, backend, scripted):
+    _catalog(backend, served, "rev-a", [_goal("baja", served, "Encuentra cómo dar de baja")])
+    scripted["script"] = [("click", "Productos", {}), ("give_up", None, {"text": "No está."})]
+    run, route, trace = _failed_route(backend, served)
+    assert (route["status"], route["steps"]) == ("not_found", [])
+    assert trace["status"] == "failed" and trace["start"]["screenshot"] == "step_00.png"
+    assert [(step["label"], step["screenshot"]) for step in trace["steps"]] == [("click «Productos»", "step_01.png")]
+    assert backend.exists(run.file("step_00.png")) and backend.exists(run.file("step_01.png"))
+
+
+def test_an_unverified_route_keeps_the_exploration_captures_it_would_overwrite(served, backend, scripted, monkeypatch):
+    _catalog(backend, served, "rev-a", [_goal("baja", served, "Encuentra cómo dar de baja")])
+    scripted["script"] = [("click", "Productos", {}), ("click", "Volver al inicio", {}), *ROUTE]
+
+    async def unverified(browser, screen, url, candidate, final_node, quote, log):
+        return Verification(False, candidate[2:], Replay(), 1, 0, "la cita no está en la página final")
+
+    monkeypatch.setattr(reference, "verify_and_minimise", unverified)
+    run, route, trace = _failed_route(backend, served)
+    assert route["status"] == "unverified" and len(route["steps"]) == 3
+    assert trace["status"] == "failed"
+    assert [step["label"] for step in trace["steps"]][:2] == ["click «Productos»", "click «Volver al inicio»"]
+    assert [step["screenshot"] for step in trace["steps"]] == [
+        "explore_01.png", "explore_02.png", "explore_03.png", "step_04.png", "step_05.png"]
+    assert backend.read_bytes(run.file("explore_01.png")) != backend.read_bytes(run.file("step_01.png"))
+
+
+def test_a_decision_without_reason_does_not_end_the_exploration(served, backend, monkeypatch):
+    _catalog(backend, served, "rev-a", [_goal("baja", served, "Encuentra cómo dar de baja")])
+    caller = FakeCaller("m", "e", script=[{"action": "scroll", "text": "down"}, {"action": "give_up", "text": "No está."}])
+    monkeypatch.setattr(reference, "make_caller", lambda *args, **kwargs: caller)
+    run, route, trace = _failed_route(backend, served)
+    assert route["exploration"]["end_reason"] == "gave_up" and len(caller.calls) == 2
+    assert [step["label"] for step in trace["steps"]] == ["scroll «down»"]

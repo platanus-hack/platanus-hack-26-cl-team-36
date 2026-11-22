@@ -18,7 +18,7 @@ DECISION_SCHEMA = {
         "answer": {"type": "string", "description": "Con done: la respuesta a la tarea."},
         "quote": {"type": "string", "description": "Con done: frase copiada tal cual del texto de la página que respalda la respuesta."},
     },
-    "required": ["reason", "action"],
+    "required": ["action"],   # Haiku a veces omite "reason"; sin ella la decisión igual sirve
     "additionalProperties": False,
 }
 
