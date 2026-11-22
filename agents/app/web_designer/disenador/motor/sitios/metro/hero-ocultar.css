@@ -1,0 +1,4 @@
+/* metro.cl, hero «ocultar»: el video de la portada se va; el atajo ocupa su lugar. */
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) body > :has(> #home) > :has(#video-home) {
+  display: none !important;
+}

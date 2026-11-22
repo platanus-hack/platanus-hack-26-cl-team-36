@@ -1,0 +1,40 @@
+{
+  "id": "metro",
+  "url": "https://www.metro.cl/",
+  "rasgos": {
+    "institucional": 1,
+    "comercio": 0,
+    "categorias_color": 1,
+    "video_hero": 1,
+    "tarea_formulario": 1,
+    "contenido_denso": 0.6,
+    "esquema_original": "claro"
+  },
+  "marca": { "l": 0.53, "c": 0.215, "h": 27 },
+  "categorias": [
+    { "nombre": "Línea 1", "num": "1", "color": [0.56, 0.215, 27] },
+    { "nombre": "Línea 2", "num": "2", "color": [0.84, 0.165, 86] },
+    { "nombre": "Línea 3", "num": "3", "color": [0.5, 0.085, 52] },
+    { "nombre": "Línea 4", "num": "4", "color": [0.46, 0.17, 268] },
+    { "nombre": "Línea 4a", "num": "4A", "color": [0.7, 0.125, 232] },
+    { "nombre": "Línea 5", "num": "5", "color": [0.64, 0.15, 152] },
+    { "nombre": "Línea 6", "num": "6", "color": [0.52, 0.18, 322] }
+  ],
+  "lanzador_categorias": [0, 1, 2, 3, 5, 6],
+  "vistas": { "atajo": "planificar", "lanzador": "tareas" },
+  "campos_categoria": ["inicio", "fin"],
+  "zonas": {
+    "nav": "#menu .navbar > .container-fluid",
+    "nav_enlace": "#menu .nav-link:not(.rounded-pill)",
+    "panel": "#home .card.background-color-gris",
+    "panel_celda": "#home .card.background-color-gris .rounded-3",
+    "panel_filas": "#home .card.background-color-gris > .card-body > .row",
+    "titulos_seccion": ":is(#noticias, #destacados, #metroconecta) p.h1",
+    "tarjetas": ":is(#noticias, #metroconecta) .card",
+    "pie": "footer .caja-footer",
+    "hero_video": "body > div:has(> #home) > :has(#video-home)"
+  },
+  "disposiciones": ["apilado", "mosaico"],
+  "heroes": ["ocultar", "atmosfera"],
+  "ordenes": ["natural", "tareas-primero"]
+}

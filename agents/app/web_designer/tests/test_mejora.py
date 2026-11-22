@@ -13,7 +13,7 @@ from shared.nodes.urls import node_key
 
 from conftest import ClaudeGuion
 from disenador import config
-from disenador.mejora import TemaVacio, mejorar, peor_objetivo, resumir
+from disenador.mejora import TemaVacio, _visita, mejorar, peor_objetivo, resumir
 
 REV = "rev-1"
 
@@ -102,6 +102,14 @@ def test_resumen_de_lo_medido(tmp_path, url):
     assert peor_objetivo(sin_visitas)["id"] == "contacto"
 
 
+def test_el_mensaje_del_visitante_va_antes_que_la_justificacion():
+    intento = {"profile": "desktop", "steps": [], "final_message": "los campos están fuera del área visible",
+               "verdict": {"outcome": "abandoned", "justification": "Se detuvo sin llegar a la página final."}}
+    assert _visita(intento, {}, [])["por_que"] == "los campos están fuera del área visible"
+    del intento["final_message"]
+    assert _visita(intento, {}, [])["por_que"] == "Se detuvo sin llegar a la página final."
+
+
 def test_sin_corridas_de_la_revision(tmp_path, url):
     backend = store.LocalBackend(tmp_path / "almacen")
     _sembrar(backend, url)
@@ -119,7 +127,7 @@ def test_corrida_de_mejora_en_el_almacen(tmp_path, url):
     backend = store.LocalBackend(tmp_path / "almacen")
     _sembrar(backend, url)
     disenador = ClaudeGuion()
-    manifest = asyncio.run(mejorar(backend, url, REV, None, disenador, "guion"))
+    manifest = asyncio.run(mejorar(backend, url, REV, None, disenador, "guion", modo="libre"))
 
     assert manifest.status == "succeeded" and manifest.revision == REV and manifest.agent == "improver"
     assert store.revision_run(backend, store.improver(url), REV) == manifest.key
@@ -131,14 +139,15 @@ def test_corrida_de_mejora_en_el_almacen(tmp_path, url):
 
     texto, captura = disenador.llamadas[0]["partes"]
     assert "Encontrar la ayuda" in texto and config.GUSTOS_MEJORA in texto and '"se_desvio_en"' in texto
-    assert captura.startswith(b"\x89PNG")
+    assert captura.startswith(b"\x89PNG") and "viewport 1024x768" in texto
 
 
 def test_css_vacio_falla(tmp_path, url):
     backend = store.LocalBackend(tmp_path / "almacen")
     _sembrar(backend, url)
     with pytest.raises(TemaVacio):
-        asyncio.run(mejorar(backend, url, REV, None, ClaudeGuion(css="@import 'x.css'; @layer a, b;"), "guion"))
+        asyncio.run(mejorar(backend, url, REV, None, ClaudeGuion(css="@import 'x.css'; @layer a, b;"), "guion",
+                            modo="libre"))
     run = store.revision_run(backend, store.improver(url), REV)
     assert store.read_manifest(backend, run).status == "failed"
     assert not backend.exists(run.file("tema.css"))

@@ -5,6 +5,7 @@ Las métricas y sus fuentes están en docs/agents/niveles-de-tarea.md, sección 
 
 import math
 import statistics
+from urllib.parse import parse_qsl, urlsplit
 
 from shared import store
 from shared.catalog.routes import verified_route
@@ -51,6 +52,23 @@ def visited_nodes(run: dict) -> list[str]:
     return nodes
 
 
+def _page(node: str) -> tuple[str, str, frozenset[str]]:
+    parts = urlsplit(node.split(" | ", 1)[0])
+    return parts.netloc, parts.path, frozenset(key for key, _ in parse_qsl(parts.query, keep_blank_values=True))
+
+
+def reached(final_node: str, run: dict) -> bool:
+    """Si el intento pasó por la página final. Si su URL trae query (un formulario enviado, como el planificador con
+    `?inicio=..&fin=..`), basta el mismo pathname con las mismas claves en una página sin error HTTP: elegir otros
+    valores también es llegar, pero un 403 en esa URL no."""
+    if final_node in visited_nodes(run):
+        return True
+    final = _page(final_node)
+    return bool(final[2]) and any(
+        _page(node_key(step["url"], step["title"])) == final for step in run["steps"] if not step.get("error_detail")
+    )
+
+
 def _common_subsequence(a: list[str], b: list[str]) -> int:
     lengths = [0] * (len(b) + 1)
     for item in a:
@@ -83,7 +101,7 @@ def compare(run: dict, route: dict) -> dict:
         "lostness": round(math.sqrt((revisits - 1) ** 2 + (detour - 1) ** 2), 2),
         "revisits": round(revisits, 2),
         "detour": round(detour, 2),
-        "reached_final_node": route["final_node"] in nodes,
+        "reached_final_node": reached(route["final_node"], run),
         "similarity": round(_common_subsequence(nodes, route["nodes"]) / len(nodes), 2),
     }
 

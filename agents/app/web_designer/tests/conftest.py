@@ -3,7 +3,7 @@
 import pytest
 
 from disenador.juez import ESQUEMA_PAR, ESQUEMA_PUNTAJES
-from disenador.modelo import ESQUEMA_TEMA, Respuesta
+from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR, ESQUEMA_TEMA, Respuesta
 
 PAGINA = """<!doctype html><meta charset="utf-8"><title>Prueba</title>
 <style>
@@ -38,14 +38,20 @@ html.mi-tema .cta { background-image: url(https://ejemplo.invalid/x.png); }"""
 class ClaudeGuion:
     """Responde según el esquema pedido y guarda cada llamada."""
 
-    def __init__(self, css: str = CSS_GUION):
+    def __init__(self, css: str = CSS_GUION, componentes: list[dict] | None = None, eleccion: dict | None = None):
         self.css = css
+        self.componentes = componentes or []
+        self.eleccion = eleccion or {"direccion": "auto", "semilla": 7, "ajustes": {}}
         self.llamadas: list[dict] = []
 
     async def pedir(self, sistema, esquema, partes, log):
         self.llamadas.append({"sistema": sistema, "esquema": esquema, "partes": partes})
-        if esquema is ESQUEMA_TEMA:
+        if esquema is ESQUEMA_TEMA or esquema is ESQUEMA_KIT:
             datos = {"css": self.css, "resumen": "Tema oscuro de prueba.", "decisiones": ["oscuro", "letra 18 px"]}
+            if esquema is ESQUEMA_KIT:
+                datos["componentes"] = self.componentes
+        elif esquema is ESQUEMA_MOTOR:
+            datos = {**self.eleccion, "motivo": "Dirección de prueba.", "componentes": self.componentes}
         elif esquema is ESQUEMA_PUNTAJES:
             datos = {}
             for d in ("estetica", "ajuste_a_gustos", "legibilidad", "jerarquia_y_foco_en_tarea", "integridad"):

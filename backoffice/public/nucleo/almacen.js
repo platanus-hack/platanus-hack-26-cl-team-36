@@ -23,7 +23,7 @@ export const REVISION = /^(?=.{1,40}$)[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 // Segmentos entre el agente y la corrida. improver y conductor son las etapas del flujo por revisión en AWS.
 const PROFUNDIDAD = { cataloger: 0, improver: 0, conductor: 0, summary: 0, visitor: 1, guide: 2 };
-const VIEWPORT = /^(?:desktop|mobile)$/;
+export const VIEWPORT = /^(?:desktop|mobile)$/;
 
 /** Las partes de la clave de una corrida de cualquier agente ("wom.cl/guide/baja-fibra/desktop/<corrida>"), o null. */
 export function partesDeCorrida(clave) {

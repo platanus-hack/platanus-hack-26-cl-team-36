@@ -7,7 +7,7 @@
 //
 // Opciones: una lista de vistas. Cada una:
 //   id          nombre único de la vista
-//   rutas       pathnames donde aplica (sin `rutas`, en todas)
+//   rutas       pathnames donde aplica (sin `rutas`, en todas); la barra final no cuenta
 //   contenedor  selector de la sección original: se oculta y la vista va justo antes
 //   reemplazar  false para sumar la vista sin ocultar el contenedor (que queda como ancla)
 //   items       selector de cada elemento de la sección (relativo al contenedor)
@@ -22,6 +22,7 @@
   const estado = new Map(); // id de vista → { firma, nodo, contenedor, items }
 
   const html = () => document.documentElement;
+  const sinBarraFinal = (ruta) => String(ruta).replace(/\/+$/, "");
 
   function quitar(id) {
     const previo = estado.get(id);
@@ -60,7 +61,7 @@
 
   function actualizarVista(vista) {
     const { id, rutas, contenedor: selector, componente, opciones = {}, reemplazar = true } = vista;
-    const enRuta = !rutas || rutas.includes(location.pathname);
+    const enRuta = !rutas || rutas.some((ruta) => sinBarraFinal(ruta) === sinBarraFinal(location.pathname));
     const contenedor = enRuta ? document.querySelector(selector) : null;
     const dibujante = MiTema.componentes.get(componente);
     if (!dibujante) console.warn(`[mi-tema] La vista "${id}" pide el componente "${componente}", que no existe.`);

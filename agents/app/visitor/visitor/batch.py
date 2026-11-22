@@ -13,7 +13,7 @@ from playwright.async_api import Browser, async_playwright
 
 from shared import store
 from shared.browser.session import BrowserSession, create_context
-from shared.browser.theme import NavegadorConTema, describir_tema
+from shared.browser.theme import NavegadorConTema, describir_kit, describir_tema, script_de_tema
 from shared.browser.viewports import SCREENS
 from shared.claude.workdir import claude_workdir
 
@@ -147,11 +147,11 @@ def _judge(engine: str, client, judge_model: str, claude_cwd: Path):
 
 async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references: References, url: str,
                     instruction: str, batch_dir: Path, browser: str, cdp_url: str | None, record_video: bool,
-                    css: str | None, conocimiento: ConocimientoDeTarea | None,
+                    tema_script: str | None, conocimiento: ConocimientoDeTarea | None,
                     live: LiveTraces | None = None) -> tuple[list[Run], dict | None]:
     """Los intentos que cargaron la página, con su resultado, y el criterio del juez (None sin juez).
 
-    Con `css`, todos con ese tema. Con `conocimiento`, los exploradores con nivel leen la tarea de su nivel; el criterio
+    Con `tema_script`, todos con ese tema. Con `conocimiento`, los exploradores con nivel leen la tarea de su nivel; el criterio
     y el juez usan `instruction`.
     """
     async with async_playwright() as playwright:
@@ -159,8 +159,8 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
         try:
             # Uno por usuario y, con juez, uno para el criterio (en local, todos son el mismo Chromium).
             opened = await asyncio.gather(*(browsers.open() for _ in range(len(slots) + (judge is not None))))
-            if css is not None:
-                opened = [NavegadorConTema(item, css) for item in opened]
+            if tema_script is not None:
+                opened = [NavegadorConTema(item, tema_script) for item in opened]
             criteria_task = (
                 asyncio.create_task(_criteria_for(judge, opened[-1], url, instruction)) if judge is not None else None
             )
@@ -203,13 +203,10 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
 async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, profile_keys: list[str], runs: int,
                        references: References, judge: bool, engine: str, user_model: str, judge_model: str,
                        effort: str, cdp_url: str | None, browser: str, record_video: bool, tema_css: Path | None,
-                       conocimiento: ConocimientoDeTarea | None, conjunto_exploradores: str | None,
-                       live: LiveTraces | None = None) -> int:
+                       tema_kit: Path | None, conocimiento: ConocimientoDeTarea | None,
+                       conjunto_exploradores: str | None, live: LiveTraces | None = None) -> int:
     """Escribe la tanda en `batch_dir` y devuelve cuántos intentos no se interrumpieron."""
-    css, tema = describir_tema(tema_css) if tema_css else (None, None)
-    if css is not None:
-        (batch_dir / "tema.css").write_text(css, encoding="utf-8")
-        print(f"[tema] {tema['archivo']} (sha256 {tema['sha256']})", flush=True)
+    tema_script, tema = _tema(batch_dir, tema_css, tema_kit)
     # El juez solo se llama si algún perfil queda sin ruta: con ruta, decide el programa. El motor guionizado no tiene.
     judged = judge and engine != SCRIPTED and any(reference_for(references, key) is None for key in profile_keys)
     with claude_workdir("visitor") as claude_cwd:
@@ -217,7 +214,7 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
         make_engine = _engines(engine, client, user_model, effort, claude_cwd, references)
         judge_agent = _judge(engine, client, judge_model, claude_cwd) if judged else None
         attempts, criteria = await _attempts(judge_agent, make_engine, attempt_slots(profile_keys, runs), references,
-                                             url, instruction, batch_dir, browser, cdp_url, record_video, css,
+                                             url, instruction, batch_dir, browser, cdp_url, record_video, tema_script,
                                              conocimiento, live)
 
     run_dicts = [run.to_dict() for run in attempts]
@@ -253,6 +250,22 @@ async def _write_batch(batch_dir: Path, goal: str, url: str, instruction: str, p
     return sum(run["verdict"].get("outcome") != "interrupted" for run in run_dicts)
 
 
+def _tema(batch_dir: Path, tema_css: Path | None, tema_kit: Path | None) -> tuple[str | None, dict | None]:
+    """El script del tema o del kit y cómo se registra; deja en la tanda una copia de su tema.css (y tema.json)."""
+    if tema_kit is not None:
+        script, tema = describir_kit(tema_kit)
+        (batch_dir / "tema.json").write_bytes(tema_kit.read_bytes())
+        css = describir_tema(tema_kit.with_name("tema.css"))[0]
+    elif tema_css is not None:
+        css, tema = describir_tema(tema_css)
+        script = script_de_tema(css)
+    else:
+        return None, None
+    (batch_dir / "tema.css").write_text(css, encoding="utf-8")
+    print(f"[tema] {tema['archivo']}{' (kit)' if tema.get('kit') else ''} (sha256 {tema['sha256']})", flush=True)
+    return script, tema
+
+
 class BatchInterrupted(Exception):
     """Ningún intento terminó: todos se interrumpieron por un error técnico o no cargaron la página."""
 
@@ -279,6 +292,7 @@ async def run_batch(
     browser: str = "local",
     record_video: bool = False,
     tema_css: Path | None = None,
+    tema_kit: Path | None = None,
     conocimiento: ConocimientoDeTarea | None = None,
     conjunto_exploradores: str | None = None,
 ) -> store.RunKey:
@@ -289,6 +303,7 @@ async def run_batch(
     guide de `references` y `revision` quedan en el manifiesto. Si ningún intento terminó, la corrida termina `failed`
     (con su reporte) y lanza `BatchInterrupted`. Con `tema_css`, cada página de cada usuario (y la del criterio) se ve
     con ese tema, como con la extensión; la corrida deja una copia en `tema.css` y lo registra en `route_tree.json`.
+    Con `tema_kit` (un `tema.json` de la extensión), además se montan sus componentes y features (`describir_kit`).
 
     Con `conocimiento` (lo que la tarea dice de su tema), los exploradores con nivel leen la tarea de su nivel; el
     criterio y el juez usan siempre `instruction`. `conjunto_exploradores` se registra en `route_tree.json`:
@@ -301,7 +316,7 @@ async def run_batch(
                        inputs=(*inputs, *(key for key, _ in references.values()))) as run:
         finished = await _write_batch(run.workdir, prefix.goal, url, instruction, profile_keys, runs, references,
                                       judge, engine, user_model, judge_model, effort, cdp_url, browser, record_video,
-                                      tema_css, conocimiento, conjunto_exploradores,
+                                      tema_css, tema_kit, conocimiento, conjunto_exploradores,
                                       lambda folder, profile: store.LiveTrace(backend, run, "visitor", profile, folder))
         if not finished:
             raise BatchInterrupted(run.key)

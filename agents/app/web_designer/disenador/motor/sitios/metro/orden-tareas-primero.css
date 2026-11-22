@@ -1,0 +1,12 @@
+/* metro.cl, orden «tareas primero»: arriba lo que se viene a hacer (atajo y lo más buscado), después el resto.
+   Solo con las dos vistas dibujadas; si no, la portada queda en su orden. */
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]):has([data-mt-vista="{{v.lanzador}}"]) body {
+  display: flex;
+  flex-direction: column;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]):has([data-mt-vista="{{v.lanzador}}"]) body > * {
+  order: 1;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]):has([data-mt-vista="{{v.lanzador}}"]) body > :is(#menu, .mt-vista) {
+  order: 0;
+}

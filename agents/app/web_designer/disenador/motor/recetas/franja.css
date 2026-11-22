@@ -1,0 +1,26 @@
+/* Receta «franja»: las categorías en fila, como firma, arriba del atajo y del pie. */
+html.mi-tema .mt-atajo::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--mt-franja-alto);
+  background: var(--mt-franja);
+  transform-origin: left;
+  animation: mt-trazo 0.9s var(--mt-curva) both;
+  content: "";
+}
+html.mi-tema {{z.pie}}::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--mt-franja);
+  content: "";
+}
+@keyframes mt-trazo {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.mi-tema .mt-atajo::before {
+    animation: none;
+  }
+}

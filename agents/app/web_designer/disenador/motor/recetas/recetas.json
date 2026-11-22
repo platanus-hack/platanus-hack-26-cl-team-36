@@ -1,0 +1,17 @@
+{
+  "_orden": "Se componen en este orden; las de grupo («atajo», «lanzador») son excluyentes dentro del grupo.",
+  "rebote":             { "idea": "movimiento con resorte" },
+  "letrero":            { "idea": "letra condensada en mayúsculas en navegación, botón y tareas", "requiere": { "familia": ["condensada"] } },
+  "placas-atajo":       { "grupo": "atajo", "idea": "estaciones con el color y número de su categoría", "requiere": { "categorias": true } },
+  "superficie-marca":   { "grupo": "atajo", "idea": "el atajo como baldosa del color de marca", "excluye": ["titular-degradado", "cabecera-editorial", "franja"] },
+  "vidrio":             { "grupo": "atajo", "idea": "campos, navegación y panel de vidrio", "requiere": { "modo": ["oscuro"] }, "excluye": ["franja"] },
+  "discos-lanzador":    { "grupo": "lanzador", "idea": "tareas con disco de color que llena al pasar", "requiere": { "categorias": true } },
+  "bento-lanzador":     { "grupo": "lanzador", "idea": "tareas como baldosas de colores suaves", "requiere": { "categorias": true, "modo": ["claro"] } },
+  "comandos-lanzador":  { "grupo": "lanzador", "idea": "tareas numeradas como teclas" },
+  "franja":             { "idea": "las categorías en fila como firma", "requiere": { "categorias": true } },
+  "filete-secciones":   { "idea": "regla de tinta sobre cada sección" },
+  "cabecera-editorial": { "idea": "titular y bajada en dos columnas" },
+  "en-vivo":            { "idea": "punto que late en el panel de datos" },
+  "aurora":             { "idea": "luz difusa a la deriva detrás del atajo", "requiere": { "modo": ["oscuro"] } },
+  "titular-degradado":  { "idea": "titular que se apaga hacia el tono de marca", "requiere": { "modo": ["oscuro"], "familia": ["neogrotesca", "expresiva"] } }
+}

@@ -1,0 +1,617 @@
+/* Overview (spec §3.3–§3.5, §3.8; maqueta v3). Todo bajo .p-overview y con tokens: ningún color escrito aquí, los
+   alfas con color-mix(in srgb, var(--token) N%, transparent). Los colores que vienen de los datos (marca del sitio,
+   acento del tema) llegan por CSSOM como --marca y --acento-tema. La grilla responde al ancho del contenido
+   (@container ov), no al de la ventana. */
+
+.p-overview {
+  container: ov / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ── Movimiento: pulso de lo que está en curso y línea de escaneo ─────── */
+/* El pulso suma su halo a la sombra propia del elemento (--ov-anillo), así el contorno de una etapa o un tramo en
+   curso no desaparece mientras pulsa. */
+@keyframes ov-pulso {
+  0% { box-shadow: var(--ov-anillo, 0 0 0 0 transparent), 0 0 0 0 color-mix(in srgb, var(--acento) 45%, transparent); }
+  70% { box-shadow: var(--ov-anillo, 0 0 0 0 transparent), 0 0 0 5px transparent; }
+  100% { box-shadow: var(--ov-anillo, 0 0 0 0 transparent), 0 0 0 0 transparent; }
+}
+@keyframes ov-escaneo { to { top: 100%; } }
+
+.p-overview :is(.ov-q-en_curso, .ov-etapa-en_curso, .ov-tramo-en_curso),
+.p-overview .ov-tarjeta-running .ov-pildora-punto {
+  animation: ov-pulso 1.8s ease-out infinite;
+}
+
+/* ── Colores de resultado: cuadritos, muestras de la leyenda y tramos ─── */
+.p-overview :is(.ov-q-logrado, .ov-m-logrado, .ov-tramo-logrado) { background: var(--resultado-logrado); }
+.p-overview :is(.ov-q-fallido, .ov-m-fallido, .ov-tramo-fallido) { background: var(--resultado-fallido); }
+.p-overview :is(.ov-q-abandonado, .ov-m-abandonado, .ov-tramo-abandonado) { background: var(--resultado-abandonado); }
+.p-overview :is(.ov-q-sin_medir, .ov-m-sin_medir, .ov-tramo-sin_medir) { background: var(--resultado-sin-medir); }
+.p-overview :is(.ov-q-error, .ov-m-error, .ov-tramo-error) { background: var(--resultado-error); }
+.p-overview :is(.ov-q-detenido, .ov-m-detenido, .ov-tramo-detenido) { background: var(--resultado-aviso); }
+.p-overview :is(.ov-q-en_curso, .ov-m-en_curso) { background: var(--resultado-en-curso); }
+.p-overview :is(.ov-q-en_cola, .ov-m-en_cola) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blanco) 24%, transparent);
+}
+.p-overview .ov-tramo-en_curso {
+  --ov-anillo: inset 0 0 0 1px color-mix(in srgb, var(--acento) 60%, transparent);
+  background: transparent;
+  box-shadow: var(--ov-anillo);
+}
+.p-overview .ov-tramo-espera { background: transparent; box-shadow: inset 0 0 0 1px var(--borde-fuerte); }
+.p-overview .ov-tramo-vacio { background: transparent; box-shadow: inset 0 0 0 1px var(--borde); }
+
+/* Tono de una cifra (%, x/y) y del motivo. */
+.p-overview .ov-tono-logrado { color: var(--resultado-logrado); }
+.p-overview .ov-tono-aviso { color: var(--resultado-aviso); }
+.p-overview .ov-tono-fallido { color: var(--resultado-fallido-texto); }
+.p-overview .ov-tono-acento { color: var(--acento); }
+.p-overview .ov-tono-neutro { color: var(--texto-4); }
+
+.p-overview .icono24 { flex: none; }
+
+/* ── Encabezados: "Overview" (h1, contrato §6.2) y "Reviews" (h2), en una fila con borde inferior ── */
+.p-overview .ov-arriba { display: flex; flex-direction: column; gap: 16px; }
+.p-overview .ov-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0 16px;
+  border-bottom: 1px solid var(--borde);
+}
+.p-overview .ov-titulo {
+  margin: 0 0 10px;
+  color: var(--texto-1);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* ── Agentes ─────────────────────────────────────────────────────────── */
+.p-overview .ov-agentes {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 24px 28px;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  background: var(--superficie-1);
+}
+.p-overview .ov-agentes-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.p-overview .ov-total { display: flex; align-items: baseline; gap: 12px; white-space: nowrap; }
+.p-overview .ov-total-cifra {
+  color: var(--texto-1);
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.p-overview .ov-total-unidad { color: var(--texto-2); font-size: 18px; font-weight: 500; }
+
+/* Fichas de dispositivo (pestañas). */
+.p-overview .ov-dispositivos { display: flex; gap: 8px; }
+.p-overview .ov-dispositivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 112px;
+  height: 52px;
+  padding: 0 16px 0 12px;
+  border: 1px solid var(--borde-sutil);
+  border-radius: 12px;
+  background: var(--superficie-2);
+  color: var(--texto-1);
+  text-align: start;
+  transition: border-color var(--dur-1), background-color var(--dur-1);
+}
+.p-overview .ov-dispositivo .icono24 { color: var(--texto-2); }
+.p-overview .ov-dispositivo:hover { border-color: var(--borde-fuerte); }
+.p-overview .ov-dispositivo[aria-selected="true"] {
+  border-color: color-mix(in srgb, var(--acento) 45%, transparent);
+  background: color-mix(in srgb, var(--acento) 7%, transparent);
+}
+.p-overview .ov-dispositivo[aria-selected="true"] .icono24 { color: var(--acento); }
+.p-overview .ov-dispositivo-texto { display: flex; flex-direction: column; min-width: 0; }
+.p-overview .ov-dispositivo-cifra { font-size: 16px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.p-overview .ov-dispositivo-nombre { color: var(--texto-3); font-size: 12px; line-height: 16px; }
+
+/* Filas por rol: baldosa (con la línea que las une), nombre, cifra, cuadritos y %. */
+.p-overview .ov-roles { display: flex; flex-direction: column; }
+.p-overview .ov-rol {
+  display: grid;
+  grid-template-columns: 32px 92px 56px minmax(0, 1fr) 48px;
+  grid-template-areas: "icono nombre cifra cuadritos exito";
+  gap: 14px;
+  align-items: start;
+  padding-bottom: 14px;
+}
+.p-overview .ov-rol:last-child { padding-bottom: 0; }
+.p-overview .ov-rol-icono {
+  grid-area: icono;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: -14px;
+}
+.p-overview .ov-rol:last-child .ov-rol-icono { margin-bottom: 0; }
+.p-overview .ov-rol-baldosa {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--superficie-3);
+  color: var(--texto-1);
+}
+.p-overview .ov-rol-improver .ov-rol-baldosa { background: var(--acento-sutil); color: var(--acento); }
+.p-overview .ov-rol-conector { flex: 1; width: 1.5px; background: var(--borde-medio); }
+.p-overview .ov-rol-nombre { grid-area: nombre; color: var(--texto-1); font-weight: 500; line-height: 32px; }
+.p-overview .ov-rol-cifra {
+  grid-area: cifra;
+  color: var(--texto-1);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 32px;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.p-overview .ov-cuadritos { grid-area: cuadritos; display: flex; flex-wrap: wrap; gap: 2px; padding-top: 12px; }
+.p-overview .ov-q { flex: none; width: 7px; height: 7px; border-radius: 1.5px; }
+.p-overview .ov-rol-exito {
+  grid-area: exito;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 32px;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Leyenda. */
+.p-overview .ov-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--borde-sutil);
+}
+.p-overview .ov-leyenda-item { display: inline-flex; align-items: center; gap: 6px; color: var(--texto-3); font-size: 12px; }
+.p-overview .ov-muestra { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+
+/* ── Revisiones ───────────────────────────────────────────────────────── */
+.p-overview .ov-revisiones { display: flex; flex-direction: column; gap: 16px; }
+.p-overview .ov-pestanas {
+  display: flex;
+  gap: 4px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.p-overview .ov-pestana {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--texto-3);
+  font: 500 14px var(--fuente);
+  letter-spacing: normal;
+  white-space: nowrap;
+  transition: color var(--dur-1);
+}
+.p-overview .ov-pestana:hover { color: var(--texto-1); }
+.p-overview .ov-pestana[aria-selected="true"] { color: var(--texto-1); box-shadow: inset 0 -2px 0 var(--acento); }
+/* Dentro de una fila que se desplaza, el anillo de foco va por dentro (por fuera quedaría recortado). */
+.p-overview .ov-pestana:focus-visible { outline-offset: -2px; }
+.p-overview .ov-insignia {
+  min-width: 32px;
+  padding: 0 6px;
+  border-radius: var(--radio-pildora);
+  background: var(--borde-sutil);
+  color: var(--texto-3);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.p-overview .ov-insignia-acento { background: var(--acento-sutil); color: var(--acento); }
+.p-overview .ov-insignia-fallido {
+  background: color-mix(in srgb, var(--resultado-fallido) 16%, transparent);
+  color: var(--resultado-fallido-texto);
+}
+
+/* ── Grilla: 3 columnas en escritorio, 2 en tablet, 1 en teléfono; hueco de 20 px ── */
+.p-overview .ov-grilla { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.p-overview .ov-celda { display: flex; min-width: 0; }
+.p-overview .ov-vacio { padding: 24px 0; color: var(--texto-3); }
+.p-overview .ov-panel { display: flex; flex-direction: column; }
+/* "Show N more" (contrato §7.4): un botón secundario bajo la grilla; mientras pide, atenuado y sin responder. */
+.p-overview .ov-mas { align-self: center; margin-top: 20px; }
+.p-overview .ov-mas[aria-disabled="true"] { cursor: progress; }
+
+/* ── Tarjeta ─────────────────────────────────────────────────────────── */
+.p-overview .ov-tarjeta {
+  --ov-borde-tarjeta: var(--borde);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: 14px;
+  background: var(--superficie-1);
+  box-shadow: 0 0 0 1px var(--ov-borde-tarjeta);
+  overflow: hidden;
+  color: var(--texto-2);
+  transition: box-shadow var(--dur-1);
+}
+.p-overview .ov-tarjeta-delivered:hover,
+.p-overview .ov-tarjeta-queued:hover { --ov-borde-tarjeta: var(--borde-fuerte); }
+.p-overview .ov-tarjeta-running { --ov-borde-tarjeta: color-mix(in srgb, var(--acento) 30%, transparent); }
+.p-overview .ov-tarjeta-stalled {
+  --ov-borde-tarjeta: color-mix(in srgb, var(--resultado-aviso) 35%, transparent);
+  --ov-filtro: grayscale(0.6) brightness(0.8);
+}
+.p-overview .ov-tarjeta-failed {
+  --ov-borde-tarjeta: color-mix(in srgb, var(--resultado-fallido) 30%, transparent);
+  --ov-filtro: grayscale(1) brightness(0.7);
+}
+
+/* La página revisada, enmarcada como un navegador. */
+.p-overview .ov-barra {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--superficie-3);
+}
+.p-overview .ov-barra-punto { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--linea); }
+.p-overview .ov-url {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: var(--fondo);
+}
+.p-overview .ov-url .icono24 { color: var(--texto-4); }
+.p-overview .ov-url-texto {
+  overflow: hidden;
+  color: var(--texto-2);
+  font-family: var(--fuente-mono);
+  font-size: 11px;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.p-overview .ov-url-ruta { color: var(--texto-4); }
+
+/* Captura: 172 px; el teléfono asoma (All), toma el centro (Mobile) o no está (Desktop). */
+.p-overview .ov-captura {
+  position: relative;
+  flex: none;
+  height: 172px;
+  overflow: hidden;
+  /* papel claro detrás de la captura mientras carga */
+  background: var(--texto-1);
+}
+.p-overview .ov-captura-mobile { background: var(--superficie-2); }
+.p-overview .ov-captura:has(> .ov-img-escritorio[data-fallida]) { background: var(--marca, var(--superficie-4)); }
+.p-overview .ov-captura img[data-fallida] { visibility: hidden; }
+.p-overview .ov-img-escritorio {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  filter: var(--ov-filtro, none);
+}
+.p-overview .ov-captura-mobile > .ov-img-escritorio {
+  position: absolute;
+  inset: 0;
+  filter: blur(10px) brightness(0.4) saturate(0.8);
+  transform: scale(1.15);
+}
+.p-overview .ov-marcador {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--marca, var(--superficie-4));
+  filter: var(--ov-filtro, none);
+}
+.p-overview .ov-telefono {
+  position: absolute;
+  background: var(--fondo);
+  box-shadow:
+    0 6px 18px color-mix(in srgb, var(--negro) 45%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--blanco) 14%, transparent);
+}
+.p-overview .ov-captura-all .ov-telefono {
+  right: 14px;
+  bottom: -16px;
+  width: 54px;
+  height: 106px;
+  padding: 3px;
+  border-radius: 10px;
+}
+.p-overview .ov-captura-mobile .ov-telefono {
+  top: 14px;
+  left: 50%;
+  width: 96px;
+  height: 198px;
+  margin-left: -44px;
+  padding: 4px;
+  border-radius: 16px;
+  box-shadow:
+    0 12px 30px color-mix(in srgb, var(--negro) 50%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--blanco) 14%, transparent);
+}
+.p-overview .ov-img-movil {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  object-fit: cover;
+  object-position: top;
+  filter: var(--ov-filtro, none);
+}
+.p-overview .ov-captura-mobile .ov-img-movil { border-radius: 12px; }
+.p-overview .ov-telefono > .ov-marcador { border-radius: 7px; }
+.p-overview .ov-captura-mobile .ov-telefono > .ov-marcador { border-radius: 12px; }
+
+/* Línea de escaneo: solo en las que corren, de arriba abajo cada 2,6 s. */
+.p-overview .ov-tarjeta-running .ov-captura::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: -48px;
+  right: 0;
+  left: 0;
+  height: 50px;
+  border-bottom: 2px solid var(--acento);
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--acento) 22%, transparent));
+  pointer-events: none;
+  animation: ov-escaneo 2.6s ease-in-out infinite;
+}
+
+/* Píldora de estado, arriba a la derecha. */
+.p-overview .ov-pildora {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: var(--radio-pildora);
+  background: color-mix(in srgb, var(--fondo) 86%, transparent);
+  color: var(--texto-3);
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+.p-overview .ov-pildora-punto { flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.p-overview .ov-tarjeta-running .ov-pildora { color: var(--acento); }
+.p-overview .ov-tarjeta-stalled .ov-pildora { color: var(--resultado-aviso); }
+.p-overview .ov-tarjeta-delivered .ov-pildora { color: var(--resultado-logrado); }
+.p-overview .ov-tarjeta-failed .ov-pildora { color: var(--resultado-fallido-texto); }
+
+/* Cuerpo: nombre, etapas, medidores y pie (el pie siempre abajo, así se alinea entre tarjetas de una fila). */
+.p-overview .ov-cuerpo { display: flex; flex: 1; flex-direction: column; gap: 14px; padding: 14px 16px 16px; }
+.p-overview .ov-nombre { display: flex; align-items: center; gap: 10px; }
+.p-overview .ov-marca {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--marca, var(--superficie-4));
+  color: var(--texto-1);
+  font-size: 13px;
+  font-weight: 700;
+}
+.p-overview [data-marca="oscuro"] .ov-marca { color: var(--fondo); }
+.p-overview .ov-sitio {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--texto-1);
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Enlace estirado (contrato §6.5): el nombre del sitio es el enlace de la tarjeta y su ::after la cubre entera; su
+   foco se ve en el borde de toda la tarjeta. Encima quedan lo que tiene su propio enlace (los goals con tanda) o un
+   globo (etapas, cuadritos, motivo, tiempo). */
+.p-overview .ov-tarjeta-enlace,
+.p-overview .ov-tarjeta-enlace:hover { color: var(--texto-1); text-decoration: none; }
+.p-overview .ov-tarjeta-enlace::after { content: ""; position: absolute; z-index: 1; inset: 0; border-radius: inherit; }
+.p-overview .ov-tarjeta-enlace:focus-visible { outline: none; }
+.p-overview .ov-tarjeta:has(.ov-tarjeta-enlace:focus-visible) { outline: 2px solid var(--anillo-foco); outline-offset: 2px; }
+.p-overview :is(.ov-etapa, .ov-agentes-tarjeta, .ov-goal, .ov-aviso, .ov-tiempo) { position: relative; z-index: 2; }
+.p-overview .ov-agentes-tarjeta { display: inline-flex; flex: none; align-items: center; gap: 8px; }
+.p-overview .ov-cuadritos-tarjeta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; max-width: 168px; }
+.p-overview .ov-agentes-cifra { color: var(--texto-2); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Etapas: Catalog → Routes → Visits → Theme. */
+.p-overview .ov-etapas { display: flex; align-items: center; }
+.p-overview .ov-etapa-linea { flex: 1; height: 2px; margin: 0 4px; border-radius: 1px; }
+.p-overview .ov-linea-fuerte { background: var(--linea); }
+.p-overview .ov-linea-tenue { background: var(--borde); }
+.p-overview .ov-etapa {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+.p-overview .ov-etapa-hecho { background: var(--superficie-4); color: var(--texto-1); }
+.p-overview .ov-etapa-en_curso {
+  --ov-anillo: inset 0 0 0 1.5px var(--acento);
+  background: var(--acento-sutil);
+  color: var(--acento);
+  box-shadow: var(--ov-anillo);
+}
+.p-overview .ov-etapa-detenido {
+  background: color-mix(in srgb, var(--resultado-aviso) 16%, transparent);
+  color: var(--resultado-aviso);
+  box-shadow: inset 0 0 0 1.5px var(--resultado-aviso);
+}
+.p-overview .ov-etapa-fallido {
+  background: color-mix(in srgb, var(--resultado-fallido) 16%, transparent);
+  color: var(--resultado-fallido-texto);
+  box-shadow: inset 0 0 0 1.5px var(--resultado-fallido);
+}
+.p-overview .ov-etapa-pendiente { background: transparent; color: var(--texto-4); box-shadow: inset 0 0 0 1px var(--borde-fuerte); }
+
+/* Medidores por goal (o el motivo, sin goals). */
+.p-overview .ov-goals { display: flex; flex-direction: column; gap: 7px; min-height: 76px; }
+.p-overview .ov-goal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 30px;
+  gap: 10px;
+  align-items: center;
+}
+/* Un goal con tanda enlaza a su telaraña: el mismo aspecto, el texto se aclara al pasar. */
+.p-overview .ov-goal-enlace,
+.p-overview .ov-goal-enlace:hover { color: inherit; text-decoration: none; }
+.p-overview .ov-goal-enlace { border-radius: var(--radio-1); }
+.p-overview .ov-goal-enlace:hover .ov-goal-texto { color: var(--texto-1); }
+.p-overview .ov-goal-texto {
+  overflow: hidden;
+  color: var(--texto-3);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.p-overview .ov-medidor { display: flex; gap: 2px; height: 8px; }
+.p-overview .ov-tramo { flex: 1 1 0; min-width: 0; border-radius: 2px; }
+.p-overview .ov-goal-cifra { font-size: 12px; font-weight: 600; text-align: end; font-variant-numeric: tabular-nums; }
+.p-overview .ov-goal-mas { color: var(--texto-4); font-size: 12px; line-height: 16px; }
+.p-overview .ov-aviso { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; }
+
+/* Pie: el tiempo y, en las entregadas, la muestra del acento del tema. */
+.p-overview .ov-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  color: var(--texto-4);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.p-overview .ov-tema { display: inline-flex; align-items: center; gap: 6px; }
+.p-overview .ov-tema-muestra { flex: none; width: 12px; height: 12px; border-radius: 3px; background: var(--acento-tema, transparent); }
+
+/* ── Arranque vacío: cómo empieza una revisión (artboard 5) ──────────── */
+.p-overview .ov-celda-pista { grid-column: 1 / -1; }
+.p-overview .ov-pista {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 383px;
+  padding: 24px 16px;
+  border: 1.5px dashed color-mix(in srgb, var(--blanco) 12%, transparent);
+  border-radius: 14px;
+  text-align: center;
+}
+.p-overview .ov-pista-baldosa {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--acento) 12%, transparent);
+  color: var(--acento);
+}
+.p-overview .ov-pista-titulo { color: var(--texto-1); font-size: 16px; font-weight: 500; }
+.p-overview .ov-pista-pasos { display: flex; align-items: flex-start; gap: 6px; }
+.p-overview .ov-pista-paso { display: flex; align-items: flex-start; gap: 6px; }
+.p-overview .ov-pista-flecha { color: var(--linea); }
+.p-overview .ov-pista-etapa { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 64px; }
+.p-overview .ov-pista-circulo {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--superficie-3);
+  color: var(--texto-1);
+}
+.p-overview .ov-pista-nombre { color: var(--texto-3); font-size: 12px; }
+
+/* ── Responsive: grilla 1 → 2 → 3 columnas según el ancho del contenido ── */
+@container ov (min-width: 640px) {
+  .p-overview .ov-grilla { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .p-overview .ov-celda-pista { grid-column: span var(--pista-2, 2); }
+}
+@container ov (min-width: 1100px) {
+  .p-overview .ov-grilla { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .p-overview .ov-celda-pista { grid-column: span var(--pista-3, 3); }
+}
+
+/* Teléfono: las fichas bajan bajo el total y en cada fila el nombre y la cifra quedan sobre los cuadritos. */
+@container ov (max-width: 599px) {
+  .p-overview .ov-agentes { padding: 20px 16px; }
+  .p-overview .ov-dispositivos { width: 100%; }
+  .p-overview .ov-dispositivo { flex: 1 1 0; min-width: 0; gap: 8px; padding: 0 10px; }
+  .p-overview .ov-rol {
+    grid-template-columns: 32px minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "icono nombre cifra exito"
+      "icono cuadritos cuadritos cuadritos";
+    column-gap: 12px;
+    row-gap: 2px;
+  }
+  .p-overview .ov-rol-exito { min-width: 44px; }
+  .p-overview .ov-cuadritos { padding-top: 0; }
+  .p-overview .ov-pista-etapa { width: 52px; }
+  .p-overview .ov-pista-flecha { width: 16px; }
+  /* Las 4 pestañas caben en 358 px (en inglés); si no, su fila se desplaza sola, nunca la página. */
+  .p-overview .ov-pestanas { gap: 2px; }
+  .p-overview .ov-pestana { gap: 6px; padding: 0 8px; }
+  .p-overview .ov-insignia { min-width: 24px; padding: 0 5px; }
+}
+
+/* Movimiento reducido: sin pulso ni barrido (la línea de escaneo queda quieta arriba, como en la maqueta). */
+@media (prefers-reduced-motion: reduce) {
+  .p-overview :is(.ov-q-en_curso, .ov-etapa-en_curso, .ov-tramo-en_curso, .ov-pildora-punto),
+  .p-overview .ov-tarjeta-running .ov-captura::after {
+    animation: none;
+  }
+}

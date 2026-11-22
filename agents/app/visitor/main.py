@@ -7,6 +7,7 @@ Uso, desde agents/app/visitor/:
     uv run main.py --site https://www.wom.cl/ --limit 3
     uv run main.py --url https://www.wom.cl/ --revision r1 --goal baja-fibra --profiles desktop --runs 1
     uv run main.py --task wom.cl/baja-fibra --css tema.css
+    uv run main.py --site https://www.metro.cl/ --goal planificar-viaje --tema ../../../extension/test/fixtures/metro/tema.json
     uv run main.py --task sii.cl/exencion-contribuciones --exploradores conocimiento --model claude-haiku-5-5
 """
 
@@ -17,7 +18,7 @@ import shutil
 from pathlib import Path
 
 from shared import store
-from shared.browser.theme import TemaInvalido, describir_tema
+from shared.browser.theme import describir_kit, describir_tema
 from shared.catalog.files import read_catalog
 from shared.catalog.goal import instruction_goal_id
 from shared.catalog.tasks import available_tasks, load_task
@@ -113,6 +114,14 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="ARCHIVO",
         help="aplica este tema (CSS bajo html.mi-tema) en cada página, como la extensión; queda registrado en la tanda",
     )
+    parser.add_argument(
+        "--tema",
+        type=Path,
+        default=None,
+        metavar="TEMA_JSON",
+        help="como --css con el tema.css vecino, y además monta los componentes y features de este tema.json de la"
+        " extensión",
+    )
     return parser
 
 
@@ -160,16 +169,19 @@ def _profile_keys(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
     return profile_keys
 
 
-def _tema(parser: argparse.ArgumentParser, css: Path | None) -> str | None:
-    """El sha256 corto del tema de `--css`; None sin tema."""
-    if css is None:
+def _tema(parser: argparse.ArgumentParser, css: Path | None, kit: Path | None) -> str | None:
+    """El sha256 corto del tema de `--css` o del kit de `--tema`; None sin tema."""
+    if css is not None and kit is not None:
+        parser.error("usa --css o --tema, no ambos")
+    archivo = css or kit
+    if archivo is None:
         return None
-    if not css.is_file():
-        parser.error(f"no existe el archivo de tema {css}")
+    if not archivo.is_file():
+        parser.error(f"no existe el archivo de tema {archivo}")
     try:
-        return describir_tema(css)[1]["sha256"]
-    except (TemaInvalido, UnicodeDecodeError) as error:
-        parser.error(str(error))
+        return (describir_kit(kit) if kit else describir_tema(css))[1]["sha256"]
+    except (ValueError, OSError, KeyError, StopIteration) as error:  # TemaInvalido y UnicodeDecodeError son ValueError
+        parser.error(f"tema inválido: {error}")
 
 
 def _run_site(parser: argparse.ArgumentParser, args: argparse.Namespace, backend: store.Backend,
@@ -210,13 +222,13 @@ def _run_revision(parser: argparse.ArgumentParser, args: argparse.Namespace, bac
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    tema = _tema(parser, args.css)
+    tema = _tema(parser, args.css, args.tema)
     if not args.site and not args.revision:
         goal, url, instruction, conocimiento = _target(parser, args)
     profile_keys = _profile_keys(parser, args)
     options = {"engine": args.engine, "user_model": args.model, "effort": args.effort, "cdp_url": args.cdp_url,
                "browser": args.browser, "record_video": args.record_video, "runs": args.runs, "judge": args.judge,
-               "tema_css": args.css, "conjunto_exploradores": args.exploradores}
+               "tema_css": args.css, "tema_kit": args.tema, "conjunto_exploradores": args.exploradores}
     backend = store.open_backend()
     if args.revision:
         _run_revision(parser, args, backend, profile_keys, options)

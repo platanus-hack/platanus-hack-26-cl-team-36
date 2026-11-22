@@ -95,6 +95,74 @@ export function icono(nombre, { etiqueta = null, clase = "" } = {}) {
   );
 }
 
+// ── Íconos de 24×24 (Overview v3) ──────────────────────────────────────────
+// Los de la maqueta del Overview, con sus mismos paths: otra grilla (24×24) y otro trazo (1.8–2) que los de 16×16,
+// por eso van aparte y sin la clase `icono` (que los fijaría en 16 px). `circ` y `rect` son los ayudantes de la
+// maqueta: arman los mismos `d` que ella.
+const circ = (cx, cy, r) => `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`;
+const rect = (x, y, w, h, r) =>
+  `M${x + r} ${y}h${w - 2 * r}a${r} ${r} 0 0 1 ${r} ${r}v${h - 2 * r}a${r} ${r} 0 0 1 ${-r} ${r}h${-(w - 2 * r)}a${r} ${r} 0 0 1 ${-r} ${-r}v${-(h - 2 * r)}a${r} ${r} 0 0 1 ${r} ${-r}z`;
+
+/** nombre → { viewBox, formas: [etiqueta SVG, atributos][] }. */
+const FORMAS_24 = {
+  dispositivos: [["path", { d: `${rect(2, 5, 13, 10, 1.5)}M6 19h5M8.5 15v4${rect(16, 8, 6, 12, 1.5)}` }]],
+  escritorio: [["path", { d: `${rect(3, 4, 18, 12, 2)}M8 20h8M12 16v4` }]],
+  movil: [["path", { d: `${rect(7, 2, 10, 20, 2)}M11 18h2` }]],
+  catalogo: [["path", { d: "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" }]],
+  ruta: [["path", { d: `${circ(6, 19, 2)}${circ(18, 5, 2)}M8 19h7a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h7` }]],
+  visitantes: [["path", { d: `${circ(9, 8, 3)}M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6${circ(17, 9, 2.5)}M16 14.2c2.9.4 5 2.8 5 5.8` }]],
+  tema: [["path", { d: "M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.3A4.7 4.7 0 0 0 21 9.7C21 5.9 17 3 12 3zM7.5 11h.01M10 7h.01M15 7h.01" }]],
+  alerta: [["path", { d: "M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01" }]],
+  reloj: [["path", { d: `${circ(12, 12, 9)}M12 7v5l3 2` }]],
+  cruz: [["path", { d: "M7 7l10 10M17 7 7 17" }]],
+  extension: [
+    [
+      "path",
+      {
+        d: "M19.4 7.9c0 .3.1.6.3.9l1.6 1.6c.5.5.7 1.1.7 1.7s-.2 1.2-.7 1.7l-1.6 1.6c-.2.2-.5.3-.8.3-.5-.1-.8-.5-1-.9a2.5 2.5 0 1 0-3.2 3.2c.4.2.9.5.9 1 .1.3 0 .6-.3.8l-1.6 1.6c-.5.5-1.1.7-1.7.7s-1.2-.2-1.7-.7l-1.6-1.6c-.2-.2-.5-.3-.9-.3-.5.1-.8.5-1 1a2.5 2.5 0 1 1-3.2-3.2c.5-.2.9-.5 1-1 0-.3-.1-.6-.3-.9l-1.6-1.6C2.2 13.2 2 12.6 2 12s.2-1.2.7-1.7l1.5-1.5c.2-.2.6-.4.9-.3.5.1.9.5 1.1 1a2.5 2.5 0 1 0 3.3-3.3c-.5-.2-.9-.6-1-1.1 0-.3.1-.7.3-.9l1.5-1.5c.5-.5 1.1-.7 1.7-.7s1.2.2 1.7.7l1.6 1.6c.2.2.6.3.9.3.5-.1.8-.5 1-1a2.5 2.5 0 1 1 3.2 3.2c-.4.2-.9.5-.9 1z",
+      },
+    ],
+  ],
+  // El candado de la barra de navegador de cada tarjeta (trazo 2.4 a 10 px).
+  candado: [["rect", { x: 5, y: 11, width: 14, height: 10, rx: 2 }], ["path", { d: "M8 11V7a4 4 0 0 1 8 0v4" }]],
+  // La flecha entre etapas de la pista de arranque vacío: su caja es de 28×36 (CAJA_24), trazo 1.6.
+  flecha: [["path", { d: "M4 18h18M17 13l5 5-5 5" }]],
+};
+
+/** Íconos cuya caja no es 0 0 24 24. */
+const CAJA_24 = { flecha: "0 0 28 36" };
+
+export const NOMBRES_DE_ICONO_24 = Object.freeze(Object.keys(FORMAS_24));
+
+/**
+ * Ícono de 24×24 (los de la maqueta del Overview): `tamano` en px (18 por defecto), `trazo` el stroke-width
+ * (1.8 por defecto; la maqueta usa 2 en los de 14 px y 2.4 en el candado). Decorativo (aria-hidden) salvo con
+ * `etiqueta`. Toma el color de `currentColor`.
+ */
+export function icono24(nombre, { tamano = 18, ancho = null, alto = null, trazo = 1.8, etiqueta = null, clase = "" } = {}) {
+  const formas = FORMAS_24[nombre];
+  if (!formas) console.warn(`iconos: no existe el ícono de 24 px «${nombre}»`);
+  return svg(
+    "svg",
+    {
+      class: `icono24 icono24-${nombre}${clase ? ` ${clase}` : ""}`,
+      viewBox: CAJA_24[nombre] ?? "0 0 24 24",
+      width: ancho ?? tamano,
+      height: alto ?? tamano,
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": trazo,
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+      focusable: "false",
+      "aria-hidden": etiqueta ? null : "true",
+      role: etiqueta ? "img" : null,
+      "aria-label": etiqueta,
+    },
+    (formas ?? []).map(([etiquetaSvg, atributos]) => svg(etiquetaSvg, atributos)),
+  );
+}
+
 const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", sin_medir: "sin-medir", error: "error-herramienta" };
 
 /** Texto de un resultado: "Logrado · por la ruta", "Fallido · declaró que terminó sin llegar", "Error de la herramienta". */

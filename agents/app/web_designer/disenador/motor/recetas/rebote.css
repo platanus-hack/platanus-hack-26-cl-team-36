@@ -1,0 +1,39 @@
+/* Receta «rebote»: movimiento con resorte; las piezas brotan al cargar y responden al pasar. */
+html.mi-tema {
+  --mt-bote: linear(0, 0.171, 0.502, 0.813, 1.022, 1.118, 1.13, 1.098, 1.053, 1.015, 0.992, 0.983, 0.984, 0.989, 0.995, 0.999, 1.002, 1);
+}
+html.mi-tema :is(.mt-atajo, .mt-lanzador__tarea, {{z.panel}}) {
+  animation: mt-brote 620ms var(--mt-bote) both;
+}
+{{#lanz}}html.mi-tema .mt-lanzador__lista > li:nth-child({{i}}) .mt-lanzador__tarea {
+  animation-delay: calc({{i}} * 40ms);
+}
+{{/lanz}}html.mi-tema :is(.mt-atajo__invertir, .mt-atajo__ir, .mt-lanzador__tarea, .mt-lanzador__flecha) {
+  transition: transform 520ms var(--mt-bote), border-radius 520ms var(--mt-bote), box-shadow 0.3s, background-color 0.2s;
+}
+html.mi-tema .mt-atajo__invertir:hover {
+  transform: rotate(180deg);
+}
+html.mi-tema .mt-atajo__ir:hover {
+  transform: scale(1.03);
+}
+html.mi-tema .mt-lanzador__tarea:hover {
+  transform: translateY(-3px);
+}
+html.mi-tema .mt-lanzador__tarea:active,
+html.mi-tema .mt-atajo__ir:active {
+  transform: scale(0.97);
+}
+@keyframes mt-brote {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.mi-tema :is(.mt-atajo, .mt-lanzador__tarea, {{z.panel}}) {
+    animation: none !important;
+  }
+  html.mi-tema :is(.mt-atajo__invertir, .mt-atajo__ir, .mt-lanzador__tarea, .mt-lanzador__flecha) {
+    transition: none !important;
+    transform: none !important;
+  }
+}

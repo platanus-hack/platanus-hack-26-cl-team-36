@@ -1,0 +1,20 @@
+/* Receta «en vivo»: un punto que late en el panel de datos de ahora. */
+html.mi-tema {{z.panel}} > .card-title::before {
+  flex: none;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mt-vivo);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--mt-vivo) 22%, transparent);
+  animation: mt-latido 2.4s ease-in-out infinite;
+  content: "";
+}
+@keyframes mt-latido {
+  50% { box-shadow: 0 0 0 7px color-mix(in oklch, var(--mt-vivo) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.mi-tema {{z.panel}} > .card-title::before {
+    animation: none;
+  }
+}

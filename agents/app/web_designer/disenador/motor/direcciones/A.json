@@ -1,0 +1,31 @@
+{
+  "id": "A",
+  "nombre": "Señalética viva",
+  "idea": "La portada como un andén: fondo noche, letreros condensados y las categorías como sistema, no como decoración.",
+  "modo": "oscuro",
+  "neutros": { "tono": [250, 285], "croma": [0.008, 0.016], "fondo": [13, 16], "paso": [4.5, 6] },
+  "tinta": { "l": [95, 98], "l2": [76, 82] },
+  "acento": { "l": [52, 57], "c": [0.19, 0.215] },
+  "foco": { "tono": 92, "l": 87, "c": 0.17 },
+  "categorias": "originales",
+  "tipo": {
+    "familia": "condensada",
+    "escala": [1.3, 1.36],
+    "display": { "peso": [760, 820], "ancho": [62, 68], "caja": "uppercase", "tracking": [-0.012, 0], "interlinea": [0.86, 0.92] },
+    "titulo_peso": [760, 800]
+  },
+  "forma": { "radio": [4, 8] },
+  "densidad": [0.94, 1.06],
+  "nav": "barra",
+  "panel": "superficie",
+  "disposicion": "apilado",
+  "hero": { "ocultar": 1 },
+  "orden": "tareas-primero",
+  "franja": { "alto": [3, 5], "forma": "segmentos" },
+  "filete": [2, 3],
+  "recetas": {
+    "fijas": ["letrero", "placas-atajo", "discos-lanzador"],
+    "opcionales": { "franja": 0.85, "filete-secciones": 0.7, "en-vivo": 0.9, "cabecera-editorial": 0.35 }
+  },
+  "afinidad": { "institucional": 1.2, "categorias_color": 2, "comercio": -0.6, "tarea_formulario": 0.8, "video_hero": 0 }
+}

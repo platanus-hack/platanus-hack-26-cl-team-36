@@ -45,7 +45,21 @@ export function almacenFalso(archivos = {}) {
     const contenido = archivos[clave];
     return typeof contenido === "string" ? contenido : JSON.stringify(contenido);
   };
-  return { archivos, leerTexto, leerJson: async (clave) => JSON.parse(await leerTexto(clave)) };
+  const leidos = [];
+  return {
+    archivos,
+    leidos,
+    leerTexto: async (clave) => {
+      leidos.push(clave);
+      return leerTexto(clave);
+    },
+    // Como HeadObject: un objeto que no está responde NotFound, no NoSuchKey.
+    cabecera: async (clave) => {
+      if (!(clave in archivos)) throw Object.assign(new Error(`NotFound ${clave}`), { name: "NotFound" });
+      return { bytes: Buffer.byteLength(await leerTexto(clave)) };
+    },
+    leerJson: async (clave) => JSON.parse(await leerTexto(clave)),
+  };
 }
 
 export function agentesFalsos({ falla } = {}) {

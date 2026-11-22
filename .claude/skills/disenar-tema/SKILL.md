@@ -19,12 +19,18 @@ Un tema tímido también falla: si la persona pidió "letra grande" y la ve casi
 - **Gustos**: texto libre ("me gusta oscuro", "letra grande", "menos ruido").
 - **Tarea** (puede venir vacía): lo que la persona quiere lograr ("pagar mi cuenta").
 
+**Si el contrato de salida pide `direccion`** (el modo motor del kit), no escribes CSS: el código compone el tema y
+verifica el contraste. Eliges la dirección de arte que mejor sirve a gustos, tarea y sitio (o `auto`), una `semilla`
+(otra semilla, otra variante de la misma dirección) y solo los `ajustes` que un gusto pida: un número dentro del rango
+que muestra el contrato (letra más grande → `tipo.escala` alta; más aire → `densidad` alta), `hero`, y recetas que
+sumar o quitar. Lo demás de este skill (gustos, contraste, qué no ocultar) sigue guiando esa elección.
+
 ## Cómo funciona la inyección
 
 - El CSS entra como hoja del autor después de las del sitio, con la clase `mi-tema` en `<html>`. Quitar la clase
   apaga el tema. Por eso **todo selector empieza con `html.mi-tema`**, también dentro de `@media`.
 - Pon `!important` en **toda** declaración que cambie algo del sitio; sin eso pierdes contra sus selectores.
-- Un filtro borra lo que tenga `url(`, `@import`, `\`, `expression(` o `javascript:`. Solo fuentes del sistema.
+- Un filtro borra lo que tenga `url(`, `@import`, `\`, `expression(` o `javascript:`. Solo las fuentes empaquetadas "MT …" y las del sistema (nunca `@font-face`).
 
 ## Procedimiento
 
@@ -145,12 +151,21 @@ widgets flotantes (encuestas "evalúa", chat, "te llamamos", "volver arriba"), p
 texto útil. **Nunca:** contenido principal, menú principal, buscador, formularios, secciones de enlaces del sitio
 (también los de redes sociales: quítales el color), el pie, ni nada cuyo texto coincide con la tarea. Si dudas, no lo ocultes: quítale el color.
 
+**Componentes del kit** (solo si el mensaje trae `componentes`): la extensión dibuja cada uno (`atajo`, `lanzador`)
+con `data-mt-vista="<id>"`. El bloque original que reemplaza el atajo (el formulario de sus `<select>`) lo oculta el
+código con `html.mi-tema:not(.mt-vista-original):has([data-mt-vista="<id>"])`, así reaparece si el componente no se
+dibuja o la persona pide ver el original: no lo ocultes tú.
+
 **Foco y movimiento** (sección 8, siempre):
 `html.mi-tema :focus-visible { outline: 3px solid var(--mt-foco) !important; outline-offset: 2px !important; }` y
 `@media (prefers-reduced-motion: reduce) { html.mi-tema * { transition-duration: 0s !important;
 animation-duration: 0s !important; scroll-behavior: auto !important; } }`.
 
-**Fuentes del sistema** (las únicas posibles):
+**Fuentes empaquetadas** (la extensión las carga solo si el tema nombra alguna): "MT Inter", "MT Serif",
+"MT Archivo" (ancho variable 62–125 %), "MT Geist" y "MT Geist Mono", cada una seguida de su "<nombre> Fallback" y de
+las del sistema, p. ej. `"MT Inter", "MT Inter Fallback", Inter, system-ui, sans-serif`.
+
+**Fuentes del sistema** (el respaldo de las anteriores):
 - Sans: `system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`
 - Serif: `Charter, 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif`
 - Mono: `ui-monospace, 'SF Mono', Menlo, Consolas, monospace` (el código siempre en mono).

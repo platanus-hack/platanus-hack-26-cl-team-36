@@ -3,34 +3,18 @@
 
 export default {
   marca: {
-    nombre: "chameleon",
-    producto: "backoffice",
+    nombre: "chameleon mode",
     titulo: "Backoffice",
   },
+  // Barra superior (marca, revisiones en curso, buscador) y los nombres de las vistas.
   shell: {
     saltar: "Saltar al contenido",
-    navegacion: "Navegación principal",
-    buscar: "Buscar…",
-    abrirBuscador: "Abrir el buscador",
-    corridas: "Corridas",
+    overview: "Resumen",
     revisiones: "Revisiones",
+    corridas: "Corridas",
+    enCurso: ({ n }) => `${n} en curso`,
+    buscar: "Buscar",
     cuentaTandas: ({ n }, { plural }) => `${n} ${plural(n, { one: "tanda", other: "tandas" })}`,
-    tandasRecientes: "Tandas recientes",
-    sinTandas: "Todavía no hay tandas.",
-    atajos: "Atajos",
-    idioma: "Idioma",
-    abrirMenu: "Abrir el menú",
-    cerrarMenu: "Cerrar el menú",
-    estadoTanda: ({ logrados, validos, medidos = validos, errores }, { plural }) => {
-      let base = validos ? `${logrados} de ${medidos} ${plural(logrados, { one: "llega", other: "llegan" })}` : "ningún intento válido";
-      if (validos && !medidos) base = "sin medir";
-      return errores ? `${base}, ${errores} con error de la herramienta` : base;
-    },
-  },
-  idioma: {
-    es: "Español",
-    en: "English",
-    cambiarA: "Idioma: {nombre}",
   },
   pestana: {
     telarana: "Mapa de caminos",
@@ -57,12 +41,16 @@ export default {
   },
   // Nivel de conocimiento de un perfil, en minúscula (va entre paréntesis tras su nombre).
   nivel: { conoce_tema: "conoce el tema", sin_contexto: "sin contexto" },
+  // Resultado de una corrida de un agente (un cuadrito, un tramo, una cifra).
   resultado: {
     logrado: "Logrado",
     fallido: "Fallido",
     abandonado: "Abandonado",
     sin_medir: "Sin medir",
     error: "Error de la herramienta",
+    detenido: "Detenido",
+    en_curso: "En curso",
+    en_cola: "En cola",
   },
   logro: {
     directo: "por la ruta",
@@ -134,6 +122,8 @@ export default {
     cerrar: "cerrar",
     copiarEnlace: "Copiar enlace",
     verAtajos: "Atajos de teclado",
+    irAOverview: "Ir al Resumen",
+    irARevisiones: "Ir a Revisiones",
     irACorridas: "Ir a Corridas",
     cambiarIdioma: "Idioma: English",
     intento: "Replay · {resultado}",
@@ -148,6 +138,7 @@ export default {
     grupo: {
       global: "En todas partes",
       tanda: "En una tanda",
+      overview: "Resumen",
       corridas: "Corridas",
       telarana: "Mapa de caminos",
       replay: "Replay",
@@ -164,6 +155,7 @@ export default {
       paleta: "Abrir la paleta de comandos",
       hoja: "Ver los atajos",
       cerrar: "Cerrar el diálogo o el globo; después, quitar la selección",
+      irAOverview: "Ir al Resumen",
       irACorridas: "Ir a Corridas",
       buscar: "En Corridas, buscar; en otras vistas, abrir la paleta",
       vecinas: "Tanda anterior (más antigua) / siguiente (más nueva)",

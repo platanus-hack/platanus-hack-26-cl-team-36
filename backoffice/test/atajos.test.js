@@ -49,6 +49,29 @@ test("la hoja de atajos muestra solo lo registrado ahora, por grupo y una fila p
   assert.deepEqual(gruposDeLaHoja([]), []);
 });
 
+test("la hoja pone el grupo del Overview justo después de los atajos de todas partes", async () => {
+  const { gruposDeLaHoja } = await import("../public/nucleo/atajos.js");
+  const fila = (grupo, tecla) => ({ grupo, tecla, descripcion: tecla, mantener: false });
+  const grupos = gruposDeLaHoja([fila("corridas", "j"), fila("overview", "ArrowRight"), fila("global", "?"), fila("tanda", "1")]);
+  assert.deepEqual(grupos.map(({ grupo }) => grupo), ["global", "overview", "tanda", "corridas"]);
+});
+
+test("atajos globales: g o lleva al Overview (#/) y g c a Corridas (#/corridas)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+  const bloque = app.slice(app.indexOf("function registrarAtajosGlobales"));
+  assert.match(bloque, /"g o": \{[^}]*desc\.irAOverview[^}]*navegar\(IR_AL_OVERVIEW\)/);
+  assert.match(bloque, /"g c": \{[^}]*desc\.irACorridas[^}]*navegar\(IR_A_CORRIDAS\)/);
+  assert.match(app, /const IR_AL_OVERVIEW = hashDe\(\{ tipo: "overview" \}\);/);
+  assert.match(app, /const IR_A_CORRIDAS = hashDe\(\{ tipo: "corridas" \}\);/);
+  const { hashDe } = await import("../public/nucleo/rutas.js");
+  assert.equal(hashDe({ tipo: "overview" }), "#/");
+  assert.equal(hashDe({ tipo: "corridas" }), "#/corridas");
+  // La paleta ya no lee las tandas del armazón (que no las lista): usa la caché de pedirTandas().
+  assert.doesNotMatch(app, /tandasDelShell/);
+  assert.match(app, /pedirTandas\(\)/);
+});
+
 test("atajos de la tanda y de la telaraña: un juego chico, sin restos de lo que se sacó", async () => {
   const { readFileSync } = await import("node:fs");
   const fuente = (ruta) => readFileSync(new URL(`../public/${ruta}`, import.meta.url), "utf8");

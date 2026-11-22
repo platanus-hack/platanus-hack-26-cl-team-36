@@ -53,6 +53,6 @@ export default {
     sinCoincidenciasTexto: "Try another site or filter.",
   },
   atajos: {
-    buscar: "Search Runs",
+    buscar: "Search Batches",
   },
 };
