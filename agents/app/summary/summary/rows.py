@@ -23,12 +23,13 @@ def _routes(backend: store.Backend, goal: Goal) -> list[Found]:
 def _runs(backend: store.Backend, batch: store.RunKey) -> list[dict]:
     comparison_key = batch.file("comparison.json")
     comparison = backend.read_json(comparison_key) if backend.exists(comparison_key) else {"runs": []}
-    compared = {row["profile"]: row for row in comparison["runs"]}
+    # Por carpeta del intento: con varios intentos por perfil (`desktop`, `desktop-2`) el perfil se repite.
+    compared = {row.get("run", row["profile"]): row for row in comparison["runs"]}
     runs = []
-    for profile in backend.list_profiles(batch):
-        run = backend.read_json(batch.file("run.json", profile))
+    for folder in backend.list_profiles(batch):
+        run = backend.read_json(batch.file("run.json", folder))
         if run.get("verdict"):
-            row = compared.get(run["profile"], {})
+            row = compared.get(folder, {})
             runs.append({"profile": run["profile"], "outcome": run["verdict"].get("outcome"), "steps": len(run["steps"]),
                          "efficiency": row.get("efficiency"), "beat_reference": row.get("beat_reference", False)})
     return runs

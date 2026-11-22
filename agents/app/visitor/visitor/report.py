@@ -6,9 +6,16 @@ from visitor import config
 from visitor.actions import CLICK_ACTIONS
 from visitor.comparison import report_section
 from visitor.hesitation import action_with_target, hesitation_points
-from visitor.profiles import PROFILES
+from visitor.profiles import profile_of
 
-_OUTCOME_LABELS = {"success": "éxito", "failed": "fallo", "abandoned": "abandono", "interrupted": "interrumpido"}
+_OUTCOME_LABELS = {
+    "success": "éxito",
+    "failed": "fallo",
+    "abandoned": "abandono",
+    "unmeasured": "sin medir",
+    "interrupted": "interrumpido",
+}
+_CLAIMED_WITHOUT_REACHING = "declaró que terminó sin llegar"
 _SIGNAL_LABELS = {
     "no_effect": "sin efecto",
     "visible_error": "error visible",
@@ -32,7 +39,7 @@ _END_REASON_LABELS = {
 
 def _limites(run: dict) -> tuple[int, int]:
     """(acciones, segundos) del perfil del intento; los generales de config.py si el perfil no existe (o ya no)."""
-    profile = PROFILES.get(run.get("profile", ""))
+    profile = profile_of(run.get("profile", ""))
     if profile is None:
         return config.MAX_STEPS, config.MAX_SECONDS
     return profile.limite_acciones, profile.limite_segundos
@@ -77,6 +84,37 @@ def _tema_label(tema: dict | None) -> str:
 
 def _outcome_label(outcome: str | None) -> str:
     return _OUTCOME_LABELS.get(outcome or "", outcome or "?")
+
+
+def _verdict_label(verdict: dict) -> str:
+    """Con ruta, un fallo es haber declarado que terminó sin llegar: se dice así para no confundirlo con un abandono."""
+    if verdict.get("outcome") == "failed" and verdict.get("source") == "route":
+        return _CLAIMED_WITHOUT_REACHING
+    return _outcome_label(verdict.get("outcome"))
+
+
+def _folder(run: dict) -> str:
+    return run.get("folder") or run["profile"]
+
+
+def _run_name(run: dict) -> str:
+    attempt = run.get("attempt", 1)
+    return run["profile_name"] if attempt == 1 else f"{run['profile_name']} (intento {attempt})"
+
+
+def _success_rule(criteria: dict | None, runs: list[dict]) -> list[str]:
+    """Cómo se decidió el éxito de los intentos de la tanda."""
+    lines = []
+    if any(run["verdict"].get("source") == "route" for run in runs):
+        lines += ["**Éxito:** llegar a la página final de la ruta de la Guía. Lo decide el programa; lo que declara el "
+                  "usuario queda como dato.", ""]
+    if criteria is not None:
+        lines += [f"**Criterio de éxito del juez** (intentos sin ruta): {criteria.get('criterion', '(no disponible)')}",
+                  "", *(f"- {item}" for item in criteria.get("evidence", [])), ""]
+    unmeasured = sum(run["verdict"].get("outcome") == "unmeasured" for run in runs)
+    if unmeasured:
+        lines += [f"**Sin medir:** {unmeasured} intento(s) sin ruta de referencia ni juez (--judge).", ""]
+    return lines
 
 
 def _count_signals(steps: list[dict]) -> str:
@@ -141,11 +179,18 @@ def _node_label(nodes_by_id: dict, node_id: str) -> str:
     return f"**{_cell(node['title']) or '(sin título)'}** (`{node['url']}`)"
 
 
+def _models_label(meta: dict) -> str:
+    effort = f" (esfuerzo {meta['effort']})" if meta.get("effort") else ""
+    judge = f"; juez `{meta['judge_model']}`" if meta.get("judge_model") else "; sin juez"
+    return f"usuarios `{meta['user_model']}`{effort}{judge}"
+
+
 def generate(
-    meta: dict, criteria: dict, runs: list[dict], tree: dict, comparison: dict | None = None
+    meta: dict, criteria: dict | None, runs: list[dict], tree: dict, comparison: dict | None = None
 ) -> str:
     nodes_by_id = {node["id"]: node for node in tree["nodes"]}
-    engine_label = "Claude Code local" if meta.get("engine") == "claude-code" else "API de Anthropic (computer use)"
+    engine_label = {"claude-code": "Claude Code local", "fake": "usuario guionizado (sin Claude)"}.get(
+        meta.get("engine"), "API de Anthropic (computer use)")
     task_label = f" (`{meta['task_id']}`)" if meta.get("task_id") else ""
     lines = [
         "# Reporte del Visitante",
@@ -154,15 +199,12 @@ def generate(
         f"- **Tarea:** {meta['instruction']}{task_label}",
         f"- **Fecha:** {meta['timestamp']}",
         f"- **Motor:** {engine_label}",
-        f"- **Modelos:** usuarios `{meta['user_model']}` (esfuerzo {meta['effort']}); juez `{meta['judge_model']}`",
+        f"- **Modelos:** {_models_label(meta)}",
         f"- **Límites por usuario:** {_limites_de_la_tanda(runs)}",
         f"- **Tema:** {_tema_label(meta.get('tema'))}",
         "",
-        f"**Criterio de éxito:** {criteria.get('criterion', '(no disponible)')}",
-        "",
+        *_success_rule(criteria, runs),
     ]
-    for item in criteria.get("evidence", []):
-        lines.append(f"- {item}")
 
     con_nivel = any(run.get("conocimiento") for run in runs)
     lines += [
@@ -176,8 +218,8 @@ def generate(
     for run in runs:
         acciones, segundos = _limites(run)
         lines.append(
-            f"| {run['profile_name']} | {run['viewport']} |" + (f" {_nivel_label(run)} |" if con_nivel else "")
-            + f" {_outcome_label(run['verdict'].get('outcome'))} | "
+            f"| {_run_name(run)} | {run['viewport']} |" + (f" {_nivel_label(run)} |" if con_nivel else "")
+            + f" {_verdict_label(run['verdict'])} | "
             f"{len(run['steps'])} de {acciones} | {_count_clicks(run['steps'])} | "
             f"{run['duration_s']:.0f} s de {segundos} s | {_count_signals(run['steps'])} |"
         )
@@ -185,7 +227,7 @@ def generate(
     lines += _seccion_por_nivel(meta, runs)
 
     if comparison:
-        lines += report_section(comparison, {run["profile"]: run["profile_name"] for run in runs})
+        lines += report_section(comparison, {_folder(run): _run_name(run) for run in runs})
 
     lines += ["", "## Ruta recomendada", ""]
     route = tree.get("recommended_route")
@@ -210,13 +252,13 @@ def generate(
 
     lines += ["", "## Detalle por perfil"]
     for run in runs:
-        folder = run["profile"]
+        folder = _folder(run)
         verdict = run["verdict"]
         lines += [
             "",
-            f"### {run['profile_name']} ({run['viewport']})",
+            f"### {_run_name(run)} ({run['viewport']})",
             "",
-            f"**Resultado: {_outcome_label(verdict.get('outcome'))}.** {verdict.get('justification', '')}",
+            f"**Resultado: {_verdict_label(verdict)}.** {verdict.get('justification', '')}",
             "",
             f"- **Cómo terminó:** {_como_termino(run)}"
             + (f": \"{run['final_message']}\"" if run["final_message"] else "."),
