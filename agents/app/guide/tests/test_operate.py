@@ -50,6 +50,19 @@ def test_element_that_hides_and_comes_back_is_awaited(with_session):
     with_session("index.html", body)
 
 
+def test_a_click_that_times_out_tells_the_model_what_may_be_wrong(with_session, monkeypatch):
+    monkeypatch.setattr(operate, "_ACTION_TIMEOUT_MS", 500)
+
+    async def body(session):
+        _, products = await _handle(session, "Productos")
+        await session.page.evaluate("""() => document.body.insertAdjacentHTML('beforeend',
+            '<div style="position:fixed;inset:0;z-index:9"></div>')""")
+        with pytest.raises(ActionRejected, match="intercepts pointer events.*abre primero ese menú"):
+            await perform_step(session, "click", None, products, None)
+
+    with_session("index.html", body)
+
+
 def test_click_below_the_fold_records_it_was_off_screen(with_session):
     async def body(session):
         _, contact = await _handle(session, "Contacto")

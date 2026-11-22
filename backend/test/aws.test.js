@@ -113,3 +113,22 @@ test("runtimeAgentes: un error HTTP lanza y la siguiente invocación vuelve a re
   await agentes.invocar({});
   assert.equal(llamadas.length, 4);
 });
+
+test("runtimeAgentes: un timeout o un 5xx es incierto y no se reintenta; un 4xx no es incierto", async () => {
+  const lista = [200, { agentRuntimes: [{ agentRuntimeName: "chameleon", agentRuntimeArn: ARN }] }];
+  const llamadas = [];
+  const respuestas = [lista, "timeout", lista, [503, {}], lista, [400, {}]];
+  const fetch = async (url, opciones) => {
+    llamadas.push({ url, ...opciones });
+    const respuesta = respuestas.shift();
+    if (respuesta === "timeout") throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    return new Response(JSON.stringify(respuesta[1]), { status: respuesta[0] });
+  };
+  const agentes = runtimeAgentes("chameleon", { llamar: clienteAgentCore({ region: "us-east-2", credenciales: CREDENCIALES, fetch }) });
+
+  await assert.rejects(agentes.invocar({}), { name: "TimeoutError", incierta: true });
+  await assert.rejects(agentes.invocar({}), { name: "AgentCore503", incierta: true });
+  await assert.rejects(agentes.invocar({}), { name: "AgentCore400", incierta: false });
+  assert.equal(llamadas.length, 6);
+  assert.ok(llamadas.every(({ signal }) => signal instanceof AbortSignal));
+});
