@@ -131,12 +131,13 @@ def test_concurrency_is_capped(backend):
     assert invoker.max_active == 2
 
 
-def test_a_failed_guide_skips_its_visitor_only(backend):
+def test_a_failed_guide_still_runs_its_visitor(backend):
     invoker = FakeInvoker(backend, [goal("a"), goal("b")], {("guide", "a"): "failed"})
     report = conduct(backend, invoker)
-    assert ("visitor", "a") not in invoker.calls and ("visitor", "b") in invoker.calls
-    first = report["goals"][0]
-    assert first["guide"]["status"] == "failed" and first["visitor"] is None and "verificada" in first["skipped"]
+    assert ("visitor", "a") in invoker.calls and ("visitor", "b") in invoker.calls
+    first, second = report["goals"]
+    assert first["guide"]["status"] == "failed" and first["route_verified"] is False
+    assert first["visitor"]["status"] == "succeeded" and second["route_verified"] is True
     assert report["status"] == "succeeded"
 
 
@@ -144,7 +145,7 @@ def test_stage_timeout_and_errors_do_not_stop_the_others(backend):
     invoker = FakeInvoker(backend, [goal("a"), goal("b")], {("guide", "a"): "timeout", ("visitor", "b"): "raise"},)
     report = conduct(backend, invoker, timeouts={"catalog": 1, "guide": 7, "visitor": 1, "improver": 1})
     a, b = report["goals"]
-    assert a["guide"]["error"] == "superó el tiempo máximo de 7 s" and a["visitor"] is None
+    assert a["guide"]["error"] == "superó el tiempo máximo de 7 s" and a["visitor"]["status"] == "succeeded"
     assert b["visitor"] == {"status": "failed", "run": None, "error": "RuntimeError: se cayó", "seconds": 0.0}
     assert invoker.calls[-1] == ("improver", None) and report["status"] == "succeeded"
 
@@ -165,7 +166,7 @@ def test_the_improver_waits_the_grace_for_the_others(backend):
 
 def test_without_a_successful_visitor_the_improver_waits_for_all(backend):
     invoker = FakeInvoker(backend, [goal("a"), goal("b"), goal("c")],
-                          {("guide", "a"): "failed", ("visitor", "b"): "failed", ("guide", "c"): "failed"},
+                          {("visitor", "a"): "failed", ("visitor", "b"): "failed", ("visitor", "c"): "failed"},
                           delays={("guide", "c"): 0.3})
     report = conduct(backend, invoker, improver_grace_s=0)
     assert invoker.calls[-1] == ("improver", None) and report["stages"]["improver"]["pending_goals"] == []

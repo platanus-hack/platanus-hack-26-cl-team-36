@@ -1,7 +1,7 @@
 # conductor
 
 El **conductor** corre una **revisión** de una página: el [Catalogador](../cataloger/README.md), luego por cada
-objetivo evaluable la [Guía](../guide/README.md) y, si su ruta quedó verificada, el [Visitante](../visitor/README.md),
+objetivo evaluable la [Guía](../guide/README.md) y luego el [Visitante](../visitor/README.md) (sin ruta verificada, con juez),
 y al final la mejora del [diseñador](../web_designer/README.md), que deja `tema.css`. Cada etapa es el CLI de su app
 con `--revision`, armado por [`shared.stages`](../../shared/README.md); ninguna app importa a otra.
 
@@ -35,7 +35,7 @@ Las etapas leen `AGENTS_STORE`, `AGENTS_ENGINE`, `AGENTS_BROWSER`, `AGENTS_MODEL
 `<host>/conductor/<run>/` con `revision` en el manifiesto, `conductor.json` (cómo terminó cada etapa y cada objetivo,
 con la clave de su corrida, el error y los segundos) y, con el invocador local, la salida de cada etapa en
 `<etapa>[-<goal>].log`. Termina `succeeded` solo si la mejora terminó `succeeded`. Una Guía que falla o no verifica
-deja su objetivo sin Visitante, sin hacer fallar la revisión; un catálogo fallido o sin objetivos evaluables, o una
+no hace fallar la revisión ni deja su objetivo sin Visitante (`route_verified` en el informe); un catálogo fallido o sin objetivos evaluables, o una
 mejora fallida, la dejan `failed`. Sale con 0 solo si la corrida queda `succeeded`.
 
 ## Pruebas
