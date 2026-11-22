@@ -51,10 +51,12 @@ def write_route(backend: store.Backend, item: dict, min_steps: int = 3, status: 
 
 
 def write_batch(backend: store.Backend, goal_id: str, runs: dict[str, tuple[str, int, float | None, bool]],
-                moment: datetime = NOW, proposals: bool = False, tema: str | None = None) -> store.RunKey:
+                moment: datetime = NOW, proposals: bool = False, tema: str | None = None,
+                conjunto_exploradores: str | None = None) -> store.RunKey:
     """`runs`: perfil → (resultado, pasos, eficiencia, beat_reference); `tema`: sha256 corto, si corrió con uno."""
     files: dict = {"report.md": "# Reporte", "route_tree.json": {"url": START, "instruction": f"Tarea {goal_id}.",
-                                                                 "tema": {"sha256": tema} if tema else None}}
+                                                                 "tema": {"sha256": tema} if tema else None,
+                                                                 "conjunto_exploradores": conjunto_exploradores}}
     rows = []
     for profile, (outcome, steps, efficiency, beat) in runs.items():
         files[f"{profile}/run.json"] = {"profile": profile, "steps": [{}] * steps, "verdict": {"outcome": outcome}}
