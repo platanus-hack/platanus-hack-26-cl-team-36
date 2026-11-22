@@ -116,7 +116,7 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; font-featu
 .vids .cap span { color: var(--muted); }
 
 /* 2 · nace */
-.nace { position: absolute; left: 0; right: 0; top: 10cqh; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.nace { position: absolute; left: 0; right: 0; top: 6.5cqh; display: flex; flex-direction: column; align-items: center; text-align: center; }
 .nlogo { width: 6.4cqw; height: auto; margin-bottom: 2.2cqw; }
 .s2 .s { color: var(--ink); font-size: 2.3cqw; }
 .rnum { position: absolute; left: 0; top: 0; font-size: 1.1cqw; color: var(--muted); opacity: 0; }
@@ -157,14 +157,15 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; font-featu
 .words em { font-style: normal; color: rgba(245, 245, 247, .2); }
 .sitio { position: absolute; right: 4cqw; top: 6.4cqh; font-size: 1.2cqw; color: var(--muted); }
 .sitio-a b { font-weight: 400; padding: .4cqw .8cqw; border: 1px solid rgba(245, 245, 247, .2); border-radius: 99px; }
-.sitio-b { display: flex; flex-direction: column; align-items: flex-end; gap: .7cqw; }
-.mini { position: relative; width: 12cqw; aspect-ratio: 16 / 10; border-radius: .5cqw; background: #F4F6F9; overflow: hidden; }
-.mini::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 18%; background: #0F4C81; }
-.mini i { position: absolute; left: 8%; height: 7%; border-radius: 99px; background: #CDD5DF; }
-.mini i:nth-child(1) { top: 28%; width: 56%; height: 10%; background: #0F4C81; opacity: .85; }
-.mini i:nth-child(2) { top: 46%; width: 80%; }
-.mini i:nth-child(3) { top: 60%; width: 70%; }
-.mini i:nth-child(4) { top: 76%; width: 34%; height: 10%; background: #2B7BB9; }
+/* una barra por revisión: la actual en turquesa, las anteriores atenuadas al lado para comparar */
+.fila5 { display: flex; align-items: flex-end; gap: 3.4cqw; }
+.revs { display: flex; align-items: flex-end; gap: 1.3cqw; height: 7.2cqw; margin-bottom: 1.6cqw; }
+.rev { position: relative; width: 3.2cqw; height: 100%; }
+.rev i { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--v) * 100%); border-radius: .35cqw .35cqw .12cqw .12cqw; background: var(--turq); transform-origin: 50% 100%; }
+.rev b, .rev em, .rev span { position: absolute; left: -2cqw; right: -2cqw; text-align: center; white-space: nowrap; font-style: normal; }
+.rev b { bottom: calc(var(--v) * 100% + .55cqw); font-size: 1.15cqw; color: var(--ink); }
+.rev em { bottom: calc(var(--v) * 100% + 2.1cqw); font-size: 1.15cqw; color: var(--turq); }
+.rev span { top: calc(100% + .7cqw); font-size: .95cqw; color: var(--muted); }
 
 /* 6 · cierre */
 .s6 .brand { gap: 2cqw; }
@@ -212,8 +213,8 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; font-featu
     <section class="slide s2" aria-label="Nace">
       <div class="nace">
         <img class="nlogo" alt="Chameleon" src="@@LOGO_SRC@@">
-        <h1 class="t">¿Y si se adaptara<br>a ti?</h1>
-        <p class="s">Chameleon rediseña sitios para tu tarea.</p>
+        <h1 class="t">¿Y si no hiciera falta<br>el tutorial?</h1>
+        <p class="s">Chameleon rediseña el sitio para lo que vienes a hacer.</p>
       </div>
     </section>
 
@@ -239,11 +240,16 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; font-featu
       <h1 class="t t--m t5"><span>Mide</span> ·<br><span>rediseña</span> ·<br><span>repite</span></h1>
       <div class="pct">
         <div class="lab5 m">llegan</div>
-        <div class="big"><span id="m5">31</span><small>%</small></div>
-        
+        <div class="fila5">
+          <div class="big"><span id="m5">31</span><small>%</small></div>
+          <div class="revs">
+            <div class="rev" style="--v:.31"><b class="m">31%</b><i></i><span class="m">rev 1</span></div>
+            <div class="rev" style="--v:.64"><em class="m">+33</em><b class="m">64%</b><i></i><span class="m">rev 2</span></div>
+            <div class="rev" style="--v:.88"><em class="m">+24</em><b class="m">88%</b><i></i><span class="m">rev 3</span></div>
+          </div>
+        </div>
       </div>
       <div class="sitio sitio-a m"><b>sii.cl</b></div>
-      <div class="sitio sitio-b"><div class="mini"><i></i><i></i><i></i><i></i></div><span class="m">ChileAtiende · otro sitio</span></div>
     </section>
 
     <section class="slide s6" aria-label="Cierre">
