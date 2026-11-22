@@ -1,5 +1,4 @@
-// GET /api/vivo/<revision>/<goal> contra la fuente local (una copia de fixtures/vivo) y una tabla falsa: la traza
-// crece entre sondeos, Last-Event-ID, el cierre con `fin` y lo que no es de la tabla.
+// GET /api/vivo/<revision>/<goal> contra la fuente local (una copia de fixtures/vivo) y una tabla falsa.
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -28,10 +27,20 @@ const items = [
 let raiz;
 let servidor;
 let base;
+let lecturas = 0;
+let demora = null;
 before(async () => {
   raiz = mkdtempSync(path.join(tmpdir(), "vivo-"));
   cpSync(FIXTURE, raiz, { recursive: true });
-  const revisiones = crearRevisiones({ tabla: TABLA, cliente: clienteDynamoFalso(TABLA, items, { porPagina: 50 }), comandos: comandosDynamo, fuente: crearFuenteDeArchivos({ raiz }) });
+  const reales = crearRevisiones({ tabla: TABLA, cliente: clienteDynamoFalso(TABLA, items, { porPagina: 50 }), comandos: comandosDynamo, fuente: crearFuenteDeArchivos({ raiz }) });
+  const revisiones = {
+    ...reales,
+    async leerGoal(...argumentos) {
+      lecturas += 1;
+      if (demora) await demora;
+      return reales.leerGoal(...argumentos);
+    },
+  };
   servidor = crearServidor({ raizCorridas: raiz, revisiones, vivo: { intervaloMs: 30, latidoMs: 60, tope: 2 } });
   await new Promise((listo) => servidor.listen(0, "127.0.0.1", listo));
   base = `http://127.0.0.1:${servidor.address().port}/backoffice/api/vivo`;
@@ -96,6 +105,8 @@ async function escuchar(url, { cabeceras = {}, listo = () => false, alLeer = () 
   return { respuesta, mensajes, cerrado };
 }
 const eventos = (mensajes) => mensajes.filter((m) => m.id);
+const esperar = (ms) => new Promise((listo) => setTimeout(listo, ms));
+const visitante = () => items.find((i) => i.SK === "GOAL#horario#visitor");
 
 test("al conectar manda lo conocido y la ruta; después solo lo nuevo de la traza que crece; latido", async () => {
   let crecio = false;
@@ -124,29 +135,83 @@ test("al conectar manda lo conocido y la ruta; después solo lo nuevo de la traz
   assert.equal(mensajes.filter((m) => m.event === "ruta").length, 1, "la ruta sale una vez mientras no cambia");
 });
 
-test("Last-Event-ID: al reconectar no reenvía lo ya entregado", async () => {
+test("Last-Event-ID: no reenvía lo de su intento hasta ese paso; lo de los demás sí (el cliente deduplica)", async () => {
   escribir(`${VISITA}/desktop/trace.json`, traza("running", PASOS));
   const { mensajes } = await escuchar(`${base}/en-curso/horario`, {
     cabeceras: { "Last-Event-ID": `${VISITA}|desktop|1|step` },
     listo: (m) => m.some((x) => x.event === "ruta"),
   });
-  assert.deepEqual(eventos(mensajes).map((m) => m.id), [`${VISITA}|desktop|2|step`]);
+  assert.deepEqual(eventos(mensajes).map((m) => m.id), [
+    `${GUIA}|guia|0|start`, `${GUIA}|guia|1|step`, `${GUIA}|guia|2|step`, `${GUIA}|guia|2|end`, `${VISITA}|desktop|2|step`,
+  ]);
+});
+
+test("un cliente que corta durante la primera lectura no deja la conexión contada ni un sondeo vivo", async () => {
+  let soltar;
+  demora = new Promise((listo) => (soltar = listo));
+  const previas = lecturas;
+  const corte = new AbortController();
+  const pedido = fetch(`${base}/en-curso/horario`, { signal: corte.signal }).catch(() => null);
+  while (lecturas === previas) await esperar(5);
+  corte.abort();
+  await pedido;
+  await esperar(30);
+  demora = null;
+  soltar();
+  await esperar(60);
+  const antes = lecturas;
+  await esperar(100);
+  assert.equal(lecturas, antes, "nadie sondea");
+  const abiertas = [new AbortController(), new AbortController()];
+  const respuestas = await Promise.all(abiertas.map((c) => fetch(`${base}/en-curso/horario`, { signal: c.signal })));
+  assert.deepEqual(respuestas.map((r) => r.status), [200, 200], "el cupo volvió");
+  abiertas.forEach((c) => c.abort());
+  await esperar(50);
+});
+
+test("dos conexiones al mismo goal comparten el sondeo: una lectura por tic, y nada cuando se van", async () => {
+  const abiertas = [new AbortController(), new AbortController()];
+  await fetch(`${base}/en-curso/horario`, { signal: abiertas[0].signal });
+  const alConectar = lecturas;
+  await fetch(`${base}/en-curso/horario`, { signal: abiertas[1].signal });
+  assert.ok(lecturas - alConectar <= 1, "la segunda parte del último estado del sondeador");
+  const desde = lecturas;
+  await esperar(300);
+  const enLaVentana = lecturas - desde;
+  assert.ok(enLaVentana >= 3 && enLaVentana <= 12, `${enLaVentana} lecturas en 300 ms con un tic de 30 ms`);
+  abiertas.forEach((c) => c.abort());
+  await esperar(60);
+  const despues = lecturas;
+  await esperar(100);
+  assert.equal(lecturas, despues);
 });
 
 test("el Visitante termina: sale su end, después fin, y se cierra", async () => {
   escribir(`${VISITA}/desktop/trace.json`, traza("running", PASOS));
+  visitante().status = "running";
+  let escrito = false;
   const { mensajes, cerrado } = await escuchar(`${base}/en-curso/horario`, {
     cabeceras: { "Last-Event-ID": `${VISITA}|desktop|2|step` },
     alLeer: (m) => {
-      if (m.length !== 1) return;
+      if (escrito || !m.some((x) => x.event === "ruta")) return;
+      escrito = true;
       escribir(`${VISITA}/desktop/run.json`, { ...traza("succeeded", PASOS), end_reason: "done", duration_s: 9, verdict: { outcome: "success" } });
-      items.find((i) => i.SK === "GOAL#horario#visitor").status = "succeeded";
+      visitante().status = "succeeded";
     },
   });
   assert.equal(cerrado, true);
-  const [fin] = eventos(mensajes);
+  const fin = eventos(mensajes).find((m) => m.data.agent === "visitor");
   assert.deepEqual([fin.id, fin.data.outcome, fin.data.end_reason], [`${VISITA}|desktop|2|end`, "success", "done"]);
   assert.deepEqual(mensajes.at(-1), { event: "fin", data: { revision: "en-curso", goal: "horario", estado: "succeeded" } });
+});
+
+test("goal terminado: una reconexión con Last-Event-ID recibe 204; sin ella, todo y fin", async () => {
+  const respuesta = await fetch(`${base}/en-curso/horario`, { headers: { "Last-Event-ID": `${VISITA}|desktop|2|end` } });
+  assert.equal(respuesta.status, 204);
+  const { mensajes, cerrado } = await escuchar(`${base}/en-curso/horario`);
+  assert.equal(cerrado, true);
+  assert.equal(eventos(mensajes).length, 8);
+  assert.equal(mensajes.at(-1).event, "fin");
 });
 
 test("revisión o goal que no están en la tabla: 404, sin abrir el flujo", async () => {
@@ -158,7 +223,7 @@ test("revisión o goal que no están en la tabla: 404, sin abrir el flujo", asyn
 });
 
 test("tope de conexiones: la que sobra recibe 503 y el cupo vuelve al cerrar", async () => {
-  items.find((i) => i.SK === "GOAL#horario#visitor").status = "running";
+  visitante().status = "running";
   const abiertas = [new AbortController(), new AbortController()];
   const respuestas = await Promise.all(abiertas.map((c) => fetch(`${base}/en-curso/horario`, { signal: c.signal })));
   assert.deepEqual(respuestas.map((r) => r.status), [200, 200]);
