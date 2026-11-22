@@ -7,7 +7,8 @@ import { credencialesDelEntorno, firmar } from "./firma.js";
 
 // `previos`: solo escribe si `status` no existe o es uno de ellos. `existente`: solo si el ítem existe.
 // `hasta`: { atributo: valor }, solo si el atributo no existe o no es mayor que ese valor.
-export function expresionActualizar(atributos, { previos, existente = false, hasta = {} } = {}) {
+// `igual`: { atributo: valor }, solo si vale eso (undefined: si no existe).
+export function expresionActualizar(atributos, { previos, existente = false, hasta = {}, igual = {} } = {}) {
   const nombres = {};
   const valores = {};
   const sets = [];
@@ -31,6 +32,12 @@ export function expresionActualizar(atributos, { previos, existente = false, has
     nombres[`#h${i}`] = nombre;
     valores[`:h${i}`] = valor;
     condiciones.push(`(attribute_not_exists(#h${i}) OR #h${i} <= :h${i})`);
+  });
+  Object.entries(igual).forEach(([nombre, valor], i) => {
+    nombres[`#i${i}`] = nombre;
+    if (valor === undefined) return condiciones.push(`attribute_not_exists(#i${i})`);
+    valores[`:i${i}`] = valor;
+    condiciones.push(`#i${i} = :i${i}`);
   });
   if (existente) condiciones.push("attribute_exists(PK)");
 

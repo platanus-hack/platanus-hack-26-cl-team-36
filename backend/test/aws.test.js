@@ -29,12 +29,22 @@ test("expresionActualizar: pending solo se escribe si no hay estado", () => {
 
 test("expresionActualizar: `hasta` exige que el atributo no exista o no sea mayor", () => {
   const { ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues } = expresionActualizar(
-    { resumen: {}, updated_at: "t1" },
-    { existente: true, hasta: { updated_at: "t1" } },
+    { step: 2, trace_at: "t1" },
+    { hasta: { trace_at: "t1" } },
   );
-  assert.equal(ConditionExpression, "(attribute_not_exists(#h0) OR #h0 <= :h0) AND attribute_exists(PK)");
-  assert.equal(ExpressionAttributeNames["#h0"], "updated_at");
+  assert.equal(ConditionExpression, "(attribute_not_exists(#h0) OR #h0 <= :h0)");
+  assert.equal(ExpressionAttributeNames["#h0"], "trace_at");
   assert.equal(ExpressionAttributeValues[":h0"], "t1");
+});
+
+test("expresionActualizar: `igual` exige ese valor, o que no exista si es undefined", () => {
+  const leida = expresionActualizar({ resumen_version: 3 }, { existente: true, igual: { resumen_version: 2 } });
+  assert.equal(leida.ConditionExpression, "#i0 = :i0 AND attribute_exists(PK)");
+  assert.equal(leida.ExpressionAttributeNames["#i0"], "resumen_version");
+  assert.equal(leida.ExpressionAttributeValues[":i0"], 2);
+  const primera = expresionActualizar({ resumen_version: 1 }, { igual: { resumen_version: undefined } });
+  assert.equal(primera.ConditionExpression, "attribute_not_exists(#i0)");
+  assert.equal(Object.hasOwn(primera.ExpressionAttributeValues, ":i0"), false);
 });
 
 test("filtroEnCurso: META con esos estados y novedades desde la fecha", () => {

@@ -114,12 +114,16 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
     }
   }
 
-  // `hasta`: el resumen de una consulta más vieja no pisa el de una más nueva (eventos simultáneos).
-  async function guardarResumen(revision) {
-    const updated_at = ahora().toISOString();
+  // `resumen_version`: si otro escribió un resumen después de esta consulta, puede no ver este evento; se vuelve a consultar.
+  async function guardarResumen(revision, intentos = 10) {
     const items = await db.listar(claveRevision(revision).PK);
-    if (!items.some((item) => item.SK === "META")) return;
-    await actualizarMeta(revision, { resumen: resumir(items), updated_at }, { hasta: { updated_at } });
+    const meta = items.find((item) => item.SK === "META");
+    if (!meta) return;
+    const { resumen_version: version } = meta;
+    const atributos = { resumen: resumir(items), resumen_version: (version ?? 0) + 1, updated_at: ahora().toISOString() };
+    if (await actualizarMeta(revision, atributos, { igual: { resumen_version: version } })) return;
+    if (intentos <= 1) throw new Error(`No se pudo guardar el resumen de ${revision}`);
+    await guardarResumen(revision, intentos - 1);
   }
 
   // Con --runs el Visitante tiene un trace.json por intento: su GOAL muestra el último que avanzó (`trace_at`).

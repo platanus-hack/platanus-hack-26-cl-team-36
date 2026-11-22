@@ -351,6 +351,8 @@ test("eventos repetidos y desordenados dejan el mismo resultado final", async ()
     const { db, almacen, proyectar } = conTrazas();
     Object.assign(almacen.archivos, structuredClone(archivos));
     for (const i of orden) await proyectar(claves[i]);
+    // resumen_version cuenta escrituras, no estado.
+    delete db.item(claveRevision(REV)).resumen_version;
     return Object.fromEntries(db.items);
   }
   const enOrden = await final([0, 1, 2, 3, 4]);
@@ -361,4 +363,20 @@ test("eventos repetidos y desordenados dejan el mismo resultado final", async ()
   assert.equal(enOrden[`REV#${REV}|GOAL#buscar-precio#visitor`].status, "running");
   assert.deepEqual(enOrden[`REV#${REV}|META`].resumen.fases.guide, { pending: 1, running: 0, succeeded: 1, failed: 0 });
   assert.equal(enOrden[`REV#${REV}|META`].resumen.pasos, 3);
+});
+
+test("resumen: una consulta vieja no pisa la de una más nueva, aunque marquen la misma hora", async () => {
+  const { db, evento, publicar, resumen } = conTrazas();
+  await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
+  // La Guía consulta para su resumen y, antes de que escriba, el Visitante proyecta su traza entera.
+  const listar = db.listar;
+  let consultas = 0;
+  db.listar = async (PK) => {
+    const foto = await listar(PK);
+    if (++consultas === 2) await publicar(VISITA_TRAZA, traza("visitor", [pasoVisita(1)]));
+    return foto;
+  };
+  await publicar(GUIA_TRAZA, traza("guide", [pasoGuia(1)]));
+  assert.deepEqual(resumen().fases.visitor, { pending: 1, running: 1, succeeded: 0, failed: 0 });
+  assert.equal(resumen().pasos, 2);
 });
