@@ -15,6 +15,8 @@ CONTENT_TYPES = {
     ".png": "image/png",
     ".webm": "video/webm",
 }
+# S3 expira por etiqueta y no por extensión: infra/app/corridas.tf borra los objetos con esta.
+VIDEO_TAGGING = "tipo=video"
 _TAKEN = {"PreconditionFailed", "ConditionalRequestConflict"}
 _MISSING = {"404", "NoSuchKey", "NotFound"}
 
@@ -25,6 +27,12 @@ class MissingBoto3(RuntimeError):
 
 def content_type(key: str) -> str:
     return CONTENT_TYPES.get(Path(key).suffix, "application/octet-stream")
+
+
+def object_args(key: str) -> dict[str, str]:
+    """Tipo de contenido y, si es un video, la etiqueta que lo hace expirar."""
+    kind = content_type(key)
+    return {"ContentType": kind, "Tagging": VIDEO_TAGGING} if kind.startswith("video/") else {"ContentType": kind}
 
 
 def _error_code(error: Exception) -> str:
@@ -57,16 +65,12 @@ class S3Backend(Backend):
     def publish(self, run: RunKey, workdir: Path) -> None:
         """Sube la carpeta de trabajo y la borra; es temporal, la corrida queda en S3."""
         for path, key in workdir_files(run, workdir):
-            self.client.upload_file(
-                str(path), self.bucket, self.prefix + key, ExtraArgs={"ContentType": content_type(key)}
-            )
+            self.client.upload_file(str(path), self.bucket, self.prefix + key, ExtraArgs=object_args(key))
         shutil.rmtree(workdir)
         self._workdirs.pop(run, None)
 
     def _put(self, key: str, data: bytes, **extra: str) -> None:
-        self.client.put_object(
-            Bucket=self.bucket, Key=self.prefix + key, Body=data, ContentType=content_type(key), **extra
-        )
+        self.client.put_object(Bucket=self.bucket, Key=self.prefix + key, Body=data, **object_args(key), **extra)
 
     def _create(self, key: str, data: bytes) -> bool:
         try:
