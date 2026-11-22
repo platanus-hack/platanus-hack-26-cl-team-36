@@ -15,7 +15,7 @@ from pathlib import Path
 from shared.claude.caller import ClaudeCallError
 from shared.claude.engines import make_caller
 
-from disenador import config
+from disenador import config, voz
 from disenador.motor.componer import DIRECCIONES, FAMILIAS_DISPONIBLES, direcciones, recetas_meta
 
 ESQUEMA_TEMA = {
@@ -63,8 +63,13 @@ ESQUEMA_KIT = {
                     "tareas": {"type": "array", "maxItems": MAX_TAREAS_MODELO,
                                "items": _cadenas("enlace", "titulo_es", "titulo_en", "detalle_es", "detalle_en",
                                                  max_largo=MAX_TEXTO_TAREA)},
+                    "fuentes": {"type": "array", "description": "De dónde sale cada texto escrito.", "items": {
+                        "type": "object",
+                        "properties": {"texto": {"type": "string"}, "fuente": {"enum": list(voz.FUENTES)},
+                                       "origen": {"type": "string"}},
+                        "required": ["texto", "fuente", "origen"], "additionalProperties": False}},
                 },
-                "required": ["id", "contenedor", "textos", "etiquetas", "tareas"],
+                "required": ["id", "contenedor", "textos", "etiquetas", "tareas", "fuentes"],
                 "additionalProperties": False,
             },
         },
@@ -150,14 +155,25 @@ Respondes solo el JSON pedido, con:
 """
 
 CONTRATO_KIT = """- `componentes`: uno por cada componente del diagnóstico (`atajo`, `lanzador` o `buscador`), con su mismo `id`;
-  la extensión los dibuja con los datos del diagnóstico y tú pones las palabras y el lugar:
-  - `textos`: en `es` y `en`, `titulo` (≤ 6 palabras, lo que la persona quiere hacer), `subtitulo` (una frase corta)
-    y `boton` (el verbo de la acción en el atajo; el que abre la búsqueda en el buscador; en el lanzador, vacío).
-  - `etiquetas`: en el atajo, una por campo (`nombre` del campo), corta y en ambos idiomas ("Desde" / "From").
-  - `tareas`: en el lanzador y el buscador, una por tarea (mismo `enlace`, hasta 40). `titulo_es` y `titulo_en`: de 2
-    a 5 palabras, verbo y objeto ("Planificar un viaje" / "Plan a trip"), no la descripción recortada; `detalle_es`
-    y `detalle_en`: una frase breve (≤ 160 caracteres). El inglés es la traducción, nunca una copia del español.
-    Una tarea que está en ambos componentes basta escribirla en uno.
+  la extensión los dibuja con los datos del diagnóstico y tú pones las palabras y el lugar.
+  Las palabras son las del sitio, no las de una app: cada texto sale primero de lo que la página ya dice para eso
+  (`voz_del_sitio` del diagnóstico: el título de la sección que reemplaza el atajo, la etiqueta u opción vacía de
+  cada `<select>`, el texto del botón que envía el formulario, el texto del menú de cada enlace). Solo si no existe o
+  no se entiende, reformula breve con palabras de la página o del objetivo. Prohibido: preguntas a la persona
+  ("¿A dónde vas?", "¿Qué quieres hacer?"), "Lo más buscado", "Accesos rápidos", "Todo lo que necesitas" y emojis; el
+  código los reemplaza por el texto del sitio.
+  - `textos`: en `es` y `en`, `titulo` (≤ 6 palabras, el del sitio; en el lanzador y el buscador, vacío si el sitio
+    no titula ese bloque: el componente va sin titular), `subtitulo` (una frase corta, o vacío) y `boton` (el verbo
+    de la acción en el atajo; el que abre la búsqueda en el buscador; en el lanzador, vacío).
+  - `etiquetas`: en el atajo, una por campo (`nombre` del campo), corta y en ambos idiomas ("Origen" / "Origin").
+  - `tareas`: en el lanzador y el buscador, una por tarea (mismo `enlace`, hasta 40). `titulo_es`: el texto del menú
+    que lleva a ese enlace, si lo hay ("Planificador de Viajes"); si no, de 2 a 5 palabras con las del objetivo, no
+    la descripción recortada. `titulo_en`: su traducción. `detalle_es` y `detalle_en`: una frase breve
+    (≤ 160 caracteres). El inglés es la traducción, nunca una copia del español. Una tarea que está en ambos
+    componentes basta escribirla en uno.
+  - `fuentes`: una por texto que escribiste: `texto` (`titulo`, `subtitulo`, `boton`, `etiqueta:<nombre>` o
+    `tarea:<enlace>`), `fuente` (`sitio`, `objetivo` o `reformulado`) y `origen` (el texto del sitio o del objetivo
+    del que sale).
   - `contenedor`: un selector del mapa (un `id` o etiqueta, ≤ 200 caracteres) del bloque antes del cual va el
     componente, arriba y a la vista; vacío para dejar el propuesto. Si no existe en la página, queda el propuesto.
 """
@@ -219,8 +235,9 @@ def mensaje_de_diseno(url: str, gustos: str, tarea: str | None, mapa_texto: str,
     if diagnostico:
         contexto += (
             "Diagnóstico (JSON): lo que dijeron los usuarios sintéticos al detenerse, los obstáculos que la Guía tuvo"
-            " que sortear y los componentes propuestos (`componentes`), ya armados con los enlaces que la Guía"
-            f" verificó. Escríbeles la microcopia y elige dónde van:\n{diagnostico}\n\n"
+            " que sortear, los componentes propuestos (`componentes`), ya armados con los enlaces que la Guía"
+            " verificó, y los textos que el sitio ya usa para cada uno (`voz_del_sitio`). Escríbeles la microcopia con"
+            f" esa voz y elige dónde van:\n{diagnostico}\n\n"
         )
     return (
         "Diseña un tema para esta página.\n\n"

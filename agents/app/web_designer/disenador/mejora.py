@@ -20,7 +20,7 @@ from shared.browser.theme import describir_kit
 from shared.catalog.files import read_catalog
 from shared.nodes.urls import node_key
 
-from disenador import atajos, config, mapa, motor, pagina, tema_json
+from disenador import atajos, config, mapa, motor, pagina, tema_json, voz
 from disenador.corrida import TemaRechazado
 from disenador.css import sanear
 from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR, Skill, mensaje_de_diseno, prompt_de_sistema
@@ -32,14 +32,37 @@ ANCLAS_DE_RESPALDO = ("main", "[role='main']", "body > :has(h1)")
 # Las capturas de la propuesta: (dispositivo de mejora.json, viewport de `pagina`, nombre del archivo).
 VISTAS = (("desktop", "revision", "escritorio"), ("mobile", "movil", "movil"))
 
-_SELECTS = """() => [...document.querySelectorAll("select")].map((s) => ({
-  selector: s.id ? "#" + CSS.escape(s.id) : s.name ? `select[name="${CSS.escape(s.name)}"]` : "",
-  id: s.id, name: s.name,
-  etiqueta: ((s.labels && s.labels[0] && s.labels[0].textContent) || s.getAttribute("aria-label") || "")
-    .replace(/\\s+/g, " ").trim().slice(0, 40),
-  valores: [...s.options].filter((o) => o.value && !o.disabled).map((o) => o.value).slice(0, 500),
-  elegido: s.value,
-})).filter((s) => s.selector && s.selector.length <= 200)"""
+# El título de la sección de un `<select>`: el último título antes de él en sus ancestros cercanos (un `.card-title`
+# también cuenta), sin los de la cabecera o el menú; y el texto del botón que envía su formulario.
+_SELECTS = """() => {
+  const limpio = (t, max) => (t || "").replace(/\\s+/g, " ").trim().slice(0, max);
+  const TITULO = "h1, h2, h3, h4, h5, h6, legend, [role=heading], [class*=title], [class*=titulo]";
+  const seccion = (s) => {
+    for (let el = s.form || s, nivel = 0; el.parentElement && el.parentElement !== document.body && nivel < 3;
+         el = el.parentElement, nivel++) {
+      const antes = [...el.parentElement.querySelectorAll(TITULO)]
+        .filter((t) => !t.contains(s) && !t.closest("header, nav, footer, [role=banner], [role=navigation]")
+                && t.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .map((t) => limpio(t.textContent, 80)).filter((t) => t && t.length <= 60);
+      if (antes.length) return antes.at(-1);
+    }
+    return "";
+  };
+  const boton = (s) => {
+    const b = s.form && s.form.querySelector("button[type=submit], button:not([type]), input[type=submit]");
+    return b ? limpio(b.tagName === "INPUT" ? b.value : b.textContent || b.getAttribute("aria-label") || b.title, 40) : "";
+  };
+  return [...document.querySelectorAll("select")].map((s) => ({
+    selector: s.id ? "#" + CSS.escape(s.id) : s.name ? `select[name="${CSS.escape(s.name)}"]` : "",
+    id: s.id, name: s.name,
+    etiqueta: limpio((s.labels && s.labels[0] && s.labels[0].textContent) || s.getAttribute("aria-label"), 40),
+    valores: [...s.options].filter((o) => o.value && !o.disabled).map((o) => o.value).slice(0, 500),
+    elegido: s.value,
+    vacia: s.options[0] && !s.options[0].value ? limpio(s.options[0].textContent, 60) : "",
+    seccion: seccion(s),
+    boton: boton(s),
+  })).filter((s) => s.selector && s.selector.length <= 200);
+}"""
 
 # El bloque original que reemplaza un atajo: el formulario de sus `<select>`, subiendo mientras los hermanos sean solo
 # su título (nada interactivo ni texto largo). Sale como selector único anclado a un id; null si no hay uno seguro.
@@ -275,8 +298,9 @@ async def _existe(page, selector: str) -> bool:
         return False
 
 
-def diagnostico(resumen: dict, kit: dict) -> dict:
-    """Lo que el modelo recibe además del mapa: por qué no llegaron, qué sortearon y los componentes propuestos."""
+def diagnostico(resumen: dict, kit: dict, voz_sitio: dict | None = None) -> dict:
+    """Lo que el modelo recibe además del mapa: por qué no llegaron, qué sortearon, los componentes propuestos (con los
+    textos del sitio) y la voz del sitio de cada uno."""
     mensajes, obstaculos = [], []
     for objetivo in resumen["objetivos"]:
         mensajes += [{"objetivo": objetivo["id"], "perfil": v["perfil"], "llego": v["llego"], "mensaje": v["por_que"]}
@@ -284,16 +308,20 @@ def diagnostico(resumen: dict, kit: dict) -> dict:
         obstaculos += [{"objetivo": objetivo["id"], "paso": paso}
                        for paso in (objetivo["ruta"] or {}).get("obstaculos") or []]
     componentes = [a["vista"] for a in kit["atajos"]] + [v for v in (kit["lanzador"], kit["buscador"]) if v]
+    voz_sitio = voz_sitio or {"componentes": {}}
+    componentes = [voz.con_voz(v, voz_sitio["componentes"].get(v["id"])) for v in componentes]
     return {"viewport": config.REVISION, "mensajes_visitante": mensajes, "obstaculos": obstaculos,
-            "componentes": componentes, "sin_atajo": kit["descartes"]}
+            "componentes": componentes, "sin_atajo": kit["descartes"], "voz_del_sitio": voz_sitio}
 
 
-async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[dict]:
-    """Los componentes con la microcopia del modelo y un ancla que existe en la página abierta (si van en ella)."""
+async def _vistas(page, url: str, componentes: list[dict], propuestas,
+                  vocabulario: set[str]) -> tuple[list[dict], list[dict]]:
+    """Los componentes con la microcopia del modelo, sin lo que no tiene la voz del sitio (`voz.verificar`), y un ancla
+    que existe en la página abierta (si van en ella); y los textos reemplazados con su razón."""
     por_id = {p.get("id"): p for p in propuestas or [] if isinstance(p, dict)}
     tareas = tema_json.tareas_propuestas(propuestas)
     en_pagina = atajos.ruta_de(url)
-    vistas = []
+    vistas, reemplazos = [], []
     for vista in componentes:
         propuesta = dict(por_id.get(vista["id"]) or {})
         contenedor = ""
@@ -303,8 +331,11 @@ async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[d
                 if candidato and await _existe(page, candidato):
                     contenedor = candidato
                     break
-        vistas.append(tema_json.con_propuesta(vista, {**propuesta, "contenedor": contenedor}, tareas))
-    return vistas
+        propuesta = tema_json.con_propuesta(vista, {**propuesta, "contenedor": contenedor}, tareas)
+        verificada, cambios = voz.verificar(propuesta, vista, vocabulario)
+        vistas.append(verificada)
+        reemplazos += cambios
+    return vistas, reemplazos
 
 
 async def _ocultar(page, url: str, vistas: list[dict]) -> list[tuple[str, str]]:
@@ -392,9 +423,11 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                     datos_mapa, captura = await mapa.construir_mapa(page), await pagina.capturar(page)
                     titulo = _corto(await page.title(), 300)
                     tasas = {o["id"]: o["tasa_llegada"] for o in resumen["objetivos"]}
-                    kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url, tasas, leida.catalogo)
+                    selects = await _selects(page)
+                    kit = atajos.derivar(leida.goals, leida.rutas, selects, url, tasas, leida.catalogo)
                     _escribir_json(run.workdir / "atajos.json", kit)
-                    diag = diagnostico(resumen, kit)
+                    voz_sitio = voz.de_la_pagina(await page.evaluate(voz.VOZ_JS), selects, kit, leida.catalogo)
+                    diag = diagnostico(resumen, kit, voz_sitio)
                     _escribir_json(run.workdir / "diagnostico.json", diag)
                     texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"],
                                               mapa.como_texto(datos_mapa), config.REVISION,
@@ -405,13 +438,16 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                     respuesta = await disenador.pedir(prompt_de_sistema(skill, kit=True, con_motor=con_motor),
                                                       ESQUEMA_MOTOR if con_motor else ESQUEMA_KIT, partes, log)
                     # Con la página abierta: el ancla que propone el modelo solo vale si existe.
-                    vistas = await _vistas(page, url, diag["componentes"], respuesta.datos.get("componentes"))
+                    vistas, reemplazos = await _vistas(page, url, diag["componentes"],
+                                                       respuesta.datos.get("componentes"),
+                                                       voz.vocabulario(voz_sitio, leida.catalogo))
                     ocultar = await _ocultar(page, url, vistas)
                 finally:
                     await contexto.close()
                 costo = respuesta.costo_usd
                 informe["ocultar"] = [{"vista": v, "selector": s} for v, s in ocultar]
                 informe["sin_traduccion"] = tema_json.sin_traduccion(vistas)
+                informe["voz"] = {"reemplazos": reemplazos, "fuentes": voz.fuentes(respuesta.datos.get("componentes"))}
                 css = None
                 if con_motor:
                     pedido = _pedido(respuesta.datos)
