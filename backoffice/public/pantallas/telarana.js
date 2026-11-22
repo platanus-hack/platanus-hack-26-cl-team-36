@@ -158,10 +158,15 @@ function crearPantalla(contenedor, ctx) {
       "div",
       { class: "telarana-leyenda" },
       el("span", { class: "visualmente-oculto", texto: t("telarana.leyenda.titulo") }),
+      // Primera fila: los tipos de línea; segunda: cómo leer el resto (anillos, atascos, grosor).
       el(
         "ul",
-        { "aria-label": t("telarana.leyenda.titulo") },
+        { class: "leyenda-lineas", "aria-label": t("telarana.leyenda.titulo") },
         items.map(([clasesDeMuestra, clave]) => el("li", {}, muestra(clasesDeMuestra), el("span", { texto: t(`telarana.leyenda.${clave}`) }))),
+      ),
+      el(
+        "ul",
+        { class: "leyenda-lectura" },
         el("li", { class: "leyenda-anillo", texto: t("telarana.leyenda.anillo") }),
         hayAtascos ? el("li", { class: "leyenda-atasco" }, icono("atasco"), el("span", { texto: t("telarana.leyenda.atasco") })) : null,
         el("li", { class: "leyenda-grosor", texto: t("telarana.leyenda.grosor") }),

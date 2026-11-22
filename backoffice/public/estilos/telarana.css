@@ -178,7 +178,9 @@
 .p-telarana .terminal-vacia { opacity: 0.4; }
 
 /* ── Leyenda ────────────────────────────────────────────────────────── */
-.p-telarana .telarana-leyenda ul { display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4); color: var(--texto-3); font-size: 12px; line-height: 16px; }
+/* Dos filas: los tipos de línea arriba y el resto debajo, cada una alineada abajo. */
+.p-telarana .telarana-leyenda { display: grid; gap: var(--e-1); }
+.p-telarana .telarana-leyenda ul { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--e-1) var(--e-4); color: var(--texto-3); font-size: 12px; line-height: 16px; }
 .p-telarana .telarana-leyenda li { display: inline-flex; align-items: center; gap: 6px; }
 .p-telarana .leyenda-muestra { flex: none; overflow: visible; }
 .p-telarana .leyenda-muestra .tramo-tronco .tramo-trazo { filter: none; }
