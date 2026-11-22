@@ -6,9 +6,11 @@
 //
 // Lecturas por pasada (la página pide /api/resumen y /api/overview juntos cada 5 s):
 // - Cada lectura compartida (índice del almacén, ids de tandas, tabla) y cada respuesta se guardan MEMORIA_MS desde
-//   que terminan: dos pedidos que llegan juntos comparten la misma lectura.
+//   que terminan: dos pedidos que llegan juntos comparten la misma lectura. /api/overview se guarda aparte por cada
+//   página pedida (?pestana=<p>&limite=<n>, ya normalizada): una no responde por otra.
 // - Tabla: un Scan de los META y una Query por cada revisión que corre (para en_cola y "detenida"). En /api/overview,
-//   además, una Query por cada revisión con tarjeta (≤ 30); los ítems de las cerradas (done, failed) se guardan.
+//   además, una Query por cada revisión con tarjeta (6 por pestaña, hasta LIMITE_MAXIMO en la pedida); los ítems de
+//   las cerradas (done, failed) se guardan, así una página más larga solo consulta las que se suman.
 // - Almacén: el índice relee solo lo abierto. goals.json y el acento del tema.css de corridas cerradas se leen una vez.
 //
 // Seguridad: el almacén solo se lee con claves que listó la fuente o con run_key / css_key de la tabla validadas con
@@ -18,7 +20,7 @@
 
 import { REVISION } from "../public/nucleo/almacen.js";
 import { crearIndice } from "./indice.js";
-import { contarResumen, idsConTarjeta, listasDelOverview } from "./overview.js";
+import { contarResumen, idsConTarjeta, listasDelOverview, parametrosDelOverview } from "./overview.js";
 import { claveDeCorridaDelItem, claveDelTema } from "./revisiones.js";
 import { acentoDelTema, hostDeRevision, nombreDelSitio, nombreDeHost, rutaComparable } from "./sitio.js";
 import { idsDeTandas } from "./tandas.js";
@@ -35,8 +37,11 @@ import {
 
 /** Cuánto se reutiliza una lectura o una respuesta ya terminada (los pedidos de una misma pasada llegan juntos). */
 export const MEMORIA_MS = 2000;
-// Revisiones cerradas, goals.json y acentos guardados (los más viejos se olvidan primero).
-const LIMITE_EN_MEMORIA = 500;
+// Revisiones cerradas, goals.json y acentos guardados (los más viejos se olvidan primero): caben las tarjetas de la
+// página más larga (LIMITE_MAXIMO más las otras pestañas) con holgura.
+const LIMITE_EN_MEMORIA = 2000;
+// Páginas de /api/overview distintas guardadas a la vez (cada una MEMORIA_MS).
+const PAGINAS_EN_MEMORIA = 16;
 const TABLA_CERRADA = new Set(["done", "failed"]);
 
 /**
@@ -71,10 +76,10 @@ export function memorizar(fn, ms = MEMORIA_MS) {
   };
 }
 
-function recordar(mapa, clave, valor) {
+function recordar(mapa, clave, valor, limite = LIMITE_EN_MEMORIA) {
   mapa.delete(clave);
   mapa.set(clave, valor);
-  if (mapa.size > LIMITE_EN_MEMORIA) mapa.delete(mapa.keys().next().value);
+  if (mapa.size > limite) mapa.delete(mapa.keys().next().value);
   return valor;
 }
 
@@ -149,6 +154,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
   const itemsCerrados = new Map();
   const catalogos = new Map();
   const acentos = new Map();
+  const paginas = new Map();
   // Lo de cada host se arma una vez por pasada del índice (el mismo objeto mientras dura la memoria).
   const deHostPorPasada = new WeakMap();
   const deHostDe = (almacen) => {
@@ -241,13 +247,13 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     return { ahora: ahora.toISOString(), roles: contarResumen({ corridas: almacen.corridas, intentos, enCola }) };
   }
 
-  async function overview() {
+  async function armarOverview(pagina) {
     const ahora = reloj();
     if (!revisiones) return { ahora: ahora.toISOString(), disponible: false };
     const [tabla, almacen, listadas] = await Promise.all([leerTabla(), leerIndice(), leerListadas()]);
     const estados = estadosDeLaTabla(tabla, ahora);
-    const { cuentas, pestanas, cola } = listasDelOverview(estados);
-    const ids = idsConTarjeta({ pestanas, cola });
+    const { cuentas, pestanas } = listasDelOverview(estados, pagina);
+    const ids = idsConTarjeta({ pestanas });
     const porId = new Map(estados.map((estado) => [estado.revision, estado.meta]));
     const contexto = { tabla, ahora, listadas, almacen, deHost: deHostDe(almacen) };
     const tarjetas = await Promise.all(ids.map((id) => tarjetaDe(porId.get(id), contexto)));
@@ -257,7 +263,6 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
       umbralDetenidaMin: UMBRAL_DETENIDA_MS / 60_000,
       cuentas,
       pestanas,
-      cola,
       tarjetas: Object.fromEntries(ids.map((id, i) => [id, tarjetas[i]])),
     };
   }
@@ -266,8 +271,17 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     esTandaListada,
     /** GET /api/resumen (contrato §1). */
     resumen: memorizar(resumen, memoriaMs),
-    /** GET /api/overview (contrato §2). */
-    overview: memorizar(overview, memoriaMs),
+    /**
+     * GET /api/overview (contrato §2 y §7.4): `parametros` tal como llegan en la URL ({ pestana, limite }); cada página
+     * normalizada se guarda aparte.
+     */
+    overview(parametros = {}) {
+      const pagina = parametrosDelOverview(parametros);
+      const clave = `${pagina.pestana ?? ""}:${pagina.limite}`;
+      const guardada = paginas.get(clave) ?? memorizar(() => armarOverview(pagina), memoriaMs);
+      recordar(paginas, clave, guardada, PAGINAS_EN_MEMORIA);
+      return guardada();
+    },
     /** Una tarjeta cualquiera (aunque no esté en una pestaña), o null si la revisión no existe. Para pruebas. */
     async tarjeta(revision) {
       if (!revisiones || !REVISION.test(String(revision ?? ""))) return null;

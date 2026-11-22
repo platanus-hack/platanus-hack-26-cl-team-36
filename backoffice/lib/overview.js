@@ -4,13 +4,17 @@
 // GET /api/resumen → { ahora, roles }: todas las corridas del almacén por rol y estado (un agente = una corrida; un
 //   visitante = un intento), con los visitantes por dispositivo. `en_cola` sale de la tabla (enColaDeRevision en
 //   lib/tarjeta.js) y no entra en las cifras visibles: la página la usa solo para dibujar contornos.
-// GET /api/overview → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, cola, tarjetas }: listasDelOverview()
-//   arma cuentas, pestañas y cola; las tarjetas salen de lib/tarjeta.js.
+// GET /api/overview[?pestana=<p>&limite=<n>] → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, tarjetas }:
+//   listasDelOverview() arma cuentas y pestañas (paginadas en el servidor: parametrosDelOverview); las tarjetas salen
+//   de lib/tarjeta.js.
 
 import { estadoDeCorrida } from "./clasificar.js";
 
-/** Cuántos ids trae cada pestaña (y la cola): la página muestra hasta 6 tarjetas. */
+/** Cuántos ids trae cada pestaña por defecto (y como mínimo, la pedida): la página parte mostrando 6 tarjetas. */
 export const MAXIMO_POR_PESTANA = 6;
+/** El tope de `limite` (la página pide de a 10 más con "Show 10 more"). */
+export const LIMITE_MAXIMO = 500;
+export const PESTANAS = ["recent", "live", "delivered", "failed"];
 
 const RESULTADOS_DEL_VISITANTE = ["logrado", "fallido", "abandonado", "sin_medir", "error", "en_curso"];
 const ROLES_CON_MANIFIESTO = ["cataloger", "guide", "improver"];
@@ -53,20 +57,37 @@ const tiempo = (valor) => {
 };
 const compararTexto = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const masNuevaPrimero = (a, b) => tiempo(b.creada) - tiempo(a.creada) || compararTexto(a.revision, b.revision);
-const primeroEnLlegar = (a, b) => tiempo(a.creada) - tiempo(b.creada) || compararTexto(a.revision, b.revision);
 
 /**
- * cuentas, pestañas y cola del Overview.
- * - cuentas.running: las que corren según la tabla (incluye las detenidas); stalled ⊂ running; live = running + queued.
- * - pestañas (por creada descendente, desempate por id; hasta MAXIMO_POR_PESTANA ids y el total): recent, todas menos
- *   las queued; live, running + stalled; delivered; failed.
- * - cola: las queued por orden de llegada (creada ascendente).
- * @param {{ revision: string, creada: string | null, estado: "running" | "stalled" | "queued" | "delivered" | "failed" }[]} revisiones
+ * Los parámetros de GET /api/overview, normalizados: `pestana` una de PESTANAS (si no, ninguna) y `limite` un entero
+ * entre MAXIMO_POR_PESTANA y LIMITE_MAXIMO (uno que no es entero o es menor vale MAXIMO_POR_PESTANA). Sin pestaña o
+ * con el límite por defecto, la respuesta es la de siempre: { pestana: null, limite: MAXIMO_POR_PESTANA }.
+ * @param {{ pestana?: unknown, limite?: unknown }} [crudos]  tal como llegan en la URL
+ * @returns {{ pestana: string | null, limite: number }}
  */
-export function listasDelOverview(revisiones) {
+export function parametrosDelOverview({ pestana, limite } = {}) {
+  const valida = PESTANAS.includes(pestana) ? pestana : null;
+  const pedido = /^\d+$/.test(String(limite ?? "")) ? Number(limite) : MAXIMO_POR_PESTANA;
+  const acotado = Math.min(LIMITE_MAXIMO, Math.max(MAXIMO_POR_PESTANA, pedido));
+  return valida && acotado > MAXIMO_POR_PESTANA ? { pestana: valida, limite: acotado } : { pestana: null, limite: MAXIMO_POR_PESTANA };
+}
+
+/**
+ * cuentas y pestañas del Overview.
+ * - cuentas.running: las que corren según la tabla (incluye las detenidas); stalled ⊂ running; live = running + queued
+ *   (= pestanas.live.total).
+ * - pestañas (por creada descendente, desempate por id; ids hasta MAXIMO_POR_PESTANA, o `limite` en la pedida, y el
+ *   total): recent, todas (también las en cola); live, running + stalled + queued; delivered; failed.
+ * @param {{ revision: string, creada: string | null, estado: "running" | "stalled" | "queued" | "delivered" | "failed" }[]} revisiones
+ * @param {{ pestana?: string | null, limite?: number }} [pagina]  ya normalizada (parametrosDelOverview)
+ */
+export function listasDelOverview(revisiones, { pestana = null, limite = MAXIMO_POR_PESTANA } = {}) {
   const ordenadas = [...revisiones].sort(masNuevaPrimero);
   const de = (...estados) => ordenadas.filter((revision) => estados.includes(revision.estado));
-  const pestana = (lista) => ({ ids: lista.slice(0, MAXIMO_POR_PESTANA).map((revision) => revision.revision), total: lista.length });
+  const enPestana = (nombre, lista) => ({
+    ids: lista.slice(0, nombre === pestana ? limite : MAXIMO_POR_PESTANA).map((revision) => revision.revision),
+    total: lista.length,
+  });
   const cuantas = (...estados) => de(...estados).length;
   return {
     cuentas: {
@@ -79,16 +100,15 @@ export function listasDelOverview(revisiones) {
       failed: cuantas("failed"),
     },
     pestanas: {
-      recent: pestana(de("running", "stalled", "delivered", "failed")),
-      live: pestana(de("running", "stalled")),
-      delivered: pestana(de("delivered")),
-      failed: pestana(de("failed")),
+      recent: enPestana("recent", ordenadas),
+      live: enPestana("live", de("running", "stalled", "queued")),
+      delivered: enPestana("delivered", de("delivered")),
+      failed: enPestana("failed", de("failed")),
     },
-    cola: pestana(de("queued").sort(primeroEnLlegar)),
   };
 }
 
-/** Los ids que necesitan tarjeta: los de cada pestaña y los de la cola, sin repetir, en ese orden. */
-export function idsConTarjeta({ pestanas, cola }) {
-  return [...new Set([...Object.values(pestanas).flatMap((pestana) => pestana.ids), ...cola.ids])];
+/** Los ids que necesitan tarjeta: los de cada pestaña, sin repetir, en ese orden. */
+export function idsConTarjeta({ pestanas }) {
+  return [...new Set(Object.values(pestanas).flatMap((pestana) => pestana.ids))];
 }

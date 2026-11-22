@@ -15,9 +15,11 @@
 //   GET /backoffice/api/revisiones/<revision>  → el avance de una revisión por etapa y por goal
 //   GET /backoffice/api/resumen           → { ahora, roles }: las corridas de los cuatro agentes por rol y estado, y los
 //                                           visitantes por dispositivo (lib/panel.js; contrato del Overview v3, §1)
-//   GET /backoffice/api/overview          → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, cola, tarjetas }:
-//                                           las revisiones del Overview, cada tarjeta con todo lo que dibuja (§2);
-//                                           sin tabla, { ahora, disponible: false }
+//   GET /backoffice/api/overview[?pestana=<recent|live|delivered|failed>&limite=<n>]
+//                                         → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, tarjetas }: las
+//                                           revisiones del Overview, cada tarjeta con todo lo que dibuja (§2); 6 ids por
+//                                           pestaña y hasta `limite` (6–500) en la pedida (§7.4); sin tabla,
+//                                           { ahora, disponible: false }
 //   GET /backoffice/resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
 //   GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>  → la propuesta del Diseñador para esa tanda
 //   GET /backoffice/propuestas/<host>/improver/<corrida>/vistas/<nombre>.png  → una captura antes/después del tema
@@ -212,7 +214,10 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
       }
 
       if (partes[0] === "api" && partes.length === 2 && partes[1] === "resumen") return responderJson(res, 200, await panel.resumen());
-      if (partes[0] === "api" && partes.length === 2 && partes[1] === "overview") return responderJson(res, 200, await panel.overview());
+      if (partes[0] === "api" && partes.length === 2 && partes[1] === "overview") {
+        const consulta = new URLSearchParams(search);
+        return responderJson(res, 200, await panel.overview({ pestana: consulta.get("pestana"), limite: consulta.get("limite") }));
+      }
 
       if (partes[0] === "api" && partes[1] === "propuestas") {
         const id = partes.slice(2).join("/");
