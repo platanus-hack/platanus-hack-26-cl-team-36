@@ -1,24 +1,29 @@
-// En vivo (#/revisiones/<revision>/<goal>): la telaraña viva (public/telarana/viva.js) de un goal mientras corre su
-// revisión, alimentada por el SSE de api/vivo (telarana/fuente-sse.js). Se monta cuando llegó lo conocido al
-// conectar (o al tope de fuenteSSE), así el histórico se dibuja de una vez y solo se anima lo nuevo. Al terminar el
-// Visitante ofrece su tanda. "No existe" solo cuando la revisión respondió y el goal no está; un corte de la
-// transmisión deja la vista con un aviso y «Reintentar».
+// En vivo (#/revisiones/<revision>/<goal>): un goal de una revisión que todavía corre, en la hoja (marco en
+// nucleo/marco-tanda.js, montarMarcoEnVivo), como el Path map de una tanda terminada. A la izquierda, el riel con los
+// goals de la revisión (el que corre late; uno con tanda lleva a su Path map); al centro, la telaraña viva
+// (public/telarana/viva.js) alimentada por el SSE de api/vivo (telarana/fuente-sse.js). Se monta cuando llegó lo
+// conocido al conectar (o al tope de fuenteSSE), así el histórico se dibuja de una vez y solo se anima lo nuevo. La
+// pastilla de la cabecera dice cómo va la transmisión; al terminar el Visitante, arriba del mapa aparece su tanda.
+// "No existe" solo cuando la revisión respondió y el goal no está; un corte de la transmisión deja la vista con un
+// aviso y «Reintentar».
 
 import { pedirRevision } from "../nucleo/datos.js";
 import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, esqueleto, vacio } from "../nucleo/estados.js";
 import { ocultarGlobo } from "../nucleo/globo.js";
 import { cargarSeccion } from "../nucleo/i18n.js";
-import { icono } from "../nucleo/iconos.js";
-import { enlaceARevision, enlaceATanda } from "../nucleo/rutas.js";
+import { enlaceARevision, enlaceATanda, enlaceAVivo } from "../nucleo/rutas.js";
 import { nombreConNivel } from "../datos/nombres.js";
-import { estadoDelVivo, tandaDelGoal } from "../datos/vivo.js";
+import { estadoDelVivo, filaDeGoal, tandaDelGoal } from "../datos/vivo.js";
+import { crearRiel } from "../tanda/riel.js";
 import { fuenteSSE } from "../telarana/fuente-sse.js";
 import { montarTelaranaViva } from "../telarana/viva.js";
 
 // Tras `fin`, la proyectora tarda unos segundos en anotar la tanda: se vuelve a leer la revisión hasta tenerla.
 const REINTENTO_MS = 3000;
 const REINTENTOS = 10;
+// El riel de goals se refresca con la revisión mientras la hoja está abierta.
+const REFRESCO_MS = 8000;
 const INDICADOR = {
   conectando: { tono: "neutro", icono: "proximamente", clave: "conectando" },
   "en-vivo": { tono: "acento", icono: "reproducir", clave: "enVivo" },
@@ -30,33 +35,42 @@ const INDICADOR = {
 function crearPantalla(contenedor, ctx) {
   const { t } = ctx;
   const { revision, goal } = ctx.ruta;
-  const estado = { fuente: null, vista: null, avance: null, reloj: null, reintentos: 0, vivo: true };
+  const estado = { fuente: null, vista: null, avance: null, reloj: null, refresco: null, reintentos: 0, vivo: true, riel: null, firmaDelRiel: null, fijado: false };
   const delGoal = () => estado.avance?.goals?.find((g) => g.goal === goal) ?? null;
 
-  contenedor.classList.add("p-vivo");
-  const indicador = el("span", { class: "vivo-indicador", role: "status" });
-  const meta = el("p", { class: "vivo-meta texto-3" });
-  const zonaDeFin = el("div", { class: "vivo-fin" });
-  const cuerpo = el("div", { class: "vivo-cuerpo" }, esqueleto("lienzo"));
-  const cabecera = el("header", { class: "vivo-cabecera" }, el("h1", { tabindex: "-1", "data-foco-inicial": "", texto: t("vivo.titulo", { goal }) }), indicador);
-  reemplazar(
-    contenedor,
-    el("nav", { class: "vivo-migas", "aria-label": t("comun.shell.revisiones") }, el("a", { href: enlaceARevision(), texto: t("comun.shell.revisiones") }), " / ", el("a", { class: "mono", href: enlaceARevision(revision), texto: revision })),
-    cabecera,
-    meta,
-    zonaDeFin,
-    cuerpo,
-  );
+  contenedor.classList.add("p-telarana", "p-vivo");
+  const zonaDeFin = el("div", { class: "telarana-avisos" });
+  const lado = el("div", { class: "vivo-riel" });
+  const centro = el("div", { class: "telarana-anfitrion" }, esqueleto("lienzo"));
+  reemplazar(contenedor, zonaDeFin, el("div", { class: "tanda-columnas" }, lado, centro));
 
-  function pintarMeta() {
-    reemplazar(meta, estado.avance?.host ? el("span", { texto: estado.avance.host }) : null, el("code", { texto: `${revision} / ${goal}` }), el("span", { texto: t("vivo.subtitulo") }));
+  /** El riel de goals; se rehace solo si cambió algo de lo que muestra. */
+  function pintarRiel() {
+    const goals = estado.avance?.goals ?? [];
+    const filas = goals.map((cada) => filaDeGoal(cada, t));
+    const firma = JSON.stringify(filas);
+    if (firma === estado.firmaDelRiel) return;
+    estado.firmaDelRiel = firma;
+    estado.riel = crearRiel({
+      titulo: t("vivo.riel.titulo"),
+      orden: ctx.fmt.numero(goals.length),
+      etiqueta: t("vivo.riel.titulo"),
+      filas,
+      senal: ctx.senal,
+      alElegir: (id) => {
+        if (id === goal) return;
+        const tanda = tandaDelGoal(goals.find((cada) => cada.goal === id));
+        ctx.navegar(tanda ? enlaceATanda(tanda, "telarana", { revision }) : enlaceAVivo(revision, id));
+      },
+    });
+    reemplazar(lado, estado.riel.nodo);
+    estado.riel.marcar(goal);
   }
 
   function pintarEstado() {
     const actual = estadoDelVivo(estado.fuente?.estado, delGoal());
-    const { tono, icono: nombre, clave } = INDICADOR[actual];
-    indicador.className = `vivo-indicador insignia insignia-${tono}${actual === "en-vivo" ? " vivo-latiendo" : ""}`;
-    reemplazar(indicador, icono(nombre), el("span", { texto: t(`vivo.estado.${clave}`) }));
+    const { tono, icono, clave } = INDICADOR[actual];
+    ctx.marco?.ponerEstado({ tono, icono, texto: t(`vivo.estado.${clave}`), latiendo: actual === "en-vivo" });
     pintarFin(actual);
   }
 
@@ -89,7 +103,7 @@ function crearPantalla(contenedor, ctx) {
           "div",
           { class: "vivo-aviso tarjeta" },
           el("span", { class: "texto-2", texto: t("vivo.terminado.conTanda") }),
-          el("a", { class: "boton", href: enlaceATanda(tanda, "telarana"), texto: t("vivo.terminado.verTanda") }),
+          el("a", { class: "boton", href: enlaceATanda(tanda, "telarana", { revision }), texto: t("vivo.terminado.verTanda") }),
         ),
       );
     }
@@ -111,8 +125,31 @@ function crearPantalla(contenedor, ctx) {
         // Se reintenta en la próxima vuelta.
       }
       estado.reloj = null;
-      if (estado.vivo) pintarEstado();
+      if (estado.vivo) {
+        pintarRiel();
+        pintarEstado();
+      }
     }, REINTENTO_MS);
+  }
+
+  // Mientras la pestaña del navegador se ve, el riel sigue a los demás goals.
+  function refrescar() {
+    if (!estado.vivo) return;
+    estado.refresco = setTimeout(async () => {
+      if (document.visibilityState === "visible") {
+        try {
+          const avance = await pedirRevision(revision);
+          if (avance && estado.vivo) {
+            estado.avance = avance;
+            pintarRiel();
+            pintarEstado();
+          }
+        } catch {
+          // La próxima vuelta lo intenta de nuevo.
+        }
+      }
+      refrescar();
+    }, REFRESCO_MS);
   }
 
   function conectar() {
@@ -140,12 +177,18 @@ function crearPantalla(contenedor, ctx) {
   }
 
   function montarVista(fuente) {
-    estado.vista = montarTelaranaViva(cuerpo, {
+    estado.vista = montarTelaranaViva(centro, {
       ruta: fuente.ruta ?? [],
-      titulo: goal,
       fuente,
       i18n: { t },
       nombreDeIntento: (run, perfil) => nombreConNivel(perfil, t),
+      // Lo que está fijado o elegido en el mapa: Esc lo suelta antes de cerrar la hoja.
+      alFijar: (clave) => {
+        estado.fijado = !!clave;
+      },
+      alElegir: (run) => {
+        estado.fijado = !!run;
+      },
     });
   }
 
@@ -153,19 +196,13 @@ function crearPantalla(contenedor, ctx) {
     "+": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => estado.vista?.acercar() },
     "-": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => estado.vista?.alejar() },
     0: { descripcion: () => t("comun.atajos.desc.ajustar"), accion: () => estado.vista?.ajustar() },
-    Escape: {
-      descripcion: () => t("comun.atajos.desc.cerrar"),
-      accion: () => {
-        if (ocultarGlobo()) return;
-        estado.vista?.soltar();
-      },
-    },
   });
 
   return {
     async montar() {
       // Se conecta mientras cargan los estilos y la revisión: lo que llegue antes de montar se dibuja sin animar.
       const fuente = conectar();
+      pintarEstado();
       const [lectura] = await Promise.all([
         pedirRevision(revision).then(
           (avance) => ({ avance }),
@@ -181,20 +218,30 @@ function crearPantalla(contenedor, ctx) {
       // pedirRevision da null con un 404: la revisión o el goal no existen de verdad.
       if (!lectura.fallo && !delGoal()) {
         fuente.cerrar();
-        cabecera.hidden = true;
-        meta.hidden = true;
         return reemplazar(
-          cuerpo,
-          vacio({ titulo: t("vivo.noExiste", { goal, revision }), nivel: 1, accion: { texto: t("vivo.volver"), href: enlaceARevision(revision) } }),
+          contenedor,
+          vacio({ titulo: t("vivo.noExiste", { goal, revision }), nivel: 2, accion: { texto: t("vivo.volver"), href: enlaceARevision(revision) } }),
         );
       }
-      pintarMeta();
+      if (estado.avance?.host) ctx.marco?.ponerRevision({ host: estado.avance.host, url: estado.avance.url ?? null });
+      pintarRiel();
       montarVista(estado.fuente);
       pintarEstado();
+      refrescar();
+    },
+    /** Esc cierra la leyenda o suelta la página fijada antes de cerrar la hoja. */
+    escapar() {
+      if (ocultarGlobo()) return true;
+      if (estado.vista?.cerrarAyuda()) return true;
+      if (!estado.fijado) return false;
+      estado.fijado = false;
+      estado.vista?.soltar();
+      return true;
     },
     desmontar() {
       estado.vivo = false;
       clearTimeout(estado.reloj);
+      clearTimeout(estado.refresco);
       estado.vista?.desmontar();
       estado.fuente?.cerrar();
       estado.vista = null;
@@ -212,6 +259,9 @@ export default {
   },
   actualizar() {
     return pantalla !== null;
+  },
+  escapar() {
+    return pantalla?.escapar() ?? false;
   },
   desmontar() {
     pantalla?.desmontar();

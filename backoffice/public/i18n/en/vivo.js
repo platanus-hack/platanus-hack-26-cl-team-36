@@ -16,6 +16,10 @@ export default {
     sinTanda: "The goal finished without a Visitor batch.",
     verTanda: "Open the batch",
   },
+  riel: {
+    titulo: "Goals",
+    fase: { ruta: "Route", visita: "Live", tanda: "Done", fallido: "Failed", espera: "Queued" },
+  },
   sinConexion: "The live stream was cut.",
   noExiste: "Goal «{goal}» doesn't exist in review «{revision}».",
   volver: "Back to the review",

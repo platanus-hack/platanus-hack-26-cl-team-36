@@ -3,9 +3,11 @@
 // cada una con su ícono, su nombre y un dato corto (Path map: páginas; Replay: intentos; Proposal: lista o en curso).
 // Debajo, el panel de la pestaña. Las pestañas son enlaces (no pestañas ARIA): la actual lleva aria-current.
 //
-// Dos marcos comparten la cabecera:
+// Tres marcos comparten la cabecera:
 //   - montarMarco: una tanda. Se arma al instante con lo que dice el id (la tarea y el sitio) y un esqueleto;
 //     ponerTanda() completa el título, la pastilla y los datos de las pestañas.
+//   - montarMarcoEnVivo: un goal de una revisión que todavía corre (#/revisiones/<revision>/<goal>). Path map es la
+//     telaraña en vivo (pantallas/vivo.js); Replay y Proposal se ven apagadas hasta que haya tanda y propuesta.
 //   - montarMarcoDeFallo: una revisión que falló antes de tener tanda. Las tres pestañas se ven apagadas (con un globo
 //     que dice qué falta) y el panel muestra la cadena de etapas (pantallas/fallo.js).
 // Los atajos (1–3, Esc) van en el globo de cada botón.
@@ -24,7 +26,7 @@ import { esqueleto } from "./estados.js";
 import { conGlobo, ocultarGlobo } from "./globo.js";
 import { fmt, t } from "./i18n.js";
 import { icono, icono24 } from "./iconos.js";
-import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda, parametrosQueSiguen } from "./rutas.js";
+import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda, enlaceAVivo, parametrosQueSiguen } from "./rutas.js";
 import { limpiarTitulos } from "../tanda/titulos.js";
 import { modeloDeFranja, vecinoDe } from "../tanda/franja.js";
 
@@ -452,6 +454,66 @@ export function montarMarcoDeFallo({ revision, alVolver, escapar = () => false }
       const texto = etapa ? t("comun.marco.detenidaEn", { etapa: t(`comun.etapa.${etapa}`) }) : t("comun.marco.fallida");
       reemplazar(cabecera.insignia, el("span", { class: "insignia insignia-fallido" }, icono("fallido"), el("span", { texto })));
     },
+    desmontar() {
+      controlador.abort();
+      quitarAtajos();
+    },
+  };
+}
+
+/**
+ * Arma el marco de un goal en vivo: la misma cabecera, con Path map elegida («● Live») y las otras dos apagadas.
+ * → { raiz, panel, titulo, ponerRevision({ host, url }), ponerEstado({ tono, icono, texto, latiendo }), desmontar() }.
+ * @param {{ revision: string, goal: string, alVolver: () => void, escapar?: () => boolean }} opciones
+ */
+export function montarMarcoEnVivo({ revision, goal, alVolver, escapar = () => false }) {
+  const controlador = new AbortController();
+  const senal = controlador.signal;
+  const cabecera = armarCabecera({
+    textoDelTitulo: goal,
+    pestanas: PESTANAS.map((id, indice) =>
+      id === "telarana"
+        ? { id, href: enlaceAVivo(revision, goal), tecla: String(indice + 1) }
+        : { id, href: null, porque: t(`comun.marco.alTerminar.${id}`) },
+    ),
+    alCerrar: alVolver,
+    senal,
+  });
+  const telarana = cabecera.enlaces.get("telarana");
+  telarana.setAttribute("aria-current", "page");
+  cabecera.ponerMeta("telarana", [el("span", { class: "pestana-punto pestana-punto-vivo", "aria-hidden": "true" }), el("span", { texto: t("comun.marco.meta.enVivo") })]);
+
+  const panel = el("section", { id: "panel-tanda", class: "panel-tanda", tabindex: "-1", "aria-label": t(NOMBRES_DE_PESTANA.telarana) }, esqueleto("hoja"));
+  const raiz = el("div", { class: "marco-tanda marco-vivo" }, cabecera.nodo, panel);
+
+  const quitarAtajos = registrarAtajos(
+    {
+      Escape: {
+        descripcion: t("comun.atajos.desc.cerrarTanda"),
+        accion: () => {
+          if (ocultarGlobo() || escapar()) return;
+          alVolver();
+        },
+      },
+    },
+    { ambito: "pantalla", grupo: "tanda" },
+  );
+
+  return {
+    raiz,
+    panel,
+    titulo: cabecera.titulo,
+    /** El host ↗ de la página revisada. */
+    ponerRevision({ host, url }) {
+      reemplazar(cabecera.sitio, sitioDe({ url, host }));
+    },
+    /** La pastilla de la transmisión (Live, Reconnecting…, Finished…); al terminar, Path map deja de latir. */
+    ponerEstado({ tono, icono: nombre, texto, latiendo }) {
+      reemplazar(cabecera.insignia, el("span", { class: `insignia insignia-${tono}${latiendo ? " vivo-latiendo" : ""}` }, icono(nombre), el("span", { texto })));
+      if (tono === "logrado") cabecera.ponerMeta("telarana", null);
+    },
+    /** Otros parámetros en el mismo goal: no hay nada que cambiar en la cabecera. */
+    actualizar() {},
     desmontar() {
       controlador.abort();
       quitarAtajos();
