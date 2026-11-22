@@ -224,7 +224,8 @@ def con_propuesta(vista: dict, propuesta: dict | None) -> dict:
     vista = {**vista, "opciones": dict(vista["opciones"]), "datos": [dict(item) for item in vista["datos"]]}
     if str(propuesta.get("contenedor") or "").strip():
         vista["contenedor"] = propuesta["contenedor"].strip()
-    claves = ("titulo", "subtitulo", "boton") if vista["componente"] == "atajo" else ("titulo", "subtitulo")
+    claves = {"atajo": ("titulo", "subtitulo", "boton"), "buscador": ("titulo", "boton")}.get(vista["componente"],
+                                                                                         ("titulo", "subtitulo"))
     entrada = propuesta.get("textos") if isinstance(propuesta.get("textos"), dict) else {}
     textos = {}
     for idioma in ("es", "en"):

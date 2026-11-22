@@ -9,7 +9,7 @@ que se derivó de las rutas, sin modelo), `diagnostico.json` (lo que recibió el
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from shared import store
@@ -155,18 +155,20 @@ class Revision:
     """Los objetivos del catálogo que se intentan, en su orden."""
     rutas: dict[str, dict]
     """La `route.json` de escritorio de cada objetivo que la tiene."""
+    catalogo: list = field(default_factory=list)
+    """Todos los objetivos del catálogo, también los que no se intentan (los de nivel resumen agrupan a los demás)."""
 
 
 def leer_revision(backend: store.Backend, url: str, revision: str) -> Revision:
     """Lo medido en la revisión: el resumen compacto, las corridas que leyó, el catálogo y las rutas de la Guía."""
     corrida = store.revision_run(backend, store.cataloger(url), revision)
-    goals = []
+    goals, catalogo = [], []
     if corrida:
         try:
             _, catalogo, _ = read_catalog(backend, corrida)
             goals = [g for g in catalogo if g.exclusion is None]
         except (OSError, ValueError, KeyError, TypeError):
-            goals = []
+            goals, catalogo = [], []
     objetivos, entradas, rutas = [], [corrida] if corrida else [], {}
     for goal in goals:
         objetivo, leidas, route = _objetivo(backend, url, revision, goal)
@@ -178,7 +180,7 @@ def leer_revision(backend: store.Backend, url: str, revision: str) -> Revision:
     medidos = [o for o, con_corridas in objetivos if con_corridas]
     resumen = {"revision": revision, "url": url,
                "objetivos": medidos or [o for o, _ in objetivos][:config.MAX_GOALS_SIN_CORRIDAS]}
-    return Revision(resumen, entradas, goals, rutas)
+    return Revision(resumen, entradas, goals, rutas, catalogo)
 
 
 def resumir(backend: store.Backend, url: str, revision: str) -> tuple[dict, list[store.RunKey]]:
@@ -258,7 +260,7 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                 contexto, page = await pagina.abrir(browser, url, "revision")
                 try:
                     mapa_texto, captura = mapa.como_texto(await mapa.construir_mapa(page)), await pagina.capturar(page)
-                    kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url)
+                    kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url, leida.catalogo)
                     _escribir_json(run.workdir / "atajos.json", kit)
                     diag = diagnostico(resumen, kit)
                     _escribir_json(run.workdir / "diagnostico.json", diag)
@@ -268,7 +270,9 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                     respuesta = await disenador.pedir(prompt_de_sistema(skill, kit=True), ESQUEMA_KIT,
                                                       [texto, captura], run.workdir / "claude_code.log")
                     # Con la página abierta: el ancla que propone el modelo solo vale si existe.
-                    vistas = await _vistas(page, url, diag["componentes"], respuesta.datos.get("componentes"))
+                    # El buscador no pasa por el modelo (son hasta 40 tareas): va con sus textos y un ancla verificada.
+                    vistas = await _vistas(page, url, diag["componentes"] + [kit["buscador"]] * bool(kit["buscador"]),
+                                           respuesta.datos.get("componentes"))
                 finally:
                     await contexto.close()
                 salida.update(modelo=modelo, resumen_tema=respuesta.datos.get("resumen"),
