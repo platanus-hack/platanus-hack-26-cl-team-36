@@ -118,17 +118,12 @@ test("distancias desde el inicio; lo inalcanzable va afuera", () => {
   assert.deepEqual([...distancias(paginas, ramas)], [["a", 0], ["b", 1], ["c", 2], ["x", 3]]);
 });
 
-test("resultado de una rama: cómo terminaron los intentos que pasaron por ella", () => {
-  const resultadoDe = new Map([["a", "logrado"], ["b", "logrado"], ["c", "fallido"], ["d", "abandonado"], ["e", "abandonado"], ["x", "error"]]);
-  const de = (perfiles, extra = {}) => resultadoDeRama({ perfiles, ...extra }, resultadoDe);
-  // Todos llegaron, aunque el evaluador marque el tramo como desvío (fuera del camino a la página final).
-  assert.deepEqual(de(["a", "b"], { exitos: 0, fallos: 2 }), { resultado: "exito", llegaron: 2, noLlegaron: 0 });
-  // Un intento con error de la herramienta no cuenta.
-  assert.deepEqual(de(["a", "x"]), { resultado: "exito", llegaron: 1, noLlegaron: 0 });
-  assert.deepEqual(de(["a", "c"]), { resultado: "mixto", llegaron: 1, noLlegaron: 1 });
-  assert.deepEqual(de(["c", "d"], { exitos: 2 }), { resultado: "fallo", llegaron: 0, noLlegaron: 2 });
-  assert.deepEqual(de(["d", "e"]), { resultado: "abandono", llegaron: 0, noLlegaron: 2 });
-  assert.deepEqual(de(["x"]), { resultado: "error", llegaron: 0, noLlegaron: 0 });
+test("resultado de una rama", () => {
+  assert.equal(resultadoDeRama({ exitos: 2, fallos: 0, errores: 1 }), "exito");
+  assert.equal(resultadoDeRama({ exitos: 1, fallos: 1, errores: 0 }), "mixto");
+  assert.equal(resultadoDeRama({ exitos: 0, fallos: 0, errores: 1 }), "error");
+  assert.equal(resultadoDeRama({ exitos: 0, fallos: 1, errores: 0 }, { fallido: 1, abandonado: 0 }), "fallo");
+  assert.equal(resultadoDeRama({ exitos: 0, fallos: 1, errores: 0 }, { fallido: 0, abandonado: 2 }), "abandono");
 });
 
 test("fechaIso de una tanda", () => {
@@ -171,9 +166,7 @@ test("telaraña de la tanda vieja: ruta, distancias, capturas y ramas", async ()
   // El nodo de /planes?utm_source=x se encuentra aunque la URL del paso traiga parámetros de seguimiento.
   assert.ok(paginas.every((p) => p.captura), "cada página tiene captura");
   const haciaPlanes = ramas.find((r) => r.destino === "n4");
-  // Por /planes pasaron hurried (después lo logró) y mobile (falló): algunos llegaron.
-  assert.deepEqual([haciaPlanes.id, haciaPlanes.resultado, haciaPlanes.intentos], ["n1>n4", "mixto", 2]);
-  assert.deepEqual([haciaPlanes.llegaron, haciaPlanes.noLlegaron], [1, 1]);
+  assert.deepEqual([haciaPlanes.id, haciaPlanes.resultado, haciaPlanes.intentos], ["n1>n4", "fallo", 2]);
   assert.deepEqual(haciaPlanes.perfiles, ["hurried", "mobile"]);
   assert.equal(ramas.filter((r) => r.enRuta).length, 2);
 });
