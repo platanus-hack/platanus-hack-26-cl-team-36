@@ -3,10 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { MAX_ITEMS, MAX_VISTAS, sanearTema, validarVista } from "../src/background/tema-remoto.js";
+import { MAX_ITEMS, MAX_PALABRAS, MAX_VISTAS, sanearTema, validarVista } from "../src/background/tema-remoto.js";
 
 const METRO = JSON.parse(readFileSync(new URL("fixtures/metro/tema.json", import.meta.url), "utf8"));
-const ATAJO = METRO.features.vista[0];
+const ATAJO = METRO.features.vista.find((v) => v.componente === "atajo");
 
 const tarea = (extra = {}) => ({ titulo: { es: "Horarios", en: "Hours" }, enlace: "/horarios", ...extra });
 const lanzador = (extra = {}) => ({ id: "tareas", contenedor: "#ancla", componente: "lanzador", datos: [tarea()], opciones: {}, ...extra });
@@ -101,4 +101,14 @@ test("claves como __proto__ o constructor no se toman por propiedades del esquem
   const datos = [JSON.parse('{"titulo": {"es": "a", "en": "b"}, "enlace": "/x", "__proto__": {"x": 1}}'), tarea({ constructor: "x" })];
   const { features } = conVistas(lanzador({ datos: [tarea(), ...datos] }));
   assert.deepEqual(features.vista[0].datos, [tarea()]);
+});
+
+test("buscador: hasta 40 tareas con grupo y hasta 12 palabras por idioma", () => {
+  const buscador = (datos, opciones = {}) => ({ id: "buscar", contenedor: "body", componente: "buscador", datos, opciones });
+  const muchas = Array.from({ length: MAX_ITEMS.buscador }, (_, i) => tarea({ enlace: `/t${i}`, grupo: { es: "Viajes", en: "Trips" } }));
+  assert.equal(conVistas(buscador(muchas, { teclas: true, sugeridas: 6 })).features.vista[0].datos.length, MAX_ITEMS.buscador);
+  assert.deepEqual(conVistas(buscador([...muchas, tarea()])).features, {});
+  const palabras = (n) => ({ es: Array.from({ length: n }, (_, i) => `p${i}`) });
+  assert.equal(conVistas(buscador([tarea({ palabras: palabras(MAX_PALABRAS) })])).features.vista.length, 1);
+  assert.deepEqual(conVistas(buscador([tarea({ palabras: palabras(MAX_PALABRAS + 1) })])).features, {});
 });

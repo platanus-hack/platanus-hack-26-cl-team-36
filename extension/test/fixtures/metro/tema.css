@@ -59,6 +59,9 @@ html.mi-tema body > .mt-vista {
   width: var(--mt-ancho);
   margin: 0 auto;
 }
+html.mi-tema body > .mt-vista[data-mt-vista="buscar"] {
+  margin-top: 12px;
+}
 html.mi-tema body > .mt-vista[data-mt-vista="planificar"] {
   margin-top: 8px;
 }

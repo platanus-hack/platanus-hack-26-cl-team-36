@@ -3,6 +3,137 @@
   "features": {
     "vista": [
       {
+        "id": "buscar",
+        "rutas": ["/"],
+        "contenedor": "body > div:has(> #home)",
+        "reemplazar": false,
+        "componente": "buscador",
+        "datos": [
+          {
+            "titulo": { "es": "Planificar un viaje", "en": "Plan a trip" },
+            "detalle": { "es": "Ruta y tiempo entre dos estaciones", "en": "Route and travel time between two stations" },
+            "enlace": "/el-viaje/planificador",
+            "palabras": { "es": ["ruta", "cómo llegar", "origen", "destino", "combinación"], "en": ["route", "directions", "from", "to"] },
+            "grupo": { "es": "El viaje", "en": "The trip" }
+          },
+          {
+            "titulo": { "es": "Horarios y tarifas", "en": "Hours and fares" },
+            "detalle": { "es": "A qué hora abre y cuánto cuesta el pasaje", "en": "Opening hours and ticket prices" },
+            "enlace": "/el-viaje/horarios-y-tarifas",
+            "palabras": { "es": ["precio", "pasaje", "valor", "hora punta", "abre", "cierra"], "en": ["price", "ticket", "cost", "peak", "open", "close"] },
+            "grupo": { "es": "El viaje", "en": "The trip" }
+          },
+          {
+            "titulo": { "es": "Estado de la red", "en": "Network status" },
+            "detalle": { "es": "Si hay problemas o retrasos en las líneas ahora", "en": "Service problems or delays right now" },
+            "enlace": "/el-viaje/estado-red",
+            "palabras": { "es": ["retraso", "falla", "cerrada", "funcionando", "servicio"], "en": ["delay", "outage", "closed", "running", "service"] },
+            "grupo": { "es": "El viaje", "en": "The trip" }
+          },
+          {
+            "titulo": { "es": "Buscar una estación", "en": "Find a station" },
+            "detalle": { "es": "Accesos, servicios y combinaciones de cada estación", "en": "Entrances, services and transfers for each station" },
+            "enlace": "/el-viaje/estaciones",
+            "palabras": { "es": ["estación", "salida", "ascensor"], "en": ["station", "exit", "lift", "elevator"] },
+            "grupo": { "es": "El viaje", "en": "The trip" }
+          },
+          {
+            "titulo": { "es": "Plano de la red", "en": "Network map" },
+            "detalle": { "es": "El mapa completo de las líneas", "en": "The full map of every line" },
+            "enlace": "/el-viaje/plano-de-red",
+            "palabras": { "es": ["mapa", "líneas"], "en": ["map", "lines"] },
+            "grupo": { "es": "El viaje", "en": "The trip" }
+          },
+          {
+            "titulo": { "es": "Combinar con bus y tren", "en": "Connect with bus and train" },
+            "detalle": { "es": "Intermodalidad con buses, trenes y estacionamientos", "en": "Transfers to buses, trains and park-and-ride" },
+            "enlace": "/el-viaje/intermodalidad",
+            "palabras": { "es": ["bus", "micro", "tren", "intermodal", "transbordo"], "en": ["bus", "train", "transfer", "intermodal"] },
+            "grupo": { "es": "El viaje", "en": "The trip" }
+          },
+          {
+            "titulo": { "es": "Ruta expresa", "en": "Express route" },
+            "detalle": { "es": "Estaciones roja y verde en hora punta", "en": "Red and green stations at peak hours" },
+            "enlace": "/el-viaje/ruta-expresa",
+            "palabras": { "es": ["expreso", "roja", "verde", "hora punta"], "en": ["express", "red", "green", "peak"] },
+            "grupo": { "es": "El viaje", "en": "The trip" }
+          },
+          {
+            "titulo": { "es": "Cargar la bip!", "en": "Top up your bip!" },
+            "detalle": { "es": "Recarga saldo para viajar", "en": "Add credit to travel" },
+            "enlace": "/el-viaje/carga-bip",
+            "palabras": { "es": ["recargar", "saldo", "tarjeta", "bip"], "en": ["recharge", "balance", "card", "bip"] },
+            "grupo": { "es": "Tarjeta bip!", "en": "bip! card" }
+          },
+          {
+            "titulo": { "es": "Dónde y cómo cargar", "en": "Where and how to top up" },
+            "detalle": { "es": "Tipos de carga: en línea, tótem o boletería", "en": "Top-up options: online, kiosks or ticket office" },
+            "enlace": "/el-viaje/tipos-de-carga",
+            "palabras": { "es": ["recargar", "saldo", "tarjeta", "bip", "online", "app"], "en": ["recharge", "balance", "card", "bip", "online", "app"] },
+            "grupo": { "es": "Tarjeta bip!", "en": "bip! card" }
+          },
+          {
+            "titulo": { "es": "Tarjeta Adulto Mayor", "en": "Senior card" },
+            "detalle": { "es": "Pídela para pagar la tarifa rebajada", "en": "Apply for the reduced senior fare" },
+            "enlace": "/atencion-cliente/tarjeta-adulto-mayor",
+            "palabras": { "es": ["tercera edad", "tarifa", "descuento", "rebaja", "bip"], "en": ["elderly", "fare", "discount", "bip"] },
+            "grupo": { "es": "Tarjeta bip!", "en": "bip! card" }
+          },
+          {
+            "titulo": { "es": "Voucher digital", "en": "Digital voucher" },
+            "detalle": { "es": "Un pasaje en el celular, sin tarjeta", "en": "A ticket on your phone, no card needed" },
+            "enlace": "/voucher-digital",
+            "palabras": { "es": ["qr", "pasaje", "celular", "sin bip"], "en": ["qr", "ticket", "phone", "no card"] },
+            "grupo": { "es": "Tarjeta bip!", "en": "bip! card" }
+          },
+          {
+            "titulo": { "es": "Metro accesible", "en": "Accessible Metro" },
+            "detalle": { "es": "Viajar con discapacidad o movilidad reducida", "en": "Travelling with a disability or reduced mobility" },
+            "enlace": "/guia-del-usuario/metro-accesible",
+            "palabras": { "es": ["discapacidad", "silla de ruedas", "ascensor", "accesibilidad"], "en": ["disability", "wheelchair", "lift", "accessibility"] },
+            "grupo": { "es": "Ayuda", "en": "Help" }
+          },
+          {
+            "titulo": { "es": "Objetos perdidos", "en": "Lost and found" },
+            "detalle": { "es": "Reporta o recupera algo que dejaste en Metro", "en": "Report or recover something you left behind" },
+            "enlace": "/atencion-cliente/objetos-perdidos",
+            "palabras": { "es": ["perdí", "olvidé", "encontré"], "en": ["lost", "forgot", "found"] },
+            "grupo": { "es": "Ayuda", "en": "Help" }
+          },
+          {
+            "titulo": { "es": "Reclamos y sugerencias", "en": "Complaints and suggestions" },
+            "detalle": { "es": "Envía una consulta, sugerencia o reclamo", "en": "Send a question, suggestion or complaint" },
+            "enlace": "/atencion-cliente/sugerencias-reclamos",
+            "palabras": { "es": ["reclamo", "queja", "felicitar", "consulta"], "en": ["complaint", "feedback", "question"] },
+            "grupo": { "es": "Ayuda", "en": "Help" }
+          },
+          {
+            "titulo": { "es": "Contactar a Metro", "en": "Contact Metro" },
+            "detalle": { "es": "Teléfono, redes y canales de atención", "en": "Phone, social media and support channels" },
+            "enlace": "/atencion-cliente/canales-de-contacto",
+            "palabras": { "es": ["teléfono", "whatsapp", "ayuda", "atención"], "en": ["phone", "whatsapp", "help", "support"] },
+            "grupo": { "es": "Ayuda", "en": "Help" }
+          },
+          {
+            "titulo": { "es": "Preguntas frecuentes", "en": "Frequently asked questions" },
+            "detalle": { "es": "Respuestas rápidas sobre viajes y bip!", "en": "Quick answers about trips and bip!" },
+            "enlace": "/guia-del-usuario/tips-y-preguntas-frecuentes",
+            "palabras": { "es": ["dudas", "faq", "ayuda"], "en": ["faq", "help", "questions"] },
+            "grupo": { "es": "Ayuda", "en": "Help" }
+          }
+        ],
+        "opciones": {
+          "max": 8,
+          "sugeridas": 16,
+          "teclas": true,
+          "agrupar": true,
+          "textos": {
+            "es": { "boton": "Buscar una tarea en metro.cl…" },
+            "en": { "boton": "Search metro.cl for a task…" }
+          }
+        }
+      },
+      {
         "id": "planificar",
         "rutas": ["/"],
         "contenedor": "body > div:has(> #home)",

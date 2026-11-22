@@ -106,20 +106,57 @@ def test_enlaces_del_mismo_sitio():
         assert atajos.mismo_sitio(url, INICIO) is None
 
 
+def kit_derivado() -> list[dict]:
+    """El atajo, el lanzador y el buscador que salen del catálogo y la ruta de metro."""
+    kit = atajos.derivar(_goals(), {"planificar-viaje": _route()}, SELECTS, INICIO)
+    return [kit["atajos"][0]["vista"], kit["lanzador"], kit["buscador"]]
+
+
+def test_buscador_con_el_catalogo_de_metro():
+    buscador = kit_derivado()[2]
+    enlaces = [t["enlace"] for t in buscador["datos"]]
+    # Todo el catálogo del mismo sitio, también el objetivo del atajo; sin metromuv, outlook ni mail.metro.cl.
+    assert "/el-viaje/planificador" in enlaces and len(enlaces) == len(set(enlaces)) == 8
+    assert all(e.startswith("/") and not e.startswith("//") for e in enlaces)
+    assert buscador["rutas"] == ["/"] and buscador["contenedor"] == kit_derivado()[1]["contenedor"]
+    assert buscador["opciones"] == {"max": 8, "sugeridas": 6} and "teclas" not in buscador["opciones"]
+    assert all("grupo" not in t for t in buscador["datos"])
+
+
+def test_el_buscador_agrupa_por_el_objetivo_padre_y_tiene_tope():
+    goals = _goals()
+    padre = Goal(**{**goals[0].__dict__, "id": "viajar", "level": "summary", "description": "Viajar en Metro."})
+    goals[1].parent = goals[2].parent = "viajar"
+    buscador = atajos.buscador(goals, {}, INICIO, [padre, *goals])
+    grupos = {t["enlace"]: t.get("grupo") for t in buscador["datos"]}
+    assert grupos["/el-viaje/estado-red"] == {"es": "Viajar en Metro", "en": "Viajar en Metro"}
+    assert grupos["/el-viaje/planificador"] is None and buscador["opciones"]["agrupar"] is True
+    muchos = [Goal(**{**goals[0].__dict__, "id": f"g{i}", "entry": f"{METRO}/t{i}"}) for i in range(50)]
+    assert len(atajos.buscador(muchos, {}, INICIO)["datos"]) == atajos.MAX_BUSCADOR
+
+
 def _vistas_derivadas() -> list[dict]:
     kit = atajos.derivar(_goals(), {"planificar-viaje": _route()}, SELECTS, INICIO)
     return [kit["atajos"][0]["vista"], kit["lanzador"]]
 
 
 def test_el_kit_derivado_valida():
-    tema, descartes = tema_json.armar("metro", _vistas_derivadas())
-    assert descartes == [] and [v["id"] for v in tema["features"]["vista"]] == ["planificar-viaje", "tareas"]
+    tema, descartes = tema_json.armar("metro", kit_derivado())
+    assert descartes == [] and [v["id"] for v in tema["features"]["vista"]] == ["planificar-viaje", "tareas", "buscar"]
 
 
 def test_el_atajo_hecho_a_mano_valida():
     fixture = Path(__file__).parents[4] / "extension" / "test" / "fixtures" / "metro" / "tema.json"
     atajo = json.loads(fixture.read_text(encoding="utf-8"))["features"]["vista"][0]
     assert tema_json.validar_vista(atajo) == (atajo, [])
+
+
+def test_el_buscador_hecho_a_mano_valida():
+    fixture = Path(__file__).parents[4] / "extension" / "test" / "fixtures" / "metro" / "tema.json"
+    vistas = json.loads(fixture.read_text(encoding="utf-8"))["features"]["vista"]
+    buscador = next(v for v in vistas if v["componente"] == "buscador")
+    assert len(buscador["datos"]) > tema_json.MAX_ITEMS["lanzador"]
+    assert tema_json.validar_vista(buscador) == (buscador, [])
 
 
 @pytest.mark.parametrize("enlace", ["//evil.com/x", "/\\evil.com", "https://evil.com/", "javascript:alert(1)",
@@ -228,6 +265,10 @@ def _corrida(backend, prefijo, archivos: dict) -> None:
     store.finish_run(backend, run, "succeeded")
 
 
+def texto_del_modelo(disenador) -> str:
+    return disenador.llamadas[0]["partes"][0]
+
+
 MENSAJE = "Los campos para destino, hora y día de salida están fuera del área visible."
 
 
@@ -268,13 +309,17 @@ def test_corrida_revision_deja_el_kit(tmp_path, metro_local):
     assert atajo["datos"][1]["etiqueta"]["es"] == "Fin"
     assert atajo["opciones"]["destino"] == "/el-viaje/planificador/" and "fijos" not in atajo["opciones"]
     assert lanzador["opciones"]["textos"]["en"]["titulo"] == "Most wanted"
+    # El buscador no pasa por el modelo: va con su ancla derivada, que existe en la página.
+    buscador = vistas["buscar"]
+    assert buscador["contenedor"] == "body > :has(#binicio)" and len(buscador["datos"]) == 8
+    assert "buscar" not in texto_del_modelo(disenador)
 
     diag = backend.read_json(archivos["diagnostico.json"])
     assert diag["viewport"] == {"width": 1024, "height": 768}
     assert diag["mensajes_visitante"][0]["mensaje"] == MENSAJE
     assert "Close" in diag["obstaculos"][0]["paso"]
     mejora = backend.read_json(archivos["mejora.json"])
-    assert mejora["kit"] == {"vistas": ["planificar-viaje", "tareas"], "descartes": []}
+    assert mejora["kit"] == {"vistas": ["planificar-viaje", "tareas", "buscar"], "descartes": []}
     assert backend.read_json(archivos["atajos.json"])["atajos"][0]["objetivo"] == "planificar-viaje"
 
     texto = disenador.llamadas[0]["partes"][0]
