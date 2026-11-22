@@ -1,8 +1,10 @@
 """Catálogo de objetivos: el modelo lee el esquema del sitio y propone objetivos clasificados."""
 
+import re
+
 from shared.catalog.goal import INTENTS, LEVELS
 from shared.catalog.outline import SiteOutline
-from shared.claude.caller import ClaudeCaller
+from shared.claude.caller import Caller
 
 _ZONE_LABELS = {"nav": "Navegación", "main": "Contenido", "footer": "Pie"}
 
@@ -95,6 +97,15 @@ def render_outline(outline: SiteOutline) -> str:
     ])
 
 
-async def propose_goals(caller: ClaudeCaller, outline: SiteOutline) -> list[dict]:
+async def propose_goals(caller: Caller, outline: SiteOutline) -> list[dict]:
     output = await caller.ask(SYSTEM_PROMPT, CATALOG_SCHEMA, render_outline(outline))
     return output["goals"]
+
+
+def scripted_catalog(system_prompt: str, schema: dict, parts: list) -> dict:
+    """La respuesta del motor guionizado: un solo objetivo, llegar a la página inicial."""
+    start_url = re.search(r"página inicial (\S+)", parts[0]).group(1)
+    return {"goals": [{
+        "id": "pagina-inicial", "description": "Llega a la página inicial del sitio.", "level": "user_goal",
+        "parent": None, "intent": "reach_page", "submits_form": False, "evidence": [start_url], "entry": None,
+    }]}

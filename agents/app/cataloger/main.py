@@ -9,6 +9,8 @@ Uso, desde agents/app/cataloger/:
 import argparse
 import shutil
 
+from shared.claude import engines
+
 from cataloger import command, config
 
 
@@ -24,8 +26,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    if not shutil.which("claude"):
+    if engines.needs_claude_cli() and not shutil.which("claude"):
         parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión")
+    args.model = engines.model_for(args.model)
     command.run(parser, args)
 
 
