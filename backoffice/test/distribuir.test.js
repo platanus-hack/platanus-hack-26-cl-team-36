@@ -8,15 +8,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { leerTanda } from "../lib/tandas.js";
-import { GIRO_MAXIMO, acomodar, arcoDeAtajo, arcoDeVuelta, contarCruces, distribuir, geometria, idDeTerminal, idDeTramoFinal, piezasDeAvance } from "../public/telarana/distribuir.js";
+import { GIRO_MAXIMO, acomodar, arcoDeVuelta, contarCruces, distribuir, geometria, idDeTerminal, idDeTramoFinal, piezasDeAvance } from "../public/telarana/distribuir.js";
 import { anchoDeTramo, claseDeTramo } from "../public/telarana/escena.js";
 import {
-  duracionDePaso,
   finalesPorPagina,
   hitosDeRuta,
   intentosPorPagina,
   pasoDeLlegada,
-  recorridoDeHistoria,
   salidasDePagina,
   totalesDeTerminales,
   vecindario,
@@ -140,39 +138,6 @@ function comprobarColumnas(d, g, nombre, altoFila = 96) {
       assert.ok(salida <= 0.6 * altoFila, `${nombre}: ${tramo.id} se sale ${salida} px`);
     } else comprobarCasiRecto(g.caminos.get(tramo.id), `${nombre}: ${tramo.id}`);
   }
-  comprobarRectosDePuntaAPunta(d, g, nombre);
-}
-
-const distanciaAlSegmento = (p, a, b) => {
-  const [dx, dy] = [b.x - a.x, b.y - a.y];
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
-  return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
-};
-/**
- * C4-1, lo que pidió el usuario por tercera vez: cada tramo hacia la derecha es una recta de punta a punta. En cada
- * parada (o muestra, en el arco de un atajo) dobla a lo más 15° y ningún punto se aleja de la recta entre sus dos
- * puntas más de un 8 % de su largo; ninguno pasa a menos de 8 px del punto de una estación que no es una de sus puntas.
- */
-function comprobarRectosDePuntaAPunta(d, g, nombre) {
-  const puntos = [...d.estaciones, ...d.terminales].map((e) => ({ id: e.id, ...g.posiciones.get(e.id) }));
-  for (const tramo of d.tramos.filter((t) => ["tronco", "avance", "final"].includes(t.tipo))) {
-    const recorrido = g.recorridos.get(tramo.id);
-    const [a, z] = [recorrido[0], recorrido.at(-1)];
-    const largo = Math.hypot(z.x - a.x, z.y - a.y);
-    for (let i = 1; i + 1 < recorrido.length; i += 1) {
-      const [p, q, r] = [recorrido[i - 1], recorrido[i], recorrido[i + 1]];
-      let giro = Math.abs(grados(r.x - q.x, r.y - q.y) - grados(q.x - p.x, q.y - p.y));
-      if (giro > 180) giro = 360 - giro;
-      assert.ok(giro <= 15, `${nombre}: ${tramo.id} dobla ${giro.toFixed(1)}° en (${q.x}, ${q.y})`);
-      const desvio = Math.abs((z.x - a.x) * (q.y - a.y) - (z.y - a.y) * (q.x - a.x)) / largo / largo;
-      assert.ok(desvio <= 0.08, `${nombre}: ${tramo.id} se aleja ${(desvio * 100).toFixed(1)} % de la recta entre sus puntas`);
-    }
-    for (const punto of puntos) {
-      if (punto.id === tramo.origen || punto.id === tramo.destino) continue;
-      const cerca = recorrido.slice(1).some((q, i) => distanciaAlSegmento(punto, recorrido[i], q) < 8);
-      assert.ok(!cerca, `${nombre}: ${tramo.id} pasa sobre el punto de ${punto.id}`);
-    }
-  }
 }
 
 test("entrada vacía → salida vacía", () => {
@@ -219,7 +184,7 @@ test("dt: el error de la herramienta es una terminal propia (no «Abandonado») 
     ["fin:error", 3, 1],
   ]);
   assert.equal(d.terminales[0].fila, 0, "Logrado sigue la fila de la ruta");
-  assert.ok(Math.abs(d.terminales[1].fila) >= 0.5, "Error, separado de Logrado (encima o debajo)");
+  assert.ok(d.terminales[1].fila >= 0.5, "Error, separado de Logrado");
   const final = d.tramos.find((t) => t.id === idDeTramoFinal("n2", "error"));
   assert.deepEqual({ ...final, escalas: final.escalas.map((e) => e.capa) }, { id: "n2>fin:error", origen: "n2", destino: "fin:error", tipo: "final", intentos: 1, resultado: "error", escalas: [2] });
   assert.ok(!d.terminales.some((t) => t.resultado === "abandonado"));
@@ -442,28 +407,6 @@ test("intentos por página, paso de llegada y salidas", async () => {
   }));
 });
 
-test("historia: un paso por paso del intento, tramos al cambiar de página y el final", async () => {
-  const tanda = await leerTanda(RAIZ, VIEJA);
-  const hurried = tanda.intentos.find((i) => i.id === "hurried");
-  const { pasos, ids } = recorridoDeHistoria(hurried);
-  assert.equal(pasos.length, hurried.pasos.length);
-  assert.ok(pasos.every((paso, i) => paso.numero === hurried.pasos[i].numero));
-  for (const id of ["n1", "n4", "n2", "n3", "n1>n4", "n4>n1", "n1>n2", "n2>n3", "n3>fin:logrado", "fin:logrado"]) assert.ok(ids.has(id), id);
-  const cambios = pasos.filter((paso) => paso.tramo).map((paso) => paso.tramo);
-  assert.deepEqual(cambios, ["n1>n4", "n4>n1", "n1>n2", "n2>n3"]);
-  // Un intento con error de la herramienta termina en la terminal de error.
-  const nueva = await leerTanda(RAIZ, NUEVA);
-  const movil = nueva.intentos.find((i) => i.id === "mobile");
-  assert.ok(recorridoDeHistoria(movil).ids.has("fin:error"));
-});
-
-test("duración de un paso acotada", () => {
-  assert.equal(duracionDePaso({ duracion: 0.2 }), 400);
-  assert.equal(duracionDePaso({ duracion: 3 }), 1500);
-  assert.equal(duracionDePaso({ duracion: 60 }), 2500);
-  assert.equal(duracionDePaso({}), 1000);
-});
-
 // ── C3-U1: tramos casi rectos; la distribución, no la forma, evita los nombres ──
 
 test("avance de un tramo: una recta, aunque baje o suba mucho", () => {
@@ -585,59 +528,4 @@ test("vueltas atrás y pasos laterales: un solo tono neutro, el mismo en la leye
   assert.match(pantalla, /`tramo-\$\{tipo\} tramo-\$\{claseDeTramo\(\{ tipo \}\)\}`/, "la muestra de la leyenda usa claseDeTramo");
   const estilos = readFileSync(new URL("../public/estilos/telarana.css", import.meta.url), "utf8");
   assert.match(estilos, /\.tramo-secundario \{ --tono:/);
-});
-
-test("C4-1: el tramo largo que antes hacía una carpa en una parada ahora es una recta de punta a punta", () => {
-  // a (inicio) → m (meta) es el tronco; a → x → m por arriba, y un tramo largo a → fin:abandonado que tiene que pasar
-  // debajo de las páginas que vuelven a la meta. Antes sus paradas quedaban donde convenía al orden (con una esquina);
-  // ahora van sobre la recta y son las páginas las que se corren.
-  const d = distribuir({
-    paginas: [
-      pagina("a", { esInicio: true, visitas: 8, finales: { ...SIN_FINALES, abandonado: 2 } }),
-      pagina("b", { visitas: 6 }),
-      pagina("c", { visitas: 6 }),
-      pagina("m", { visitas: 6, finales: { ...SIN_FINALES, logrado: 6 } }),
-      pagina("p", { visitas: 3 }),
-      pagina("q", { visitas: 2 }),
-    ],
-    ramas: [rama("a", "b", 6), rama("b", "c", 6), rama("c", "m", 6), rama("a", "p", 3), rama("p", "m", 3), rama("b", "q", 2), rama("q", "m", 2)],
-    ruta: { paginas: ["a", "b", "c", "m"] },
-  });
-  for (const altoFila of [96, 124]) {
-    const g = geometria(d, { altoFila });
-    comprobarColumnas(d, g, `carpa (fila ${altoFila})`, altoFila);
-    const final = d.tramos.find((t) => t.id === "a>fin:abandonado");
-    assert.ok(final.escalas.length >= 3, "el tramo final salta columnas");
-    assert.match(g.caminos.get(final.id), /^M[^C]+ L[^C]+$/, "se dibuja como una sola recta");
-  }
-  assert.equal(contarCruces(d, geometria(d)), 0);
-});
-
-test("C4-1: un atajo entre dos estaciones del tronco es un arco bajo por encima, sin pasar por las que salta", () => {
-  // a → b → c → m es el tronco y a → c lo salta: una recta iría por encima del punto de b.
-  const d = distribuir({
-    paginas: [pagina("a", { esInicio: true, visitas: 4 }), pagina("b", { visitas: 4 }), pagina("c", { visitas: 4 }), pagina("m", { visitas: 4, finales: { ...SIN_FINALES, logrado: 4 } })],
-    ramas: [rama("a", "b", 3), rama("b", "c", 3), rama("a", "c", 1), rama("c", "m", 4)],
-    ruta: { paginas: ["a", "b", "c", "m"] },
-  });
-  const atajo = d.tramos.find((t) => t.id === "a>c");
-  assert.equal(atajo.atajo, 1);
-  assert.ok(atajo.escalas.every((e) => e.fila < 0), "le reserva lugar encima del tronco");
-  for (const altoFila of [96, 124]) {
-    const g = geometria(d, { altoFila });
-    comprobarColumnas(d, g, `atajo (fila ${altoFila})`, altoFila);
-    const ys = g.recorridos.get("a>c").map((p) => p.y);
-    assert.ok(Math.min(...ys) < -8 && Math.max(...ys) <= 0, "va por encima del tronco");
-  }
-  // Bajo y casi recto: a lo más 6.5 % de su largo, y sale a menos de 15° de la recta.
-  const [p, c1, , q] = arcoDeAtajo({ x: 0, y: 0 }, { x: 440, y: 0 }, 200);
-  assert.ok(Math.abs(0.75 * c1.y) <= 0.065 * 440 + 1e-9);
-  assert.ok(Math.abs(grados(c1.x - p.x, c1.y - p.y)) <= 15);
-  assert.equal(q.x, 440);
-});
-
-test("C4-1: en la tanda real de sii, tramos rectos sin enredar más que antes", () => {
-  const d = distribuir(SII);
-  for (const altoFila of [96, 124]) comprobarRectosDePuntaAPunta(d, geometria(d, { altoFila }), `sii (fila ${altoFila})`);
-  assert.ok(contarCruces(d, geometria(d)) <= 2, "no más cruces que la tanda 3 (2)");
 });

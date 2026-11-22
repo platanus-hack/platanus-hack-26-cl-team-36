@@ -2,7 +2,6 @@
 const plural = (n, ayudas, uno, otros) => `${n} ${ayudas.plural(n, { one: uno, other: otros })}`;
 
 export default {
-  herramientas: "Path map tools",
   lienzo: {
     etiqueta: "Path map",
     instrucciones: "Drag to move the map; ⌘ or Ctrl + wheel to zoom. With focus on the map, the arrow keys move it.",
@@ -90,29 +89,6 @@ export default {
     hito: "Milestone {n} on the route",
     inicio: "Start",
     elegida: "{nombre}: selected",
-  },
-  historia: {
-    boton: "Story",
-    quitar: "Leave the story",
-    intento: "Story attempt",
-    titulo: "Story · {nombre}",
-    pasoDe: "step {paso} of {total}",
-    controles: "Story controls",
-    primero: "First step",
-    anterior: "Previous step",
-    reproducir: "Play",
-    pausar: "Pause",
-    siguiente: "Next step",
-    ultimo: "Last step",
-    abrirEnReplay: "Open in Replay",
-    esperaba: "Expected",
-    senales: "Signals",
-    sinCaptura: "This step has no screenshot.",
-    captura: "Screenshot after step {n}",
-    noExiste: "There is no attempt «{intento}»; showing «{nombre}».",
-    sinPasos: "This attempt has no recorded steps.",
-    anuncio: "{nombre}: step {paso} of {total}, {pagina}",
-    error: "This attempt ended with a tool error, not because of what the user did.",
   },
 };
 

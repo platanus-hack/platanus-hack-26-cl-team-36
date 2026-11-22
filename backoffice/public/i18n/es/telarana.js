@@ -2,7 +2,6 @@
 const plural = (n, ayudas, uno, otros) => `${n} ${ayudas.plural(n, { one: uno, other: otros })}`;
 
 export default {
-  herramientas: "Herramientas del mapa de caminos",
   lienzo: {
     etiqueta: "Mapa de caminos",
     instrucciones: "Arrastra para mover el mapa; ⌘ o Ctrl + rueda para acercar. Con el foco en el mapa, las flechas lo mueven.",
@@ -90,29 +89,6 @@ export default {
     hito: "Hito {n} de la ruta",
     inicio: "Inicio",
     elegida: "{nombre}: elegida",
-  },
-  historia: {
-    boton: "Historia",
-    quitar: "Salir de la historia",
-    intento: "Intento de la historia",
-    titulo: "Historia · {nombre}",
-    pasoDe: "paso {paso} de {total}",
-    controles: "Controles de la historia",
-    primero: "Primer paso",
-    anterior: "Paso anterior",
-    reproducir: "Reproducir",
-    pausar: "Pausar",
-    siguiente: "Paso siguiente",
-    ultimo: "Último paso",
-    abrirEnReplay: "Abrir en Replay",
-    esperaba: "Esperaba",
-    senales: "Señales",
-    sinCaptura: "Este paso no tiene captura.",
-    captura: "Captura después del paso {n}",
-    noExiste: "No existe el intento «{intento}»; se muestra «{nombre}».",
-    sinPasos: "Este intento no tiene pasos registrados.",
-    anuncio: "{nombre}: paso {paso} de {total}, {pagina}",
-    error: "Este intento terminó con un error de la herramienta, no por lo que hizo el usuario.",
   },
 };
 

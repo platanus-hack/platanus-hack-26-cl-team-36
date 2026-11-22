@@ -174,8 +174,6 @@ export default {
       listaGrilla: "List ↔ grid",
       zoom: "Zoom in / out",
       ajustar: "Fit to view",
-      historia: "Story: on or off",
-      historiaPasos: "Story: play or pause, previous / next step",
       pasos: "Next / previous step",
       problemas: "Next / previous step with a signal or off the route",
       extremos: "First / last step",

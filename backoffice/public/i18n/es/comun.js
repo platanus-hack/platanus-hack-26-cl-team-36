@@ -174,8 +174,6 @@ export default {
       listaGrilla: "Lista ↔ grilla",
       zoom: "Acercar / alejar",
       ajustar: "Ajustar a la vista",
-      historia: "Historia: activar o quitar",
-      historiaPasos: "Historia: reproducir o pausar, paso anterior / siguiente",
       pasos: "Paso siguiente / anterior",
       problemas: "Siguiente / anterior paso con señal o fuera de la ruta",
       extremos: "Primer / último paso",
