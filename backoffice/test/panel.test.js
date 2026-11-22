@@ -116,8 +116,8 @@ test("tarjetas: intentos por goal (con los en curso), goals en el orden de goals
   assert.equal(corre.sitio, "Sitio Uno");
   // tanda: la del Visitante del goal en esta revisión si se lista; la que corre todavía no (null).
   assert.deepEqual(corre.goals, [
-    { goal: "b", instruccion: "Hacer B", intentos: [{ estado: "abandonado", dispositivo: "desktop" }, { estado: "en_curso", dispositivo: "mobile" }], espera: false, tanda: null },
-    { goal: "a", instruccion: "Hacer A", intentos: [{ estado: "fallido", dispositivo: "desktop" }, { estado: "error", dispositivo: "desktop" }], espera: false, tanda: LISTA },
+    { goal: "b", instruccion: "Hacer B", intentos: [{ estado: "abandonado", dispositivo: "desktop" }, { estado: "en_curso", dispositivo: "mobile" }], espera: false, tanda: null, visitante: "running" },
+    { goal: "a", instruccion: "Hacer A", intentos: [{ estado: "fallido", dispositivo: "desktop" }, { estado: "error", dispositivo: "desktop" }], espera: false, tanda: LISTA, visitante: "succeeded" },
   ]);
   // La tanda que corre no está listada: de ella no sale captura; la de la revisión, sin error primero; el móvil, de
   // la tanda más nueva del mismo host y ruta.

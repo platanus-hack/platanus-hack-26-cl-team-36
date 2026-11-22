@@ -220,7 +220,8 @@ const visitanteAbierto = (item) => !CERRADO.has(estadoDelItem(item));
  *   un visitante en_cola (como en el resumen).
  * - goals: { goal, instruccion, intentos: [{ estado, dispositivo }], espera }. instruccion: instruction del
  *   goals.json → description → instruction de un run.json → el id. espera: tarjeta running y el goal sin intentos.
- *   tanda: la del Visitante de ese goal en esta revisión, solo si se lista (tandaDe; si no, null).
+ *   tanda: la del Visitante de ese goal en esta revisión, solo si se lista (tandaDe; si no, null). visitante: el
+ *   estado de su ítem (pending sin ítem); con la revisión en curso, la tarjeta abre la hoja en vivo del goal.
  * @param {{ estado: string, meta: object, items: object[], catalogo: unknown,
  *           intentosDe: (goal: string) => { estado: string, dispositivo: string, instruccion?: string | null }[],
  *           tandaDe?: (goal: string) => string | null }} entrada
@@ -246,7 +247,7 @@ export function agentesYGoals({ estado, meta, items, catalogo, intentosDe, tanda
     if (espera) agregar("visitor", "en_cola");
     const instruccion =
       textoONulo(definicion?.instruction) ?? textoONulo(definicion?.description) ?? crudos.map((intento) => textoONulo(intento.instruccion)).find(Boolean) ?? goal;
-    return { goal, instruccion, intentos, espera, tanda: tandaDe(goal) ?? null };
+    return { goal, instruccion, intentos, espera, tanda: tandaDe(goal) ?? null, visitante: estadoDelItem(goals.get(goal).visitor) };
   });
   for (let i = 0; i < faltantes; i += 1) agregar("visitor", "en_cola");
   agregar("improver", agenteDelItem(improver, estado));

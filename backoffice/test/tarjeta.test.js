@@ -143,11 +143,12 @@ test("agentes y goals de una revisión que corre, en el orden de goals.json", ()
       intentos: [{ estado: "logrado", dispositivo: "desktop" }, { estado: "logrado", dispositivo: "mobile" }],
       espera: false,
       tanda: "movilsur.test/visitor/portabilidad/2026-11-22T03-35-32Z",
+      visitante: "succeeded",
     },
-    { goal: "cobertura-5g", instruccion: "Revisar la cobertura 5G", intentos: [{ estado: "fallido", dispositivo: "desktop" }], espera: false, tanda: null },
-    { goal: "dar-de-baja", instruccion: "Encontrar cómo dar de baja", intentos: [{ estado: "error", dispositivo: "mobile" }], espera: false, tanda: null },
+    { goal: "cobertura-5g", instruccion: "Revisar la cobertura 5G", intentos: [{ estado: "fallido", dispositivo: "desktop" }], espera: false, tanda: null, visitante: "succeeded" },
+    { goal: "dar-de-baja", instruccion: "Encontrar cómo dar de baja", intentos: [{ estado: "error", dispositivo: "mobile" }], espera: false, tanda: null, visitante: "succeeded" },
   ]);
-  assert.deepEqual(Object.keys(goals[0]), ["goal", "instruccion", "intentos", "espera", "tanda"], "la forma del contrato (§6.5)");
+  assert.deepEqual(Object.keys(goals[0]), ["goal", "instruccion", "intentos", "espera", "tanda", "visitante"], "la forma del contrato (§6.5)");
 });
 
 test("agentes: lo que todavía no parte va en cola solo mientras la revisión corre", () => {
