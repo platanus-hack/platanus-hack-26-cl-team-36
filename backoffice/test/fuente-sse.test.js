@@ -171,3 +171,30 @@ test("un mensaje que no es JSON se ignora", () => {
   assert.deepEqual(vista.animados, []);
   assert.equal(fuente.ruta, null);
 });
+
+test("sin `listo` del servidor, listo se cumple igual al tope y lo recibido hasta ahí es estado inicial", async () => {
+  const { fuente, es } = abrir({ topeListoMs: 30 });
+  es.emitir("open");
+  es.evento(ev("v", 0, "start"));
+  // Una conexión que reintenta en bucle: nunca llega `listo`.
+  es.readyState = EventSourceFalso.CONNECTING;
+  es.emitir("error");
+  const inicio = Date.now();
+  await fuente.listo;
+  assert.ok(Date.now() - inicio < 500);
+  const vista = montar(fuente);
+  assert.deepEqual(vista.inicial, ["v|0|start"]);
+  es.evento(ev("v", 1));
+  assert.deepEqual(vista.animados, ["v|1|step"]);
+  fuente.cerrar();
+});
+
+test("lo entregado en suscribir() no se guarda: lo nuevo va directo al oyente", () => {
+  const { fuente, es } = abrir();
+  es.evento(ev("v", 0, "start"));
+  montar(fuente);
+  es.evento(ev("v", 1));
+  // Una segunda suscripción ya no recibe nada guardado.
+  assert.deepEqual(montar(fuente).inicial, []);
+  fuente.cerrar();
+});

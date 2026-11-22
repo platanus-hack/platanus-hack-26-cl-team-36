@@ -2,6 +2,7 @@
 // montarTelaranaViva. Abre la conexión al crearse y guarda lo recibido: suscribir() entrega de una vez lo guardado
 // (el componente lo dibuja sin animar) y después reenvía lo nuevo. `listo` se cumple con el `event: listo` del
 // servidor, que cierra lo conocido al conectar: montar después de esperarlo dibuja el histórico como estado inicial.
+// Si `listo` no llega en topeListoMs (un servidor que no lo manda, una conexión que reintenta), se cumple igual.
 //
 // estado: "conectando" → "en-vivo" ⇄ "reconectando" → "terminado" (llegó `fin`) | "error" (el servidor no la acepta).
 
@@ -11,10 +12,15 @@ const segmento = (valor) => encodeURIComponent(String(valor));
  * @param {string} revision
  * @param {string} goal
  * @param {{ alRuta?: (ruta: { url: string, title: string }[]) => void, alEstado?: (estado: string) => void,
- *           EventSource?: typeof EventSource, base?: string }} [opciones]
+ *           EventSource?: typeof EventSource, base?: string, topeListoMs?: number }} [opciones]
  */
-export function fuenteSSE(revision, goal, { alRuta = () => {}, alEstado = () => {}, EventSource: Fuente = globalThis.EventSource, base = "api/vivo" } = {}) {
-  const recibidos = [];
+export function fuenteSSE(
+  revision,
+  goal,
+  { alRuta = () => {}, alEstado = () => {}, EventSource: Fuente = globalThis.EventSource, base = "api/vivo", topeListoMs = 4000 } = {},
+) {
+  // Lo recibido antes de suscribir(); después se reenvía y no se guarda.
+  let recibidos = [];
   const vistos = new Set();
   let oyente = null;
   let ruta = null;
@@ -22,6 +28,8 @@ export function fuenteSSE(revision, goal, { alRuta = () => {}, alEstado = () => 
   let estado = null;
   let avisarListo;
   const listo = new Promise((resolver) => (avisarListo = resolver));
+  const tope = setTimeout(() => avisarListo(), topeListoMs);
+  listo.then(() => clearTimeout(tope));
 
   const conexion = new Fuente(`${base}/${segmento(revision)}/${segmento(goal)}`);
 
@@ -49,8 +57,8 @@ export function fuenteSSE(revision, goal, { alRuta = () => {}, alEstado = () => 
     const id = evento?.id ?? mensaje.lastEventId;
     if (!id || vistos.has(id)) return;
     vistos.add(id);
-    recibidos.push(evento);
-    oyente?.(evento);
+    if (oyente) oyente(evento);
+    else recibidos.push(evento);
   });
   // Cada conexión (también una reconexión) vuelve a mandar la ruta: solo se avisa si cambió.
   conexion.addEventListener("ruta", (mensaje) => {
@@ -87,7 +95,9 @@ export function fuenteSSE(revision, goal, { alRuta = () => {}, alEstado = () => 
       return estado;
     },
     suscribir(cb) {
-      for (const evento of recibidos) cb(evento);
+      const guardados = recibidos;
+      recibidos = [];
+      for (const evento of guardados) cb(evento);
       oyente = cb;
       return { cerrar };
     },
