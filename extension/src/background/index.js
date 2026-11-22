@@ -77,8 +77,6 @@ async function refrescarPestanasConTema() {
 // content script solo lo que necesita para las features.
 //
 // `tema:aplicar` y `tema:revision` → tema (sin css) | null | { esperarRevision: { intervaloMs, topeMs } }.
-// Con `esperarRevision`, el content script vuelve a mandar `tema:revision` cada `intervaloMs` mientras
-// siga en la misma página: lo maneja él porque Firefox descarga el background tras un rato sin uso.
 async function aplicarTema(sender) {
   const tema = await resolverTema(sender.url, { consultarApi: consultarTema, cargarTema: cargarTemaLocal });
   if (tema) return inyectarTema(tema, sender);

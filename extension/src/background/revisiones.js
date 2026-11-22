@@ -40,8 +40,7 @@ export function temaDeRevision(revision, css) {
   return normalizarTema({ id: `rev-${revision}`, nombre: `Revisión ${revision}`, css: saneado.css });
 }
 
-// `consultar(url) → resultado` (pedirRevision o consultarRevision de api.js). Nunca lanza.
-// → { estado: "listo", tema } | { estado: "esperando", revision } | { estado: "fin" }
+// `consultar`: pedirRevision o consultarRevision de api.js. Nunca lanza; "listo" trae `tema` en vez de `css`.
 export async function resolverRevision(url, { consultar, log = console }) {
   let resultado;
   try {

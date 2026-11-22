@@ -38,8 +38,7 @@ export async function consultarTema(url) {
   throw new Error(`Respuesta inesperada de la API (${respuesta.status}): ${JSON.stringify(datos)}`);
 }
 
-// Revisiones (ver revisiones.js): `url` ya viene sin query ni hash. → resultado de leerRevision.
-// Lanza si la API no responde o no manda JSON (resolverRevision lo trata como "fin").
+// Lanzan si la API no responde o no manda JSON (resolverRevision lo trata como "fin").
 export async function pedirRevision(url) {
   return leerRespuestaRevision(
     await fetch(`${await urlDeLaApi()}/revisiones`, {
