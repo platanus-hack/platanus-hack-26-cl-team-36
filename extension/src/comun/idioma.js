@@ -22,19 +22,23 @@
 
   // Cada idioma se nombra en su propio idioma (así lo encuentra quien no entiende el actual).
   const IDIOMAS = {
-    es: { nombre: "Español", corto: "ES", locale: "es-CL" },
-    en: { nombre: "English", corto: "EN", locale: "en-US" },
+    es: { nombre: "Español", locale: "es-CL" },
+    en: { nombre: "English", locale: "en-US" },
   };
 
   const TEXTOS = {
     es: {
-      // Selector de idioma (cabecera del popup)
-      "idioma.lista": "Idioma",
-      "idioma.boton": "Idioma: {nombre}. Cambiar idioma",
+      // Ajustes del popup (hoja que sube desde abajo)
+      "ajustes.titulo": "Ajustes",
+      "ajustes.cerrar": "Cerrar ajustes",
+      "ajustes.idioma": "Idioma",
+      "efectos.etiqueta": "Efectos llamativos",
+      "efectos.ayuda": "Si lo apagas, solo un fundido.",
 
-      // Sección de opinión
-      "opinion.desplegar": "Dar mi opinión",
-      "opinion.titulo": "Ayúdanos a mejorar tu experiencia",
+      // Vista de opinión
+      "opinion.abrir": "Dar opinión",
+      "opinion.volver": "Volver",
+      "opinion.titulo": "Tu opinión",
       "opinion.pregunta": "¿Esta página es mejor para ti que la original?",
       "opinion.mejor": "Mejor",
       "opinion.peor": "Peor",
@@ -44,7 +48,7 @@
       "opinion.comentarioObligatorio": "Escribe tu comentario",
       "opinion.enviar": "Enviar",
       "opinion.guardando": "Guardando…",
-      "opinion.gracias": "¡Gracias! Tu opinión quedó guardada en tu equipo.",
+      "opinion.gracias": "¡Gracias por tu opinión!",
       "opinion.pendientes": {
         cero: "Aún no hay opiniones guardadas en tu equipo.",
         uno: "{n} opinión guardada en tu equipo.",
@@ -79,10 +83,6 @@
       "error.contar": "No se pudieron leer las opiniones guardadas.",
 
       // Interruptor ON/OFF
-      // Interruptor «Efectos» (cabecera del popup)
-      "efectos.etiqueta": "Efectos",
-      "efectos.ayuda": "Encendido: transición llamativa al encender y apagar. Apagado: un fundido sutil.",
-
       "interruptor.seccion": "Encender o apagar Chameleon",
       "interruptor.cargando": "Cargando…",
       "interruptor.encendido": "Encendido",
@@ -116,11 +116,15 @@
     },
 
     en: {
-      "idioma.lista": "Language",
-      "idioma.boton": "Language: {nombre}. Change language",
+      "ajustes.titulo": "Settings",
+      "ajustes.cerrar": "Close settings",
+      "ajustes.idioma": "Language",
+      "efectos.etiqueta": "Bold effects",
+      "efectos.ayuda": "Turn off for a simple fade.",
 
-      "opinion.desplegar": "Give feedback",
-      "opinion.titulo": "Help us improve your experience",
+      "opinion.abrir": "Give feedback",
+      "opinion.volver": "Back",
+      "opinion.titulo": "Your feedback",
       "opinion.pregunta": "Is this page better for you than the original?",
       "opinion.mejor": "Better",
       "opinion.peor": "Worse",
@@ -130,7 +134,7 @@
       "opinion.comentarioObligatorio": "Write your comment",
       "opinion.enviar": "Send",
       "opinion.guardando": "Saving…",
-      "opinion.gracias": "Thanks! Your feedback was saved on this device.",
+      "opinion.gracias": "Thanks for your feedback!",
       "opinion.pendientes": {
         cero: "No feedback saved on this device yet.",
         uno: "{n} response saved on this device.",
@@ -159,10 +163,6 @@
       "error.privada": "Feedback isn't saved in private windows.",
       "error.guardar": "Couldn't save your feedback. Please try again.",
       "error.contar": "Couldn't read your saved feedback.",
-
-      // «Effects» switch (popup header)
-      "efectos.etiqueta": "Effects",
-      "efectos.ayuda": "On: an eye-catching transition when turning on and off. Off: a subtle fade.",
 
       "interruptor.seccion": "Turn Chameleon on or off",
       "interruptor.cargando": "Loading…",

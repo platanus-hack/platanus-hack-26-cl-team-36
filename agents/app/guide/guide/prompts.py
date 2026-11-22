@@ -1,5 +1,6 @@
 """Prompt de sistema, esquema de la decisión y mensaje de cada turno."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from guide import config
@@ -18,7 +19,7 @@ DECISION_SCHEMA = {
         "answer": {"type": "string", "description": "Con done: la respuesta a la tarea."},
         "quote": {"type": "string", "description": "Con done: frase copiada tal cual del texto de la página que respalda la respuesta."},
     },
-    "required": ["reason", "action"],
+    "required": ["action"],   # Haiku a veces omite "reason"; sin ella la decisión igual sirve
     "additionalProperties": False,
 }
 
@@ -29,15 +30,19 @@ class HistoryEntry:
     action: str
     outcome: str
 
+    def __str__(self) -> str:
+        return f"{self.action} — {self.outcome}" + (f" (razón: {self.reason})" if self.reason else "")
+
 
 def system_prompt(width: int, height: int) -> str:
     return f"""Eres la Guía. Encuentras la ruta de referencia de una tarea en un sitio web: el camino más corto que seguiría una persona, de la página inicial a la información que la cumple.
 
 QUÉ RECIBES EN CADA TURNO
-- La tarea y el historial de tus acciones con su resultado.
+- La tarea.
 - Una vista del DOM de la página actual: URL, título, encabezados, cada elemento interactivo con su ref, rol, nombre y destino, y el texto de la página desde la pantalla actual.
 - Una captura del viewport ({width}x{height} píxeles).
 - Estado de cada elemento: "en pantalla", "fuera de pantalla" (se ve con scroll) u "oculto". Un elemento oculto no se puede usar: primero abre el menú, pestaña o acordeón que lo muestra ("lo muestra eN" cuando se sabe cuál es).
+- El historial de tus acciones con su resultado.
 
 CÓMO ACTÚAS
 Respondes UNA acción por turno, con "reason" en una frase:
@@ -66,10 +71,10 @@ LÍMITES
 - No inicies sesión, no crees cuentas, no envíes formularios finales (compras, contacto, postulaciones), no pagues y no escribas datos personales."""
 
 
-def _element_line(element: Element, page_url: str) -> str:
+def _element_line(element: Element, site_urls: Sequence[str]) -> str:
     label = element.role or element.tag
     parts = [element.ref, label, f"«{element.name}»" if element.name else "(sin nombre)"]
-    href = element.same_host_href(page_url)
+    href = element.site_href(site_urls)
     if href:
         parts.append(f"→ {href}")
     elif element.href and not element.href.startswith(("javascript:", "#")):
@@ -89,7 +94,7 @@ def _element_line(element: Element, page_url: str) -> str:
     return " · ".join(parts)
 
 
-def render_view(view: PageView) -> str:
+def render_view(view: PageView, site_urls: Sequence[str] = ()) -> str:
     lines = [
         f"URL: {view.url}",
         f"Título: {view.title}",
@@ -99,7 +104,7 @@ def render_view(view: PageView) -> str:
         *(view.headings or ["(ninguno)"]),
         "",
         "ELEMENTOS",
-        *(_element_line(element, view.url) for element in view.elements),
+        *(_element_line(element, site_urls or (view.url,)) for element in view.elements),
     ]
     if view.total_elements > len(view.elements):
         lines.append(f"(y {view.total_elements - len(view.elements)} elementos más, no listados)")
@@ -115,16 +120,23 @@ def _text_window(view: PageView) -> str:
     return before + window + after
 
 
-def render_turn(instruction: str, history: list[HistoryEntry], view: PageView) -> str:
-    past = [f"{number}. {entry.action} — {entry.outcome} (razón: {entry.reason})" for number, entry in enumerate(history, 1)]
-    return "\n".join([
-        f"TAREA: {instruction}",
-        "",
+@dataclass
+class TurnPrompt:
+    """El mensaje de un turno: `page` se repite mientras la página no cambie; `history` crece cada turno."""
+
+    page: str
+    history: str
+
+    def __str__(self) -> str:
+        return f"{self.page}\n\n{self.history}"
+
+
+def render_turn(instruction: str, history: list[HistoryEntry], view: PageView, site_urls: Sequence[str]) -> TurnPrompt:
+    past = [f"{number}. {entry}" for number, entry in enumerate(history, 1)]
+    page = "\n".join([f"TAREA: {instruction}", "", "PÁGINA ACTUAL", render_view(view, site_urls)])
+    return TurnPrompt(page, "\n".join([
         "HISTORIAL",
         *(past or ["(todavía ninguna acción)"]),
         "",
-        "PÁGINA ACTUAL",
-        render_view(view),
-        "",
         "¿Cuál es tu siguiente acción?",
-    ])
+    ]))

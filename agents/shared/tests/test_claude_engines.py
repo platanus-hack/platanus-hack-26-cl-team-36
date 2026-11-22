@@ -7,7 +7,7 @@ import pytest
 from shared.claude import bedrock, engines
 from shared.claude import caller as caller_module
 from shared.claude.bedrock import BedrockCaller
-from shared.claude.caller import ClaudeCallError, ClaudeCaller
+from shared.claude.caller import CACHE_POINT, ClaudeCallError, ClaudeCaller
 from shared.claude.fake import FakeCaller, from_schema
 
 SCHEMA = {
@@ -109,6 +109,31 @@ def test_bedrock_forces_the_answer_tool_with_the_schema_and_sends_images(tmp_pat
     assert "effort" not in request["body"]   # Haiku 4.5 no lo acepta
     assert caller.usage["input_tokens"] == 120 and caller.usage["output_tokens"] == 30
     assert json.loads((tmp_path / "log").read_text().splitlines()[-1])["stop_reason"] == "tool_use"
+
+
+def test_bedrock_marks_the_block_before_each_cache_point_and_logs_cache_usage(tmp_path):
+    usage = {"input_tokens": 50, "output_tokens": 30, "cache_read_input_tokens": 9000, "cache_creation_input_tokens": 0}
+    client = FakeBedrock({**_tool_response(DONE), "usage": usage})
+    caller = BedrockCaller("modelo", "high", tmp_path / "log", client=client)
+    asyncio.run(caller.answer("sistema", SCHEMA, ["página", CACHE_POINT, b"\x89PNG", CACHE_POINT, "historial"]))
+    content = json.loads(client.requests[0]["body"])["messages"][0]["content"]
+    assert [(block["type"], "cache_control" in block) for block in content] == [
+        ("text", True), ("image", True), ("text", False)]
+    assert content[0]["cache_control"] == {"type": "ephemeral"} and content[0]["text"] == "página"
+    assert caller.usage["cache_read_input_tokens"] == 9000
+    assert json.loads((tmp_path / "log").read_text().splitlines()[-1])["usage"]["cache_read_input_tokens"] == 9000
+
+
+def test_bedrock_rejects_more_cache_points_than_allowed(tmp_path):
+    caller = BedrockCaller("modelo", "high", tmp_path / "log", client=FakeBedrock())
+    with pytest.raises(ValueError, match="puntos de caché"):
+        asyncio.run(caller.answer("s", SCHEMA, ["a", CACHE_POINT] * (bedrock.MAX_CACHE_POINTS + 1)))
+
+
+def test_engines_without_prompt_cache_never_see_cache_points():
+    caller = FakeCaller("m", "low")
+    asyncio.run(caller.answer("s", SCHEMA, ["página", CACHE_POINT, b"\x89PNG", CACHE_POINT, "historial"]))
+    assert caller.calls[0]["parts"] == ["página", b"\x89PNG", "historial"]
 
 
 def test_bedrock_retries_throttling_with_growing_waits(tmp_path):

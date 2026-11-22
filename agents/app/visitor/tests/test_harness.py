@@ -9,7 +9,8 @@ from shared.browser.session import BrowserSession, connect_browser
 from shared.browser.viewports import SCREENS
 
 from visitor import report
-from visitor.harness import SyntheticUser
+from visitor.hesitation import hesitation_points
+from visitor.harness import EXPECTATION_ONLY_MESSAGE, SyntheticUser
 from visitor.profiles import Profile
 from visitor.turns import ActionRequest, AttemptEnded, Turn
 
@@ -25,6 +26,7 @@ class ScriptedEngine:
     def __init__(self, think_s: float = 0.3):
         self.think_s = think_s
         self.usage: dict = {}
+        self.responses: list = []
         self.turns = [
             Turn(requests=[
                 ActionRequest("1", "expectation", {"sentence": "Ir a la página dos."}, False),
@@ -43,7 +45,7 @@ class ScriptedEngine:
         return self.turns.pop(0)
 
     async def respond(self, results, screenshot):
-        pass
+        self.responses.append(results)
 
     async def close(self):
         pass
@@ -133,3 +135,20 @@ def test_action_without_expectation_runs_and_is_counted(tmp_path):
     assert run.end_reason == "done"
     assert [step.title for step in run.steps] == ["Dos"] and run.steps[0].expectation == ""
     assert run.acciones_sin_expectativa == 1 and run.incidents == []
+
+
+def test_expectation_alone_is_reminded_and_counted_as_turn_without_action(tmp_path):
+    """Haiku 4.5 llama solo a `expectation` y actúa en el turno siguiente: se le avisa y la expectativa no se pierde."""
+    engine = ScriptedEngine(think_s=0)
+    expectation, click = engine.turns[0].requests
+    engine.turns[0:1] = [
+        Turn(requests=[expectation]),
+        Turn(requests=[ActionRequest("3", "screenshot", {}, True)]),
+        Turn(requests=[click]),
+    ]
+    run = _attempt(tmp_path, record_video=False, engine=engine)
+    assert run.end_reason == "done"
+    assert engine.responses[0][0].text == EXPECTATION_ONLY_MESSAGE
+    assert [step.expectation for step in run.steps] == ["Ir a la página dos."]
+    assert run.acciones_sin_expectativa == 0 and run.turnos_sin_accion == 2
+    assert not any("turno" in point for point in hesitation_points(run.to_dict()))  # es del modelo, no del sitio
