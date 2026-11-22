@@ -48,8 +48,8 @@ que tiene herramientas web, debe lograrlo al menos igual de bien.
 
 - **Nombres con guion bajo o una palabra.** Python no puede importar una carpeta con guion, y el nombre de un runtime
   de AgentCore tampoco lo acepta (patrón `[a-zA-Z][a-zA-Z0-9_]{0,47}`).
-- **El runtime desplegado se llama `web_evaluator`.** `infra/agentcore/agentcore.json` lo apunta a
-  `../agents/app/visitor`; la CLI lo empaqueta desde `uv.lock` e instala `agents/shared/` sin editable.
+- **El runtime desplegado se llama `web_evaluator_image`.** Es una imagen: `infra/agentcore/agentcore.json` la
+  construye con `agents/app/visitor/Dockerfile` y `agents/` como contexto, para que entre `agents/shared/`.
 - **El Optimizador** se propone como `web_optimizer`.
 
 ## Flujo por sitio

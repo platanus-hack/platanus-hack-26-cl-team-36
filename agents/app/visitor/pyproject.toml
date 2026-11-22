@@ -19,7 +19,7 @@ dev = ["pytest>=8.0"]
 package = false
 
 [tool.uv.sources]
-# En AgentCore la CLI lo instala sin editable desde uv.lock.
+# En la imagen de AgentCore se copia con la misma ruta relativa (ver Dockerfile).
 shared = { path = "../../shared", editable = true }
 
 [tool.agentcore]

@@ -7,14 +7,14 @@
 #   just aws deploy                              deploys from your computer (CI does it on every merge)
 #
 # Recipes run from infra/, the AgentCore CLI project: its configuration is in infra/agentcore/ and the
-# code it deploys in agents/app/visitor/. The deployed runtime is named web_evaluator.
+# code it deploys in agents/app/visitor/ (image built with agents/ as context, so agents/shared/ is in it).
 
 set positional-arguments
 
 agentcore := "../node_modules/.bin/agentcore"
 list_heading := "Run as `just aws <command>`, with AWS_PROFILE set to the project account:\n"
 # The deployed runtime: <project>_<target>_<runtime>. The CLI only finds it by its name in agentcore.json on the
-# computer that deployed it, and CI deploys, so explore, status and logs look it up in AWS instead.
+# computer that deployed it, and CI deploys, so visit, status and logs look it up in AWS instead.
 runtime_name := "ChameleonAgents_default_web_evaluator_image"
 runtime_arn := "aws bedrock-agentcore-control list-agent-runtimes --query \"agentRuntimes[?agentRuntimeName=='" + runtime_name + "'].agentRuntimeArn | [0]\" --output text"
 
