@@ -278,3 +278,53 @@ test("la ayuda del interruptor dice lo que hace el clic en esta pestaña, en los
     assert.doesNotMatch(TEXTOS[idioma]["interruptor.ayudaEncendidoSinTema"], /original/, "sin tema no se promete volver a la página original");
   }
 });
+
+// ── Opinión plegable ───────────────────────────────────────────────────────────────────────────────────────────
+
+test("opinión plegable: botón de divulgación cableado a su región, cerrado por defecto y bajo el interruptor", () => {
+  const html = leer("popup/popup.html");
+  const boton = html.match(/<button\b[^>]*id="mt-desplegar"[^>]*>/)?.[0];
+  assert.ok(boton, "falta el botón #mt-desplegar");
+  assert.match(boton, /type="button"/);
+  assert.match(boton, /aria-expanded="false"/, "empieza cerrado");
+  const controla = boton.match(/aria-controls="([^"]+)"/)?.[1];
+  assert.ok(controla, "el botón dice qué región controla");
+  const region = html.match(new RegExp(`<div\\b[^>]*id="${controla}"[^>]*>`))?.[0];
+  assert.ok(region, `aria-controls apunta a #${controla}, que existe`);
+  assert.match(region, /\binert\b/, "cerrada, la región no recibe foco ni la lee el lector de pantalla");
+  assert.match(html, /class="mt-opinion"[^>]*data-abierta="no"/);
+  // Todo el formulario de la opinión va adentro de la región plegable.
+  const dentro = html.slice(html.indexOf(`id="${controla}"`), html.indexOf("</section>", html.indexOf(`id="${controla}"`)));
+  for (const parte of ['id="mt-pregunta"', 'data-voto="mejor"', 'data-voto="peor"', 'data-voto="comentario"', 'id="mt-comentario"', 'id="mt-enviar"', 'id="mt-mensaje"', 'id="mt-aviso"', 'id="mt-privacidad"']) {
+    assert.ok(dentro.includes(parte), `${parte} dentro de la región plegable`);
+  }
+  // El interruptor va primero: abrir la opinión agranda el panel hacia abajo y el camaleón no se mueve.
+  assert.ok(html.indexOf('class="mt-control"') < html.indexOf('id="mt-opinion"'), "el interruptor va antes que la opinión");
+  // Con la opinión cerrada, «Guardando…» o el resultado del envío se anuncian junto al botón.
+  assert.match(html, /id="mt-opinion-resumen"[^>]*role="status"/);
+});
+
+test("opinión plegable: popup.js la abre y la cierra sin recordar el estado, y cerrada la deja inert", () => {
+  const js = leer("popup/popup.js");
+  assert.match(js, /opinionAbierta: false/, "empieza cerrada cada vez que se abre el panel");
+  assert.doesNotMatch(js, /storage\.local\.set\(\{[^}]*opinion/i, "no se guarda si estaba abierta");
+  assert.match(js, /setAttribute\("aria-expanded", String\(abierta\)\)/);
+  assert.match(js, /\.inert = !abierta/);
+  assert.match(js, /el\.desplegar\.addEventListener\("click"/);
+});
+
+test("opinión plegable: cerrada no ocupa lugar, la flecha gira y respeta el movimiento reducido", () => {
+  const css = leer("popup/popup.css");
+  assert.match(css, /\.mt-plegable\s*\{[^}]*grid-template-rows: 0fr;[^}]*visibility: hidden;/, "cerrada, la fila de la tarjeta mide 0");
+  assert.match(css, /\.mt-opinion\[data-abierta="si"\] \.mt-plegable\s*\{\s*grid-template-rows: 1fr;/);
+  assert.match(css, /\.mt-plegable-interior\s*\{\s*min-height: 0;\s*overflow: hidden;/);
+  assert.match(css, /\.mt-desplegar\[aria-expanded="true"\] \.mt-desplegar-flecha\s*\{\s*transform: rotate\(180deg\);/);
+  assert.match(css, /\.mt-desplegar:focus-visible\s*\{\s*outline:/, "foco visible");
+  const reducido = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.match(reducido, /\.mt-plegable/, "con movimiento reducido se abre sin animación");
+});
+
+test("opinión plegable: el texto del botón está en los dos idiomas", () => {
+  for (const idioma of Object.keys(TEXTOS)) assert.ok(TEXTOS[idioma]["opinion.desplegar"], `${idioma}: falta opinion.desplegar`);
+  assert.equal(TEXTOS.es["opinion.desplegar"], "Dar mi opinión");
+});

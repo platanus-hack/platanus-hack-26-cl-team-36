@@ -58,63 +58,6 @@
         </div>
       </header>
 
-      <!-- Opinión sobre la página (arriba, a pedido del usuario). data-modo lo pone popup.js:
-           "completa" | "solo-comentario" | "no-disponible" | "cargando" (ver estado.js). -->
-      <section class="mt-opinion" id="mt-opinion" data-modo="cargando" aria-labelledby="mt-opinion-titulo">
-        <h1 class="mt-opinion-titulo" id="mt-opinion-titulo" data-mt-texto="opinion.titulo">Ayúdanos a mejorar tu experiencia</h1>
-        <!-- La pregunta con sus opciones y el aviso comparten un mismo lugar (popup.css): al pasar de "completa" a
-             "solo-comentario" la tarjeta no cambia de alto y el interruptor de abajo no se mueve. -->
-        <div class="mt-eleccion">
-          <div class="mt-votar">
-            <p class="mt-pregunta" id="mt-pregunta" data-mt-texto="opinion.pregunta">¿Esta página es mejor para ti que la original?</p>
-            <div class="mt-opciones" role="group" aria-labelledby="mt-pregunta">
-              <button type="button" class="mt-opcion mt-opcion-tema" data-voto="mejor" aria-pressed="false">
-                <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 19V5M5 12l7-7 7 7" />
-                </svg>
-                <span class="mt-opcion-texto" data-mt-texto="opinion.mejor">Mejor</span>
-              </button>
-              <button type="button" class="mt-opcion mt-opcion-tema" data-voto="peor" aria-pressed="false">
-                <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 5v14M5 12l7 7 7-7" />
-                </svg>
-                <span class="mt-opcion-texto" data-mt-texto="opinion.peor">Peor</span>
-              </button>
-              <button type="button" class="mt-opcion" data-voto="comentario" aria-pressed="false">
-                <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 5h16v11H9l-5 4z" />
-                </svg>
-                <span class="mt-opcion-texto" data-mt-texto="opinion.soloComentar">Solo quiero comentar</span>
-              </button>
-            </div>
-          </div>
-          <p class="mt-aviso" id="mt-aviso"></p>
-        </div>
-
-        <form class="mt-formulario" id="mt-formulario" novalidate>
-          <label class="mt-oculto-visual" for="mt-comentario" data-mt-texto="opinion.comentario">Comentario</label>
-          <textarea
-            class="mt-comentario"
-            id="mt-comentario"
-            rows="2"
-            maxlength="2000"
-            placeholder="Cuéntanos qué cambiarías (opcional)"
-          ></textarea>
-
-          <div class="mt-envio">
-            <p class="mt-mensaje" id="mt-mensaje" role="status" aria-live="polite"></p>
-            <p class="mt-pista" id="mt-pista"></p>
-            <button type="submit" class="mt-enviar" id="mt-enviar" disabled>Enviar</button>
-          </div>
-        </form>
-
-        <footer class="mt-pie">
-          <p class="mt-pendientes" id="mt-pendientes"></p>
-          <!-- Qué se guarda al enviar: depende de si la página tiene tema (estado.js → PRIVACIDAD). -->
-          <p class="mt-privacidad" id="mt-privacidad"></p>
-        </footer>
-      </section>
-
       <!-- Interruptor ON/OFF: guarda `activo` en storage.local y content/motor.js anima el cambio. -->
       <section class="mt-control" aria-label="Encender o apagar Chameleon">
         <button type="button" class="mt-interruptor" id="mt-interruptor" aria-pressed="false" aria-describedby="mt-estado-ayuda" disabled>
@@ -360,6 +303,83 @@
         </button>
         <p class="mt-estado" id="mt-estado" aria-hidden="true">Cargando…</p>
         <p class="mt-estado-ayuda" id="mt-estado-ayuda"></p>
+      </section>
+
+      <!-- Opinión sobre la página: plegada bajo el interruptor (empieza cerrada cada vez que se abre el panel; no
+           se recuerda). El botón «Dar mi opinión» la despliega (aria-expanded + aria-controls); cerrada, la región
+           queda `inert` y sin alto. popup.js pone data-abierta ("si" | "no") y data-modo: "completa" |
+           "solo-comentario" | "no-disponible" | "cargando" (ver estado.js). -->
+      <section class="mt-opinion" id="mt-opinion" data-modo="cargando" data-abierta="no" aria-labelledby="mt-opinion-titulo">
+        <div class="mt-opinion-barra">
+          <button type="button" class="mt-desplegar" id="mt-desplegar" aria-expanded="false" aria-controls="mt-opinion-cuerpo">
+            <span class="mt-desplegar-texto" data-mt-texto="opinion.desplegar">Dar mi opinión</span>
+            <svg class="mt-desplegar-flecha" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 10l5 5 5-5" />
+            </svg>
+          </button>
+          <!-- Con la opinión cerrada, lo que no debe perderse: «Guardando…» o el resultado del último envío. -->
+          <p class="mt-opinion-resumen" id="mt-opinion-resumen" role="status" aria-live="polite"></p>
+        </div>
+        <div class="mt-plegable" id="mt-opinion-cuerpo" inert>
+          <div class="mt-plegable-interior">
+            <div class="mt-tarjeta">
+              <!-- El título nombra la sección para el lector de pantalla; a la vista ya lo dice el botón (y el panel
+                   abierto cabe en los ~600 px que Firefox le da a un popup). -->
+              <h1 class="mt-oculto-visual" id="mt-opinion-titulo" data-mt-texto="opinion.titulo">Ayúdanos a mejorar tu experiencia</h1>
+              <!-- La pregunta con sus opciones y el aviso comparten un mismo lugar (popup.css): al pasar de "completa" a
+                   "solo-comentario" la tarjeta no cambia de alto (el panel no salta al encender o apagar). -->
+              <div class="mt-eleccion">
+                <div class="mt-votar">
+                  <p class="mt-pregunta" id="mt-pregunta" data-mt-texto="opinion.pregunta">¿Esta página es mejor para ti que la original?</p>
+                  <div class="mt-opciones" role="group" aria-labelledby="mt-pregunta">
+                    <button type="button" class="mt-opcion mt-opcion-tema" data-voto="mejor" aria-pressed="false">
+                      <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 19V5M5 12l7-7 7 7" />
+                      </svg>
+                      <span class="mt-opcion-texto" data-mt-texto="opinion.mejor">Mejor</span>
+                    </button>
+                    <button type="button" class="mt-opcion mt-opcion-tema" data-voto="peor" aria-pressed="false">
+                      <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 5v14M5 12l7 7 7-7" />
+                      </svg>
+                      <span class="mt-opcion-texto" data-mt-texto="opinion.peor">Peor</span>
+                    </button>
+                    <button type="button" class="mt-opcion" data-voto="comentario" aria-pressed="false">
+                      <svg class="mt-opcion-icono" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 5h16v11H9l-5 4z" />
+                      </svg>
+                      <span class="mt-opcion-texto" data-mt-texto="opinion.soloComentar">Solo quiero comentar</span>
+                    </button>
+                  </div>
+                </div>
+                <p class="mt-aviso" id="mt-aviso"></p>
+              </div>
+
+              <form class="mt-formulario" id="mt-formulario" novalidate>
+                <label class="mt-oculto-visual" for="mt-comentario" data-mt-texto="opinion.comentario">Comentario</label>
+                <textarea
+                  class="mt-comentario"
+                  id="mt-comentario"
+                  rows="2"
+                  maxlength="2000"
+                  placeholder="Cuéntanos qué cambiarías (opcional)"
+                ></textarea>
+
+                <div class="mt-envio">
+                  <p class="mt-mensaje" id="mt-mensaje" role="status" aria-live="polite"></p>
+                  <p class="mt-pista" id="mt-pista"></p>
+                  <button type="submit" class="mt-enviar" id="mt-enviar" disabled>Enviar</button>
+                </div>
+              </form>
+
+              <footer class="mt-pie">
+                <p class="mt-pendientes" id="mt-pendientes"></p>
+                <!-- Qué se guarda al enviar: depende de si la página tiene tema (estado.js → PRIVACIDAD). -->
+                <p class="mt-privacidad" id="mt-privacidad"></p>
+              </footer>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   </body>

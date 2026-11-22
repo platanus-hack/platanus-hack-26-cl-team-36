@@ -252,7 +252,7 @@ html[data-mt-idioma-cambio="descifrado"] .mt-panel::after {
 }
 
 /* El filete de la tarjeta de opinión corre el espectro al mismo tiempo. */
-html[data-mt-idioma-cambio="descifrado"] .mt-opinion::before {
+html[data-mt-idioma-cambio="descifrado"] .mt-tarjeta::before {
   background: linear-gradient(
       90deg,
       var(--mt-lima),
@@ -274,7 +274,7 @@ html[data-mt-idioma-cambio="descifrado"] .mt-opinion::before {
 
 /* El mensaje del último envío es una región viva: no se descifra (el lector leería basura),
    solo aparece con un fundido. */
-html[data-mt-idioma-cambio="descifrado"] .mt-mensaje {
+html[data-mt-idioma-cambio="descifrado"] :is(.mt-mensaje, .mt-opinion-resumen) {
   animation: mt-idioma-fundido 420ms ease-out;
 }
 
@@ -294,7 +294,7 @@ html[data-mt-idioma-cambio="fundido"] .mt-panel {
   .mt-idioma-lista,
   [data-mt-descifrando],
   html[data-mt-idioma-cambio] .mt-panel::after,
-  html[data-mt-idioma-cambio] .mt-opinion::before {
+  html[data-mt-idioma-cambio] .mt-tarjeta::before {
     animation: none;
   }
 }
