@@ -1,5 +1,4 @@
-# Almacén de los agentes (AGENTS_STORE del runtime de AgentCore) y tabla con el
-# estado de cada revisión. S3 es la fuente de verdad; la tabla es una proyección.
+# S3 es la fuente de verdad de los agentes; la tabla solo proyecta sus manifiestos.
 
 data "aws_caller_identity" "actual" {}
 
