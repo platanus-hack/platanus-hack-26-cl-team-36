@@ -200,18 +200,26 @@ def atajo(objetivo_id: str, route: dict, selects: list[SelectDePagina], inicio: 
     }, ""
 
 
+def _mayuscula(texto: str) -> str:
+    return texto[:1].upper() + texto[1:]
+
+
 def _titulo(descripcion: str) -> str:
-    """La primera frase de la descripción hasta su primer gerundio («ingresando…»), sin «información sobre» ni el verbo
-    de navegar («Llega a la página de…») con su propósito, en
+    """La primera frase de la descripción (tras la escena que precede a «:») hasta su primer gerundio («ingresando…»),
+    sin «información sobre» ni el verbo de navegar («Llega a la página de…») con su propósito, en
     hasta `_TITULO_PALABRAS` palabras y `_TITULO_MAX` caracteres, sin terminar en preposición, artículo ni
     conjunción."""
-    texto = re.split(r"[.;:(,]", " ".join(descripcion.split()), maxsplit=1)[0].strip()
+    frase = re.split(r"[.;(]", " ".join(descripcion.split()), maxsplit=1)[0]
+    escena, dos_puntos, tarea = frase.partition(":")
+    # «Te contactaron para una encuesta del INE: encuentra la información…»: la tarea va después de la escena.
+    if dos_puntos and tarea.strip()[:1].islower():
+        frase = _mayuscula(tarea.strip())
+    texto = re.split(r"[:,]", frase, maxsplit=1)[0].strip()
     texto = _RELLENO.sub("", texto)
     if (sin_verbo := _NAVEGAR.sub("", texto)) and sin_verbo != texto:
         destino, *proposito = _PROPOSITO.split(sin_verbo, maxsplit=1)
         # «Llega al trámite para iniciar actividades»: un destino de una palabra no dice cuál; lo dice el propósito.
-        sin_verbo = proposito[0] if proposito and len(destino.split()) < 2 else destino
-        texto = sin_verbo[0].upper() + sin_verbo[1:]
+        texto = _mayuscula(proposito[0] if proposito and len(destino.split()) < 2 else destino)
     palabras = []
     for palabra in texto.split(" "):
         # Tras un artículo o preposición no es gerundio sino sustantivo («el arriendo»).
@@ -263,6 +271,7 @@ def _tarea(goal, enlace: str) -> dict:
     titulo = _titulo(goal.description)
     tarea = {"titulo": {"es": titulo, "en": titulo}, "enlace": enlace}
     detalle = " ".join(goal.description.split()).rstrip(".")
+    detalle = _mayuscula(_NAVEGAR.sub("", detalle)) or detalle  # «Llega a la página de…» no agrega nada al título
     if detalle and detalle != titulo:
         tarea["detalle"] = {"es": detalle[:160], "en": detalle[:160]}
     return tarea

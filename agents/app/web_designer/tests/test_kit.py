@@ -153,6 +153,8 @@ def test_titulo_derivado_corto_y_sin_cabos_sueltos():
     assert atajos._titulo("Llega al Portal de Mapas del INE.") == "Portal de Mapas del INE"
     assert atajos._titulo("Llega al trámite para iniciar actividades como contribuyente.") == \
         "Iniciar actividades como contribuyente"
+    assert atajos._titulo("Te contactaron para una encuesta del INE: encuentra la información para personas.") == \
+        "Encuentra la información para personas"
 
 
 def test_lanzador_con_el_catalogo_de_metro():
