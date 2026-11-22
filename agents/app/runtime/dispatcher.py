@@ -58,7 +58,8 @@ def own_runtime_arn(environ: dict[str, str] = os.environ) -> str | None:
 
 def stage_env(request: Request, environ: dict[str, str] = os.environ) -> dict[str, str]:
     """El entorno del subproceso; el conductor lanza las demás etapas en este mismo runtime."""
-    env = dict(environ)
+    # Sin VIRTUAL_ENV: `uv run` debe usar el entorno de la app de la etapa, no el del runtime.
+    env = {name: value for name, value in environ.items() if name != "VIRTUAL_ENV"}
     if request.stage == "revision":
         arn = own_runtime_arn(environ)
         if arn is None:
