@@ -1,20 +1,22 @@
 // Gramática de las rutas (diseño §5.1). Puro: no toca document ni window, así node:test lo importa.
 //
 //   #/                          Corridas   ?q= &sitio= &filtro= &orden= &vista=
-//   #/t/<tandaId>               → #/t/<tandaId>/resumen
-//   #/t/<tandaId>/<pestaña>     resumen · telarana · replay
+//   #/t/<tandaId>               → #/t/<tandaId>/telarana
+//   #/t/<tandaId>/<pestaña>     telarana · replay   (#/t/<tandaId>/resumen, de cuando existía, → telarana)
 //
 // Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
 // saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan.
 
 import { CORRIDA, partesDeTanda } from "./almacen.js";
 
-export const PESTANAS = ["resumen", "telarana", "replay"];
-export const PESTANA_POR_DEFECTO = "resumen";
+export const PESTANAS = ["telarana", "replay"];
+export const PESTANA_POR_DEFECTO = "telarana";
+
+// Pestañas que ya no existen y adónde llevan sus enlaces viejos (sin sus parámetros).
+const PESTANAS_RETIRADAS = { resumen: "telarana" };
 
 // Claves del diccionario (no textos): t(NOMBRES_DE_PESTANA.replay) → "Replay".
 export const NOMBRES_DE_PESTANA = Object.freeze({
-  resumen: "comun.pestana.resumen",
   telarana: "comun.pestana.telarana",
   replay: "comun.pestana.replay",
 });
@@ -23,7 +25,6 @@ export const NOMBRES_DE_PESTANA = Object.freeze({
 // Orden estable de los parámetros conocidos; los demás van después, en orden alfabético.
 const ORDEN_DE_PARAMETROS = {
   corridas: ["q", "sitio", "filtro", "orden", "vista"],
-  resumen: [],
   telarana: ["pagina", "camino"],
   replay: ["intento", "paso"],
 };
@@ -98,6 +99,8 @@ export function parsearHash(hash) {
     const tandaId = resto.slice(0, fin + 1).join("/");
     const despues = resto.slice(fin + 1);
     if (despues.length > 1) return { tipo: "desconocida", hash: original };
+    const retirada = PESTANAS_RETIRADAS[despues[0]];
+    if (retirada) return { tipo: "tanda", tandaId, pestana: retirada, parametros: {} };
     const pestana = despues[0] ?? PESTANA_POR_DEFECTO;
     if (!PESTANAS.includes(pestana)) return { tipo: "desconocida", hash: original };
     return { tipo: "tanda", tandaId, pestana, parametros: aplicarAlias(pestana, parametros) };

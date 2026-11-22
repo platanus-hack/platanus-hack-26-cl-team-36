@@ -15,7 +15,7 @@ export function partirNombre(nombre) {
 /** Los niveles de conocimiento que escribe el evaluador en el nombre del perfil, con su clave del diccionario. */
 const CLAVE_DE_NIVEL = { "conoce el tema": "conoce_tema", "sin contexto": "sin_contexto" };
 
-/** El nivel de un perfil en el idioma de la pantalla (las mismas palabras que la tabla de Resumen, en minúscula). */
+/** El nivel de un perfil en el idioma de la pantalla (las mismas palabras que la cabecera de la tanda, en minúscula). */
 export function textoDeNivel(nivel, t) {
   const clave = CLAVE_DE_NIVEL[String(nivel ?? "").trim().toLocaleLowerCase("es")];
   if (!clave) return nivel ?? null;

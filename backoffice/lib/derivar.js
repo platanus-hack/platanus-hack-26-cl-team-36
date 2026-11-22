@@ -168,8 +168,6 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} fecha
  * @property {string} fechaIso
  * @property {string | null} motor
- * @property {string | null} modeloUsuarios
- * @property {string | null} modeloJuez
  * @property {{ texto: string, evidencias: string[] } | null} criterio
  * @property {Intento[]} intentos
  * @property {{ paginas: Pagina[], ramas: Rama[], ruta: Ruta | null, alias: Record<string, string> }} telarana
@@ -968,8 +966,6 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArb
     fecha,
     fechaIso: fechaIsoDe(fecha),
     motor: arbol?.engine ?? null,
-    modeloUsuarios: arbol?.user_model ?? null,
-    modeloJuez: arbol?.judge_model ?? null,
     criterio: textoDelCriterio ? { texto: textoDelCriterio, evidencias: [...evidencias] } : null,
     // Tanda de exploradores: abren ramas a propósito (no pueden terminar antes del 40 % de las acciones), así que
     // sus pasos no dicen cuánto le cuesta el sitio a alguien.
@@ -996,9 +992,9 @@ export const NIVELES_DE_CONOCIMIENTO = ["sin_contexto", "conoce_tema"];
 
 /**
  * Resultado por nivel de conocimiento (como la tabla del report.md del evaluador): por nivel, intentos, cuántos lo
- * lograron, mediana de pasos y de segundos, y escrituras rechazadas. null si la tanda no tiene los dos niveles.
- * @param {{ conocimiento: string | null, resultado: string, pasos: unknown[], duracion: number | null, terminosRechazados?: string[] }[]} intentos
- * @returns {{ nivel: string, intentos: number, logrados: number, pasosMediana: number | null, segundosMediana: number | null }[] | null}
+ * lograron. null si la tanda no tiene los dos niveles.
+ * @param {{ conocimiento: string | null, resultado: string }[]} intentos
+ * @returns {{ nivel: string, intentos: number, logrados: number }[] | null}
  */
 export function porConocimiento(intentos) {
   const niveles = NIVELES_DE_CONOCIMIENTO.map((nivel) => [nivel, intentos.filter((intento) => intento.conocimiento === nivel)]);
@@ -1007,8 +1003,6 @@ export function porConocimiento(intentos) {
     nivel,
     intentos: suyos.length,
     logrados: suyos.filter((intento) => intento.resultado === "logrado").length,
-    pasosMediana: mediana(suyos.map((intento) => intento.pasos.length)),
-    segundosMediana: mediana(suyos.map((intento) => intento.duracion)),
   }));
 }
 

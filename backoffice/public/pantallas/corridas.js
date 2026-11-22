@@ -1,5 +1,5 @@
 // Corridas (diseño §10.2): la lista de tandas, más nuevas primero, agrupadas por día. Cada fila es un enlace a la
-// tanda (abre en Resumen) y dice solo qué tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor),
+// tanda (abre en Telaraña) y dice solo qué tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor),
 // los errores de la herramienta si los hay y cuándo corrió. Búsqueda, chips de filtro, sitio, orden y lista/grilla
 // viven en el hash.
 

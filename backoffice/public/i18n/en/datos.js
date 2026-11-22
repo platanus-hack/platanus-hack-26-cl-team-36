@@ -120,7 +120,7 @@ export default {
   },
 
   titular: {
-    // Everyone gets there, but someone struggled: the Resumen and Corridas headline does not hide it.
+    // Everyone gets there, but someone struggled: the tanda header and Corridas headline does not hide it.
     tanda: ({ validos, errores, caso, intento, pagina, pasos: cuenta, pasosIdeales }) => {
       const [v, e] = [n(validos), n(errores)];
       const sujeto = v === 1
