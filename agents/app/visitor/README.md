@@ -23,6 +23,7 @@ uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de l
 uv run main.py --site https://www.wom.cl/ --limit 3
 uv run main.py --url https://www.wom.cl/ --revision r1 --goal baja-fibra --profiles desktop --runs 1
 uv run main.py --task wom.cl/baja-fibra --css ../../.runs/diseno/www.wom.cl/<fecha-hora>/rep-01/tema.css
+uv run main.py --site https://www.metro.cl/ --goal planificar-viaje --tema ../../../extension/src/temas/metro/tema.json
 ```
 
 | Opción | Qué hace |
@@ -41,6 +42,7 @@ uv run main.py --task wom.cl/baja-fibra --css ../../.runs/diseno/www.wom.cl/<fec
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 | `--record-video` | Graba un video `.webm` de cada intento (al tamaño del viewport), además de las capturas de cada paso. El reporte enlaza el video y marca en qué minuto ocurre cada paso. |
 | `--css <archivo>` | Aplica un tema en cada página de cada usuario y en la del criterio, como la extensión: clase `mi-tema` en `<html>` y el CSS en `<style id="mt-tema-css">`, desde que se crea cada documento y repuestos si el sitio los quita. La tanda guarda una copia en `tema.css` y registra archivo y sha256 corto en `route_tree.json` (`tema`) y en el reporte, para comparar tandas con y sin tema. Un tema con `url(`, `image-set(`, `@import`, `expression(`, `javascript:` o barra invertida se rechaza: el filtro de la extensión lo borraría. Todas las tandas, con y sin tema, ignoran la CSP del sitio (`bypass_csp`, como `insertCSS` en la extensión), para que lo único distinto sea el tema. Con `--site`, una corrida con tema no cuenta como hecha para el sitio sin tema ni al revés, y [summary](../summary/README.md) con `--css` resume solo las de ese tema. Los temas salen del [diseñador](../web_designer/README.md). |
+| `--tema <tema.json>` | Como `--css` con el `tema.css` de la misma carpeta (mismo rechazo), y además monta el kit como la extensión: el CSS de componentes y features y los content scripts de `extension/src/manifest.json` en su orden, sin los que usan `browser.*` (captura, transición, efectos y motor). Un mini-motor llama `actualizar(opciones)` de cada feature del `tema.json` y la repite ante cambios del DOM. La tanda guarda `tema.json` y `tema.css`, y registra en `tema` el sha256 del script completo con `kit: true`. |
 
 Por defecto usa tu **Claude Code local** (`--engine claude-code`): no necesita clave de API, solo tener `claude`
 instalado y con sesión iniciada, y consume los límites de tu plan. Con una clave de API puedes usar la herramienta
@@ -254,7 +256,7 @@ Un intento interrumpido por un error técnico no cuenta como éxito ni como fall
 ### Resultado
 
 El éxito de un intento lo decide el programa: `success` si pasó por la página final de la ruta de la Guía
-(`reached_final_node`); si la ruta termina en la página inicial, solo si además declaró que terminó. Si no llegó,
+(`reached_final_node`); si la ruta termina en la página inicial, solo si además declaró que terminó. Si la URL de la página final trae query (un formulario enviado por GET, como el planificador de metro.cl con `?inicio=..&fin=..`), basta llegar al mismo pathname con las mismas claves: elegir otros valores también es llegar. Si no llegó,
 `failed` cuando declaró que terminó (el reporte dice «declaró que terminó sin llegar») y `abandoned` cuando se rindió, quedó bloqueado o se le acabaron las acciones o el tiempo. Lo que declara el
 usuario queda en `end_reason`, `final_message` y `verdict.claimed_done`; `verdict.source` dice quién decidió (`route`
 o `judge`). Sin ruta, con `--judge` decide el juez; sin juez, `unmeasured`. Un perfil sin ruta de su pantalla se mide

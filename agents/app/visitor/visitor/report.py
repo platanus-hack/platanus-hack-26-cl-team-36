@@ -79,7 +79,8 @@ def _cell(text) -> str:
 def _tema_label(tema: dict | None) -> str:
     if not tema:
         return "ninguno (el sitio tal cual)"
-    return f"`{tema['archivo']}` (sha256 `{tema['sha256']}`, {tema['bytes']} bytes; copia en [tema.css](tema.css))"
+    kit = ", kit con sus componentes y [tema.json](tema.json)" if tema.get("kit") else ""
+    return f"`{tema['archivo']}` (sha256 `{tema['sha256']}`, {tema['bytes']} bytes; copia en [tema.css](tema.css){kit})"
 
 
 def _outcome_label(outcome: str | None) -> str:

@@ -2,12 +2,13 @@
 
 import asyncio
 import hashlib
+import json
 
 import pytest
 from playwright.async_api import async_playwright
 
 from shared.browser.session import BrowserSession, blocked_form_count, connect_browser, create_context
-from shared.browser.theme import TEMA_ESTILO_ID, NavegadorConTema, TemaInvalido, describir_tema
+from shared.browser.theme import TEMA_ESTILO_ID, NavegadorConTema, TemaInvalido, describir_kit, describir_tema, script_de_tema
 from shared.browser.viewports import SCREENS
 from visitor import report
 
@@ -55,12 +56,12 @@ async def _estado(page):
     )
 
 
-def _con_tema(site, page_name: str, body, css: str = CSS):
+def _con_tema(site, page_name: str, body, css: str = CSS, script: str | None = None):
     async def main():
         async with async_playwright() as playwright:
             browser = await connect_browser(playwright)
             try:
-                context = await create_context(NavegadorConTema(browser, css), DESKTOP)
+                context = await create_context(NavegadorConTema(browser, script or script_de_tema(css)), DESKTOP)
                 session = BrowserSession(context, DESKTOP)
                 await session.open((site / page_name).as_uri())
                 await body(session)
@@ -183,5 +184,60 @@ def test_la_csp_se_ignora_con_y_sin_tema():
             return Contexto()
 
     asyncio.run(create_context(Navegador(), DESKTOP))
-    asyncio.run(create_context(NavegadorConTema(Navegador(), CSS), DESKTOP))
+    asyncio.run(create_context(NavegadorConTema(Navegador(), script_de_tema(CSS)), DESKTOP))
     assert pedidos[0] == pedidos[1] and pedidos[0]["bypass_csp"] is True
+
+
+# Una extensión mínima con la forma de extension/src: registro, una feature que dibuja un aviso con sus opciones y un
+# motor que usa `browser.*` (fuera de la extensión lanzaría un error si se inyectara).
+EXTENSION = {
+    "manifest.json": json.dumps({"content_scripts": [{
+        "css": ["features/aviso.css", "content/transicion.css"],
+        "js": ["content/registro.js", "features/aviso.js", "content/motor.js"],
+    }]}),
+    "content/registro.js": """globalThis.MiTema ??= { features: new Map(),
+        registrarFeature(id, feature) { this.features.set(id, feature); } };""",
+    "features/aviso.js": """(() => {
+        function actualizar({ texto }) {
+          if (!document.body || document.getElementById('aviso')) return;
+          const aviso = document.createElement('p');
+          aviso.id = 'aviso';
+          aviso.textContent = texto;
+          document.body.prepend(aviso);
+        }
+        MiTema.registrarFeature('aviso', { actualizar });
+      })();""",
+    "features/aviso.css": "#aviso { color: rgb(4, 5, 6); }",
+    "content/transicion.css": "html { color: rgb(9, 9, 9); }",
+    "content/motor.js": "browser.storage.local.get('activo');",
+    "temas/demo/tema.json": json.dumps({"features": {"aviso": {"texto": "Hola"}}}),
+    "temas/demo/tema.css": CSS,
+}
+
+
+def test_un_kit_monta_sus_features_y_las_repone(site, tmp_path):
+    src = tmp_path / "extension"
+    for ruta, contenido in EXTENSION.items():
+        (src / ruta).parent.mkdir(parents=True, exist_ok=True)
+        (src / ruta).write_text(contenido, encoding="utf-8")
+    script, tema = describir_kit(src / "temas/demo/tema.json")
+    assert tema["kit"] is True and tema["archivo"] == "tema.json"
+    assert "browser.storage" not in script and "rgb(9, 9, 9)" not in script
+
+    async def aviso(session):
+        return await session.page.evaluate(
+            "(() => { const a = document.getElementById('aviso'); return a && [a.textContent, getComputedStyle(a).color]; })()"
+        )
+
+    async def body(session):
+        assert await _estado(session.page) == {"clase": True, "estilos": 1, "fondo": "rgb(1, 2, 3)"}
+        assert await aviso(session) == ["Hola", "rgb(4, 5, 6)"]
+        marco = next(frame for frame in session.page.frames if frame.url.endswith("marco.html"))
+        assert await marco.evaluate("document.getElementById('aviso')") is None
+        await session.page.evaluate("document.getElementById('aviso').remove()")
+        await session.page.wait_for_function("!!document.getElementById('aviso')")
+        await session.page.click("text=Ir a dos")
+        await session.wait_until_settled()
+        assert await aviso(session) == ["Hola", "rgb(4, 5, 6)"]
+
+    _con_tema(site, "uno.html", body, script=script)
