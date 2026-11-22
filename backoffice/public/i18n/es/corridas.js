@@ -43,6 +43,7 @@ export default {
     arbolFalta: "Incompleta",
     intentoResultado: "{nombre}: {resultado}",
     sinValidos: "sin válidos",
+    sinMedir: "sin medir",
   },
   vacio: {
     sinTandas: "Todavía no hay tandas",

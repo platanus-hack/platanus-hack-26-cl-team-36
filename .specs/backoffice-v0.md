@@ -86,7 +86,9 @@ Tres cosas que ninguna herramienta hace, y que el diseño pone al centro:
   - Cada paso: `screenshot_before`, `screenshot`, `coordinates` (para el punto del clic), `description`,
     `expectation`, `url` y `title`.
   - "Lo que pasó" se arma con el cambio de `url` o `title`, `screen_change` y `signals`.
-  - Veredicto: `verdict.outcome` y `verdict.justification`; el criterio está en `criteria.json`.
+  - Veredicto: `verdict.outcome` (`unmeasured`: sin ruta de la Guía ni juez), `verdict.source` (`route` o `judge`),
+    `verdict.claimed_done` y `verdict.justification`; el criterio, solo si corrió el juez, en `criteria.json`.
+  - Con `--runs N`, cada repetición es su carpeta (`desktop`, `desktop-2`…) y `run.json` trae `attempt`.
   - Con `--record-video` hay además `video.webm`, y cada paso trae `seconds_since_start` para saltar al minuto.
 - **05 Perfiles:** se agrega desde `run.json` (`profile`, `verdict.outcome`, número de pasos) y desde `route_tree.json`.
 

@@ -23,6 +23,7 @@ export default {
     mixto: "Con problemas",
     fallo: "Termina en falla",
     abandono: "Abandono",
+    sin_medir: "Sin medir (sin ruta de la Guía ni juez)",
     error: "Error de la herramienta",
     retroceso: "Volvió atrás",
     lateral: "Paso lateral (misma columna)",

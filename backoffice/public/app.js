@@ -10,7 +10,7 @@ import { abrirPaleta, iniciarPaleta, registrarFuenteDePaleta } from "./nucleo/pa
 import { enlaceATanda, extraerIdioma } from "./nucleo/rutas.js";
 import { estadoDeTanda, iniciarShell, tandasDelShell } from "./nucleo/shell.js";
 
-const ICONO_DE_ESTADO = { logrado: "logrado", fallido: "fallido", error: "error-herramienta" };
+const ICONO_DE_ESTADO = { logrado: "logrado", fallido: "fallido", sin_medir: "sin-medir", error: "error-herramienta" };
 
 function opcionesDeTandas() {
   return tandasDelShell().map((resumen) => {

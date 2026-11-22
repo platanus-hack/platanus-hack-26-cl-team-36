@@ -40,11 +40,11 @@ let listaDeTandas = { carpeta: null, tandas: [] };
 function pantallaPendiente(id) {
   return {
     pendiente: true,
-    titulo: () => (id === "corridas" ? t("comun.shell.corridas") : t(NOMBRES_DE_PESTANA[id])),
+    titulo: () => (NOMBRES_DE_PESTANA[id] ? t(NOMBRES_DE_PESTANA[id]) : t(`comun.shell.${id}`)),
     montar(contenedor) {
       contenedor.classList.add("vista-pendiente");
       contenedor.append(
-        vacio({ titulo: t("comun.vista.noLista"), texto: t("comun.vista.noListaTexto"), nivel: id === "corridas" ? 1 : 2, icono: "proximamente" }),
+        vacio({ titulo: t("comun.vista.noLista"), texto: t("comun.vista.noListaTexto"), nivel: NOMBRES_DE_PESTANA[id] ? 2 : 1, icono: "proximamente" }),
       );
     },
   };
@@ -73,8 +73,9 @@ function cargarPantalla(id) {
 
 // ── Contexto que recibe cada pantalla ─────────────────────────────────────
 
-function perfilDeIntento(tanda, intentoId) {
-  return tanda?.intentos?.find((intento) => intento.id === intentoId)?.perfil ?? intentoId;
+// Las capturas están en la carpeta del intento (`desktop-2`), no en la de su perfil.
+function carpetaDeIntento(tanda, intentoId) {
+  return tanda?.intentos?.find((intento) => intento.id === intentoId)?.carpeta ?? intentoId;
 }
 
 function crearContexto(v) {
@@ -90,7 +91,7 @@ function crearContexto(v) {
     carpeta: listaDeTandas.carpeta,
     tanda: v.tanda ?? null,
     pestana: v.pestana ?? null,
-    urlDeArchivo: (intentoId, archivo) => urlDeArchivo(tandaId, perfilDeIntento(v.tanda, intentoId), archivo),
+    urlDeArchivo: (intentoId, archivo) => urlDeArchivo(tandaId, carpetaDeIntento(v.tanda, intentoId), archivo),
     enlace: (pestana, parametros = {}) =>
       tandaId ? enlaceATanda(tandaId, pestana, parametros) : hashDe({ tipo: "corridas", parametros }),
     enlaceATanda,
@@ -163,7 +164,7 @@ async function montarPantalla(v, modulo, destino) {
         titulo: t("comun.estado.errorDeVista"),
         detalle: error?.stack ?? String(error),
         reintentar: () => remontarPantalla(),
-        nivel: v.tipo === "corridas" ? 1 : 2,
+        nivel: v.tipo === "tanda" ? 2 : 1,
       }),
     );
   }
@@ -228,7 +229,7 @@ function desplazarDespues({ origen, completa, conservar }) {
 
 // ── Navegación ─────────────────────────────────────────────────────────────
 
-const profundidad = (r) => (r?.tipo === "tanda" ? 1 : 0);
+const profundidad = (r) => (r?.tipo === "tanda" || r?.revision ? 1 : 0);
 
 function direccionEntre(anterior, nueva) {
   if (!anterior) return "lado";
@@ -287,7 +288,7 @@ async function cargarRuta(nueva) {
     pedirTandas(),
     nueva.tipo === "tanda"
       ? Promise.all([pedirTanda(nueva.tandaId), cargarPantalla(nueva.pestana)])
-      : cargarPantalla("corridas"),
+      : cargarPantalla(nueva.tipo),
   ]);
   listaDeTandas = lista;
   if (nueva.tipo === "tanda") return { tanda: extra[0], modulo: extra[1] };
@@ -328,7 +329,7 @@ async function procesar({ origen = "historial" } = {}) {
     hash = nueva.destino;
     nueva = parsearHash(hash);
   }
-  if (nueva.tipo === "corridas" || nueva.tipo === "tanda") {
+  if (nueva.tipo === "corridas" || nueva.tipo === "tanda" || nueva.tipo === "revisiones") {
     const canonico = hashDe(nueva);
     if (canonico !== hash) {
       history.replaceState(history.state, "", canonico);
@@ -346,6 +347,7 @@ async function procesar({ origen = "historial" } = {}) {
     !remontarTodo &&
     vista?.modulo &&
     ((nueva.tipo === "corridas" && vista.tipo === "corridas") ||
+      (nueva.tipo === "revisiones" && vista.tipo === "revisiones" && vista.ruta.revision === nueva.revision) ||
       (nueva.tipo === "tanda" && vista.tipo === "tanda" && vista.tandaId === nueva.tandaId && vista.pestana === nueva.pestana));
   if (mismaVista) {
     fijarRuta(nueva, hash);
@@ -423,8 +425,8 @@ async function procesar({ origen = "historial" } = {}) {
       return;
     }
     desmontarVista();
-    if (nueva.tipo === "corridas") {
-      vista = { tipo: "corridas", id: "corridas", ruta: nueva, quitar: [] };
+    if (nueva.tipo !== "tanda") {
+      vista = { tipo: nueva.tipo, id: nueva.tipo, ruta: nueva, quitar: [] };
       await montarPantalla(vista, cargado.modulo, raiz);
       return;
     }

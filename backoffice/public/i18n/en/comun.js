@@ -12,6 +12,7 @@ export default {
     buscar: "Search…",
     abrirBuscador: "Open search",
     corridas: "Runs",
+    revisiones: "Reviews",
     cuentaTandas: ({ n }, { plural }) => `${n} ${plural(n, { one: "batch", other: "batches" })}`,
     tandasRecientes: "Recent batches",
     sinTandas: "No batches yet.",
@@ -19,10 +20,11 @@ export default {
     idioma: "Language",
     abrirMenu: "Open menu",
     cerrarMenu: "Close menu",
-    estadoTanda: ({ logrados, validos, errores }, { plural }) => {
-      const base = validos
-        ? `${logrados} of ${validos} ${plural(logrados, { one: "reaches", other: "reach" })} the answer`
+    estadoTanda: ({ logrados, validos, medidos = validos, errores }, { plural }) => {
+      let base = validos
+        ? `${logrados} of ${medidos} ${plural(logrados, { one: "reaches", other: "reach" })} the answer`
         : "no valid attempts";
+      if (validos && !medidos) base = "not measured";
       return errores ? `${base}, ${errores} with a tool error` : base;
     },
   },
@@ -47,6 +49,8 @@ export default {
     abrirSitio: "Open {host} in a new tab",
     llegan: ({ n, de }, { plural }) => `${n}/${de} ${plural(n, { one: "reaches it", other: "reach it" })}`,
     ningunoValido: "No valid attempts",
+    sinMedir: "Not measured: no Guide route nor judge",
+    algunosSinMedir: "{n} not measured (no Guide route nor judge): not counted in the figure",
     errores: ({ n }, { plural }) => `${n} ${plural(n, { one: "tool error", other: "tool errors" })}`,
   },
   // Knowledge level of a profile, lowercase (goes in brackets after its name).
@@ -55,11 +59,13 @@ export default {
     logrado: "Succeeded",
     fallido: "Failed",
     abandonado: "Abandoned",
+    sin_medir: "Not measured",
     error: "Tool error",
   },
   logro: {
     directo: "by the route",
     indirecto: "by another path",
+    declaro_sin_llegar: "said it was done without getting there",
   },
   senal: {
     no_effect: "No effect",

@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -11,8 +12,11 @@ from playwright.async_api import Browser, BrowserContext, Dialog, Download, Page
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
+from shared.browser.agentcore import AgentCoreBrowsers
 from shared.browser.viewports import Screen
 
+BROWSER_VAR = "AGENTS_BROWSER"
+BROWSER_KINDS = ("local", "agentcore")
 LOCALE = "es-CL"
 TIMEZONE = "America/Santiago"
 PAGE_LOAD_TIMEOUT_MS = 30_000
@@ -55,9 +59,24 @@ async def connect_browser(playwright: Playwright, cdp_url: str | None = None) ->
     return await playwright.chromium.launch(headless=True)
 
 
+def browser_kind(kind: str | None = None) -> str:
+    """`local` (Chromium o `cdp_url`, por defecto) o `agentcore`, de `kind` o de `AGENTS_BROWSER`."""
+    kind = kind or os.environ.get(BROWSER_VAR) or "local"
+    if kind not in BROWSER_KINDS:
+        raise ValueError(f"{BROWSER_VAR}={kind} no es un navegador: usa {', '.join(BROWSER_KINDS)}")
+    return kind
+
+
 @asynccontextmanager
-async def open_browser(cdp_url: str | None = None) -> AsyncIterator[Browser]:
+async def open_browser(cdp_url: str | None = None, kind: str | None = None) -> AsyncIterator[Browser]:
     async with async_playwright() as playwright:
+        if browser_kind(kind) == "agentcore":
+            sessions = AgentCoreBrowsers(playwright)
+            try:
+                yield await sessions.open()
+            finally:
+                await sessions.close()
+            return
         browser = await connect_browser(playwright, cdp_url)
         try:
             yield browser

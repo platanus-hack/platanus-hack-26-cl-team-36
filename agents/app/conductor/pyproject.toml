@@ -1,0 +1,23 @@
+[project]
+name = "conductor"
+version = "0.1.0"
+description = "Conductor: encadena las etapas de una revisión (catálogo, Guía y Visitante por objetivo, mejora)."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "shared[s3]",   # almacén en S3 (AGENTS_STORE); boto3 trae también el cliente bedrock-agentcore del invocador
+]
+
+[dependency-groups]
+# shared[browser] trae Playwright: así CI instala el Chromium de la prueba de punta a punta.
+dev = ["pytest>=8.0", "shared[browser]"]
+
+[tool.uv]
+# Se corre con `uv run main.py`; no se empaqueta.
+package = false
+
+[tool.uv.sources]
+shared = { path = "../../shared", editable = true }
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

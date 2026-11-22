@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   PESTANAS,
+  enlaceARevision,
   enlaceATanda,
   extraerIdioma,
   hashDe,
@@ -20,6 +21,16 @@ test("Corridas: #/ y sus parámetros van y vuelven", () => {
   assert.equal(ruta.tipo, "corridas");
   assert.deepEqual(ruta.parametros, { q: "sii", sitio: "sii.cl", filtro: "problemas", orden: "exito", vista: "grilla" });
   assert.equal(hashDe(ruta), hash);
+});
+
+test("Revisiones: #/revisiones y #/revisiones/<revision>; una revisión inválida no es ruta", () => {
+  assert.deepEqual(parsearHash("#/revisiones"), { tipo: "revisiones", revision: null, parametros: {} });
+  assert.deepEqual(parsearHash("#/revisiones/abc-123"), { tipo: "revisiones", revision: "abc-123", parametros: {} });
+  assert.equal(hashDe(parsearHash("#/revisiones/abc-123?x=1")), "#/revisiones/abc-123");
+  assert.equal(enlaceARevision(), "#/revisiones");
+  for (const hash of ["#/revisiones/ABC", "#/revisiones/..%2Fx", `#/revisiones/${"a".repeat(41)}`, "#/revisiones/a/b"]) {
+    assert.equal(parsearHash(hash).tipo, "desconocida", hash);
+  }
 });
 
 test("los valores por defecto y los vacíos no se escriben", () => {

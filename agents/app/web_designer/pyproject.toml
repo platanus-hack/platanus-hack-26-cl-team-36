@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Diseñador: genera un tema (CSS bajo html.mi-tema) con un skill y lo mide en un sitio real."
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "shared[browser,pixels]",
+    "shared[browser,pixels,bedrock,agentcore,s3]",   # motor, navegador y almacén en AWS (AGENTS_ENGINE, AGENTS_BROWSER, AGENTS_STORE)
     "playwright>=1.48",
 ]
 

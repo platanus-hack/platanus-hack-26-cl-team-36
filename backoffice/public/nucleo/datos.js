@@ -52,6 +52,14 @@ export function pedirTanda(id) {
   return detalle.get(id);
 }
 
+// Las revisiones cambian mientras corren: sin caché, la pantalla vuelve a pedirlas cada pocos segundos.
+/** → { disponible, revisiones: ResumenDeRevision[] } */
+export const pedirRevisiones = () => pedirJson("/api/revisiones");
+/** → AvanceDeRevision | null (404) */
+export const pedirRevision = (revision) => pedirJson(`/api/revisiones/${encodeURIComponent(revision)}`);
+/** "/resultados/<clave de corrida>/<archivo>" */
+export const urlDeResultado = (clave) => `/resultados/${segmentosCodificados(clave)}`;
+
 /** "/archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<archivo>", cada segmento codificado. */
 export function urlDeArchivo(tandaId, perfil, archivo) {
   return `/archivos/${[...String(tandaId).split("/"), perfil, archivo].map(encodeURIComponent).join("/")}`;

@@ -124,6 +124,10 @@ test("resultado de una rama", () => {
   assert.equal(resultadoDeRama({ exitos: 0, fallos: 0, errores: 1 }), "error");
   assert.equal(resultadoDeRama({ exitos: 0, fallos: 1, errores: 0 }, { fallido: 1, abandonado: 0 }), "fallo");
   assert.equal(resultadoDeRama({ exitos: 0, fallos: 1, errores: 0 }, { fallido: 0, abandonado: 2 }), "abandono");
+  // Sin ruta de la Guía ni juez, los fallos del árbol no dicen nada: la rama queda «sin medir».
+  const resultadoDe = new Map([["desktop", "sin_medir"], ["mobile", "error"], ["otro", "fallido"]]);
+  assert.equal(resultadoDeRama({ exitos: 0, fallos: 1, errores: 1, intentosIds: ["desktop", "mobile"] }, { sin_medir: 1 }, resultadoDe), "sin_medir");
+  assert.equal(resultadoDeRama({ exitos: 0, fallos: 2, errores: 0, intentosIds: ["desktop", "otro"] }, { fallido: 1 }, resultadoDe), "fallo");
 });
 
 test("fechaIso de una tanda", () => {
@@ -196,7 +200,7 @@ test("intentos de la tanda vieja: quién sigue la ruta, dónde se separa y si vu
 test("KPIs y métricas por perfil: pares {n, de} y null cuando no aplica", async () => {
   const tanda = await leerTanda(RAIZ, VIEJA);
   assert.deepEqual(tanda.kpis, {
-    intentos: 3, validos: 3, errores: 0, logrados: 2, directos: 2, siguenLaRuta: 2,
+    intentos: 3, validos: 3, medidos: 3, errores: 0, logrados: 2, directos: 2, siguenLaRuta: 2,
     pasosMediana: 2, segundosMediana: 10, pasosIdeales: 2, tramos: 2, hitos: 3,
   });
   const porPerfil = Object.fromEntries(tanda.perfiles.map((p) => [p.perfil, p]));
@@ -268,7 +272,7 @@ test("tanda nueva: el error de la herramienta se marca y no cuenta", async () =>
   ]);
   assert.equal(inicioAyuda.accion, "clic «Ayuda»");
   const ayuda = tanda.telarana.paginas.find((p) => p.id === "n2");
-  assert.deepEqual(ayuda.finales, { logrado: 0, fallido: 0, abandonado: 0, error: 1 });
+  assert.deepEqual(ayuda.finales, { logrado: 0, fallido: 0, abandonado: 0, sin_medir: 0, error: 1 });
 
   const movil = tanda.perfiles.find((p) => p.perfil === "mobile");
   assert.deepEqual([movil.validos, movil.errores, movil.metricas.exito, movil.metricas.eficiencia], [0, 1, null, null]);
@@ -476,7 +480,7 @@ test("una ruta recomendada vacía (0 pasos) es «sin ruta»: las cifras de la ru
   }
   for (const intento of tanda.intentos) assert.equal(intento.logro, null);
   // El titular no dice que nadie llegó (2 llegaron) ni cuenta quiénes siguen una ruta que no hay.
-  assert.deepEqual(tanda.titulares.telarana.vars, { hayRuta: false, enInicio: true, probabilidad: null, tramos: 0, pasosIdeales: null, siguen: null, validos: 3, logrados: 2 });
+  assert.deepEqual(tanda.titulares.telarana.vars, { hayRuta: false, enInicio: true, probabilidad: null, tramos: 0, pasosIdeales: null, siguen: null, validos: 3, medidos: 3, logrados: 2 });
   // Sigue sin ruta que seguir, pero no «sin ruta»: la tarea se resuelve en la página de inicio (C4-5).
   assert.ok(tanda.telarana.rutaEnInicio?.pagina);
   assert.equal(tanda.hallazgos[0].vars.directos, null);
@@ -627,7 +631,8 @@ test("grosor de un tramo = intentos distintos que lo tomaron, no las pasadas (C4
   // 8 intentos pasan 43 veces de n1 a n2 (un explorador vuelve y repite): el tramo tiene 8 intentos y 43 pasadas.
   const perfiles = ["a", "b", "c", "d", "e", "f", "g", "h"];
   const crudas = Array.from({ length: 43 }, (_, i) => ({ source: "x1", target: "x2", action: i % 2 ? "clic «Ayuda»" : "clic «Buscar»", profiles: [perfiles[i % 8]], successes: 1 }));
-  const [rama] = unirRamas(crudas, new Map([["x1", "n1"], ["x2", "n2"]]), new Set());
+  // Un intento por perfil: cada perfil del árbol es ese intento.
+  const [rama] = unirRamas(crudas, new Map([["x1", "n1"], ["x2", "n2"]]), (perfil) => [perfil], new Set());
   assert.equal(rama.intentos, 8);
   assert.equal(rama.pasadas, 43);
   assert.deepEqual(rama.acciones.map((a) => [a.accion, a.intentos, a.pasadas]), [["clic «Ayuda»", 4, 21], ["clic «Buscar»", 4, 22]].sort((p, q) => q[2] - p[2]));

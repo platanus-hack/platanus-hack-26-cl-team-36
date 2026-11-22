@@ -6,11 +6,12 @@ otro.
 | Paquete | Qué es | Lo usan |
 |---|---|---|
 | `shared.store` | Almacén de las salidas: claves, ids de corrida, manifiesto, disco y S3. | todos |
-| `shared.browser` | `session`: navegador, contexto aislado con la red de seguridad de formularios y sesión de una pestaña. `viewports`: `desktop` y `mobile`. `keys`: teclas al formato de Playwright. `theme`: el tema CSS (`--css`) en cada documento. `pixels`: cuánto cambió la pantalla entre dos capturas. | cataloger, guide, visitor, summary (`theme`), web_designer |
-| `shared.claude` | `process`: el proceso de `claude -p` en stream-json. `caller`: llamadas con salida JSON que suman tokens y costo. `workdir`: carpeta vacía para Claude Code. | cataloger, guide, visitor, web_designer |
+| `shared.browser` | `session`: navegador (`AGENTS_BROWSER`: `local` por defecto o `agentcore`), contexto aislado con la red de seguridad de formularios y sesión de una pestaña. `agentcore`: sesiones de AgentCore Browser por CDP firmado. `viewports`: `desktop` y `mobile`. `keys`: teclas al formato de Playwright. `theme`: el tema CSS (`--css`) en cada documento. `pixels`: cuánto cambió la pantalla entre dos capturas. | cataloger, guide, visitor, summary (`theme`), web_designer |
+| `shared.claude` | `engines`: `make_caller` según `AGENTS_ENGINE`: `claude-code` (por defecto), `bedrock` (modelo de `AGENTS_MODEL`, por defecto Haiku 4.5; reintenta ante throttling) o `fake` (respuestas guionizadas). `caller`: la interfaz común, llamadas con salida JSON que suman tokens y costo. `process`: el proceso de `claude -p` en stream-json. `workdir`: carpeta vacía para Claude Code. | cataloger, guide, visitor, web_designer |
 | `shared.nodes` | `urls`: URL normalizada, nodo de una página (URL más título) y sitio de una URL. | todos |
 | `shared.dom` | `visibility`: el JavaScript que decide qué se puede mostrar. | cataloger, guide |
 | `shared.catalog` | `goal`: el objetivo, qué se intenta y su id. `outline`: el esquema del sitio. `tasks`: las tareas escritas a mano. `files`: lectura de un catálogo del almacén. `routes`: la ruta vigente de un objetivo y su última corrida del Visitante con o sin tema. `prominence`: prominencia y complejidad. | cataloger, guide, visitor, summary |
+| `shared.stages` | Única definición de cada etapa de una revisión: `command(stage, payload)` da su app, los argumentos de su CLI (`argv`) y el prefijo de su corrida. | conductor |
 
 ## shared.store
 
@@ -27,6 +28,8 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
                                          tema.css
       <profile>/                         run.json step_00.png … video.webm claude_code.log
   summary/<run>/                         manifest.json summary.json summary.md
+  improver/<run>/                        manifest.json tema.css
+  conductor/<run>/                       manifest.json conductor.json <etapa>[-<goal>].log
 ```
 
 ### Reglas
@@ -61,6 +64,10 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
 - Un mismo `<goal>` puede tener corridas de instrucciones distintas: la vigente para una instrucción es la más nueva que
   terminó bien y es de esa instrucción (`shared.catalog.routes`). `runs_with_status` las recorre de la más nueva a la
   más vieja y salta las de manifiesto ilegible.
+- `start_run(..., revision=...)` agrupa las corridas de las etapas de una revisión (`[a-z0-9]+(-[a-z0-9]+)*`, máx.
+  40, `validate_revision`); sin ella el manifiesto no lleva el campo. `revision_run(store, prefix, revision)` es la más
+  nueva de esa revisión, con cualquier estado: las etapas encuentran así sus entradas y el conductor sabe si una
+  terminó. Con `since=` no lee las corridas anteriores a ese instante; quien sondea debe pasarlo.
 
 ### Uso
 
@@ -76,7 +83,7 @@ run = start_run(store, visitor("wom.cl", "baja-fibra"), model="claude-haiku-5-5"
 # Playwright y el agente escriben en run.workdir: report.md, first_time/step_00.png, first_time/video.webm …
 (run.workdir / "report.md").write_text(report)
 finish_run(store, run, "succeeded")                      # publica la carpeta y cierra el manifiesto
-store.list_profiles(run.key)                             # ["first_time"]: las carpetas de perfil de la corrida
+store.list_profiles(run.key)                             # ["desktop"]: las carpetas de perfil de la corrida
 ```
 
 `with running(store, prefix, model=..., inputs=[...]) as run:` hace lo mismo y cierra la corrida como `failed` si el

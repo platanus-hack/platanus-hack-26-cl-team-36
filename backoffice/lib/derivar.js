@@ -1,6 +1,6 @@
 // Lo que el backoffice calcula a partir de una tanda del evaluador: lógica pura, sin archivos,
-// para poder probarla con datos fijos. Entra lo que hay en la fuente (route_tree.json, criteria.json
-// y el run.json de cada perfil) y sale lo que dibujan las pantallas (forma exacta: §3 del diseño).
+// para poder probarla con datos fijos. Entra lo que hay en la fuente (route_tree.json, criteria.json si corrió el juez
+// y el run.json de cada intento) y sale lo que dibujan las pantallas (forma exacta: §3 del diseño).
 //
 // No arma frases para la pantalla: lo que es texto de la interfaz sale como clave + variables
 // ({ clave, vars }) o como campos estructurados, y public/datos/textos.js lo traduce.
@@ -14,7 +14,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @typedef {import("./hallazgos.js").Texto} Texto
  * @typedef {import("./hallazgos.js").Demora} Demora
  * @typedef {{ n: number, de: number }} Conteo
- * @typedef {"logrado" | "fallido" | "abandonado" | "error"} Resultado
+ * @typedef {"logrado" | "fallido" | "abandonado" | "sin_medir" | "error"} Resultado
  *
  * @typedef {Object} ErrorDeHerramienta
  * @property {"internal_error" | "api_error" | "no_response" | "refusal" | "juez" | "sin_inicio" | "archivo_danado"} tipo
@@ -68,15 +68,21 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {RutaAqui | null} rutaAqui
  *
  * @typedef {Object} Intento
- * @property {string} id
- * @property {string} perfil
- * @property {string} nombrePerfil
+ * @property {string} id               la carpeta del intento: el perfil o, con repeticiones, «<perfil>-<n>»
+ * @property {string} perfil           el perfil del Visitante (`desktop` para `desktop` y `desktop-2`)
+ * @property {string} carpeta
+ * @property {number} repeticion       n.º de intento del perfil en la tanda (1 en las corridas viejas)
+ * @property {string} nombrePerfil     nombre del intento: el del perfil y, desde la 2.ª repetición, «#n»
+ * @property {string} nombreDelPerfil
  * @property {{ ancho: number | null, alto: number | null }} viewport
  * @property {string | null} modelo
  * @property {string | null} motor
  * @property {Resultado} resultado
- * @property {"success" | "failed" | "abandoned"} resultadoJuez
- * @property {"directo" | "indirecto" | null} logro
+ * @property {"success" | "failed" | "abandoned" | "unmeasured" | "interrupted"} resultadoJuez   el `outcome` del run.json
+ * @property {"ruta" | "juez" | null} fuente   de dónde sale el resultado: la ruta de la Guía o el juez
+ * @property {boolean | null} declaroTerminar   el usuario dijo que terminó (null en corridas viejas)
+ * @property {"directo" | "indirecto" | "declaro_sin_llegar" | null} logro   matiz del resultado: un logrado por la ruta
+ *   recomendada o por otro camino; un fallido que declaró que terminó sin llegar a la página final de la ruta
  * @property {string} justificacion
  * @property {ErrorDeHerramienta | null} error
  * @property {string | null} motivoDeFin
@@ -100,7 +106,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string | null} instruccion    la tarea tal como la leyó este intento (sin contexto: la versión coloquial)
  * @property {string[]} terminosRechazados  términos oficiales que el harness no le dejó escribir
  *
- * @typedef {{ logrado: number, fallido: number, abandonado: number, error: number }} Finales
+ * @typedef {{ logrado: number, fallido: number, abandonado: number, sin_medir: number, error: number }} Finales
  *
  * @typedef {Object} Pagina
  * @property {string} id
@@ -130,11 +136,11 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {number} errores
  * @property {number} intentos  intentos distintos que tomaron el tramo
  * @property {number} pasadas  veces que se pasó por el tramo (exitos + fallos + errores)
- * @property {string[]} perfiles
- * @property {string[]} intentosIds
+ * @property {string[]} perfiles     perfiles del Visitante que pasaron por ella
+ * @property {string[]} intentosIds  ids de los intentos que pasaron por ella
  * @property {number | null} medianaSegundos
  * @property {number} pasosMinimos
- * @property {"exito" | "mixto" | "fallo" | "abandono" | "error"} resultado
+ * @property {"exito" | "mixto" | "fallo" | "abandono" | "sin_medir" | "error"} resultado
  * @property {boolean} enRuta
  *
  * @typedef {Object} Ruta
@@ -149,6 +155,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} nombre
  * @property {string[]} intentos
  * @property {number} validos
+ * @property {number} medidos      válidos con resultado (sin los «sin medir»): el total contra el que se cuentan los logrados
  * @property {number} errores
  * @property {number} logrados
  * @property {number} directos
@@ -188,7 +195,11 @@ const CAMBIO_QUE_CUENTA = 0.05;
 const CAMBIO_DE_LA_CAPTURA = 0.2;
 const ANCHO_DE_ESCRITORIO = 1000;
 const ORDEN_DE_SENALES = ["visible_error", "went_back", "no_effect", "security_block"];
-const RESULTADO_DEL_JUEZ = { success: "logrado", failed: "fallido", abandoned: "abandonado" };
+const RESULTADO_DEL_VEREDICTO = { success: "logrado", failed: "fallido", abandoned: "abandonado", unmeasured: "sin_medir" };
+const FUENTE_DEL_VEREDICTO = { route: "ruta", judge: "juez" };
+// Error técnico en el Visitante nuevo: el intento no entra en route_tree.json.
+const INTERRUMPIDO = "interrupted";
+const fueraDelArbol = (run) => run.verdict?.outcome === INTERRUMPIDO;
 const ACCIONES_DE_CLIC = new Set(["left_click", "double_click", "triple_click"]);
 
 /** Acción con que un explorador vuelve a una página ya vista para abrir otra rama (no la hace un humano). */
@@ -392,7 +403,8 @@ function ubicarIntento(run, buscarNodo, paginaDeNodo) {
 
 // Une las ramas crudas según las páginas: suma lo que coincide, descarta los lazos que deja la unión
 // y separa los tramos de intentos con error de la herramienta (que el evaluador contó como fallos).
-export function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
+// `intentosDelTramo(perfil, origen, destino)`: los ids de intento detrás de un perfil del árbol.
+export function unirRamas(ramasCrudas, paginaDeNodo, intentosDelTramo, intentosConError) {
   const porPar = new Map();
   for (const cruda of ramasCrudas) {
     const origen = paginaDeNodo.get(cruda.source);
@@ -401,16 +413,22 @@ export function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
     const id = `${origen}>${destino}`;
     let rama = porPar.get(id);
     if (!rama) {
-      rama = { id, origen, destino, acciones: [], exitos: 0, fallos: 0, errores: 0, perfiles: [], tiempos: [], pasos: [] };
+      rama = { id, origen, destino, acciones: [], exitos: 0, fallos: 0, errores: 0, perfiles: [], intentosIds: [], tiempos: [], pasos: [] };
       porPar.set(id, rama);
     }
     // Un intento con error nunca es success, así que cada tramo suyo quedó como fallo en el árbol.
     const perfiles = cruda.profiles ?? [];
-    const conError = perfiles.filter((perfil) => intentosConError.has(perfil)).length;
+    const conError = perfiles.filter((perfil) => {
+      const ids = intentosDelTramo(perfil, origen, destino);
+      return ids.length > 0 && ids.every((id) => intentosConError.has(id));
+    }).length;
     rama.exitos += cruda.successes ?? 0;
     rama.fallos += Math.max(0, (cruda.failures ?? 0) - conError);
     rama.errores += conError;
     for (const perfil of perfiles) if (!rama.perfiles.includes(perfil)) rama.perfiles.push(perfil);
+    for (const perfil of new Set(perfiles)) {
+      for (const intento of intentosDelTramo(perfil, origen, destino)) if (!rama.intentosIds.includes(intento)) rama.intentosIds.push(intento);
+    }
     rama.tiempos.push(...(cruda.times_s ?? []));
     rama.pasos.push(...(cruda.steps ?? []));
     const texto = String(cruda.action ?? "");
@@ -432,20 +450,29 @@ export function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
       ...rama,
       acciones,
       accion: acciones[0]?.accion ?? "",
-      intentos: rama.perfiles.length,
+      // Con repeticiones, un perfil del árbol son varios intentos: se cuentan los intentos, no los perfiles.
+      intentos: rama.intentosIds.length || rama.perfiles.length,
       pasadas: rama.exitos + rama.fallos + rama.errores,
-      intentosIds: [...rama.perfiles],
       medianaSegundos: mediana(tiempos),
       pasosMinimos: pasos.length ? Math.min(...pasos) : 1,
     };
   });
 }
 
-/** Cómo terminó lo que pasó por una rama, para su color. */
-export function resultadoDeRama(rama, finalesDelDestino) {
+/**
+ * Cómo terminó lo que pasó por una rama, para su color: la marca del evaluador (exitos/fallos), salvo que todos los
+ * intentos válidos que pasaron por ella estén sin medir (sin ruta de la Guía ni juez): entonces "sin_medir", porque
+ * esos fallos del árbol no dicen nada.
+ * @param {{ exitos: number, fallos: number, errores: number, intentosIds?: string[] }} rama
+ * @param {Finales} [finalesDelDestino]
+ * @param {Map<string, Resultado>} [resultadoDe]  resultado de cada intento por id
+ */
+export function resultadoDeRama(rama, finalesDelDestino, resultadoDe = new Map()) {
   if (rama.exitos === 0 && rama.fallos === 0 && rama.errores > 0) return "error";
   if (rama.exitos > 0 && rama.fallos === 0) return "exito";
   if (rama.exitos > 0) return "mixto";
+  const validos = (rama.intentosIds ?? []).map((id) => resultadoDe.get(id)).filter((resultado) => resultado && resultado !== "error");
+  if (validos.length && validos.every((resultado) => resultado === "sin_medir")) return "sin_medir";
   const finales = finalesDelDestino ?? {};
   return (finales.abandonado ?? 0) > 0 && !(finales.fallido ?? 0) ? "abandono" : "fallo";
 }
@@ -671,10 +698,27 @@ function armarPasos(run, ubicacion, ruta, comoRuta) {
   });
 }
 
-function armarIntento({ perfil, run, video }, ubicacion, ruta, inicios) {
+const textoNoVacio = (valor) => typeof valor === "string" && valor !== "";
+
+/** El perfil de un run.json (`desktop` en la carpeta `desktop-2`); si no trae uno, la carpeta. */
+export const perfilDelRun = (run, carpeta) => (textoNoVacio(run.profile) ? run.profile : carpeta);
+
+/** El intento 2 en adelante de un perfil lleva «#n» en el nombre (no se traduce: es un número). */
+const nombreDeRepeticion = (nombre, repeticion) => (repeticion > 1 ? `${nombre} #${repeticion}` : nombre);
+
+// Sin `source` el run.json es anterior a la ruta de la Guía: el veredicto era del juez.
+const fuenteDelVeredicto = (verdict) =>
+  verdict && "source" in verdict ? (FUENTE_DEL_VEREDICTO[verdict.source] ?? null) : verdict?.outcome ? "juez" : null;
+
+function armarIntento({ perfil: carpeta, run, video }, ubicacion, ruta, inicios) {
   const error = errorDelIntento(run);
   const resultadoJuez = run.verdict?.outcome ?? "abandoned";
-  const resultado = error ? "error" : (RESULTADO_DEL_JUEZ[resultadoJuez] ?? "abandonado");
+  const resultado = error ? "error" : (RESULTADO_DEL_VEREDICTO[resultadoJuez] ?? "abandonado");
+  const fuente = fuenteDelVeredicto(run.verdict);
+  const declaroTerminar = typeof run.verdict?.claimed_done === "boolean" ? run.verdict.claimed_done : null;
+  const repeticion = Number.isInteger(run.attempt) && run.attempt > 0 ? run.attempt : 1;
+  const perfil = perfilDelRun(run, carpeta);
+  const nombreDelPerfil = textoNoVacio(run.profile_name) ? run.profile_name : perfil;
   const { camino, llegadas } = ubicacion;
   // Contra la ruta se compara el camino visto desde ella (otra página de inicio cuenta como la de la ruta);
   // `camino` queda con las páginas reales.
@@ -686,17 +730,25 @@ function armarIntento({ perfil, run, video }, ubicacion, ruta, inicios) {
   const [ancho, alto] = String(run.viewport ?? "").split("x").map(Number);
   const duracionDelRun = typeof run.duration_s === "number" && run.duration_s > 0 ? run.duration_s : null;
   const costo = run.token_usage?.equivalent_cost_usd;
+  let logro = null;
+  // Sin ruta recomendada no hay "directo" ni "indirecto".
+  if (resultado === "logrado" && ruta) logro = sigueLaRuta ? "directo" : "indirecto";
+  else if (resultado === "fallido" && fuente === "ruta" && declaroTerminar) logro = "declaro_sin_llegar";
   const intento = {
-    id: perfil,
+    id: carpeta,
     perfil,
-    nombrePerfil: run.profile_name || perfil,
+    carpeta,
+    repeticion,
+    nombrePerfil: nombreDeRepeticion(nombreDelPerfil, repeticion),
+    nombreDelPerfil,
     viewport: { ancho: ancho || null, alto: alto || null },
     modelo: run.model ?? null,
     motor: run.engine ?? null,
     resultado,
     resultadoJuez,
-    // Sin ruta no hay "directo" ni "indirecto".
-    logro: resultado === "logrado" && ruta ? (sigueLaRuta ? "directo" : "indirecto") : null,
+    fuente,
+    declaroTerminar,
+    logro,
     justificacion: run.verdict?.justification ?? "",
     error,
     motivoDeFin: run.end_reason ?? null,
@@ -761,17 +813,21 @@ function finalesCorregidos(nodosCrudos, intentos, nodoFinalDe) {
         logrado: nodo.endings?.success ?? 0,
         fallido: nodo.endings?.failed ?? 0,
         abandonado: nodo.endings?.abandoned ?? 0,
+        sin_medir: nodo.endings?.unmeasured ?? 0,
         error: 0,
       },
     ]),
   );
-  // El evaluador contó el final de un intento con error como abandono (o fallo): pasa a "error".
+  // El evaluador contó el final de un intento con error como abandono (o fallo): pasa a "error". Un interrumpido
+  // no está en el árbol: no hay qué descontar.
   for (const intento of intentos) {
     if (intento.resultado !== "error") continue;
     const suyos = finales.get(nodoFinalDe.get(intento.id));
     if (!suyos) continue;
-    const campo = intento.resultadoJuez === "failed" ? "fallido" : intento.resultadoJuez === "success" ? "logrado" : "abandonado";
-    suyos[campo] = Math.max(0, suyos[campo] - 1);
+    if (intento.resultadoJuez !== INTERRUMPIDO) {
+      const campo = RESULTADO_DEL_VEREDICTO[intento.resultadoJuez] ?? "abandonado";
+      suyos[campo] = Math.max(0, suyos[campo] - 1);
+    }
     suyos.error += 1;
   }
   return finales;
@@ -781,7 +837,7 @@ function armarPaginas(grupos, finalesPorNodo, ruta, ramas, capturas) {
   const enRuta = ruta?.paginas ?? [];
   const base = grupos.map(({ id, nodos }) => {
     const [primero] = nodos;
-    const finales = { logrado: 0, fallido: 0, abandonado: 0, error: 0 };
+    const finales = { logrado: 0, fallido: 0, abandonado: 0, sin_medir: 0, error: 0 };
     for (const nodo of nodos) {
       for (const [clave, valor] of Object.entries(finalesPorNodo.get(nodo.id))) finales[clave] += valor;
     }
@@ -831,6 +887,7 @@ function armarPerfiles(intentos, ruta) {
   return nombres.map((perfil) => {
     const suyos = intentos.filter((intento) => intento.perfil === perfil);
     const validos = suyos.filter((intento) => intento.resultado !== "error");
+    const medidos = validos.filter((intento) => intento.resultado !== "sin_medir");
     const logrados = validos.filter((intento) => intento.resultado === "logrado");
     const desviados = validos.filter((intento) => intento.seSepara && !intento.seSepara.seDetuvo);
     const eficiencias = ruta
@@ -842,14 +899,15 @@ function armarPerfiles(intentos, ruta) {
       .sort((a, b) => a.tramo - b.tramo || a.paso - b.paso)[0] ?? null;
     return {
       perfil,
-      nombre: suyos[0].nombrePerfil,
+      nombre: suyos[0].nombreDelPerfil,
       intentos: suyos.map((intento) => intento.id),
       validos: validos.length,
+      medidos: medidos.length,
       errores: suyos.length - validos.length,
       logrados: logrados.length,
       directos: ruta ? logrados.filter((intento) => intento.logro === "directo").length : null,
       metricas: {
-        exito: conteo(logrados.length, validos.length),
+        exito: conteo(logrados.length, medidos.length),
         adherencia: ruta ? conteo(validos.filter((intento) => intento.sigueLaRuta).length, validos.length) : null,
         recuperacion: conteo(desviados.filter((intento) => intento.vuelveALaRuta).length, desviados.length),
         pasos: { valores: validos.map((intento) => intento.pasos.length), ruta: ruta?.pasosIdeales ?? null },
@@ -882,6 +940,8 @@ function armarKpis(intentos, ruta) {
   return {
     intentos: intentos.length,
     validos: validos.length,
+    // Los «sin medir» (sin ruta de la Guía ni juez) son válidos, pero no cuentan en «llegan n de m».
+    medidos: validos.filter((intento) => intento.resultado !== "sin_medir").length,
     errores: intentos.length - validos.length,
     logrados: validos.filter((intento) => intento.resultado === "logrado").length,
     // Sin ruta, las cifras de la ruta no existen (null), no son 0.
@@ -902,9 +962,30 @@ export function fechaIsoDe(fecha) {
 }
 
 /**
+ * El árbol nombra perfiles, no intentos: con repeticiones (`desktop`, `desktop-2`), un tramo es de los intentos del
+ * perfil cuyo camino lo recorre (de ninguno, si ninguno calza). Con un intento por perfil, ese intento. Los
+ * interrumpidos no están en el árbol.
+ */
+function intentosDelTramoSegun(crudos, ubicaciones) {
+  const porPerfil = new Map();
+  crudos.forEach(({ perfil: carpeta, run }, i) => {
+    if (fueraDelArbol(run)) return;
+    const perfil = perfilDelRun(run, carpeta);
+    if (!porPerfil.has(perfil)) porPerfil.set(perfil, []);
+    porPerfil.get(perfil).push({ id: carpeta, camino: ubicaciones[i].camino });
+  });
+  return (perfil, origen, destino) => {
+    const suyos = porPerfil.get(perfil) ?? [{ id: perfil, camino: [] }];
+    if (suyos.length === 1) return [suyos[0].id];
+    const pasaron = suyos.filter(({ camino }) => camino.some((pagina, i) => pagina === origen && camino[i + 1] === destino));
+    return pasaron.map(({ id }) => id);
+  };
+}
+
+/**
  * Arma la tanda completa para las pantallas.
  * @param {{ id: string, arbol: object | null, criterio: object | null,
- *           intentos: { perfil: string, run: object, video: boolean }[] }} entrada
+ *           intentos: { perfil: string, run: object, video: boolean }[] }} entrada   `perfil`: la carpeta del intento
  * @returns {Tanda}
  */
 export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArbol = arbol ? "ok" : "falta" }) {
@@ -921,7 +1002,7 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArb
   const { grupos, paginaDeNodo, alias } = unirNodos(nodosCrudos);
   const ubicaciones = crudos.map(({ run }) => ubicarIntento(run, buscarNodo, paginaDeNodo));
   const conError = new Set(crudos.filter(({ run }) => errorDelIntento(run)).map(({ perfil }) => perfil));
-  const ramasUnidas = unirRamas(arbol?.branches ?? [], paginaDeNodo, conError);
+  const ramasUnidas = unirRamas(arbol?.branches ?? [], paginaDeNodo, intentosDelTramoSegun(crudos, ubicaciones), conError);
   const ruta = rutaEnPaginas(arbol?.recommended_route ?? null, paginaDeNodo, new Map(ramasUnidas.map((r) => [r.id, r])));
 
   const inicios = new Set(grupos.filter(({ nodos }) => nodos.some((nodo) => nodo.is_start)).map(({ id }) => id));
@@ -930,10 +1011,11 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArb
   const finalesPorNodo = finalesCorregidos(nodosCrudos, intentos, nodoFinalDe);
   const paginas = armarPaginas(grupos, finalesPorNodo, ruta, ramasUnidas, capturasDePaginas(intentos));
   const finalesDe = new Map(paginas.map((pagina) => [pagina.id, pagina.finales]));
+  const resultadoDe = new Map(intentos.map((intento) => [intento.id, intento.resultado]));
   const tramosDeRuta = new Set((ruta?.tramos ?? []).map((tramo) => `${tramo.origen}>${tramo.destino}`));
   const ramas = ramasUnidas.map((rama) => ({
     ...rama,
-    resultado: resultadoDeRama(rama, finalesDe.get(rama.destino)),
+    resultado: resultadoDeRama(rama, finalesDe.get(rama.destino), resultadoDe),
     enRuta: tramosDeRuta.has(rama.id),
   }));
 
@@ -1029,6 +1111,7 @@ export function resumirTanda(tanda) {
     fechaIso: tanda.fechaIso,
     intentos: kpis.intentos,
     validos: kpis.validos,
+    medidos: kpis.medidos,
     errores: kpis.errores,
     logrados: kpis.logrados,
     perfiles: tanda.intentos.map((intento) => ({

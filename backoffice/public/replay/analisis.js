@@ -1,5 +1,6 @@
 // Análisis del paso (columna derecha del Replay), en palabras simples: la acción, las señales explicadas, qué
-// esperaba el usuario, qué pasó, en qué página quedó y, al final, la nota del juez sobre el intento.
+// esperaba el usuario, qué pasó, en qué página quedó y, al final, la nota sobre el resultado del intento (del juez o
+// medido contra la ruta de la Guía; sin ninguno de los dos, «sin medir»).
 // Un intento con error de la herramienta muestra el error, nunca su texto como si fuera el veredicto.
 
 import { nombreDePagina, textoDeError, textoDeFirma, textoDeLoQuePaso, textoDeMotivo } from "../datos/textos.js";
@@ -22,6 +23,14 @@ function senales(paso, t) {
   );
 }
 
+// El resultado sale de la ruta de la Guía, del juez (corridas viejas o --judge) o de ninguno (sin medir).
+const TITULO_DE_LA_NOTA = { ruta: "replay.analisis.juezRuta", juez: "replay.analisis.juez" };
+
+function textoSinNota(intento) {
+  if (intento.fuente === "ruta") return "replay.analisis.sinJuez";
+  return intento.resultado === "sin_medir" ? "replay.analisis.sinMedir" : "replay.analisis.sinNota";
+}
+
 function notaDelJuez(intento, t) {
   const error = intento.resultado === "error" ? textoDeError(intento.error, t) : null;
   if (error) {
@@ -32,9 +41,9 @@ function notaDelJuez(intento, t) {
     );
   }
   return seccion(
-    t("replay.analisis.juez"),
+    t(TITULO_DE_LA_NOTA[intento.fuente] ?? (intento.resultado === "sin_medir" ? "replay.analisis.juezSinMedir" : "replay.analisis.juez")),
     el("p", {}, insignia(intento.resultado, { logro: intento.logro })),
-    intento.justificacion ? el("p", { class: "prosa", texto: intento.justificacion }) : el("p", { class: "texto-3", texto: t("replay.analisis.sinNota") }),
+    intento.justificacion ? el("p", { class: "prosa", texto: intento.justificacion }) : el("p", { class: "texto-3", texto: t(textoSinNota(intento)) }),
   );
 }
 

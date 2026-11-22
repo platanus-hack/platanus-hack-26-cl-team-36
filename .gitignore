@@ -11,3 +11,5 @@ infra/app/.build/
 
 # Dependencias de npm de la raíz (la CLI de AgentCore)
 /node_modules/
+# El SDK de AWS del backoffice (solo con BACKOFFICE_FUENTE=s3)
+/backoffice/node_modules/

@@ -3,11 +3,13 @@
 //   #/                          Corridas   ?q= &sitio= &filtro= &orden= &vista=
 //   #/t/<tandaId>               → #/t/<tandaId>/telarana
 //   #/t/<tandaId>/<pestaña>     telarana · replay   (#/t/<tandaId>/resumen, de cuando existía, → telarana)
+//   #/revisiones                Revisiones (DynamoDB)
+//   #/revisiones/<revision>     el avance de una revisión
 //
 // Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
 // saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan.
 
-import { CORRIDA, partesDeTanda } from "./almacen.js";
+import { CORRIDA, REVISION, partesDeTanda } from "./almacen.js";
 
 export const PESTANAS = ["telarana", "replay"];
 export const PESTANA_POR_DEFECTO = "telarana";
@@ -91,6 +93,12 @@ export function parsearHash(hash) {
 
   if (partes.length === 0) return { tipo: "corridas", parametros };
 
+  if (partes[0] === "revisiones" && partes.length <= 2) {
+    const revision = partes[1] ?? null;
+    if (revision !== null && !REVISION.test(revision)) return { tipo: "desconocida", hash: original };
+    return { tipo: "revisiones", revision, parametros: {} };
+  }
+
   if (partes[0] === "t") {
     const resto = partes.slice(1);
     // Un id que no sigue el layout no es una tanda: así nunca arma otra ruta al pedirlo ("..%2F..%2Fx" → "../../x").
@@ -131,7 +139,8 @@ function consultaCanonica(clave, parametros) {
 }
 
 /** Hash canónico: orden estable de parámetros, sin valores vacíos ni por defecto, sin `idioma`. */
-export function hashDe({ tipo, tandaId, pestana = PESTANA_POR_DEFECTO, parametros = {} }) {
+export function hashDe({ tipo, tandaId, revision = null, pestana = PESTANA_POR_DEFECTO, parametros = {} }) {
+  if (tipo === "revisiones") return enlaceARevision(revision);
   if (tipo === "tanda") {
     const id = String(tandaId).split("/").map(encodeURIComponent).join("/");
     const limpios = aplicarAlias(pestana, parametros);
@@ -142,6 +151,11 @@ export function hashDe({ tipo, tandaId, pestana = PESTANA_POR_DEFECTO, parametro
 
 export function enlaceATanda(tandaId, pestana = PESTANA_POR_DEFECTO, parametros = {}) {
   return hashDe({ tipo: "tanda", tandaId, pestana, parametros });
+}
+
+/** "#/revisiones" o "#/revisiones/<revision>". */
+export function enlaceARevision(revision = null) {
+  return revision ? `#/revisiones/${encodeURIComponent(revision)}` : "#/revisiones";
 }
 
 /**

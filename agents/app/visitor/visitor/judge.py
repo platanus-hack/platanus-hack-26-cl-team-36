@@ -1,6 +1,7 @@
-"""Criterio de éxito (al inicio) y veredicto final (al terminar cada intento), con Opus.
+"""Juez opcional (--judge), para intentos sin ruta de referencia: propone un criterio de éxito al inicio y dictamina
+con la última captura de cada intento. Dos llamadas al modelo más por tanda e intento.
 
-El juez puede correr por el Claude Code local (`ClaudeCodeJudge`) o por la API (`ApiJudge`).
+Puede correr por el Claude Code local (`ClaudeCodeJudge`) o por la API (`ApiJudge`).
 """
 
 import json
@@ -81,8 +82,10 @@ class ApiJudge:
             "max_tokens": config.JUDGE_MAX_TOKENS,
             "system": system_prompt,
             "messages": [{"role": "user", "content": [{"type": "text", "text": text}, png_image_block(image)]}],
-            "output_config": {"effort": self.effort, "format": {"type": "json_schema", "schema": schema}},
+            "output_config": {"format": {"type": "json_schema", "schema": schema}},
         }
+        if config.accepts_effort(self.model):
+            request["output_config"]["effort"] = self.effort
         if self.fallbacks:
             response = await self.client.beta.messages.create(
                 **request, betas=["server-side-fallback-2026-07-01"], fallbacks="default"

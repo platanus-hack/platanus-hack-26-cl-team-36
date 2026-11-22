@@ -13,7 +13,7 @@
 // columna) rodean por el pasillo de la derecha; las vueltas atrás bajan o suben por los pasillos entre columnas y pasan por
 // encima o por debajo de las columnas que saltan, sin cruzar estaciones.
 
-export const RESULTADOS = ["logrado", "fallido", "abandonado", "error"];
+export const RESULTADOS = ["logrado", "fallido", "abandonado", "sin_medir", "error"];
 
 const comparar = (a, b) => String(a).localeCompare(String(b), "es", { numeric: true });
 const redondear = (n) => Math.round(n * 10) / 10;
@@ -105,7 +105,7 @@ function crucesEntre(enlaces, posicion) {
 
 /**
  * @param {{ paginas: { id: string, esInicio?: boolean, visitas?: number,
- *             finales?: Partial<Record<"logrado"|"fallido"|"abandonado"|"error", number>> }[],
+ *             finales?: Partial<Record<"logrado"|"fallido"|"abandonado"|"sin_medir"|"error", number>> }[],
  *           ramas: { id?: string, origen: string, destino: string, intentos?: number, resultado?: string }[],
  *           ruta: { paginas: string[] } | null }} entrada
  * @param {{ barridos?: number }} [opciones]  barridos de baricentro (1: solo el orden inicial)

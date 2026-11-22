@@ -7,14 +7,21 @@ from urllib.parse import urlsplit
 
 from shared.store.run_ids import is_run_id
 
-Agent = Literal["cataloger", "guide", "visitor", "summary"]
+Agent = Literal["cataloger", "guide", "visitor", "summary", "improver", "conductor"]
 Viewport = Literal["desktop", "mobile"]
 
 AGENTS: tuple[Agent, ...] = get_args(Agent)
 VIEWPORTS: tuple[Viewport, ...] = get_args(Viewport)
 
 # Segmentos entre el agente y el id de corrida: goal y, en guide, viewport.
-_PREFIX_DEPTH: dict[str, int] = {"cataloger": 0, "summary": 0, "visitor": 1, "guide": 2}
+_PREFIX_DEPTH: dict[str, int] = {
+    "cataloger": 0,
+    "summary": 0,
+    "improver": 0,
+    "conductor": 0,
+    "visitor": 1,
+    "guide": 2,
+}
 _DEFAULT_PORTS = {"http": 80, "https": 443}
 _LABEL = r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
 _HOST = re.compile(rf"{_LABEL}(?:\.{_LABEL})*(?::[1-9]\d{{0,4}})?")
@@ -143,6 +150,14 @@ def visitor(url: str, goal: str) -> RunPrefix:
 
 def summary(url: str) -> RunPrefix:
     return RunPrefix(normalize_host(url), "summary")
+
+
+def improver(url: str) -> RunPrefix:
+    return RunPrefix(normalize_host(url), "improver")
+
+
+def conductor(url: str) -> RunPrefix:
+    return RunPrefix(normalize_host(url), "conductor")
 
 
 def parse_key(key: str) -> KeyParts:

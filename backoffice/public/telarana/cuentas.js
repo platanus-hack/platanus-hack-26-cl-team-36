@@ -5,7 +5,7 @@ import { RESULTADOS } from "./distribuir.js";
 
 const valido = (intento) => intento?.resultado !== "error";
 
-/** Finales por página, los de la API (pagina.finales). → Map<paginaId, { logrado, fallido, abandonado, error }>. */
+/** Finales por página, los de la API (pagina.finales). → Map<paginaId, { logrado, fallido, abandonado, sin_medir, error }>. */
 export function finalesPorPagina(tanda) {
   const vacio = () => Object.fromEntries(RESULTADOS.map((r) => [r, 0]));
   return new Map((tanda?.telarana?.paginas ?? []).map((pagina) => [pagina.id, { ...vacio(), ...(pagina.finales ?? {}) }]));

@@ -60,7 +60,7 @@
 .insignia-compacta { padding: 0; min-height: 0; background: none; }
 .insignia-logrado, .insignia-exito { --tono: var(--exito); }
 .insignia-fallido, .insignia-peligro { --tono: var(--peligro-texto); }
-.insignia-abandonado, .insignia-neutro { --tono: var(--neutro); }
+.insignia-abandonado, .insignia-sin_medir, .insignia-neutro { --tono: var(--neutro); }
 .insignia-error { --tono: var(--neutro); background: var(--rayado), var(--neutro-fondo); color: var(--texto-2); }
 .insignia-error.insignia-compacta { background: none; }
 .insignia-aviso { --tono: var(--aviso); }
@@ -72,6 +72,7 @@
 .medidor-tramo.insignia-logrado, .medidor-tramo.medidor-logrado { background: var(--exito); }
 .medidor-tramo.insignia-fallido, .medidor-tramo.medidor-fallido { background: var(--peligro); }
 .medidor-tramo.insignia-abandonado, .medidor-tramo.medidor-abandonado { background: var(--neutro); }
+.medidor-tramo.insignia-sin_medir, .medidor-tramo.medidor-sin_medir { background: var(--superficie-3); box-shadow: inset 0 0 0 1px var(--neutro); }
 .medidor-tramo.insignia-error, .medidor-tramo.medidor-error { background: var(--rayado), var(--superficie-3); box-shadow: inset 0 0 0 1px var(--borde); }
 .medidor-tramo.medidor-aviso { background: var(--aviso); }
 .medidor-tramo.medidor-acento { background: var(--acento); }

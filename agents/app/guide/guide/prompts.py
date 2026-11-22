@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from guide import config
 from guide.page_view import Element, PageView
 
+TEXT_HEADING = "TEXTO DE LA PÁGINA DESDE LA PANTALLA ACTUAL"
 _TEXT_BEFORE_SCREEN = 300  # caracteres antes de la pantalla, para no cortar un párrafo a la mitad
 
 DECISION_SCHEMA = {
@@ -102,7 +103,7 @@ def render_view(view: PageView) -> str:
     ]
     if view.total_elements > len(view.elements):
         lines.append(f"(y {view.total_elements - len(view.elements)} elementos más, no listados)")
-    return "\n".join([*lines, "", "TEXTO DE LA PÁGINA DESDE LA PANTALLA ACTUAL", _text_window(view)])
+    return "\n".join([*lines, "", TEXT_HEADING, _text_window(view)])
 
 
 def _text_window(view: PageView) -> str:

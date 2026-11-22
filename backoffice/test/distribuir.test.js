@@ -326,7 +326,7 @@ test("sii 16-24-12 (tanda real, 27 páginas): inicio a la izquierda, meta a la d
 test("cuentas: finales, terminales y hitos de la ruta", async () => {
   const tanda = await leerTanda(RAIZ, NUEVA);
   const todos = totalesDeTerminales(finalesPorPagina(tanda));
-  assert.deepEqual(todos, { logrado: 2, fallido: 1, abandonado: 0, error: 1 });
+  assert.deepEqual(todos, { logrado: 2, fallido: 1, abandonado: 0, sin_medir: 0, error: 1 });
   // Los hitos cuentan solo intentos válidos: el error de Móvil no cuenta.
   assert.deepEqual(hitosDeRuta(tanda), [
     { pagina: "n1", n: 3, de: 3 },

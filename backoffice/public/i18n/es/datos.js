@@ -103,11 +103,18 @@ export default {
       const sujeto = nombres.length === 1 ? "Un intento no cuenta" : `${nombres.length} intentos no cuentan`;
       return `${sujeto}: error de la herramienta (${unir(nombres)}).`;
     },
+    sinMedir: ({ todos, cuantos, intentos }) => {
+      const c = n(cuantos);
+      if (todos) return `${c === 1 ? "El único intento no se midió" : `Ninguno de los ${c} intentos se midió`}: no hay ruta de la Guía ni juez.`;
+      return `${c === 1 ? "Un intento no se midió" : `${c} intentos no se midieron`} (no hay ruta de la Guía ni juez): ${unir(intentos)}.`;
+    },
     desvio: ({ intento, desdePagina, haciaPagina, paso, vuelveEnPaso }) =>
       `${intento ?? ""} deja la ruta en «${desdePagina ?? ""}» hacia «${haciaPagina ?? ""}» (paso ${n(paso)}) y ` +
       `${vuelveEnPaso === null || vuelveEnPaso === undefined ? "no vuelve" : `vuelve en el paso ${vuelveEnPaso}`}.`,
     detenido: ({ intento, pagina, pasos: cuenta, motivo }) =>
       `${intento ?? ""} termina en «${pagina ?? ""}» tras ${pasos(n(cuenta))}: ${motivo ?? ""}.`,
+    declaro: ({ intento, pagina, pasos: cuenta }) =>
+      `${intento ?? ""} declaró que terminó sin llegar a la página final de la ruta: se quedó en «${pagina ?? ""}» tras ${pasos(n(cuenta))}.`,
     demora: ({ intento, pasos: cuenta, pagina, rutaPasos, conteos }) =>
       `${intento ?? ""} da ${n(cuenta)} pasos seguidos en «${pagina ?? ""}»` +
       `${rutaPasos === null || rutaPasos === undefined ? "" : ` (la ruta: ${rutaPasos})`}: ${conteos ?? ""}.`,
@@ -135,8 +142,11 @@ export default {
       if (caso === "demora") return `${sujeto} a la respuesta, pero ${intento ?? ""} da ${n(cuenta)} pasos seguidos en «${pagina ?? ""}».`;
       return `${sujeto} a la respuesta, pero hay ${pasos(n(cuenta))} con tropiezos.`;
     },
-    telarana: ({ hayRuta, enInicio, probabilidad, tramos, pasosIdeales, siguen, validos, logrados }) => {
+    telarana: ({ hayRuta, enInicio, probabilidad, tramos, pasosIdeales, siguen, validos, medidos, logrados }) => {
       if (!hayRuta && enInicio) return `La tarea se resuelve en la página de inicio${probabilidad == null ? "" : ` (el evaluador lo estima en un ${Math.round(probabilidad * 100)} %)`}: el eje es el camino más transitado.`;
+      if (!hayRuta && n(validos) > 0 && medidos !== undefined && n(medidos) === 0) {
+        return "No se midió quién llegó (no hay ruta de la Guía ni juez): el eje es el camino más transitado.";
+      }
       if (!hayRuta && n(logrados) > 0) return "No hay una ruta recomendada que seguir: el eje es el camino más transitado.";
       if (!hayRuta) return "Nadie llegó a la respuesta: el eje es el camino más transitado.";
       const [s, v] = [n(siguen), n(validos)];
@@ -149,6 +159,7 @@ export default {
       const nombres = Array.isArray(intentos) ? intentos : [];
       const nota = unoPorPerfil ? "(1 intento por perfil)" : "";
       if (caso === "sinValidos") return "Ningún perfil tiene intentos válidos.";
+      if (caso === "sinMedir") return "No se midió si los perfiles llegan: no hay ruta de la Guía ni juez.";
       if (caso === "noLlegan") {
         return conNota(`${unir(nombres)} no ${segun(nombres.length, "llega", "llegan")} a la respuesta.`, nota);
       }

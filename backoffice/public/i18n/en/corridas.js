@@ -43,6 +43,7 @@ export default {
     arbolFalta: "Incomplete",
     intentoResultado: "{nombre}: {resultado}",
     sinValidos: "none valid",
+    sinMedir: "not measured",
   },
   vacio: {
     sinTandas: "No batches yet",

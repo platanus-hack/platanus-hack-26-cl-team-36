@@ -5,11 +5,16 @@
 //   GET /api/tandas                       → { carpeta, tandas: resumen de cada tanda, de la más nueva a la más vieja }
 //   GET /api/tandas/<host>/visitor/<objetivo>/<corrida>  → la tanda completa, ya derivada para las pantallas
 //   GET /archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<step_NN.png | video.webm>
+//   GET /api/revisiones                   → { disponible, revisiones } (DynamoDB; solo con BACKOFFICE_FUENTE=s3)
+//   GET /api/revisiones/<revision>        → el avance de una revisión por etapa y por goal
+//   GET /resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
 //   GET /<ruta>.{html,js,css,svg,woff2}   → archivos de public/
+//   GET /salud                            → { ok: true }, con cualquier Host (el health check del balanceador)
 //
 // Solo responde a pedidos dirigidos a este computador (Host localhost, 127.0.0.1 o [::1] con el puerto del
 // servidor): así una página ajena no puede leer las corridas apuntando su dominio a 127.0.0.1 (DNS rebinding).
-// BACKOFFICE_HOSTS="otro.host:8080,…" agrega hosts permitidos (para cuando se sirva detrás de algo con acceso).
+// BACKOFFICE_HOSTS="otro.host:8080,…" agrega hosts permitidos (en AWS, el dominio: infra/app/backoffice.tf).
+// Escucha en 127.0.0.1; BACKOFFICE_ESCUCHA="0.0.0.0" lo abre a la red (en el contenedor).
 
 import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
@@ -18,6 +23,7 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { crearFuente } from "./lib/fuente.js";
+import { crearRevisiones, partesDeResultado } from "./lib/revisiones.js";
 import { abrirArchivoDeIntento, leerTanda, listarTandas } from "./lib/tandas.js";
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
@@ -30,7 +36,10 @@ const TIPOS = {
   ".png": "image/png",
   ".webm": "video/webm",
   ".woff2": "font/woff2",
+  ".json": "application/json; charset=utf-8",
 };
+// Un tema de un resultado se muestra como texto: no es una hoja de estilos de esta página.
+const TIPOS_DE_RESULTADO = { ".css": "text/plain; charset=utf-8" };
 // Lo que se sirve de public/: cualquier archivo con estas extensiones, en minúsculas, a cualquier profundidad.
 const RUTA_PUBLICA = /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:html|js|css|svg|woff2)$/;
 
@@ -65,8 +74,8 @@ export function leerRango(cabecera) {
 const tipoDe = (nombre) => TIPOS[path.extname(nombre)] ?? "application/octet-stream";
 
 // Envía un archivo abierto (de una fuente o de public/), con 206 si se pidió un rango.
-async function enviar(req, res, nombre, { cuerpo, tamano, rango }) {
-  const cabeceras = { "Content-Type": tipoDe(nombre), "Cache-Control": "no-store", "Accept-Ranges": "bytes", ...CABECERAS_DE_SEGURIDAD };
+async function enviar(req, res, nombre, { cuerpo, tamano, rango }, tipo = tipoDe(nombre)) {
+  const cabeceras = { "Content-Type": tipo, "Cache-Control": "no-store", "Accept-Ranges": "bytes", ...CABECERAS_DE_SEGURIDAD };
   if (!cuerpo) {
     res.writeHead(416, { ...CABECERAS_DE_SEGURIDAD, "Content-Range": `bytes */${tamano}` });
     return res.end();
@@ -115,15 +124,21 @@ const hostsDelEntorno = () =>
   new Set(String(process.env.BACKOFFICE_HOSTS ?? "").split(",").map((host) => host.trim().toLowerCase()).filter(Boolean));
 
 /**
- * @param {{ fuente?: import("./lib/fuente.js").Fuente, raizCorridas?: string, hostsPermitidos?: string[] }} opciones
+ * @param {{ fuente?: import("./lib/fuente.js").Fuente, raizCorridas?: string, hostsPermitidos?: string[],
+ *           revisiones?: ReturnType<typeof crearRevisiones> | null }} opciones
  *        `fuente` de donde leer las corridas; o `raizCorridas`, una carpeta (fuente de archivos).
  *        `hostsPermitidos`: hosts extra ("otro.host:8080") además de localhost; por defecto, BACKOFFICE_HOSTS.
+ *        `revisiones`: la tabla de revisiones (lib/revisiones.js); sin ella, /api/revisiones dice que no está disponible.
  */
-export function crearServidor({ fuente, raizCorridas, hostsPermitidos } = {}) {
+export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisiones = null } = {}) {
   const origen = fuente ?? crearFuente({ tipo: "archivos", raiz: raizCorridas });
   const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   return createServer(async (req, res) => {
     try {
+      // El balanceador revisa la tarea con su IP privada como Host: esta ruta no pasa por el chequeo y no lee nada.
+      if (req.url === "/salud" && (req.method === "GET" || req.method === "HEAD")) {
+        return responderJson(res, 200, { ok: true });
+      }
       if (!hostPermitido(req.headers.host, req.socket.localPort, extra)) {
         return responderJson(res, 403, { error: "Host no permitido" });
       }
@@ -142,6 +157,22 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos } = {}) {
         if (partes.length === 2) return responderJson(res, 200, await listarTandas(origen));
         const tanda = await leerTanda(origen, partes.slice(2).join("/"));
         return tanda ? responderJson(res, 200, tanda) : responderJson(res, 404, { error: "No existe esa tanda" });
+      }
+
+      if (partes[0] === "api" && partes[1] === "revisiones" && partes.length <= 3) {
+        if (partes.length === 2) {
+          return responderJson(res, 200, revisiones ? { disponible: true, revisiones: await revisiones.listar() } : { disponible: false, revisiones: [] });
+        }
+        const avance = revisiones ? await revisiones.leer(partes[2]) : null;
+        return avance ? responderJson(res, 200, avance) : responderJson(res, 404, { error: "No existe esa revisión" });
+      }
+
+      if (partes[0] === "resultados") {
+        const resultado = partesDeResultado(partes.slice(1).join("/"));
+        const abierto = resultado ? await origen.abrirArchivo(resultado.runKey, resultado.archivo) : null;
+        if (!abierto) return responderJson(res, 404, { error: "No existe ese resultado" });
+        const archivo = resultado.archivo;
+        return enviar(req, res, archivo, abierto, TIPOS_DE_RESULTADO[path.extname(archivo)] ?? tipoDe(archivo));
       }
 
       if (partes[0] === "archivos" && partes.length >= 4) {
@@ -170,11 +201,18 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos } = {}) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const puerto = Number(process.env.PORT) || 4848;
+  const escucha = process.env.BACKOFFICE_ESCUCHA || "127.0.0.1";
+  const tipo = process.env.BACKOFFICE_FUENTE ?? "archivos";
+  const aws = tipo === "s3" ? await (await import("./lib/aws.js")).conectarAws() : null;
   const fuente = crearFuente({
+    tipo,
     raiz: path.resolve(process.env.BACKOFFICE_CORRIDAS ?? path.join(AQUI, "..", "agents", ".runs")),
+    almacen: process.env.BACKOFFICE_ALMACEN,
+    s3: aws?.s3,
   });
-  // Solo en este computador: las corridas pueden mostrar datos de quien corrió la prueba.
-  const servidor = crearServidor({ fuente });
+  const revisiones = aws ? crearRevisiones({ tabla: process.env.BACKOFFICE_TABLA || "chameleon-revisiones", ...aws.dynamo }) : null;
+  // Por defecto, solo en este computador: las corridas pueden mostrar datos de quien corrió la prueba.
+  const servidor = crearServidor({ fuente, revisiones });
   servidor.on("error", (error) => {
     if (error.code !== "EADDRINUSE") throw error;
     console.error(
@@ -183,7 +221,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     );
     process.exit(1);
   });
-  servidor.listen(puerto, "127.0.0.1", () => {
-    console.log(`Backoffice en http://localhost:${puerto} · corridas de ${fuente.descripcion}`);
+  servidor.listen(puerto, escucha, () => {
+    const conRevisiones = revisiones ? ` · revisiones de ${revisiones.descripcion} (${aws.region})` : "";
+    const abierto = escucha === "127.0.0.1" ? "" : ` · escucha en ${escucha}:${puerto}`;
+    console.log(`Backoffice en http://localhost:${puerto}${abierto} · corridas de ${fuente.descripcion}${conRevisiones}`);
   });
 }

@@ -1,0 +1,61 @@
+{
+  "spl": 0.5,
+  "runs": [
+    {
+      "profile": "desktop",
+      "run": "desktop",
+      "reference_viewport": "desktop",
+      "steps": 2,
+      "min_steps": 2,
+      "efficiency": 1.0,
+      "beat_reference": false,
+      "lostness": 0.0,
+      "revisits": 1.0,
+      "detour": 1.0,
+      "reached_final_node": true,
+      "similarity": 1.0
+    },
+    {
+      "profile": "desktop",
+      "run": "desktop-2",
+      "reference_viewport": "desktop",
+      "steps": 1,
+      "min_steps": 2,
+      "efficiency": 0.0,
+      "beat_reference": false,
+      "lostness": 0.0,
+      "revisits": 1.0,
+      "detour": 1.0,
+      "reached_final_node": false,
+      "similarity": 0.5
+    },
+    {
+      "profile": "mobile",
+      "run": "mobile",
+      "reference_viewport": "desktop",
+      "steps": 1,
+      "min_steps": 2,
+      "efficiency": 0.0,
+      "beat_reference": false,
+      "lostness": 0.0,
+      "revisits": 1.0,
+      "detour": 1.0,
+      "reached_final_node": false,
+      "similarity": 1.0
+    },
+    {
+      "profile": "mobile",
+      "run": "mobile-2",
+      "reference_viewport": "desktop",
+      "steps": 2,
+      "min_steps": 2,
+      "efficiency": 1.0,
+      "beat_reference": false,
+      "lostness": 0.0,
+      "revisits": 1.0,
+      "detour": 1.0,
+      "reached_final_node": true,
+      "similarity": 1.0
+    }
+  ]
+}

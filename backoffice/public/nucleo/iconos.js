@@ -11,6 +11,8 @@ const FORMAS = {
   logrado: [["circle", { cx: 8, cy: 8, r: 6.5, ...R }], ["path", { d: "M5.2 8.2l1.9 1.9 3.8-4", ...RECORTE }]],
   fallido: [["rect", { x: 2.5, y: 2.5, width: 11, height: 11, rx: 2.5 }], ["path", { d: "M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5" }]],
   abandonado: [["circle", { cx: 8, cy: 8, r: 5.75 }], ["path", { d: "M5.25 8h5.5" }]],
+  // Sin ruta de la Guía ni juez: un círculo punteado (no se sabe cómo terminó).
+  "sin-medir": [["circle", { cx: 8, cy: 8, r: 5.75, "stroke-dasharray": "2.2 2.2" }]],
   "error-herramienta": [
     ["path", { d: "M10.6 2.6a3.1 3.1 0 0 0-3 4.1l-4.8 4.8a1.25 1.25 0 0 0 1.8 1.8l4.8-4.8a3.1 3.1 0 0 0 4.1-3l-1.9 1.3-1.9-.5-.5-1.9z" }],
   ],
@@ -81,12 +83,12 @@ export function icono(nombre, { etiqueta = null, clase = "" } = {}) {
   );
 }
 
-const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", error: "error-herramienta" };
+const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", sin_medir: "sin-medir", error: "error-herramienta" };
 
-/** Texto de un resultado: "Logrado · por la ruta", "Error de la herramienta". */
+/** Texto de un resultado: "Logrado · por la ruta", "Fallido · declaró que terminó sin llegar", "Error de la herramienta". */
 export function textoDeResultado(resultado, logro = null) {
   const base = t(`comun.resultado.${resultado}`);
-  return resultado === "logrado" && logro ? `${base} · ${t(`comun.logro.${logro}`)}` : base;
+  return logro ? `${base} · ${t(`comun.logro.${logro}`)}` : base;
 }
 
 /**

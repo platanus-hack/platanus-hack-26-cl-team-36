@@ -8,7 +8,7 @@ import { conservarFoco, el, reemplazar } from "./dom.js";
 import { EVENTO_IDIOMA, IDIOMAS, cambiarIdioma, fmt, idioma, t } from "./i18n.js";
 import { icono } from "./iconos.js";
 import { abrirPaleta } from "./paleta.js";
-import { enlaceATanda } from "./rutas.js";
+import { enlaceARevision, enlaceATanda } from "./rutas.js";
 
 const RECIENTES = 6;
 const ESCRITORIO = "(min-width: 820px)";
@@ -24,12 +24,15 @@ export function estadoDeTanda(resumen) {
   const intentos = typeof resumen.intentos === "number" ? resumen.intentos : 0;
   const errores = resumen.errores ?? 0;
   const validos = resumen.validos ?? intentos - errores;
+  const medidos = resumen.medidos ?? validos;
   const logrados = resumen.logrados ?? resumen.exitos ?? 0;
-  const tipo = validos === 0 ? "error" : validos > logrados ? "fallido" : errores ? "error" : "logrado";
-  return { tipo, intentos, errores, validos, logrados };
+  let tipo = medidos > logrados ? "fallido" : errores ? "error" : "logrado";
+  if (validos === 0) tipo = "error";
+  else if (medidos === 0) tipo = "sin_medir";
+  return { tipo, intentos, errores, validos, medidos, logrados };
 }
 
-const ICONO_DE_ESTADO = { logrado: "logrado", fallido: "fallido", error: "error-herramienta" };
+const ICONO_DE_ESTADO = { logrado: "logrado", fallido: "fallido", sin_medir: "sin-medir", error: "error-herramienta" };
 
 function marca() {
   return el(
@@ -133,6 +136,16 @@ function contenidoLateral({ enCajon = false } = {}) {
             ),
           ),
         ),
+        el(
+          "li",
+          {},
+          el(
+            "a",
+            { class: "lateral-enlace lateral-revisiones", href: enlaceARevision(), "data-foco": "shell:revisiones" },
+            icono("historia"),
+            el("span", { texto: t("comun.shell.revisiones") }),
+          ),
+        ),
       ),
       el("h2", { class: "etiqueta-micro lateral-subtitulo", texto: t("comun.shell.tandasRecientes") }),
       listaDeRecientes(),
@@ -184,6 +197,10 @@ function marcarActual(contenedor) {
   const enCorridas = rutaActual?.tipo === "corridas";
   contenedor.querySelectorAll(".lateral-corridas").forEach((enlace) => {
     if (enCorridas) enlace.setAttribute("aria-current", "page");
+    else enlace.removeAttribute("aria-current");
+  });
+  contenedor.querySelectorAll(".lateral-revisiones").forEach((enlace) => {
+    if (rutaActual?.tipo === "revisiones") enlace.setAttribute("aria-current", "page");
     else enlace.removeAttribute("aria-current");
   });
   contenedor.querySelectorAll(".lateral-tanda").forEach((enlace) => {

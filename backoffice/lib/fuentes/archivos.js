@@ -1,11 +1,12 @@
 // Fuente de corridas en el sistema de archivos (layout en public/nucleo/almacen.js): cada tanda es una corrida
-// del Visitante que terminó bien, con route_tree.json, criteria.json y una carpeta por perfil.
+// del Visitante que terminó bien, con route_tree.json, una carpeta por intento y, si corrió el juez, criteria.json.
 
 import { createReadStream, existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AGENTE, CORRIDA, HOST, MANIFIESTO, OBJETIVO, idDeTanda } from "../../public/nucleo/almacen.js";
+import { resolverRango } from "./rango.js";
 
 const RAIZ_DEL_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const RAIZ_POR_DEFECTO = path.join(RAIZ_DEL_REPO, "agents", ".runs");
@@ -107,13 +108,10 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
       } catch {
         return null;
       }
-      if (!rango || (rango.inicio === undefined && rango.fin === undefined)) {
-        return { cuerpo: createReadStream(ruta), tamano, rango: null };
-      }
-      const inicio = rango.inicio !== undefined ? rango.inicio : Math.max(0, tamano - rango.fin);
-      const fin = rango.inicio !== undefined && rango.fin !== undefined ? Math.min(rango.fin, tamano - 1) : tamano - 1;
-      if (inicio > fin || inicio >= tamano) return { cuerpo: null, tamano, rango: null };
-      return { cuerpo: createReadStream(ruta, { start: inicio, end: fin }), tamano, rango: { inicio, fin } };
+      const servido = resolverRango(rango, tamano);
+      if (servido === undefined) return { cuerpo: createReadStream(ruta), tamano, rango: null };
+      if (servido === null) return { cuerpo: null, tamano, rango: null };
+      return { cuerpo: createReadStream(ruta, { start: servido.inicio, end: servido.fin }), tamano, rango: servido };
     },
   };
 }

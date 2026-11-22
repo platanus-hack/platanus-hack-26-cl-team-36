@@ -1,0 +1,41 @@
+/* Revisiones. Todo selector va bajo .p-revisiones; los componentes compartidos no se reestilan. */
+
+.p-revisiones { display: grid; gap: var(--e-4); min-width: 0; }
+
+.p-revisiones .revisiones-cabecera { display: flex; align-items: center; justify-content: space-between; gap: var(--e-3); flex-wrap: wrap; }
+.p-revisiones .revisiones-cuenta { color: var(--texto-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p-revisiones .revisiones-migas { font-size: 12px; }
+
+/* ── Lista ───────────────────────────────────────────────────────────── */
+.p-revisiones .revisiones-lista { padding: var(--e-1); }
+.p-revisiones .revisiones-fila {
+  display: grid; grid-template-columns: 112px minmax(0, 1fr) auto auto; align-items: center; gap: var(--e-4);
+  padding: var(--e-2) var(--e-3); border-radius: var(--radio-2); color: var(--texto-2);
+}
+.p-revisiones .revisiones-fila:hover { background: var(--superficie-2); text-decoration: none; color: var(--texto-1); }
+.p-revisiones .revisiones-fila-sitio { display: grid; min-width: 0; }
+.p-revisiones .revisiones-fila-sitio .mono { font-size: 12px; }
+.p-revisiones .revisiones-fila-goals, .p-revisiones .revisiones-fila-fecha { font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ── Una revisión ────────────────────────────────────────────────────── */
+.p-revisiones .revisiones-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--e-1) var(--e-3); font-size: 12px; }
+.p-revisiones .revisiones-meta a { overflow-wrap: anywhere; }
+.p-revisiones .revisiones-progreso { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3); }
+.p-revisiones .revisiones-medidor { width: min(360px, 100%); }
+.p-revisiones .revisiones-progreso .boton { margin-inline-start: auto; }
+
+.p-revisiones .revisiones-paso { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) var(--e-3); }
+.p-revisiones .revisiones-enlaces { display: inline-flex; flex-wrap: wrap; gap: var(--e-3); font-size: 12px; }
+.p-revisiones .revisiones-paso-cuando { font-size: 12px; }
+
+.p-revisiones .revisiones-tabla-marco { padding: 0; overflow-x: auto; }
+.p-revisiones .revisiones-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.p-revisiones .revisiones-tabla th, .p-revisiones .revisiones-tabla td { padding: var(--e-2) var(--e-3); text-align: start; vertical-align: middle; }
+.p-revisiones .revisiones-tabla thead th { color: var(--texto-3); font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+.p-revisiones .revisiones-tabla tbody tr { border-block-start: 1px solid var(--borde-sutil); }
+.p-revisiones .revisiones-tabla tbody th { color: var(--texto-1); font-weight: 500; }
+
+@media (max-width: 640px) {
+  .p-revisiones .revisiones-fila { grid-template-columns: auto minmax(0, 1fr); }
+  .p-revisiones .revisiones-fila-goals, .p-revisiones .revisiones-fila-fecha { display: none; }
+}

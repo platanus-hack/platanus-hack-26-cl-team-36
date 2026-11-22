@@ -9,11 +9,12 @@ from shared.catalog.files import read_catalog
 from shared.catalog.goal import Goal, instruction
 from shared.catalog import tasks
 from shared.catalog.outline import Field, Form, Link, PageOutline, SiteOutline
+from shared.claude.fake import FakeCaller
 from shared import store
 
 from cataloger import command
 from cataloger.output import goals_markdown, write_catalog
-from cataloger.propose import SYSTEM_PROMPT, propose_goals, render_outline
+from cataloger.propose import SYSTEM_PROMPT, propose_goals, render_outline, scripted_catalog
 from cataloger.rules import gates, page_gates, validate
 from main import build_parser
 
@@ -131,6 +132,13 @@ def test_gates_come_from_own_evidence_pages_and_transact():
     assert gates(_goal("g", evidence=[FORM], intent="reach_page"), OUTLINE) == []
 
 
+def test_start_page_gates_only_block_goals_that_stay_on_it():
+    # Con --pages 1 toda evidencia es la página inicial: un login en ella no debe excluir lo que sale de ahí.
+    one_page = SiteOutline(START, "sitio.cl", "1024x768", [_page(START, OUTLINE.pages[0].links, ["login"])], [])
+    assert gates(_goal("telefono", evidence=[START], entry=HELP), one_page) == []
+    assert gates(_goal("ingresar", evidence=[START]), one_page) == ["login"]
+
+
 def test_outline_text_lists_each_link_once_and_the_page_gates():
     text = render_outline(OUTLINE)
     assert text.count(f"Ingresar → {LOGIN}") == 1 and "Barreras: login" in text
@@ -146,6 +154,12 @@ def test_catalog_with_a_scripted_model():
     raw = asyncio.run(propose_goals(ScriptedCaller(), OUTLINE))
     goals, issues = validate(raw, OUTLINE)
     assert [(goal.intent, goal.submits_form) for goal in goals] == [("transact", True)] and "repetido" in issues[0]
+
+
+def test_scripted_engine_catalogs_the_start_page():
+    raw = asyncio.run(propose_goals(FakeCaller("guion", "low", scripted_catalog), OUTLINE))
+    goals, issues = validate(raw, OUTLINE)
+    assert [(goal.id, goal.evidence) for goal in goals] == [("pagina-inicial", [OUTLINE.pages[0].url])] and not issues
 
 
 def test_markdown_groups_goals_under_their_summary():

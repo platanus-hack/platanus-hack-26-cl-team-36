@@ -23,7 +23,7 @@ ROUTE = {
 }
 
 
-def _run(pages, outcome="success", profile="first_time"):
+def _run(pages, outcome="success", profile="desktop"):
     return {
         "profile": profile,
         "start": {"url": HOME[0], "title": HOME[1]},
@@ -88,9 +88,9 @@ def _publish(backend, run_status="succeeded", **changes):
 def test_find_references_match_goal_instruction_and_viewport(tmp_path):
     backend = store.LocalBackend(tmp_path)
     run = _publish(backend)
-    assert find_references(backend, URL, "horario", INSTRUCTION, ["hurried", "mobile"]) == {"desktop": (run, ROUTE)}
-    assert find_references(backend, URL, "horario", "Otra tarea.", ["hurried"]) == {}
-    assert find_references(backend, URL, "otro", INSTRUCTION, ["hurried"]) == {}
+    assert find_references(backend, URL, "horario", INSTRUCTION, ["desktop", "mobile"]) == {"desktop": (run, ROUTE)}
+    assert find_references(backend, URL, "horario", "Otra tarea.", ["desktop"]) == {}
+    assert find_references(backend, URL, "otro", INSTRUCTION, ["desktop"]) == {}
     assert find_references(backend, URL, "horario", INSTRUCTION, ["explorador"]) == {}
     assert reference_for({"desktop": (run, ROUTE)}, "explorador") is None
 
@@ -99,26 +99,35 @@ def test_a_failed_newer_guide_run_does_not_hide_the_last_good_one(tmp_path):
     backend = store.LocalBackend(tmp_path)
     good = _publish(backend)
     _publish(backend, run_status="failed")
-    assert find_references(backend, URL, "horario", INSTRUCTION, ["first_time"])["desktop"][0] == good
+    assert find_references(backend, URL, "horario", INSTRUCTION, ["desktop"])["desktop"][0] == good
 
 
 def test_unverified_route_is_ignored(tmp_path):
     backend = store.LocalBackend(tmp_path)
     _publish(backend, status="unverified")
-    references = find_references(backend, URL, "horario", INSTRUCTION, ["first_time"])
+    references = find_references(backend, URL, "horario", INSTRUCTION, ["desktop"])
     assert references == {} and compare_batch(references, [_run([HELP, HOURS])]) is None
 
 
 def test_compare_batch_averages_efficiency_and_renders():
-    runs = [_run([HELP, HOURS]), _run([HELP], outcome="failed", profile="hurried"), _run([HELP, HOURS], profile="mobile")]
+    runs = [_run([HELP, HOURS]), _run([HELP], outcome="failed", profile="hurried"), _run([HELP, HOURS], profile="explorador")]
     comparison = compare_batch({"desktop": (None, ROUTE)}, runs)
-    assert comparison["spl"] == 0.5 and [row["profile"] for row in comparison["runs"]] == ["first_time", "hurried"]
-    section = "\n".join(report_section(comparison, {"first_time": "Primera vez"}))
-    assert "| Primera vez | 2 / 2 | 1.00 | 0.00 | sí | 1.00 |" in section
+    # `hurried` es un perfil retirado: una corrida vieja se sigue comparando con la ruta de su pantalla.
+    assert comparison["spl"] == 0.5 and [row["profile"] for row in comparison["runs"]] == ["desktop", "hurried"]
+    section = "\n".join(report_section(comparison, {"desktop": "Escritorio"}))
+    assert "| Escritorio | 2 / 2 | 1.00 | 0.00 | sí | 1.00 |" in section
+
+
+def test_mobile_without_its_own_route_is_measured_against_desktop():
+    route = {**ROUTE, "viewport": "mobile"}
+    assert reference_for({"desktop": ("d", ROUTE)}, "mobile") == ("d", ROUTE)
+    assert reference_for({"desktop": ("d", ROUTE), "mobile": ("m", route)}, "mobile") == ("m", route)
+    [row] = compare_batch({"desktop": (None, ROUTE)}, [_run([HELP, HOURS], profile="mobile")])["runs"]
+    assert row["reference_viewport"] == "desktop" and row["reached_final_node"]
 
 
 def test_an_interrupted_attempt_is_not_compared():
     runs = [_run([HELP, HOURS]), _run([HELP], outcome="interrupted", profile="hurried")]
     comparison = compare_batch({"desktop": (None, ROUTE)}, runs)
-    assert comparison["spl"] == 1.0 and [row["profile"] for row in comparison["runs"]] == ["first_time"]
+    assert comparison["spl"] == 1.0 and [row["profile"] for row in comparison["runs"]] == ["desktop"]
     assert compare_batch({"desktop": (None, ROUTE)}, runs[1:]) is None

@@ -3,8 +3,8 @@
 import os
 from pathlib import Path
 
-# Modelos en local: los usuarios sintéticos navegan con Sonnet; el criterio y el veredicto los da Opus.
-# En AWS se usa solo Sonnet 4.6 (BEDROCK_*_MODEL, más abajo).
+# Modelos en local: los usuarios sintéticos navegan con Sonnet; el juez (solo con --judge) es Opus.
+# En AWS, los de bedrock_model() (más abajo).
 USER_MODEL = "claude-sonnet-5-5"
 JUDGE_MODEL = "claude-opus-5-5"
 USER_EFFORT = "medium"
@@ -29,8 +29,8 @@ EXPLORADOR_MAX_TURNOS = 70
 # Desde el 2026-11-21 el estándar son los 8 (ver .spikes/2026-11-21-exploradores-conocimiento.md).
 CONJUNTO_EXPLORADORES = "conocimiento"
 
-# Skills de Claude Code del repo (.claude/skills/): algunos perfiles cargan una en su prompt. La carpeta queda fuera
-# de la imagen de AgentCore, así que ahí no hay skills (None) y esos perfiles solo corren en local.
+# Skills de Claude Code del repo (.claude/skills/): algunos perfiles cargan una en su prompt. La imagen del runtime
+# chameleon las copia en la misma ruta; sin la carpeta (None), esos perfiles no corren.
 # Desde agents/app/visitor/visitor/config.py, la raíz del repo está cuatro carpetas arriba.
 _CARPETAS_ARRIBA = Path(__file__).resolve().parents
 _SKILLS = _CARPETAS_ARRIBA[4] / ".claude" / "skills" if len(_CARPETAS_ARRIBA) > 4 else None
@@ -42,15 +42,20 @@ NO_EFFECT_THRESHOLD = 0.005  # fracción de píxeles que deben cambiar para que 
 # AWS: el motor `bedrock`, el navegador `agentcore` y el Visitante desplegado en AgentCore Runtime.
 # El proyecto vive en us-east-2 (ver infra/README.md).
 AWS_REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "us-east-2"
-# Claude en Amazon Bedrock por el endpoint bedrock-runtime, con el perfil de inferencia de EE.UU. (us.anthropic.claude-...),
-# que reparte entre us-east-1, us-east-2 y us-west-2.
-BEDROCK_MODEL_PREFIX = "us.anthropic."
-# En AWS (motor bedrock, incluido AgentCore Runtime) solo se usa Sonnet 4.6, para los usuarios y para el juez. La cuenta
-# del proyecto no tiene acceso a Claude Opus 4.7 ni a los modelos posteriores (Bedrock responde "is not available for
-# this account" y solo AWS puede habilitarlos), así que el motor usa la herramienta de computer use anterior al toolset
-# (ver actions.LEGACY_COMPUTER_MODELS). Sonnet 4.6 no acepta el esfuerzo `xhigh`.
-BEDROCK_USER_MODEL = "claude-sonnet-4-6"
-BEDROCK_JUDGE_MODEL = "claude-sonnet-4-6"
-AGENTCORE_RUNTIME_NAME = "web_evaluator_image"   # en infra/agentcore/agentcore.json
-AGENTCORE_BROWSER_VIEWPORT = {"width": 1280, "height": 800}   # la ventana; cada perfil fija su propia vista
-AGENTCORE_BROWSER_TIMEOUT_SECONDS = 1800
+# En AWS (motor bedrock, incluido AgentCore Runtime) los usuarios y el juez usan AGENTS_MODEL, por defecto Haiku 4.5 por
+# el perfil de inferencia de EE.UU.: los modelos 5.x no responden en la cuenta del proyecto. Todos los que responden
+# ahí son anteriores a Opus 4.7 y usan la herramienta de computer use anterior al toolset (ver actions.py).
+BEDROCK_MODEL_VAR = "AGENTS_MODEL"
+BEDROCK_DEFAULT_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+
+def bedrock_model() -> str:
+    return os.environ.get(BEDROCK_MODEL_VAR) or BEDROCK_DEFAULT_MODEL
+
+
+# Haiku 4.5 responde 400 si la petición lleva `output_config.effort`: con él, el esfuerzo no se envía.
+_SIN_ESFUERZO = ("claude-haiku-4-5",)
+
+
+def accepts_effort(model: str) -> bool:
+    return not any(name in model for name in _SIN_ESFUERZO)

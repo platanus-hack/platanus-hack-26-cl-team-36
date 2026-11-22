@@ -1,7 +1,12 @@
 """Saneamiento, ámbito html.mi-tema y riesgos del CSS; lectura del skill y del JSON del modelo."""
 
+import asyncio
+
+from shared.claude.caller import tolerant_json as json_tolerante
+
 from disenador.css import CADENA_ROTA, analizar, con_ambito, quitar_comentarios, sanear
-from disenador.modelo import CONTRATO, json_tolerante, leer_skill, prompt_de_sistema
+from disenador.juez import ESQUEMA_PAR
+from disenador.modelo import CONTRATO, ESQUEMA_TEMA, ClaudeCode, leer_skill, prompt_de_sistema
 
 
 def test_con_ambito():
@@ -117,6 +122,26 @@ def test_cadena_con_salto_de_linea_se_rechaza():
     assert quitar_comentarios('a{content:"x\n/* c */"}') == 'a{content:"x' + CADENA_ROTA + '\n"}' + CADENA_ROTA
 
 
+def test_anidamiento_hostil_no_revienta():
+    for css in ("a{" * 3000, "@media x{" * 3000, "html.mi-tema a{" + "& b{" * 40 + "color:red" + "}" * 41):
+        saneado = sanear(css)
+        assert saneado.css == "" and saneado.rechazos[0]["motivo"] == "anidamiento demasiado profundo"
+    # Hasta el tope se lee normal.
+    assert "color:red" in sanear("html.mi-tema a{" + "& b{" * 10 + "color:red" + "}" * 11).css
+
+
+def test_css_demasiado_grande_se_rechaza_entero():
+    regla = "html.mi-tema a { color: red; }\n"
+    saneado = sanear(regla * (200_000 // len(regla) + 1))
+    assert saneado.css == "" and saneado.rechazos[0]["motivo"] == "css demasiado grande"
+
+
+def test_at_regla_sin_bloque_anidada_se_rechaza():
+    saneado = sanear("html.mi-tema a { @layer a, b; color: red; @media print { color: blue } }")
+    assert "@layer" not in saneado.css and "color: red" in saneado.css and "@media print" in saneado.css
+    assert [r["motivo"] for r in saneado.rechazos] == ["at-regla sin bloque"]
+
+
 def test_solo_at_reglas_permitidas():
     css = """@font-face { font-family: a; }
     @page { margin: 0 }
@@ -161,3 +186,12 @@ def test_estructura_y_recursos():
     ]
     assert "html.mi-tema a" not in saneado.css and ":not(&)" not in saneado.css
     assert "&:hover, .c {" in saneado.css and "y" * 200 in saneado.css
+
+
+def test_motor_guionizado_disena_un_tema_limpio_y_el_juez_responde_su_esquema(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGENTS_ENGINE", "fake")
+    cliente = ClaudeCode("guion", "low", tmp_path)
+    tema = asyncio.run(cliente.pedir(prompt_de_sistema(None), ESQUEMA_TEMA, ["diseña", b"\x89PNG"], tmp_path / "log"))
+    assert not sanear(tema.datos["css"]).rechazos and tema.datos["css"].startswith("html.mi-tema")
+    par = asyncio.run(cliente.pedir("rúbrica", ESQUEMA_PAR, ["A", b"\x89PNG", "B", b"\x89PNG"], tmp_path / "log"))
+    assert par.datos == {"preferido": "A", "razon": "respuesta guionizada"} and par.costo_usd == 0.0

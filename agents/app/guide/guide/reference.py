@@ -8,12 +8,12 @@ from playwright.async_api import Browser
 
 from shared.browser.session import BrowserSession, create_context
 from shared.browser.viewports import Screen
-from shared.claude.caller import ClaudeCaller
+from shared.claude.engines import make_caller
 from shared import store
 
 from guide import config
 from guide.candidates import Candidate, search_record, shorter_instruction
-from guide.decider import ClaudeDecider, Decider
+from guide.decider import ClaudeDecider, Decider, scripted_decision
 from guide.explore import Exploration, explore
 from guide.operate import Log
 from guide.output import route_document, write_reference
@@ -34,6 +34,7 @@ class Mapping:
     effort: str
     inputs: tuple[store.RunKey, ...] = ()
     extra_routes: int = config.EXTRA_ROUTES
+    revision: str | None = None   # en una revisión, la corrida solo termina succeeded con la ruta verificada
 
     @property
     def prefix(self) -> store.RunPrefix:
@@ -42,6 +43,14 @@ class Mapping:
     @property
     def label(self) -> str:
         return f"{self.goal} {self.screen.viewport}"
+
+
+class RouteNotVerified(Exception):
+    """La ruta de una revisión quedó sin verificar: su corrida termina `failed`, con route.json publicado."""
+
+    def __init__(self, run: store.RunKey, document: dict):
+        super().__init__(f"ruta {document['status']}")
+        self.run, self.document = run, document
 
 
 async def _explore(browser: Browser, mapping: Mapping, decider: Decider, instruction: str, log: Log) -> Exploration:
@@ -151,10 +160,14 @@ async def map_references(
 
     async def one(mapping: Mapping) -> tuple[store.RunKey, dict]:
         async with semaphore:
-            with store.running(backend, mapping.prefix, model=mapping.model, inputs=mapping.inputs) as run:
-                caller = ClaudeCaller(mapping.model, mapping.effort, claude_cwd, run.workdir / "claude_code.log")
+            with store.running(backend, mapping.prefix, model=mapping.model, inputs=mapping.inputs,
+                               revision=mapping.revision) as run:
+                caller = make_caller(mapping.model, mapping.effort, claude_cwd, run.workdir / "claude_code.log",
+                                     fake=scripted_decision)
                 decider = ClaudeDecider(system_prompt(mapping.screen.width, mapping.screen.height), caller)
                 document = await map_reference(browser, mapping, decider, run.workdir)
+                if mapping.revision and document["status"] != "verified":
+                    raise RouteNotVerified(run.key, document)
             return run.key, document
 
     return await asyncio.gather(*(one(mapping) for mapping in mappings), return_exceptions=True)

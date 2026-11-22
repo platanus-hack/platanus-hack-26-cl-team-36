@@ -10,25 +10,35 @@ from shared import store
 from shared.catalog.routes import verified_route
 from shared.nodes.urls import node_key
 
-from visitor.profiles import PROFILES
+from visitor.profiles import PROFILES, profile_of
 
 
 References = dict[str, tuple[store.RunKey, dict]]
 """Por viewport, la corrida de guide y su route.json."""
 
+FALLBACK_VIEWPORT = "desktop"
+"""La Guía traza por defecto solo en escritorio: su página final también sirve para medir a los demás."""
+
+
+def reference_viewports(profile_keys: list[str]) -> list[str]:
+    """Los viewports cuya ruta se busca. Los exploradores recorren el sitio a propósito y no tienen referencia."""
+    viewports = dict.fromkeys(PROFILES[key].screen.viewport for key in profile_keys if not PROFILES[key].explora)
+    return list(viewports | dict.fromkeys([FALLBACK_VIEWPORT])) if viewports else []
+
 
 def find_references(backend: store.Backend, url: str, goal: str, instruction: str, profile_keys: list[str]) -> References:
-    """Las rutas verificadas de la Guía para los viewports de los perfiles.
-
-    Los exploradores recorren el sitio a propósito y no siguen la ruta: no tienen referencia.
-    """
-    viewports = dict.fromkeys(PROFILES[key].screen.viewport for key in profile_keys if not PROFILES[key].explora)
-    found = {viewport: verified_route(backend, url, goal, viewport, instruction) for viewport in viewports}
+    """Las rutas verificadas vigentes de la Guía para los viewports de los perfiles."""
+    found = {viewport: verified_route(backend, url, goal, viewport, instruction)
+             for viewport in reference_viewports(profile_keys)}
     return {viewport: route for viewport, route in found.items() if route}
 
 
 def reference_for(references: References, profile: str) -> tuple[store.RunKey, dict] | None:
-    return None if PROFILES[profile].explora else references.get(PROFILES[profile].screen.viewport)
+    """La ruta de la pantalla del perfil o, si no hay, la de escritorio."""
+    found = profile_of(profile)
+    if found is None or found.explora:
+        return None
+    return references.get(found.screen.viewport) or references.get(FALLBACK_VIEWPORT)
 
 
 def visited_nodes(run: dict) -> list[str]:
@@ -64,6 +74,8 @@ def compare(run: dict, route: dict) -> dict:
     detour = min(1.0, route["totals"]["distinct_pages"] / distinct)
     return {
         "profile": run["profile"],
+        "run": run.get("folder") or run["profile"],
+        "reference_viewport": route.get("viewport"),
         "steps": steps,
         "min_steps": min_steps,
         "efficiency": round(min_steps / steps if steps > min_steps else 1.0, 2) if success else 0.0,
@@ -88,7 +100,8 @@ def compare_batch(references: References, runs: list[dict]) -> dict | None:
     return {"spl": round(statistics.mean(row["efficiency"] for row in rows), 2), "runs": rows}
 
 
-def report_section(comparison: dict, profile_names: dict[str, str]) -> list[str]:
+def report_section(comparison: dict, run_names: dict[str, str]) -> list[str]:
+    """`run_names`: el nombre de cada intento por su carpeta (`run` de cada fila)."""
     lines = [
         "",
         "## Contra la ruta de referencia",
@@ -102,7 +115,7 @@ def report_section(comparison: dict, profile_names: dict[str, str]) -> list[str]
     for row in comparison["runs"]:
         fewer = " (menos que la referencia)" if row["beat_reference"] else ""
         lines.append(
-            f"| {profile_names.get(row['profile'], row['profile'])} | {row['steps']} / {row['min_steps']}{fewer} | "
+            f"| {run_names.get(row.get('run', row['profile']), row['profile'])} | {row['steps']} / {row['min_steps']}{fewer} | "
             f"{row['efficiency']:.2f} | {row['lostness']:.2f} | {'sí' if row['reached_final_node'] else 'no'} | "
             f"{row['similarity']:.2f} |"
         )

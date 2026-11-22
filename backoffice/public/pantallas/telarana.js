@@ -156,7 +156,7 @@ function crearPantalla(contenedor, ctx) {
     const clases = new Set(fuera.map(claseDeTramo));
     const items = [
       ["tramo-tronco", distribucion.troncoEsRuta ? "ruta" : "eje"],
-      ...[["exito", "exito"], ["mixto", "mixto"], ["fallo", "fallo"], ["abandono", "abandono"], ["error", "error"]]
+      ...[["exito", "exito"], ["mixto", "mixto"], ["fallo", "fallo"], ["abandono", "abandono"], ["sin_medir", "sin_medir"], ["error", "error"]]
         .filter(([clase]) => clases.has(clase))
         .map(([clase, clave]) => [`tramo-${clase}`, clave]),
       fuera.some((tramo) => tramo.tipo === "retroceso") ? ["tramo-retroceso tramo-exito", "retroceso"] : null,
@@ -225,11 +225,15 @@ function crearPantalla(contenedor, ctx) {
     for (const accion of accionesEnOrden(rama)) filas.push(el("span", { class: "telarana-globo-accion" }, el("span", { texto: textoDeAccion(accion.accion, t) }), el("span", { class: "num texto-3", title: t("telarana.panel.intentosDeAccion"), texto: `×${accion.intentos}` })));
     const desglose = [t("telarana.tramo.intentos", { n: rama?.intentos ?? tramo.intentos })];
     if (rama?.exitos) desglose.push(t("telarana.tramo.exitos", { n: rama.exitos }));
-    if (rama?.fallos) desglose.push(t("telarana.tramo.fallos", { n: rama.fallos }));
+    // Sin medir (sin ruta de la Guía ni juez): los fallos del árbol no dicen nada.
+    if (rama?.resultado === "sin_medir") desglose.push(t("comun.resultado.sin_medir"));
+    else if (rama?.fallos) desglose.push(t("telarana.tramo.fallos", { n: rama.fallos }));
     if (rama?.errores) desglose.push(t("telarana.tramo.errores", { n: rama.errores }));
     filas.push(el("span", { class: "texto-2", texto: desglose.join(" · ") }));
     const extra = [];
-    if (rama?.perfiles?.length) extra.push(fmt.lista(rama.perfiles.map(nombreDePerfil)));
+    // Con repeticiones, los intentos («Escritorio #2»), no solo los perfiles.
+    const quienes = rama?.intentosIds?.length ? rama.intentosIds : (rama?.perfiles ?? []);
+    if (quienes.length) extra.push(fmt.lista(quienes.map(nombreDePerfil)));
     if (Number.isFinite(rama?.medianaSegundos)) extra.push(t("telarana.tramo.mediana", { duracion: fmt.duracion(rama.medianaSegundos) }));
     if (extra.length) filas.push(el("span", { class: "texto-3", texto: extra.join(" · ") }));
     return el("span", { class: "telarana-globo" }, filas);

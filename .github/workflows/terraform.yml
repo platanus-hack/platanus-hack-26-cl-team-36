@@ -8,6 +8,8 @@ on:
     paths:
       - "infra/app/**"
       - "backend/**"
+      - "backoffice/**"
+      - "!backoffice/test/**"
       - ".github/workflows/terraform.yml"
   workflow_dispatch:
     inputs:
@@ -70,9 +72,16 @@ jobs:
             terraform plan -input=false -out=tfplan
           fi
 
+      # Con docker y la AWS CLI del runner: construye y sube la imagen del backoffice si cambió (backoffice.tf).
+      # La primera vez espera hasta 45 min a que el certificado se valide en Cloudflare (infra/README.md).
       - name: terraform apply
         run: terraform apply -input=false tfplan
 
-      - name: URL de la API
+      - name: URLs
         if: env.ACCION == 'apply'
-        run: echo "API desplegada en $(terraform output -raw function_url)" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          {
+            echo "API desplegada en $(terraform output -raw api_url) (destino: $(terraform output -raw api_destino); function URL: $(terraform output -raw function_url))"
+            echo ""
+            echo "Backoffice en $(terraform output -raw backoffice_url) (balanceador: $(terraform output -raw backoffice_alb))"
+          } >> "$GITHUB_STEP_SUMMARY"

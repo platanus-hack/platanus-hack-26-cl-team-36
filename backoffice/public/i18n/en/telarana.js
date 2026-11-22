@@ -23,6 +23,7 @@ export default {
     mixto: "With problems",
     fallo: "Ends in failure",
     abandono: "Abandoned",
+    sin_medir: "Not measured (no Guide route nor judge)",
     error: "Tool error",
     retroceso: "Went back",
     lateral: "Sideways step (same column)",

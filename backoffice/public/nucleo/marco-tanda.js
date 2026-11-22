@@ -12,7 +12,7 @@ import { icono } from "./iconos.js";
 import { registrarFuenteDePaleta } from "./paleta.js";
 import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda } from "./rutas.js";
 
-const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", error: "error-herramienta" };
+const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", sin_medir: "sin-medir", error: "error-herramienta" };
 
 /** Nombre visible de una página: nombreDePagina de datos/textos.js con el idioma actual (§2.3). */
 export function nombreDePagina(pagina) {
@@ -24,18 +24,24 @@ function cifras(tanda) {
   const kpis = tanda.kpis ?? {};
   const intentos = kpis.intentos ?? tanda.intentos?.length ?? 0;
   const validos = kpis.validos ?? intentos - (kpis.errores ?? 0);
+  // Los «sin medir» son válidos pero no cuentan en «llegan n de m».
+  const medidos = kpis.medidos ?? validos;
   const logrados = kpis.logrados ?? kpis.exitos ?? 0;
-  return { validos, logrados };
+  return { validos, medidos, logrados };
 }
 
-function insigniaDeLlegan({ logrados, validos }) {
+function insigniaDeLlegan({ logrados, validos, medidos }) {
   if (!validos) return el("span", { class: "insignia insignia-neutro" }, icono("abandonado"), el("span", { texto: t("comun.marco.ningunoValido") }));
-  const todos = logrados === validos;
+  if (!medidos) return el("span", { class: "insignia insignia-sin_medir" }, icono("sin-medir"), el("span", { texto: t("comun.marco.sinMedir") }));
+  const todos = logrados === medidos;
   return el(
     "span",
-    { class: `insignia ${todos ? "insignia-logrado" : "insignia-fallido"}` },
+    {
+      class: `insignia ${todos ? "insignia-logrado" : "insignia-fallido"}`,
+      title: medidos < validos ? t("comun.marco.algunosSinMedir", { n: validos - medidos }) : null,
+    },
     icono(todos ? "logrado" : "fallido"),
-    el("span", { texto: t("comun.marco.llegan", { n: logrados, de: validos }) }),
+    el("span", { texto: t("comun.marco.llegan", { n: logrados, de: medidos }) }),
   );
 }
 

@@ -1,1 +1,1 @@
-"""Claude Code local: proceso en stream-json, llamadas con salida JSON y carpeta de trabajo vacía."""
+"""Claude para los agentes: un solo `Caller` con tres motores (Claude Code, Bedrock y guionizado) y su selector."""

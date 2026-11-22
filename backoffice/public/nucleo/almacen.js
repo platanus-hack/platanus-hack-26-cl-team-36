@@ -18,3 +18,21 @@ export function partesDeTanda(id) {
     && CORRIDA.test(corrida ?? "");
   return valido ? { host, objetivo, corrida } : null;
 }
+
+export const REVISION = /^(?=.{1,40}$)[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+// Segmentos entre el agente y la corrida. improver y conductor son las etapas del flujo por revisión en AWS.
+const PROFUNDIDAD = { cataloger: 0, improver: 0, conductor: 0, summary: 0, visitor: 1, guide: 2 };
+const VIEWPORT = /^(?:desktop|mobile)$/;
+
+/** Las partes de la clave de una corrida de cualquier agente ("wom.cl/guide/baja-fibra/desktop/<corrida>"), o null. */
+export function partesDeCorrida(clave) {
+  const [host, agente, ...resto] = String(clave).split("/");
+  const profundidad = Object.hasOwn(PROFUNDIDAD, agente ?? "") ? PROFUNDIDAD[agente] : -1;
+  if (profundidad < 0 || resto.length !== profundidad + 1 || !HOST.test(host ?? "")) return null;
+  const corrida = resto.at(-1);
+  const objetivo = profundidad >= 1 ? resto[0] : null;
+  if (!CORRIDA.test(corrida) || (objetivo !== null && !OBJETIVO.test(objetivo))) return null;
+  if (profundidad === 2 && !VIEWPORT.test(resto[1])) return null;
+  return { host, agente, objetivo, corrida };
+}

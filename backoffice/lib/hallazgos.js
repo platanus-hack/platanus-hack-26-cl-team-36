@@ -140,9 +140,10 @@ export function recortarHallazgos(lista, maximo = MAXIMO_DE_HALLAZGOS) {
 }
 
 /**
- * Los hallazgos de una tanda, en orden: resultado, errores, desvíos (por paso), detenidos, demoras,
- * tropiezos y costo. Máximo 8 (recortarHallazgos: el resultado y los tropiezos nunca se cortan). Los intentos con
- * error de la herramienta solo aparecen en `errores`.
+ * Los hallazgos de una tanda, en orden: resultado, errores, desvíos (por paso), detenidos (o que declararon terminar
+ * sin llegar), demoras, tropiezos y costo. Máximo 8 (recortarHallazgos: el resultado y los tropiezos nunca se cortan).
+ * Los intentos con error de la herramienta solo aparecen en `errores`; los sin medir, solo en `sinMedir` (o como el
+ * `resultado`, si no se midió ninguno).
  * @param {{ intentos: any[], telarana: { ruta: any }, kpis: any }} tanda
  * @param {{ maximo?: number }} [opciones]
  * @returns {Hallazgo[]}
@@ -154,23 +155,34 @@ export function hallazgos(tanda, { maximo = MAXIMO_DE_HALLAZGOS } = {}) {
   const errados = intentos.filter((intento) => intento.resultado === "error");
   const lista = [];
 
-  const noLogrados = validos.filter((intento) => intento.resultado !== "logrado");
-  lista.push(
-    hallazgo(
-      "resultado",
-      validos.length && !noLogrados.length ? "bien" : "atencion",
-      "resultado",
-      {
-        total: intentos.length,
-        validos: validos.length,
-        logrados: kpis.logrados,
-        directos: kpis.directos,
-        siguen: kpis.siguenLaRuta,
-        errores: errados.length,
-        intentos: noLogrados.map((intento) => intento.id),
-      },
-    ),
-  );
+  // Sin ruta de la Guía ni juez no se sabe si un intento llegó: no cuenta en «llegan n de m».
+  const sinMedir = validos.filter((intento) => intento.resultado === "sin_medir");
+  const medidos = validos.filter((intento) => intento.resultado !== "sin_medir");
+  const noLogrados = medidos.filter((intento) => intento.resultado !== "logrado");
+  const hallazgoSinMedir = (id, todos) =>
+    hallazgo(id, "info", "sinMedir", { todos, cuantos: sinMedir.length, intentos: sinMedir.map((intento) => intento.id) }, {
+      intento: sinMedir[0].id,
+    });
+  if (sinMedir.length && !medidos.length) {
+    lista.push(hallazgoSinMedir("resultado", true));
+  } else {
+    lista.push(
+      hallazgo(
+        "resultado",
+        medidos.length && !noLogrados.length ? "bien" : "atencion",
+        "resultado",
+        {
+          total: intentos.length,
+          validos: medidos.length,
+          logrados: kpis.logrados,
+          directos: kpis.directos,
+          siguen: kpis.siguenLaRuta,
+          errores: errados.length,
+          intentos: noLogrados.map((intento) => intento.id),
+        },
+      ),
+    );
+  }
 
   if (errados.length) {
     lista.push(
@@ -179,6 +191,7 @@ export function hallazgos(tanda, { maximo = MAXIMO_DE_HALLAZGOS } = {}) {
       }),
     );
   }
+  if (sinMedir.length && medidos.length) lista.push(hallazgoSinMedir("sinMedir", false));
 
   const desvios = validos
     .filter((intento) => intento.seSepara && !intento.seSepara.seDetuvo)
@@ -205,11 +218,13 @@ export function hallazgos(tanda, { maximo = MAXIMO_DE_HALLAZGOS } = {}) {
   for (const intento of noLogrados) {
     const pagina = intento.camino.at(-1) ?? null;
     const paso = intento.pasos.at(-1)?.numero ?? 0;
+    // Dijo que terminó y no llegó a la página final de la ruta de la Guía: el usuario cree que lo logró.
+    const tipo = intento.logro === "declaro_sin_llegar" ? "declaro" : "detenido";
     lista.push(
       hallazgo(
-        `detenido:${intento.id}`,
+        `${tipo}:${intento.id}`,
         "atencion",
-        "detenido",
+        tipo,
         { intento: intento.id, pagina, pasos: intento.pasos.length, motivo: intento.motivoDeFin },
         { intento: intento.id, paso: paso || null, pagina },
       ),
@@ -327,6 +342,7 @@ export function titulares(tanda, lista) {
       pasosIdeales: ruta?.pasosIdeales ?? null,
       siguen: kpis.siguenLaRuta,
       validos: kpis.validos,
+      medidos: kpis.medidos ?? kpis.validos,
       logrados: kpis.logrados,
     },
   };
@@ -340,14 +356,17 @@ export function titulares(tanda, lista) {
     unoPorPerfil: perfiles.every((perfil) => perfil.validos <= 1),
   };
   let vars;
-  const quedanCortos = conValidos.filter((perfil) => perfil.logrados < perfil.validos);
+  const medidosDe = (perfil) => perfil.medidos ?? perfil.validos;
+  const quedanCortos = conValidos.filter((perfil) => perfil.logrados < medidosDe(perfil));
   if (!conValidos.length) {
     vars = { ...base, caso: "sinValidos" };
+  } else if (!conValidos.some(medidosDe)) {
+    vars = { ...base, caso: "sinMedir" };
   } else if (quedanCortos.length) {
     const intentos = quedanCortos.map((perfil) =>
       perfil.intentos.find((id) => {
         const intento = tanda.intentos.find((otro) => otro.id === id);
-        return intento && intento.resultado !== "logrado" && intento.resultado !== "error";
+        return intento && !["logrado", "sin_medir", "error"].includes(intento.resultado);
       }),
     );
     vars = { ...base, caso: "noLlegan", intentos };
