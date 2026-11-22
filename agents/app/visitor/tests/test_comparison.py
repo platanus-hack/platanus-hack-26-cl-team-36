@@ -3,7 +3,9 @@ import pytest
 from shared import store
 from shared.nodes.urls import node_key
 
-from visitor.comparison import compare, compare_batch, find_references, reference_for, report_section, visited_nodes
+from visitor.comparison import (
+    compare, compare_batch, find_references, reached, reference_for, report_section, visited_nodes,
+)
 
 URL, INSTRUCTION = "https://s.cl/", "Encuentra el horario."
 HOME, HELP, HOURS, OTHER = (
@@ -131,3 +133,19 @@ def test_an_interrupted_attempt_is_not_compared():
     comparison = compare_batch({"desktop": (None, ROUTE)}, runs)
     assert comparison["spl"] == 1.0 and [row["profile"] for row in comparison["runs"]] == ["desktop"]
     assert compare_batch({"desktop": (None, ROUTE)}, runs[1:]) is None
+
+
+def test_a_submitted_form_with_other_values_reaches_the_final_page():
+    """Planificar un viaje termina en `?inicio=..&fin=..`: otras estaciones (y otro título) también son llegar."""
+    final = node_key("https://metro.cl/el-viaje/planificador?dia=DL&fin=EL&horario=VALLE&inicio=SP", "Viaje San Pablo")
+    otras = ("https://www.metro.cl/el-viaje/planificador/?inicio=BA&fin=LH&horario=PUNTA&dia=DS", "Viaje Baquedano")
+    sin_fin = ("https://metro.cl/el-viaje/planificador?inicio=BA", "Planificador")
+    otra_ruta = ("https://metro.cl/el-viaje/otra?dia=DL&fin=EL&horario=VALLE&inicio=SP", "Otra")
+    assert reached(final, _run([otras]))
+    assert not reached(final, _run([sin_fin, otra_ruta]))
+    # Esa misma URL con un error HTTP (el WAF del sitio) no es llegar.
+    bloqueada = _run([(otras[0], "Acceso restringido")])
+    bloqueada["steps"][0]["error_detail"] = "HTTP 403"
+    assert not reached(final, bloqueada)
+    # Sin query, la página final se compara completa, como siempre.
+    assert not reached(node_key(*HOURS), _run([("https://s.cl/ayuda/horario", "Otro título")]))

@@ -1,5 +1,5 @@
 """Tema de un sitio como lo aplica la extensión: CSS bajo `html.mi-tema`, lo que no puede traer y el navegador que lo
-pone en cada página."""
+pone en cada página. Con un kit (`tema.json`), además los componentes JS de la extensión y sus features."""
 
 import hashlib
 import json
@@ -78,16 +78,69 @@ def prohibido_en_tema(css: str) -> list[str]:
     return [nombre for nombre, patron in _PROHIBIDO_EN_TEMA.items() if patron.search(css)]
 
 
+# Los content scripts que usan `browser.*` (storage, mensajes al background): sin la extensión no corren. El motor lo
+# reemplaza `_MOTOR_SCRIPT`; la captura, la transición del botón y sus efectos no cambian lo que ve el usuario.
+_SOLO_CON_EXTENSION = {"content/captura.js", "content/transicion.js", "comun/efectos.js", "content/motor.js",
+                       "content/transicion.css"}
+
+# Lo que hace content/motor.js con un tema ya resuelto: llama `actualizar(opciones)` de cada feature y lo repite ante
+# cambios del DOM, agrupados por requestAnimationFrame. `__FEATURES__` se reemplaza por el JSON de `features`.
+_MOTOR_SCRIPT = r"""
+(() => {
+  const FEATURES = __FEATURES__;
+  function refrescar() {
+    for (const [id, opciones] of Object.entries(FEATURES)) {
+      try {
+        MiTema.features.get(id)?.actualizar(opciones);
+      } catch (error) {
+        console.error(`[mi-tema] Error en la feature "${id}":`, error);
+      }
+    }
+  }
+  let pendiente = false;
+  new MutationObserver(() => {
+    if (pendiente) return;
+    pendiente = true;
+    requestAnimationFrame(() => {
+      pendiente = false;
+      refrescar();
+    });
+  }).observe(document, { childList: true, subtree: true });
+  refrescar();
+})();
+"""
+
+
+def script_de_kit(tema_json: Path, css_tema: str) -> str:
+    """El script que monta un kit como la extensión: el tema (CSS de los componentes y `css_tema`), los content scripts
+    del manifest que no usan `browser.*`, en su orden, y las features de `tema_json`. Solo en el frame principal."""
+    # El kit puede estar dentro de `src/` o fuera (los de ejemplo viven en `extension/test/fixtures/`).
+    src = next(carpeta for padre in tema_json.parents for carpeta in (padre, padre / "src")
+               if (carpeta / "manifest.json").is_file())
+    contenido = json.loads((src / "manifest.json").read_text(encoding="utf-8"))["content_scripts"][0]
+
+    def leer(tipo: str) -> list[str]:
+        return [(src / ruta).read_text(encoding="utf-8") for ruta in contenido[tipo] if ruta not in _SOLO_CON_EXTENSION]
+
+    css = "\n".join([*leer("css"), css_tema])
+    scripts = ";\n".join(leer("js"))
+    features = json.dumps(json.loads(tema_json.read_text(encoding="utf-8"))["features"])
+    antes, despues = _MOTOR_SCRIPT.split("__FEATURES__")
+    return (script_de_tema(css) + "\nif (window.top === window && !window.__mtKitInstalado) {\n"
+            "window.__mtKitInstalado = true;\n" + scripts + ";\n" + antes + features + despues + "}\n")
+
+
 class NavegadorConTema:
-    """Un navegador cuyos contextos nuevos llevan un tema: cada página lo aplica desde que se crea el documento.
+    """Un navegador cuyos contextos nuevos llevan un tema: cada página corre `script` (de `script_de_tema` o
+    `script_de_kit`) desde que se crea el documento.
 
     Envuelve a `Browser` para que el resto del código (`create_context`, el ciclo de cada usuario) no cambie: solo
     intercepta `new_context`; todo lo demás se delega al navegador real.
     """
 
-    def __init__(self, browser: "Browser", css: str):
+    def __init__(self, browser: "Browser", script: str):
         self._browser = browser
-        self._script = script_de_tema(css)
+        self._script = script
 
     async def new_context(self, **options) -> "BrowserContext":
         context = await self._browser.new_context(**options)
@@ -120,3 +173,20 @@ def describir_tema(css_path: Path) -> tuple[str, dict]:
         "bytes": len(contenido),
     }
     return contenido.decode("utf-8"), datos
+
+
+def describir_kit(tema_json: Path) -> tuple[str, dict]:
+    """El script de un kit (`tema_json` y el `tema.css` de su carpeta) y cómo se registra en la tanda: como un tema,
+    con el sha256 corto del script completo (cambia si cambia un componente) y `kit: true`.
+
+    Lanza TemaInvalido si el `tema.css` trae algo que el filtro de la extensión borraría.
+    """
+    css, _ = describir_tema(tema_json.with_name("tema.css"))
+    script = script_de_kit(tema_json, css)
+    datos = {
+        "archivo": tema_json.name,
+        "sha256": hashlib.sha256(script.encode()).hexdigest()[:12],
+        "bytes": len(script.encode()),
+        "kit": True,
+    }
+    return script, datos
