@@ -1,0 +1,7 @@
+{
+  "id": "uchile-arancel-medicina",
+  "host": "uchile.cl",
+  "start_url": "https://uchile.cl/",
+  "description": "Quieres estudiar Medicina en la Universidad de Chile: averigua cuánto cuesta el arancel anual para quien entra a primer año.",
+  "expected_answer": "$9.468.300 al año (valores 2026 para estudiantes nuevos), más $217.600 de derecho básico de matrícula."
+}

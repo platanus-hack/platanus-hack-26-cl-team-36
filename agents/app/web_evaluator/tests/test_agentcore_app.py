@@ -8,13 +8,13 @@ import agentcore_app
 from agentcore_app import InvalidRequest, parse_request
 from batch import models_for
 from judge import ApiJudge
-from profiles import PROFILES
+from profiles import PERFILES_POR_DEFECTO
 
 
 def test_parse_request_fills_defaults():
     request = parse_request({"url": "https://ejemplo.cl", "instruction": "  Encontrar el horario  "})
     assert request["instruction"] == "Encontrar el horario"
-    assert request["profiles"] == list(PROFILES)
+    assert request["profiles"] == list(PERFILES_POR_DEFECTO)
     assert request["task_id"] is None
     assert request["effort"] == "medium"
     assert "model" not in request  # en AWS el modelo no se elige por pedido: siempre Sonnet 4.6
@@ -26,6 +26,7 @@ def test_parse_request_fills_defaults():
     {"url": "ftp://ejemplo.cl", "instruction": "x"},
     {"url": "https://ejemplo.cl", "instruction": "   "},
     {"url": "https://ejemplo.cl", "instruction": "x", "profiles": ["astronauta"]},
+    {"url": "https://ejemplo.cl", "instruction": "x", "profiles": ["explorador"]},  # su skill no se despliega
     {"url": "https://ejemplo.cl", "instruction": "x", "effort": "turbo"},
     {"url": "https://ejemplo.cl", "instruction": "x", "effort": "xhigh"},  # Sonnet 4.6 no lo acepta
 ])

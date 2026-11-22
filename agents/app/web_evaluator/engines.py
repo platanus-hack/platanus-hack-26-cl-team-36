@@ -119,7 +119,16 @@ class ClaudeCodeProcess:
         self.process.stdin.write((json.dumps(message) + "\n").encode())
         await self.process.stdin.drain()
 
-    async def wait_for_result(self) -> dict:
+    async def wait_for_result(self, timeout_s: float | None = None) -> dict:
+        """El próximo evento `result`. Si `claude` no responde en `timeout_s` (por defecto
+        `config.CLAUDE_CODE_TIMEOUT_S`), lanza ClaudeCodeError en vez de esperar para siempre."""
+        timeout_s = config.CLAUDE_CODE_TIMEOUT_S if timeout_s is None else timeout_s
+        try:
+            return await asyncio.wait_for(self._leer_resultado(), timeout=timeout_s)
+        except TimeoutError:
+            raise ClaudeCodeError(f"claude no respondió en {timeout_s:.0f} s") from None
+
+    async def _leer_resultado(self) -> dict:
         while True:
             line = await self.process.stdout.readline()
             if not line:
@@ -163,8 +172,9 @@ DECISION_SCHEMA = {
         "expectation": {"type": "string", "description": "Una frase: qué esperas que pase con esta acción."},
         "action": {
             "type": "string",
-            "enum": ["click", "double_click", "type", "key", "scroll", "done", "blocked", "give_up"],
+            "enum": ["click", "double_click", "type", "key", "scroll", "volver_a_nodo", "done", "blocked", "give_up"],
         },
+        "nodo": {"type": "string", "description": "Con volver_a_nodo: el id de una página ya vista (p1, p2...)."},
         "x": {"type": "integer", "description": "Coordenada horizontal en píxeles de la captura."},
         "y": {"type": "integer", "description": "Coordenada vertical en píxeles de la captura."},
         "text": {"type": "string", "description": "Texto a escribir, tecla a presionar o mensaje final."},
@@ -195,6 +205,8 @@ def decision_to_turn(decision: dict, turn_number: int) -> Turn:
         name, action_input = "type", {"text": text or ""}
     elif action == "key":
         name, action_input = "key", {"text": text or ""}
+    elif action == "volver_a_nodo":
+        name, action_input = "volver_a_nodo", {"nodo": (decision.get("nodo") or text or "").strip()}
     elif action == "scroll":
         name = "scroll"
         action_input = {
@@ -247,7 +259,10 @@ class ClaudeCodeEngine:
         for result in results:
             if result.request.name == "expectation" and not result.is_error:
                 continue
-            parts.append(f"Error: {result.text}" if result.is_error else "Acción ejecutada.")
+            if result.is_error:
+                parts.append(f"Error: {result.text}")
+            else:  # "OK", o "OK. Te quedan N acciones..." si el perfil recibe su presupuesto (ver harness.py)
+                parts.append("Acción ejecutada." + result.text.removeprefix("OK"))
         text = " ".join(parts) + "\nEsta es la pantalla ahora. ¿Cuál es tu siguiente acción?"
         await self.process.send(text.strip(), screenshot)
 

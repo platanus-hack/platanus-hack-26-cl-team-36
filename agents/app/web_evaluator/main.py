@@ -5,6 +5,7 @@ Uso, desde agents/app/web_evaluator/:
     uv run main.py --task wom-baja-fibra
     uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal"
     uv run main.py --goals ../../.runs/www.wom.cl/goals/goals.json --limit 3
+    uv run main.py --task wom-baja-fibra --css tema.css
 """
 
 import argparse
@@ -15,9 +16,9 @@ import shutil
 from pathlib import Path
 
 import config
-from batch import run_batch
+from batch import TemaInvalido, describir_tema, run_batch
 from goals_run import run_catalog
-from profiles import PROFILES
+from profiles import PERFILES_POR_DEFECTO, PROFILES
 from site_summary import write_summary
 
 AGENTS_DIR = Path(__file__).resolve().parents[2]
@@ -72,7 +73,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--profiles",
         default=None,
-        help=f"perfiles separados por coma (por defecto: {','.join(PROFILES)}; con --goals, first_time)",
+        help=f"perfiles separados por coma, de: {', '.join(PROFILES)} (por defecto: {','.join(PERFILES_POR_DEFECTO)};"
+        " con --goals, first_time). Los explorador* siguen la skill explorar-caminos y solo corren en local",
     )
     parser.add_argument(
         "--output",
@@ -106,6 +108,13 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="graba un video .webm de cada intento, además de las capturas de cada paso",
     )
+    parser.add_argument(
+        "--css",
+        type=Path,
+        default=None,
+        metavar="ARCHIVO",
+        help="aplica este tema (CSS bajo html.mi-tema) en cada página, como la extensión; queda registrado en la tanda",
+    )
     return parser
 
 
@@ -113,12 +122,21 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.css is not None:
+        if not args.css.is_file():
+            parser.error(f"no existe el archivo de tema {args.css}")
+        try:
+            describir_tema(args.css)
+        except (TemaInvalido, UnicodeDecodeError) as error:
+            parser.error(str(error))
+
     if args.goals:
         if args.task or args.url or args.instruction:
             parser.error("usa --goals sin --task ni --url")
         catalog = load_catalog(parser, args.goals)
-        if args.summary:
-            print(f"Resumen: {display_path(write_summary(args.goals, RUNS_DIR))}")
+        if args.summary:  # con --css, el resumen de las tandas con ese tema
+            tema = describir_tema(args.css)[1]["sha256"] if args.css else None
+            print(f"Resumen: {display_path(write_summary(args.goals, RUNS_DIR, tema))}")
             return
     elif args.task:
         if args.url or args.instruction:
@@ -140,14 +158,14 @@ def main() -> None:
         parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión, o usa --engine api")
     if args.cdp_url and args.browser != "local":
         parser.error("--cdp-url solo sirve con --browser local")
-    profiles = args.profiles or ("first_time" if args.goals else ",".join(PROFILES))
+    profiles = args.profiles or ("first_time" if args.goals else ",".join(PERFILES_POR_DEFECTO))
     profile_keys = [key.strip() for key in profiles.split(",") if key.strip()]
     unknown = [key for key in profile_keys if key not in PROFILES]
     if unknown:
         parser.error(f"perfiles desconocidos: {', '.join(unknown)}; disponibles: {', '.join(PROFILES)}")
     if args.goals:
         options = {"engine": args.engine, "user_model": args.model, "effort": args.effort, "cdp_url": args.cdp_url,
-                   "browser": args.browser, "record_video": args.record_video}
+                   "browser": args.browser, "record_video": args.record_video, "tema_css": args.css}
         summary = asyncio.run(run_catalog(catalog, args.goals, RUNS_DIR, args.goal, args.limit, args.rerun, profile_keys,
                                           **options))
         print(f"\nListo. Resumen: {display_path(summary)}")
@@ -165,6 +183,7 @@ def main() -> None:
         task_id=args.task,
         browser=args.browser,
         record_video=args.record_video,
+        tema_css=args.css,
     ))
     print(f"\nListo. Reporte: {display_path(batch_dir / 'report.md')}")
 

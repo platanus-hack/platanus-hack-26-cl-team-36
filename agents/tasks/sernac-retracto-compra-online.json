@@ -1,0 +1,7 @@
+{
+  "id": "sernac-retracto-compra-online",
+  "host": "www.sernac.cl",
+  "start_url": "https://www.sernac.cl/portal/617/w3-channel.html",
+  "description": "Compraste un producto por internet y te arrepentiste: averigua cuántos días tienes para devolverlo.",
+  "expected_answer": "10 días desde que recibiste el producto (y antes de usarlo), salvo que la empresa haya informado que no aplica el derecho a retracto."
+}

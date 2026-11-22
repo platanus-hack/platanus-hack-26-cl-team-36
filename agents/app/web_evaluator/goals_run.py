@@ -6,9 +6,9 @@ Qué objetivos se pueden intentar (`exclusion`) y con qué tarea (`instruction`)
 from dataclasses import dataclass
 from pathlib import Path
 
-from batch import run_batch
+from batch import describir_tema, run_batch
 from reference import find_reference
-from site_summary import write_summary
+from site_summary import tandas_con_tema, write_summary
 
 
 @dataclass
@@ -18,8 +18,9 @@ class Planned:
 
 
 def plan(goals: list[dict], runs_dir: Path, profile_keys: list[str], only: list[str], limit: int | None,
-         rerun: bool) -> list[Planned]:
-    """Corre cada objetivo pedido, sin exclusión, con ruta verificada para algún perfil y sin tanda previa."""
+         rerun: bool, tema: str | None = None) -> list[Planned]:
+    """Corre cada objetivo pedido, sin exclusión, con ruta verificada para algún perfil y sin tanda previa con el
+    mismo tema (`tema` = sha256 corto, o None para el sitio tal cual)."""
     planned: list[Planned] = []
     for goal in goals:
         goal_dir = runs_dir / goal["id"]
@@ -30,7 +31,7 @@ def plan(goals: list[dict], runs_dir: Path, profile_keys: list[str], only: list[
             skip = goal["exclusion"]
         elif not any(find_reference(goal_dir, goal["start_url"], goal["instruction"], key) for key in profile_keys):
             skip = "sin ruta verificada"
-        elif not rerun and any(goal_dir.glob("*/report.md")):
+        elif not rerun and tandas_con_tema(goal_dir, tema):
             skip = "ya evaluado (--rerun para repetirlo)"
         elif limit is not None and running >= limit:
             skip = "límite"
@@ -58,6 +59,8 @@ async def run_planned(planned: list[Planned], runs_dir: Path, **batch_options) -
 async def run_catalog(catalog: dict, catalog_path: Path, runs_dir: Path, only: list[str], limit: int | None,
                       rerun: bool, profile_keys: list[str], **batch_options) -> Path:
     """Corre las tandas del catálogo y devuelve summary.md."""
-    planned = plan(catalog["goals"], runs_dir, profile_keys, only, limit, rerun)
+    tema_css = batch_options.get("tema_css")
+    tema = describir_tema(tema_css)[1]["sha256"] if tema_css else None
+    planned = plan(catalog["goals"], runs_dir, profile_keys, only, limit, rerun, tema)
     await run_planned(planned, runs_dir, profile_keys=profile_keys, **batch_options)
-    return write_summary(catalog_path, runs_dir)
+    return write_summary(catalog_path, runs_dir, tema)

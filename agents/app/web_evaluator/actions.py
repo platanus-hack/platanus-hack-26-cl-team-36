@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page
 
+import config
 from browser import BrowserSession
 
 DISABLED_MEMBERS = [
@@ -47,7 +48,10 @@ def uses_legacy_computer_tool(model: str) -> bool:
 def legacy_computer_tool(width: int, height: int) -> dict:
     return {"type": "computer_20251124", "name": "computer", "display_width_px": width, "display_height_px": height}
 
-UI_ACTIONS = {"left_click", "double_click", "triple_click", "type", "key", "scroll"}
+
+# `volver_a_nodo` no es del toolset: el harness la ofrece solo a los perfiles exploradores (ver harness.py).
+VOLVER_A_NODO = "volver_a_nodo"
+UI_ACTIONS = {"left_click", "double_click", "triple_click", "type", "key", "scroll", VOLVER_A_NODO}
 CLICK_ACTIONS = {"left_click", "double_click", "triple_click"}
 
 _KEY_NAMES = {
@@ -150,6 +154,8 @@ class Executor:
                 return ExecutedAction("type", None, f"escribir «{text}»")
             if name == "key":
                 return await self._press_key(page, action_input)
+            if name == VOLVER_A_NODO:
+                return await self._volver_a_nodo(page, action_input)
             return await self._scroll(page, action_input)
         except PlaywrightError as error:
             raise InvalidActionError(f"El navegador no pudo ejecutar la acción: {error.message.splitlines()[0]}")
@@ -186,6 +192,15 @@ class Executor:
             await page.keyboard.press(key)
         suffix = f" x{repetitions}" if repetitions > 1 else ""
         return ExecutedAction("key", None, f"tecla {combo}{suffix}")
+
+    async def _volver_a_nodo(self, page: Page, action_input: dict) -> ExecutedAction:
+        """Reabre una página ya vista en este intento, como elegirla en el historial del navegador."""
+        url = action_input.get("url")
+        if not url:
+            raise InvalidActionError("Falta la página a la que volver.")
+        await page.goto(url, wait_until="domcontentloaded", timeout=config.PAGE_LOAD_TIMEOUT_MS)
+        titulo = action_input.get("titulo") or action_input.get("nodo") or url
+        return ExecutedAction(VOLVER_A_NODO, None, f"volver a «{titulo}»", went_back=True)
 
     async def _scroll(self, page: Page, action_input: dict) -> ExecutedAction:
         direction = action_input.get("scroll_direction")

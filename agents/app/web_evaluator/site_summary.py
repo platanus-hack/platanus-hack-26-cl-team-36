@@ -20,8 +20,23 @@ def _route(goal_dir: Path, goal: dict) -> dict | None:
     return next((route for route in routes if route.get("status") == "verified"), routes[0] if routes else None)
 
 
-def _latest_batch(goal_dir: Path) -> Path | None:
-    batches = sorted(path.parent for path in goal_dir.glob("*/report.md"))
+def tema_de_tanda(batch: Path) -> str | None:
+    """El sha256 corto del tema con que corrió la tanda (route_tree.json, `tema`); None si fue sin tema."""
+    tema = (_read(batch / "route_tree.json") or {}).get("tema")
+    return tema.get("sha256") if isinstance(tema, dict) else None
+
+
+def tandas_con_tema(goal_dir: Path, tema: str | None) -> list[Path]:
+    """Las tandas terminadas del objetivo con ese tema (None = sin tema), de la más vieja a la más nueva.
+
+    Con y sin tema van a la misma carpeta (el backoffice lee agents/.runs/<tarea>/<fecha>/), así que se separan por
+    lo que registró cada tanda, para no mezclarlas en el plan ni en el resumen.
+    """
+    return sorted(path.parent for path in goal_dir.glob("*/report.md") if tema_de_tanda(path.parent) == tema)
+
+
+def _latest_batch(goal_dir: Path, tema: str | None = None) -> Path | None:
+    batches = tandas_con_tema(goal_dir, tema)
     return batches[-1] if batches else None
 
 
@@ -57,10 +72,10 @@ def _not_run(goal: dict, route: dict | None) -> str:
     return "sin tanda (límite o error)"
 
 
-def goal_row(goal: dict, runs_dir: Path, summary_dir: Path) -> dict:
+def goal_row(goal: dict, runs_dir: Path, summary_dir: Path, tema: str | None = None) -> dict:
     goal_dir = runs_dir / goal["id"]
     route = _route(goal_dir, goal)
-    batch = _latest_batch(goal_dir)
+    batch = _latest_batch(goal_dir, tema)
     runs = _runs(batch) if batch else []
     proposals = [proposal["status"] for path in goal_dir.glob("reference/*/proposed.json") if (proposal := _read(path))]
     return {
@@ -131,14 +146,19 @@ def summary_markdown(host: str, rows: list[dict], total: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_summary(catalog_path: Path, runs_dir: Path) -> Path:
-    """Escribe summary.json y summary.md junto al catálogo y devuelve la ruta de summary.md."""
+def write_summary(catalog_path: Path, runs_dir: Path, tema: str | None = None) -> Path:
+    """Escribe summary.json y summary.md junto al catálogo y devuelve la ruta de summary.md.
+
+    Con `tema` (sha256 corto), solo cuenta las tandas con ese tema y escribe summary-tema-<sha>.{json,md}.
+    """
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     summary_dir = catalog_path.parent
-    rows = [goal_row(goal, runs_dir, summary_dir) for goal in catalog["goals"]]
+    rows = [goal_row(goal, runs_dir, summary_dir, tema) for goal in catalog["goals"]]
     total = totals(rows)
-    (summary_dir / "summary.json").write_text(
-        json.dumps({"host": catalog["host"], "totals": total, "goals": rows}, ensure_ascii=False, indent=2), encoding="utf-8"
+    nombre = f"summary-tema-{tema}" if tema else "summary"
+    (summary_dir / f"{nombre}.json").write_text(
+        json.dumps({"host": catalog["host"], "tema": tema, "totals": total, "goals": rows}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
     )
-    (summary_dir / "summary.md").write_text(summary_markdown(catalog["host"], rows, total), encoding="utf-8")
-    return summary_dir / "summary.md"
+    (summary_dir / f"{nombre}.md").write_text(summary_markdown(catalog["host"], rows, total), encoding="utf-8")
+    return summary_dir / f"{nombre}.md"

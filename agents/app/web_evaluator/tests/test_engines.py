@@ -1,4 +1,8 @@
-from engines import decision_to_turn
+import asyncio
+
+import pytest
+
+from engines import ClaudeCodeError, ClaudeCodeProcess, decision_to_turn
 
 
 def test_click_produces_expectation_and_left_click():
@@ -64,6 +68,23 @@ def test_api_engine_marks_only_the_last_block_for_caching(tmp_path):
     blocks = request["messages"][-1]["content"]
     assert [block.get("cache_control") for block in blocks] == [None, {"type": "ephemeral"}]
     assert all("cache_control" not in block for block in engine.messages[0]["content"])  # el historial queda igual
+
+
+def test_claude_code_sin_respuesta_da_un_error_claro_en_vez_de_esperar_para_siempre(tmp_path):
+    async def escenario():
+        proceso = await asyncio.create_subprocess_exec(
+            "sleep", "30", stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE
+        )
+        claude = ClaudeCodeProcess(proceso, open(tmp_path / "log", "a", encoding="utf-8"))
+        try:
+            with pytest.raises(ClaudeCodeError, match="no respondió en 0 s"):
+                await claude.wait_for_result(timeout_s=0.2)
+        finally:
+            proceso.kill()
+            await proceso.wait()
+            claude.log_file.close()
+
+    asyncio.run(escenario())
 
 
 def test_api_engine_uses_the_legacy_computer_tool_on_bedrock(tmp_path):

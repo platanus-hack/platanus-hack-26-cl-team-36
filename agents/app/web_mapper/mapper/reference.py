@@ -53,9 +53,11 @@ def _meta(mapping: Mapping) -> dict:
         "start_url": mapping.url,
         "viewport": mapping.viewport,
         "viewport_size": f"{profile.width}x{profile.height}",
+        # Los exploradores recorren el sitio a propósito y no siguen la ruta: no se les aplica la referencia.
         "evaluator_profiles": [
             key for key, other in PROFILES.items()
-            if (other.width, other.height, other.mobile) == (profile.width, profile.height, profile.mobile)
+            if not other.explora
+            and (other.width, other.height, other.mobile) == (profile.width, profile.height, profile.mobile)
         ],
         "model": mapping.model,
         "effort": mapping.effort,

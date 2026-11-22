@@ -4,6 +4,7 @@ import statistics
 
 import config
 import reference
+from profiles import PROFILES
 
 _CLICK_ACTIONS = {"left_click", "double_click", "triple_click"}
 _OUTCOME_LABELS = {"success": "éxito", "failed": "fallo", "abandoned": "abandono", "interrupted": "interrumpido"}
@@ -11,14 +12,15 @@ _SIGNAL_LABELS = {
     "no_effect": "sin efecto",
     "visible_error": "error visible",
     "went_back": "retroceso",
+    "revisit": "revisita",
     "security_block": "bloqueo de seguridad",
 }
 _END_REASON_LABELS = {
     "done": "El usuario declaró que terminó",
     "blocked": "El usuario se detuvo porque el sitio pedía algo que no puede hacer",
     "gave_up": "El usuario se rindió",
-    "step_limit": f"Se agotaron las {config.MAX_STEPS} acciones",
-    "time_limit": f"Se agotaron los {config.MAX_SECONDS // 60} minutos",
+    "step_limit": "Se agotaron las {acciones} acciones",
+    "time_limit": "Se agotaron los {tiempo}",
     "refusal": "El modelo se negó a continuar",
     "api_error": "El intento se interrumpió por un error de la API",
     "no_response": "La respuesta del modelo se cortó",
@@ -26,8 +28,49 @@ _END_REASON_LABELS = {
 }
 
 
+def _limites(run: dict) -> tuple[int, int]:
+    """(acciones, segundos) del perfil del intento; los generales de config.py si el perfil no existe (o ya no)."""
+    profile = PROFILES.get(run.get("profile", ""))
+    if profile is None:
+        return config.MAX_STEPS, config.MAX_SECONDS
+    return profile.limite_acciones, profile.limite_segundos
+
+
+def _duracion(segundos: int) -> str:
+    if segundos % 60:
+        return f"{segundos} segundos"
+    return "1 minuto" if segundos == 60 else f"{segundos // 60} minutos"
+
+
+def _texto_limites(limites: tuple[int, int]) -> str:
+    return f"{limites[0]} acciones y {_duracion(limites[1])}"
+
+
+def _limites_de_la_tanda(runs: list[dict]) -> str:
+    """Una sola frase si todos los perfiles tienen los mismos límites; si no, los de cada perfil."""
+    por_perfil = {run["profile_name"]: _limites(run) for run in runs}
+    distintos = set(por_perfil.values())
+    if not distintos:
+        return _texto_limites((config.MAX_STEPS, config.MAX_SECONDS))
+    if len(distintos) == 1:
+        return _texto_limites(distintos.pop())
+    return "; ".join(f"{nombre}: {_texto_limites(limites)}" for nombre, limites in por_perfil.items())
+
+
+def _como_termino(run: dict) -> str:
+    acciones, segundos = _limites(run)
+    etiqueta = _END_REASON_LABELS.get(run["end_reason"], run["end_reason"])
+    return etiqueta.format(acciones=acciones, tiempo=_duracion(segundos))
+
+
 def _cell(text) -> str:
     return str(text or "").replace("|", "\\|").replace("\n", " ")
+
+
+def _tema_label(tema: dict | None) -> str:
+    if not tema:
+        return "ninguno (el sitio tal cual)"
+    return f"`{tema['archivo']}` (sha256 `{tema['sha256']}`, {tema['bytes']} bytes; copia en [tema.css](tema.css))"
 
 
 def _outcome_label(outcome: str | None) -> str:
@@ -124,7 +167,8 @@ def generate(
         f"- **Fecha:** {meta['timestamp']}",
         f"- **Motor:** {engine_label}",
         f"- **Modelos:** usuarios `{meta['user_model']}` (esfuerzo {meta['effort']}); juez `{meta['judge_model']}`",
-        f"- **Límites por usuario:** {config.MAX_STEPS} acciones y {config.MAX_SECONDS // 60} minutos",
+        f"- **Límites por usuario:** {_limites_de_la_tanda(runs)}",
+        f"- **Tema:** {_tema_label(meta.get('tema'))}",
         "",
         f"**Criterio de éxito:** {criteria.get('criterion', '(no disponible)')}",
         "",
@@ -140,10 +184,11 @@ def generate(
         "|---|---|---|---|---|---|---|",
     ]
     for run in runs:
+        acciones, segundos = _limites(run)
         lines.append(
             f"| {run['profile_name']} | {run['viewport']} | {_outcome_label(run['verdict'].get('outcome'))} | "
-            f"{len(run['steps'])} | {_count_clicks(run['steps'])} | {run['duration_s']:.0f} s | "
-            f"{_count_signals(run['steps'])} |"
+            f"{len(run['steps'])} de {acciones} | {_count_clicks(run['steps'])} | "
+            f"{run['duration_s']:.0f} s de {segundos} s | {_count_signals(run['steps'])} |"
         )
 
     if comparison:
@@ -180,7 +225,7 @@ def generate(
             "",
             f"**Resultado: {_outcome_label(verdict.get('outcome'))}.** {verdict.get('justification', '')}",
             "",
-            f"- **Cómo terminó:** {_END_REASON_LABELS.get(run['end_reason'], run['end_reason'])}"
+            f"- **Cómo terminó:** {_como_termino(run)}"
             + (f": \"{run['final_message']}\"" if run["final_message"] else "."),
         ]
         model_verdict = verdict.get("model_verdict")
