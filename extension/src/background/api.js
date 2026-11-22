@@ -11,7 +11,8 @@ import { leerRevision } from "./revisiones.js";
 // y la respuesta trae el CSS.
 const TIEMPO_MAXIMO_REVISION_MS = 5000;
 
-// Lanzan si la API no responde o no manda JSON (resolverRevision lo trata como "fin").
+// Lanzan si la API no responde, responde 5xx/429 o no manda JSON: errores pasajeros (resolverRevision los devuelve como
+// "error"). 404 es la respuesta definitiva de una página sin revisión.
 // pedirRevision hoy no se usa: corre agentes en AWS (ver el TODO en index.js).
 export async function pedirRevision(url) {
   return leerRespuestaRevision(
@@ -33,6 +34,8 @@ export async function consultarRevision(url) {
 }
 
 async function leerRespuestaRevision(respuesta) {
+  if (respuesta.status >= 500 || respuesta.status === 429) throw new Error(`La API respondió ${respuesta.status}`);
+  if (respuesta.status === 404) return { estado: "sin-revision" };
   try {
     return leerRevision(await respuesta.json());
   } catch {

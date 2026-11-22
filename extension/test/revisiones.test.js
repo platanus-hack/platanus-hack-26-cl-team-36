@@ -45,6 +45,7 @@ test("revisión en curso (pedida desde afuera): queued, luego running y luego do
   const listo = await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso });
 
   assert.equal(listo.estado, "listo");
+  assert.equal(listo.revision, "r1a2");
   assert.deepEqual(listo.tema, {
     id: "rev-r1a2",
     nombre: "Revisión r1a2",
@@ -74,18 +75,37 @@ test("página ya vista: 200 done con css se aplica de una vez, saneado", async (
   assert.doesNotMatch(tema.css, /import|url\(/);
 });
 
-test("página sin revisión (404), failed, error de red, sin JSON o css vacío: fin, sin lanzar", async () => {
+test("página sin revisión (404): sin-revision, sin lanzar", async () => {
+  simularFetch(Response.json({ success: false }, { status: 404 }));
+  assert.deepEqual(await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso }), {
+    estado: "sin-revision",
+  });
+});
+
+test("failed o css vacío: fin, sin lanzar", async () => {
   const casos = [
-    Response.json({ success: false }, { status: 404 }),
     Response.json({ success: true, revision: "abc", status: "failed" }),
-    new TypeError("NetworkError when attempting to fetch resource."),
-    new Response("<html>502</html>", { status: 502 }),
     Response.json({ success: true, revision: "abc", status: "done", css: "@import url(x);" }),
     Response.json({ success: true, revision: "abc", status: "done" }),
   ];
   for (const respuesta of casos) {
     simularFetch(respuesta);
     assert.deepEqual(await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso }), { estado: "fin" });
+  }
+});
+
+test("error de red, timeout, 5xx, 429 o sin JSON: error pasajero, sin lanzar", async () => {
+  const casos = [
+    new TypeError("NetworkError when attempting to fetch resource."),
+    new DOMException("The operation timed out.", "TimeoutError"),
+    new Response("<html>502</html>", { status: 502 }),
+    Response.json({ success: false }, { status: 500 }),
+    Response.json({ success: false }, { status: 429 }),
+    new Response("no es json", { status: 200 }),
+  ];
+  for (const respuesta of casos) {
+    simularFetch(respuesta);
+    assert.deepEqual(await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso }), { estado: "error" });
   }
 });
 

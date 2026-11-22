@@ -22,13 +22,14 @@ function cargarMotor(...respuestas) {
   };
   const observadores = [];
   const temporizadores = [];
+  const demoras = [];
   const mensajes = [];
   const location = new URL(PAGINA);
   const contexto = {
     console: { info() {}, warn() {}, error() {} },
     document: { documentElement: html, addEventListener() {} },
     location,
-    setTimeout: (fn) => temporizadores.push(fn),
+    setTimeout: (fn, ms) => (demoras.push(ms), temporizadores.push(fn)),
     requestAnimationFrame: (fn) => fn(),
     MutationObserver: class {
       constructor(fn) {
@@ -58,6 +59,7 @@ function cargarMotor(...respuestas) {
     html,
     mensajes,
     temporizadores,
+    demoras,
     navegar: (ruta) => (location.pathname = ruta),
     mutarDom: () => observadores.forEach((fn) => fn([])),
   };
@@ -69,7 +71,7 @@ async function correrTemporizador(motor) {
   await esperar();
 }
 
-const ESPERAR = { esperarRevision: { intervaloMs: 15_000, topeMs: 600_000 } };
+const ESPERAR = { esperarRevision: { intervaloMs: 3000, maximoMs: 15_000, factor: 1.5, topeMs: 600_000 } };
 const TEMA = { id: "rev-abc", nombre: "Revisión abc", features: {}, eventosNavegacion: [], pagina: PAGINA };
 
 test("sin tema ni revisión no toca la página ni deja temporizadores", async () => {
@@ -114,4 +116,11 @@ test("un tema de revisión se quita al navegar a otra página de la SPA y vuelve
   motor.mutarDom();
   assert.equal(motor.html.classList.contains("mi-tema"), true);
   assert.equal(motor.html.dataset.mtTema, "rev-abc");
+});
+
+test("pregunta cada vez más espaciado, hasta el máximo", async () => {
+  const motor = cargarMotor(...Array(7).fill(ESPERAR));
+  await esperar();
+  for (let i = 0; i < 6; i++) await correrTemporizador(motor);
+  assert.deepEqual(motor.demoras, [3000, 4500, 6750, 10_125, 15_000, 15_000, 15_000]);
 });
