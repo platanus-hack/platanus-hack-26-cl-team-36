@@ -21,6 +21,8 @@ def pending_routes(backend: store.Backend, goals: list[Goal], limit: int | None,
     return pending if limit is None else pending[:max(0, limit - done)]
 
 
-def goal_mappings(goals: list[Goal], catalog: store.RunKey, model: str, effort: str, extra_routes: int) -> list[Mapping]:
-    return [Mapping(goal.id, goal.start_url, goal.instruction, SCREENS["desktop"], model, effort, (catalog,), extra_routes)
+def goal_mappings(goals: list[Goal], catalog: store.RunKey, model: str, effort: str, extra_routes: int,
+                  revision: str | None = None) -> list[Mapping]:
+    return [Mapping(goal.id, goal.start_url, goal.instruction, SCREENS["desktop"], model, effort, (catalog,), extra_routes,
+                    revision)
             for goal in goals]

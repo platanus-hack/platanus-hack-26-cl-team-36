@@ -45,9 +45,19 @@ export function condicionRegistro(reemplaza) {
   };
 }
 
+export function filtroEnCurso(estados, desde) {
+  const valores = { ":meta": "META", ":desde": desde };
+  const lista = estados.map((estado, i) => ((valores[`:e${i}`] = estado), `:e${i}`));
+  return {
+    FilterExpression: `SK = :meta AND #status IN (${lista.join(", ")}) AND updated_at >= :desde`,
+    ExpressionAttributeNames: { "#status": "status" },
+    ExpressionAttributeValues: valores,
+  };
+}
+
 export async function tablaDynamo(tabla) {
   const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
-  const { DynamoDBDocumentClient, GetCommand, TransactWriteCommand, UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
+  const { DynamoDBDocumentClient, GetCommand, ScanCommand, TransactWriteCommand, UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
   const cliente = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
   // true si escribió; false si una condición no se cumplió.
@@ -76,6 +86,19 @@ export async function tablaDynamo(tabla) {
           })),
         }),
       ),
+    // Scan de la tabla entera: barato mientras sea chica (una demo); con más tráfico, un índice por status.
+    async contarEnCurso(estados, desde) {
+      let total = 0;
+      let ExclusiveStartKey;
+      do {
+        const pagina = await cliente.send(
+          new ScanCommand({ TableName: tabla, Select: "COUNT", ExclusiveStartKey, ...filtroEnCurso(estados, desde) }),
+        );
+        total += pagina.Count;
+        ExclusiveStartKey = pagina.LastEvaluatedKey;
+      } while (ExclusiveStartKey);
+      return total;
+    },
     actualizar: (Key, atributos, opciones) =>
       condicional(new UpdateCommand({ TableName: tabla, Key, ...expresionActualizar(atributos, opciones) })),
   };

@@ -53,6 +53,9 @@ abajo).
   `runtime_agentes` (`chameleon`); la Lambda `chameleon-backend-proyectora` (`backend/proyectora.js`) recibe los
   `manifest.json` nuevos del bucket y actualiza el estado de cada revisión. Sin `REVISIONES_TABLA` (en local),
   `/revisiones` responde 404.
+  Un `POST` sobre una página cuya revisión quedó `failed`, o `queued`/`running` sin novedades hace más de una hora,
+  dispara otra. Con `revisiones_en_curso_max` (5) revisiones
+  `queued`/`running` con novedades en la última hora, un `POST` que crearía otra responde 429.
 - `agentcore/`: los agentes en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime `chameleon`
   (desplegado como `ChameleonAgents_default_chameleon`), con su entrada en `../agents/app/runtime/` y la raíz del repo
@@ -64,9 +67,10 @@ abajo).
   escritura en ese bucket (lo crea Terraform) y permiso para invocar runtimes de la cuenta (el conductor).
   `agentcore/.cli/deployed-state.json` enlaza el proyecto con lo desplegado. `agentcore/aws-targets.json` queda con el
   id de la cuenta después de desplegar desde un computador: no lo subas, el repo es público.
-- `justfile`: `just aws`, los comandos del runtime en AgentCore (`revision`, `deploy`, `status`, `logs`).
+- `justfile`: `just aws`, los comandos del runtime en AgentCore (`revision`, `deploy`, `status`, `logs`) y `seed`.
   `just aws revision <url>` pide la revisión a la API (`POST /revisiones`), muestra cómo avanza cada etapa y guarda
   `tema.css` en `local/.state/aws/`.
+- `siembra/`: `just aws seed`, ver [Sembrar revisiones](#sembrar-revisiones).
 - `../backend/lambda.js`: entrada de la Lambda. Levanta el servidor de `index.js` y le reenvía cada request, así
   `index.js` funciona igual en local y en AWS.
 
@@ -183,6 +187,20 @@ AgentCore o lo que se sube a mano con `aws s3 sync agents/.runs/ s3://chameleon-
 
   El estado tiene un candado: si Actions está aplicando, tu `plan` falla con un error de candado (reintenta en un
   rato), y al revés.
+
+## Sembrar revisiones
+
+Para que la demo tenga temas listos, `just aws seed` pide a la API desplegada una revisión de cada página y la sigue
+hasta `done` o `failed`; termina con un resumen y sale con error si alguna no quedó `done`. Sin URLs usa
+`agents/tasks/demo.json` (los `start_url` de las tareas). No necesita credenciales de AWS.
+
+```bash
+just aws seed                                   # las páginas de demo
+just aws seed https://www.wom.cl/ --force       # revisión nueva aunque ya tenga una terminada
+```
+
+Lo mismo desde GitHub: Actions → `Sembrar revisiones` → *Run workflow*, en el repo personal. Las que pasan el tope de
+revisiones en curso (429) se vuelven a pedir solas.
 
 ## Al terminar la hackatón
 

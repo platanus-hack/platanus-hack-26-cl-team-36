@@ -18,6 +18,11 @@ export function tablaFalsa() {
       for (const { item } of puts) items.set(id(item), structuredClone(item));
       return true;
     },
+    async contarEnCurso(estados, desde) {
+      return [...items.values()].filter(
+        (item) => item.SK === "META" && estados.includes(item.status) && (item.updated_at ?? "") >= desde,
+      ).length;
+    },
     async actualizar(clave, atributos, { previos, existente = false } = {}) {
       const actual = items.get(id(clave));
       if (existente && !actual) return false;

@@ -22,6 +22,7 @@ uv run main.py route --task wom.cl/baja-fibra
 uv run main.py route --task sii.cl/exencion-contribuciones --viewports desktop,mobile
 uv run main.py route --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
 uv run main.py route --site https://www.wom.cl/ --routes all
+uv run main.py route --url https://www.wom.cl/ --revision r1 --goal baja-fibra
 uv run main.py adopt --goal wom.cl/baja-fibra
 ```
 
@@ -32,10 +33,11 @@ uv run main.py adopt --goal wom.cl/baja-fibra
 | `--task <host>/<id>` | Una tarea de [`agents/tasks/`](../../tasks/). |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el objetivo es `libre-<palabras>-<hash>` de la instrucción. |
 | `--site <url>` | El último catálogo del sitio, del [Catalogador](../cataloger/README.md): la ruta de sus objetivos sin `exclusion`, primero los menos prominentes, en desktop. |
+| `--url`, `--revision` y `--goal` | El objetivo `--goal` del catálogo de esa revisión, en desktop, en una corrida de la revisión. Si no hay catálogo, el objetivo falta, tiene `exclusion` o empieza en otro host, o la ruta no queda `verified`, la corrida termina `failed` y la salida es 1. |
 | `--routes N` | Con `--site`: deja hasta N objetivos con ruta verificada, o todos con `all` (por defecto 0); los que ya tienen una corrida verificada para la misma instrucción cuentan y no se rehacen. |
 | `--rerun` | Con `--site`: rehace también las rutas ya verificadas. |
 | `--viewports` | Viewports separados por coma: `desktop` (1024x768, el de `first_time` y `hurried`) y `mobile` (390x844). Por defecto, `desktop`. |
-| `--shorter N` | Exploraciones más que buscan una ruta más corta que la primera verificada (por defecto 1). |
+| `--shorter N` | Exploraciones más que buscan una ruta más corta que la primera verificada (por defecto 1; con `--revision`, 0). |
 
 `adopt`:
 
