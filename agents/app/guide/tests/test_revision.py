@@ -284,4 +284,5 @@ def test_a_decision_without_reason_does_not_end_the_exploration(served, backend,
     monkeypatch.setattr(reference, "make_caller", lambda *args, **kwargs: caller)
     run, route, trace = _failed_route(backend, served)
     assert route["exploration"]["end_reason"] == "gave_up" and len(caller.calls) == 2
+    assert "razón" not in route["exploration"]["history"][0]
     assert [step["label"] for step in trace["steps"]] == ["scroll «down»"]

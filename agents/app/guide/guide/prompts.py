@@ -29,6 +29,9 @@ class HistoryEntry:
     action: str
     outcome: str
 
+    def __str__(self) -> str:
+        return f"{self.action} — {self.outcome}" + (f" (razón: {self.reason})" if self.reason else "")
+
 
 def system_prompt(width: int, height: int) -> str:
     return f"""Eres la Guía. Encuentras la ruta de referencia de una tarea en un sitio web: el camino más corto que seguiría una persona, de la página inicial a la información que la cumple.
@@ -116,7 +119,7 @@ def _text_window(view: PageView) -> str:
 
 
 def render_turn(instruction: str, history: list[HistoryEntry], view: PageView) -> str:
-    past = [f"{number}. {entry.action} — {entry.outcome} (razón: {entry.reason})" for number, entry in enumerate(history, 1)]
+    past = [f"{number}. {entry}" for number, entry in enumerate(history, 1)]
     return "\n".join([
         f"TAREA: {instruction}",
         "",
