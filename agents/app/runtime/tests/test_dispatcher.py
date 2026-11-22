@@ -125,10 +125,12 @@ def test_revision_runs_the_conductor_against_this_runtime(backend: store.Backend
         return 0
 
     request = parse_request(payload("revision"))
-    run_stage(request, backend=backend, runner=runner, environ={"OTEL_RESOURCE_ATTRIBUTES": OTEL, "PATH": "/bin"})
+    environ = {"OTEL_RESOURCE_ATTRIBUTES": OTEL, "PATH": "/bin", "VIRTUAL_ENV": "/r/.venv", "PYTHONPATH": "/otel"}
+    run_stage(request, backend=backend, runner=runner, environ=environ)
     assert seen["CONDUCTOR_INVOKER"] == "agentcore"
     assert seen["CONDUCTOR_RUNTIME_ARN"] == ARN
     assert seen["PATH"] == "/bin"
+    assert "VIRTUAL_ENV" not in seen and "PYTHONPATH" not in seen
 
 
 def test_other_stages_do_not_get_the_invoker(backend: store.Backend) -> None:

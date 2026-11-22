@@ -17,6 +17,7 @@ INVOKER_VAR = "CONDUCTOR_INVOKER"
 RUNTIME_ARN_VAR = "CONDUCTOR_RUNTIME_ARN"
 # Los ids de corrida tienen resolución de segundos; el margen cubre relojes desfasados entre procesos.
 SINCE_MARGIN = timedelta(minutes=1)
+_RUNTIME_ONLY = ("VIRTUAL_ENV", "PYTHONPATH")
 
 log = logging.getLogger("chameleon.runtime")
 
@@ -59,8 +60,9 @@ def own_runtime_arn(environ: dict[str, str] = os.environ) -> str | None:
 
 def stage_env(request: Request, environ: dict[str, str] = os.environ) -> dict[str, str]:
     """El entorno del subproceso; el conductor lanza las demás etapas en este mismo runtime."""
-    # Sin VIRTUAL_ENV: `uv run` debe usar el entorno de la app de la etapa, no el del runtime.
-    env = {name: value for name, value in environ.items() if name != "VIRTUAL_ENV"}
+    # `uv run` debe usar el entorno de la app de la etapa, no el del runtime; PYTHONPATH lo pone
+    # opentelemetry-instrument y en ese entorno su sitecustomize falla.
+    env = {name: value for name, value in environ.items() if name not in _RUNTIME_ONLY}
     if request.stage == "revision":
         arn = own_runtime_arn(environ)
         if arn is None:
