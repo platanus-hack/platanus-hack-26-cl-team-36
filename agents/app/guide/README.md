@@ -4,7 +4,7 @@ La **Guía** encuentra la **ruta de referencia** de una tarea u objetivo leyendo
 corta verificada entre las que explora. Cada objetivo pasa por separado por la Guía y por el
 [Visitante](../visitor/README.md), que solo ve capturas; con herramientas web, la Guía debe lograrlo al menos igual de
 bien, y los intentos del Visitante se comparan con su ruta. Dónde va cada pieza está en
-[arquitectura](../../../docs/agents/arquitectura.md).
+[arquitectura](../../../docs/arquitectura.md).
 
 ## Instalación
 

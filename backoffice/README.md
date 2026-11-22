@@ -1,7 +1,6 @@
 # Backoffice
 
-Visor de solo lectura de los agentes y sus corridas en el almacén (`agents/.runs/`). Parte de
-[la especificación del backoffice](../.specs/backoffice-v0.md): el inicio (Overview) muestra cuántos agentes
+Visor de solo lectura de los agentes y sus corridas en el almacén (`agents/.runs/`): el inicio (Overview) muestra cuántos agentes
 corrieron por rol y cómo les fue, y las revisiones con la página revisada; cada tanda (los intentos de los perfiles
 sobre una misma tarea) responde qué pasó, por dónde fueron y dónde se separaron de la ruta. No gatilla nada ni llama a
 Claude. Sin build: Node 22 o superior, `node:http` y módulos ES en el navegador; el SDK de AWS solo para leer de AWS.

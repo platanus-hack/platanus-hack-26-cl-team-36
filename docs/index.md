@@ -1,211 +1,76 @@
-# Páginas web que se adaptan a cada persona, con cambios que se prueban antes de aplicarse
+# Chameleon
 
-> Evaluador = Visitante ([`agents/app/visitor/`](../agents/app/visitor/README.md)).
+Chameleon es una extensión de navegador que cambia el diseño de un sitio web sin tocar el original: aplica un **tema**
+encima de la página. El tema de cada página lo generan agentes de IA que primero estudian el sitio: descubren qué
+viene a hacer la gente, encuentran el camino más corto para lograrlo y lanzan usuarios sintéticos que lo intentan
+viendo solo la pantalla, como una persona. Con lo que aprenden de dónde se pierden, escriben el tema.
 
-**Qué es este documento.** El punto de entrada del proyecto, para cualquiera del equipo o del jurado. No hace falta
-haber leído nada antes. Es una **propuesta en revisión**: cambia el rumbo respecto de [.specs/MVP.md](../.specs/MVP.md),
-y la sección 1 dice en qué.
+Está publicado en <https://chameleonmode.app>. Somos el equipo 36 de Platanus Hack 26, track Multiplayer.
 
-**En un párrafo.** Una extensión de navegador mejora cualquier página web sin tocar el sitio original. Hace dos
-cosas. Primero **optimiza**: agentes de IA intentan una tarea en la página, se registra dónde se pierden, se propone
-un cambio acotado y se acepta solo si más agentes logran la tarea y sigue siendo igual de fácil cancelar o rechazar.
-Después **personaliza**: la *soul*, un archivo con las preferencias de la persona que nunca sale de su computador,
-ajusta la página encima de esas optimizaciones. Hoy funciona un prototipo que adapta el estilo de una página; la
-evaluación con agentes está planificada y aún no construida.
-
-El producto todavía no tiene nombre. Somos el equipo 36 de la hackatón, categoría Multiplayer.
-
-**Orden de lectura**
-
-1. Este documento: de dónde venimos, la idea y las piezas.
-2. [El plan](plan.md): qué hay que averiguar y qué hay que construir.
-3. [Glosario](glosario.md): para consultar un término.
-4. [Formas de datos](formas-de-datos.md): solo al programar.
-
-**Sobre el idioma.** Los documentos van en español. El código y los datos usan nombres en inglés; el glosario dice
-cuál corresponde a cada término. En el texto solo se dejan en inglés *soul*, *spike*, *PR* y *script*.
-
-## 1. De dónde venimos
-
-### Lo que ya funciona
-
-El prototipo es una extensión de Firefox. La persona escribe cómo quiere ver las páginas ("modo oscuro, texto más
-grande"). La extensión envía la estructura de la página a Claude, Claude devuelve una hoja de estilo y la extensión la
-aplica. El panel muestra una explicación de lo que cambió y permite ver la página original.
-
-El prototipo se retiró del repositorio en la PR #13 y queda en el historial de git. La extensión actual del proyecto
-es [Chameleon](../extension/README.md), que aplica temas por sitio con su servidor en `backend/`.
-
-"Claude" aquí es Claude Code, instalado en el computador de la persona y con su sesión iniciada. La extensión no
-puede hablar con él directamente; lo hace a través de un programa pequeño que llamamos **puente**.
-
-Una adaptación tardó 6,6, 8,7 y 9,7 segundos en las tres páginas medidas el 2026-11-21. La segunda visita a un sitio
-sale de la caché.
-
-### Lo que aprendimos
-
-- **Claude escribe el estilo sin ver el resultado.** Según las notas del prototipo, dejó un panel sin oscurecer y
-  unas tarjetas demasiado estrechas.
-- **No sabemos si un cambio ayuda o estorba.** Solo sabemos si a la persona le gusta.
-
-### Qué cambia respecto de `.specs/MVP.md`
-
-Ese documento propone más que el prototipo: un servidor central donde las personas comparten y valoran sus
-adaptaciones, un recomendador, el registro de cómo navega cada persona, y una validación con agentes de IA.
-
-Esta propuesta **toma la validación con agentes y la pone en el centro**, y **deja fuera, por ahora, el servidor
-central, las valoraciones y el recomendador**. La razón: hoy no podemos decir si una adaptación es buena, y compartir
-adaptaciones sin saberlo reparte el problema. Primero hay que poder medir.
-
-La consecuencia hay que decirla: **con esta propuesta, nada se comparte entre personas todavía.** Lo que una persona
-mide queda en su computador. Lo multiplayer pasa a ser el paso siguiente: compartir optimizaciones que ya traen su
-evidencia. Si el equipo necesita mostrar algo compartido en la hackatón, hay que decidirlo ahora; está en la lista de
-decisiones del [plan](plan.md).
-
-## 2. La idea
-
-```
-página que ve la persona = página original + optimizaciones + soul
-```
-
-- **Página original:** el sitio tal como lo sirve su dueño. No se toca; todo se aplica encima, en el navegador.
-- **Optimizaciones:** cambios que hacen que una tarea se complete mejor para cualquiera. Solo se aceptan si una
-  medición muestra que mejoran la tarea.
-- **Soul:** las preferencias de una persona. Ajusta la página a ella y nunca sale de su computador.
-
-### Un ejemplo
-
-Un formulario de inscripción tiene tres etapas. En la segunda hay dos botones que dicen "Continuar": uno avanza y el
-otro vuelve al inicio.
-
-1. **Se mide.** La persona pide evaluar el formulario. En su computador, veinte agentes de IA intentan inscribirse,
-   cada uno con una conducta distinta (uno impaciente, uno que lee todo). Solo seis lo logran. Sus recorridos
-   muestran que la mayoría se pierde en la segunda etapa.
-2. **Se propone un parche.** Renombrar el botón que avanza a "Siguiente paso" y darle más peso visual.
-3. **Se vuelve a medir.** Con el parche, quince de veinte lo logran. Además se comprueba una salvaguarda: cancelar la
-   inscripción sigue siendo igual de fácil. Un parche que mejora el número a costa de atrapar a la gente se rechaza.
-4. **Se acepta.** Eso es una optimización: sirve a cualquiera que quiera inscribirse.
-5. **Entra la soul.** Ana prefiere colores apagados y texto grande. Su soul ajusta la página a eso, encima de la
-   optimización.
-6. **Se comprueba para Ana.** Los colores apagados de Ana le quitan el peso visual al botón. Un agente con la soul de
-   Ana lo nota: el botón ya no destaca. Para ella, la optimización se reduce al nuevo nombre del botón, que su soul
-   no toca.
-
-**Por qué las dos cosas van juntas.** Una optimización es un promedio: funciona para la mayoría y puede fallarle a
-una persona concreta. La soul adapta la página a esa persona, y un agente con esa soul comprueba que la optimización
-le sigue sirviendo, sin esperar a tener usuarios reales.
-
-Los pasos 1 a 5 son lo que el plan intenta construir. El paso 6 queda para después.
-
-## 3. Las piezas
-
-Todo corre en el computador de la persona, con su propio Claude. No hay servidor.
+## Cómo funciona
 
 ```mermaid
 flowchart LR
-  WEB["Página original"]
-  subgraph PC["Computador de la persona"]
-    EXT["Extensión"]
-    PU["Puente"]
-    CL["Claude Code"]
-    SO[("Soul")]
-    AL[("Almacén local")]
-    EV["Evaluador"]
-    OP["Optimizador"]
-    MO["Motor de parches"]
-  end
-  WEB --> EXT
-  WEB --> EV
-  EXT -->|"aplica parches con"| MO
-  EV -->|"aplica parches con"| MO
-  EXT <--> PU
-  PU --> CL
-  PU <--> SO
-  PU <--> AL
-  EV --> CL
-  OP --> CL
-  EV -->|"guarda recorridos"| AL
-  OP -->|"guarda parches y resultados"| AL
+  P["Página"] --> R["Revisión<br/>(agentes en AWS)"]
+  R --> T["Tema<br/>tema.css + tema.json"]
+  T --> E["Extensión<br/>aplica el tema"]
+  R --> B["Backoffice<br/>muestra qué pasó"]
 ```
 
-| Pieza | Estado hoy |
+1. **Se pide la revisión de una página.** La API la anota y lanza a los agentes.
+2. **El Catalogador** lee la página y cataloga los objetivos que ofrece a un visitante («dar de baja la fibra»,
+   «consultar la tarifa del sábado»), clasificados.
+3. **La Guía** encuentra, para cada objetivo, la ruta de referencia: un camino que lo logra, verificado repitiéndolo.
+4. **El Visitante** lanza usuarios sintéticos que intentan el mismo objetivo viendo solo capturas de pantalla. Sus
+   recorridos se comparan con la ruta de la Guía: dónde se desvían es donde la página confunde.
+5. **El Diseñador** escribe el tema con esa evidencia: una hoja CSS y accesos directos a las tareas del sitio.
+6. **La extensión** consulta la revisión de cada página que visitas y, si hay un tema listo, lo aplica. Un
+   interruptor vuelve a la página original.
+
+El [backoffice](https://chameleonmode.app/backoffice/) muestra cada revisión: qué objetivos encontró, por dónde fue
+cada usuario sintético y qué tema quedó.
+
+## Las piezas
+
+| Pieza | Qué es | Dónde corre |
+|---|---|---|
+| [`extension/`](../extension/README.md) | Extensión de Firefox y Chrome que aplica el tema de cada página. | El navegador de la persona |
+| `backend/` | La API: dice qué tema corresponde a cada página y lanza las revisiones. | AWS Lambda, `api.chameleonmode.app` |
+| [`agents/app/cataloger/`](../agents/app/cataloger/README.md) | Catalogador: los objetivos de un sitio, clasificados. | AgentCore, o tu computador |
+| [`agents/app/guide/`](../agents/app/guide/README.md) | Guía: la ruta de referencia de un objetivo. | AgentCore, o tu computador |
+| [`agents/app/visitor/`](../agents/app/visitor/README.md) | Visitante: usuarios sintéticos que intentan un objetivo viendo solo capturas. | AgentCore, o tu computador |
+| [`agents/app/web_designer/`](../agents/app/web_designer/README.md) | Diseñador: escribe el tema. Su etapa se llama `improver`. | AgentCore, o tu computador |
+| [`agents/app/conductor/`](../agents/app/conductor/README.md) | Conductor: corre las etapas de una revisión en orden. | AgentCore, o tu computador |
+| [`agents/app/summary/`](../agents/app/summary/README.md) | Resumen de un sitio: la Guía contra el Visitante, por objetivo. No llama a Claude. | Tu computador |
+| [`agents/app/runtime/`](../agents/app/runtime/README.md) | La entrada del runtime `chameleon` de AgentCore. | AgentCore |
+| [`agents/shared/`](../agents/shared/README.md) | Lo que usan dos o más agentes: almacén, navegador, Claude, catálogo. | — |
+| [`backoffice/`](../backoffice/README.md) | Visor de solo lectura de las revisiones y las corridas de los agentes. | ECS Fargate, `chameleonmode.app/backoffice/` |
+| [`infra/`](../infra/README.md) | Terraform (API, almacén, tabla, backoffice) y el proyecto de AgentCore. | — |
+
+## Lo que no hace
+
+- **La extensión no pide revisiones.** Solo consulta las que existen; una página sin revisión queda tal cual. Las
+  revisiones se piden con `just aws revision <url>` o `just aws seed`.
+- **Los agentes no inician sesión ni completan trámites.** Un objetivo que termina en un pago o un envío se recorre
+  hasta el paso anterior, y el navegador cancela el envío de formularios POST o con contraseña. Los que piden
+  cuenta, datos personales o un captcha quedan fuera.
+- **No demuestra que una página sea más usable para personas.** Los usuarios sintéticos señalan dónde una página
+  confunde; no reemplazan una prueba con usuarios.
+
+## La documentación
+
+| Documento | Qué responde |
 |---|---|
-| Puente | Funciona en el prototipo. |
-| Extensión | El prototipo aplica una hoja de estilo, la explica y muestra la original. |
-| Soul | El prototipo guarda una sola instrucción escrita por la persona. |
-| Motor de parches | No existe. |
-| Evaluador | No existe. Hay dos bases: las pruebas del prototipo ya manejan un navegador sin ventana, y la PR #6 recorre tres tareas en sitios reales con pasos escritos a mano. |
-| Optimizador | No existe. |
-| Almacén local | No existe. |
+| [Arquitectura](arquitectura.md) | Cómo se conectan las piezas, el ciclo de una revisión y dónde queda cada dato. |
+| [Objetivos y métricas](objetivos-y-metricas.md) | Cómo se clasifica un objetivo y cómo se compara un intento con la ruta de referencia. |
+| [Glosario](glosario.md) | Los términos del proyecto y su nombre en el código. |
+| [Marca](marca/README.md) | El logo, los colores y sus reglas. |
+| [README de la raíz](../README.md) | Cómo levantar todo en tu computador. |
+| [Infraestructura](../infra/README.md) | Cómo llega un cambio a AWS y cómo se opera. |
 
-### Puente
+El detalle de cada pieza (opciones, archivos que escribe, pruebas) está en su propio README, enlazado en la tabla de
+arriba.
 
-Un programa en el computador de la persona. Recibe peticiones de la extensión, se las pasa a Claude Code y devuelve
-la respuesta. Ya rechaza las peticiones que vienen de una página web. Le falta un código de emparejamiento, para que
-tampoco lo pueda usar otro programa del mismo computador.
-
-### Extensión
-
-Lo que la persona instala y ve. Al cargar una página aplica lo guardado para ese sitio. Hoy explica la hoja de estilo
-que generó; con esta propuesta tendría que explicar además qué optimización está aplicada y sobre cuántos intentos
-se midió.
-
-### Soul
-
-Un archivo que la persona puede leer, corregir y borrar, con sus preferencias. De él sale, para cada sitio, un parche
-que solo cambia la presentación. También sirve para crear un agente que navega con esas preferencias.
-
-La llamamos soul porque reúne lo que hace que una página se sienta propia. No es la personalidad de un agente.
-
-### Motor de parches
-
-Un **parche** es una lista de cambios escritos como datos, no como código: "renombra este botón", "oculta este
-bloque", "cambia este color". El motor los aplica, los puede deshacer y hace después una **comprobación de
-seguridad**: los botones para salir, cancelar o rechazar siguen ahí y se pueden pulsar.
-
-Reemplaza la hoja de estilo libre del prototipo, que Claude escribe sin restricciones y que a veces rompía la página.
-
-Lo usan la extensión y el evaluador. Así, la optimización que miden los agentes es la misma que se le aplica a la
-persona. Lo que los agentes no ven es la soul de cada persona; de eso trata el paso 6 del ejemplo.
-
-### Evaluador
-
-Lanza agentes de IA que intentan una **tarea** en una página: inscribirse, encontrar un dato, completar un trámite.
-Cada agente recibe la página, elige una acción, la ejecuta y repite. El programa, y no el agente, decide si la tarea
-se logró.
-
-De todos los intentos sale un **grafo de navegación**: por qué etapas pasan los agentes, por dónde siguen y dónde
-abandonan.
-
-Qué recibe exactamente el agente (solo la estructura de la página, o también una captura) es lo primero que hay que
-averiguar. Como página de prueba hay tres candidatas en sitios chilenos reales (PR #6); el plan dice qué les falta.
-
-La evaluación la lanza la persona, en su computador, y gasta de su propio plan de Claude.
-
-### Optimizador
-
-Lee el grafo de navegación, propone parches y le pide al evaluador que los mida. Acepta un parche solo si mejora la
-tarea y no empeora una **salvaguarda**: una tarea contraria que debe seguir siendo igual de fácil, como cancelar o
-rechazar un extra. Una persona aprueba antes de que el parche quede activo.
-
-### Almacén local
-
-Archivos en el computador de la persona con las tareas, los parches, los recorridos y los resultados de cada sitio.
-La soul se guarda aparte y nunca se exporta.
-
-## 4. Lo que esto no es
-
-- No demuestra que una página sea más usable para personas. Los agentes señalan problemas candidatos; no reemplazan
-  una prueba con usuarios.
-- No actúa en sitios con sesión iniciada, pagos o consecuencias reales.
-- No comparte nada entre personas todavía.
-
-## 5. Qué sigue
-
-[El plan](plan.md) dice qué hay que averiguar primero y qué hay que construir.
-
-Material de apoyo: [investigación previa](investigacion-ui-adaptativa.md) sobre interfaces adaptativas y
-[referencias](referencias.md) de herramientas que podrían sumarse. Lo de los agentes está en [agents/](agents/README.md):
-el diseño del [evaluador](agents/evaluador.md), que usa una página solo a partir de capturas; la
-[arquitectura](agents/arquitectura.md), con los directorios y AgentCore; y los [niveles de cambio a una
-página](agents/niveles-de-cambio.md), del estilo a una interfaz nueva.
+**Sobre el idioma.** Los documentos van en español. En el código, los agentes y sus datos usan nombres en inglés
+(`goal`, `route`, `run`); la extensión, el backend y el backoffice, en español. El glosario dice cuál corresponde a
+cada término.

@@ -1,9 +1,9 @@
 # cataloger
 
 El **Catalogador** recorre un sitio leyendo el DOM y cataloga los **objetivos** que ofrece a un visitante, clasificados
-según [niveles de tarea](../../../docs/agents/niveles-de-tarea.md). Cada objetivo pasa después por la
+según [objetivos y métricas](../../../docs/objetivos-y-metricas.md). Cada objetivo pasa después por la
 [Guía](../guide/README.md) y por el [Visitante](../visitor/README.md). Dónde va cada pieza está en
-[arquitectura](../../../docs/agents/arquitectura.md).
+[arquitectura](../../../docs/arquitectura.md).
 
 ## Instalación
 

@@ -14,16 +14,17 @@ adelante). El color recorre el cuerpo como el **espectro**: así se ve que la in
 
 ## Archivos
 
+Los maestros están en [`chameleonmode-v1/sources/`](chameleonmode-v1/sources/); los PNG, en [`chameleonmode-v1/assets/`](chameleonmode-v1/assets/).
+
 | Archivo | Uso |
 |---|---|
 | `logo.svg` | Maestro a color sobre baldosa oscura. De 32 px hacia arriba. |
 | `logo-16.svg` | Versión de 16 px ajustada a la grilla (cola en gancho, ojo de 1 píxel). Solo para 16 px. |
 | `logo-mono-tinta.svg` | Una tinta `#1C1B22`, sin baldosa, para fondos claros. |
 | `logo-mono-blanco.svg` | Una tinta `#FBFBFE`, sin baldosa, para fondos oscuros. |
-| `logo-512.png` | PNG transparente para slides, AMO y redes. |
 
 Los íconos de la extensión están en `extension/src/icons/` (PNG 48/96/128 y los mono de la barra, `theme_icons`).
-El generador (geometría y espectro) vive fuera del repo; si hace falta un tamaño nuevo, se exporta desde `logo.svg`.
+El generador (geometría y espectro) vive fuera del repo; si hace falta un tamaño nuevo, se exporta desde `chameleonmode-v1/sources/logo.svg`.
 
 ## Colores
 

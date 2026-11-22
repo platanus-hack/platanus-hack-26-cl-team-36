@@ -1,6 +1,6 @@
 """Comparación de los intentos con la ruta de referencia que deja la Guía.
 
-Las métricas y sus fuentes están en docs/agents/niveles-de-tarea.md, sección 5.
+Las métricas y sus fuentes están en docs/objetivos-y-metricas.md.
 """
 
 import math
