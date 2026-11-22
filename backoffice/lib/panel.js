@@ -141,18 +141,28 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
   const leerFrescas = memorizar(async () => new Set(await idsDeTandas(fuente)), memoriaMs);
   let frescas = new Set();
 
+  // Las tandas que ya aparecieron en una lista. Una tanda listada es una corrida que terminó bien y no deja de serlo:
+  // no se vuelve a listar por ella (sin esto, cada captura pedida después de MEMORIA_MS costaba una pasada entera).
+  const confirmadas = new Set();
+
   /**
-   * ¿idsDeTandas de esta fuente lista la tanda? Mira la lista del índice (sin listar el almacén) y la última fresca; si
-   * el id no está en ninguna, una fresca que empezó después de la pregunta (compartida entre los que preguntan a la vez
-   * y guardada para los siguientes): una tanda recién terminada se sirve igual, antes del 404. Lo usan /archivos/ y
-   * /api/propuestas/ (servidor.js).
+   * ¿idsDeTandas de esta fuente lista la tanda? Una ya confirmada, sin leer nada. Si no, mira la lista del índice (sin
+   * listar el almacén) y la última fresca; si el id no está en ninguna, una fresca que empezó después de la pregunta
+   * (compartida entre los que preguntan a la vez y guardada para los siguientes): una tanda recién terminada se sirve
+   * igual, antes del 404. La que aparece en una lista queda confirmada. Lo usan /archivos/ y /api/propuestas/
+   * (servidor.js).
    * @param {string} id
    */
   async function esTandaListada(id) {
+    if (confirmadas.has(id)) return true;
     const pregunta = performance.now();
-    if ((await leerListadas()).has(id) || frescas.has(id)) return true;
-    frescas = await leerFrescas({ desde: pregunta });
-    return frescas.has(id);
+    let listada = (await leerListadas()).has(id) || frescas.has(id);
+    if (!listada) {
+      frescas = await leerFrescas({ desde: pregunta });
+      listada = frescas.has(id);
+    }
+    if (listada) confirmadas.add(id);
+    return listada;
   }
   const leerTabla = memorizar(async () => {
     const metas = (await revisiones.metas()).filter((meta) => meta?.SK === "META" && REVISION.test(idDe(meta)));
