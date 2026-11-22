@@ -22,7 +22,9 @@ INVOKERS = ("local", "agentcore")
 POLL_S = 5.0
 POLL_FIRST_S = 1.0
 POLL_GROWTH = 1.5
-IMPROVER_GRACE_S = 45.0
+# Un Visitante de `arana` tarda de 4 a 8 min y los objetivos terminan con minutos de diferencia: con menos margen la
+# mejora parte sin la mayoría de las tandas y la Propuesta de esas tandas queda vacía.
+IMPROVER_GRACE_S = 600.0
 # Segundos: el catálogo y la mejora abren una página; la Guía explora y verifica; el Visitante corre sus intentos.
 TIMEOUTS_S = {"catalog": 900.0, "guide": 1200.0, "visitor": 1800.0, "improver": 900.0}
 
