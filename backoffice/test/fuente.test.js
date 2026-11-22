@@ -92,7 +92,7 @@ let base;
 before(async () => {
   servidor = crearServidor({ fuente: crearFuenteFalsa(ARCHIVOS) });
   await new Promise((listo) => servidor.listen(0, "127.0.0.1", listo));
-  base = `http://127.0.0.1:${servidor.address().port}`;
+  base = `http://127.0.0.1:${servidor.address().port}/backoffice`;
 });
 after(() => servidor.close());
 

@@ -1,4 +1,5 @@
-# El backoffice (backoffice/) en ECS Fargate, público en https://<dominio>, detrás de un balanceador (ALB).
+# El backoffice (backoffice/) en ECS Fargate, público en https://<dominio>/backoffice/, detrás de un balanceador (ALB).
+# La raíz del dominio muestra una portada (backoffice/portada/) que no enlaza al backoffice.
 # Lee las corridas del almacén y las revisiones de su tabla (almacen.tf), con un rol de solo lectura.
 #
 # El DNS del dominio está en Cloudflare, no en AWS: el registro que valida el certificado y el que apunta el dominio
@@ -19,6 +20,7 @@ locals {
       fileset(local.backoffice_dir, "{Dockerfile,.dockerignore,package.json,package-lock.json,servidor.js}"),
       fileset(local.backoffice_dir, "lib/**"),
       fileset(local.backoffice_dir, "public/**"),
+      fileset(local.backoffice_dir, "portada/**"),
     ) : archivo if !endswith(archivo, ".DS_Store")
   ])
   backoffice_tag = substr(sha256(join("\n", [
