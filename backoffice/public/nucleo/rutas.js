@@ -2,7 +2,7 @@
 //
 //   #/                          Corridas   ?q= &sitio= &filtro= &orden= &vista=
 //   #/t/<tandaId>               → #/t/<tandaId>/telarana
-//   #/t/<tandaId>/<pestaña>     telarana · replay   (#/t/<tandaId>/resumen, de cuando existía, → telarana)
+//   #/t/<tandaId>/<pestaña>     telarana · replay · propuesta   (#/t/<tandaId>/resumen, de cuando existía, → telarana)
 //   #/revisiones                Revisiones (DynamoDB)
 //   #/revisiones/<revision>     el avance de una revisión
 //
@@ -11,7 +11,7 @@
 
 import { CORRIDA, REVISION, partesDeTanda } from "./almacen.js";
 
-export const PESTANAS = ["telarana", "replay"];
+export const PESTANAS = ["telarana", "replay", "propuesta"];
 export const PESTANA_POR_DEFECTO = "telarana";
 
 // Pestañas que ya no existen y adónde llevan sus enlaces viejos (sin sus parámetros).
@@ -21,6 +21,7 @@ const PESTANAS_RETIRADAS = { resumen: "telarana" };
 export const NOMBRES_DE_PESTANA = Object.freeze({
   telarana: "comun.pestana.telarana",
   replay: "comun.pestana.replay",
+  propuesta: "comun.pestana.propuesta",
 });
 
 
@@ -29,6 +30,7 @@ const ORDEN_DE_PARAMETROS = {
   corridas: ["q", "sitio", "filtro", "orden", "vista"],
   telarana: ["pagina"],
   replay: ["intento", "paso"],
+  propuesta: ["vista", "dispositivo"],
 };
 
 // Valores por defecto: no se escriben en el hash.

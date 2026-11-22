@@ -1,0 +1,14 @@
+{
+ "agent": "improver",
+ "host": "demo.cl",
+ "goal": null,
+ "viewport": null,
+ "run_id": "2026-11-21T10-30-00Z",
+ "started_at": "2026-11-21T10:30:00Z",
+ "status": "succeeded",
+ "model": "us.anthropic.claude-sonnet-4-6",
+ "inputs": ["demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z"],
+ "finished_at": "2026-11-21T10:31:02Z",
+ "schema_version": 1,
+ "revision": "demo-rev"
+}
