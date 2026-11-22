@@ -1,8 +1,10 @@
 """Lo que el motor necesita saber de un sitio: rasgos (para `auto`), marca, categorías, zonas y variantes.
 
-Hoy un sitio conocido trae su carpeta escrita a mano (`sitios/<id>/`: `sitio.json` y la estructura medida). Un sitio
-sin carpeta sale del mapa de la página: la marca del color de sus botones o enlaces, sin categorías ni zonas, y el
-motor compone con lo que no depende de ellas. Cuando el diagnóstico mida zonas y categorías, entran por aquí.
+Hoy un sitio conocido trae su carpeta escrita a mano (`sitios/<id>/`: `sitio.json`, `estructura.css` y sus
+variantes). Es CSS y selectores escritos por una persona, de ejemplo de lo que el diagnóstico deberá medir; no sale
+de ninguna medición. Un sitio sin carpeta sale del mapa de la página: la marca del color de sus botones o enlaces, sin
+categorías ni zonas, y el motor compone solo elegancia, kit, tokens y las recetas que no piden zonas. Cuando el
+diagnóstico mida zonas y categorías, entran por aquí.
 """
 
 import json
@@ -29,6 +31,8 @@ class Sitio:
     categorias: list[dict] = field(default_factory=list)
     """`{nombre, num, color: [l, c, h]}`: los colores con los que el sitio clasifica (las líneas en metro)."""
     lanzador_categorias: list[int] | None = None
+    vistas: dict[str, str] = field(default_factory=dict)
+    """Los ids de vista (`atajo`, `lanzador`) para los que está escrita la hoja del sitio, si no los pasa el improver."""
     zonas: dict[str, str] = field(default_factory=dict)
     """Selectores medidos por nombre (`nav`, `panel`, `pie`...): las recetas que los usan solo entran si existen."""
     heroes: list[str] = field(default_factory=list)
@@ -91,6 +95,7 @@ def rasgos_del_sitio(host: str, mapa: dict | None = None) -> Sitio:
             marca=datos.get("marca") or dict(MARCA_NEUTRA),
             categorias=datos.get("categorias") or [],
             lanzador_categorias=datos.get("lanzador_categorias"),
+            vistas=datos.get("vistas") or {},
             zonas=datos.get("zonas") or {},
             heroes=datos.get("heroes") or [],
             ordenes=datos.get("ordenes") or [],

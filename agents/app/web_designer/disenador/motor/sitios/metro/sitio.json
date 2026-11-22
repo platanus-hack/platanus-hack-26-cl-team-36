@@ -21,6 +21,7 @@
     { "nombre": "Línea 6", "num": "6", "color": [0.52, 0.18, 322] }
   ],
   "lanzador_categorias": [0, 1, 2, 3, 5, 6],
+  "vistas": { "atajo": "planificar", "lanzador": "tareas" },
   "campos_categoria": ["inicio", "fin"],
   "zonas": {
     "nav": "#menu .navbar > .container-fluid",

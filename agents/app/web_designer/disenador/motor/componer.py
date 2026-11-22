@@ -24,8 +24,10 @@ from disenador.motor.sitio import Sitio
 
 RAIZ = Path(__file__).parent
 DIRECCIONES = ("A", "B", "C")
-# Los ids con que el kit dibuja sus componentes (`data-mt-vista`); el improver pasa los que derivó.
-VISTAS = {"atajo": "planificar", "lanzador": "tareas"}
+# Los componentes del kit que el CSS nombra por su id (`{{v.atajo}}` → `data-mt-vista="<id>"`). Los ids los pasa el
+# improver (los de las vistas que derivó) o los trae el sitio (`vistas` en su `sitio.json`); uno que falta queda con
+# un id que no dibuja ninguna vista y sus reglas no aplican.
+COMPONENTES_KIT = ("atajo", "lanzador")
 # Los ajustes que no son rangos numéricos: eligen una variante del sitio.
 VARIANTES = {"hero": "heroes", "disposicion": "disposiciones", "orden": "ordenes"}
 PROBABILIDAD_MEZCLA = 0.45
@@ -429,7 +431,7 @@ def componer(sitio: Sitio, direccion: str = "auto", semilla: int = 1, ajustes: d
     """`ajustes`: los del modelo (`{"tipo.escala": 1.3, "hero": "ocultar", "recetas": {"agregar": [...],
     "quitar": [...]}}`); `vistas`: los ids de los componentes del kit; `ocultar`: `(vista, selector)` de los bloques
     que reemplazan."""
-    vistas = {**VISTAS, **(vistas or {})}
+    vistas = {**{c: f"mt-sin-{c}" for c in COMPONENTES_KIT}, **sitio.vistas, **(vistas or {})}
     dirs, meta = direcciones(), recetas_meta()
     if direccion != "auto" and direccion not in dirs:
         raise ErrorDeComposicion(f"dirección desconocida: {direccion}")

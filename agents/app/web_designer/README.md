@@ -68,6 +68,10 @@ Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitant
 | `disenador/tema_json.py` | Arma el `tema.json` con la microcopia del modelo y lo valida contra su esquema. |
 | `disenador/motor/` | Motor de direcciones de arte: `componer(rasgos_del_sitio(host, mapa), direccion, semilla, ajustes)` da `tema.css` (elegancia + tokens + kit + estructura del sitio + recetas, saneado) con la paleta verificada AA; direcciones, recetas y sitios conocidos son archivos de datos. |
 
+`disenador/motor/sitios/metro/` (`sitio.json`, `estructura.css` y sus variantes) es CSS y selectores **escritos a
+mano**, de ejemplo de lo que el diagnóstico deberá medir (zonas, categorías, variantes); no sale de ninguna medición.
+Un sitio nuevo, sin carpeta, recibe solo elegancia, kit, tokens (con la marca del mapa) y las recetas que no piden zonas.
+
 Por cada caso:
 
 1. **Mapa.** Abre la página en Chromium a 1280x800 y arma el mapa: landmarks, encabezados, contenedores grandes
