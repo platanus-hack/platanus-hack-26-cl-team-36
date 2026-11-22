@@ -80,11 +80,11 @@ def test_order_selection_and_payloads(backend):
     invoker = FakeInvoker(backend, goals)
     report = conduct(backend, invoker, goals_max=3, concurrency=1, profiles="first_time", runs=2)
     assert report["status"] == "succeeded" and report["error"] is None
-    assert invoker.calls == [("catalog", None), ("guide", "a"), ("visitor", "a"), ("guide", "c"), ("visitor", "c"),
-                             ("guide", "b"), ("visitor", "b"), ("improver", None)]
+    assert invoker.calls == [("catalog", None), ("guide", "b"), ("visitor", "b"), ("guide", "f"), ("visitor", "f"),
+                             ("guide", "c"), ("visitor", "c"), ("improver", None)]
     assert invoker.payloads[0] == {"url": URL, "revision": REVISION}
-    assert invoker.payloads[2] == {"url": URL, "revision": REVISION, "goal": "a", "profiles": "first_time", "runs": 2}
-    assert [entry["id"] for entry in report["goals"]] == ["a", "c", "b"]
+    assert invoker.payloads[2] == {"url": URL, "revision": REVISION, "goal": "b", "profiles": "first_time", "runs": 2}
+    assert [entry["id"] for entry in report["goals"]] == ["b", "f", "c"]
     assert all(entry["visitor"]["status"] == "succeeded" for entry in report["goals"])
     assert report["stages"]["improver"]["run"].startswith("sitio.cl/improver/")
 

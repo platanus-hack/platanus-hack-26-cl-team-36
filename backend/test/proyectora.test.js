@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { claveDeEvento, crearProyectora, goalsElegidos } from "../proyectora.js";
 import { claveRevision } from "../estados.js";
 import { almacenFalso, tablaFalsa } from "./fakes.js";
@@ -36,9 +37,27 @@ function escenario({ goalsMax = 3 } = {}) {
   return { db, almacen, proyectar, evento, item: (SK) => db.item(claveRevision(REV, SK)) };
 }
 
-test("goalsElegidos: sin barreras ni otros niveles, los escondidos primero, hasta goals_max", () => {
-  assert.deepEqual(goalsElegidos(GOALS.goals, 3), ["buscar-precio", "ver-contacto"]);
-  assert.deepEqual(goalsElegidos(GOALS.goals, 1), ["buscar-precio"]);
+test("goalsElegidos: sin barreras ni otros niveles, los más prominentes primero, hasta goals_max", () => {
+  assert.deepEqual(goalsElegidos(GOALS.goals, 3), ["ver-contacto", "buscar-precio"]);
+  assert.deepEqual(goalsElegidos(GOALS.goals, 1), ["ver-contacto"]);
+});
+
+test("goalsElegidos: los que salen del sitio o tienen barreras van al final", () => {
+  const goals = [
+    goal("fuera", { start_url: "https://www.ejemplo.cl/", entry: "https://otro.cl/x" }),
+    goal("escondido", { prominence: "buried", start_url: "https://www.ejemplo.cl/", entry: "/ayuda" }),
+    goal("con-efecto", { gates: ["side_effect"] }),
+    goal("secundario", { prominence: "secondary", start_url: "https://www.ejemplo.cl/", entry: "https://pagos.ejemplo.cl/" }),
+    goal("principal"),
+  ];
+  assert.deepEqual(goalsElegidos(goals, 10), ["principal", "secundario", "escondido", "con-efecto", "fuera"]);
+});
+
+test("goalsElegidos elige lo mismo que el conductor ante un catálogo real", () => {
+  // agents/shared/tests/test_catalog.py lee el mismo archivo y espera lo mismo.
+  const catalogo = JSON.parse(readFileSync(new URL("../../agents/shared/tests/data/catalogo-metro.json", import.meta.url)));
+  assert.deepEqual(goalsElegidos(catalogo.goals, catalogo.goals_max), catalogo.expected);
+  assert.deepEqual(goalsElegidos(catalogo.goals, Infinity), catalogo.expected_all);
 });
 
 test("ignora manifiestos sin revisión y claves que no son manifiestos", async () => {

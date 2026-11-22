@@ -7,7 +7,7 @@ from typing import Any
 
 from shared import store
 from shared.catalog.files import read_catalog
-from shared.catalog.goal import routable
+from shared.catalog.goal import for_revision
 
 from conductor import config
 from conductor.invokers import Invoker, Outcome
@@ -28,9 +28,9 @@ class Options:
 
 
 def selected_goals(backend: store.Backend, catalog_run: str, goals_max: int) -> list[str]:
-    """Los evaluables del catálogo con el criterio y el orden de `routable` (el mismo de la proyectora)."""
+    """Los evaluables del catálogo con el criterio y el orden de `for_revision` (el mismo de la proyectora)."""
     goals = read_catalog(backend, store.parse_key(catalog_run).run)[1]
-    return [goal.id for goal in routable(goals, goals_max)]
+    return [goal.id for goal in for_revision(goals, goals_max)]
 
 
 def route_verified(backend: store.Backend, guide: Outcome) -> bool:
