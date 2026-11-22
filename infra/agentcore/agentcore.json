@@ -12,7 +12,7 @@
       "protocol": "HTTP",
       "lifecycleConfiguration": {
         "idleRuntimeSessionTimeout": 900,
-        "maxLifetime": 3600
+        "maxLifetime": 28800
       },
       "connections": [
         {

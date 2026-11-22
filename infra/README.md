@@ -43,12 +43,15 @@ abajo).
 - `bootstrap/`: lo que debe existir antes de que Actions pueda correr Terraform: el bucket del estado, la entrada de
   GitHub a AWS por OIDC (sin llaves guardadas), el rol que asume el workflow y una alerta de presupuesto. Se aplica
   una vez, a mano, y su estado queda en el computador de quien lo aplicó.
-- `app/`: la Lambda, su URL, su rol y su log. Su estado vive en el bucket.
+- `app/`: la Lambda, su URL, su rol y su log; el almacén de los agentes (bucket `chameleon-almacen-<cuenta>`,
+  privado) y la tabla `chameleon-revisiones` (DynamoDB, `PK`/`SK`). Su estado vive en el bucket del estado.
 - `agentcore/`: el Visitante en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime
   `web_evaluator_image`, con su código en `../agents/app/visitor/` y `../agents/` como contexto de la imagen, para que
   entre `../agents/shared/`; `agentcore/cdk/` es el stack que la CLI genera. El runtime se llama así porque AgentCore no
   deja pasar un runtime de zip a imagen: el anterior, `web_evaluator`, era de zip y se reemplazó.
+  `agentcore/cdk/lib/cdk-stack.ts` le da al runtime `AGENTS_STORE=s3://chameleon-almacen-<cuenta>/`, lectura y
+  escritura en ese bucket (lo crea Terraform) y permiso para invocar runtimes de la cuenta (el conductor).
   `agentcore/.cli/deployed-state.json` enlaza el proyecto con lo desplegado. `agentcore/aws-targets.json` queda con el
   id de la cuenta después de desplegar desde un computador: no lo subas, el repo es público.
 - `justfile`: `just aws`, los comandos del Visitante en AgentCore (`visit`, `deploy`, `status`, `logs`).
