@@ -80,7 +80,8 @@ _LISTA_DE_RECETAS = {"type": "array", "items": {"enum": list(recetas_meta())}}
 ESQUEMA_MOTOR = {
     "type": "object",
     "properties": {
-        "direccion": {"enum": [*DIRECCIONES, "auto"]},
+        "direccion": {"enum": ["auto", *DIRECCIONES],
+                      "description": "`auto` salvo una razón fuerte del sitio para fijar una."},
         "semilla": {"type": "integer", "minimum": 1, "maximum": 2_147_483_647},
         "ajustes": {
             "type": "object",
@@ -124,9 +125,12 @@ def contrato_motor() -> str:
 
 No escribes CSS: eliges una dirección de arte y el código compone el tema, lo sanea y verifica el contraste AA.
 Respondes solo el JSON pedido, con:
-- `direccion`: una de estas, o `auto` para que el código la elija según los rasgos del sitio:
+- `direccion`: `auto` por omisión: el código la elige con los rasgos medidos de este sitio (en el diagnóstico,
+  `sitio`, con la probabilidad de cada una) y una semilla propia de la página, así cada sitio tiene su carácter.
+  Fija una de estas solo si el sitio da una razón fuerte que los rasgos no ven (un sitio de noche, una marca que ya
+  es oscura o un mosaico de colores); "legible" o "buen contraste" no es razón: las tres pasan AA.
 {_direcciones_para_el_modelo()}
-- `semilla`: un entero ≥ 1; la misma semilla da el mismo tema, otra semilla otra variante dentro de la dirección.
+- `semilla`: un entero ≥ 1; se combina con la de la página: otra semilla da otra variante dentro de la dirección.
 - `ajustes`: opcional, para acercar el tema a los gustos. Un número fija ese parámetro dentro del rango de la
   dirección (fuera del rango se recorta); `hero`, `disposicion` y `orden` eligen una variante del sitio, si la tiene;
   `recetas.agregar` y `recetas.quitar` suman o sacan bloques: {recetas}. Una receta que no calza con la dirección

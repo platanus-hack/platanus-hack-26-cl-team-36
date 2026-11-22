@@ -3,7 +3,8 @@
 Lee del almacén las corridas de la misma `revision` (nunca "la última"): el catálogo (`goals.json`), la ruta de
 escritorio de cada objetivo (`route.json`) y la tanda del Visitante (`comparison.json` y `<perfil>/run.json`). Escribe
 `<host>/improver/<run>/` con `tema.css` (saneado), `tema.json` (los componentes del kit, validados), `atajos.json` (lo
-que se derivó de las rutas, sin modelo), `diagnostico.json` (lo que recibió el modelo además del mapa), `vistas/*.png`
+que se derivó de las rutas, sin modelo), `diagnostico.json` (lo que recibió el modelo además del mapa, con los rasgos
+y zonas medidos del sitio), `informe.json` (la composición y la medida completa de `zonas.medir`), `vistas/*.png`
 (la página antes y después del kit, en escritorio y móvil) y `mejora.json` (el resumen usado, lo que decidió el modelo
 y, si salieron las capturas, `vistas`).
 """
@@ -11,6 +12,7 @@ y, si salieron las capturas, `vistas`).
 import asyncio
 import json
 import re
+import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,7 +22,7 @@ from shared.browser.theme import describir_kit
 from shared.catalog.files import read_catalog
 from shared.nodes.urls import node_key
 
-from disenador import atajos, config, mapa, motor, pagina, tema_json
+from disenador import atajos, config, mapa, motor, pagina, tema_json, zonas
 from disenador.corrida import TemaRechazado
 from disenador.css import sanear
 from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR, Skill, mensaje_de_diseno, prompt_de_sistema
@@ -275,8 +277,15 @@ async def _existe(page, selector: str) -> bool:
         return False
 
 
-def diagnostico(resumen: dict, kit: dict) -> dict:
-    """Lo que el modelo recibe además del mapa: por qué no llegaron, qué sortearon y los componentes propuestos."""
+def sitio_para_el_modelo(sitio: motor.Sitio) -> dict:
+    """Lo medido del sitio que orienta la dirección: rasgos, zonas y la probabilidad de cada dirección en `auto`."""
+    return {"carpeta": sitio.carpeta is not None, "rasgos": sitio.rasgos, "zonas": sorted(sitio.zonas),
+            "auto": motor.probabilidades_auto(sitio)}
+
+
+def diagnostico(resumen: dict, kit: dict, sitio: motor.Sitio | None = None) -> dict:
+    """Lo que el modelo recibe además del mapa: por qué no llegaron, qué sortearon, los componentes propuestos y, con
+    `sitio`, lo medido del sitio."""
     mensajes, obstaculos = [], []
     for objetivo in resumen["objetivos"]:
         mensajes += [{"objetivo": objetivo["id"], "perfil": v["perfil"], "llego": v["llego"], "mensaje": v["por_que"]}
@@ -284,8 +293,11 @@ def diagnostico(resumen: dict, kit: dict) -> dict:
         obstaculos += [{"objetivo": objetivo["id"], "paso": paso}
                        for paso in (objetivo["ruta"] or {}).get("obstaculos") or []]
     componentes = [a["vista"] for a in kit["atajos"]] + [v for v in (kit["lanzador"], kit["buscador"]) if v]
-    return {"viewport": config.REVISION, "mensajes_visitante": mensajes, "obstaculos": obstaculos,
+    diag = {"viewport": config.REVISION, "mensajes_visitante": mensajes, "obstaculos": obstaculos,
             "componentes": componentes, "sin_atajo": kit["descartes"]}
+    if sitio is not None:
+        diag["sitio"] = sitio_para_el_modelo(sitio)
+    return diag
 
 
 async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[dict]:
@@ -328,16 +340,27 @@ async def _ocultar(page, url: str, vistas: list[dict]) -> list[tuple[str, str]]:
     return pares
 
 
-def _pedido(datos: dict) -> dict:
+def semilla_de_pagina(semilla: int, pagina: str) -> int:
+    """La semilla del modelo mezclada con la de la página (revisión y URL): determinista, pero distinta por página
+    aunque el modelo repita siempre la misma."""
+    return ((zlib.crc32(pagina.encode()) ^ (semilla * 2654435761)) & 0x7FFFFFFF) or 1
+
+
+def _pedido(datos: dict, pagina: str | None = None) -> dict:
     """La elección del modelo. La semilla queda entera y ≥ 1 aunque llegue como texto o decimal ("3.7" o 3.7 → 3);
-    lo que no es un número finito, 1."""
+    lo que no es un número finito, 1. Con `pagina`, la semilla que se compone es la mezclada (`semilla_de_pagina`) y
+    la del modelo queda en `semilla_modelo`."""
     try:
         semilla = max(1, int(float(datos.get("semilla") or 1)))
     except (TypeError, ValueError, OverflowError):
         semilla = 1
+    extra = {}
+    if pagina:
+        extra = {"semilla_modelo": semilla}
+        semilla = semilla_de_pagina(semilla, pagina)
     ajustes = datos.get("ajustes") if isinstance(datos.get("ajustes"), dict) else {}
     return {"direccion": str(datos.get("direccion") or "auto"), "semilla": semilla, "ajustes": ajustes,
-            "motivo": datos.get("motivo")}
+            "motivo": datos.get("motivo"), **extra}
 
 
 def _componer(sitio: motor.Sitio, pedido: dict, vistas: list[dict], ocultar: list[tuple[str, str]]) -> motor.Tema:
@@ -390,11 +413,19 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                 contexto, page = await pagina.abrir(browser, url, "revision")
                 try:
                     datos_mapa, captura = await mapa.construir_mapa(page), await pagina.capturar(page)
+                    try:
+                        medida = await zonas.medir(page)
+                    except Exception as error:  # sin medida, el sitio sale solo del mapa
+                        medida = None
+                        informe["medida"] = f"sin medida: {type(error).__name__}: {error}"[:300]
+                    sitio = motor.rasgos_del_sitio(store.normalize_host(url), datos_mapa, medida)
+                    if medida is not None:
+                        informe["medida"] = medida
                     titulo = _corto(await page.title(), 300)
                     tasas = {o["id"]: o["tasa_llegada"] for o in resumen["objetivos"]}
                     kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url, tasas, leida.catalogo)
                     _escribir_json(run.workdir / "atajos.json", kit)
-                    diag = diagnostico(resumen, kit)
+                    diag = diagnostico(resumen, kit, sitio)
                     _escribir_json(run.workdir / "diagnostico.json", diag)
                     texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"],
                                               mapa.como_texto(datos_mapa), config.REVISION,
@@ -414,11 +445,10 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                 informe["sin_traduccion"] = tema_json.sin_traduccion(vistas)
                 css = None
                 if con_motor:
-                    pedido = _pedido(respuesta.datos)
+                    pedido = _pedido(respuesta.datos, f"{revision} {url}")
                     salida.update(pedido=pedido, resumen_tema=pedido["motivo"])
                     try:
-                        compuesto = _componer(motor.rasgos_del_sitio(store.normalize_host(url), datos_mapa), pedido,
-                                              vistas, ocultar)
+                        compuesto = _componer(sitio, pedido, vistas, ocultar)
                         css = compuesto.css
                         informe.update(compuesto.informe, modo="motor", pedido=pedido)
                     except Exception as error:
