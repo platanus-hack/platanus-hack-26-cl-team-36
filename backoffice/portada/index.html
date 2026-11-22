@@ -240,11 +240,15 @@
               <span>Download the .xpi</span>
             </a>
             <ol class="descarga-pasos">
-              <li data-i18n-html="firefox.paso1">Firefox says it blocked the site from installing software: click <em>Continue to Installation</em>.</li>
+              <li data-i18n-html="firefox.paso1">Open this page in Firefox and click <em>Download the .xpi</em>. Firefox says it blocked the site from installing software: click <em>Continue to Installation</em>.</li>
               <li data-i18n-html="firefox.paso2">It asks to access your data on all websites: click <em>Add</em>.</li>
               <li data-i18n-html="firefox.paso3">Pin it to the toolbar from the extensions menu (the puzzle piece): its icon turns the theme on and off.</li>
             </ol>
-            <p class="descarga-ayuda" data-i18n="firefox.ayuda">Requires Firefox 140 or later. If it downloads as a file, drag it onto a Firefox window.</p>
+            <p class="descarga-ayuda" data-i18n-html="firefox.ayuda">
+              Requires Firefox 140 or later. Double-clicking the .xpi file won't install it: if you already downloaded it,
+              drag it onto a Firefox window, or open <code>about:addons</code>, click the gear icon and choose
+              <em>Install Add-on From File…</em>
+            </p>
           </article>
 
           <article class="descarga" data-navegador="chrome">

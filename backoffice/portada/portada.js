@@ -77,10 +77,12 @@ const ES = {
   "descargar.titulo": "Instala Chameleon en tu navegador",
   "descargar.bajada":
     "Chameleon todavía no está en las tiendas de los navegadores, así que se instala desde aquí. La versión de Firefox está firmada por Mozilla; la de Chrome se carga en modo de desarrollador. Cada una toma más o menos un minuto.",
-  "firefox.paso1": "Firefox avisa que bloqueó al sitio para instalar software: aprieta <em>Continuar con la instalación</em>.",
+  "firefox.paso1":
+    "Abre esta página en Firefox y aprieta <em>Descargar el .xpi</em>. Firefox avisa que bloqueó al sitio para instalar software: aprieta <em>Continuar con la instalación</em>.",
   "firefox.paso2": "Pide acceso a tus datos en todos los sitios: aprieta <em>Añadir</em>.",
   "firefox.paso3": "Fíjala en la barra desde el menú de extensiones (la pieza de puzzle): su ícono enciende y apaga el tema.",
-  "firefox.ayuda": "Necesita Firefox 140 o superior. Si se descarga como archivo, arrástralo a una ventana de Firefox.",
+  "firefox.ayuda":
+    "Necesita Firefox 140 o superior. Hacer doble clic en el archivo .xpi no lo instala: si ya lo descargaste, arrástralo a una ventana de Firefox, o abre <code>about:addons</code>, aprieta el engranaje y elige <em>Instalar complemento desde archivo…</em>",
   "chrome.paso1": "Descomprime el .zip en una carpeta que no vayas a borrar.",
   "chrome.paso2": "Abre <code>chrome://extensions</code> y activa <em>Modo de desarrollador</em>.",
   "chrome.paso3": "Aprieta <em>Cargar descomprimida</em> y elige esa carpeta.",
