@@ -17,7 +17,8 @@ const LINEAS_DE_NOMBRE = { bajo: 2, medio: 3 };
 // Medidas de telarana.css que deciden cuánto alto pide una estación en pantalla (si cambian allá, cambian acá):
 // el botón sube 9 px (translate), el punto mide 18 px y se agranda a 0.8/k; la etiqueta va 6 px debajo del punto,
 // con 2 px de relleno arriba y abajo, líneas de 16 px y se agranda a 0.9/k; la marca de atasco asoma 8 px sobre el
-// punto (y queda a su derecha, encima del nombre de la estación de arriba si no hay lugar).
+// punto (y queda a su derecha, encima del nombre de la estación de arriba si no hay lugar). La etiqueta mide a lo
+// más min(180 px, 222 px·k) de ancho.
 const ESTACION = {
   subida: 9,
   punto: 18,
@@ -27,6 +28,8 @@ const ESTACION = {
   atascoSobreElPunto: 8,
   puntoMinimo: 0.8,
   etiquetaMinima: 0.9,
+  anchoDeEtiqueta: 180,
+  anchoPorZoom: 222,
 };
 
 /**
@@ -43,15 +46,16 @@ export function cabeLaEtiqueta(k, altoFila) {
   return arribaDeLaEtiqueta + etiqueta + 1 <= altoFila * k - deLaVecina;
 }
 
-/** Alto mínimo del lienzo de la telaraña (px): por debajo, se desplaza la página en vez de achicarlo más. */
-export const ALTO_MINIMO_DEL_LIENZO = 320;
-
-/**
- * Alto del lienzo (px) para que quepa en la ventana: lo que queda bajo su borde de arriba (`arriba`, medido con la
- * página sin desplazar) menos un margen, nunca menos que ALTO_MINIMO_DEL_LIENZO.
- */
-export function altoDelLienzo(ventana, arriba, margen = 16) {
-  return Math.max(ALTO_MINIMO_DEL_LIENZO, Math.floor(ventana - arriba - margen));
+/** Caja del nombre de una estación respecto de su punto, en px de escena, viéndola con el zoom k. */
+export function cajaDeEtiqueta(k) {
+  const zoom = acotar(k, ZOOM_MINIMO, ZOOM_MAXIMO);
+  const escala = Math.max(1, ESTACION.etiquetaMinima / zoom);
+  const lineas = LINEAS_DE_NOMBRE[detalleDeZoom(zoom)] ?? LINEAS_DE_NOMBRE.medio;
+  return {
+    ancho: Math.round(Math.min(ESTACION.anchoDeEtiqueta, ESTACION.anchoPorZoom * zoom) * escala),
+    alto: Math.round((lineas * ESTACION.linea + ESTACION.relleno) * escala),
+    arriba: ESTACION.punto - ESTACION.subida + ESTACION.separacion,
+  };
 }
 
 /** El menor zoom (de a 0.01) desde el que los nombres caben en su fila: el ajuste a la vista no aleja más que esto. */

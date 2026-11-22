@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ALTO_MINIMO_DEL_LIENZO, ZOOM_MAXIMO, ZOOM_MINIMO, altoDeFilaPara, altoDelLienzo, cabeLaEtiqueta, detalleDeZoom, zoomLegible } from "../public/telarana/camara.js";
+import { ZOOM_MAXIMO, ZOOM_MINIMO, altoDeFilaPara, cabeLaEtiqueta, detalleDeZoom, zoomLegible } from "../public/telarana/camara.js";
 import { ALTO_FILA } from "../public/telarana/distribuir.js";
 
 const zooms = (desde, hasta) => {
@@ -57,18 +57,4 @@ test("las medidas de cabeLaEtiqueta son las de telarana.css", () => {
   // La marca de atasco: ancho propio (en Firefox se encogía a una raya sin ícono) y el ícono no se encoge.
   assert.match(css, /\.estacion-atasco \{ width: max-content; \}/);
   assert.match(css, /\.estacion-atasco svg \{ flex: none;/);
-});
-
-test("altoDelLienzo: llena lo que queda de la ventana bajo el lienzo, con un mínimo", () => {
-  // Firefox a 1440×900: la ventana mide ~815 px; con el lienzo a 290 px queda de 509 px y termina 16 px sobre el borde.
-  assert.equal(altoDelLienzo(815, 290), 509);
-  assert.ok(290 + altoDelLienzo(815, 290) <= 815);
-  assert.equal(altoDelLienzo(683, 250.6), 416, "redondea hacia abajo: nunca se pasa del borde");
-  // Sin lugar (teléfono con la cabecera alta): el mínimo, y se desplaza la página.
-  assert.equal(altoDelLienzo(500, 400), ALTO_MINIMO_DEL_LIENZO);
-  assert.equal(ALTO_MINIMO_DEL_LIENZO, 320);
-  // La hoja de estilos usa ese alto en el lienzo y en el panel lateral.
-  const css = readFileSync(new URL("../public/estilos/telarana.css", import.meta.url), "utf8");
-  assert.match(css, /\.lienzo \{[^}]*height: var\(--alto-del-lienzo/);
-  assert.match(css, /\.panel-telarana \{ max-height: var\(--alto-del-lienzo/);
 });

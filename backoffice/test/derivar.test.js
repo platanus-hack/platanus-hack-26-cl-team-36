@@ -639,6 +639,6 @@ test("grosor de un tramo = intentos distintos que lo tomaron, no las pasadas (C4
   assert.equal(rama.pasadas, 43);
   assert.deepEqual(rama.acciones.map((a) => [a.accion, a.intentos, a.pasadas]), [["clic «Ayuda»", 4, 21], ["clic «Buscar»", 4, 22]].sort((p, q) => q[2] - p[2]));
   assert.equal(anchoDeTramo({ tipo: "avance", intentos: rama.intentos }), 1.5 + 1.25 * 8, "como un tramo que tomaron los 8");
-  // Los secundarios siguen con su tope de 3 px.
-  assert.equal(anchoDeTramo({ tipo: "retroceso", intentos: rama.intentos }), 3);
+  // Los secundarios, más finos: 1.25 + 0.5·intentos.
+  assert.equal(anchoDeTramo({ tipo: "retroceso", intentos: rama.intentos }), 1.25 + 0.5 * 8);
 });
