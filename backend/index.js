@@ -59,7 +59,7 @@ function revisiones() {
 
 // POST /revisiones  { "url": "<url completa>", "force"?: true }  (force: revisión nueva si la anterior terminó)
 // GET  /revisiones?url=<url>
-//   202 { success: true, revision, status: "queued" }       → página nueva o revisión anterior failed, revisión disparada
+//   202 { success: true, revision, status: "queued" }       → página nueva o anterior failed/abandonada (>1 h), disparada
 //   429 { success: false, error: "..." }                    → POST con REVISIONES_EN_CURSO_MAX (5) revisiones en curso
 //   200 { success: true, revision, status, css? }           → ya vista; css cuando status es "done"
 //   404 { success: false }                                  → GET de una página no vista

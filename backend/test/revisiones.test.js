@@ -102,6 +102,26 @@ test("POST sin force de una página cuya revisión falló: 202 con una revisión
   assert.deepEqual(agentes.invocaciones.map((p) => p.revision), ["rev-1", "rev-2"]);
 });
 
+test("dos POST simultáneos sobre una página fallida crean una sola revisión", async () => {
+  const { db, agentes, api } = escenario();
+  await api.solicitar(URL_PAGINA);
+  await db.actualizar(claveRevision("rev-1"), { status: "failed" });
+  const respuestas = await Promise.all([api.solicitar(URL_PAGINA), api.solicitar(URL_PAGINA)]);
+  assert.deepEqual(respuestas.map((r) => r.datos.revision), ["rev-2", "rev-2"]);
+  assert.deepEqual(agentes.invocaciones.map((p) => p.revision), ["rev-1", "rev-2"]);
+});
+
+test("una revisión en curso sin novedades hace más de una hora se reemplaza; una reciente no", async () => {
+  const { db, agentes, api } = escenario();
+  await api.solicitar(URL_PAGINA);
+  await db.actualizar(claveRevision("rev-1"), { status: "running", updated_at: "2026-11-21T11:00:00.000Z" });
+  assert.equal((await api.solicitar(URL_PAGINA)).estado, 200);
+  await db.actualizar(claveRevision("rev-1"), { updated_at: "2026-11-21T10:59:59.000Z" });
+  assert.deepEqual(await api.solicitar(URL_PAGINA), { estado: 202, datos: { success: true, revision: "rev-2", status: "queued" } });
+  assert.equal((await api.consultar(URL_PAGINA)).datos.revision, "rev-2");
+  assert.equal(agentes.invocaciones.length, 2);
+});
+
 test("con el tope de revisiones en curso: 429 sin crear nada", async () => {
   const { db, agentes, api } = escenario({ maxEnCurso: 2 });
   await api.solicitar("https://a.cl/");
@@ -149,7 +169,7 @@ test("si otra solicitud ganó la carrera, responde con su revisión", async () =
     if (primera) {
       primera = false;
       await db.registrar([{ item: { ...claveUrl(NORMALIZADA), revision: "otra" }, reemplaza: null }]);
-      await db.registrar([{ item: { ...claveRevision("otra"), status: "queued" }, reemplaza: null }]);
+      await db.registrar([{ item: { ...claveRevision("otra"), status: "queued", updated_at: AHORA }, reemplaza: null }]);
       return null;
     }
     return obtener(clave);
