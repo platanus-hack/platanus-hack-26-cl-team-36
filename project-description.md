@@ -13,9 +13,14 @@ página original.
 
 ## Cómo decide qué cambiar
 
-Antes de tocar un sitio, agentes de IA lo estudian. Descubren qué viene a hacer la gente en él, encuentran el camino
-más corto para lograrlo y lanzan usuarios sintéticos con distintos perfiles que lo intentan como lo haría una persona.
-Los puntos donde se pierden muestran qué hay que cambiar, y con esa evidencia se genera el tema.
+Antes de tocar un sitio, agentes de IA lo estudian:
+
+- un **Catalogador** descubre qué viene a hacer la gente en él;
+- una **Guía** encuentra y verifica el camino para lograrlo;
+- un **Visitante**, un usuario sintético que solo ve la pantalla, lo intenta como lo haría una persona;
+- un **Diseñador** escribe el tema con la evidencia de dónde se perdió.
+
+Todo corre en paralelo en la nube, y se puede ver a los agentes trabajar mientras recorren el sitio.
 
 ## Multiplayer
 
