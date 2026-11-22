@@ -38,7 +38,7 @@ export default {
   verTema: "View tema.css",
   abrirTanda: "Open batch",
   verEnVivo: "Watch live",
-  verEnVivoDe: "Watch «{goal}» live",
+  verEnVivoDe: "Watch live: {goal}",
   etapa: {
     catalogo: "Catalog",
     goals: "Goals",
