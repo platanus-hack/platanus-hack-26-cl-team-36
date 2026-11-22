@@ -6,8 +6,10 @@ El payload es el mismo del runtime: `{"stage", "revision", "url", ...}`. Nadie m
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, get_args
+from urllib.parse import urlsplit
 
 from shared import store
+from shared.store.keys import validate_profile
 
 Stage = Literal["revision", "catalog", "guide", "visitor", "improver"]
 STAGES: tuple[Stage, ...] = get_args(Stage)
@@ -28,7 +30,9 @@ _OPTIONS: dict[Stage, dict[str, str]] = {
     "visitor": {"profiles": "--profiles", "runs": "--runs"},
     "improver": {},
 }
-_INTEGERS = ("goals_max", "runs", "concurrency")
+# Topes: el payload llega de internet.
+_INTEGERS = {"goals_max": 10, "runs": 5, "concurrency": 5}
+_URL_MAX = 2048
 _WITH_GOAL: tuple[Stage, ...] = ("guide", "visitor")
 
 COMMAND = ("uv", "run", "--locked", "main.py")
@@ -64,14 +68,27 @@ def _text(payload: Mapping[str, Any], name: str) -> str:
     return value.strip()
 
 
+def _url(payload: Mapping[str, Any]) -> str:
+    url = _text(payload, "url")
+    parts = urlsplit(url)
+    if (len(url) > _URL_MAX or parts.scheme not in ("http", "https") or not parts.hostname
+            or any(char.isspace() or not char.isprintable() for char in url)):
+        raise InvalidPayload(f"`url` debe ser una URL http(s): {url[:100]!r}")
+    return url
+
+
 def _option(name: str, value: Any) -> str:
     if name in _INTEGERS:
-        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-            raise InvalidPayload(f"`{name}` debe ser un entero positivo: {value!r}")
+        if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= _INTEGERS[name]:
+            raise InvalidPayload(f"`{name}` debe ser un entero entre 1 y {_INTEGERS[name]}: {value!r}")
         return str(value)
-    if not isinstance(value, str) or not value.strip() or value.strip().startswith("-"):
+    # profiles: claves separadas por coma.
+    if not isinstance(value, str):
         raise InvalidPayload(f"`{name}` debe ser texto: {value!r}")
-    return value.strip()
+    try:
+        return ",".join(validate_profile(key.strip()) for key in value.split(","))
+    except ValueError as error:
+        raise InvalidPayload(f"`{name}` inválido: {value!r}") from error
 
 
 def _prefix(stage: Stage, url: str, goal: str | None) -> store.RunPrefix:
@@ -90,7 +107,7 @@ def command(stage: str, payload: Mapping[str, Any]) -> StageCommand:
     """La etapa `stage` con el payload; lanza `InvalidPayload` si falta algo o no es válido. Los campos extra se ignoran."""
     if stage not in STAGES:
         raise InvalidPayload(f"etapa desconocida: {stage!r}; usa {', '.join(STAGES)}")
-    url, revision = _text(payload, "url"), _text(payload, "revision")
+    url, revision = _url(payload), _text(payload, "revision")
     goal = _text(payload, "goal") if stage in _WITH_GOAL else None
     try:
         store.validate_revision(revision)
