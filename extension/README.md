@@ -124,10 +124,14 @@ sin `www.`).
 **Fuentes:** el CSS de un tema no puede declarar `@font-face` ni `url()`, pero puede usar las
 fuentes variables que trae la extensión (`src/fuentes/`, OFL 1.1) solo nombrándolas:
 `font-family: "MT Inter", "MT Inter Fallback", Inter, system-ui, sans-serif`. Hay `"MT Inter"`
-(wght, opsz), `"MT Source Serif"` (wght, opsz), `"MT Archivo"` (wght, wdth), `"MT Geist"` y
+(wght, opsz), `"MT Serif"` (wght, opsz), `"MT Archivo"` (wght, wdth), `"MT Geist"` y
 `"MT Geist Mono"` (wght), cada una con su `"… Fallback"` (una fuente del sistema con sus
 métricas). El background inyecta `fuentes/fuentes.css` solo si el tema nombra alguna, y el
-navegador descarga cada archivo solo si un texto lo usa.
+navegador descarga cada archivo solo si un texto lo usa. Privacidad: esas páginas podrían ver
+las URLs `moz-extension://<uuid>/fuentes/*.woff2` (p. ej. por Resource Timing; no verificamos
+si Firefox crea esas entradas para CSS inyectado), y el uuid es estable por instalación, así
+que podría servir para reconocer al mismo navegador entre sitios con tema. Por eso la hoja solo
+va en páginas con tema que nombra una fuente MT.
 
 Un tema (`normalizarTema` en `background/temas.js`) también puede traer `features` y
 `eventosNavegacion`, pero hoy la API solo manda CSS:
