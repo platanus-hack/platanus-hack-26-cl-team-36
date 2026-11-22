@@ -81,7 +81,8 @@ def _visita(intento: dict, fila: dict, nodos_ruta: list[str]) -> dict:
         "fin": intento.get("end_reason") or None,
         "se_detuvo_en": _lugar(ultimo.get("url"), ultimo.get("title")),
         "se_desvio_en": None if llego else _desvio(intento, nodos_ruta),
-        "por_que": _corto(veredicto.get("justification") or intento.get("final_message")) or None,
+        # El mensaje del Visitante dice qué le pasó; la justificación del veredicto suele ser genérica.
+        "por_que": _corto(intento.get("final_message") or veredicto.get("justification")) or None,
     }
 
 

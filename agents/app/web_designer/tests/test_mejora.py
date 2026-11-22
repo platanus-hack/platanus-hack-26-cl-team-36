@@ -13,7 +13,7 @@ from shared.nodes.urls import node_key
 
 from conftest import ClaudeGuion
 from disenador import config
-from disenador.mejora import TemaVacio, mejorar, peor_objetivo, resumir
+from disenador.mejora import TemaVacio, _visita, mejorar, peor_objetivo, resumir
 
 REV = "rev-1"
 
@@ -100,6 +100,14 @@ def test_resumen_de_lo_medido(tmp_path, url):
     # Sin visitas medidas, uno sin ruta va antes que uno con ruta.
     sin_visitas = {"objetivos": [objetivos["buscar"], objetivos["contacto"]]}
     assert peor_objetivo(sin_visitas)["id"] == "contacto"
+
+
+def test_el_mensaje_del_visitante_va_antes_que_la_justificacion():
+    intento = {"profile": "desktop", "steps": [], "final_message": "los campos están fuera del área visible",
+               "verdict": {"outcome": "abandoned", "justification": "Se detuvo sin llegar a la página final."}}
+    assert _visita(intento, {}, [])["por_que"] == "los campos están fuera del área visible"
+    del intento["final_message"]
+    assert _visita(intento, {}, [])["por_que"] == "Se detuvo sin llegar a la página final."
 
 
 def test_sin_corridas_de_la_revision(tmp_path, url):
