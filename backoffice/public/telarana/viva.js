@@ -40,10 +40,15 @@ const nombrePorDefecto = (n) => {
  *   enlaceAReplay?: (run: string, paso: number) => string | null,
  *   repetir?: () => object,
  *   alFijar?: (clave: string | null) => void,
+ *   alElegir?: (run: string | null) => void,
+ *   detalleDeAgente?: (run: string) => Node | null,
+ *   pista?: string | null,
  * }} opciones
+ *   alElegir: un clic eligió (o soltó) un agente en el lienzo. detalleDeAgente: el panel de un agente elegido, en vez
+ *   del de siempre. pista: una línea al pie del panel general (qué se puede hacer desde afuera).
  */
 export function montarTelaranaViva(contenedor, opciones) {
-  const { titulo = null, i18n = null, enlaceAReplay = () => null, repetir = null, alFijar = () => {} } = opciones;
+  const { titulo = null, i18n = null, enlaceAReplay = () => null, repetir = null, alFijar = () => {}, alElegir = () => {}, detalleDeAgente = null, pista = null } = opciones;
   const t = i18n?.t ?? tDelBackoffice;
   const nombreDePagina = opciones.nombre ?? nombrePorDefecto;
   const nombreDeIntento = opciones.nombreDeIntento ?? ((run, perfil) => perfil || run.split("|").pop());
@@ -57,7 +62,12 @@ export function montarTelaranaViva(contenedor, opciones) {
   const globo = el("div", { class: "tv-globo", hidden: true });
   const botonDeZoom = (accion, nombreDeIcono) =>
     el("button", { type: "button", class: "boton boton-icono", "data-z": accion, "aria-label": t(`telarana.camara.${accion}`), title: t(`telarana.camara.${accion}`) }, icono(nombreDeIcono));
-  const zoom = el("div", { class: "tv-zoom", role: "group", "aria-label": t("telarana.camara.controles") }, botonDeZoom("alejar", "alejar"), botonDeZoom("acercar", "acercar"), botonDeZoom("ajustar", "ajustar"));
+  const ayuda = el(
+    "button",
+    { type: "button", class: "boton boton-icono", "aria-label": t("telarana.leyenda.titulo"), title: t("telarana.leyenda.titulo"), "aria-expanded": "false" },
+    icono("ayuda"),
+  );
+  const zoom = el("div", { class: "tv-zoom", role: "group", "aria-label": t("telarana.camara.controles") }, botonDeZoom("alejar", "alejar"), botonDeZoom("acercar", "acercar"), botonDeZoom("ajustar", "ajustar"), ayuda);
   const lienzo = el("div", { class: "tv-lienzo", tabindex: "0", role: "group", "aria-label": t("telarana.lienzo.etiqueta"), title: t("telarana.lienzo.instrucciones") }, canvas, capa, globo, zoom);
 
   const reproducir = repetir ? el("button", { type: "button", class: "boton boton-secundario tv-reproducir" }, icono("reproducir"), el("span", { texto: t("telarana.barra.reproducir") })) : null;
@@ -68,12 +78,14 @@ export function montarTelaranaViva(contenedor, opciones) {
     VELOCIDADES.map((v) => el("button", { type: "button", class: "num", "data-v": String(v), "aria-pressed": String(v === 1), texto: `×${v}` })),
   );
   const activos = el("b", { class: "num", texto: "0" });
-  const barra = el("div", { class: "tv-barra" }, reproducir, pausa, velocidad, el("span", { class: "tv-activos" }, el("span", { texto: t("telarana.barra.activos") }), " ", activos));
+  const cajaDeActivos = el("span", { class: "tv-activos", hidden: true }, el("span", { texto: t("telarana.barra.activos") }), " ", activos);
+  const barra = el("div", { class: "tv-barra" }, reproducir, pausa, velocidad, cajaDeActivos);
 
   const linea = (clase, texto) => el("li", { class: `tv-ley-linea ${clase}` }, el("span", { class: "tv-ley-muestra", "aria-hidden": "true" }), el("span", { texto }));
+  // La leyenda va detrás del botón «?» de la barra del lienzo.
   const leyenda = el(
     "ul",
-    { class: "tv-leyenda", "aria-label": t("telarana.leyenda.titulo") },
+    { class: "tv-leyenda", id: `tv-leyenda-${Math.random().toString(36).slice(2, 8)}`, "aria-label": t("telarana.leyenda.titulo"), hidden: true },
     linea("tv-ley-ruta", t("telarana.leyenda.ruta")),
     linea("tv-ley-ok", t("telarana.leyenda.todos")),
     linea("tv-ley-mixto", t("telarana.leyenda.algunos")),
@@ -85,7 +97,15 @@ export function montarTelaranaViva(contenedor, opciones) {
   );
   const panel = el("aside", { class: "tv-panel tarjeta", "aria-label": t("telarana.panel.etiqueta") });
   const titular = titulo ? el("h2", { class: "tv-titular" }) : null;
-  const raiz = el("div", { class: "telarana-viva" }, titular, el("div", { class: "tv-cuerpo" }, el("div", { class: "tv-columna" }, lienzo, barra, leyenda), panel));
+  zoom.append(leyenda);
+  ayuda.setAttribute("aria-controls", leyenda.id);
+  const mostrarAyuda = (si) => {
+    leyenda.hidden = !si;
+    ayuda.setAttribute("aria-expanded", String(si));
+    ayuda.classList.toggle("tv-activo", si);
+  };
+  ayuda.addEventListener("click", () => mostrarAyuda(leyenda.hidden));
+  const raiz = el("div", { class: "telarana-viva" }, titular, el("div", { class: "tv-cuerpo" }, el("div", { class: "tv-columna" }, lienzo, barra), panel));
   reemplazar(contenedor, raiz);
 
   // ── Estado de la vista ──────────────────────────────────────────────
@@ -112,6 +132,9 @@ export function montarTelaranaViva(contenedor, opciones) {
     pausado: false,
     tAbrir: 0,
     hover: null,
+    // El agente que anticipa el riel (uno o varios runs) y el grupo del elegido (se resaltan juntos).
+    previa: null,
+    grupo: null,
     elegido: null,
     fijado: null,
     hl: resaltado(null, null),
@@ -132,6 +155,8 @@ export function montarTelaranaViva(contenedor, opciones) {
   const etiquetas = crearEtiquetas(capa, { t, nombre: nombreDePagina });
   const vistaPanel = crearPanel(panel, {
     t,
+    detalleDeAgente,
+    pista,
     nombre,
     nombreDeAgente,
     enlaceAReplay,
@@ -157,19 +182,30 @@ export function montarTelaranaViva(contenedor, opciones) {
     E.hover = null;
     vistaPanel.pintar(E, performance.now());
   }
+  /** Suelta el agente elegido (si había) y la cámara vuelve a encuadrar todo. */
+  function soltarAgente() {
+    if (!E.elegido) return;
+    E.elegido = null;
+    E.grupo = null;
+    camara.encuadrar(null);
+  }
   function fijar(foco, avisar) {
     const igual = E.fijado && E.fijado.t === foco.t && E.fijado.k === foco.k;
-    E.elegido = null;
+    const habiaAgente = !!E.elegido;
+    soltarAgente();
     E.fijado = igual ? null : { t: foco.t, k: foco.k };
     repintar();
     if (avisar && (foco.t === "n" || igual)) alFijar(E.fijado?.t === "n" ? E.fijado.k : null);
+    else if (avisar && habiaAgente) alElegir(null);
   }
   function soltar(avisar) {
     const habia = E.fijado?.t === "n";
-    E.elegido = null;
+    const habiaAgente = !!E.elegido;
+    soltarAgente();
     E.fijado = null;
     repintar();
     if (avisar && habia) alFijar(null);
+    else if (avisar && habiaAgente) alElegir(null);
   }
   const camara = conectarInteraccion(E, {
     lienzo,
@@ -184,8 +220,10 @@ export function montarTelaranaViva(contenedor, opciones) {
       const habia = E.fijado?.t === "n";
       E.fijado = null;
       E.elegido = run;
+      E.grupo = null;
       repintar();
       if (habia) alFijar(null);
+      alElegir(run);
     },
     alFijar: (foco) => fijar(foco, true),
     alSoltar: () => soltar(true),
@@ -274,6 +312,7 @@ export function montarTelaranaViva(contenedor, opciones) {
     E.finTramos = finDeTramos(E.m);
     vistaPanel.pintar(E, ahora);
     activos.textContent = String(enCurso(E.m));
+    cajaDeActivos.hidden = enCurso(E.m) === 0;
     if (titular) {
       const ok = E.m.fin.success;
       const total = E.m.iniciados - enCurso(E.m);
@@ -282,7 +321,8 @@ export function montarTelaranaViva(contenedor, opciones) {
   }
 
   function cuadro(ahora) {
-    const dt = Math.min(0.1, (ahora - previo) / 1000);
+    // El primer cuadro puede traer una marca de tiempo anterior a `previo` (el cuadro empezó antes de montar).
+    const dt = Math.min(0.1, Math.max(0, (ahora - previo) / 1000));
     previo = ahora;
     if (!E.pausado) {
       E.anim += dt;
@@ -290,7 +330,7 @@ export function montarTelaranaViva(contenedor, opciones) {
       if (cola.length) procesar(cola.splice(0), false);
       for (const clave of avanzarAgentes(E)) etiquetas.tic(clave);
     }
-    const foco = E.elegido ? { t: "a", k: E.elegido } : E.hover || E.fijado;
+    const foco = E.previa ? { t: "a", k: E.previa } : E.elegido ? { t: "a", k: E.grupo ?? E.elegido } : E.hover || E.fijado;
     const clave = `${E.m.version}|${foco?.t}|${foco?.k}`;
     if (clave !== hlClave) {
       hlClave = clave;
@@ -341,5 +381,28 @@ export function montarTelaranaViva(contenedor, opciones) {
     acercar: () => camara.acercar(),
     alejar: () => camara.alejar(),
     ajustar: () => camara.ajustar(),
+    /** Resalta sin elegir los agentes `runs` (o nada con null): el hover del riel. */
+    apuntarAgente(runs) {
+      E.previa = runs?.length ? runs : null;
+    },
+    /**
+     * Elige el agente `run` (con su grupo, que se resalta entero) y la cámara se acerca a su camino; con null lo
+     * suelta y vuelve a encuadrar todo. No avisa a alElegir.
+     */
+    elegirAgente(run, grupo = null) {
+      const a = run ? E.m.agentes.get(run) : null;
+      if ((a?.run ?? null) === E.elegido) return;
+      E.fijado = null;
+      E.elegido = a?.run ?? null;
+      E.grupo = a && grupo?.length > 1 ? grupo : null;
+      repintar();
+      camara.encuadrar(a ? [...a.visitados] : null);
+    },
+    /** Cierra la leyenda si estaba abierta; true si lo hizo. */
+    cerrarAyuda() {
+      if (leyenda.hidden) return false;
+      mostrarAyuda(false);
+      return true;
+    },
   };
 }

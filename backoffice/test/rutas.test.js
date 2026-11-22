@@ -12,6 +12,8 @@ import {
   extraerIdioma,
   hashDe,
   normalizarPaso,
+  origenDeHoja,
+  parametrosQueSiguen,
   parsearHash,
   traducirLegado,
 } from "../public/nucleo/rutas.js";
@@ -46,6 +48,14 @@ test("Overview: all y recent no se escriben; un valor o un parámetro desconocid
   assert.equal(hashDe({ tipo: "overview", parametros: { dispositivo: "tablet", foo: "1", idioma: "en" } }), "#/");
   // Sin tipo (o con uno que no es una vista) es el Overview.
   assert.equal(hashDe({}), "#/");
+});
+
+test("Overview: la búsqueda por link va antes de la página; vacía o demasiado larga se descarta", () => {
+  const ruta = parsearHash("#/?pagina=2&link=metro.cl%2Fhorarios&pestana=failed");
+  assert.deepEqual(ruta.parametros, { pestana: "failed", link: "metro.cl/horarios", pagina: "2" });
+  assert.equal(hashDe(ruta), "#/?pestana=failed&link=metro.cl%2Fhorarios&pagina=2");
+  assert.equal(hashDe({ tipo: "overview", parametros: { link: "metro horarios" } }), "#/?link=metro+horarios");
+  for (const link of ["", "%20%20", "x".repeat(201)]) assert.deepEqual(parsearHash(`#/?link=${link}`).parametros, {}, link.slice(0, 10));
 });
 
 test("Overview: la página va al final y la 1 no se escribe; una que no es entero positivo se descarta", () => {
@@ -252,4 +262,18 @@ test("la pestaña Propuesta lleva la vista y el dispositivo en la URL, en ese or
     `#/t/${CON_TAREA}/propuesta?vista=n6&dispositivo=mobile`,
   );
   assert.deepEqual(parsearHash(`#/t/${CON_TAREA}/propuesta?vista=n6`), { tipo: "tanda", tandaId: CON_TAREA, pestana: "propuesta", parametros: { vista: "n6" } });
+});
+
+test("la hoja vuelve a la vista de la que vino; por enlace directo, al Overview", () => {
+  assert.deepEqual(origenDeHoja({ tipo: "overview" }, "#/?pestana=live"), { clave: "overview", hash: "#/?pestana=live", conFondo: true });
+  assert.deepEqual(origenDeHoja({ tipo: "revisiones", revision: "r1" }, "#/revisiones/r1"), { clave: "revisiones", hash: "#/revisiones/r1", conFondo: true });
+  assert.deepEqual(origenDeHoja(null), { clave: "overview", hash: "#/", conFondo: false });
+  assert.deepEqual(origenDeHoja({ tipo: "tanda" }, "#/t/x"), { clave: "overview", hash: "#/", conFondo: false });
+  assert.deepEqual(origenDeHoja({ tipo: "desconocida" }, "#/nada"), { clave: "overview", hash: "#/", conFondo: false });
+});
+
+test("al cambiar de pestaña sigue solo la traza elegida", () => {
+  assert.deepEqual(parametrosQueSiguen({ intento: "mobile", paso: "3", pagina: "n2" }), { intento: "mobile" });
+  assert.deepEqual(parametrosQueSiguen({}), {});
+  assert.equal(enlaceATanda(CON_TAREA, "telarana", { pagina: "n2", intento: "mobile" }), `#/t/${CON_TAREA}/telarana?intento=mobile&pagina=n2`);
 });

@@ -107,16 +107,18 @@ export function conservarFoco(raiz, actualizar) {
 }
 
 const estilosCargados = new Map();
+// La carpeta de app.js (/backoffice/v/<versión>/): una hoja relativa sale de la misma versión que los módulos.
+const RAIZ_DE_LA_APP = new URL("../", import.meta.url);
 
 /** Agrega <link rel=stylesheet> una sola vez; resuelve al cargar (o al fallar, con un aviso en consola). */
 export function cargarEstilos(href) {
-  const absoluto = new URL(href, document.baseURI).href;
+  const absoluto = new URL(href, RAIZ_DE_LA_APP).href;
   if (estilosCargados.has(absoluto)) return estilosCargados.get(absoluto);
   const existente = [...document.querySelectorAll('link[rel="stylesheet"]')].find((enlace) => enlace.href === absoluto);
   const promesa = existente
     ? Promise.resolve()
     : new Promise((resolver) => {
-        const enlace = el("link", { rel: "stylesheet", href });
+        const enlace = el("link", { rel: "stylesheet", href: absoluto });
         enlace.addEventListener("load", () => resolver(), { once: true });
         enlace.addEventListener(
           "error",

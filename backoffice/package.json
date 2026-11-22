@@ -6,9 +6,9 @@
   "description": "Visor de solo lectura de las corridas del Visitante. node:http; el SDK de AWS solo para leer de S3 y DynamoDB.",
   "scripts": {
     "start": "node servidor.js",
-    "dev": "node --watch servidor.js",
+    "dev": "BACKOFFICE_DEV=1 node --watch servidor.js",
     "test": "node --test test/*.test.js",
-    "mock": "node --watch mock/servir.js",
+    "mock": "BACKOFFICE_DEV=1 node --watch mock/servir.js",
     "historial": "node historial.js --dry-run",
     "mock:generar": "uv run --project ../agents/app/visitor python mock/generar.py"
   },

@@ -94,16 +94,19 @@ function hayDialogoModal() {
   return false;
 }
 
+/** Un registro con `activo` falso (la pantalla quedó bajo la hoja de una tanda) no cuenta. */
+const vale = (registro) => !registro.activo || registro.activo();
+
 function buscar(tecla) {
   for (const ambito of ["pantalla", "global"]) {
     const lista = registros[ambito];
-    for (let i = lista.length - 1; i >= 0; i -= 1) if (lista[i].tecla === tecla) return lista[i];
+    for (let i = lista.length - 1; i >= 0; i -= 1) if (lista[i].tecla === tecla && vale(lista[i])) return lista[i];
   }
   return null;
 }
 
 const hayAcordeQueEmpiezaCon = (tecla) =>
-  [...registros.pantalla, ...registros.global].some((registro) => registro.tecla.startsWith(`${tecla} `));
+  [...registros.pantalla, ...registros.global].some((registro) => vale(registro) && registro.tecla.startsWith(`${tecla} `));
 
 function ejecutar(registro, evento) {
   evento.preventDefault();
@@ -173,16 +176,17 @@ export function iniciarAtajos() {
  * Registra atajos en un ámbito. → quitar().
  * @param {Record<string, { accion: (e: KeyboardEvent) => void, descripcion: string, grupo?: string,
  *   mantener?: boolean, alSoltar?: (e: Event) => void, enCampos?: boolean }>} mapa
- * @param {{ ambito?: "pantalla" | "global", grupo?: string }} opciones  grupo por defecto de las entradas
+ * @param {{ ambito?: "pantalla" | "global", grupo?: string, activo?: () => boolean }} opciones  grupo por defecto de
+ *   las entradas; `activo`: mientras devuelva false, las teclas no responden ni toman su lugar (otra puede usarlas).
  */
-export function registrarAtajos(mapa, { ambito = "pantalla", grupo = null } = {}) {
+export function registrarAtajos(mapa, { ambito = "pantalla", grupo = null, activo = null } = {}) {
   iniciarAtajos();
   const lista = registros[ambito] ?? registros.pantalla;
   const agregados = [];
   for (const [especificacion, datos] of Object.entries(mapa ?? {})) {
     if (!datos || typeof datos.accion !== "function") continue;
     const tecla = normalizarTecla(especificacion);
-    if (lista.some((registro) => registro.tecla === tecla)) {
+    if (lista.some((registro) => registro.tecla === tecla && vale(registro))) {
       console.error(`atajos: la tecla «${especificacion}» ya está tomada en el ámbito «${ambito}»; se rechaza`);
       continue;
     }
@@ -196,6 +200,7 @@ export function registrarAtajos(mapa, { ambito = "pantalla", grupo = null } = {}
       mantener: !!datos.mantener,
       alSoltar: datos.alSoltar ?? null,
       enCampos: !!datos.enCampos,
+      activo,
     };
     lista.push(registro);
     agregados.push(registro);
@@ -210,9 +215,12 @@ export function registrarAtajos(mapa, { ambito = "pantalla", grupo = null } = {}
   };
 }
 
+/** El registro que respondería hoy a `especificacion` ("Escape", "g c"), o null. */
+export const atajoPara = (especificacion) => buscar(normalizarTecla(especificacion));
+
 /** → [{ grupo, tecla, descripcion, mantener }] de los atajos activos ahora (para la hoja "?"). */
 export function listarAtajos() {
-  return [...registros.pantalla, ...registros.global].map(({ grupo, especificacion, descripcion, mantener }) => ({
+  return [...registros.pantalla, ...registros.global].filter(vale).map(({ grupo, especificacion, descripcion, mantener }) => ({
     grupo,
     tecla: especificacion,
     descripcion: typeof descripcion === "function" ? descripcion() : descripcion,
@@ -322,7 +330,7 @@ export function abrirHojaDeAtajos() {
         onclick: () => dialogo.close(),
       }, icono("cerrar")),
     ),
-    el("p", { class: "hoja-atajos-nota texto-3", texto: t("comun.atajos.nota", { paleta: teclasVisibles("Mod+k").flat().join(esMac ? "" : "+") }) }),
+    el("p", { class: "hoja-atajos-nota texto-3", texto: t("comun.atajos.nota") }),
     el(
       "div",
       { class: "hoja-atajos-grupos" },

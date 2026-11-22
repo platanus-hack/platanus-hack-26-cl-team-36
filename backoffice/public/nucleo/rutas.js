@@ -1,6 +1,6 @@
 // Gramática de las rutas (diseño §5.1). Puro: no toca document ni window, así node:test lo importa.
 //
-//   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|delivered|failed &pagina=<n>
+//   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|delivered|failed &link=<texto> &pagina=<n>
 //   #/corridas                  Corridas   ?q= &sitio= &filtro= &orden= &vista=
 //   #/?q=…&sitio=…              (enlace viejo, de cuando Corridas era #/) → #/corridas?… con esos parámetros
 //   #/t/<tandaId>               → #/t/<tandaId>/telarana
@@ -14,6 +14,7 @@
 // Revisiones un valor desconocido se descarta, y los valores por defecto (all, recent, página 1) nunca se escriben.
 
 import { CORRIDA, OBJETIVO, REVISION, partesDeTanda } from "./almacen.js";
+import { LARGO_MAXIMO_DE_BUSQUEDA } from "./links.js";
 
 export const PESTANAS = ["telarana", "replay", "propuesta"];
 export const PESTANA_POR_DEFECTO = "telarana";
@@ -27,10 +28,12 @@ export const ESTADOS_DE_REVISIONES = Object.freeze(["live", "done", "failed", "h
 
 /** Página de las revisiones del Overview: un entero de 1 a 9999 escrito sin ceros adelante. */
 export const esPaginaDelOverview = (texto) => /^[1-9]\d{0,3}$/.test(String(texto));
+/** Búsqueda por link del Overview: un texto con algo más que espacios y no más largo que el tope. */
+export const esBusquedaDelOverview = (texto) => String(texto).trim() !== "" && String(texto).length <= LARGO_MAXIMO_DE_BUSQUEDA;
 
 // Valores válidos de los parámetros con un conjunto cerrado (o una prueba); lo demás se descarta al leer y al escribir.
 const VALORES = {
-  overview: { dispositivo: DISPOSITIVOS, pestana: PESTANAS_DEL_OVERVIEW, pagina: esPaginaDelOverview },
+  overview: { dispositivo: DISPOSITIVOS, pestana: PESTANAS_DEL_OVERVIEW, link: esBusquedaDelOverview, pagina: esPaginaDelOverview },
   revisiones: { estado: ESTADOS_DE_REVISIONES },
 };
 
@@ -50,10 +53,10 @@ export const NOMBRES_DE_PESTANA = Object.freeze({
 
 // Orden estable de los parámetros conocidos; los demás van después, en orden alfabético.
 const ORDEN_DE_PARAMETROS = {
-  overview: ["dispositivo", "pestana", "pagina"],
+  overview: ["dispositivo", "pestana", "link", "pagina"],
   corridas: PARAMETROS_DE_CORRIDAS,
   revisiones: ["estado"],
-  telarana: ["pagina"],
+  telarana: ["intento", "pagina"],
   replay: ["intento", "paso"],
   propuesta: ["vista", "dispositivo"],
 };
@@ -219,6 +222,22 @@ export function hashDe({ tipo, tandaId, revision = null, goal = null, pestana = 
 
 export function enlaceATanda(tandaId, pestana = PESTANA_POR_DEFECTO, parametros = {}) {
   return hashDe({ tipo: "tanda", tandaId, pestana, parametros });
+}
+
+/** Los parámetros de una pestaña de la tanda que siguen al cambiar a otra: la traza elegida (?intento=). */
+export function parametrosQueSiguen(parametros) {
+  return parametros?.intento ? { intento: parametros.intento } : {};
+}
+
+const ORIGENES = new Set(["overview", "revisiones", "corridas", "vivo"]);
+
+/**
+ * Adónde vuelve la hoja de una tanda: la vista que quedó debajo (`anterior`, con el hash que mostraba) o, si se
+ * entró por un enlace directo o desde otra tanda, el Overview. → { clave, hash, conFondo }.
+ */
+export function origenDeHoja(anterior, hash = null) {
+  if (anterior && ORIGENES.has(anterior.tipo) && hash) return { clave: anterior.tipo, hash, conFondo: true };
+  return { clave: "overview", hash: hashDe({ tipo: "overview" }), conFondo: false };
 }
 
 /** "#/revisiones" o "#/revisiones/<revision>". */

@@ -99,7 +99,7 @@ test("cada valor función devuelve un texto no vacío para n = 0, 1, 2", async (
 
 // ── 3. Sin textos a mano en el código de las pantallas ───────────────────
 
-const CARPETAS_DE_PANTALLAS = ["pantallas", "corridas", "telarana", "replay", "propuesta", "overview"];
+const CARPETAS_DE_PANTALLAS = ["pantallas", "corridas", "telarana", "replay", "propuesta", "overview", "tanda"];
 
 function archivosJs(carpeta) {
   if (!existsSync(carpeta)) return [];

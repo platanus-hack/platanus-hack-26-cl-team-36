@@ -11,6 +11,9 @@
 // página está congelada), (4) foco (§5.4), (5) evento `backoffice:ruta`. Si solo cambia la pestaña, el marco se queda
 // y se cambia el panel. Si solo cambian parámetros, no se remonta. Cuando una pantalla se remonta sin pasar por aquí
 // (Reintentar, un actualizar que devuelve false), montar recibe datos undefined y los pide ella, con su esqueleto.
+//
+// Una tanda se abre en una hoja sobre la vista de la que vino, que queda montada debajo (nucleo/hoja.js): la hoja
+// aparece al instante con el título y un esqueleto, y volver a esa vista cierra la hoja sin remontar nada.
 
 import { avisar, anunciar } from "./avisos.js";
 import { pedirTanda, pedirTandas, urlDeArchivo } from "./datos.js";
@@ -18,13 +21,13 @@ import { cargarEstilos, el, reemplazar } from "./dom.js";
 import { conCarga, errorDePantalla, esqueleto, vacio } from "./estados.js";
 import { EVENTO_IDIOMA, IDIOMAS, cambiarIdioma, cargarSeccion, fmt, idioma, t } from "./i18n.js";
 import { registrarAtajos } from "./atajos.js";
+import { abrirHoja } from "./hoja.js";
+import { recargarUnaVez } from "./recarga.js";
 import { montarMarco } from "./marco-tanda.js";
-import { NOMBRES_DE_PESTANA, enlaceATanda, extraerIdioma, hashDe, parsearHash } from "./rutas.js";
+import { NOMBRES_DE_PESTANA, enlaceATanda, extraerIdioma, hashDe, origenDeHoja, parsearHash } from "./rutas.js";
 import { conTransicion } from "./transiciones.js";
 
 export const EVENTO_RUTA = "backoffice:ruta";
-
-const ESQUELETO_DE_PESTANA = { telarana: "lienzo", replay: "replay", propuesta: "propuesta" };
 
 /** El esqueleto de una vista entera mientras carga, con su geometría (estados.js). */
 function esqueletoDeVista(ruta) {
@@ -34,9 +37,10 @@ function esqueletoDeVista(ruta) {
   return "lista";
 }
 
-// Corridas y la tanda trabajan sobre la lista de tandas y la esperan. El Overview y Revisiones traen sus propios
-// datos: no esperan /api/tandas (que con S3 tarda) y la usan si ya llegó; mientras, la lista se carga en segundo plano.
-const ESPERAN_LA_LISTA = new Set(["corridas", "tanda"]);
+// Corridas trabaja sobre la lista de tandas y la espera. Las demás traen sus propios datos (una tanda, sus vecinas):
+// no esperan /api/tandas (que con S3 tarda) y la usan si ya llegó; mientras, la lista se carga en segundo plano. Solo
+// el aviso de una tanda que no existe la espera, para sugerir otras de la misma tarea.
+const ESPERAN_LA_LISTA = new Set(["corridas"]);
 // Vistas cuyos parámetros cambian sin remontar (actualizarParametros → actualizar(ctx) de la pantalla).
 const CON_PARAMETROS = new Set(["overview", "corridas", "tanda", "revisiones"]);
 // Título de respaldo de una vista sin título propio.
@@ -56,6 +60,13 @@ let hashMostrado = null;
 let cambiandoIdiomaDesdeHash = false;
 const desplazamientos = new Map();
 let listaDeTandas = { carpeta: null, tandas: [] };
+/** La hoja de la tanda abierta: { hoja, fondo (la vista de debajo, montada) | null, volver: { clave, hash }, abridor }. */
+let hojaAbierta = null;
+/** El último enlace interno con clic: el que abrió la hoja, para devolverle el foco al cerrarla. */
+let ultimoEnlace = null;
+let hojas = 0;
+/** El desmontaje de la pantalla que sale con la hoja: espera a que termine su animación (o a la próxima pantalla). */
+let diferido = null;
 
 // ── Pantallas ──────────────────────────────────────────────────────────────
 
@@ -84,6 +95,8 @@ function cargarPantalla(id) {
         return pantalla;
       })
       .catch((error) => {
+        // Lo más probable: un despliegue nuevo y esta página es de antes. Se recarga una vez por versión.
+        if (recargarUnaVez()) return new Promise(() => {});
         console.warn(`enrutador: la pantalla «${id}» no está lista; se muestra el aviso.`, error?.message ?? error);
         modulos.delete(id); // se reintenta en la próxima navegación (puede aparecer mientras corre el servidor)
         return pantallaPendiente(id);
@@ -123,7 +136,8 @@ function crearContexto(v) {
     atajos: {
       registrar(mapa) {
         if (controlador.signal.aborted) return () => {};
-        const quitar = registrarAtajos(mapa, { ambito: "pantalla", grupo: v.id });
+        // Bajo la hoja de una tanda, la pantalla de debajo sigue montada pero sus teclas no responden.
+        const quitar = registrarAtajos(mapa, { ambito: "pantalla", grupo: v.id, activo: () => vista === v });
         v.quitar.push(quitar);
         return quitar;
       },
@@ -152,27 +166,63 @@ function ponerTitulo(v) {
 
 // ── Montar y desmontar ────────────────────────────────────────────────────
 
-function desmontarPantalla(v) {
+function vaciarDiferido() {
+  const pendiente = diferido;
+  diferido = null;
+  pendiente?.();
+}
+
+/** Desmonta la pantalla; con `despues`, su desmontar() espera esa promesa (la salida de la hoja sigue mostrándola). */
+function desmontarPantalla(v, { despues = null } = {}) {
   if (!v?.modulo) return;
   v.controlador.abort();
   for (const quitar of v.quitar.splice(0)) quitar();
-  try {
-    v.modulo.desmontar?.();
-  } catch (error) {
-    console.error("enrutador: desmontar() falló", error);
-  }
+  const modulo = v.modulo;
   v.modulo = null;
+  const terminar = () => {
+    try {
+      modulo.desmontar?.();
+    } catch (error) {
+      console.error("enrutador: desmontar() falló", error);
+    }
+  };
+  if (!despues) return terminar();
+  vaciarDiferido();
+  diferido = terminar;
+  despues.then(() => diferido === terminar && vaciarDiferido());
+}
+
+/** Cierra la hoja (con su animación de salida) y desmonta la tanda y la vista de debajo. */
+function cerrarHoja({ conservarFondo = false } = {}) {
+  if (!hojaAbierta) return null;
+  const { hoja, fondo } = hojaAbierta;
+  hojaAbierta = null;
+  const salida = hoja?.cerrar() ?? Promise.resolve();
+  if (vista?.tipo === "tanda") {
+    desmontarPantalla(vista, { despues: salida });
+    vista.marco?.desmontar();
+    vista = null;
+  }
+  if (fondo && !conservarFondo) desmontarPantalla(fondo);
+  return salida;
 }
 
 function desmontarVista() {
-  if (!vista) return;
-  desmontarPantalla(vista);
-  vista.marco?.desmontar();
-  vista = null;
+  if (vista) {
+    if (hojaAbierta && vista.tipo === "tanda") return void cerrarHoja();
+    desmontarPantalla(vista);
+    vista.marco?.desmontar();
+    vista = null;
+  }
+  cerrarHoja();
 }
+
+/** Donde está lo que el usuario ve: la hoja, si hay una abierta. */
+const zona = () => hojaAbierta?.hoja?.nodo ?? raiz;
 
 /** `datos`: lo que devolvió cargar(ctx) de la pantalla; undefined si no se cargó antes (la pantalla lo pide). */
 async function montarPantalla(v, modulo, destino, datos) {
+  vaciarDiferido();
   v.modulo = modulo;
   v.controlador = new AbortController();
   v.quitar = [];
@@ -220,18 +270,19 @@ function enfocar(objetivo) {
 function enfocarDespues({ clave, completa, panel, quedarseEnArmazon = false }) {
   const activo = document.activeElement;
   if (clave) {
-    const destino = raiz.querySelector(`[data-foco="${CSS.escape(clave)}"]`);
+    const destino = zona().querySelector(`[data-foco="${CSS.escape(clave)}"]`);
     if (destino) {
       if (destino !== activo) destino.focus({ preventScroll: true });
       return;
     }
   }
-  const perdido = !activo || activo === document.body || !activo.isConnected;
-  const enArmazon = !!activo?.closest?.(".barra-superior, .paleta");
+  // Dentro de lo inerte (la vista bajo la hoja o la hoja que sale) el foco no sirve: cuenta como perdido.
+  const perdido = !activo || activo === document.body || !activo.isConnected || !!activo.closest?.("[inert]");
+  const enArmazon = !!activo?.closest?.(".barra-superior");
   if (!perdido && !(completa && enArmazon && !quedarseEnArmazon)) return;
   const objetivo = completa
-    ? (raiz.querySelector("h1") ?? raiz.querySelector("[data-foco-inicial]") ?? raiz)
-    : (panel?.querySelector("[data-foco-inicial]") ?? panel?.querySelector('h2[tabindex="-1"]') ?? panel ?? raiz);
+    ? (zona().querySelector("h1") ?? zona().querySelector("[data-foco-inicial]") ?? zona())
+    : (panel?.querySelector("[data-foco-inicial]") ?? panel?.querySelector('h2[tabindex="-1"]') ?? panel ?? zona());
   enfocar(objetivo);
 }
 
@@ -240,6 +291,8 @@ function guardarDesplazamiento() {
 }
 
 function desplazarDespues({ origen, completa, conservar }) {
+  // La hoja se desplaza por dentro; la vista de debajo conserva su scroll.
+  if (hojaAbierta) return;
   if (conservar !== undefined) return scrollTo(0, conservar);
   if (origen === "historial") return scrollTo(0, desplazamientos.get(location.hash) ?? 0);
   if (completa) return scrollTo(0, 0);
@@ -400,7 +453,16 @@ async function procesar({ origen = "historial" } = {}) {
   if (mismaVista) {
     fijarRuta(nueva, hash);
     vista.ruta = nueva;
+    vista.marco?.actualizar(nueva);
     await actualizarPantalla();
+    avisarRuta();
+    return;
+  }
+
+  // Volver a la vista de debajo de la hoja: se cierra la hoja y esa vista sigue tal como estaba.
+  if (!remontarTodo && hojaAbierta?.fondo && hash === hojaAbierta.volver.hash) {
+    fijarRuta(nueva, hash);
+    volverAlFondo();
     avisarRuta();
     return;
   }
@@ -418,7 +480,8 @@ async function procesar({ origen = "historial" } = {}) {
   }
 
   // Solo cambia la pestaña: el marco se queda.
-  const soloPestana = !remontarTodo && nueva.tipo === "tanda" && vista?.tipo === "tanda" && vista.tandaId === nueva.tandaId;
+  const soloPestana = !remontarTodo && nueva.tipo === "tanda" && vista?.tipo === "tanda" && vista.tandaId === nueva.tandaId && !!vista.tanda;
+  if (nueva.tipo === "tanda" && !soloPestana) return abrirTanda(nueva, hash, { miTurno, fijarRuta, origen });
   const panel = soloPestana ? vista.marco.panel : null;
 
   let cargado;
@@ -429,7 +492,7 @@ async function procesar({ origen = "historial" } = {}) {
         if (miTurno !== turno || remontarTodo) return;
         if (soloPestana) {
           desmontarPantalla(vista);
-          reemplazar(panel, esqueleto(ESQUELETO_DE_PESTANA[nueva.pestana] ?? "tabla"));
+          reemplazar(panel, esqueleto("hoja"));
         } else {
           desmontarVista();
           reemplazar(raiz, esqueleto(esqueletoDeVista(nueva)));
@@ -452,6 +515,8 @@ async function procesar({ origen = "historial" } = {}) {
   fijarRuta(nueva, hash);
 
   if (nueva.tipo === "tanda" && !cargado.tanda) {
+    listaDeTandas = await pedirTandas().catch(() => listaDeTandas);
+    if (miTurno !== turno) return;
     await conTransicion(() => vistaDeEstado(noExisteLaTanda(nueva.tandaId)), { direccion: direccionEntre(anterior, nueva) });
     document.title = [t("comun.estado.tandaNoExiste", { id: nueva.tandaId }), t("comun.marca.titulo")].join(" · ");
     enfocarDespues({ clave: null, completa: true });
@@ -473,15 +538,8 @@ async function procesar({ origen = "historial" } = {}) {
       return;
     }
     desmontarVista();
-    if (nueva.tipo !== "tanda") {
-      vista = { tipo: nueva.tipo, id: nueva.tipo, ruta: nueva, quitar: [] };
-      await montarPantalla(vista, cargado.modulo, raiz, cargado.datos);
-      return;
-    }
-    const marco = montarMarco({ tanda: cargado.tanda, ruta: nueva, navegar });
-    reemplazar(raiz, marco.raiz);
-    vista = { tipo: "tanda", id: nueva.pestana, ruta: nueva, tanda: cargado.tanda, tandaId: nueva.tandaId, pestana: nueva.pestana, marco, quitar: [] };
-    await montarPantalla(vista, cargado.modulo, marco.panel, cargado.datos);
+    vista = { tipo: nueva.tipo, id: nueva.tipo, ruta: nueva, quitar: [] };
+    await montarPantalla(vista, cargado.modulo, raiz, cargado.datos);
   };
 
   try {
@@ -511,6 +569,94 @@ async function procesar({ origen = "historial" } = {}) {
   avisarRuta();
 }
 
+/** El elemento que abrió la hoja (con foco o recién cliqueado, dentro de la vista de debajo). */
+function abridorDeLaHoja() {
+  const activo = document.activeElement;
+  const elemento = activo && activo !== document.body && raiz.contains(activo) ? activo : ultimoEnlace?.isConnected && raiz.contains(ultimoEnlace) ? ultimoEnlace : null;
+  return { elemento, clave: elemento?.closest?.("[data-foco]")?.getAttribute("data-foco") ?? null };
+}
+
+/**
+ * Abre una tanda en la hoja: al instante el marco con el título y un esqueleto; los datos y la pantalla después.
+ * Sobre la vista de antes (que queda montada debajo) o, si ya hay una hoja abierta, en su lugar.
+ */
+async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
+  if (hojaAbierta) {
+    if (vista?.tipo === "tanda") {
+      desmontarPantalla(vista);
+      vista.marco?.desmontar();
+    }
+    // Con otro idioma, la vista de debajo quedó en el anterior: al volver se monta de nuevo.
+    if (origen === "idioma" && hojaAbierta.fondo) {
+      desmontarPantalla(hojaAbierta.fondo);
+      hojaAbierta.fondo = null;
+      reemplazar(raiz);
+    }
+  } else {
+    const conFondo = !!vista?.modulo && vista.tipo !== "tanda";
+    const volver = origenDeHoja(conFondo ? vista.ruta : null, conFondo ? hashMostrado : null);
+    const abridor = conFondo ? abridorDeLaHoja() : { elemento: null, clave: null };
+    if (!conFondo) {
+      desmontarVista();
+      reemplazar(raiz);
+    }
+    hojaAbierta = { hoja: null, fondo: conFondo ? vista : null, volver, abridor, scroll: scrollY, id: `hoja-${++hojas}` };
+    // La entrada de la tanda queda marcada como la primera de esta hoja: volver es retroceder en el historial.
+    if (conFondo) history.replaceState({ hoja: hojaAbierta.id, paso: 1 }, "", location.href);
+  }
+  vista = null;
+  const marco = montarMarco({
+    tandaId: nueva.tandaId,
+    ruta: nueva,
+    navegar,
+    volver: hojaAbierta.volver,
+    alVolver: volverDesdeLaHoja,
+    escapar: () => vista?.modulo?.escapar?.() === true,
+  });
+  if (hojaAbierta.hoja) reemplazar(hojaAbierta.hoja.nodo, marco.raiz);
+  else hojaAbierta.hoja = abrirHoja(marco.raiz, { fondo: raiz, titulo: marco.titulo });
+  const v = { tipo: "tanda", id: nueva.pestana, ruta: nueva, tanda: null, tandaId: nueva.tandaId, pestana: nueva.pestana, marco, quitar: [] };
+  vista = v;
+  enfocar(marco.titulo);
+
+  let cargado;
+  try {
+    cargado = await cargarRuta(nueva);
+  } catch (error) {
+    if (miTurno !== turno) return;
+    console.error(error);
+    fijarRuta(nueva, hash);
+    reemplazar(marco.panel, errorDeCarga(error, "tanda"));
+    avisarRuta();
+    return;
+  }
+  if (miTurno !== turno || vista !== v) return;
+  fijarRuta(nueva, hash);
+  if (!cargado.tanda) {
+    reemplazar(marco.panel, noExisteLaTanda(nueva.tandaId));
+    document.title = [t("comun.estado.tandaNoExiste", { id: nueva.tandaId }), t("comun.marca.titulo")].join(" · ");
+    avisarRuta();
+    return;
+  }
+  marco.ponerTanda(cargado.tanda);
+  v.tanda = cargado.tanda;
+  await montarPantalla(v, cargado.modulo, marco.panel, cargado.datos);
+  if (miTurno !== turno) return;
+  avisarRuta();
+}
+
+/** Cierra la hoja y deja a la vista la de debajo, en su scroll, con el foco en lo que abrió la hoja. */
+function volverAlFondo() {
+  const { fondo, abridor, scroll } = hojaAbierta;
+  cerrarHoja({ conservarFondo: true });
+  scrollTo(0, scroll);
+  vista = fondo;
+  vista.ruta = ruta;
+  ponerTitulo(vista);
+  const destino = abridor.elemento?.isConnected ? abridor.elemento : abridor.clave ? raiz.querySelector(`[data-foco="${CSS.escape(abridor.clave)}"]`) : null;
+  enfocar(destino ?? raiz.querySelector("h1") ?? raiz);
+}
+
 async function actualizarPantalla() {
   if (!vista?.modulo) return;
   let sigue = false;
@@ -532,12 +678,30 @@ async function actualizarPantalla() {
 // ── API pública ────────────────────────────────────────────────────────────
 
 /** Navegación completa a `hash` (monta, transición, foco). `reemplazar` usa replaceState. */
+/** El estado de una entrada nueva del historial: dentro de una hoja, cuántos pasos lleva desde que se abrió. */
+function estadoNuevo() {
+  if (!hojaAbierta) return null;
+  const actual = history.state?.hoja === hojaAbierta.id ? history.state.paso : 0;
+  return { hoja: hojaAbierta.id, paso: actual + 1 };
+}
+
+/**
+ * ← o Esc en la hoja: si las entradas desde el origen son de esta hoja, se retrocede hasta él (Atrás no la reabre);
+ * si no (enlace directo, otra pestaña del navegador), se navega al origen.
+ */
+function volverDesdeLaHoja() {
+  if (!hojaAbierta) return;
+  const { id, volver, fondo } = hojaAbierta;
+  if (fondo && history.state?.hoja === id && history.state.paso > 0) history.go(-history.state.paso);
+  else navegar(volver.hash);
+}
+
 export function navegar(hash, { reemplazar: sinHistorial = false } = {}) {
   const destino = String(hash).startsWith("#") ? String(hash) : `#${hash}`;
   if (destino === location.hash && !sinHistorial) return Promise.resolve();
   guardarDesplazamiento();
   if (sinHistorial) history.replaceState(history.state, "", destino);
-  else history.pushState(null, "", destino);
+  else history.pushState(estadoNuevo(), "", destino);
   return procesar({ origen: "navegar" });
 }
 
@@ -556,12 +720,13 @@ export function actualizarParametros(cambios, { historial = "reemplazar" } = {})
   if (hash !== location.hash) {
     if (historial === "agregar") {
       guardarDesplazamiento();
-      history.pushState(null, "", hash);
+      history.pushState(estadoNuevo(), "", hash);
     } else history.replaceState(history.state, "", hash);
   }
   ruta = parsearHash(hash);
   hashMostrado = hash;
   if (vista) vista.ruta = ruta;
+  vista?.marco?.actualizar(ruta);
   const hecho = actualizarPantalla();
   avisarRuta();
   return hecho;
@@ -579,6 +744,7 @@ function interceptarEnlaces(evento) {
   const href = enlace.getAttribute("href");
   if (!href?.startsWith("#/") && href !== "#") return;
   evento.preventDefault();
+  ultimoEnlace = enlace;
   navegar(href === "#" ? "#/" : href);
 }
 

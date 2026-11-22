@@ -1,14 +1,34 @@
 /* Telaraña (diseño §10.5). La pestaña va bajo .p-telarana; el componente (public/telarana/viva.js), bajo
    .telarana-viva, así otra pantalla lo usa cargando esta hoja. Las posiciones dinámicas llegan por CSSOM. */
 
-.p-telarana { container-type: inline-size; display: grid; gap: var(--e-4); min-width: 0; }
-.p-telarana .telarana-cabecera { display: grid; gap: var(--e-3); min-width: 0; }
-.p-telarana .telarana-titular {
-  font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.014em; color: var(--texto-1);
-  text-wrap: balance;
-}
+/* La pestaña en la hoja: el riel y el componente (lienzo y panel) llenan el alto. */
+.p-telarana { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .p-telarana .telarana-avisos:empty { display: none; }
-.p-telarana .telarana-avisos { display: grid; gap: var(--e-2); }
+.p-telarana .telarana-avisos { display: grid; gap: var(--e-2); padding: var(--e-3) var(--e-3) 0; }
+.p-telarana .tanda-columnas { flex: 1 1 auto; grid-template-columns: 272px minmax(0, 1fr); }
+.p-telarana .telarana-anfitrion { display: flex; flex-direction: column; min-height: 0; }
+.p-telarana .telarana-anfitrion > .vacio { padding: var(--e-5); }
+.p-telarana .telarana-viva { height: 100%; display: flex; flex-direction: column; container-type: normal; }
+.p-telarana .telarana-viva .tv-cuerpo { flex: 1 1 auto; min-height: 0; grid-template-columns: minmax(0, 1fr) 280px; gap: 0; align-items: stretch; }
+.p-telarana .telarana-viva .tv-columna { display: flex; flex-direction: column; gap: var(--e-2); padding: var(--e-3); min-height: 0; }
+.p-telarana .telarana-viva .tv-lienzo { flex: 1 1 auto; height: auto; min-height: 360px; }
+.p-telarana .telarana-viva .tv-panel,
+.p-telarana .telarana-viva .tv-panel:is([data-modo="n"], [data-modo="e"]) {
+  height: auto; max-height: none; overflow: auto; border: 0; border-inline-start: 1px solid var(--borde-sutil);
+  border-radius: 0; background: none; box-shadow: none;
+}
+.p-telarana .telarana-viva .tv-barra:not(:has(> :not([hidden]))) { display: none; }
+@container contenido (width < 1100px) {
+  .p-telarana .tanda-columnas { grid-template-columns: 232px minmax(0, 1fr); }
+  .p-telarana .telarana-viva .tv-cuerpo { grid-template-columns: minmax(0, 1fr) 248px; }
+}
+@container contenido (width < 820px) {
+  .p-telarana .tanda-columnas { grid-template-columns: minmax(0, 1fr); }
+  .p-telarana .telarana-viva { height: auto; }
+  .p-telarana .telarana-viva .tv-cuerpo { grid-template-columns: minmax(0, 1fr); flex: none; }
+  .p-telarana .telarana-viva .tv-lienzo { min-height: 0; height: clamp(320px, 58vh, 480px); flex: none; }
+  .p-telarana .telarana-viva .tv-panel { border-inline-start: 0; border-top: 1px solid var(--borde-sutil); }
+}
 
 /* ── Componente ─────────────────────────────────────────────────────── */
 .telarana-viva { container-type: inline-size; display: grid; gap: var(--e-3); min-width: 0; }
@@ -87,7 +107,17 @@
 .telarana-viva .tv-barra [hidden] { display: none; }
 .telarana-viva .tv-barra .boton { height: 30px; }
 .telarana-viva .tv-activos b { font: 500 12px var(--fuente-mono); color: var(--texto-1); display: inline-block; min-width: 3ch; text-align: left; }
-.telarana-viva .tv-leyenda { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--texto-3); }
+/* La leyenda, detrás del «?» de la barra del lienzo. */
+.telarana-viva .tv-leyenda {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 4; width: 260px;
+  display: grid; gap: 6px; margin: 0; padding: var(--e-3); list-style: none; font-size: 12px; color: var(--texto-3);
+  background: var(--superficie-3); border-radius: var(--radio-3); box-shadow: var(--sombra-flotante);
+  animation: tv-leyenda-entrar 120ms var(--curva-salida);
+}
+@keyframes tv-leyenda-entrar { from { opacity: 0; transform: translateY(-4px); } }
+.telarana-viva .tv-leyenda[hidden] { display: none; }
+.telarana-viva .tv-pista { color: var(--texto-4); font-size: 12.5px; }
+.telarana-viva .tv-zoom .tv-activo { background: var(--superficie-3); color: var(--texto-1); }
 .telarana-viva .tv-leyenda li { display: inline-flex; align-items: center; gap: 6px; }
 .telarana-viva .tv-ley-muestra { width: 16px; height: 3px; border-radius: 2px; background: var(--tono); }
 .telarana-viva .tv-ley-ruta { --tono: var(--acento); }

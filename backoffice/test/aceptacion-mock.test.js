@@ -78,7 +78,7 @@ test("mock: /api/resumen es exactamente el del contrato", { skip: SALTAR }, asyn
 
 test("mock: /api/overview con 90 revisiones (65 entregadas, 18 fallidas, 5 corriendo, 2 en cola); Recent empieza por las en cola", { skip: SALTAR }, async () => {
   const porDefecto = await (await fetch(`${base}/api/overview`)).json();
-  assert.deepEqual(Object.keys(porDefecto), ["ahora", "disponible", "umbralDetenidaMin", "cuentas", "pestanas", "tarjetas"], "sin cola");
+  assert.deepEqual(Object.keys(porDefecto), ["ahora", "disponible", "umbralDetenidaMin", "busqueda", "cuentas", "pestanas", "tarjetas"], "sin cola");
   assert.equal(porDefecto.ahora, "2026-11-22T03:36:49.000Z");
   assert.equal(porDefecto.disponible, true);
   assert.equal(porDefecto.umbralDetenidaMin, 30);

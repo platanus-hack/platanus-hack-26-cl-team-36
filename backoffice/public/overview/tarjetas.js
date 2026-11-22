@@ -245,9 +245,12 @@ export function numerosDePaginas(pagina, paginas, huecos = HUECOS_DEL_PAGINADOR)
   return numeros;
 }
 
-/** ¿Va la pista de arranque vacío? Solo en Recent y con menos de 3 revisiones. */
+/** La búsqueda por link con la que vino la respuesta ("" si no hubo). */
+export const busquedaDe = (overview) => (typeof overview?.busqueda === "string" ? overview.busqueda : "");
+
+/** ¿Va la pista de arranque vacío? Solo en Recent, sin búsqueda y con menos de 3 revisiones. */
 export function hayPista(overview, pestana) {
-  if (leerPestana(pestana) !== "recent") return false;
+  if (leerPestana(pestana) !== "recent" || busquedaDe(overview)) return false;
   const total = Math.floor(Number(overview?.pestanas?.recent?.total) || 0);
   return total < TARJETAS_SIN_PISTA;
 }

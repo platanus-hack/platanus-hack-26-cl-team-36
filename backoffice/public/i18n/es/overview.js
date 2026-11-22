@@ -51,6 +51,13 @@ export default {
     delivered: "Entregadas",
     failed: "Fallidas",
   },
+  buscar: {
+    etiqueta: "Buscar revisiones por link",
+    marcador: "Buscar links",
+    atajo: "Buscar links",
+    sinResultados: "Ningún link calza con «{link}».",
+    resultados: ({ n }, { plural }) => `${n} ${plural(n, { one: "revisión encontrada", other: "revisiones encontradas" })}`,
+  },
   paginas: {
     etiqueta: "Páginas",
     anterior: "Página anterior",

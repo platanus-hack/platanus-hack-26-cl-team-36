@@ -74,6 +74,7 @@ function paginasBase(tanda, propuesta) {
  * @property {number} paradas       intentos válidos que no llegaron y terminaron aquí
  * @property {Record<"desktop" | "mobile", { antes: Captura | null, despues: Captura | null }>} capturas
  * @property {{ tipo: string, dispositivo: string, caja: number[] }[]} marcas
+ * @property {boolean} [fueraDeRuta]  la capturó el Diseñador fuera de la ruta
  */
 
 /**
@@ -125,10 +126,17 @@ export function vistasDeLaPropuesta(tanda, propuesta) {
     });
   };
   for (const base of paginasBase(tanda, propuesta)) agregar(base);
+  const enLaRuta = vistas.length;
   for (const vista of propuesta?.vistas ?? []) {
     if (!usadas.has(claveDeUrl(vista.url))) agregar({ id: null, url: vista.url, titulo: vista.titulo, tituloTipo: "sitio" });
   }
+  for (const vista of vistas.slice(enLaRuta)) vista.fueraDeRuta = true;
   return vistas;
+}
+
+/** Las vistas para el riel: primero donde más visitantes se quedaron sin llegar; a igual cifra, en el orden de la ruta. */
+export function ordenarPorParadas(vistas) {
+  return vistas.map((vista, indice) => ({ vista, indice })).sort((a, b) => b.vista.paradas - a.vista.paradas || a.indice - b.indice).map(({ vista }) => vista);
 }
 
 /** El texto entre «» de una acción («clic «Requisitos»» → «Requisitos»), o null. */

@@ -4,9 +4,12 @@
 
 export default {
   vistas: {
-    etiqueta: "Proposal pages",
-    titulo: "Views · {n}",
+    etiqueta: "Proposal pages, where most visitors stopped first",
+    titulo: "Pages",
+    orden: "where they stopped",
     paradas: "{n}/{de}",
+    detalle: ({ n }) => (n === 1 ? "one visitor stopped here without getting there" : `${n} visitors stopped here without getting there`),
+    fueraDeRuta: "off the route",
     paradasAyuda: ({ n, de }, { plural }) => `${n} of ${de} ${plural(n, { one: "visitor stopped", other: "visitors stopped" })} here without getting there`,
   },
   dispositivo: {
@@ -44,6 +47,7 @@ export default {
     pendiente: "The Designer is still deciding this change.",
   },
   decisiones: ({ n }) => `Designer's decisions (${n})`,
+  tema: "Theme",
   paleta: {
     etiqueta: "Theme colors: {colores}",
     fondo: "background {color}",

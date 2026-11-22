@@ -6,6 +6,7 @@ import { RESULTADO_DE_FINAL } from "./modelo.js";
 import { acotar } from "./layout.js";
 
 const PASO_DE_PAN = 60;
+const movimientoReducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 /**
  * @param {object} E   el estado de la vista (viva.js)
@@ -206,6 +207,16 @@ export function conectarInteraccion(E, { lienzo, globo, zoom, etiquetas, senal, 
     },
     ajustar: () => {
       E.V.auto = true;
+    },
+    /**
+     * La cámara se desliza (400 ms) al encuadre de esas páginas, o de toda la telaraña con null. Con movimiento
+     * reducido, salta.
+     */
+    encuadrar: (claves) => {
+      E.V.marco = claves?.length ? new Set(claves) : null;
+      E.V.auto = true;
+      E.V.viaje = movimientoReducido() ? null : { t0: performance.now(), z: E.V.z, cx: E.V.cx, cy: E.V.cy };
+      if (!E.V.viaje) E.V.init = false;
     },
   };
   return camara;

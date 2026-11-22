@@ -5,13 +5,16 @@ import { ENLACE_EN_CURSO, MARCA, revisionesEnCurso } from "../public/nucleo/shel
 
 const leer = (ruta) => readFileSync(new URL(ruta, import.meta.url), "utf8");
 
-test("barra superior: marca, revisiones en curso y buscador; sin navegación, idioma, cajón ni barra lateral", () => {
+test("barra superior: marca y revisiones en curso; sin buscador, navegación, idioma, cajón ni barra lateral", () => {
   const shell = leer("../public/nucleo/shell.js");
   const html = leer("../public/index.html");
-  // Lo que queda: la marca, la píldora y el buscador (abre la paleta).
-  for (const pieza of ["marca-logo", "barra-en-curso", "barra-buscar", "abrirPaleta"]) assert.match(shell, new RegExp(pieza));
+  // Lo que queda: la marca y la píldora.
+  for (const pieza of ["marca-logo", "barra-en-curso"]) assert.match(shell, new RegExp(pieza));
+  // Sin el buscador ⌘K ni su paleta: cada vista busca lo suyo (el Overview, sus revisiones por link).
+  assert.doesNotMatch(shell, /barra-buscar|Paleta/);
+  assert.doesNotMatch(html, /id="paleta"/);
   // Lo que se fue (contrato §6): enlaces de sección, marca de sección actual, menú, cajón y el selector EN | ES (el
-  // idioma se cambia con la acción de la paleta o con ?idioma=).
+  // idioma se cambia con ?idioma=).
   assert.doesNotMatch(shell, /el\("nav"|aria-current|barra-menu|cajon|backoffice:ruta|barra-idioma|cambiarIdioma|IDIOMAS/);
   // Tampoco la insignia "backoffice" junto al logo (contrato §7.2).
   assert.doesNotMatch(shell, /marca-insignia|marca\.producto/);

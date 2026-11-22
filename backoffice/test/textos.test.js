@@ -9,7 +9,6 @@ import {
   textoDeFirma,
   textoDeHallazgo,
   textoDeLoQuePaso,
-  textoDeTitular,
 } from "../public/datos/textos.js";
 import datosEn from "../public/i18n/en/datos.js";
 import datosEs from "../public/i18n/es/datos.js";
@@ -78,8 +77,8 @@ function sinRestos(texto) {
 
 test("tanda nueva: titular y hallazgos en español e inglés", async () => {
   const tanda = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z");
-  assert.equal(textoDeTitular(tanda.titulares.tanda, tanda, es), "2 de 3 llegan a la respuesta. No llega: Adulto mayor.");
-  assert.equal(textoDeTitular(tanda.titulares.tanda, tanda, en), "2 of 3 reach the answer. Did not reach it: Adulto mayor.");
+  assert.equal(textoDeHallazgo(tanda.titulares.tanda, tanda, es), "2 de 3 llegan a la respuesta. No llega: Adulto mayor.");
+  assert.equal(textoDeHallazgo(tanda.titulares.tanda, tanda, en), "2 of 3 reach the answer. Did not reach it: Adulto mayor.");
   assert.deepEqual(tanda.hallazgos.map((h) => textoDeHallazgo(h, tanda, es)), [
     "2 de 3 llegan a la respuesta. No llega: Adulto mayor.",
     "Un intento no cuenta: error de la herramienta (Móvil).",
@@ -100,9 +99,9 @@ test("tanda nueva: titular y hallazgos en español e inglés", async () => {
   const costo = { id: "costo", nivel: "info", clave: "datos.hallazgo.costo", vars: { pasosMediana: 4, pasosIdeales: 2 }, intento: null, paso: null, pagina: null };
   assert.equal(textoDeHallazgo(costo, tanda, es), "La mediana es de 4 pasos; la ruta recomendada usa 2.");
   assert.equal(textoDeHallazgo(costo, tanda, en), "The median is 4 steps; the recommended route takes 2.");
-  assert.equal(textoDeTitular(tanda.titulares.telarana, tanda, es), "La ruta recomendada tiene 2 tramos y 4 pasos; 2 de 3 la siguen.");
-  assert.equal(textoDeTitular(tanda.titulares.perfiles, tanda, es), "Adulto mayor no llega a la respuesta (1 intento por perfil).");
-  assert.equal(textoDeTitular(tanda.titulares.perfiles, tanda, en), "Adulto mayor does not reach the answer (1 attempt per profile).");
+  assert.equal(textoDeHallazgo(tanda.titulares.telarana, tanda, es), "La ruta recomendada tiene 2 tramos y 4 pasos; 2 de 3 la siguen.");
+  assert.equal(textoDeHallazgo(tanda.titulares.perfiles, tanda, es), "Adulto mayor no llega a la respuesta (1 intento por perfil).");
+  assert.equal(textoDeHallazgo(tanda.titulares.perfiles, tanda, en), "Adulto mayor does not reach the answer (1 attempt per profile).");
 });
 
 test("todo lo de las dos tandas se escribe sin restos de claves ni variables", async () => {
@@ -110,7 +109,7 @@ test("todo lo de las dos tandas se escribe sin restos de claves ni variables", a
     const tanda = await leerTanda(RAIZ, id);
     for (const t of [es, en]) {
       for (const hallazgo of tanda.hallazgos) sinRestos(textoDeHallazgo(hallazgo, tanda, t));
-      for (const titular of Object.values(tanda.titulares)) sinRestos(textoDeTitular(titular, tanda, t));
+      for (const titular of Object.values(tanda.titulares)) sinRestos(textoDeHallazgo(titular, tanda, t));
       for (const pagina of tanda.telarana.paginas) sinRestos(nombreDePagina(pagina, t));
       for (const intento of tanda.intentos) {
         for (const paso of intento.pasos) {
@@ -131,11 +130,11 @@ const WOM = {
 
 test("las frases de los datos reales, en español e inglés", () => {
   const todos = resultado({ total: 3, validos: 3, logrados: 3, directos: 3, siguen: 3, errores: 0 });
-  assert.equal(textoDeTitular(todos, WOM, es), "Los 3 llegan a la respuesta por la ruta recomendada.");
-  assert.equal(textoDeTitular(todos, WOM, en), "All 3 reach the answer by the recommended route.");
+  assert.equal(textoDeHallazgo(todos, WOM, es), "Los 3 llegan a la respuesta por la ruta recomendada.");
+  assert.equal(textoDeHallazgo(todos, WOM, en), "All 3 reach the answer by the recommended route.");
   const dt = resultado({ total: 3, validos: 2, logrados: 2, directos: 2, siguen: 2, errores: 1 });
-  assert.equal(textoDeTitular(dt, WOM, es), "Los 2 intentos válidos llegan a la respuesta por la ruta recomendada.");
-  assert.equal(textoDeTitular(dt, WOM, en), "The 2 valid attempts reach the answer by the recommended route.");
+  assert.equal(textoDeHallazgo(dt, WOM, es), "Los 2 intentos válidos llegan a la respuesta por la ruta recomendada.");
+  assert.equal(textoDeHallazgo(dt, WOM, en), "The 2 valid attempts reach the answer by the recommended route.");
   const demora = {
     clave: "datos.hallazgo.demora",
     vars: { intento: "mobile", pagina: "n1", pasos: 6, rutaPasos: 3, conteos: { clic: 5, desplazamiento: 0, texto: 1, tecla: 0, otra: 0 } },
@@ -145,32 +144,32 @@ test("las frases de los datos reales, en español e inglés", () => {
   const tropiezos = { clave: "datos.hallazgo.tropiezos", vars: { pasos: 1, casos: [{ intento: "mobile", paso: 4, senal: "no_effect" }] } };
   assert.equal(textoDeHallazgo(tropiezos, WOM, es), "1 paso con tropiezos: Móvil, paso 4 (sin efecto).");
   const telarana = { clave: "datos.titular.telarana", vars: { hayRuta: true, tramos: 3, pasosIdeales: 8, siguen: 3, validos: 3 } };
-  assert.equal(textoDeTitular(telarana, WOM, es), "La ruta recomendada tiene 3 tramos y 8 pasos; los 3 la siguen.");
-  assert.equal(textoDeTitular(telarana, WOM, en), "The recommended route has 3 legs and 8 steps; all 3 follow it.");
+  assert.equal(textoDeHallazgo(telarana, WOM, es), "La ruta recomendada tiene 3 tramos y 8 pasos; los 3 la siguen.");
+  assert.equal(textoDeHallazgo(telarana, WOM, en), "The recommended route has 3 legs and 8 steps; all 3 follow it.");
   const costo = { clave: "datos.hallazgo.costo", vars: { pasosMediana: 8, pasosIdeales: 5 } };
   assert.equal(textoDeHallazgo(costo, WOM, es), "La mediana es de 8 pasos; la ruta recomendada usa 5.");
   const vacia = resultado({ total: 0, validos: 0, logrados: 0, errores: 0 });
-  assert.equal(textoDeTitular(vacia, WOM, es), "La tanda no tiene intentos registrados.");
-  assert.equal(textoDeTitular(vacia, WOM, en), "This batch has no recorded attempts.");
+  assert.equal(textoDeHallazgo(vacia, WOM, es), "La tanda no tiene intentos registrados.");
+  assert.equal(textoDeHallazgo(vacia, WOM, en), "This batch has no recorded attempts.");
   const sinValidos = resultado({ total: 1, validos: 0, logrados: 0, errores: 1 });
-  assert.equal(textoDeTitular(sinValidos, WOM, es), "Ningún intento válido: el único intento falló por un error de la herramienta.");
+  assert.equal(textoDeHallazgo(sinValidos, WOM, es), "Ningún intento válido: el único intento falló por un error de la herramienta.");
   const otroCamino = resultado({ total: 3, validos: 3, logrados: 3, directos: 1, errores: 0 });
-  assert.equal(textoDeTitular(otroCamino, WOM, es), "Los 3 llegan a la respuesta; 2 por otro camino.");
+  assert.equal(textoDeHallazgo(otroCamino, WOM, es), "Los 3 llegan a la respuesta; 2 por otro camino.");
   const perfiles = { clave: "datos.titular.perfiles", vars: { caso: "masPasos", intentos: ["mobile"], pasos: 12, pasosIdeales: 8, perfiles: 3, unoPorPerfil: true } };
-  assert.equal(textoDeTitular(perfiles, WOM, es), "Móvil necesita 12 pasos; la ruta, 8 (1 intento por perfil).");
+  assert.equal(textoDeHallazgo(perfiles, WOM, es), "Móvil necesita 12 pasos; la ruta, 8 (1 intento por perfil).");
 });
 
 test("titular de una tanda donde todos llegan pero alguien lo pasa mal", () => {
   const titular = (vars) => ({ clave: "datos.titular.tanda", nivel: "dificultad", vars: { validos: 3, errores: 0, ...vars } });
   const masPasos = titular({ caso: "masPasos", intento: "hurried", pasos: 12, pasosIdeales: 5 });
-  assert.equal(textoDeTitular(masPasos, WOM, es), "Los 3 llegan a la respuesta, pero Apurado tarda 12 pasos (la ruta: 5).");
-  assert.equal(textoDeTitular(masPasos, WOM, en), "All 3 reach the answer, but Apurado takes 12 steps (the route: 5).");
+  assert.equal(textoDeHallazgo(masPasos, WOM, es), "Los 3 llegan a la respuesta, pero Apurado tarda 12 pasos (la ruta: 5).");
+  assert.equal(textoDeHallazgo(masPasos, WOM, en), "All 3 reach the answer, but Apurado takes 12 steps (the route: 5).");
   const demora = titular({ caso: "demora", intento: "mobile", pagina: "n1", pasos: 6 });
-  assert.equal(textoDeTitular(demora, WOM, es), "Los 3 llegan a la respuesta, pero Móvil da 6 pasos seguidos en «Inicio».");
-  assert.equal(textoDeTitular(demora, WOM, en), "All 3 reach the answer, but Móvil takes 6 steps in a row on «Home».");
+  assert.equal(textoDeHallazgo(demora, WOM, es), "Los 3 llegan a la respuesta, pero Móvil da 6 pasos seguidos en «Inicio».");
+  assert.equal(textoDeHallazgo(demora, WOM, en), "All 3 reach the answer, but Móvil takes 6 steps in a row on «Home».");
   const tropiezos = titular({ validos: 2, errores: 1, caso: "tropiezos", pasos: 1 });
-  assert.equal(textoDeTitular(tropiezos, WOM, es), "Los 2 intentos válidos llegan a la respuesta, pero hay 1 paso con tropiezos.");
-  assert.equal(textoDeTitular(tropiezos, WOM, en), "The 2 valid attempts reach the answer, but 1 step has stumbles.");
+  assert.equal(textoDeHallazgo(tropiezos, WOM, es), "Los 2 intentos válidos llegan a la respuesta, pero hay 1 paso con tropiezos.");
+  assert.equal(textoDeHallazgo(tropiezos, WOM, en), "The 2 valid attempts reach the answer, but 1 step has stumbles.");
 });
 
 test("firmas, lo que pasó, conteos, errores y nombres de página", () => {

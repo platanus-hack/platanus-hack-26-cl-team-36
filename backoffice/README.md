@@ -72,8 +72,17 @@ con cualquier `Host` y no lee nada.
 
 Las capturas y los videos (`archivos/`) pasan por el servidor, que los lee de S3. Como son de tandas que ya
 terminaron, salen con `Cache-Control: private, max-age=31536000, immutable`: el navegador no los vuelve a pedir al
-cambiar de paso o de intento. Lo demás (la API, la página) sale con `no-store`. Una tanda que ya apareció en la lista
+cambiar de paso o de intento. La API sale con `no-store`. Una tanda que ya apareció en la lista
 no se vuelve a listar para servir sus archivos, y una captura entera es un solo `GetObject`.
+
+La página pide sus módulos y hojas bajo `v/<versión>/` (un hash del contenido de `public/` que el servidor calcula al
+arrancar, [`lib/estaticos.js`](lib/estaticos.js)), con caché inmutable, igual que `vendor/<lib>@x.y.z/`: un
+despliegue nunca deja un módulo viejo guardado. Una página de antes del despliegue recibe el archivo actual con
+`no-store`, y si una pantalla no carga, se recarga una vez (`nucleo/recarga.js`). En local, `npm run dev` y
+`npm run mock` (`BACKOFFICE_DEV=1`) recalculan la versión al editar un archivo. `index.html` y lo demás de
+`public/` se revalidan con `ETag` (304). JS, CSS, JSON, SVG y HTML van con brotli o gzip (lo estático se comprime una
+vez, al arrancar); nunca un pedido con `Range` ni el SSE de `/api/vivo`. La página precarga (`modulepreload`) todo lo
+que importa `app.js` y, según la ruta, la pantalla que va a abrir y los datos de la tanda (`precarga.js`).
 
 ### La raíz es una portada
 
@@ -85,17 +94,21 @@ conozca la ruta entra.
 
 ## Pantallas
 
-La barra superior lleva la marca, la píldora "N running" (las revisiones en curso; lleva a la pestaña Live) y el
-buscador ⌘K. No tiene navegación: a Corridas y Revisiones se llega con la paleta ⌘K, los atajos (`g o`, `g c`) y los
-enlaces de cada pantalla.
+La barra superior lleva la marca y la píldora "N running" (las revisiones en curso; lleva a la pestaña Live). No tiene
+navegación ni buscador: cada vista busca lo suyo (el Overview, sus revisiones por link; Corridas, sus tandas). A
+Corridas y Revisiones se llega con los atajos (`g o`, `g c`) y los enlaces de cada pantalla.
 
 **Overview** (`#/`, el inicio) tiene dos bloques. Arriba, los agentes: un solo total dividido por rol en el orden del
 flujo (Cataloger → Guide → Visitors → Designer), con un cuadrito por corrida y el % de éxito de cada rol. Abajo, las
 revisiones en tarjetas con la página revisada (captura de escritorio y teléfono; si el Diseñador terminó y dejó
 capturas, la del después de su tema, y si no, la de inicio de un visitante), sus cuatro etapas (Catalog, Routes,
 Visits, Theme), un medidor por goal y un cuadrito por agente; pestañas Recent (todas, también las en cola), Live (en
-curso, detenidas y en cola), Delivered y Failed. Cada pestaña muestra páginas de 6 tarjetas, paginadas en el servidor
-(`/api/overview?pestana=…&pagina=…`), con un paginador abajo (el rango que se ve y `‹ 1 … 4 5 6 … 11 ›`). Mientras
+curso, detenidas y en cola), Delivered y Failed. Junto al título, un buscador filtra las revisiones por su link
+(`/api/overview?link=…`): sin protocolo, sin `www.` y sin mayúsculas, así que sirve escribir `metro`, `metro.cl/horarios`
+o pegar el link entero; con varias palabras, cada una tiene que estar. Filtra en el servidor (las cifras de las
+pestañas también), vuelve a la página 1 y queda en la URL (`&link=metro`); Esc lo vacía y `/` lo enfoca. Cada pestaña
+muestra páginas de 6 tarjetas, paginadas en el servidor (`/api/overview?pestana=…&pagina=…`), con un paginador abajo
+(el rango que se ve y `‹ 1 … 4 5 6 … 11 ›`). Mientras
 llega otra página, la grilla muestra tarjetas esqueleto. Si la página pedida ya no existe, el servidor da la última y la
 URL se corrige. Otra pestaña empieza en su página 1, que ya llegó con la primera respuesta. Una tarjeta lleva directo
 a Path map / Replay: la telaraña de su primer goal con tanda terminada (cada goal, a la suya); si la revisión todavía
@@ -215,8 +228,8 @@ del DOM, sin agregar una dependencia más pesada que todo el front.
 
 ## Idiomas (es / en)
 
-Inglés por defecto y español. No hay selector en la barra: el idioma se cambia con la acción de la paleta ⌘K o con
-`idioma=` en el hash de la URL (`#/?idioma=es`), y se guarda en `localStorage` (`backoffice:idioma:v2`; lo que guardó
+Inglés por defecto y español. No hay selector en la barra: el idioma se cambia con `idioma=` en el hash de la URL
+(`#/?idioma=es`, y `?idioma=en` para volver), y se guarda en `localStorage` (`backoffice:idioma:v2`; lo que guardó
 el selector ES | EN de antes ya no se lee). Los datos de la corrida (títulos de páginas, instrucciones de los goals,
 expectativas del agente, justificaciones, criterios) nunca se traducen.
 
@@ -241,9 +254,9 @@ el resto.
 
 | Dónde | Teclas |
 |---|---|
-| Siempre | `⌘K` paleta de comandos · `?` atajos · `g o` ir al Overview · `g c` ir a Corridas · `/` paleta (en Corridas, el buscador) |
-| Overview | `←` `→` `Inicio` `Fin` en las fichas de dispositivo y en las pestañas de revisiones |
-| Corridas | `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
+| Siempre | `?` atajos · `g o` ir al Overview · `g c` ir a Corridas |
+| Overview | `/` buscar links · `←` `→` `Inicio` `Fin` en las fichas de dispositivo y en las pestañas de revisiones |
+| Corridas | `/` buscar · `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
 | Tanda | `1` `2` `3` Mapa de caminos, Replay, Propuesta · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
 | Mapa de caminos | `+` `-` acercar / alejar · `0` ajustar · `Esc` cerrar (con el foco en el mapa, las flechas lo mueven) |
 | Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `,` `.` más lento / más rápido · `↑` `↓` en la lista de pasos |
@@ -275,7 +288,9 @@ backoffice/
 │   │                      fuentes/corridas.js (el recorrido de las corridas de todos los agentes, común a las dos)
 │   ├── revisiones.js    ← lee la tabla de revisiones y deriva el avance por etapa y goal; aws.js carga el SDK
 │   ├── panel.js         ← arma /api/resumen y /api/overview: lee el almacén (indice.js) y la tabla, con caché de lo
-│   │                      cerrado y una sola lectura compartida por pedidos que llegan juntos
+│   │                      cerrado y una sola lectura compartida por pedidos que llegan juntos (memoria.js); el
+│   │                      refresco recibe la respuesta anterior mientras se arma la nueva
+│   ├── estaticos.js     ← public/ en memoria: ETag, brotli/gzip, la versión y la página con sus precargas
 │   ├── indice.js        ← el índice del almacén: corridas por rol y estado, intentos con resultado y dispositivo
 │   ├── overview.js      ← cifras del resumen, cuentas, pestañas y su paginado (puro)
 │   ├── tarjeta.js       ← una tarjeta: detenida, etapas, agentes, goals, motivo, capturas (puro)
@@ -287,10 +302,11 @@ backoffice/
 │   ├── hallazgos.js     ← hallazgos y titulares (clave + vars)
 │   └── url.js           ← normalize_url de shared.nodes.urls, en JavaScript
 ├── public/
-│   ├── index.html, app.js   ← arranque: idioma, barra superior, paleta, atajos globales, enrutador
+│   ├── index.html, app.js   ← arranque: idioma, barra superior, atajos globales, enrutador
+│   ├── precarga.js      ← precarga la pantalla de la ruta (y los datos de una tanda) antes que el enrutador
 │   ├── marca/           ← el logo y el símbolo de la marca (copias de docs/marca)
-│   ├── nucleo/          ← enrutador por hash, barra superior, marco de la tanda, atajos, paleta ⌘K, i18n, formatos,
-│   │                      estados, íconos
+│   ├── nucleo/          ← enrutador por hash, barra superior, marco de la tanda, atajos, i18n, formatos, estados,
+│   │                      íconos, links.js (buscar por link: lo comparten la página y lib/overview.js)
 │   ├── pantallas/       ← una por vista: overview, corridas, revisiones, telarana, replay, propuesta
 │   ├── overview/        ← piezas del Overview: las puras (agentes, tarjetas, tiempo, marca, textos) y las que arman
 │   │                      DOM (dom-*.js; capturas.js guarda los <img> para no volver a pedirlos al refrescar)

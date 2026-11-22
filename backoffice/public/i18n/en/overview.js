@@ -51,6 +51,13 @@ export default {
     delivered: "Delivered",
     failed: "Failed",
   },
+  buscar: {
+    etiqueta: "Search reviews by link",
+    marcador: "Search links",
+    atajo: "Search links",
+    sinResultados: "No links match “{link}”.",
+    resultados: ({ n }, { plural }) => `${n} ${plural(n, { one: "review", other: "reviews" })} found`,
+  },
   paginas: {
     etiqueta: "Pages",
     anterior: "Previous page",
