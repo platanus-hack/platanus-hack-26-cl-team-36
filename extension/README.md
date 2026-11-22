@@ -15,11 +15,14 @@ extension/
 ├── src/                      ← todo lo que va dentro de la extensión (.xpi)
 │   ├── manifest.json
 │   ├── background/
-│   │   ├── index.js          ← botón ON/OFF + resuelve el tema de cada página e inyecta su CSS
+│   │   ├── index.js          ← badge ON/OFF + resuelve el tema de cada página e inyecta su CSS + votos
 │   │   ├── config.js         ← URL del backend
 │   │   ├── api.js            ← pregunta al backend: POST /temas/buscar
 │   │   ├── temas-locales.js  ← carga src/temas/<id>/
 │   │   └── temas.js          ← lógica pura (validar temas, decidir el tema); testeable con Node
+│   ├── popup/                ← lo que abre el ícono de la barra
+│   │   ├── popup.html/.css/.js ← interruptor ON/OFF + opinión sobre la página
+│   │   └── estado.js         ← lógica pura del popup; testeable con Node
 │   ├── content/
 │   │   ├── registro.js       ← registro de features y componentes (globalThis.MiTema)
 │   │   ├── plantillas.js     ← lee datos de la página según una plantilla; crea elementos seguros
@@ -51,7 +54,10 @@ extension/
    Si la API responde `success: false` o no responde, no hay tema y el motor no toca la página.
 3. El motor pone la clase `mi-tema` en `<html>` (todo el CSS del tema cuelga de ella) y
    ejecuta las features en cada navegación y cambio del DOM.
-4. El botón de la extensión guarda `activo` en `storage`; el motor quita/pone la clase al instante.
+4. El ícono de la barra abre un popup con un interruptor ON/OFF grande, que guarda `activo` en
+   `storage`; el motor anima el cambio y quita/pone la clase. El popup también pide tu opinión
+   sobre la página (Mejor / Peor / comentario), que se guarda solo en tu equipo: con una copia
+   limpia de la página si tiene tema, solo el comentario si no lo tiene, y nada en ventanas privadas.
 
 ## Requisitos
 

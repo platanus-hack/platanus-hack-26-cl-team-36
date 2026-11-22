@@ -20,7 +20,8 @@
   },
 
   "action": {
-    "default_title": "Activar / desactivar Chameleon",
+    "default_title": "Chameleon",
+    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.svg",
       "32": "icons/icon.svg"
@@ -33,6 +34,8 @@
       "css": ["features/modo-foco.css", "features/vista.css", "componentes/cartelera.css", "content/transicion.css"],
       "js": [
         "content/registro.js",
+        "comun/idioma.js",
+        "content/captura.js",
         "content/plantillas.js",
         "content/transicion.js",
         "componentes/cartelera.js",
