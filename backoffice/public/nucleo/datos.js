@@ -59,6 +59,11 @@ export function pedirTanda(id) {
 export const pedirRevisiones = () => pedirJson("api/revisiones");
 /** → AvanceDeRevision | null (404) */
 export const pedirRevision = (revision) => pedirJson(`api/revisiones/${encodeURIComponent(revision)}`);
+// El Overview también se refresca cada pocos segundos: sin caché.
+/** → { ahora, roles: { cataloger, guide, visitor: { all, desktop, mobile }, improver } } (contrato §1) | null (404) */
+export const pedirResumen = () => pedirJson("api/resumen");
+/** → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, cola, tarjetas } (contrato §2) | null (404) */
+export const pedirOverview = () => pedirJson("api/overview");
 /** "resultados/<clave de corrida>/<archivo>" */
 export const urlDeResultado = (clave) => `resultados/${segmentosCodificados(clave)}`;
 
