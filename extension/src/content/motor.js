@@ -3,7 +3,8 @@
 //
 //   1. Pide al background el tema para esta URL (el background le pregunta a la
 //      API e inyecta el CSS). Si no hay tema, no toca la página (salvo la animación
-//      del botón, que corre en todos los sitios).
+//      del botón, que corre en todos los sitios). Si el tema se está generando (una
+//      revisión), vuelve a preguntar cada tanto y lo activa cuando llega.
 //   2. Marca <html> con la clase `mi-tema` (según el botón de la extensión) y el
 //      atributo `data-mt-tema`, y los repone si el sitio los borra.
 //   3. Ejecuta las features que pide el tema en cada navegación y cambio del DOM.
@@ -118,8 +119,12 @@
     if (!botonTocado) activo = estado.activo ?? true;
     if (!idiomaTocado) MiTema.idioma.fijar(estado[MiTema.idioma.CLAVE_IDIOMA]);
     if (!efectosTocados) efectos = MiTema.efectos.normalizarEfectos(estado[MiTema.efectos.CLAVE_EFECTOS]);
-    if (!respuesta) return; // sin tema para este sitio (o la API no respondió)
+    if (respuesta?.esperarRevision) esperarRevision(respuesta.esperarRevision);
+    else if (respuesta) activarTema(respuesta);
+    // sin respuesta: sin tema para este sitio (o la API no respondió)
+  }
 
+  function activarTema(respuesta) {
     tema = respuesta;
     console.info(`[mi-tema] Tema "${tema.id}" aplicado${activo ? "" : " (desactivado con el botón)"}.`);
 
@@ -135,6 +140,19 @@
       }
     };
     vigilarCambios(refrescar);
+  }
+
+  // Página sin tema empaquetado cuya revisión (un tema generado) está en curso: se vuelve a preguntar
+  // cada `intervaloMs` hasta `topeMs`, mientras sigamos en la misma página (sin query ni hash).
+  const paginaActual = () => location.origin + location.pathname;
+  function esperarRevision({ intervaloMs, topeMs }, pagina = paginaActual(), inicio = Date.now()) {
+    setTimeout(async () => {
+      if (tema || paginaActual() !== pagina || Date.now() - inicio > topeMs) return;
+      const respuesta = await browser.runtime.sendMessage({ tipo: "tema:revision" }).catch(() => null);
+      if (tema || paginaActual() !== pagina) return;
+      if (respuesta?.esperarRevision) esperarRevision(respuesta.esperarRevision, pagina, inicio);
+      else if (respuesta) activarTema(respuesta);
+    }, intervaloMs);
   }
 
   iniciar().catch((error) => console.error("[mi-tema] No se pudo iniciar:", error));

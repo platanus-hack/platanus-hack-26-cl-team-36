@@ -203,6 +203,13 @@ POST <URL de la API>/temas/buscar
 | `404 { "success": false, "error": "…" }` | Nada: el sitio no tiene tema |
 | Backend caído, error o más de 2 s sin responder | Nada; avisa en la consola del background |
 
+Si no hay tema empaquetado, pide una **revisión** (un tema generado por los agentes para esa página,
+`background/revisiones.js`): `POST /revisiones { "url" }` con la URL sin query ni hash. Si responde
+`status: "done"` con `css`, lo sanea (`background/css-remoto.js`, mismas reglas que el diseñador) y lo
+aplica como tema `rev-<revision>`; con `queued`/`running`, el motor vuelve a preguntar con
+`GET /revisiones?url=` cada 15 s (hasta 10 min) mientras siga en la página. 404, `failed` o error: nada.
+No se piden revisiones en ventanas privadas ni con el interruptor apagado.
+
 Hoy el backend responde `success: true` para YouTube (`youtube.com` y subdominios) y Gmail
 (`mail.google.com`), y `success: false` para el resto.
 
@@ -224,7 +231,8 @@ Lo que hay que tener en cuenta:
 - **Cuando la API devuelva el tema completo** (CSS + config) en vez del id, `resolverTema` en
   `background/temas.js` es el lugar para usarlo directo; `normalizarTema` es el contrato.
 - **Permisos y privacidad:** la extensión corre en todos los sitios http(s) y le envía al
-  backend el origen de cada página que visitas. Por eso pide acceso a todos los sitios y el
+  backend el origen de cada página que visitas, y la URL sin query ni hash de las que no tienen
+  tema (para pedir su revisión). Por eso pide acceso a todos los sitios y el
   manifest declara `browsingActivity` en `data_collection_permissions`; Firefox lo muestra
   al instalar.
 - **Latencia:** el tema se aplica cuando la API responde. Con la API desplegada, una

@@ -3,11 +3,13 @@
 //
 // Responsabilidades:
 //   1. Badge ON/OFF del ícono, sincronizado con `activo` en storage (el interruptor está en el popup).
-//   2. Preguntarle a la API qué tema corresponde a cada página e inyectar su CSS.
+//   2. Preguntarle a la API qué tema corresponde a cada página e inyectar su CSS. Si no hay tema
+//      empaquetado, pedir una revisión (un tema generado para esa página, ver revisiones.js).
 //   3. Guardar en el equipo los votos del usuario sobre la página con tema (ver votos.js).
 
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
-import { consultarTema } from "./api.js";
+import { consultarRevision, consultarTema, pedirRevision } from "./api.js";
+import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
 import { cargarTemaLocal } from "./temas-locales.js";
 import { resolverTema } from "./temas.js";
 import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
@@ -73,12 +75,37 @@ async function refrescarPestanasConTema() {
 // El content script pide su tema al cargar. Inyectamos el CSS desde aquí con
 // scripting.insertCSS (no le afecta la CSP de la página) y le devolvemos al
 // content script solo lo que necesita para las features.
+//
+// `tema:aplicar` y `tema:revision` → tema (sin css) | null | { esperarRevision: { intervaloMs, topeMs } }.
+// Con `esperarRevision`, el content script vuelve a mandar `tema:revision` cada `intervaloMs` mientras
+// siga en la misma página: lo maneja él porque Firefox descarga el background tras un rato sin uso.
 async function aplicarTema(sender) {
   const tema = await resolverTema(sender.url, { consultarApi: consultarTema, cargarTema: cargarTemaLocal });
+  if (tema) return inyectarTema(tema, sender);
+  if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen: new URL(sender.url).origin, temaId: null, css: "" });
+  return revisarPagina(sender, pedirRevision);
+}
+
+async function revisarPagina(sender, consultar) {
+  if (!(await puedePedirRevision(sender))) return null;
+  const resultado = await resolverRevision(sender.url, { consultar });
+  if (resultado.estado === "esperando") {
+    return { esperarRevision: { intervaloMs: INTERVALO_REVISION_MS, topeMs: TOPE_REVISION_MS } };
+  }
+  return resultado.estado === "listo" ? inyectarTema(resultado.tema, sender, urlDePagina(sender.url)) : null;
+}
+
+// Una revisión cuesta (corre agentes), y en ventanas privadas no se envía la URL a nadie. Con el
+// interruptor apagado tampoco: se pedirá en la próxima visita con Chameleon encendido.
+async function puedePedirRevision(sender) {
+  return sender.frameId === 0 && !sender.tab?.incognito && /^https?:/.test(sender.url ?? "") && (await leerActivo());
+}
+
+// `pagina`: solo para temas de revisión, que valen para esa página y no para todo el origen.
+async function inyectarTema(tema, sender, pagina = null) {
   const origen = new URL(sender.url).origin;
-  if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen, temaId: tema?.id ?? null, css: tema?.css ?? "" });
-  if (!tema) return null;
-  console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${origen}`);
+  if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen, pagina, temaId: tema.id, css: tema.css });
+  console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${pagina ?? origen}`);
 
   await browser.scripting.insertCSS({
     target: { tabId: sender.tab.id, frameIds: [sender.frameId] },
@@ -100,18 +127,24 @@ const almacenVotos = crearAlmacenVotos(crearAdaptadorIndexedDB());
 // no del DOM, que la página controla: un sitio cualquiera podría poner
 // `data-mt-tema="youtube"` en su <html>. Firefox descarga el background tras un rato sin
 // uso y esto se pierde: por eso, si no está o es de otro origen, se vuelve a resolver.
-const temaPorPestana = new Map(); // tabId → { origen, temaId | null, css }
+const temaPorPestana = new Map(); // tabId → { origen, pagina?, temaId | null, css }
 browser.tabs.onRemoved.addListener((tabId) => temaPorPestana.delete(tabId));
 
 async function temaDePestana(tabId, url) {
   const origen = new URL(url).origin;
   const conocido = temaPorPestana.get(tabId);
-  if (conocido?.origen === origen) return conocido;
-  const tema = await resolverTema(url, { consultarApi: consultarTema, cargarTema: cargarTemaLocal }).catch((error) => {
+  if (conocido?.origen === origen && (!conocido.pagina || conocido.pagina === urlDePagina(url))) return conocido;
+  let tema = await resolverTema(url, { consultarApi: consultarTema, cargarTema: cargarTemaLocal }).catch((error) => {
     console.warn("[mi-tema] No se pudo resolver el tema para el voto:", error);
     return null;
   });
-  const resuelto = { origen, temaId: tema?.id ?? null, css: tema?.css ?? "" };
+  let pagina = null;
+  if (!tema) {
+    // Solo consulta (GET): votar no debe disparar una revisión.
+    const resultado = await resolverRevision(url, { consultar: consultarRevision });
+    if (resultado.estado === "listo") [tema, pagina] = [resultado.tema, urlDePagina(url)];
+  }
+  const resuelto = { origen, pagina, temaId: tema?.id ?? null, css: tema?.css ?? "" };
   temaPorPestana.set(tabId, resuelto);
   return resuelto;
 }
@@ -236,6 +269,8 @@ browser.runtime.onMessage.addListener((mensaje, sender) => {
   switch (mensaje?.tipo) {
     case "tema:aplicar":
       return aplicarTema(sender);
+    case "tema:revision":
+      return revisarPagina(sender, consultarRevision);
     case "voto:guardar":
       return guardarVoto(mensaje, sender);
     case "votos:estado":
