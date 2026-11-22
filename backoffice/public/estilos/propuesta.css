@@ -1,0 +1,207 @@
+/* Propuesta: vistas | antes y después | relato. Todo selector va bajo .p-propuesta. Los valores dinámicos llegan por
+   CSSOM: --proporcion (ancho/alto de la captura), --corte (dónde está el divisor, en %), --color (cada color de la
+   paleta) y --acento-tema (el acento del tema en la muestra de enlace). */
+
+.p-propuesta { container: propuesta / inline-size; }
+.p-propuesta .propuesta {
+  display: grid; grid-template-columns: 216px minmax(0, 1fr) 340px; gap: var(--e-4); align-items: start; min-width: 0;
+}
+
+/* ── Vistas ───────────────────────────────────────────────────────────── */
+.p-propuesta .propuesta-vistas { display: grid; gap: var(--e-3); min-width: 0; }
+.p-propuesta .propuesta-vistas h3 { margin: 0; }
+.p-propuesta .propuesta-lista-vistas { display: grid; gap: var(--e-3); margin: 0; padding: 0; list-style: none; }
+.p-propuesta .propuesta-vista {
+  display: grid; gap: var(--e-2); width: 100%; padding: var(--e-2); text-align: start; font: inherit; color: inherit;
+  border: 1px solid var(--borde-sutil); border-radius: var(--radio-3); background: var(--superficie-1); cursor: pointer;
+  transition: border-color var(--dur-1), background-color var(--dur-1);
+}
+.p-propuesta .propuesta-vista:hover { border-color: var(--borde-fuerte); }
+.p-propuesta .propuesta-vista[aria-pressed="true"] { border-color: color-mix(in oklch, var(--acento) 60%, transparent); background: var(--superficie-2); }
+.p-propuesta .propuesta-miniatura {
+  display: block; overflow: hidden; height: 112px; border-radius: var(--radio-2); background: var(--superficie-3);
+}
+.p-propuesta .propuesta-miniatura img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.p-propuesta .propuesta-miniatura-mobile img { object-fit: contain; object-position: top center; }
+.p-propuesta .propuesta-vista-pie { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); min-width: 0; }
+.p-propuesta .propuesta-vista-nombre { min-width: 0; overflow: hidden; color: var(--texto-1); font-size: 13px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.p-propuesta .propuesta-paradas { flex: none; min-height: 20px; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* ── Escenario: antes | después con divisor ───────────────────────────── */
+.p-propuesta .propuesta-escenario {
+  display: grid; gap: var(--e-3); min-width: 0; padding: var(--e-3);
+  border: 1px solid var(--borde-sutil); border-radius: var(--radio-3); background: var(--superficie-1);
+}
+.p-propuesta .propuesta-escenario-cabecera { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--e-3); }
+.p-propuesta .propuesta-etiqueta-despues { justify-self: end; }
+.p-propuesta .propuesta-dispositivos {
+  display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--borde); border-radius: var(--radio-2); background: var(--fondo);
+}
+.p-propuesta .propuesta-dispositivo {
+  display: inline-grid; place-items: center; width: 32px; height: 26px; padding: 0; border: 0; border-radius: var(--radio-1);
+  background: transparent; color: var(--texto-3); cursor: pointer;
+}
+.p-propuesta .propuesta-dispositivo:hover:not(:disabled) { color: var(--texto-1); }
+.p-propuesta .propuesta-dispositivo[aria-pressed="true"] { background: var(--superficie-3); color: var(--acento-fuerte); }
+.p-propuesta .propuesta-dispositivo:disabled { opacity: 0.35; cursor: not-allowed; }
+.p-propuesta .propuesta-disenando { display: inline-flex; align-items: center; gap: 6px; color: var(--acento-fuerte); text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.p-propuesta .propuesta-vivo { width: 7px; height: 7px; border-radius: 50%; background: var(--acento); animation: propuesta-latido 1.4s var(--curva-entrada-salida) infinite; }
+
+.p-propuesta .propuesta-marco-lienzo { display: grid; justify-items: center; min-width: 0; }
+.p-propuesta .propuesta-lienzo {
+  position: relative; width: 100%; aspect-ratio: var(--proporcion, 1.333); overflow: hidden; isolation: isolate;
+  border-radius: var(--radio-2); background: var(--superficie-3); user-select: none;
+}
+/* En móvil, la página a lo alto que cabe, centrada. */
+.p-propuesta .propuesta-lienzo-mobile { width: auto; height: min(72dvh, 680px); max-width: 100%; }
+.p-propuesta .propuesta-imagen { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: fill; }
+.p-propuesta .propuesta-sin-captura { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: var(--e-4); text-align: center; }
+.p-propuesta .propuesta-despues { position: absolute; inset: 0; z-index: 1; clip-path: inset(0 0 0 var(--corte, 50%)); }
+.p-propuesta .propuesta-divisor {
+  position: absolute; top: 0; bottom: 0; left: var(--corte, 50%); z-index: 3; width: 2px; margin-left: -1px;
+  background: var(--acento); box-shadow: 0 0 0 1px oklch(0 0 0 / 0.25); pointer-events: none;
+}
+.p-propuesta .propuesta-asa {
+  position: absolute; top: 50%; left: 50%; display: inline-flex; align-items: center; gap: 0;
+  height: 30px; padding: 0 4px; transform: translate(-50%, -50%);
+  border-radius: var(--radio-pildora); background: var(--acento); color: var(--fondo); box-shadow: var(--sombra-flotante);
+}
+.p-propuesta .propuesta-asa .icono { width: 12px; height: 12px; stroke-width: 2.2; }
+/* El control del divisor cubre toda la página: se arrastra desde cualquier punto; con el teclado, ← →. */
+.p-propuesta .propuesta-corte {
+  position: absolute; inset: 0; z-index: 4; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize;
+}
+.p-propuesta .propuesta-corte:focus-visible + * , .p-propuesta .propuesta-lienzo:has(.propuesta-corte:focus-visible) {
+  outline: 2px solid var(--anillo-foco); outline-offset: 2px;
+}
+
+/* El después mientras diseña: un esqueleto de página con un barrido. */
+.p-propuesta .propuesta-esqueleto {
+  position: absolute; inset: 0; display: grid; grid-template-rows: 9% 7% 22% 22% 1fr; gap: 4%; padding: 0 6% 6%;
+  overflow: hidden; background: var(--superficie-2);
+}
+.p-propuesta .propuesta-esqueleto > span:not(.propuesta-escaneo) { border-radius: var(--radio-1); background: var(--superficie-3); }
+.p-propuesta .propuesta-esqueleto-cabecera { margin: 0 -6.5%; border-radius: 0 !important; }
+.p-propuesta .propuesta-esqueleto > span:nth-child(2) { width: 38%; }
+.p-propuesta .propuesta-escaneo {
+  position: absolute; inset-inline: 0; top: 0; height: 22%;
+  background: linear-gradient(to bottom, transparent, color-mix(in oklch, var(--acento) 22%, transparent), transparent);
+  animation: propuesta-escaneo 2.4s var(--curva-entrada-salida) infinite;
+}
+
+/* Las notas sobre la página: un recuadro punteado y su número. */
+.p-propuesta .propuesta-marcas { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.p-propuesta .propuesta-marca {
+  position: absolute; box-sizing: border-box; border: 2px dashed var(--acento); border-radius: var(--radio-1);
+  background: color-mix(in oklch, var(--acento) 8%, transparent);
+}
+.p-propuesta .propuesta-marca-evidencia { border-color: var(--peligro-texto); background: color-mix(in oklch, var(--peligro) 8%, transparent); }
+.p-propuesta .propuesta-marca-numero {
+  position: absolute; top: -11px; left: -11px; display: inline-grid; place-items: center; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--acento); color: var(--fondo); font-size: 12px; font-weight: 700;
+  box-shadow: 0 0 0 2px var(--fondo);
+}
+.p-propuesta .propuesta-marca-evidencia .propuesta-marca-numero { background: var(--peligro-texto); }
+
+/* ── Relato ───────────────────────────────────────────────────────────── */
+.p-propuesta .propuesta-relato { display: grid; gap: var(--e-3); min-width: 0; }
+.p-propuesta .propuesta-disenador {
+  display: grid; gap: var(--e-3); padding: var(--e-4);
+  border: 1px solid var(--borde-sutil); border-radius: var(--radio-3); background: var(--superficie-1);
+}
+.p-propuesta .propuesta-disenador-en-curso { border-color: color-mix(in oklch, var(--acento) 35%, transparent); }
+.p-propuesta .propuesta-disenador-cabecera { display: flex; align-items: center; gap: var(--e-2); min-width: 0; }
+.p-propuesta .propuesta-disenador-icono {
+  display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radio-2);
+  background: var(--acento-sutil); color: var(--acento-fuerte);
+}
+.p-propuesta .propuesta-disenador-nombre { color: var(--texto-1); font-size: 13px; font-weight: 600; }
+.p-propuesta .propuesta-disenador-detalle { margin-left: auto; color: var(--texto-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p-propuesta .propuesta-disenador .propuesta-disenando { margin-left: auto; font-size: 12px; }
+.p-propuesta .propuesta-frase { margin: 0; color: var(--texto-1); font-size: 15px; line-height: 23px; text-wrap: pretty; overflow-wrap: anywhere; }
+.p-propuesta .propuesta-fallo { color: var(--peligro-texto); font-size: 14px; }
+.p-propuesta .propuesta-otra-tarea { display: flex; align-items: flex-start; gap: 6px; margin: 0; font-size: 12px; line-height: 18px; }
+.p-propuesta .propuesta-otra-tarea .icono { flex: none; width: 14px; height: 14px; margin-top: 2px; }
+
+.p-propuesta .propuesta-notas { display: grid; gap: var(--e-2); margin: 0; padding: 0; list-style: none; }
+.p-propuesta .propuesta-nota {
+  display: grid; gap: var(--e-3); padding: var(--e-3);
+  border: 1px solid var(--borde-sutil); border-radius: var(--radio-3); background: var(--superficie-1);
+}
+.p-propuesta .propuesta-nota-pendiente { border-style: dashed; border-color: var(--borde); background: transparent; }
+.p-propuesta .propuesta-nota-cabecera { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); min-width: 0; }
+.p-propuesta .propuesta-nota-numero {
+  display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--acento); color: var(--fondo); font-size: 12px; font-weight: 700;
+}
+.p-propuesta .propuesta-nota-numero-evidencia { background: var(--peligro-texto); }
+.p-propuesta .propuesta-nota-pendiente .propuesta-nota-numero { background: var(--superficie-3); color: var(--texto-3); }
+.p-propuesta .propuesta-nota-detalle { min-width: 0; color: var(--texto-2); font-size: 13px; overflow-wrap: anywhere; }
+.p-propuesta .propuesta-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.p-propuesta .propuesta-chip {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 var(--e-2); border-radius: var(--radio-pildora);
+  background: var(--acento-sutil); color: var(--acento-fuerte); font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+
+/* Muestras: cómo era → cómo queda, sin palabras. */
+.p-propuesta .propuesta-muestra {
+  display: flex; align-items: center; justify-content: center; gap: var(--e-3); min-height: 56px; padding: var(--e-2) var(--e-3);
+  border-radius: var(--radio-2); background: oklch(0.985 0.004 85); color: oklch(0.30 0.02 260);
+}
+.p-propuesta .propuesta-muestra > .icono { flex: none; color: oklch(0.55 0.01 260); }
+.p-propuesta .propuesta-enlace-antes, .p-propuesta .propuesta-enlace-despues { display: block; width: 88px; height: 8px; border-radius: 2px; }
+.p-propuesta .propuesta-enlace-antes { background: oklch(0.82 0.03 255); }
+.p-propuesta .propuesta-enlace-despues {
+  background: var(--acento-tema, oklch(0.6 0.15 45));
+  box-shadow: 0 5px 0 -3px var(--acento-tema, oklch(0.6 0.15 45));
+}
+.p-propuesta .propuesta-aa { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; line-height: 1; }
+.p-propuesta .propuesta-aa-despues { font-size: 19px; }
+.p-propuesta .propuesta-lineas { display: grid; gap: 3px; width: 40px; }
+.p-propuesta .propuesta-lineas span { display: block; height: 3px; border-radius: 2px; background: oklch(0.80 0.01 260); }
+.p-propuesta .propuesta-aa-despues .propuesta-lineas { gap: 6px; }
+.p-propuesta .propuesta-aa-despues .propuesta-lineas span { background: oklch(0.45 0.02 260); }
+.p-propuesta .propuesta-barra { display: grid; place-items: center; width: 64px; height: 20px; border-radius: var(--radio-1); background: oklch(0.82 0.01 260); }
+.p-propuesta .propuesta-barra-despues { height: 30px; background: oklch(0.45 0.02 260); color: white; font-size: 11px; }
+
+.p-propuesta .propuesta-decisiones { padding: 0 var(--e-1); color: var(--texto-3); font-size: 13px; }
+.p-propuesta .propuesta-decisiones summary { cursor: pointer; }
+.p-propuesta .propuesta-decisiones summary:hover { color: var(--texto-1); }
+.p-propuesta .propuesta-decisiones ul { display: grid; gap: var(--e-1); margin: var(--e-2) 0 0; padding-left: var(--e-4); color: var(--texto-2); }
+
+.p-propuesta .propuesta-pie { display: flex; align-items: center; justify-content: space-between; gap: var(--e-3); padding: var(--e-1) var(--e-1) 0; }
+.p-propuesta .propuesta-paleta { display: inline-flex; }
+.p-propuesta .propuesta-color {
+  width: 22px; height: 22px; margin-left: -6px; border-radius: 50%; background: var(--color);
+  box-shadow: 0 0 0 2px var(--fondo), inset 0 0 0 1px oklch(0 0 0 / 0.12);
+}
+.p-propuesta .propuesta-color:first-child { margin-left: 0; }
+.p-propuesta .propuesta-tema { display: inline-flex; align-items: center; gap: 6px; color: var(--texto-2); font-size: 12px; }
+.p-propuesta .propuesta-tema:hover { color: var(--texto-1); }
+
+/* Brillo de lo que todavía no existe. */
+.p-propuesta .propuesta-brillo {
+  display: block; height: 12px; border-radius: var(--radio-1);
+  background: linear-gradient(90deg, var(--superficie-2), var(--superficie-3), var(--superficie-2)) 0 0 / 200% 100%;
+  animation: propuesta-brillo 1.6s linear infinite;
+}
+.p-propuesta .propuesta-brillo-corto { width: 62%; }
+.p-propuesta .propuesta-brillo-chip { width: 132px; height: 22px; border-radius: var(--radio-pildora); }
+
+@keyframes propuesta-latido { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes propuesta-escaneo { from { transform: translateY(-100%); } to { transform: translateY(460%); } }
+@keyframes propuesta-brillo { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .p-propuesta .propuesta-vivo, .p-propuesta .propuesta-escaneo, .p-propuesta .propuesta-brillo { animation: none; }
+}
+
+/* ── Más angosto: el relato baja bajo el escenario; en pantallas chicas, todo en una columna ── */
+@container propuesta (width < 1180px) {
+  .p-propuesta .propuesta { grid-template-columns: 200px minmax(0, 1fr); }
+  .p-propuesta .propuesta-relato { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+}
+@container propuesta (width < 720px) {
+  .p-propuesta .propuesta { grid-template-columns: minmax(0, 1fr); }
+  .p-propuesta .propuesta-lista-vistas { grid-auto-flow: column; grid-auto-columns: 160px; overflow-x: auto; }
+  .p-propuesta .propuesta-relato { grid-template-columns: minmax(0, 1fr); }
+}
