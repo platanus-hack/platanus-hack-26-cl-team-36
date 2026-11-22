@@ -12,6 +12,8 @@ import {
   extraerIdioma,
   hashDe,
   normalizarPaso,
+  origenDeHoja,
+  parametrosQueSiguen,
   parsearHash,
   traducirLegado,
 } from "../public/nucleo/rutas.js";
@@ -260,4 +262,18 @@ test("la pestaña Propuesta lleva la vista y el dispositivo en la URL, en ese or
     `#/t/${CON_TAREA}/propuesta?vista=n6&dispositivo=mobile`,
   );
   assert.deepEqual(parsearHash(`#/t/${CON_TAREA}/propuesta?vista=n6`), { tipo: "tanda", tandaId: CON_TAREA, pestana: "propuesta", parametros: { vista: "n6" } });
+});
+
+test("la hoja vuelve a la vista de la que vino; por enlace directo, al Overview", () => {
+  assert.deepEqual(origenDeHoja({ tipo: "overview" }, "#/?pestana=live"), { clave: "overview", hash: "#/?pestana=live", conFondo: true });
+  assert.deepEqual(origenDeHoja({ tipo: "revisiones", revision: "r1" }, "#/revisiones/r1"), { clave: "revisiones", hash: "#/revisiones/r1", conFondo: true });
+  assert.deepEqual(origenDeHoja(null), { clave: "overview", hash: "#/", conFondo: false });
+  assert.deepEqual(origenDeHoja({ tipo: "tanda" }, "#/t/x"), { clave: "overview", hash: "#/", conFondo: false });
+  assert.deepEqual(origenDeHoja({ tipo: "desconocida" }, "#/nada"), { clave: "overview", hash: "#/", conFondo: false });
+});
+
+test("al cambiar de pestaña sigue solo la traza elegida", () => {
+  assert.deepEqual(parametrosQueSiguen({ intento: "mobile", paso: "3", pagina: "n2" }), { intento: "mobile" });
+  assert.deepEqual(parametrosQueSiguen({}), {});
+  assert.equal(enlaceATanda(CON_TAREA, "telarana", { pagina: "n2", intento: "mobile" }), `#/t/${CON_TAREA}/telarana?intento=mobile&pagina=n2`);
 });

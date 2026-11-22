@@ -331,13 +331,13 @@ export function detalleDeTramo(m, clave) {
 }
 
 /**
- * Qué se resalta al apuntar o fijar algo: un agente (t: "a"), una página (t: "n") o un tramo (t: "e"). Se
- * resaltan los agentes que pasaron por ahí con todo su recorrido.
+ * Qué se resalta al apuntar o fijar algo: un agente (t: "a", k: un run o varios), una página (t: "n") o un tramo
+ * (t: "e"). Se resaltan los agentes que pasaron por ahí con todo su recorrido.
  */
 export function resaltado(m, foco) {
   const hl = { on: !!foco, agentes: new Set(), tramos: new Set(), nodos: new Set() };
   if (!foco) return hl;
-  const agentes = foco.t === "a" ? [m.agentes.get(foco.k)].filter(Boolean) : m.agentes.values();
+  const agentes = foco.t === "a" ? [foco.k].flat().map((run) => m.agentes.get(run)).filter(Boolean) : m.agentes.values();
   for (const a of agentes) {
     if (foco.t === "n" && !a.visitados.has(foco.k)) continue;
     if (foco.t === "e" && !a.tramos.has(foco.k)) continue;

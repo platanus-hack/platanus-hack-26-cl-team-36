@@ -146,7 +146,7 @@ export function resolverVars(vars, tanda, t) {
 }
 
 /**
- * La frase de un hallazgo.
+ * La frase de un hallazgo o de un titular (titulares.tanda / .telarana / .perfiles).
  * @param {{ clave: string, vars: Record<string, unknown> }} hallazgo
  * @param {object} tanda   la Tanda (para nombres de intentos y páginas)
  * @param {Traductor} t
@@ -154,14 +154,4 @@ export function resolverVars(vars, tanda, t) {
 export function textoDeHallazgo(hallazgo, tanda, t) {
   if (!hallazgo) return "";
   return t(hallazgo.clave, resolverVars(hallazgo.vars, tanda, t));
-}
-
-/**
- * La frase de un titular (titulares.tanda / .telarana / .perfiles).
- * @param {{ clave: string, vars: Record<string, unknown> } | null} titular
- * @param {object} tanda
- * @param {Traductor} t
- */
-export function textoDeTitular(titular, tanda, t) {
-  return textoDeHallazgo(titular, tanda, t);
 }

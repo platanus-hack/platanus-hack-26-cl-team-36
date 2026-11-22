@@ -26,7 +26,7 @@ const ponerTexto = (nodo, valor) => {
  *           alFijar: (foco: { t: string, k: string }) => void, alSoltar: () => void,
  *           alApuntar: (foco: { t: string, k: string } | null) => void }} opciones
  */
-export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alFijar, alSoltar, alApuntar }) {
+export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alFijar, alSoltar, alApuntar, detalleDeAgente = null, pista = null }) {
   let modo = null;
   let partes = null;
   let encima = false;
@@ -105,7 +105,7 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
     const donde = seccion(t("telarana.panel.dondeSeVan"), el("div", { class: "tv-donde" }, el("ol", {}, huecos.map((h) => el("li", {}, h.fila))), nadie));
     const curso = el("b", { class: "num" });
     const linea = el("p", { class: "tv-linea" }, el("span", { texto: t("telarana.panel.enCurso") }), " ", curso);
-    reemplazar(raiz, ruta, donde, linea);
+    reemplazar(raiz, ruta, donde, pista ? el("p", { class: "tv-pista", texto: pista }) : null, linea);
     return { hitos, de, huecos, nadie, curso, orden: [], lista: huecos[0].fila.closest("ol") };
   }
 
@@ -161,6 +161,7 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
     });
     p.nadie.classList.toggle("tv-oculta", p.orden.length > 0);
     ponerTexto(p.curso, enCurso(m));
+    p.curso.parentElement.hidden = enCurso(m) === 0;
   }
 
   // ── Página fijada ───────────────────────────────────────────────────
@@ -276,6 +277,11 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
 
   // ── Agente elegido ──────────────────────────────────────────────────
   function armarAgente(m, run) {
+    const propio = detalleDeAgente?.(run);
+    if (propio) {
+      reemplazar(raiz, propio);
+      return { run, propio: true };
+    }
     const cab = cabecera("", "");
     const donde = el("li", {});
     const salida = el("li", {});
@@ -286,7 +292,7 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
 
   function pintarAgente(m, p) {
     const a = m.agentes.get(p.run);
-    if (!a) return;
+    if (!a || p.propio) return;
     const [estado, clase] = a.final
       ? [t(`comun.resultado.${RESULTADO_DE_FINAL[a.final]}`), { success: "ok", failed: "mal" }[a.final] ?? "neutro"]
       : a.atascado
@@ -338,6 +344,8 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
         partes = agente ? armarAgente(m, agente) : pagina ? armarPagina(m, pagina) : tramo ? armarTramo(m, tramo) : armarGeneral(m);
         partes.tipo = nuevo[0];
         raiz.dataset.modo = partes.tipo;
+        // El panel cambia de contenido con un fundido corto (120 ms).
+        if (!globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) raiz.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 120, easing: "linear" });
       }
       if (partes.tipo === "a") pintarAgente(m, partes);
       else if (partes.tipo === "n") pintarPagina(m, partes, ahora);

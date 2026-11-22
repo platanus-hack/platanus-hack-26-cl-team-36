@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { armarTanda } from "../lib/derivar.js";
 import { abrirArchivoDeIntento, idsDeTandas, leerTanda, listarTandas } from "../lib/tandas.js";
 import { cifrasDeTanda, resultadosParaMedidor, tieneProblemas } from "../public/corridas/filtros.js";
-import { textoDeHallazgo, textoDeTitular } from "../public/datos/textos.js";
+import { textoDeHallazgo } from "../public/datos/textos.js";
 import comunEn from "../public/i18n/en/comun.js";
 import comunEs from "../public/i18n/es/comun.js";
 import datosEn from "../public/i18n/en/datos.js";
@@ -106,7 +106,7 @@ test("sin ruta de la Guía ni juez el intento queda sin medir y no cuenta como p
   assert.equal(textoDeHallazgo(tanda.hallazgos[0], tanda, en), "The only attempt was not measured: there is no Guide route nor judge.");
   assert.equal(tanda.titulares.tanda.nivel, "info");
   assert.equal(tanda.titulares.perfiles.vars.caso, "sinMedir");
-  assert.match(textoDeTitular(tanda.titulares.telarana, tanda, es), /^No se midió quién llegó/);
+  assert.match(textoDeHallazgo(tanda.titulares.telarana, tanda, es), /^No se midió quién llegó/);
 
   const { tandas } = await listarTandas(RAIZ);
   const resumen = tandas.find((t) => t.id === SIN_RUTA);
