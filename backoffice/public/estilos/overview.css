@@ -458,7 +458,7 @@
 .p-overview .ov-tarjeta-enlace::after { content: ""; position: absolute; z-index: 1; inset: 0; border-radius: inherit; }
 .p-overview .ov-tarjeta-enlace:focus-visible { outline: none; }
 .p-overview .ov-tarjeta:has(.ov-tarjeta-enlace:focus-visible) { outline: 2px solid var(--anillo-foco); outline-offset: 2px; }
-.p-overview :is(.ov-etapa, .ov-agentes-tarjeta, .ov-goal, .ov-aviso, .ov-tiempo) { position: relative; z-index: 2; }
+.p-overview :is(.ov-etapa, .ov-agentes-tarjeta, .ov-goal, .ov-aviso, .ov-tiempo, .ov-anteriores) { position: relative; z-index: 2; }
 .p-overview .ov-agentes-tarjeta { display: inline-flex; flex: none; align-items: center; gap: 8px; }
 .p-overview .ov-cuadritos-tarjeta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; max-width: 168px; }
 .p-overview .ov-agentes-cifra { color: var(--texto-2); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -521,7 +521,7 @@
 .p-overview .ov-goal-mas { color: var(--texto-4); font-size: 12px; line-height: 16px; }
 .p-overview .ov-aviso { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; }
 
-/* Pie: el tiempo y, en las entregadas, la muestra del acento del tema. */
+/* Pie: el tiempo, el enlace a las revisiones anteriores de la página y, en las entregadas, la muestra del acento. */
 .p-overview .ov-pie {
   display: flex;
   align-items: center;
@@ -533,6 +533,7 @@
   font-variant-numeric: tabular-nums;
 }
 .p-overview .ov-tema { display: inline-flex; align-items: center; gap: 6px; }
+.p-overview .ov-anteriores { color: var(--texto-3); }
 .p-overview .ov-tema-muestra { flex: none; width: 12px; height: 12px; border-radius: 3px; background: var(--acento-tema, transparent); }
 
 /* ── Arranque vacío: cómo empieza una revisión (artboard 5) ──────────── */

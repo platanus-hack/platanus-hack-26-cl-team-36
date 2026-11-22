@@ -171,6 +171,7 @@ export function modeloDeTarjeta(tarjeta, { dispositivo = "all", ahora = null } =
     aviso: avisoDeTarjeta({ ...tarjeta, estado }, ahora),
     tiempo: tiempoDeTarjeta({ ...tarjeta, estado }, ahora),
     acento: estado === "delivered" && esHex(tarjeta?.acento) ? tarjeta.acento.toLowerCase() : null,
+    anteriores: Number.isInteger(tarjeta?.anteriores) && tarjeta.anteriores > 0 ? tarjeta.anteriores : 0,
   };
 }
 
