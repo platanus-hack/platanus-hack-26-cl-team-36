@@ -54,7 +54,7 @@ CADA OBJETIVO
   · "find_info" si el éxito es una respuesta que se lee (un teléfono, un plazo, un precio, un requisito).
   · Si no, "reach_page": llegar a una página o recurso.
 - "submits_form": true si el objetivo no se cumple sin llenar y enviar un formulario, consultas incluidas.
-- "evidence": las URLs del esquema, copiadas tal cual de las líneas PÁGINA, donde el objetivo aparece.
+- "evidence": las URLs del esquema, copiadas tal cual de las líneas PÁGINA, donde el objetivo aparece; nunca el destino de un enlace (→).
 - "entry": el href, copiado tal cual de un enlace de la PÁGINA 1: el primer enlace que una persona usaría desde la página inicial, preferentemente el más visible; null si ninguno.
 
 CRITERIOS
