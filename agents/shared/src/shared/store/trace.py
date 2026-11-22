@@ -5,11 +5,12 @@ import os
 import tempfile
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 from shared.store.backend import Backend
-from shared.store.manifest import Run, Status, _timestamp
+from shared.store.manifest import Run, Status
 from shared.store.run_ids import Clock, utc_now
 
 TRACE = "trace.json"
@@ -59,6 +60,11 @@ class LiveTrace:
         for name in names:
             (self.directory / name).unlink(missing_ok=True)
             self.backend.publish_file(self.run.key, self.run.workdir, name, self.folder)
+
+
+def _timestamp(moment: datetime) -> str:
+    """Con milisegundos y siempre el mismo largo: la proyectora ordena las trazas comparando este texto."""
+    return moment.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def _replace(path: Path, text: str) -> None:

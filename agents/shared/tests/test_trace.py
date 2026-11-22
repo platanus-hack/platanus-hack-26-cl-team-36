@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -94,7 +95,7 @@ def test_live_trace_uploads_the_new_capture_and_trace_only(folder) -> None:
     published = backend.read_json(run.key.file(TRACE, folder))
     assert published == {
         "schema_version": 1, "agent": trace.agent, "goal": "baja", "revision": "rev-1", "profile": trace.profile,
-        "status": "running", "updated_at": "2026-11-21T10:44:22Z", "start": START, "steps": [{"number": 1}],
+        "status": "running", "updated_at": "2026-11-21T10:44:22.000Z", "start": START, "steps": [{"number": 1}],
     }
 
     trace.write("succeeded", START, [{"number": 1}])
@@ -114,3 +115,16 @@ def test_live_trace_discard_removes_locally_and_from_the_store() -> None:
     assert not (run.workdir / "step_05.png").exists()
     assert not backend.exists(run.key.file("step_05.png"))
     assert sorted(path.name for path in run.workdir.iterdir()) == [TRACE]
+
+
+def test_updated_at_sorts_as_text_within_the_same_second() -> None:
+    backend = S3Backend("bucket", "", FakeS3())
+    run = start_run(backend, guide("wom.cl", "baja", "desktop"), model=None, clock=lambda: MOMENT)
+    moments = iter([MOMENT, MOMENT.replace(microsecond=900_000)])
+    trace = LiveTrace(backend, run, "guide", clock=lambda: next(moments))
+    stamps = []
+    for _ in range(2):
+        trace.write("running", START, [])
+        stamps.append(json.loads((trace.directory / TRACE).read_text())["updated_at"])
+    assert stamps == ["2026-11-21T10:44:22.000Z", "2026-11-21T10:44:22.900Z"]
+    assert stamps[0] < stamps[1]
