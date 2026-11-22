@@ -74,7 +74,7 @@ setup:
     set -e
     echo "Installing dependencies"
     npm install    # the root postinstall also installs extension/ (web-ext)
-    for project in shared app/cataloger app/guide app/visitor app/summary; do
+    for project in shared app/cataloger app/guide app/visitor app/summary app/web_designer; do
         (cd "agents/$project" && uv sync)
     done
     (cd agents/app/visitor && uv run playwright install chromium)    # one Chromium for every agent
@@ -193,6 +193,7 @@ test: _ready _agents_ready
     cd agents/app/guide && uv run pytest -q
     cd agents/app/visitor && uv run pytest -q
     cd agents/app/summary && uv run pytest -q
+    cd agents/app/web_designer && uv run pytest -q
 
 # ── 4. Cataloger ──────────────────────────────────────────────────────────
 
@@ -307,5 +308,5 @@ summary url: _agents_ready
 
 [private]
 _agents_ready:
-    @for project in cataloger guide summary; do test -x "agents/app/$project/.venv/bin/python" \
+    @for project in cataloger guide summary web_designer; do test -x "agents/app/$project/.venv/bin/python" \
         || { echo "The $project dependencies are missing: run \`just local setup\` first." >&2; exit 1; }; done

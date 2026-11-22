@@ -1,4 +1,4 @@
-# Instructions for coding agents: runtime `web_evaluator`
+# Instructions for coding agents: runtime `web_evaluator_image`
 
 You are writing the code for an AgentCore runtime. The AgentCore CLI deploys
 this folder. Follow these rules exactly, or `agentcore dev` and

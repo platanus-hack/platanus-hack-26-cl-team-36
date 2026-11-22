@@ -321,7 +321,7 @@ parte de la tanda por defecto.
   hasta la página final; lo explorado y abandonado cuenta como fallo, así la exploración no infla la ruta.
 
 El backoffice dibuja este grafo en la pestaña «Telaraña». Cómo correrlos y las tareas pensadas para ellos están en el
-[README del evaluador](../../agents/app/web_evaluator/README.md#exploradores).
+[README del Visitante](../../agents/app/visitor/README.md#exploradores).
 
 ### Avance 5 · AgentCore
 

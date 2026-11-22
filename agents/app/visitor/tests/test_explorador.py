@@ -79,6 +79,11 @@ def test_una_skill_que_no_existe_da_un_error_claro(tmp_path, monkeypatch):
         profiles.cuerpo_de_skill.cache_clear()
 
 
+def test_desde_el_repo_las_skills_son_las_de_la_raiz():
+    assert config.DIR_SKILLS == Path(__file__).resolve().parents[4] / ".claude" / "skills"
+    assert (config.DIR_SKILLS / "explorar-caminos" / "SKILL.md").is_file()
+
+
 def test_config_se_importa_fuera_del_repo_como_en_agentcore(monkeypatch):
     """En la imagen de AgentCore el código queda en /agents/app/visitor, sin .claude/skills por encima."""
     fuente = Path(config.__file__).read_text(encoding="utf-8")

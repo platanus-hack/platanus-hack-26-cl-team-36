@@ -7,7 +7,7 @@ para el equipo con el porqué y las fuentes.
 | Skill | Qué hace | Quién la usa |
 |---|---|---|
 | [`disenar-tema`](disenar-tema/SKILL.md) | Escribe el CSS de un tema bajo `html.mi-tema` a partir del mapa de la página, una captura, los gustos y la tarea, sin romper el sitio | `agents/app/web_designer` (prompt de sistema de Haiku) y sesiones del equipo que escriben o revisan temas |
-| [`explorar-caminos`](explorar-caminos/SKILL.md) | Hace que un usuario sintético recorra varios caminos hacia una tarea, retroceda y anote hallazgos | Perfiles exploradores de `agents/app/web_evaluator` |
+| [`explorar-caminos`](explorar-caminos/SKILL.md) | Hace que un usuario sintético recorra varios caminos hacia una tarea, retroceda y anote hallazgos | Perfiles exploradores de `agents/app/visitor` |
 
 ## Cómo se usan
 
