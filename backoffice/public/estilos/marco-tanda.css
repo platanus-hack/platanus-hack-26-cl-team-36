@@ -128,19 +128,17 @@ html.con-hoja #contenido { opacity: 0.4; transition-duration: 220ms; }
   transition: background-color var(--dur-1), border-color var(--dur-1);
 }
 .carril-fila:hover { background: var(--superficie-2); }
-.carril-fila[aria-pressed="true"], .carril-fila[aria-current="true"] {
+.carril-fila[aria-current="true"] {
   border-color: color-mix(in srgb, var(--acento) 45%, transparent); background: color-mix(in srgb, var(--acento) 8%, transparent);
 }
 .carril-fila:focus-visible { outline-offset: -2px; }
-.carril-linea { display: flex; align-items: center; gap: var(--e-2); min-width: 0; }
-.carril-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--neutro); }
+.carril-linea { display: flex; align-items: baseline; gap: var(--e-2); min-width: 0; }
+.carril-punto { flex: none; align-self: center; width: 8px; height: 8px; border-radius: 50%; background: var(--neutro); }
 .carril-punto-logrado { background: var(--exito); }
 .carril-punto-fallido { background: var(--peligro); }
 .carril-punto-abandonado { background: var(--neutro); }
 .carril-punto-sin_medir { background: transparent; box-shadow: inset 0 0 0 1.5px var(--texto-4); }
 .carril-punto-error { background: var(--resultado-error); }
-.carril-linea { align-items: baseline; }
-.carril-punto { align-self: center; }
 .carril-nombre {
   flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--texto-1); font-weight: 500; font-size: 13px; line-height: 18px;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;

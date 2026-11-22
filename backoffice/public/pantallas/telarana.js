@@ -130,7 +130,9 @@ function crearPantalla(contenedor, ctx) {
 
   const mover = (delta) => {
     const id = vecina(trazas.grupos, estado.intento?.grupo.representante ?? null, delta);
-    if (id) ctx.actualizarParametros({ intento: id, pagina: null });
+    if (!id) return;
+    ctx.actualizarParametros({ intento: id, pagina: null });
+    riel.marcar(id, { enfocar: true });
   };
   ctx.atajos.registrar({
     "+": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => estado.vista?.acercar() },

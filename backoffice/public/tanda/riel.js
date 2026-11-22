@@ -31,7 +31,7 @@ export function crearRiel({ titulo, orden, etiqueta, filas, senal, alApuntar = (
     filas.map((fila) => {
       const boton = el(
         "button",
-        { type: "button", class: `carril-fila${fila.punto ? "" : " carril-sin-punto"}`, "aria-pressed": "false", "data-id": fila.id, "data-foco": `riel:${fila.id}`, title: fila.titulo ?? null },
+        { type: "button", class: `carril-fila${fila.punto ? "" : " carril-sin-punto"}`, tabindex: "-1", "data-id": fila.id, "data-foco": `riel:${fila.id}`, title: fila.titulo ?? null },
         el(
           "span",
           { class: "carril-linea" },
@@ -61,12 +61,24 @@ export function crearRiel({ titulo, orden, etiqueta, filas, senal, alApuntar = (
     pieDeOtras(otras),
   );
 
+  // Una sola parada de Tab en el riel (tabindex móvil): la fila elegida o, sin elegida, la primera.
+  const ponerParada = (id) => {
+    const parada = botones.get(id) ?? botones.values().next().value;
+    for (const boton of botones.values()) boton.tabIndex = boton === parada ? 0 : -1;
+  };
+  ponerParada(null);
+
   return {
     nodo,
-    /** Marca la fila elegida (o ninguna) y la deja a la vista dentro del riel. */
-    marcar(id) {
-      for (const [clave, boton] of botones) boton.setAttribute("aria-pressed", String(clave === id));
+    /** Marca la fila elegida (o ninguna) y la deja a la vista dentro del riel; con `enfocar`, le pasa el foco. */
+    marcar(id, { enfocar = false } = {}) {
+      for (const [clave, boton] of botones) {
+        if (clave === id) boton.setAttribute("aria-current", "true");
+        else boton.removeAttribute("aria-current");
+      }
+      ponerParada(id);
       const boton = id ? botones.get(id) : null;
+      if (boton && enfocar) boton.focus({ preventScroll: true });
       if (boton) requestAnimationFrame(() => asegurarVisible(nodo, boton));
     },
   };

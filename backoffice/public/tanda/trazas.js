@@ -27,6 +27,13 @@ export function trazasDeLaTanda(tanda, t) {
   return { grupos, nombrePagina, nombrePerfil, motivos, nombreDeGrupo };
 }
 
+/** Los pasos de una fila: «4 pasos», o «3–5 pasos» si las trazas del grupo no dieron los mismos. */
+function cifraDePasos(grupo, t) {
+  const pasos = grupo.intentos.map((intento) => intento.pasos?.length ?? 0);
+  const [menos, mas] = [Math.min(...pasos), Math.max(...pasos)];
+  return menos === mas ? t("comun.traza.pasos", { n: menos }) : t("comun.traza.pasosRango", { de: menos, a: mas });
+}
+
 /** Las filas del riel de trazas. */
 export function filasDeTrazas(trazas, t) {
   return trazas.grupos.map((grupo) => {
@@ -36,7 +43,7 @@ export function filasDeTrazas(trazas, t) {
       id: grupo.representante,
       punto: grupo.resultado,
       nombre,
-      cifra: t("comun.traza.pasos", { n: grupo.intentos[0].pasos?.length ?? 0 }),
+      cifra: cifraDePasos(grupo, t),
       detalle,
       titulo: `${nombre} · ${t(`comun.resultado.${grupo.resultado}`)}\n${detalle}`,
     };

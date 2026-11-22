@@ -216,10 +216,14 @@ async function alternarReproduccion() {
   if (sigue()) pausar();
 }
 
-function cambiarIntento(id) {
+/** Elige otra traza: con un clic agrega una entrada al historial; con ↑ ↓ (como en el Mapa) la reemplaza. */
+function cambiarIntento(id, { historial = "agregar", enfocar = false } = {}) {
   if (!id || seleccion(trazas.grupos, id)?.grupo === seleccion(trazas.grupos, estado.intento?.id)?.grupo) return;
-  ctx.actualizarParametros({ intento: id, paso: null }, { historial: "agregar" });
+  ctx.actualizarParametros({ intento: id, paso: null }, { historial });
+  if (enfocar) partes?.riel.marcar(id, { enfocar: true });
 }
+
+const moverEnElRiel = (delta) => cambiarIntento(vecina(trazas.grupos, estado.intento?.id ?? null, delta), { historial: "reemplazar", enfocar: true });
 
 // ── Aplicar la URL ────────────────────────────────────────────────────────
 
@@ -253,7 +257,7 @@ function armar(contenedor) {
     etiqueta: t("comun.traza.etiqueta"),
     filas: filasDeTrazas(trazas, t),
     senal,
-    alElegir: cambiarIntento,
+    alElegir: (id) => cambiarIntento(id),
     otras: { titulo: t("comun.traza.otrasTandas"), tanda: ctx.tanda, pestana: "replay", resumen: resumenDeOtra(ctx.tandas), fecha: (iso) => ctx.fmt.fechaCorta(iso) },
   });
 
@@ -290,8 +294,8 @@ function registrarAtajos() {
     Home: { descripcion: d("extremos"), accion: () => elegir(0) },
     End: { descripcion: d("extremos"), accion: () => elegir((estado.intento.pasos?.length ?? 1) - 1) },
     Space: { descripcion: d("reproducir"), accion: () => alternarReproduccion() },
-    ArrowDown: { descripcion: () => ctx.t("comun.atajos.desc.trazas"), accion: () => cambiarIntento(vecina(trazas.grupos, estado.intento?.id ?? null, 1)) },
-    ArrowUp: { descripcion: () => ctx.t("comun.atajos.desc.trazas"), accion: () => cambiarIntento(vecina(trazas.grupos, estado.intento?.id ?? null, -1)) },
+    ArrowDown: { descripcion: () => ctx.t("comun.atajos.desc.trazas"), accion: () => moverEnElRiel(1) },
+    ArrowUp: { descripcion: () => ctx.t("comun.atajos.desc.trazas"), accion: () => moverEnElRiel(-1) },
     ",": { descripcion: d("velocidad"), accion: () => ponerVelocidad(cambiarVelocidad(estado.velocidad, -1)) },
     ".": { descripcion: d("velocidad"), accion: () => ponerVelocidad(cambiarVelocidad(estado.velocidad, 1)) },
   });

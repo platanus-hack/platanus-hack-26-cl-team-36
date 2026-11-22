@@ -96,9 +96,21 @@ function pintarRiel(derivado, vista) {
         titulo: cada.paradas ? t("propuesta.vistas.paradasAyuda", { n: cada.paradas, de }) : cada.url,
       })),
     });
-    reemplazar(partes.rielSlot, partes.riel.nodo);
+    conservarFoco(partes.rielSlot, () => reemplazar(partes.rielSlot, partes.riel.nodo));
   }
+  partes.ordenadas = ordenadas;
   partes.riel.marcar(vista?.id ?? null);
+}
+
+/** ↑ ↓: la página siguiente o anterior del riel, con el foco en su fila. */
+function moverEnElRiel(delta) {
+  const ordenadas = partes?.ordenadas ?? [];
+  if (!ordenadas.length) return;
+  const actual = ordenadas.findIndex((cada) => cada.id === partes.vistaElegida);
+  const destino = ordenadas[actual === -1 ? 0 : Math.min(ordenadas.length - 1, Math.max(0, actual + delta))];
+  if (destino.id === partes.vistaElegida) return;
+  elegir({ vista: destino.id });
+  partes.riel.marcar(destino.id, { enfocar: true });
 }
 
 // ── Escenario (centro) ────────────────────────────────────────────────────
@@ -409,6 +421,7 @@ function pintar() {
     reemplazar(partes.raiz, partes.columnas);
   }
   partes.columnas.className = `tanda-columnas propuesta propuesta-${propuesta.estado}`;
+  partes.vistaElegida = vista?.id ?? null;
   pintarRiel(derivado, vista);
   conservarFoco(partes.centro, () => reemplazar(partes.centro, escenario(vista, dispositivo, derivado.notas)));
   conservarFoco(partes.lado, () => reemplazar(partes.lado, relato(derivado)));
@@ -506,6 +519,10 @@ export default {
       return;
     }
     partes = { raiz };
+    contexto.atajos.registrar({
+      ArrowDown: { descripcion: () => contexto.t("comun.atajos.desc.paginas"), accion: () => moverEnElRiel(1) },
+      ArrowUp: { descripcion: () => contexto.t("comun.atajos.desc.paginas"), accion: () => moverEnElRiel(-1) },
+    });
     estado.propuesta = cargado.propuesta ?? { estado: "ninguna" };
     pintar();
     avisarEstado();
