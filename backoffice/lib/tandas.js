@@ -62,7 +62,8 @@ async function leerDetallado(fuente, id, relativa) {
  */
 const runDanado = (perfil) => ({ profile: perfil, end_reason: ARCHIVO_DANADO, final_message: `${perfil}/run.json no es JSON válido`, steps: [] });
 
-async function leerSinVecinas(fuente, id) {
+/** La tanda sin vecinas, para un id ya validado (lib/revisiones.js lo usa con la run_key de la tabla). */
+export async function leerSinVecinas(fuente, id) {
   const [arbol, criterio] = await Promise.all([
     leerDetallado(fuente, id, "route_tree.json"),
     fuente.leerJson(id, "criteria.json"),
