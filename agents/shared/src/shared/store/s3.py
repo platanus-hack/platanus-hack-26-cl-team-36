@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from shared.store.backend import Backend, workdir_files
-from shared.store.keys import RunKey, RunPrefix
+from shared.store.keys import RunKey
 
 CONTENT_TYPES = {
     ".json": "application/json",
@@ -17,6 +17,10 @@ CONTENT_TYPES = {
 }
 _TAKEN = {"PreconditionFailed", "ConditionalRequestConflict"}
 _MISSING = {"404", "NoSuchKey", "NotFound"}
+
+
+class MissingBoto3(RuntimeError):
+    """El extra `s3` de shared no está instalado."""
 
 
 def content_type(key: str) -> str:
@@ -38,8 +42,10 @@ class S3Backend(Backend):
     def client(self) -> Any:
         # Se crea al primer uso: credenciales y región salen de la cadena estándar de AWS.
         if self._client is None:
-            import boto3  # extra opcional: shared[s3]
-
+            try:
+                import boto3
+            except ModuleNotFoundError:
+                raise MissingBoto3("un almacén s3:// necesita boto3: instala el extra shared[s3]") from None
             self._client = boto3.client("s3")
         return self._client
 
@@ -84,8 +90,8 @@ class S3Backend(Backend):
             raise
         return True
 
-    def _children(self, prefix: RunPrefix) -> Iterable[str]:
-        base = f"{self.prefix}{prefix}/"
+    def _children(self, folder: str) -> Iterable[str]:
+        base = f"{self.prefix}{folder}/"
         request: dict[str, str] = {"Bucket": self.bucket, "Prefix": base, "Delimiter": "/"}
         names: list[str] = []
         while True:

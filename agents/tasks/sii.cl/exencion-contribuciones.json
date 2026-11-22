@@ -1,0 +1,17 @@
+{
+  "id": "exencion-contribuciones",
+  "host": "sii.cl",
+  "start_url": "https://www.sii.cl/",
+  "description": "Tienes 67 años: encuentra hasta cuándo puedes pedir la exención de contribuciones de tu vivienda principal.",
+  "expected_answer": "Hasta el 31 de diciembre de 2026.",
+  "description_sin_contexto": "Tienes 67 años y te contaron que a las personas mayores les pueden rebajar o perdonar el impuesto que se paga por la casa: averigua hasta qué fecha puedes pedirlo para la casa donde vives.",
+  "terminos_oficiales": [
+    "contribuciones",
+    "exención",
+    "impuesto territorial",
+    "bienes raíces",
+    "avalúo fiscal",
+    "vivienda principal"
+  ],
+  "conocimiento_del_tema": "El impuesto que se paga por una propiedad se llama contribuciones (impuesto territorial) y se calcula sobre el avalúo fiscal de los bienes raíces. Los adultos mayores con ingresos bajos pueden pedir al SII la exención o rebaja de contribuciones de su vivienda principal, dentro de un plazo."
+}

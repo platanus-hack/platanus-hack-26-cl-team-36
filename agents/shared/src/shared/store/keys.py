@@ -54,7 +54,7 @@ def validate_file_name(name: str) -> str:
 
 
 def normalize_host(url: str) -> str:
-    """Host de una URL como lo deja `normalize_url` del evaluador, en punycode; un host suelto se toma como https."""
+    """Host de una URL como lo deja `shared.nodes.urls.normalize_url`, en punycode; un host suelto se toma como https."""
     text = url.strip()
     parts = urlsplit(text if "://" in text else f"https://{text}")
     try:

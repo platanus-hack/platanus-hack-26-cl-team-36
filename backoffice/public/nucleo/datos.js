@@ -52,7 +52,7 @@ export function pedirTanda(id) {
   return detalle.get(id);
 }
 
-/** "/archivos/<tarea>/<fecha-hora>/<perfil>/<archivo>", cada segmento codificado. */
+/** "/archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<archivo>", cada segmento codificado. */
 export function urlDeArchivo(tandaId, perfil, archivo) {
   return `/archivos/${[...String(tandaId).split("/"), perfil, archivo].map(encodeURIComponent).join("/")}`;
 }

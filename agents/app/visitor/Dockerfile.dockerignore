@@ -1,0 +1,11 @@
+# Lo que entra a la imagen de AgentCore desde el contexto agents/ (ver Dockerfile): solo shared/ y app/visitor/.
+*
+!shared
+!app/visitor
+**/.venv
+**/.env*
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.DS_Store
+**/tests

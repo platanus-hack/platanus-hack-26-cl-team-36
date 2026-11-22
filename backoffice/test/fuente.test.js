@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -11,14 +11,25 @@ import { leerTanda, listarTandas } from "../lib/tandas.js";
 import { crearServidor } from "../servidor.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
-const ID = "tarea-demo/2026-11-21_10-00-00";
+const ID = "demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
 const leer = (relativa) => readFileSync(`${RAIZ}/${ID}/${relativa}`);
 const texto = async (cuerpo) => Buffer.concat(await cuerpo.toArray()).toString("latin1");
+
+test("fuente de archivos: solo corridas que terminaron bien, también de un host con puerto", async () => {
+  const raiz = mkdtempSync(path.join(tmpdir(), "corridas-"));
+  const origen = `${RAIZ}/demo.cl/visitor/tarea-demo`;
+  for (const corrida of ["2026-11-21T10-00-00Z", "2026-11-21T12-00-00Z", "2026-11-21T13-00-00Z"]) {
+    cpSync(`${origen}/${corrida}`, `${raiz}/localhost:8080/visitor/tarea-demo/${corrida}`, { recursive: true });
+  }
+  cpSync(`${origen}/2026-11-21T10-00-00Z`, `${raiz}/demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z_00`, { recursive: true });
+  const ids = await crearFuenteDeArchivos({ raiz }).listarIds();
+  assert.deepEqual(ids, ["localhost:8080/visitor/tarea-demo/2026-11-21T10-00-00Z"]);
+});
 
 test("fuente de archivos: ids, perfiles, JSON, archivos y rangos", async () => {
   const fuente = crearFuenteDeArchivos({ raiz: RAIZ });
   assert.equal(fuente.descripcion, "backoffice/test/fixtures/corridas");
-  assert.deepEqual((await fuente.listarIds()).sort(), [ID, "tarea-demo/2026-11-21_11-00-00"]);
+  assert.deepEqual((await fuente.listarIds()).sort(), [ID, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z"]);
   assert.deepEqual((await fuente.listarPerfiles(ID)).sort(), ["first_time", "hurried", "mobile"]);
   assert.equal((await fuente.leerJson(ID, "route_tree.json")).task_id, "tarea-demo");
   assert.equal((await fuente.leerJson(ID, "first_time/run.json")).profile, "first_time");
@@ -44,24 +55,6 @@ test("fuente de archivos: ids, perfiles, JSON, archivos y rangos", async () => {
   assert.deepEqual([fuera.cuerpo, fuera.rango], [null, null]);
 });
 
-test("fuente de archivos: la carpeta archivo/ nunca se lista, y se puede abrir como raíz", async () => {
-  const raiz = mkdtempSync(path.join(tmpdir(), "corridas-"));
-  const tanda = (...partes) => {
-    mkdirSync(path.join(raiz, ...partes), { recursive: true });
-    writeFileSync(path.join(raiz, ...partes, "route_tree.json"), "{}");
-  };
-  try {
-    tanda("tarea", "2026-11-21_20-00-00");
-    tanda("archivo", "2026-11-21_10-00-00");
-    tanda("archivo", "2026-11-21-4-exploradores", "tarea", "2026-11-21_10-00-00");
-    assert.deepEqual(await crearFuenteDeArchivos({ raiz }).listarIds(), ["tarea/2026-11-21_20-00-00"]);
-    const archivada = crearFuenteDeArchivos({ raiz: path.join(raiz, "archivo", "2026-11-21-4-exploradores") });
-    assert.deepEqual(await archivada.listarIds(), ["tarea/2026-11-21_10-00-00"]);
-  } finally {
-    rmSync(raiz, { recursive: true, force: true });
-  }
-});
-
 test("crearFuente elige la fuente por tipo", () => {
   assert.equal(crearFuente({ tipo: "archivos", raiz: RAIZ }).descripcion, "backoffice/test/fixtures/corridas");
   assert.throws(() => crearFuente({ tipo: "s3" }), /Fuente desconocida: s3/);
@@ -69,13 +62,13 @@ test("crearFuente elige la fuente por tipo", () => {
 
 // Una fuente en memoria: prueba que tandas.js y el servidor funcionan con cualquier implementación.
 function crearFuenteFalsa(archivos) {
-  const ids = [...new Set(Object.keys(archivos).map((ruta) => ruta.split("/").slice(0, 2).join("/")))];
+  const ids = [...new Set(Object.keys(archivos).map((ruta) => ruta.split("/").slice(0, 4).join("/")))];
   const de = (id, relativa) => archivos[`${id}/${relativa}`];
   return {
     descripcion: "memoria://corridas",
     listarIds: async () => ids,
     listarPerfiles: async (id) =>
-      [...new Set(Object.keys(archivos).filter((r) => r.startsWith(`${id}/`)).map((r) => r.split("/")[2]).filter((p) => !p.includes(".")))],
+      [...new Set(Object.keys(archivos).filter((r) => r.startsWith(`${id}/`)).map((r) => r.split("/")[4]).filter((p) => !p.includes(".")))],
     leerJson: async (id, relativa) => (de(id, relativa) ? JSON.parse(de(id, relativa)) : null),
     existe: async (id, relativa) => de(id, relativa) !== undefined,
     abrirArchivo: async (id, relativa, rango) => {
@@ -110,7 +103,7 @@ test("tandas.js lee de una fuente en memoria", async () => {
   assert.deepEqual(tandas.map((t) => t.id), [ID]);
   const tanda = await leerTanda(fuente, ID);
   assert.deepEqual(tanda.intentos.map((i) => i.id), ["first_time", "hurried", "mobile"]);
-  assert.equal(await leerTanda(fuente, "tarea-demo/2099-01-01_00-00-00"), null);
+  assert.equal(await leerTanda(fuente, "demo.cl/visitor/tarea-demo/2099-01-01T00-00-00Z"), null);
 });
 
 test("el servidor funciona con una fuente en memoria", async () => {
@@ -130,45 +123,46 @@ test("el servidor funciona con una fuente en memoria", async () => {
 // ── Archivos dañados o que faltan: se dicen, no se esconden ─────────────────
 
 test("archivos dañados: un run.json roto es un intento con error; un route_tree.json roto o que falta se avisa", async (t) => {
-  const { cpSync } = await import("node:fs");
   const raiz = mkdtempSync(path.join(tmpdir(), "corridas-rotas-"));
   t.after(() => rmSync(raiz, { recursive: true, force: true }));
   const consola = t.mock.method(console, "error", () => {});
+  const DT = "dt.gob.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
+  const METRO = "metro.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
+  const INE = "ine.gob.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
   const copiar = (destino) => cpSync(`${RAIZ}/${ID}`, path.join(raiz, destino), { recursive: true });
   // dt: un run.json a medio escribir.
-  copiar("dt/2026-11-21_10-00-00");
-  writeFileSync(path.join(raiz, "dt/2026-11-21_10-00-00/mobile/run.json"), '{"profile": "mobile", "steps": [');
+  copiar(DT);
+  writeFileSync(path.join(raiz, DT, "mobile/run.json"), '{"profile": "mobile", "steps": [');
   // metro: route_tree.json roto.
-  copiar("metro/2026-11-21_10-00-00");
-  writeFileSync(path.join(raiz, "metro/2026-11-21_10-00-00/route_tree.json"), "{ no es json");
+  copiar(METRO);
+  writeFileSync(path.join(raiz, METRO, "route_tree.json"), "{ no es json");
   // ine: los intentos ya están, el route_tree.json todavía no.
-  copiar("ine/2026-11-21_10-00-00");
-  rmSync(path.join(raiz, "ine/2026-11-21_10-00-00/route_tree.json"));
+  copiar(INE);
+  rmSync(path.join(raiz, INE, "route_tree.json"));
   // vacia: una carpeta de tanda sin nada que leer no se lista.
-  mkdirSync(path.join(raiz, "vacia/2026-11-21_10-00-00/first_time"), { recursive: true });
+  mkdirSync(path.join(raiz, "vacia.cl/visitor/tarea-demo/2026-11-21T10-00-00Z/first_time"), { recursive: true });
 
   const fuente = crearFuenteDeArchivos({ raiz });
   const sana = await leerTanda(RAIZ, ID);
-  const dt = await leerTanda(fuente, "dt/2026-11-21_10-00-00");
+  const dt = await leerTanda(fuente, DT);
   assert.equal(dt.intentos.length, sana.intentos.length, "el intento roto no desaparece");
   const roto = dt.intentos.find((intento) => intento.perfil === "mobile");
   assert.deepEqual([roto.resultado, roto.error.tipo], ["error", "archivo_danado"]);
   assert.equal(dt.kpis.errores, 1);
   assert.equal(dt.arbol, "ok");
 
-  const metro = await leerTanda(fuente, "metro/2026-11-21_10-00-00");
+  const metro = await leerTanda(fuente, METRO);
   assert.equal(metro.arbol, "danado");
   assert.equal(metro.telarana.paginas.length, 0);
 
-  const ine = await leerTanda(fuente, "ine/2026-11-21_10-00-00");
-  assert.ok(ine, "una tanda sin route_tree.json pero con intentos se puede abrir");
-  assert.equal(ine.arbol, "falta");
+  // En el almacén, una corrida sin route_tree.json no terminó: no se abre ni se lista.
+  assert.equal(await leerTanda(fuente, INE), null);
 
   const { tandas } = await listarTandas(fuente);
+  // Solo se listan las corridas con route_tree.json que terminaron bien (manifest.json); ine se abre por su id.
   assert.deepEqual(tandas.map((tanda) => [tanda.id, tanda.arbol, tanda.errores]).sort(), [
-    ["dt/2026-11-21_10-00-00", "ok", 1],
-    ["ine/2026-11-21_10-00-00", "falta", 0],
-    ["metro/2026-11-21_10-00-00", "danado", 0],
+    [DT, "ok", 1],
+    [METRO, "danado", 0],
   ]);
   // Una línea en la consola por archivo dañado, aunque se lea muchas veces.
   const lineas = consola.mock.calls.map((llamada) => String(llamada.arguments[0]));

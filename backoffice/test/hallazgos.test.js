@@ -47,7 +47,7 @@ test("contar acciones por tipo", () => {
 });
 
 test("hallazgos de la tanda nueva, en orden y solo con claves y variables", async () => {
-  const tanda = await leerTanda(RAIZ, "tarea-demo/2026-11-21_11-00-00");
+  const tanda = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z");
   assert.deepEqual(tanda.hallazgos.map((h) => h.id), [
     "resultado", "errores", "desvio:senior", "detenido:senior", "demora:hurried:2", "tropiezos",
   ]);
@@ -76,7 +76,7 @@ test("hallazgos de la tanda nueva, en orden y solo con claves y variables", asyn
 });
 
 test("titulares de las dos tandas", async () => {
-  const nueva = await leerTanda(RAIZ, "tarea-demo/2026-11-21_11-00-00");
+  const nueva = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z");
   assert.deepEqual(nueva.titulares.tanda, { clave: nueva.hallazgos[0].clave, nivel: "atencion", vars: nueva.hallazgos[0].vars });
   assert.deepEqual(nueva.titulares.telarana, {
     clave: "datos.titular.telarana", vars: { hayRuta: true, enInicio: false, probabilidad: null, tramos: 2, pasosIdeales: 4, siguen: 2, validos: 3, logrados: 2 },
@@ -84,7 +84,7 @@ test("titulares de las dos tandas", async () => {
   assert.deepEqual(nueva.titulares.perfiles.vars, {
     caso: "noLlegan", intentos: ["senior"], pasos: null, pasosIdeales: 4, perfiles: 3, unoPorPerfil: true,
   });
-  const vieja = await leerTanda(RAIZ, "tarea-demo/2026-11-21_10-00-00");
+  const vieja = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z");
   assert.deepEqual(vieja.hallazgos.map((h) => h.id), ["resultado", "desvio:hurried", "desvio:mobile", "detenido:mobile", "tropiezos"]);
   assert.equal(vieja.hallazgos.find((h) => h.id === "desvio:hurried").nivel, "info", "vuelve a la ruta");
 });

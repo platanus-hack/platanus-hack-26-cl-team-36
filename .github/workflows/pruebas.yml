@@ -1,0 +1,137 @@
+# Corre las pruebas de cada parte del repo en los pull requests a main y en cada push a
+# main. Ninguna llama a Claude ni a AWS: usan sitios HTML locales y respuestas guionizadas.
+# El job "Todas las pruebas" resume el resto: es el check que se exige para mergear.
+name: Pruebas
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Un push nuevo a un PR cancela la corrida anterior; en main corre cada commit.
+concurrency:
+  group: pruebas-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  descubrir:
+    name: Proyectos de Python
+    # Solo en el repo de la organización; el personal recibe main por sync.
+    if: github.repository == 'platanus-hack/platanus-hack-26-cl-team-36'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      proyectos: ${{ steps.buscar.outputs.proyectos }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Todo directorio bajo agents/ con pyproject.toml y una carpeta tests/.
+      - id: buscar
+        run: |
+          proyectos=$(find agents -name pyproject.toml -not -path '*/.venv/*' -not -path '*/node_modules/*' -exec dirname {} \; \
+            | while read -r dir; do [ -d "$dir/tests" ] && echo "$dir"; done \
+            | sort | jq -R . | jq -sc .)
+          if [ "$proyectos" = "[]" ]; then
+            echo "::error::No hay proyectos de Python con tests/ bajo agents/."
+            exit 1
+          fi
+          echo "proyectos=$proyectos" >> "$GITHUB_OUTPUT"
+          echo "$proyectos" | jq -r '.[] | "- " + .' >> "$GITHUB_STEP_SUMMARY"
+
+  pytest:
+    name: pytest (${{ matrix.proyecto }})
+    needs: descubrir
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        proyecto: ${{ fromJSON(needs.descubrir.outputs.proyectos) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.proyecto }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # setup-uv ya no publica un tag por versión mayor (no existe @v10): va la versión exacta.
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: ${{ matrix.proyecto }}/uv.lock
+
+      # --locked: si uv.lock no corresponde al pyproject.toml, falla en vez de reescribirlo.
+      - name: uv sync
+        run: uv sync --locked
+
+      # Vacía si el proyecto no instaló Playwright: entonces no se instala Chromium.
+      - name: Versión de Playwright
+        id: playwright
+        run: echo "version=$(uv pip show playwright 2>/dev/null | awk '/^Version:/ { print $2 }')" >> "$GITHUB_OUTPUT"
+
+      - name: Caché de Chromium
+        id: cache-chromium
+        if: steps.playwright.outputs.version != ''
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Chromium
+        if: steps.playwright.outputs.version != ''
+        env:
+          EN_CACHE: ${{ steps.cache-chromium.outputs.cache-hit }}
+        run: |
+          if [ "$EN_CACHE" = true ]; then
+            uv run --locked playwright install-deps chromium
+          else
+            uv run --locked playwright install --with-deps chromium
+          fi
+
+      - name: pytest
+        run: uv run --locked pytest -q
+
+  node:
+    name: Backend, backoffice y extensión
+    if: github.repository == 'platanus-hack/platanus-hack-26-cl-team-36'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            extension/package-lock.json
+
+      # El postinstall de la raíz hace `npm install` en extension/; aquí va npm ci para
+      # que un package-lock.json desactualizado falle.
+      - name: npm ci
+        run: |
+          npm ci --ignore-scripts
+          npm ci --prefix extension
+
+      - name: Tests y lint
+        run: npm run check
+
+  resultado:
+    name: Todas las pruebas
+    needs: [descubrir, pytest, node]
+    if: always() && github.repository == 'platanus-hack/platanus-hack-26-cl-team-36'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resultado
+        env:
+          RESULTADOS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Resultados: $RESULTADOS"
+          for resultado in $RESULTADOS; do
+            [ "$resultado" = success ] || { echo "::error::Alguna prueba no pasó."; exit 1; }
+          done

@@ -18,7 +18,7 @@ import {
 } from "../corridas/filtros.js";
 
 const ESPERA_DE_BUSQUEDA = 180;
-const COMANDOS_PARA_GATILLAR = ['just local explore <url> "<tarea>"', "just local validate wom"];
+const COMANDOS_PARA_GATILLAR = ['just local visit <url> "<tarea>"', "just local visit-tasks wom"];
 
 let estado = null;
 

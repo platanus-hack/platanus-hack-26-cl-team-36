@@ -1,17 +1,12 @@
-// Fuente de corridas en el sistema de archivos: una carpeta con <tarea>/<fecha-hora>/ (o <fecha-hora>/)
-// por tanda, cada una con route_tree.json, criteria.json y una carpeta por perfil.
-//
-// La carpeta `archivo/` de la raíz guarda tandas viejas que ya no se muestran (por ejemplo
-// archivo/2026-11-21-4-exploradores/<tarea>/<fecha-hora>/): nunca se lista. Para verlas, se apunta
-// BACKOFFICE_CORRIDAS a una de sus subcarpetas.
+// Fuente de corridas en el sistema de archivos (layout en public/nucleo/almacen.js): cada tanda es una corrida
+// del Visitante que terminó bien, con route_tree.json, criteria.json y una carpeta por perfil.
 
 import { createReadStream, existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { AGENTE, CORRIDA, HOST, MANIFIESTO, OBJETIVO, idDeTanda } from "../../public/nucleo/almacen.js";
 
-const NOMBRE_DE_TANDA = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/;
-export const CARPETA_DE_ARCHIVO = "archivo";
 const RAIZ_DEL_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const RAIZ_POR_DEFECTO = path.join(RAIZ_DEL_REPO, "agents", ".runs");
 
@@ -43,24 +38,26 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
   const base = path.resolve(raiz);
   const rutaDe = (id, relativa = "") => path.join(base, ...id.split("/"), ...relativa.split("/").filter(Boolean));
 
+  // Una corrida en curso, abandonada o fallida no es una tanda.
+  const terminoBien = async (id) => {
+    try {
+      return JSON.parse(await readFile(rutaDe(id, MANIFIESTO), "utf8")).status === "succeeded";
+    } catch {
+      return false;
+    }
+  };
+
   return {
     descripcion: describirCarpeta(base),
 
     async listarIds() {
-      // Una tanda tiene route_tree.json; si aún no (el evaluador lo escribe al final, o se cortó), basta con que
-      // algún intento tenga su run.json: se lista como incompleta en vez de desaparecer.
-      const esTanda = async (carpeta) =>
-        existsSync(path.join(carpeta, "route_tree.json")) ||
-        (await subcarpetas(carpeta)).some((perfil) => existsSync(path.join(carpeta, perfil, "run.json")));
       const ids = [];
-      for (const nombre of await subcarpetas(base)) {
-        if (nombre === CARPETA_DE_ARCHIVO) continue;
-        if (NOMBRE_DE_TANDA.test(nombre)) {
-          if (await esTanda(path.join(base, nombre))) ids.push(nombre);
-          continue;
-        }
-        for (const fecha of await subcarpetas(path.join(base, nombre))) {
-          if (NOMBRE_DE_TANDA.test(fecha) && (await esTanda(path.join(base, nombre, fecha)))) ids.push(`${nombre}/${fecha}`);
+      for (const host of (await subcarpetas(base)).filter((nombre) => HOST.test(nombre))) {
+        for (const objetivo of (await subcarpetas(path.join(base, host, AGENTE))).filter((nombre) => OBJETIVO.test(nombre))) {
+          for (const corrida of await subcarpetas(path.join(base, host, AGENTE, objetivo))) {
+            const id = idDeTanda(host, objetivo, corrida);
+            if (CORRIDA.test(corrida) && existsSync(rutaDe(id, "route_tree.json")) && (await terminoBien(id))) ids.push(id);
+          }
         }
       }
       return ids;
