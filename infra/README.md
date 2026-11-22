@@ -11,19 +11,12 @@ AgentCore desde `agentcore/`, en el mismo repo personal.
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
 Actions, con el plan de Terraform, quedarían a la vista. El repo personal es privado y es una copia de `main` de este.
 
-**La cuenta de AWS.** Todo corre en una cuenta creada con el registro nuevo de AWS (*Sign up for AWS (new)*). Con ese
-registro, la cuenta es un "proyecto" dentro de una organización que administra AWS, y las políticas de esa organización
-(SCP) limitan lo que se puede hacer en ella:
+**La cuenta de AWS.** Todo corre en una subcuenta de desarrollo de la organización de AWS de Unholster, en
+`us-east-2` (Ohio). Sus cuotas alcanzan para unos 100 agentes a la vez: 10.000 llamadas por minuto a Claude Haiku 4.5,
+1.000 navegadores de AgentCore y 1.000 Lambdas simultáneas. Responden también los modelos 5.x.
 
-- Los recursos regionales, como S3 o Lambda, solo se pueden crear en la región del proyecto, `us-east-2` (Ohio). La
-  región se ve en [settings.aws.com](https://settings.aws.com) → Project → Additional info.
-- No se pueden crear grupos IAM ni usuarios IAM con contraseña. El equipo entra invitado al proyecto (ver
-  [Acceso del equipo](#acceso-del-equipo)).
-- Bedrock no da acceso a Claude Opus 4.7 ni a los modelos posteriores: responden *is not available for this account*,
-  y eso solo lo puede habilitar AWS (Sales o Support). Por eso el Visitante usa Claude Sonnet 4.6 (ver
-  [el Visitante](../agents/app/visitor/README.md#en-aws-agentcore)).
-
-Antes, el proyecto corría en una subcuenta de desarrollo de la organización de AWS de Unholster.
+Antes corría en un "proyecto" de AWS (*Sign up for AWS (new)*), con 50 llamadas por minuto, sin modelos 5.x y
+con el equipo invitado por AWS Builder ID.
 
 ## Cómo llega un cambio a AWS
 
@@ -58,7 +51,7 @@ abajo).
   de un goal cuya Guía falló). Sin `REVISIONES_TABLA` (en local),
   `/revisiones` responde 404.
   Un `POST` sobre una página cuya revisión quedó `failed`, o `queued`/`running` sin novedades hace más de una hora,
-  dispara otra. Con `revisiones_en_curso_max` (5) revisiones
+  dispara otra. Con `revisiones_en_curso_max` (30) revisiones
   `queued`/`running` con novedades en la última hora, un `POST` que crearía otra responde 429.
 - `agentcore/`: los agentes en AgentCore Runtime. `infra/` es el proyecto de la
   [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime `chameleon`
@@ -80,25 +73,18 @@ abajo).
 
 ## Acceso del equipo
 
-La cuenta no tiene usuarios IAM. Cada persona entra con su AWS Builder ID, invitada al proyecto, y saca credenciales
-temporales con `aws login`. Los invitados son administradores del proyecto, que es lo que necesitan Terraform y la CLI
-de AgentCore, pero no pueden invitar a otros ni ver la facturación.
+Quien tiene acceso por SSO a la cuenta entra con `aws sso login`. El resto del equipo tiene un usuario IAM propio,
+con `PowerUserAccess` (todo menos administrar IAM) e `IAMReadOnlyAccess`, y una llave de acceso que le entrega quien
+administra la cuenta, por un canal seguro. Alcanza para `just aws …`, Bedrock y `terraform plan`; crear o cambiar
+roles queda para los workflows del repo personal.
 
-1. **Invitar**, quien es dueño del proyecto: [settings.aws.com](https://settings.aws.com) → **Team** → **Invite new
-   team member**, con el correo de la persona y el proyecto, y **Send invitation**. La invitación dura 14 días.
-2. **Aceptar**, la persona invitada: abre el correo de AWS y entra con su AWS Builder ID. Si no tiene uno, lo crea
-   ahí mismo.
-3. **Entrar desde la CLI**, con la AWS CLI 2.32 o más nueva (`aws --version`):
+```bash
+aws configure --profile chameleon    # AccessKeyId, SecretAccessKey y región us-east-2
+export AWS_PROFILE=chameleon
+aws sts get-caller-identity          # confirma que es la cuenta del proyecto
+```
 
-   ```bash
-   aws login --profile grupo36          # abre el navegador: elige el proyecto
-   aws configure set region us-east-2 --profile grupo36
-   export AWS_PROFILE=grupo36
-   aws sts get-caller-identity          # confirma que es la cuenta del proyecto
-   ```
-
-   La sesión dura hasta 12 horas; después, `aws login --profile grupo36` otra vez. Si Terraform no logra leer esas
-   credenciales: `eval "$(aws configure export-credentials --format env)"`.
+La llave no se sube a ningún repo. Para revocarla: `aws iam delete-access-key --user-name <usuario> --access-key-id <id>`.
 
 ## Puesta en marcha (una vez)
 
@@ -115,6 +101,15 @@ terraform init
 # Si Terraform no logra renovar la sesión SSO: eval "$(aws configure export-credentials --format env)"
 terraform apply -var="email_alertas=<correo para las alertas>"
 ```
+
+En una cuenta nueva, Bedrock pide una vez el formulario de uso de los modelos de Anthropic: sin él, cada llamada responde
+*Model use case details have not been submitted*. Se envía desde la consola (Bedrock → Model catalog → un modelo de
+Claude) o con `aws bedrock put-use-case-for-model-access`, y tarda hasta 15 minutos en activarse.
+
+En el primer `apply` de una cuenta nueva, AWS puede crear solo los dos permisos de la URL pública de la Lambda, y
+Terraform falla con *The statement id (FunctionURLAllow…) provided already exists*. Se quitan y se relanza el workflow:
+`aws lambda remove-permission --function-name chameleon-backend --statement-id FunctionURLAllowPublicAccess` (y lo
+mismo con `FunctionURLAllowInvokeAction`).
 
 Guarda `infra/bootstrap/terraform.tfstate`: no se sube al repo y sirve para modificar o borrar estos recursos. La
 alerta avisa al pasar el 50 % y el 100 % de 20 USD al mes, contando el gasto antes de descontar créditos.
