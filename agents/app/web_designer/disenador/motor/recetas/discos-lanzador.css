@@ -1,0 +1,80 @@
+/* Receta «discos»: cada tarea lleva un disco con el color de una categoría; al pasar, el color sube y llena la tarjeta. */
+{{#lanz}}html.mi-tema .mt-lanzador__lista > li:nth-child({{i}}) {
+  --mt-cat: var(--mt-c{{c}});
+  --mt-cat-tinta: var(--mt-c{{c}}-tinta);
+  --mt-cat-num: "{{i}}";
+}
+{{/lanz}}html.mi-tema .mt-lanzador__tarea {
+  gap: 18px;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--mt-linea), inset 0 -3px 0 var(--mt-cat);
+  transition: color 0.2s;
+}
+html.mi-tema .mt-lanzador__tarea::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: var(--mt-cat);
+  transform: translateY(calc(100% - 3px));
+  transition: transform 0.3s var(--mt-curva);
+  content: "";
+}
+html.mi-tema .mt-lanzador__tarea::before {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--mt-cat);
+  color: var(--mt-cat-tinta);
+  font: 760 21px/1 var(--mt-familia-display);
+  font-stretch: var(--mt-texto-ancho);
+  content: var(--mt-cat-num);
+}
+html.mi-tema .mt-lanzador__tarea:hover {
+  border: 0;
+  color: var(--mt-cat-tinta);
+  box-shadow: inset 0 0 0 1px var(--mt-cat);
+}
+html.mi-tema .mt-lanzador__tarea:hover::after {
+  transform: none;
+}
+html.mi-tema .mt-lanzador__tarea:hover::before {
+  box-shadow: 0 0 0 2px var(--mt-cat-tinta);
+}
+html.mi-tema .mt-lanzador__tarea:hover :is(.mt-lanzador__detalle, .mt-lanzador__flecha) {
+  border-color: currentColor;
+  color: inherit;
+}
+@container (max-width: 520px) {
+  html.mi-tema .mt-lanzador__lista {
+    gap: 8px;
+    overflow: visible;
+    border: 0;
+    background: none;
+  }
+  html.mi-tema .mt-lanzador__lista > li + li {
+    border-top: 0;
+  }
+  html.mi-tema .mt-lanzador__tarea {
+    min-height: 72px;
+    padding: 12px 18px 12px 12px;
+    border-radius: var(--mt-radio-2);
+    background: var(--mt-superficie);
+    box-shadow: inset 0 0 0 1px var(--mt-linea), inset 3px 0 0 var(--mt-cat);
+  }
+  html.mi-tema .mt-lanzador__tarea::after {
+    transform: translateX(calc(-100% + 3px));
+  }
+  html.mi-tema .mt-lanzador__tarea::before {
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.mi-tema :is(.mt-lanzador__tarea, .mt-lanzador__tarea::after) {
+    transition: none;
+  }
+}

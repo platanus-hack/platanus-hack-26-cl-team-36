@@ -1,0 +1,7 @@
+/* Receta «titular degradado»: el titular se apaga hacia abajo, hacia el tono de la marca. */
+html.mi-tema .mt-atajo__titulo {
+  background: linear-gradient(180deg, var(--mt-tinta) 40%, var(--mt-titular-pie));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

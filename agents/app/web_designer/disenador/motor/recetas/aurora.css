@@ -1,0 +1,31 @@
+/* Receta «aurora»: luz de la marca y de una categoría, a la deriva, detrás del atajo y de las tareas. */
+html.mi-tema body > .mt-vista[data-mt-vista="{{v.atajo}}"]::before {
+  position: absolute;
+  z-index: -1;
+  inset: -160px -12vw -60px;
+  background:
+    radial-gradient(40% 50% at 16% 30%, var(--mt-aurora-1), transparent 70%),
+    radial-gradient(34% 44% at 84% 16%, var(--mt-aurora-2), transparent 70%);
+  content: "";
+  pointer-events: none;
+  animation: mt-aurora 26s ease-in-out infinite alternate;
+}
+html.mi-tema body > .mt-vista[data-mt-vista="{{v.lanzador}}"]::before {
+  position: absolute;
+  z-index: -1;
+  inset: -80px 0 -40px;
+  background:
+    radial-gradient(closest-side at 24% 50%, var(--mt-aurora-3), transparent),
+    radial-gradient(closest-side at 76% 55%, var(--mt-aurora-3b), transparent);
+  content: "";
+  pointer-events: none;
+}
+@keyframes mt-aurora {
+  from { transform: translate3d(-3%, 0, 0) scale(1); }
+  to { transform: translate3d(3%, 4%, 0) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.mi-tema body > .mt-vista[data-mt-vista="{{v.atajo}}"]::before {
+    animation: none;
+  }
+}

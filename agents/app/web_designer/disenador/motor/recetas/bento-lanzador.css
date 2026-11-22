@@ -1,0 +1,122 @@
+/* Receta «bento»: las tareas como baldosas de colores suaves de las categorías; la primera y la última, anchas. */
+html.mi-tema .mt-lanzador__cabecera {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+html.mi-tema .mt-lanzador .mt-lanzador__lista {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(calc(var(--mt-d) * 150px), auto);
+  gap: 12px;
+  overflow: visible;
+  border: 0;
+  background: none;
+}
+html.mi-tema .mt-lanzador__lista > li:is(:nth-child(1), :nth-child(6)) {
+  grid-column: span 2;
+}
+html.mi-tema .mt-lanzador .mt-lanzador__lista > li + li {
+  border: 0;
+}
+{{#lanz}}html.mi-tema .mt-lanzador__lista > li:nth-child({{i}}) {
+  --mt-b-fondo: var(--mt-c{{c}}-suave);
+  --mt-b-tinta: var(--mt-c{{c}}-suave-tinta);
+}
+{{/lanz}}html.mi-tema .mt-lanzador .mt-lanzador__tarea {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: calc(var(--mt-d) * 150px);
+  padding: 22px 22px 20px;
+  border: 0;
+  border-radius: var(--mt-radio-3);
+  background: var(--mt-b-fondo);
+  box-shadow: none;
+  color: var(--mt-b-tinta);
+}
+html.mi-tema .mt-lanzador__lista > li:nth-child(1) .mt-lanzador__tarea {
+  border-radius: var(--mt-radio-3) var(--mt-radio-3) var(--mt-radio-1) var(--mt-radio-3);
+}
+html.mi-tema .mt-lanzador__lista > li:nth-child(6) .mt-lanzador__tarea {
+  border-radius: var(--mt-radio-1) var(--mt-radio-3) var(--mt-radio-3) var(--mt-radio-3);
+}
+html.mi-tema .mt-lanzador .mt-lanzador__tarea:hover {
+  box-shadow: var(--mt-sombra-2);
+}
+html.mi-tema .mt-lanzador__textos {
+  flex: none;
+  gap: 6px;
+  max-width: calc(100% - 56px);
+}
+html.mi-tema .mt-lanzador__titulo {
+  font-family: var(--mt-familia-display);
+  font-size: var(--mt-paso-2);
+  font-weight: var(--mt-titulo-peso);
+  font-stretch: var(--mt-display-ancho);
+  line-height: 1.05;
+  letter-spacing: var(--mt-display-tracking);
+}
+html.mi-tema .mt-lanzador__lista > li:is(:nth-child(1), :nth-child(6)) .mt-lanzador__titulo {
+  font-size: var(--mt-paso-3);
+}
+html.mi-tema .mt-lanzador .mt-lanzador__detalle {
+  color: inherit;
+  font-size: 15px;
+}
+html.mi-tema .mt-lanzador .mt-lanzador__flecha {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--mt-b-tinta);
+  transform: none;
+}
+html.mi-tema .mt-lanzador .mt-lanzador__flecha::before {
+  width: 10px;
+  height: 10px;
+  margin-left: -4px;
+  border-top: 2px solid var(--mt-b-fondo);
+  border-right: 2px solid var(--mt-b-fondo);
+  transform: rotate(45deg);
+  content: "";
+}
+@container (max-width: 720px) {
+  html.mi-tema .mt-lanzador .mt-lanzador__lista {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: auto;
+    gap: 10px;
+  }
+  html.mi-tema .mt-lanzador .mt-lanzador__tarea {
+    min-height: 140px;
+    padding: 18px 16px 64px;
+  }
+  html.mi-tema .mt-lanzador__lista > li:is(:nth-child(1), :nth-child(6)) .mt-lanzador__tarea {
+    min-height: 120px;
+    padding: 18px 72px 18px 18px;
+  }
+  html.mi-tema .mt-lanzador__titulo {
+    font-size: var(--mt-paso-1);
+  }
+  html.mi-tema .mt-lanzador__lista > li:is(:nth-child(1), :nth-child(6)) .mt-lanzador__titulo {
+    font-size: var(--mt-paso-2);
+  }
+  html.mi-tema .mt-lanzador__textos {
+    max-width: 100%;
+  }
+  html.mi-tema .mt-lanzador .mt-lanzador__detalle {
+    font-size: 14px;
+  }
+  html.mi-tema .mt-lanzador .mt-lanzador__flecha {
+    right: 14px;
+    bottom: 14px;
+    width: 38px;
+    height: 38px;
+  }
+}

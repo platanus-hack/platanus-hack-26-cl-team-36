@@ -17,10 +17,10 @@ from shared.browser.session import open_browser
 from shared.catalog.files import read_catalog
 from shared.nodes.urls import node_key
 
-from disenador import atajos, config, mapa, pagina, tema_json
+from disenador import atajos, config, mapa, motor, pagina, tema_json
 from disenador.corrida import TemaRechazado
 from disenador.css import sanear
-from disenador.modelo import ESQUEMA_KIT, Skill, mensaje_de_diseno, prompt_de_sistema
+from disenador.modelo import ESQUEMA_KIT, ESQUEMA_MOTOR, Skill, mensaje_de_diseno, prompt_de_sistema
 
 # Lo que la Guía tuvo que sacar del camino (un modal, una encuesta, el aviso de cookies), según su historial.
 _OBSTACULO = re.compile(r"\b(modal|popup|pop-up|encuesta|cookies?)\b|«(close|cerrar|×)»", re.I)
@@ -35,6 +35,61 @@ _SELECTS = """() => [...document.querySelectorAll("select")].map((s) => ({
   valores: [...s.options].filter((o) => o.value && !o.disabled).map((o) => o.value).slice(0, 500),
   elegido: s.value,
 })).filter((s) => s.selector && s.selector.length <= 200)"""
+
+# El bloque original que reemplaza un atajo: el formulario de sus `<select>`, subiendo mientras los hermanos sean solo
+# su título (nada interactivo ni texto largo). Sale como selector único anclado a un id; null si no hay uno seguro.
+# `anclas`: las de todas las vistas de la página (la propia primero): si una queda dentro del bloque, ocultarlo se la
+# llevaría. Los topes frenan un `<form>` que envuelve la página entera (ASP.NET WebForms) o un bloque desmedido.
+BLOQUE_JS = """([selectores, anclas]) => {
+  const MAX_CONTROLES_FUERA = 3, MAX_AREA = 0.6;
+  const campos = selectores.map((s) => { try { return document.querySelector(s); } catch { return null; } });
+  if (!campos.length || campos.some((c) => !c)) return null;
+  let bloque = campos[0];
+  while (bloque && !campos.every((c) => bloque.contains(c))) bloque = bloque.parentElement;
+  if (!bloque) return null;
+  const controles = "a[href], button, input, select, textarea, iframe, [role=button], [role=link]";
+  const controlesFuera = (el) => [...el.querySelectorAll(controles)]
+    .filter((c) => !campos.some((f) => f === c || f.contains(c) || c.contains(f))).length;
+  const pagina = Math.min(innerWidth * innerHeight,
+                          document.documentElement.scrollWidth * document.documentElement.scrollHeight);
+  const cabe = (el) => {
+    const r = el.getBoundingClientRect();
+    return controlesFuera(el) <= MAX_CONTROLES_FUERA && r.width * r.height < MAX_AREA * pagina;
+  };
+  const form = bloque.closest("form");
+  if (form && cabe(form)) bloque = form;
+  const ajeno = "a[href], button, input, select, textarea, iframe, video, img, svg, [role=button], [role=link]";
+  const otroContenido = (el) => el.matches(ajeno) || el.querySelector(ajeno) || el.textContent.trim().length > 140;
+  while (bloque.parentElement && bloque.parentElement !== document.body
+         && [...bloque.parentElement.children].every((c) => c === bloque || !otroContenido(c))) {
+    bloque = bloque.parentElement;
+  }
+  if ([document.body, document.documentElement].includes(bloque) || bloque.parentElement === document.body
+      || bloque.matches("main, [role=main]") || bloque.querySelector("main, [role=main]") || !cabe(bloque)) return null;
+  for (const selector of anclas) {
+    let ancla = null;
+    try { ancla = selector ? document.querySelector(selector) : null; } catch { /* selector inválido */ }
+    // Cada componente va antes de su ancla: si el ancla está dentro del bloque, ocultarlo se lo llevaría.
+    if (ancla && ancla !== bloque && bloque.contains(ancla)) return null;
+  }
+  const valido = (id) => /^[A-Za-z][\\w-]*$/.test(id);
+  const unico = (sel) => { try { const l = document.querySelectorAll(sel); return l.length === 1 && l[0] === bloque; }
+                           catch { return false; } };
+  if (bloque.id && valido(bloque.id) && unico("#" + bloque.id)) return "#" + bloque.id;
+  // El elemento con id más alto dentro del bloque en el camino al primer campo (el formulario, si tiene id).
+  let interno = campos[0];
+  for (let el = campos[0]; el !== bloque; el = el.parentElement) if (el.id && valido(el.id)) interno = el;
+  let profundidad = 0;
+  for (let el = interno; el !== bloque; el = el.parentElement) profundidad++;
+  if (!interno.id || !valido(interno.id)) return null;
+  const relativo = `:has(> ${"* > ".repeat(profundidad - 1)}#${interno.id})`;
+  let externo = bloque.parentElement;
+  while (externo && !(externo.id && valido(externo.id))) externo = externo.parentElement;
+  for (const sel of [externo ? `#${externo.id} ${relativo}` : null, relativo]) {
+    if (sel && sel.length <= 200 && unico(sel)) return sel;
+  }
+  return null;
+}"""
 
 
 class TemaVacio(Exception):
@@ -246,41 +301,114 @@ async def _vistas(page, url: str, componentes: list[dict], propuestas) -> list[d
     return vistas
 
 
+async def _ocultar(page, url: str, vistas: list[dict]) -> list[tuple[str, str]]:
+    """`(vista, selector)` del bloque original que reemplaza cada atajo dibujado en esta página."""
+    en_pagina = atajos.ruta_de(url)
+    # Como `features/vista.js`: sin `rutas`, la vista va en todas las páginas.
+    aqui = [v for v in vistas if v["contenedor"]
+            and (not v.get("rutas") or any(atajos.misma_ruta(en_pagina, r) for r in v["rutas"]))]
+    pares = []
+    for vista in aqui:
+        campos = [c["opciones"] for c in vista["datos"] if c.get("opciones")]
+        if vista["componente"] != "atajo" or not campos:
+            continue
+        anclas = [vista["contenedor"], *(v["contenedor"] for v in aqui if v is not vista)]
+        try:
+            selector = await page.evaluate(BLOQUE_JS, [campos, anclas])
+        except Exception:  # un selector que el navegador no entiende
+            selector = None
+        if selector:
+            pares.append((vista["id"], selector))
+    return pares
+
+
+def _pedido(datos: dict) -> dict:
+    """La elección del modelo. La semilla queda entera y ≥ 1 aunque llegue como texto o decimal ("3.7" o 3.7 → 3);
+    lo que no es un número finito, 1."""
+    try:
+        semilla = max(1, int(float(datos.get("semilla") or 1)))
+    except (TypeError, ValueError, OverflowError):
+        semilla = 1
+    ajustes = datos.get("ajustes") if isinstance(datos.get("ajustes"), dict) else {}
+    return {"direccion": str(datos.get("direccion") or "auto"), "semilla": semilla, "ajustes": ajustes,
+            "motivo": datos.get("motivo")}
+
+
+def _componer(sitio: motor.Sitio, pedido: dict, vistas: list[dict], ocultar: list[tuple[str, str]]) -> motor.Tema:
+    ids = {c: [v["id"] for v in vistas if v["componente"] == c] for c in motor.COMPONENTES_KIT}
+    tema = motor.componer(sitio, pedido["direccion"], pedido["semilla"], pedido["ajustes"], ids, ocultar)
+    if not tema.ok:
+        problema = (tema.informe["saneador"]["rechazos"] or tema.informe["contraste"]["fallas"])[0]
+        raise motor.ErrorDeComposicion(f"el tema compuesto no pasa la verificación: {problema}")
+    return tema
+
+
 async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill | None, disenador, modelo: str,
-                  cdp_url: str | None = None) -> store.Manifest:
-    """Una corrida de improver: `succeeded` con un `tema.css` no vacío; si no, `failed` y lanza."""
+                  cdp_url: str | None = None, modo: str = config.MODO_TEMA) -> store.Manifest:
+    """Una corrida de improver: `succeeded` con un `tema.css` no vacío; si no, `failed` y lanza.
+
+    En modo `motor` el modelo elige dirección, semilla y ajustes y el CSS lo compone `motor`; si la composición falla,
+    se le pide el CSS libre (el modo `libre`) y queda anotado en `informe.json`."""
     leida = leer_revision(backend, url, revision)
     resumen = leida.resumen
     peor = peor_objetivo(resumen)
     with store.running(backend, store.improver(url), model=modelo, inputs=leida.entradas, revision=revision) as run:
         salida = {"resumen": resumen, "tarea": peor and {"id": peor["id"], "descripcion": peor["descripcion"]},
-                  "gustos": config.GUSTOS_MEJORA}
+                  "gustos": config.GUSTOS_MEJORA, "modo": modo}
+        informe: dict = {"modo": modo}
         try:
             async with open_browser(cdp_url) as browser:
                 contexto, page = await pagina.abrir(browser, url, "revision")
                 try:
-                    mapa_texto, captura = mapa.como_texto(await mapa.construir_mapa(page)), await pagina.capturar(page)
-                    kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url, leida.catalogo)
+                    datos_mapa, captura = await mapa.construir_mapa(page), await pagina.capturar(page)
+                    tasas = {o["id"]: o["tasa_llegada"] for o in resumen["objetivos"]}
+                    kit = atajos.derivar(leida.goals, leida.rutas, await _selects(page), url, tasas, leida.catalogo)
                     _escribir_json(run.workdir / "atajos.json", kit)
                     diag = diagnostico(resumen, kit)
                     _escribir_json(run.workdir / "diagnostico.json", diag)
-                    texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"], mapa_texto,
-                                              config.REVISION, json.dumps(resumen["objetivos"], ensure_ascii=False),
+                    texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"],
+                                              mapa.como_texto(datos_mapa), config.REVISION,
+                                              json.dumps(resumen["objetivos"], ensure_ascii=False),
                                               json.dumps(diag, ensure_ascii=False))
-                    respuesta = await disenador.pedir(prompt_de_sistema(skill, kit=True), ESQUEMA_KIT,
-                                                      [texto, captura], run.workdir / "claude_code.log")
+                    partes, log = [texto, captura], run.workdir / "claude_code.log"
+                    con_motor = modo == "motor"
+                    respuesta = await disenador.pedir(prompt_de_sistema(skill, kit=True, con_motor=con_motor),
+                                                      ESQUEMA_MOTOR if con_motor else ESQUEMA_KIT, partes, log)
                     # Con la página abierta: el ancla que propone el modelo solo vale si existe.
                     # El buscador no pasa por el modelo (son hasta 40 tareas): va con sus textos y un ancla verificada.
                     vistas = await _vistas(page, url, diag["componentes"] + [kit["buscador"]] * bool(kit["buscador"]),
                                            respuesta.datos.get("componentes"))
+                    ocultar = await _ocultar(page, url, vistas)
                 finally:
                     await contexto.close()
-                salida.update(modelo=modelo, resumen_tema=respuesta.datos.get("resumen"),
-                              decisiones=respuesta.datos.get("decisiones"), costo_usd=respuesta.costo_usd)
-                saneado = sanear(respuesta.datos.get("css") or "")
-                salida["rechazos"] = saneado.rechazos
-                if not saneado.css.strip():
-                    raise TemaVacio("el CSS quedó vacío tras sanearlo")
+                costo = respuesta.costo_usd
+                informe["ocultar"] = [{"vista": v, "selector": s} for v, s in ocultar]
+                css = None
+                if con_motor:
+                    pedido = _pedido(respuesta.datos)
+                    salida.update(pedido=pedido, resumen_tema=pedido["motivo"])
+                    try:
+                        compuesto = _componer(motor.rasgos_del_sitio(store.normalize_host(url), datos_mapa), pedido,
+                                              vistas, ocultar)
+                        css = compuesto.css
+                        informe.update(compuesto.informe, modo="motor", pedido=pedido)
+                    except Exception as error:
+                        informe.update(modo="libre", pedido=pedido,
+                                       respaldo=f"el motor falló: {type(error).__name__}: {error}"[:300])
+                        respuesta = await disenador.pedir(prompt_de_sistema(skill, kit=True), ESQUEMA_KIT, partes,
+                                                          log)
+                        costo += respuesta.costo_usd
+                if css is None:
+                    salida.update(resumen_tema=respuesta.datos.get("resumen"),
+                                  decisiones=respuesta.datos.get("decisiones"))
+                    libre = sanear(respuesta.datos.get("css") or "")
+                    salida["rechazos"] = libre.rechazos
+                    if not libre.css.strip():
+                        raise TemaVacio("el CSS quedó vacío tras sanearlo")
+                    css = "\n\n".join([libre.css, *(motor.regla_de_ocultar(v, s) for v, s in ocultar)])
+                salida.update(modelo=modelo, costo_usd=costo)
+                saneado = sanear(css)
+                salida.setdefault("rechazos", saneado.rechazos)
                 violaciones = await pagina.verificar_css(browser, saneado.css)
                 if violaciones:
                     salida["violaciones_navegador"] = violaciones
@@ -294,4 +422,5 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
             raise
         finally:
             _escribir_json(run.workdir / "mejora.json", salida)
+            _escribir_json(run.workdir / "informe.json", informe)
     return store.read_manifest(backend, run.key)

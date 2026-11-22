@@ -1,0 +1,75 @@
+/* Receta «vidrio»: el titular va directo sobre el fondo; los campos, la navegación y el panel son vidrio con un hilo de luz. */
+html.mi-tema .mt-atajo {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+}
+html.mi-tema .mt-atajo__campos {
+  position: relative;
+  gap: 14px 12px;
+  padding: calc(var(--mt-d) * 20px);
+  border: 1px solid var(--mt-vidrio-linea);
+  border-radius: var(--mt-radio-3);
+  background: var(--mt-vidrio);
+  box-shadow: var(--mt-brillo), 0 40px 90px -30px oklch(0% 0 0 / 0.8);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+html.mi-tema .mt-atajo__campos::before,
+html.mi-tema .mt-atajo__campos::after {
+  position: absolute;
+  top: -1px;
+  right: 28px;
+  left: 28px;
+  height: 1px;
+  background: var(--mt-espectro);
+  content: "";
+  pointer-events: none;
+}
+html.mi-tema .mt-atajo__campos::after {
+  top: -3px;
+  height: 5px;
+  opacity: 0.5;
+  filter: blur(6px);
+}
+html.mi-tema .mt-atajo__select {
+  border-color: var(--mt-vidrio-linea);
+  background: var(--mt-vidrio-campo);
+}
+html.mi-tema .mt-atajo__invertir {
+  background: var(--mt-superficie);
+  box-shadow: var(--mt-brillo);
+}
+html.mi-tema .mt-atajo__ir {
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.22), 0 10px 30px -10px var(--mt-acento);
+}
+html.mi-tema {{z.nav}} {
+  border: 1px solid var(--mt-vidrio-linea) !important;
+  background: var(--mt-vidrio) !important;
+  box-shadow: var(--mt-brillo), 0 10px 40px -20px oklch(0% 0 0 / 0.8);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+html.mi-tema {{z.panel}} {
+  border: 1px solid var(--mt-vidrio-linea) !important;
+  background: var(--mt-vidrio) !important;
+  box-shadow: var(--mt-brillo), 0 24px 60px -30px oklch(0% 0 0 / 0.8);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+html.mi-tema {{z.panel_celda}} {
+  background: var(--mt-vidrio-campo) !important;
+  box-shadow: inset 0 0 0 1px var(--mt-vidrio-linea);
+}
+@container (max-width: 640px) {
+  html.mi-tema .mt-atajo__campos {
+    padding: 16px;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html.mi-tema :is(.mt-atajo__campos, {{z.nav}}, {{z.panel}}) {
+    background: var(--mt-superficie) !important;
+  }
+}

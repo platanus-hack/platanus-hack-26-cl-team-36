@@ -1,0 +1,127 @@
+{
+  "id": "B",
+  "nombre": "Expresivo / bento",
+  "idea": "La portada como mosaico: la marca como superficie, formas grandes y las categorías en baldosas de color suave.",
+  "modo": "claro",
+  "neutros": {
+    "tono": [
+      35,
+      75
+    ],
+    "croma": [
+      0.008,
+      0.016
+    ],
+    "fondo": [
+      97,
+      98.4
+    ],
+    "paso": [
+      2.5,
+      3.5
+    ]
+  },
+  "tinta": {
+    "l": [
+      19,
+      23
+    ],
+    "l2": [
+      42,
+      47
+    ],
+    "croma": 0.02
+  },
+  "acento": {
+    "l": [
+      50,
+      55
+    ],
+    "c": [
+      0.2,
+      0.215
+    ]
+  },
+  "foco": {
+    "tono": 262,
+    "l": 48,
+    "c": 0.2
+  },
+  "categorias": "originales",
+  "tipo": {
+    "familia": "expresiva",
+    "escala": [
+      1.22,
+      1.27
+    ],
+    "display": {
+      "peso": [
+        800,
+        860
+      ],
+      "ancho": [
+        110,
+        118
+      ],
+      "caja": "none",
+      "tracking": [
+        -0.04,
+        -0.03
+      ],
+      "interlinea": [
+        0.9,
+        0.95
+      ]
+    },
+    "titulo_peso": [
+      780,
+      840
+    ],
+    "display_pasos": 6.5,
+    "titulo_pasos": 5.5
+  },
+  "forma": {
+    "radio": [
+      18,
+      26
+    ]
+  },
+  "densidad": [
+    0.96,
+    1.06
+  ],
+  "nav": "pildora",
+  "panel": "tinta",
+  "disposicion": "mosaico",
+  "hero": {
+    "ocultar": 1
+  },
+  "orden": "natural",
+  "suaves": {
+    "l": [
+      88,
+      91.5
+    ],
+    "c": [
+      0.045,
+      0.07
+    ]
+  },
+  "recetas": {
+    "fijas": [
+      "superficie-marca",
+      "bento-lanzador"
+    ],
+    "opcionales": {
+      "rebote": 0.8,
+      "en-vivo": 0.9
+    }
+  },
+  "afinidad": {
+    "institucional": -0.3,
+    "categorias_color": 1.2,
+    "comercio": 1.5,
+    "tarea_formulario": 0.6,
+    "video_hero": -0.2
+  }
+}

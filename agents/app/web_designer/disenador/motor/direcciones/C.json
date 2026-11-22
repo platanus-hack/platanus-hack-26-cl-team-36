@@ -1,0 +1,118 @@
+{
+  "id": "C",
+  "nombre": "Nocturno / vidrio",
+  "idea": "Andén de noche: el video como atmósfera, vidrio y un hilo con la luz de las categorías.",
+  "modo": "oscuro",
+  "neutros": {
+    "tono": [
+      262,
+      290
+    ],
+    "croma": [
+      0.012,
+      0.02
+    ],
+    "fondo": [
+      13.5,
+      15.5
+    ],
+    "paso": [
+      3.5,
+      5
+    ]
+  },
+  "tinta": {
+    "l": [
+      96,
+      98.5
+    ],
+    "l2": [
+      77,
+      82
+    ]
+  },
+  "acento": {
+    "l": [
+      53,
+      58
+    ],
+    "c": [
+      0.2,
+      0.22
+    ]
+  },
+  "foco": {
+    "tono": 245,
+    "l": 80,
+    "c": 0.12
+  },
+  "categorias": "aclaradas",
+  "tipo": {
+    "familia": "neogrotesca",
+    "escala": [
+      1.27,
+      1.33
+    ],
+    "display": {
+      "peso": [
+        620,
+        690
+      ],
+      "ancho": [
+        100,
+        100
+      ],
+      "caja": "none",
+      "tracking": [
+        -0.05,
+        -0.04
+      ],
+      "interlinea": [
+        0.94,
+        0.98
+      ]
+    },
+    "titulo_peso": [
+      600,
+      660
+    ],
+    "display_pasos": 6.5
+  },
+  "forma": {
+    "radio": [
+      12,
+      18
+    ]
+  },
+  "densidad": [
+    0.94,
+    1.04
+  ],
+  "nav": "pildora",
+  "panel": "vidrio",
+  "disposicion": "apilado",
+  "hero": {
+    "atmosfera": 0.65,
+    "ocultar": 0.35
+  },
+  "orden": "natural",
+  "recetas": {
+    "fijas": [
+      "vidrio",
+      "comandos-lanzador",
+      "cabecera-editorial"
+    ],
+    "opcionales": {
+      "aurora": 0.85,
+      "titular-degradado": 0.55,
+      "en-vivo": 0.9
+    }
+  },
+  "afinidad": {
+    "institucional": 0.6,
+    "categorias_color": 0.8,
+    "comercio": 0.3,
+    "tarea_formulario": 0.6,
+    "video_hero": 1.6
+  }
+}

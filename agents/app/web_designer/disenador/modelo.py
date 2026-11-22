@@ -6,6 +6,7 @@ sistema, igual que lo usaría la extensión.
 """
 
 import hashlib
+import json
 import re
 import time
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from shared.claude.caller import ClaudeCallError
 from shared.claude.engines import make_caller
 
 from disenador import config
+from disenador.motor.componer import DIRECCIONES, FAMILIAS_DISPONIBLES, direcciones, recetas_meta
 
 ESQUEMA_TEMA = {
     "type": "object",
@@ -64,6 +66,70 @@ ESQUEMA_KIT = {
     "required": [*ESQUEMA_TEMA["required"], "componentes"],
 }
 
+# El modo motor: el modelo elige una dirección de arte, una semilla y ajustes acotados; el código compone el CSS.
+AJUSTES_NUMERICOS = ("neutros.tono", "neutros.croma", "neutros.fondo", "neutros.paso", "tinta.l", "tinta.l2",
+                     "acento.l", "acento.c", "tipo.escala", "tipo.display.peso", "tipo.display.ancho",
+                     "tipo.display.tracking", "forma.radio", "densidad")
+_LISTA_DE_RECETAS = {"type": "array", "items": {"enum": list(recetas_meta())}}
+ESQUEMA_MOTOR = {
+    "type": "object",
+    "properties": {
+        "direccion": {"enum": [*DIRECCIONES, "auto"]},
+        "semilla": {"type": "integer", "minimum": 1, "maximum": 2_147_483_647},
+        "ajustes": {
+            "type": "object",
+            "properties": {
+                **{ruta: {"type": "number"} for ruta in AJUSTES_NUMERICOS},
+                "hero": {"enum": ["ocultar", "atmosfera"]},
+                "disposicion": {"enum": ["apilado", "mosaico"]},
+                "orden": {"enum": ["natural", "tareas-primero"]},
+                "recetas": {"type": "object", "properties": {"agregar": _LISTA_DE_RECETAS, "quitar": _LISTA_DE_RECETAS},
+                            "additionalProperties": False},
+            },
+            "additionalProperties": False,
+        },
+        "motivo": {"type": "string", "description": "Una o dos frases: por qué esa dirección y esos ajustes."},
+        "componentes": ESQUEMA_KIT["properties"]["componentes"],
+    },
+    "required": ["direccion", "semilla", "ajustes", "motivo", "componentes"],
+    "additionalProperties": False,
+}
+
+
+def _direcciones_para_el_modelo() -> str:
+    lineas = []
+    for d in direcciones().values():
+        rangos = {ruta: valor for ruta in AJUSTES_NUMERICOS
+                  if isinstance(valor := _en(d, ruta), list)}
+        lineas.append(f"  - `{d['id']}` «{d['nombre']}» ({d['modo']}): {d['idea']} Recetas fijas:"
+                      f" {', '.join(d['recetas']['fijas'])}; rangos: {json.dumps(rangos)}")
+    return "\n".join(lineas)
+
+
+def _en(datos: dict, ruta: str):
+    for clave in ruta.split("."):
+        datos = datos.get(clave) if isinstance(datos, dict) else None
+    return datos
+
+
+def contrato_motor() -> str:
+    recetas = "; ".join(f"`{k}` ({v['idea']})" for k, v in recetas_meta().items())
+    return f"""## Contrato de salida
+
+No escribes CSS: eliges una dirección de arte y el código compone el tema, lo sanea y verifica el contraste AA.
+Respondes solo el JSON pedido, con:
+- `direccion`: una de estas, o `auto` para que el código la elija según los rasgos del sitio:
+{_direcciones_para_el_modelo()}
+- `semilla`: un entero ≥ 1; la misma semilla da el mismo tema, otra semilla otra variante dentro de la dirección.
+- `ajustes`: opcional, para acercar el tema a los gustos. Un número fija ese parámetro dentro del rango de la
+  dirección (fuera del rango se recorta); `hero`, `disposicion` y `orden` eligen una variante del sitio, si la tiene;
+  `recetas.agregar` y `recetas.quitar` suman o sacan bloques: {recetas}. Una receta que no calza con la dirección
+  o el sitio se ignora con un aviso.
+- `motivo`: una o dos frases con el porqué.
+Las letras disponibles son {", ".join(FAMILIAS_DISPONIBLES)}: cada dirección ya trae la suya.
+"""
+
+
 CONTRATO = """## Contrato de salida
 
 Respondes solo el JSON pedido, con:
@@ -85,9 +151,10 @@ CONTRATO_KIT = """- `componentes`: uno por cada componente del diagnóstico (`at
   - `tareas`: en el lanzador, una por tarea (mismo `enlace`), con título de ≤ 5 palabras y detalle de una frase.
   - `contenedor`: un selector del mapa (un `id` o etiqueta, ≤ 200 caracteres) del bloque antes del cual va el
     componente, arriba y a la vista; vacío para dejar el propuesto. Si no existe en la página, queda el propuesto.
-  En el CSS, el componente se estiliza con `[data-mt-vista="<id>"]`, `.mt-atajo` y `.mt-lanzador`. El bloque original
-  que el componente reemplaza solo se oculta con `html.mi-tema:not(.mt-vista-original):has([data-mt-vista="<id>"])`
-  delante del selector: así reaparece si el componente no se dibuja o la persona pide ver el original.
+"""
+
+CONTRATO_KIT_CSS = """  En el CSS, el componente se estiliza con `[data-mt-vista="<id>"]`, `.mt-atajo` y `.mt-lanzador`. La regla que
+  oculta el bloque original que reemplaza el atajo la agrega el código; no la escribas.
 """
 
 
@@ -120,8 +187,12 @@ def leer_skill(ruta: Path) -> Skill:
     return Skill(ruta, nombre, cuerpo.strip(), hashlib.sha256(contenido.encode()).hexdigest()[:12])
 
 
-def prompt_de_sistema(skill: Skill | None, kit: bool = False) -> str:
-    contrato = CONTRATO + CONTRATO_KIT if kit else CONTRATO
+def prompt_de_sistema(skill: Skill | None, kit: bool = False, con_motor: bool = False) -> str:
+    """`kit`: con los componentes del diagnóstico; `con_motor`: el modelo elige dirección en vez de escribir CSS."""
+    if con_motor:
+        contrato = contrato_motor() + CONTRATO_KIT
+    else:
+        contrato = CONTRATO + CONTRATO_KIT + CONTRATO_KIT_CSS if kit else CONTRATO
     if skill is None:
         return "Diseñas temas CSS que cambian el aspecto de un sitio web según los gustos de su usuario.\n\n" + contrato
     return f"{skill.cuerpo}\n\n{contrato}"
@@ -156,6 +227,9 @@ def mensaje_de_diseno(url: str, gustos: str, tarea: str | None, mapa_texto: str,
 
 def respuesta_guionizada(sistema: str, esquema: dict, partes: list) -> dict | None:
     """La respuesta del motor guionizado al diseño; el juez responde lo que dicta su esquema."""
+    if esquema is ESQUEMA_MOTOR:
+        return {"direccion": "auto", "semilla": 7, "ajustes": {}, "motivo": "Tema guionizado, sin modelo.",
+                "componentes": []}
     if esquema is not ESQUEMA_TEMA and esquema is not ESQUEMA_KIT:
         return None
     tema = {"css": "html.mi-tema body { background-color: #fdfcf8; color: #1a1a1a; }",
