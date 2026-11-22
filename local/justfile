@@ -12,6 +12,7 @@
 #   7. just local backoffice                 viewer of the visitor runs, at http://localhost:4848
 #   8. just local site <url> [goals]         catalog, guide and visitor per goal, and summary (calls Claude)
 #      just local summary <url>              a new summary from the latest runs in the store
+#   9. just local migrate-runs <store>       old-layout runs of agents/.runs/ into a store (plan unless --write)
 #
 # Recipes run from the repo root, so every path here is relative to it. What `up`
 # leaves behind (process ids and logs) goes to local/.state/, outside git. The agents
@@ -308,3 +309,16 @@ summary url: _agents_ready
 _agents_ready:
     @for project in cataloger guide summary web_designer; do test -x "agents/app/$project/.venv/bin/python" \
         || { echo "The $project dependencies are missing: run \`just local setup\` first." >&2; exit 1; }; done
+
+# ── 9. Migration ──────────────────────────────────────────────────────────
+
+# Copies the old-layout runs of agents/.runs/ into a store, without touching them; prints the plan unless --write. E.g. just local migrate-runs file:///tmp/runs --write
+[group('9. Migration · once, does not call Claude')]
+[working-directory('agents/shared')]
+[positional-arguments]
+migrate-runs store *options:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    store="$1"
+    shift
+    exec uv run scripts/migrate_runs.py --to "$store" ${1+"$@"}
