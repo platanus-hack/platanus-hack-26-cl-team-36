@@ -38,7 +38,10 @@ const reducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)
 
 // Holgura para las etiquetas fuera de la caja de la geometría (la mitad del nombre del inicio a la izquierda, debajo
 // de las estaciones y a la derecha de las terminales).
-const HOLGURA = { izquierda: 50, derecha: 180, abajo: 40 };
+// Arriba, lo que ocupan los botones de zoom: una fila pegada al borde de arriba (la ruta, con su terminal a la derecha)
+// no queda debajo de ellos.
+const HOLGURA = { izquierda: 50, derecha: 180, arriba: 48, abajo: 40 };
+const ALTO_DE_LOS_CONTROLES = 48; // px de pantalla bajo el borde de arriba del lienzo: los botones de zoom y su margen
 // Ajuste a la vista (en plano): el mapa entra a lo ancho (el inicio a la izquierda y la meta a la derecha) y las filas
 // se estiran lo que pida el nombre de una estación con ese zoom, para que no se monte sobre el punto o la marca de
 // atasco de la de abajo. Un mapa más alto que el lienzo agranda el lienzo (hasta el 80 % de la ventana) y, si aun así
@@ -269,7 +272,7 @@ function crearPantalla(contenedor, ctx) {
 
   function cajaVisible() {
     const { caja } = estado.geo;
-    return { x: caja.x - HOLGURA.izquierda, y: caja.y, ancho: caja.ancho + HOLGURA.izquierda + HOLGURA.derecha, alto: caja.alto + HOLGURA.abajo };
+    return { x: caja.x - HOLGURA.izquierda, y: caja.y - HOLGURA.arriba, ancho: caja.ancho + HOLGURA.izquierda + HOLGURA.derecha, alto: caja.alto + HOLGURA.arriba + HOLGURA.abajo };
   }
 
   /** Zoom con que se ve el mapa entero a lo ancho del lienzo. */
@@ -321,7 +324,8 @@ function crearPantalla(contenedor, ctx) {
       // abajo del mapa.
       const arriba = -caja.y * encuadre.k;
       const abajo = alto - (caja.y + caja.alto) * encuadre.k;
-      const ty = franjaConMasEstaciones(puntosParaEncuadrar(), alto / encuadre.k, MARGEN_DE_FRANJA);
+      const margenArriba = Math.max(MARGEN_DE_FRANJA, ALTO_DE_LOS_CONTROLES / encuadre.k);
+      const ty = franjaConMasEstaciones(puntosParaEncuadrar(), alto / encuadre.k, MARGEN_DE_FRANJA, margenArriba);
       encuadre.ty = Math.min(arriba, Math.max(abajo, ty === null ? alto / 2 : ty * encuadre.k));
     }
     camara.poner(encuadre);

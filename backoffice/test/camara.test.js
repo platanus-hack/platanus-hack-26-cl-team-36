@@ -82,6 +82,9 @@ test("franjaConMasEstaciones: el mapa alto se encuadra donde quedan más estacio
   assert.ok(-franjaConMasEstaciones(conTerminal, 600, 0) <= 500 && -franjaConMasEstaciones(conTerminal, 600, 0) + 600 >= 500);
   // Con margen: deja lugar arriba del primer punto.
   assert.equal(franjaConMasEstaciones([{ y: 0, peso: 1 }], 200, 40), 40);
+  // Con más margen arriba (los botones de zoom), el primer punto baja y la franja útil se acorta.
+  assert.equal(franjaConMasEstaciones([{ y: 0, peso: 1 }], 200, 40, 100), 100);
+  assert.equal(franjaConMasEstaciones([0, 70].map((y) => ({ y, peso: 1 })), 200, 40, 100), 100, "y = 70 ya no cabe: queda la de y = 0");
   assert.equal(franjaConMasEstaciones([], 200), null);
 });
 
