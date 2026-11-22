@@ -1,6 +1,6 @@
 // Gramática de las rutas (diseño §5.1). Puro: no toca document ni window, así node:test lo importa.
 //
-//   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|delivered|failed
+//   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|delivered|failed &pagina=<n>
 //   #/corridas                  Corridas   ?q= &sitio= &filtro= &orden= &vista=
 //   #/?q=…&sitio=…              (enlace viejo, de cuando Corridas era #/) → #/corridas?… con esos parámetros
 //   #/t/<tandaId>               → #/t/<tandaId>/telarana
@@ -11,7 +11,7 @@
 //
 // Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
 // saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan. En el Overview y en el filtro de
-// Revisiones un valor desconocido se descarta, y los valores por defecto (all, recent) nunca se escriben.
+// Revisiones un valor desconocido se descarta, y los valores por defecto (all, recent, página 1) nunca se escriben.
 
 import { CORRIDA, OBJETIVO, REVISION, partesDeTanda } from "./almacen.js";
 
@@ -25,9 +25,12 @@ export const PESTANAS_DEL_OVERVIEW = Object.freeze(["recent", "live", "delivered
 /** Filtro `estado=` de la lista de Revisiones. */
 export const ESTADOS_DE_REVISIONES = Object.freeze(["live", "done", "failed", "historial"]);
 
-// Valores válidos de los parámetros con un conjunto cerrado; lo demás se descarta al leer y al escribir.
+/** Página de las revisiones del Overview: un entero de 1 a 9999 escrito sin ceros adelante. */
+export const esPaginaDelOverview = (texto) => /^[1-9]\d{0,3}$/.test(String(texto));
+
+// Valores válidos de los parámetros con un conjunto cerrado (o una prueba); lo demás se descarta al leer y al escribir.
 const VALORES = {
-  overview: { dispositivo: DISPOSITIVOS, pestana: PESTANAS_DEL_OVERVIEW },
+  overview: { dispositivo: DISPOSITIVOS, pestana: PESTANAS_DEL_OVERVIEW, pagina: esPaginaDelOverview },
   revisiones: { estado: ESTADOS_DE_REVISIONES },
 };
 
@@ -47,7 +50,7 @@ export const NOMBRES_DE_PESTANA = Object.freeze({
 
 // Orden estable de los parámetros conocidos; los demás van después, en orden alfabético.
 const ORDEN_DE_PARAMETROS = {
-  overview: ["dispositivo", "pestana"],
+  overview: ["dispositivo", "pestana", "pagina"],
   corridas: PARAMETROS_DE_CORRIDAS,
   revisiones: ["estado"],
   telarana: ["pagina"],
@@ -57,7 +60,7 @@ const ORDEN_DE_PARAMETROS = {
 
 // Valores por defecto: no se escriben en el hash.
 const POR_DEFECTO = {
-  overview: { dispositivo: DISPOSITIVOS[0], pestana: PESTANAS_DEL_OVERVIEW[0] },
+  overview: { dispositivo: DISPOSITIVOS[0], pestana: PESTANAS_DEL_OVERVIEW[0], pagina: "1" },
   corridas: { vista: "lista", orden: "nuevas" },
 };
 
@@ -99,7 +102,8 @@ function soloValidos(vista, parametros) {
     const valor = parametros?.[clave];
     if (valor === null || valor === undefined) continue;
     const texto = String(valor);
-    if (permitidos.includes(texto) && defecto[clave] !== texto) resultado[clave] = texto;
+    const vale = typeof permitidos === "function" ? permitidos(texto) : permitidos.includes(texto);
+    if (vale && defecto[clave] !== texto) resultado[clave] = texto;
   }
   return resultado;
 }

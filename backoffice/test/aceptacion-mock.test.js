@@ -33,10 +33,10 @@ const LIVE = ["mwracgf6-dbc496", "mwracfin-1fb17c", "mwra90fg-e77243", "mwra38v2
 const CONTRATO_LISTAS = {
   cuentas: { total: 90, running: 5, stalled: 1, queued: 2, live: 7, delivered: 65, failed: 18 },
   pestanas: {
-    recent: { ids: LIVE.slice(0, 6), total: 90 },
-    live: { ids: LIVE.slice(0, 6), total: 7 },
-    delivered: { ids: ["mwqzio79-f9166d", "mwqz780m-8ef86d", "mwqygae6-78cdf0", "mwqw761q-7e7961", "mwqtq24w-dd7f1b", "mwqr64yv-16034e"], total: 65 },
-    failed: { ids: ["mwqhgg8u-c7d205", "mwq9ud02-ba22c7", "mwq9jnpg-b1348a", "mwq89pkb-69522a", "mwpzu4cp-8db0a9", "mwpxkn6i-c6aa1f"], total: 18 },
+    recent: { ids: LIVE.slice(0, 6), total: 90, pagina: 1, paginas: 15 },
+    live: { ids: LIVE.slice(0, 6), total: 7, pagina: 1, paginas: 2 },
+    delivered: { ids: ["mwqzio79-f9166d", "mwqz780m-8ef86d", "mwqygae6-78cdf0", "mwqw761q-7e7961", "mwqtq24w-dd7f1b", "mwqr64yv-16034e"], total: 65, pagina: 1, paginas: 11 },
+    failed: { ids: ["mwqhgg8u-c7d205", "mwq9ud02-ba22c7", "mwq9jnpg-b1348a", "mwq89pkb-69522a", "mwpzu4cp-8db0a9", "mwpxkn6i-c6aa1f"], total: 18, pagina: 1, paginas: 3 },
   },
 };
 
@@ -57,8 +57,15 @@ before(async () => {
   panel = crearPanel(opciones());
   await new Promise((listo) => servidor.listen(0, "127.0.0.1", listo));
   base = `http://127.0.0.1:${servidor.address().port}/backoffice`;
-  // Live entera (las 7: también Banco Andino /personas, detenida, que con 6 queda fuera de Recent y Live).
-  overview = await (await fetch(`${base}/api/overview?pestana=live&limite=16`)).json();
+  // Live entera, en sus dos páginas (las 7: también Banco Andino /personas, detenida, que queda en la página 2).
+  const [primeraDeLive, segundaDeLive] = await Promise.all(
+    ["", "?pestana=live&pagina=2"].map(async (consulta) => (await fetch(`${base}/api/overview${consulta}`)).json()),
+  );
+  overview = {
+    ...segundaDeLive,
+    pestanas: { ...segundaDeLive.pestanas, live: { ...segundaDeLive.pestanas.live, ids: [...primeraDeLive.pestanas.live.ids, ...segundaDeLive.pestanas.live.ids] } },
+    tarjetas: { ...primeraDeLive.tarjetas, ...segundaDeLive.tarjetas },
+  };
 });
 after(() => servidor?.close());
 
@@ -82,24 +89,23 @@ test("mock: /api/overview con 90 revisiones (65 entregadas, 18 fallidas, 5 corri
   assert.deepEqual(["mwracgf6-dbc496", "mwracfin-1fb17c"].map((id) => porDefecto.tarjetas[id].estado), ["queued", "queued"]);
 });
 
-test("mock: ?pestana=live&limite=16 trae las 7 de Live (corriendo, detenida y en cola), más nuevas primero", { skip: SALTAR }, () => {
-  assert.deepEqual(overview.pestanas.live, { ids: LIVE, total: 7 });
+test("mock: las dos páginas de Live traen las 7 (corriendo, detenida y en cola), más nuevas primero", { skip: SALTAR }, () => {
+  assert.deepEqual(overview.pestanas.live, { ids: LIVE, total: 7, pagina: 2, paginas: 2 });
   assert.equal(overview.cuentas.live, overview.pestanas.live.total);
   assert.deepEqual(LIVE.map((id) => overview.tarjetas[id].estado), ["queued", "queued", "running", "running", "running", "running", "stalled"]);
   for (const otra of ["recent", "delivered", "failed"]) assert.deepEqual(overview.pestanas[otra], CONTRATO_LISTAS.pestanas[otra], otra);
 });
 
-test("mock: ?pestana=delivered&limite=16 trae 16 ids y sus 16 tarjetas; la página corta sigue al principio", { skip: SALTAR }, async () => {
-  const larga = await (await fetch(`${base}/api/overview?pestana=delivered&limite=16`)).json();
-  const { delivered } = larga.pestanas;
-  assert.equal(delivered.ids.length, 16);
-  assert.equal(delivered.total, 65);
-  assert.deepEqual(delivered.ids.slice(0, 6), CONTRATO_LISTAS.pestanas.delivered.ids);
-  assert.equal(delivered.ids.filter((id) => larga.tarjetas[id]?.estado === "delivered").length, 16);
-  for (const otra of ["recent", "live", "failed"]) assert.deepEqual(larga.pestanas[otra], CONTRATO_LISTAS.pestanas[otra], otra);
-  assert.equal(Object.keys(larga.tarjetas).length, new Set(Object.values(larga.pestanas).flatMap((p) => p.ids)).size);
-  const porDefecto = await (await fetch(`${base}/api/overview`)).json();
-  for (const [id, tarjeta] of Object.entries(porDefecto.tarjetas)) assert.deepEqual(larga.tarjetas[id], tarjeta, id);
+test("mock: ?pestana=delivered&pagina=3 trae esa página de 6 con sus tarjetas; la última trae las 5 que quedan", { skip: SALTAR }, async () => {
+  const tercera = await (await fetch(`${base}/api/overview?pestana=delivered&pagina=3`)).json();
+  const { delivered } = tercera.pestanas;
+  assert.deepEqual([delivered.ids.length, delivered.total, delivered.pagina, delivered.paginas], [6, 65, 3, 11]);
+  assert.ok(delivered.ids.every((id) => !CONTRATO_LISTAS.pestanas.delivered.ids.includes(id)), "otra página, otras revisiones");
+  assert.equal(delivered.ids.filter((id) => tercera.tarjetas[id]?.estado === "delivered").length, 6);
+  for (const otra of ["recent", "live", "failed"]) assert.deepEqual(tercera.pestanas[otra], CONTRATO_LISTAS.pestanas[otra], otra);
+  assert.equal(Object.keys(tercera.tarjetas).length, new Set(Object.values(tercera.pestanas).flatMap((p) => p.ids)).size);
+  const ultima = (await (await fetch(`${base}/api/overview?pestana=delivered&pagina=11`)).json()).pestanas.delivered;
+  assert.deepEqual([ultima.ids.length, ultima.pagina], [5, 11]);
 });
 
 test("mock: Banco Andino /personas está detenida hace 3 h; las otras 4 que corren llevan de 2 a 11 min", { skip: SALTAR }, () => {

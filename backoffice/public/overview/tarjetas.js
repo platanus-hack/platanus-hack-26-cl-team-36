@@ -1,5 +1,5 @@
 // Revisiones del Overview (spec §3.4, §3.5; contrato §7): pestañas, tarjetas, medidores por goal, etapas, el
-// paginado ("Show 10 more") y la pista de arranque vacío. Puro: no toca document ni window. Trabaja sobre
+// paginado (páginas de 6) y la pista de arranque vacío. Puro: no toca document ni window. Trabaja sobre
 // /api/overview (contrato §2 y §7); los textos los pone overview/textos.js y el DOM, overview/dom-*.js.
 
 import { partesDeTanda } from "../nucleo/almacen.js";
@@ -16,12 +16,10 @@ export const ESTADOS_DE_ETAPA = Object.freeze(["hecho", "en_curso", "pendiente",
 export const MOTIVOS = Object.freeze(["sin_avance", "limite", "catalogador", "guia", "disenador", "error"]);
 /** Goals con medidor visible por tarjeta; el resto va como "+N". */
 export const MAX_GOALS = 3;
-/** Tarjetas que trae el servidor por pestaña si no se le pide otro límite (contrato §7.4). */
+/** Tarjetas por página: el servidor trae una página de 6 por pestaña (contrato §7.4). */
 export const TARJETAS_POR_PAGINA = 6;
-/** Cuántas suma "Show N more". */
-export const PASO = 10;
-/** Tope del límite en el servidor. */
-export const LIMITE_MAXIMO = 500;
+/** Números de página visibles en el paginador, contando los "…" (primera, última y las vecinas de la actual). */
+export const HUECOS_DEL_PAGINADOR = 7;
 /** Con menos tarjetas que esto en Recent aparece la pista de cómo empieza una revisión (artboard 5). */
 export const TARJETAS_SIN_PISTA = 3;
 
@@ -195,25 +193,57 @@ export function tarjetasDePestana(overview, pestana) {
     .filter(Boolean);
 }
 
+/** La página pedida en el hash (`?pagina=`): un entero desde 1; otro valor vale 1. */
+export function leerPagina(valor) {
+  const n = Number(valor);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
+
+/** La página que trajo la API para una pestaña (1 si no lo dice: un servidor anterior al paginado). */
+export const paginaDePestana = (overview, pestana) => leerPagina(overview?.pestanas?.[leerPestana(pestana)]?.pagina);
+
 /**
- * Lo que falta por mostrar de una pestaña (botón "Show N more"): { total, traidas, faltan, siguiente } con
- * siguiente = min(10, faltan); null si ya están todas.
+ * El paginador de una pestaña: { pagina, paginas, total, desde, hasta } (desde–hasta: las tarjetas que se ven, desde
+ * 1); null si cabe en una página (sin paginador).
  */
-export function masDePestana(overview, pestana) {
-  const total = Math.floor(Number(overview?.pestanas?.[leerPestana(pestana)]?.total) || 0);
-  const traidas = idsDePestana(overview, pestana).length;
-  const faltan = total - traidas;
-  return faltan > 0 ? { total, traidas, faltan, siguiente: Math.min(PASO, faltan) } : null;
+export function paginacionDePestana(overview, pestana) {
+  const datos = overview?.pestanas?.[leerPestana(pestana)];
+  const total = Math.max(0, Math.floor(Number(datos?.total) || 0));
+  const paginas = Math.max(1, Math.floor(Number(datos?.paginas) || Math.ceil(total / TARJETAS_POR_PAGINA)));
+  if (paginas <= 1) return null;
+  const pagina = Math.min(paginas, paginaDePestana(overview, pestana));
+  const desde = (pagina - 1) * TARJETAS_POR_PAGINA + 1;
+  return { pagina, paginas, total, desde, hasta: Math.min(total, desde + idsDePestana(overview, pestana).length - 1) };
 }
 
-/** El límite de una pestaña después de "Show N more": 10 más, con el tope del servidor. */
-export function limiteSiguiente(limite) {
-  const actual = Math.max(TARJETAS_POR_PAGINA, Math.floor(Number(limite)) || TARJETAS_POR_PAGINA);
-  return Math.min(LIMITE_MAXIMO, actual + PASO);
+/**
+ * Los números del paginador: todos si caben en HUECOS_DEL_PAGINADOR; si no, la primera, la última, la actual con sus
+ * vecinas y "…" donde se saltan páginas (un salto de una sola página muestra esa página, no "…"). Con 9 páginas:
+ * en la 1 → 1 2 3 4 5 … 9; en la 5 → 1 … 4 5 6 … 9; en la 9 → 1 … 5 6 7 8 9. → (number | "…")[]
+ */
+export function numerosDePaginas(pagina, paginas, huecos = HUECOS_DEL_PAGINADOR) {
+  const total = Math.max(1, Math.floor(paginas) || 1);
+  const actual = Math.min(total, Math.max(1, Math.floor(pagina) || 1));
+  if (total <= huecos) return Array.from({ length: total }, (_, i) => i + 1);
+  // Los extremos fijos y un bloque contiguo alrededor de la actual que llena los huecos que quedan.
+  const bloque = huecos - 4;
+  let desde = Math.max(2, actual - Math.floor((bloque - 1) / 2));
+  let hasta = desde + bloque - 1;
+  if (actual <= 1 + Math.ceil(bloque / 2) + 1) {
+    desde = 2;
+    hasta = huecos - 2;
+  } else if (actual >= total - Math.ceil(bloque / 2) - 1) {
+    hasta = total - 1;
+    desde = total - (huecos - 3);
+  }
+  hasta = Math.min(hasta, total - 1);
+  const numeros = [1];
+  if (desde > 2) numeros.push(desde === 3 ? 2 : "…");
+  for (let n = desde; n <= hasta; n++) numeros.push(n);
+  if (hasta < total - 1) numeros.push(hasta === total - 2 ? total - 1 : "…");
+  numeros.push(total);
+  return numeros;
 }
-
-/** Cuántas tarjetas se sumaron a una pestaña entre dos respuestas (0 si no creció: el servidor ignoró el límite). */
-export const sumadas = (antes, despues, pestana) => Math.max(0, idsDePestana(despues, pestana).length - idsDePestana(antes, pestana).length);
 
 /** ¿Va la pista de arranque vacío? Solo en Recent y con menos de 3 revisiones. */
 export function hayPista(overview, pestana) {

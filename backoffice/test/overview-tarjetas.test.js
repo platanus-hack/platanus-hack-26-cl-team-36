@@ -1,12 +1,11 @@
 // Revisiones del Overview (spec §3.4, §3.5; contrato §7): pestañas e insignias, cuadritos y medidores con el filtro
-// de dispositivo, etapas, motivo, destino de la tarjeta, las en cola como tarjetas, el paginado ("Show N more") y la
+// de dispositivo, etapas, motivo, destino de la tarjeta, las en cola como tarjetas, el paginado (páginas de 6) y la
 // pista de arranque vacío. El fixture tiene la forma del contrato §2 y §7 con casos del mock.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  LIMITE_MAXIMO,
-  PASO,
+  HUECOS_DEL_PAGINADOR,
   TARJETAS_POR_PAGINA,
   avisoDeTarjeta,
   columnasDePista,
@@ -15,15 +14,16 @@ import {
   hayPista,
   idsDePestana,
   insigniaDePestana,
+  leerPagina,
   leerPestana,
-  limiteSiguiente,
-  masDePestana,
   medidorDeGoal,
   medidoresDeTarjeta,
   modeloDeTarjeta,
+  numerosDePaginas,
   ordenarTramos,
+  paginaDePestana,
+  paginacionDePestana,
   seVeEn,
-  sumadas,
   tandaDeGoal,
   tandaDeTarjeta,
   tarjetasDePestana,
@@ -369,31 +369,58 @@ test("una en cola es una tarjeta: píldora Queued, etapas pendientes, sin cuadri
   assert.equal(modelo.tanda, "aguasdelmaule.test/visitor/reportar-emergencia/2026-11-21T20-04-35Z");
 });
 
-test("Show N more: lo que falta de la pestaña, de a 10", () => {
-  assert.deepEqual(masDePestana(OVERVIEW, "recent"), { total: 90, traidas: 6, faltan: 84, siguiente: 10 });
-  assert.deepEqual(masDePestana(OVERVIEW, "live"), { total: 8, traidas: 4, faltan: 4, siguiente: 4 });
-  assert.deepEqual(masDePestana(OVERVIEW, "delivered"), { total: 65, traidas: 1, faltan: 64, siguiente: 10 });
-  assert.equal(masDePestana(OVERVIEW, "failed"), null);
-  assert.equal(masDePestana({}, "recent"), null);
+test("página del hash: un entero desde 1; lo demás vale 1", () => {
+  assert.equal(TARJETAS_POR_PAGINA, 6);
+  assert.deepEqual(["3", 2, "1", "12"].map(leerPagina), [3, 2, 1, 12]);
+  for (const otro of ["0", "-2", "2.5", "abc", "", null, undefined]) assert.equal(leerPagina(otro), 1, JSON.stringify(otro));
+});
+
+test("paginador de una pestaña: página, páginas y el rango que se ve; sin paginador si cabe en una", () => {
+  // La API trae { ids, total, pagina, paginas } por pestaña (contrato §7.4).
+  const conPaginas = {
+    pestanas: {
+      delivered: { ids: ["a", "b", "c", "d", "e", "f"], total: 65, pagina: 3, paginas: 11 },
+      failed: { ids: ["x", "y"], total: 20, pagina: 4, paginas: 4 },
+      live: { ids: ["l"], total: 1, pagina: 1, paginas: 1 },
+    },
+  };
+  assert.deepEqual(paginacionDePestana(conPaginas, "delivered"), { pagina: 3, paginas: 11, total: 65, desde: 13, hasta: 18 });
+  assert.deepEqual(paginacionDePestana(conPaginas, "failed"), { pagina: 4, paginas: 4, total: 20, desde: 19, hasta: 20 }, "la última, con lo que queda");
+  assert.equal(paginacionDePestana(conPaginas, "live"), null, "cabe en una página");
+  assert.deepEqual([paginaDePestana(conPaginas, "delivered"), paginaDePestana(conPaginas, "recent")], [3, 1]);
+  // Un servidor anterior al paginado (sin pagina ni paginas): las páginas salen del total.
+  assert.deepEqual(paginacionDePestana(OVERVIEW, "recent"), { pagina: 1, paginas: 15, total: 90, desde: 1, hasta: 6 });
+  assert.equal(paginacionDePestana(OVERVIEW, "failed"), null);
+  assert.equal(paginacionDePestana({}, "recent"), null);
   assert.deepEqual(idsDePestana(OVERVIEW, "failed"), [UNILITORAL.revision]);
 });
 
-test("límite de una pestaña: 6 por defecto y 10 más con cada Show more, con el tope del servidor", () => {
-  assert.equal(TARJETAS_POR_PAGINA, 6);
-  assert.equal(PASO, 10);
-  assert.equal(limiteSiguiente(6), 16);
-  assert.equal(limiteSiguiente(16), 26);
-  assert.equal(limiteSiguiente(undefined), 16);
-  assert.equal(limiteSiguiente(2), 16);
-  assert.equal(limiteSiguiente(495), LIMITE_MAXIMO);
-  assert.equal(limiteSiguiente(LIMITE_MAXIMO), LIMITE_MAXIMO);
-});
-
-test("cuántas se sumaron entre dos respuestas (0 si el servidor no trajo más)", () => {
-  const despues = { pestanas: { delivered: { ids: Array.from({ length: 16 }, (_, i) => `r${i}`), total: 65 } } };
-  assert.equal(sumadas(OVERVIEW, despues, "delivered"), 15);
-  assert.equal(sumadas(OVERVIEW, OVERVIEW, "delivered"), 0);
-  assert.equal(sumadas(despues, OVERVIEW, "delivered"), 0);
+test("números del paginador: todos si caben en 7; si no, primera, última, la actual con sus vecinas y …", () => {
+  assert.equal(HUECOS_DEL_PAGINADOR, 7);
+  const ver = (pagina, paginas) => numerosDePaginas(pagina, paginas).join(" ");
+  assert.equal(ver(1, 1), "1");
+  assert.equal(ver(2, 2), "1 2");
+  assert.equal(ver(4, 7), "1 2 3 4 5 6 7");
+  assert.equal(ver(1, 9), "1 2 3 4 5 … 9");
+  assert.equal(ver(4, 9), "1 2 3 4 5 … 9");
+  assert.equal(ver(5, 9), "1 … 4 5 6 … 9");
+  assert.equal(ver(6, 9), "1 … 5 6 7 8 9");
+  assert.equal(ver(9, 9), "1 … 5 6 7 8 9");
+  assert.equal(ver(10, 20), "1 … 9 10 11 … 20");
+  // Siempre 7 huecos, la actual siempre está y nunca se repite un número.
+  for (let paginas = 8; paginas <= 30; paginas++) {
+    for (let pagina = 1; pagina <= paginas; pagina++) {
+      const numeros = numerosDePaginas(pagina, paginas);
+      assert.equal(numeros.length, 7, `${pagina}/${paginas}`);
+      assert.ok(numeros.includes(pagina) && numeros[0] === 1 && numeros.at(-1) === paginas, `${pagina}/${paginas}`);
+      const solo = numeros.filter((n) => n !== "…");
+      assert.deepEqual(solo, [...solo].sort((a, b) => a - b), `${pagina}/${paginas}: en orden`);
+      assert.equal(new Set(solo).size, solo.length, `${pagina}/${paginas}: sin repetir`);
+    }
+  }
+  // Fuera de rango: se acota.
+  assert.equal(ver(0, 3), "1 2 3");
+  assert.equal(ver(12, 9), "1 … 5 6 7 8 9");
 });
 
 test("pista de arranque vacío: solo en Recent con menos de 3 revisiones", () => {

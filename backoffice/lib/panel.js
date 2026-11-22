@@ -7,11 +7,11 @@
 // Lecturas por pasada (la página pide /api/resumen y /api/overview juntos cada 5 s):
 // - Cada lectura compartida (índice del almacén, ids de tandas, tabla) y cada respuesta se guardan MEMORIA_MS desde
 //   que terminan: dos pedidos que llegan juntos comparten la misma lectura. /api/overview se guarda aparte por cada
-//   página pedida (?pestana=<p>&limite=<n>, ya normalizada): una no responde por otra.
+//   página pedida (?pestana=<p>&pagina=<n>, ya normalizada): una no responde por otra.
 // - Tabla: un Scan de los META y los URL#<url> (solo cuentan las vigentes: revisionesVigentes en lib/revisiones.js) y
 //   una Query por cada revisión que corre (para en_cola y "detenida"). En /api/overview, además, una Query por cada
-//   revisión con tarjeta (6 por pestaña, hasta LIMITE_MAXIMO en la pedida); los ítems de las cerradas (done, failed) se
-//   guardan, así una página más larga solo consulta las que se suman.
+//   revisión con tarjeta (una página de 6 por pestaña); los ítems de las cerradas (done, failed) se guardan, así volver
+//   a una página ya vista no las consulta otra vez.
 // - Almacén: el índice lista el almacén entero a lo más cada LISTADO_MS (30 s) y en cada pasada relee solo lo abierto.
 //   goals.json y el acento del tema.css de corridas cerradas se leen una vez. Las tandas que se listan (capturas,
 //   `tanda`, /archivos/) salen del índice, sin listar; un id que no está ahí se busca en un listado fresco.
@@ -42,8 +42,8 @@ import {
 
 /** Cuánto se reutiliza una lectura o una respuesta ya terminada (los pedidos de una misma pasada llegan juntos). */
 export const MEMORIA_MS = 2000;
-// Revisiones cerradas, goals.json y acentos guardados (los más viejos se olvidan primero): caben las tarjetas de la
-// página más larga (LIMITE_MAXIMO más las otras pestañas) con holgura.
+// Revisiones cerradas, goals.json y acentos guardados (los más viejos se olvidan primero): caben las tarjetas de
+// cientos de páginas con holgura.
 const LIMITE_EN_MEMORIA = 2000;
 // Páginas de /api/overview distintas guardadas a la vez (cada una MEMORIA_MS).
 const PAGINAS_EN_MEMORIA = 16;
@@ -308,12 +308,12 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     /** GET /api/resumen (contrato §1). */
     resumen: memorizar(resumen, memoriaMs),
     /**
-     * GET /api/overview (contrato §2 y §7.4): `parametros` tal como llegan en la URL ({ pestana, limite }); cada página
-     * normalizada se guarda aparte.
+     * GET /api/overview (contrato §2 y §7.4): `parametros` tal como llegan en la URL ({ pestana, pagina }); cada
+     * página normalizada se guarda aparte.
      */
     overview(parametros = {}) {
       const pagina = parametrosDelOverview(parametros);
-      const clave = `${pagina.pestana ?? ""}:${pagina.limite}`;
+      const clave = `${pagina.pestana ?? ""}:${pagina.pagina}`;
       const guardada = paginas.get(clave) ?? memorizar(() => armarOverview(pagina), memoriaMs);
       recordar(paginas, clave, guardada, PAGINAS_EN_MEMORIA);
       return guardada();
