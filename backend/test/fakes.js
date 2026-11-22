@@ -23,10 +23,14 @@ export function tablaFalsa() {
         (item) => item.SK === "META" && estados.includes(item.status) && (item.updated_at ?? "") >= desde,
       ).length;
     },
-    async actualizar(clave, atributos, { previos, existente = false } = {}) {
+    async listar(PK) {
+      return [...items.values()].filter((item) => item.PK === PK).map((item) => structuredClone(item));
+    },
+    async actualizar(clave, atributos, { previos, existente = false, hasta = {} } = {}) {
       const actual = items.get(id(clave));
       if (existente && !actual) return false;
       if (previos && actual?.status !== undefined && !previos.includes(actual.status)) return false;
+      if (Object.entries(hasta).some(([nombre, valor]) => actual?.[nombre] !== undefined && actual[nombre] > valor)) return false;
       const definidos = Object.fromEntries(Object.entries(atributos).filter(([, valor]) => valor !== undefined));
       items.set(id(clave), { ...clave, ...actual, ...definidos });
       return true;

@@ -175,3 +175,190 @@ test("claveDeEvento decodifica la clave del evento S3", () => {
     "ejemplo.cl:8080/cataloger/a b/manifest.json",
   );
 });
+
+// Trazas en vivo y resumen en META.
+
+const GUIA_TRAZA = `${GUIA}/trace.json`;
+const VISITA_TRAZA = `${VISITA}/desktop/trace.json`;
+const VISITA_TRAZA_2 = `${VISITA}/desktop-2/trace.json`;
+const CONTACTO = "ejemplo.cl/guide/ver-contacto/desktop/20261121T120600Z";
+const INICIO = { url: "https://ejemplo.cl/", title: "Ejemplo", screenshot: "step_00.png" };
+const pasoGuia = (n) => ({
+  number: n,
+  label: `click «Paso ${n}»`,
+  action: "click",
+  url_before: "https://ejemplo.cl/",
+  url_after: `https://ejemplo.cl/p${n}`,
+  title_after: `Página ${n}`,
+});
+const pasoVisita = (n) => ({ number: n, action: "left_click", description: `clic ${n}`, url: `https://ejemplo.cl/v${n}`, title: `Visita ${n}` });
+
+const traza = (agent, pasos, extra = {}) => ({
+  schema_version: 1,
+  agent,
+  goal: "buscar-precio",
+  revision: REV,
+  profile: agent === "visitor" ? "desktop" : null,
+  status: "running",
+  updated_at: `2026-11-21T12:00:${String(pasos.length).padStart(2, "0")}Z`,
+  start: INICIO,
+  steps: pasos,
+  ...extra,
+});
+
+function conTrazas(opciones) {
+  const base = escenario(opciones);
+  const publicar = (clave, contenido) => {
+    base.almacen.archivos[clave] = contenido;
+    return base.proyectar(clave);
+  };
+  return { ...base, publicar, resumen: () => base.item("META").resumen };
+}
+
+// [pending, running, succeeded, failed] por fase.
+const fases = (catalog, guide, visitor, improver) => {
+  const n = ([pending = 0, running = 0, succeeded = 0, failed = 0] = []) => ({ pending, running, succeeded, failed });
+  return { catalog: n(catalog), guide: n(guide), visitor: n(visitor), improver: n(improver) };
+};
+
+test("traza de la Guía: pending → running con el paso, la acción y la página", async () => {
+  const { evento, publicar, item } = conTrazas();
+  await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
+  await publicar(GUIA_TRAZA, traza("guide", [pasoGuia(1), pasoGuia(2)]));
+  assert.deepEqual(item("GOAL#buscar-precio#guide"), {
+    ...claveRevision(REV, "GOAL#buscar-precio#guide"),
+    status: "running",
+    step: 2,
+    last_action: "click «Paso 2»",
+    last_url: "https://ejemplo.cl/p2",
+    last_title: "Página 2",
+    trace_key: GUIA_TRAZA,
+    trace_at: "2026-11-21T12:00:02Z",
+    updated_at: "2026-11-21T12:00:00.000Z",
+  });
+});
+
+test("traza sin pasos: la página de inicio; la del Visitante usa los campos de run.json", async () => {
+  const { publicar, item } = conTrazas();
+  await publicar(VISITA_TRAZA, traza("visitor", []));
+  const inicio = item("GOAL#buscar-precio#visitor");
+  assert.deepEqual([inicio.status, inicio.step, inicio.last_action, inicio.last_url], ["running", 0, null, "https://ejemplo.cl/"]);
+
+  await publicar(VISITA_TRAZA, traza("visitor", [pasoVisita(1)]));
+  const visita = item("GOAL#buscar-precio#visitor");
+  assert.deepEqual([visita.step, visita.last_action, visita.last_url, visita.last_title], [1, "clic 1", "https://ejemplo.cl/v1", "Visita 1"]);
+  assert.equal(visita.trace_key, VISITA_TRAZA);
+});
+
+test("una traza tardía no retrocede un GOAL terminado ni un avance más nuevo", async () => {
+  const { evento, publicar, almacen, proyectar, item } = conTrazas();
+  await publicar(GUIA_TRAZA, traza("guide", [pasoGuia(1), pasoGuia(2), pasoGuia(3)], { status: "succeeded" }));
+  await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "succeeded" });
+  // Otra invocación leyó una versión vieja del trace.json y escribe después.
+  almacen.archivos[GUIA_TRAZA] = traza("guide", [pasoGuia(1)]);
+  await proyectar(GUIA_TRAZA);
+  const guia = item("GOAL#buscar-precio#guide");
+  assert.deepEqual([guia.status, guia.step, guia.run_key], ["succeeded", 3, GUIA]);
+});
+
+test("Visitante con varios intentos: el GOAL muestra el último que avanzó, sin importar el orden", async () => {
+  const primero = [VISITA_TRAZA, traza("visitor", [pasoVisita(1), pasoVisita(2), pasoVisita(3)], { updated_at: "2026-11-21T12:00:10Z" })];
+  const segundo = [VISITA_TRAZA_2, traza("visitor", [pasoVisita(1)], { updated_at: "2026-11-21T12:00:20Z" })];
+  for (const orden of [[primero, segundo], [segundo, primero]]) {
+    const { publicar, item } = conTrazas();
+    for (const [clave, contenido] of orden) await publicar(clave, contenido);
+    assert.equal(item("GOAL#buscar-precio#visitor").trace_key, VISITA_TRAZA_2);
+    assert.equal(item("GOAL#buscar-precio#visitor").step, 1);
+  }
+});
+
+test("trazas malformadas, sin revisión, de una revisión inexistente o fuera del layout se ignoran sin lanzar", async () => {
+  const { db, publicar } = conTrazas();
+  const antes = structuredClone([...db.items]);
+  await publicar(GUIA_TRAZA, "{ no es json");
+  for (const contenido of [null, 5, [], traza("guide", [], { revision: undefined }), traza("guide", "x"), traza("guide", [], { updated_at: 3 })]) {
+    await publicar(GUIA_TRAZA, JSON.stringify(contenido));
+  }
+  await publicar(GUIA_TRAZA, traza("guide", [pasoGuia(1)], { revision: "otra" }));
+  await publicar("ejemplo.cl/guide/trace.json", traza("guide", []));
+  await publicar(`${CATALOGO}/x/trace.json`, traza("guide", []));
+  assert.deepEqual([...db.items], antes);
+});
+
+test("resumen: recién creada, todo pending", async () => {
+  const { evento, resumen, item } = conTrazas();
+  await evento(CONDUCTOR, { agent: "conductor", status: "running" });
+  assert.deepEqual(resumen(), { fases: fases([1], [], [], [1]), agentes_activos: 0, pasos: 0, goals_total: 0 });
+  assert.equal(item("META").status, "running");
+  assert.equal(item("META").updated_at, "2026-11-21T12:00:00.000Z");
+});
+
+test("resumen: catálogo listo con goals pending", async () => {
+  const { evento, resumen } = conTrazas();
+  await evento(CATALOGO, { agent: "cataloger", status: "running" });
+  assert.deepEqual(resumen(), { fases: fases([0, 1], [], [], [1]), agentes_activos: 1, pasos: 0, goals_total: 0 });
+  await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
+  assert.deepEqual(resumen(), { fases: fases([0, 0, 1], [2], [2], [1]), agentes_activos: 0, pasos: 0, goals_total: 2 });
+});
+
+test("resumen: varios agentes corriendo suman sus pasos", async () => {
+  const { evento, publicar, resumen } = conTrazas();
+  await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
+  await publicar(GUIA_TRAZA, traza("guide", [pasoGuia(1), pasoGuia(2)]));
+  await publicar(`${CONTACTO}/trace.json`, { ...traza("guide", [pasoGuia(1)]), goal: "ver-contacto" });
+  await evento(GUIA, { agent: "guide", goal: "buscar-precio", status: "succeeded" });
+  await publicar(VISITA_TRAZA, traza("visitor", [pasoVisita(1), pasoVisita(2), pasoVisita(3)]));
+  assert.deepEqual(resumen(), { fases: fases([0, 0, 1], [0, 1, 1], [1, 1], [1]), agentes_activos: 2, pasos: 6, goals_total: 2 });
+});
+
+test("resumen: todo terminado sin pisar status ni css_key", async () => {
+  const { evento, publicar, resumen, item } = conTrazas({ goalsMax: 1 });
+  await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
+  await publicar(`${CONTACTO}/trace.json`, { ...traza("guide", [pasoGuia(1)]), goal: "ver-contacto" });
+  await evento(CONTACTO, { agent: "guide", goal: "ver-contacto", status: "succeeded" });
+  await evento("ejemplo.cl/visitor/ver-contacto/20261121T121000Z", { agent: "visitor", goal: "ver-contacto", status: "failed" });
+  await evento(MEJORA, { agent: "improver", status: "succeeded" });
+  await evento(CONDUCTOR, { agent: "conductor", status: "succeeded" });
+  assert.deepEqual(resumen(), {
+    fases: fases([0, 0, 1], [0, 0, 1], [0, 0, 0, 1], [0, 0, 1]),
+    agentes_activos: 0,
+    pasos: 1,
+    goals_total: 1,
+  });
+  assert.equal(item("META").status, "done");
+  assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
+});
+
+test("resumen: revisión fallida", async () => {
+  const { evento, resumen, item } = conTrazas();
+  await evento(CATALOGO, { agent: "cataloger", status: "failed" });
+  await evento(CONDUCTOR, { agent: "conductor", status: "failed" });
+  assert.deepEqual(resumen(), { fases: fases([0, 0, 0, 1], [], [], [1]), agentes_activos: 0, pasos: 0, goals_total: 0 });
+  assert.equal(item("META").status, "failed");
+});
+
+test("eventos repetidos y desordenados dejan el mismo resultado final", async () => {
+  // Cada evento lee el objeto tal como quedó en S3.
+  const archivos = {
+    [`${CATALOGO}/manifest.json`]: { revision: REV, agent: "cataloger", status: "succeeded" },
+    [`${GUIA}/manifest.json`]: { revision: REV, agent: "guide", goal: "buscar-precio", status: "succeeded" },
+    [GUIA_TRAZA]: traza("guide", [pasoGuia(1), pasoGuia(2)], { status: "succeeded" }),
+    [VISITA_TRAZA]: traza("visitor", [pasoVisita(1)]),
+    [`${CONDUCTOR}/manifest.json`]: { revision: REV, agent: "conductor", status: "running" },
+  };
+  const claves = Object.keys(archivos);
+  async function final(orden) {
+    const { db, almacen, proyectar } = conTrazas();
+    Object.assign(almacen.archivos, structuredClone(archivos));
+    for (const i of orden) await proyectar(claves[i]);
+    return Object.fromEntries(db.items);
+  }
+  const enOrden = await final([0, 1, 2, 3, 4]);
+  for (const orden of [[4, 3, 2, 1, 0], [2, 0, 3, 3, 4, 1, 2, 0], [1, 1, 3, 0, 2, 4, 4]]) {
+    assert.deepEqual(await final(orden), enOrden);
+  }
+  assert.equal(enOrden[`REV#${REV}|GOAL#buscar-precio#guide`].status, "succeeded");
+  assert.equal(enOrden[`REV#${REV}|GOAL#buscar-precio#visitor`].status, "running");
+  assert.deepEqual(enOrden[`REV#${REV}|META`].resumen.fases.guide, { pending: 1, running: 0, succeeded: 1, failed: 0 });
+  assert.equal(enOrden[`REV#${REV}|META`].resumen.pasos, 3);
+});

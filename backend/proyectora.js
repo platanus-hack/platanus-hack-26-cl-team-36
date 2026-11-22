@@ -1,9 +1,10 @@
-// Lambda proyectora: cada manifest.json que llega al almacén (evento S3) se refleja
-// en la tabla de revisiones. S3 es la fuente de verdad; la tabla solo resume.
+// Lambda proyectora: cada manifest.json y trace.json que llega al almacén (evento S3) se
+// refleja en la tabla de revisiones. S3 es la fuente de verdad; la tabla solo resume.
 
 import { ORDEN_ETAPA, ORDEN_META, claveRevision, previos } from "./estados.js";
 
 const MANIFIESTO = "/manifest.json";
+const TRAZA = "/trace.json";
 const META_DE = { running: "running", succeeded: "done", failed: "failed" };
 
 // Misma selección que el conductor (agents/shared, catalog/goal.py `for_revision`): user_goal
@@ -34,6 +35,51 @@ export function goalsElegidos(goals, goalsMax) {
     .sort((a, b) => comparar(a.clave, b.clave))
     .slice(0, goalsMax)
     .map(({ goal }) => goal.id);
+}
+
+const ESTADOS = ["pending", "running", "succeeded", "failed"];
+const GOAL = /^GOAL#(.+)#(guide|visitor)$/;
+
+// Foto de la revisión a partir de todos sus ítems: no depende del orden de los eventos.
+export function resumir(items) {
+  const vacia = () => Object.fromEntries(ESTADOS.map((estado) => [estado, 0]));
+  const fases = { catalog: vacia(), guide: vacia(), visitor: vacia(), improver: vacia() };
+  const contar = (fase, status) => Object.hasOwn(fases[fase], status) && fases[fase][status]++;
+  const etapa = (SK) => items.find((item) => item.SK === SK)?.status ?? "pending";
+  contar("catalog", etapa("STAGE#cataloger"));
+  contar("improver", etapa("STAGE#improver"));
+  const goals = new Set();
+  let pasos = 0;
+  for (const item of items) {
+    const [, goal, agente] = GOAL.exec(item.SK) ?? [];
+    if (!goal) continue;
+    goals.add(goal);
+    contar(agente, item.status);
+    if (Number.isFinite(item.step)) pasos += item.step;
+  }
+  const agentes_activos = Object.values(fases).reduce((total, fase) => total + fase.running, 0);
+  return { fases, agentes_activos, pasos, goals_total: goals.size };
+}
+
+// <host>/guide/<goal>/<viewport>/<run>/trace.json o <host>/visitor/<goal>/<run>/<carpeta>/trace.json
+function rutaDeTraza(clave) {
+  const [, agente, goal, ...resto] = clave.split("/");
+  return ["guide", "visitor"].includes(agente) && goal && resto.length === 3 ? { agente, goal } : null;
+}
+
+const texto = (valor) => (typeof valor === "string" ? valor : null);
+
+// Lo último que hizo el agente: route.json (Guía) y run.json (Visitante) nombran distinto los campos del paso.
+function ultimoPaso({ steps, start }) {
+  const paso = steps.at(-1);
+  if (!paso || typeof paso !== "object") {
+    return { last_action: null, last_url: texto(start?.url), last_title: texto(start?.title) };
+  }
+  return {
+    last_action: texto(paso.label ?? paso.description ?? paso.action),
+    last_url: texto(paso.url_after ?? paso.url),
+    last_title: texto(paso.title_after ?? paso.title),
+  };
 }
 
 export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMax = 3 }) {
@@ -68,7 +114,39 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
     }
   }
 
+  // `hasta`: el resumen de una consulta más vieja no pisa el de una más nueva (eventos simultáneos).
+  async function guardarResumen(revision) {
+    const updated_at = ahora().toISOString();
+    const items = await db.listar(claveRevision(revision).PK);
+    if (!items.some((item) => item.SK === "META")) return;
+    await actualizarMeta(revision, { resumen: resumir(items), updated_at }, { hasta: { updated_at } });
+  }
+
+  // Con --runs el Visitante tiene un trace.json por intento: su GOAL muestra el último que avanzó (`trace_at`).
+  async function proyectarTraza(clave) {
+    const ruta = rutaDeTraza(clave);
+    const traza = ruta && (await leerJsonValido(clave));
+    const { revision, steps = [], start, updated_at: trace_at } = traza && typeof traza === "object" ? traza : {};
+    if (!ruta || typeof revision !== "string" || !revision || !Array.isArray(steps) || typeof trace_at !== "string") {
+      console.warn(`✖ ${clave}: traza inválida o sin revisión`);
+      return;
+    }
+    const items = await db.listar(claveRevision(revision).PK);
+    if (!items.some((item) => item.SK === "META")) {
+      console.warn(`✖ ${clave}: no existe la revisión ${revision}`);
+      return;
+    }
+    const SK = `GOAL#${ruta.goal}#${ruta.agente}`;
+    const updated_at = ahora().toISOString();
+    const avance = { step: steps.length, ...ultimoPaso({ steps, start }), trace_key: clave, trace_at, updated_at };
+    await db.actualizar(claveRevision(revision, SK), avance, { hasta: { trace_at } });
+    const status = items.find((item) => item.SK === SK)?.status;
+    if (status === undefined || status === "pending") await avanzarEtapa(revision, SK, "running", { updated_at });
+    await guardarResumen(revision);
+  }
+
   return async function proyectar(clave) {
+    if (clave.endsWith(TRAZA)) return proyectarTraza(clave);
     if (!clave.endsWith(MANIFIESTO)) return;
     const { agent, goal, status, revision } = (await leerJsonValido(clave)) ?? {};
     if (typeof revision !== "string" || !revision || !Object.hasOwn(META_DE, status)) return;
@@ -93,6 +171,7 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
         if (typeof goal === "string" && goal) await avanzarEtapa(revision, `GOAL#${goal}#${agent}`, status, { run_key, updated_at });
         break;
     }
+    await guardarResumen(revision);
   };
 }
 

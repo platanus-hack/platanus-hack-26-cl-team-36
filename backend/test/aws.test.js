@@ -27,6 +27,16 @@ test("expresionActualizar: pending solo se escribe si no hay estado", () => {
   assert.equal(expresionActualizar({ status: "pending" }, { previos: [] }).ConditionExpression, "attribute_not_exists(#status)");
 });
 
+test("expresionActualizar: `hasta` exige que el atributo no exista o no sea mayor", () => {
+  const { ConditionExpression, ExpressionAttributeNames, ExpressionAttributeValues } = expresionActualizar(
+    { resumen: {}, updated_at: "t1" },
+    { existente: true, hasta: { updated_at: "t1" } },
+  );
+  assert.equal(ConditionExpression, "(attribute_not_exists(#h0) OR #h0 <= :h0) AND attribute_exists(PK)");
+  assert.equal(ExpressionAttributeNames["#h0"], "updated_at");
+  assert.equal(ExpressionAttributeValues[":h0"], "t1");
+});
+
 test("filtroEnCurso: META con esos estados y novedades desde la fecha", () => {
   assert.deepEqual(filtroEnCurso(["queued", "running"], "2026-11-21T11:00:00.000Z"), {
     FilterExpression: "SK = :meta AND #status IN (:e0, :e1) AND updated_at >= :desde",
