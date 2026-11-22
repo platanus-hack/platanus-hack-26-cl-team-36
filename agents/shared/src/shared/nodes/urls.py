@@ -1,6 +1,7 @@
 """URL normalizada, nodo de una página y sitio de una URL."""
 
 import re
+from collections.abc import Iterable
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 _TRACKING_PARAMS = re.compile(r"^(utm_.*|gclid|gbraid|wbraid|fbclid|msclkid|mc_cid|mc_eid|_ga|_gl|yclid)$", re.I)
@@ -39,3 +40,8 @@ def same_site(url: str, start_url: str) -> bool:
     """El host es el de la página inicial o un subdominio suyo."""
     host, site = site_host(url), site_host(start_url)
     return host == site or host.endswith(f".{site}")
+
+
+def on_site(url: str, site_urls: Iterable[str]) -> bool:
+    """Del sitio de alguna de esas URLs: la pedida y aquella a la que redirigió (www.sii.cl -> homer.sii.cl)."""
+    return any(same_site(url, site_url) for site_url in site_urls)

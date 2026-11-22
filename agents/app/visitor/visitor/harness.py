@@ -24,6 +24,12 @@ from visitor.route_tree import registrable_domain
 from visitor.turns import ActionRequest, ActionResult, AttemptEnded, Turn
 
 NOT_EXECUTED_MESSAGE = "Not executed: an earlier computer action in this turn failed."
+# Haiku 4.5 a veces llama solo a `expectation` turno tras turno, cree que eso fue el clic y ve la misma captura: con
+# un «OK» a secas concluía que la página no respondía y se declaraba bloqueado sin haber hecho nada.
+EXPECTATION_ONLY_MESSAGE = (
+    "Anotado, pero todavía no hiciste nada en la página: la expectativa no es una acción. "
+    "Haz ahora la acción con la herramienta computer (clic, escribir, tecla o scroll)."
+)
 
 # Un explorador no puede terminar mientras esté en la fase de abanico de la skill explorar-caminos: le quedan más de
 # esta fracción de sus acciones y de su tiempo. Haiku tiende a terminar apenas ve la respuesta aunque la skill le diga
@@ -128,6 +134,7 @@ class SyntheticUser:
         self.nodo_inicial = node_key(url, title)
         self.ramas_desde_inicio: set[str] = set()  # páginas a las que llegó con un clic desde la inicial
         self.fines_rechazados = 0
+        self.expectativa_pendiente: str | None = None
         self.started_at = time.monotonic()
         self.started_wall = datetime.now().astimezone()
         run.start["at"] = run.started_at = _iso(self.started_wall)
@@ -166,6 +173,7 @@ class SyntheticUser:
                     continue
                 # Red de seguridad: una acción que se cuelga en el navegador no puede alargar el intento sin fin.
                 quedan_s = self.profile.limite_segundos - (time.monotonic() - self.started_at)
+                pasos_antes = len(run.steps)
                 try:
                     results = await asyncio.wait_for(
                         self._process_requests(turn.requests), timeout=max(quedan_s, 0) + MARGEN_ACCION_S
@@ -173,6 +181,8 @@ class SyntheticUser:
                 except TimeoutError:
                     self.run.incidents.append("una acción no terminó a tiempo en el navegador")
                     raise AttemptEnded("time_limit")
+                if len(run.steps) == pasos_antes:
+                    run.turnos_sin_accion += 1
                 if self.profile.explora:
                     self._agregar_presupuesto(results)
                 await self.engine.respond(results, self.current_screenshot)
@@ -185,7 +195,8 @@ class SyntheticUser:
     async def _process_requests(self, requests: list[ActionRequest]) -> list[ActionResult]:
         """Ejecuta los pedidos en orden. Tras el primer fallo, el resto no se ejecuta."""
         results: list[ActionResult] = []
-        expectation: str | None = None
+        expectation = self.expectativa_pendiente
+        self.expectativa_pendiente = None
         failed = False
         for request in requests:
             if failed:
@@ -234,6 +245,13 @@ class SyntheticUser:
             expectation = None
             if time.monotonic() - self.started_at > self.profile.limite_segundos:
                 raise AttemptEnded("time_limit")
+        if expectation and not failed:
+            # La expectativa quedó sin su acción: vale para la del turno siguiente.
+            self.expectativa_pendiente = expectation
+            if not any(result.request.name in UI_ACTIONS for result in results):
+                for result in results:
+                    if result.request.name == "expectation":
+                        result.text = EXPECTATION_ONLY_MESSAGE
         return results
 
     def _primer_mensaje(self) -> str:

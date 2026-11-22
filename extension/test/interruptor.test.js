@@ -56,7 +56,7 @@ function finesDeAnimacion(clase) {
   for (const [, selector, cuerpo] of css.matchAll(new RegExp(`([^{}]*\\.mt-${clase}[^{]*)\\{([^}]*)\\}`, "g"))) {
     const animacion = cuerpo.match(/animation:\s*([^;]+);/)?.[1];
     if (!animacion) continue;
-    const ultimo = selector.includes("mt-runa") ? 11 : 43;
+    const ultimo = 43;
     for (const entrada of animacion.split(/,(?![^(]*\))/)) {
       if (/infinite/.test(entrada)) continue;
       for (const i of [0, ultimo]) {
@@ -105,6 +105,10 @@ test("la sección es decorativa salvo el botón, y no tiene ids repetidos ni ref
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
   assert.equal(new Set(ids).size, ids.length, "ids repetidos en popup.html");
   for (const [, ref] of (seccion + css).matchAll(/url\(#([^)]+)\)/g)) assert.ok(ids.includes(ref), `falta #${ref}`);
+});
+
+test("sin rastro del sello de runas: ni en el marcado, ni en el CSS, ni en el JS", () => {
+  for (const texto of [html, css, leer("popup/interruptor.js")]) assert.doesNotMatch(texto, /mt-sello|mt-runa/);
 });
 
 test("interruptor.css: keyframes definidos, prefijo mt- y versión con movimiento reducido", () => {
