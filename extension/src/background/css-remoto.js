@@ -8,8 +8,11 @@ const PERMITIDAS = new Set(["media", "supports", "container"]);
 const KEYFRAMES = new Set(["keyframes", "-webkit-keyframes"]);
 const NOMBRE_KEYFRAMES = /^mt-[\w-]+$/;
 const MAX_CADENA = 200;
-// Topes para no procesar ni inyectar algo desmedido.
 export const MAX_BYTES_CSS = 200_000;
+// La lectura es recursiva: sin tope, `a{a{a{…` agota la pila o multiplica la sangría de la salida.
+export const MAX_PROFUNDIDAD = 16;
+
+class DemasiadoProfundo extends Error {}
 
 const CADENA_ROTA = "";
 const FIN_DE_CADENA = "\n\r\f";
@@ -113,7 +116,8 @@ function saltarEspacios(texto, i) {
   return i;
 }
 
-function leerCuerpo(texto, i) {
+function leerCuerpo(texto, i, nivel) {
+  if (nivel > MAX_PROFUNDIDAD) throw new DemasiadoProfundo();
   const declaraciones = [];
   const anidadas = [];
   for (;;) {
@@ -122,7 +126,7 @@ function leerCuerpo(texto, i) {
     if (texto[i] === "}") return [declaraciones, anidadas, i + 1];
     const [fragmento, j, c] = escanear(texto, i, "{;}");
     if (c === "{") {
-      const [subDeclaraciones, subAnidadas, k] = leerCuerpo(texto, j + 1);
+      const [subDeclaraciones, subAnidadas, k] = leerCuerpo(texto, j + 1, nivel + 1);
       i = k;
       const preludio = compactar(fragmento);
       const selectores = preludio.startsWith("@") ? [preludio] : dividirSelectores(fragmento);
@@ -134,7 +138,8 @@ function leerCuerpo(texto, i) {
   }
 }
 
-function leerLista(texto, i) {
+function leerLista(texto, i, nivel) {
+  if (nivel > MAX_PROFUNDIDAD) throw new DemasiadoProfundo();
   const items = [];
   for (;;) {
     i = saltarEspacios(texto, i);
@@ -148,11 +153,11 @@ function leerLista(texto, i) {
         items.push({ tipo: "sentencia", nombre, texto: preludio.trim() });
         i = c === ";" ? j + 1 : j;
       } else if (AGRUPADORAS.has(nombre) || nombre.endsWith("keyframes")) {
-        const [hijos, k] = leerLista(texto, j + 1);
+        const [hijos, k] = leerLista(texto, j + 1, nivel + 1);
         items.push({ tipo: "bloque", nombre, preludio: resto, hijos });
         i = k;
       } else {
-        const [declaraciones, , k] = leerCuerpo(texto, j + 1);
+        const [declaraciones, , k] = leerCuerpo(texto, j + 1, nivel + 1);
         items.push({ tipo: "declaraciones", nombre, preludio: resto, declaraciones });
         i = k;
       }
@@ -165,7 +170,7 @@ function leerLista(texto, i) {
       i = c === ";" ? j + 1 : j;
       continue;
     }
-    const [declaraciones, anidadas, k] = leerCuerpo(texto, j + 1);
+    const [declaraciones, anidadas, k] = leerCuerpo(texto, j + 1, nivel + 1);
     items.push({ tipo: "regla", selectores: dividirSelectores(preludio), declaraciones, anidadas });
     i = k;
   }
@@ -176,7 +181,7 @@ function leer(css) {
   const items = [];
   let i = 0;
   while (i < texto.length) {
-    const [parte, j] = leerLista(texto, i);
+    const [parte, j] = leerLista(texto, i, 0);
     items.push(...parte);
     i = j;
   }
@@ -326,6 +331,13 @@ export function sanearCss(css) {
   if (css.length > MAX_BYTES_CSS) return { css: "", rechazos: ["css demasiado grande"] };
   const rechazos = [];
   const texto = css.replace(/^\s*```[a-z]*\s*\n|\n\s*```\s*$/g, "");
-  const arbol = sanearLista(leer(texto), rechazos);
+  let items;
+  try {
+    items = leer(texto);
+  } catch (error) {
+    if (error instanceof DemasiadoProfundo) return { css: "", rechazos: ["anidamiento demasiado profundo"] };
+    throw error;
+  }
+  const arbol = sanearLista(items, rechazos);
   return { css: arbol.length ? `${escribir(arbol)}\n` : "", rechazos };
 }

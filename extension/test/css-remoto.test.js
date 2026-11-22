@@ -1,7 +1,7 @@
 // Tests del saneamiento del CSS remoto (src/background/css-remoto.js), con las reglas del diseñador.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_BYTES_CSS, sanearCss } from "../src/background/css-remoto.js";
+import { MAX_BYTES_CSS, MAX_PROFUNDIDAD, sanearCss } from "../src/background/css-remoto.js";
 
 const sin = (css) => sanearCss(css).css;
 
@@ -69,4 +69,11 @@ test("valores raros o enormes dan CSS vacío sin lanzar", () => {
   assert.equal(sin(42), "");
   assert.equal(sin("   "), "");
   assert.equal(sin(`a { color: red } ${" ".repeat(MAX_BYTES_CSS)}`), "");
+});
+
+test("un anidamiento hostil no agota la pila: CSS vacío sin lanzar", () => {
+  for (const css of ["a{".repeat(60_000), "@media x{".repeat(20_000), `${"a{".repeat(MAX_PROFUNDIDAD + 1)}color:red`]) {
+    assert.deepEqual(sanearCss(css), { css: "", rechazos: ["anidamiento demasiado profundo"] });
+  }
+  assert.match(sin(`${"a{".repeat(MAX_PROFUNDIDAD)}color:red`), /color:red;/);
 });
