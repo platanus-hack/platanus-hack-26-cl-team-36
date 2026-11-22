@@ -183,8 +183,15 @@ def _visitas(backend: store.Backend, tanda: store.RunKey, nodos_ruta: list[str])
             continue
         if isinstance(intento, dict):
             fila = filas.get(perfil) or filas.get(intento.get("profile"), {})
-            visitas.append(_visita(intento, fila, nodos_ruta))
-    return visitas[:config.MAX_VISITAS]
+            visitas.append((_intento_n(perfil), _visita(intento, fila, nodos_ruta)))
+    # Primero el intento 1 de cada perfil, luego el 2...: si se recortan, quedan todos los perfiles.
+    return [visita for _, visita in sorted(visitas, key=lambda par: par[0])]
+
+
+def _intento_n(carpeta: str) -> int:
+    """El n.º de intento de una carpeta del Visitante: `desktop` es el 1, `desktop-3` el 3."""
+    base, _, numero = carpeta.rpartition("-")
+    return int(numero) if base and numero.isdigit() else 1
 
 
 def _terminada(backend: store.Backend, prefijo: store.RunPrefix, revision: str) -> store.RunKey | None:
@@ -215,7 +222,9 @@ def _objetivo(backend: store.Backend, url: str, revision: str, goal) -> tuple[di
         "descripcion": _corto(goal.description),
         "entrada": goal.entry,
         "ruta": _ruta(route),
-        "visitas": visitas,
+        # Las tasas usan todas las visitas; al modelo van a lo más MAX_VISITAS.
+        "intentos": len(visitas),
+        "visitas": visitas[:config.MAX_VISITAS],
         "tasa_llegada": round(sum(medidas) / len(medidas), 2) if medidas else None,
         # Con más de un perfil medido (escritorio y móvil), la de cada uno: la diferencia dice qué pantalla falla.
         "tasa_por_perfil": {perfil: round(sum(m) / len(m), 2) for perfil, m in por_perfil.items()}
