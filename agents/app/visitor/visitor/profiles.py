@@ -157,7 +157,7 @@ def exploradores_del_conjunto(nombre: str) -> tuple[str, ...]:
 # Todos los perfiles por clave. Los exploradores son opcionales: se piden por nombre (--profiles explorador,...).
 PROFILES: dict[str, Profile] = {**_RECORRIDOS, **_EXPLORADORES}
 
-# Los que corren si no se piden perfiles (main.py y agentcore_app.py); `mobile` se pide.
+# Los que corren si no se piden perfiles; `mobile` se pide.
 PERFILES_POR_DEFECTO: tuple[str, ...] = ("desktop",)
 
 # Perfiles retirados que siguen en corridas guardadas, con el perfil actual de su misma pantalla.

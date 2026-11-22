@@ -1,7 +1,7 @@
-# Despliega el Visitante (agents/app/visitor/, con agents/shared/) en AgentCore Runtime con la CLI de
-# AgentCore, cuyo proyecto es infra/ (configuración en infra/agentcore/). La CLI construye
-# la imagen del Dockerfile en CodeBuild (arm64) y aplica su stack de CDK. Corre solo en el repo personal
-# (ver infra/README.md): en el repo de la organización el job se salta.
+# Despliega el runtime chameleon (todas las apps de agents/) en AgentCore Runtime con la CLI de AgentCore, cuyo
+# proyecto es infra/ (configuración en infra/agentcore/). La CLI construye la imagen de agents/app/runtime/Dockerfile
+# en CodeBuild (arm64) y aplica su stack de CDK. Corre solo en el repo personal (ver infra/README.md): en el repo de
+# la organización el job se salta.
 name: AgentCore
 
 on:
@@ -9,8 +9,9 @@ on:
     branches: [main]
     paths:
       - "infra/agentcore/**"
-      - "agents/app/visitor/**"
-      - "agents/shared/**"
+      - "agents/**"
+      - "!agents/**/tests/**"
+      - ".claude/skills/**"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/agentcore.yml"

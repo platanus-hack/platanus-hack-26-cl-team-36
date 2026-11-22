@@ -66,8 +66,8 @@ uv run main.py --task metro.cl/tarifa-sabado \
 
 - **Procedimiento:** su prompt trae el cuerpo de la skill
   [`explorar-caminos`](../../../.claude/skills/explorar-caminos/SKILL.md) (inventario de candidatas, abanico de
-  ramas de máximo 3 clics, cierre en la página que responde, hallazgos con cita). Como `.claude/skills/` no se
-  despliega, los exploradores solo corren en local; `agentcore_app.py` los rechaza.
+  ramas de máximo 3 clics, cierre en la página que responde, hallazgos con cita). La imagen del runtime
+  `chameleon` trae `.claude/skills/`, así que también corren en AWS.
 - **Primera rama distinta:** cada explorador abre su rama 1, obligatoriamente, por un lugar distinto de la página
   inicial: el menú principal (`explorador`), el buscador (`explorador_buscador`), el pie de página (`explorador_pie`)
   o los enlaces del contenido (`explorador_contenido`). Va en su prompt como «TU PRIMERA RAMA» (`Profile.primera_rama`).
@@ -121,17 +121,13 @@ uv run main.py --task metro.cl/tarifa-sabado \
 ## En AWS (AgentCore)
 
 El mismo Visitante corre en [AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/), con Claude en Amazon
-Bedrock y AgentCore Browser, y gasta de la cuenta de AWS del proyecto en vez de tu plan. La
-[CLI de AgentCore](https://github.com/aws/agentcore-cli) construye una imagen con esta carpeta, según el `Dockerfile`,
-y la despliega; su configuración está en [`infra/agentcore/`](../../../infra/README.md#carpetas), junto al resto de la
-infraestructura. La entrada en AWS es `agentcore_app.py`; `main.py` es el comando local. El runtime desplegado se llama
-`web_evaluator_image`.
+Bedrock y AgentCore Browser, y gasta de la cuenta de AWS del proyecto en vez de tu plan. Lo corre el runtime
+`chameleon` ([`agents/app/runtime/`](../runtime/README.md)) como la etapa `visitor` de una revisión: el mismo
+`main.py --revision`, como subproceso.
 
 La imagen hace falta porque el driver de Playwright es un binario de Node que necesita `libatomic`, y la imagen que
 AgentCore usa para el código en zip no la trae: sin ella, cada tanda termina a los 2 s con *Connection closed while
-reading from the driver*. La imagen no instala Chromium, porque en AWS el navegador es AgentCore Browser. La construye
-CodeBuild en arm64 al desplegar. Su contexto es `agents/`, para que entre `agents/shared/`; para revisarla en local,
-desde `agents/`: `docker build --platform linux/arm64 -f app/visitor/Dockerfile .`.
+reading from the driver*. La imagen no instala Chromium, porque en AWS el navegador es AgentCore Browser.
 
 En AWS los usuarios sintéticos (y el juez, si se pide) usan `AGENTS_MODEL`, por defecto Claude Haiku 4.5
 (`us.anthropic.claude-haiku-4-5-20251001-v1:0`, `config.bedrock_model()`); el pedido no puede cambiarlo. La cuenta del
@@ -146,19 +142,13 @@ El endpoint no acepta la caché automática, así que `ApiEngine` marca el punto
 puede errar más la puntería de los clics, y esos errores se cuentan como fricción del sitio; conviene comparar una
 misma tarea en local y en AWS antes de confiar en los resultados.
 
-Con `export AWS_PROFILE=<perfil de la cuenta del proyecto>`, una prueba de concepto en tres pasos:
+Para probar desde tu computador que la cuenta deja usar Claude y el navegador (con
+`export AWS_PROFILE=<perfil de la cuenta del proyecto>`):
 
 ```bash
 just local visit https://example.com "Encontrar el enlace More information" --profiles desktop \
-    --engine bedrock --browser agentcore   # 1. desde tu computador: ¿la cuenta deja usar Claude y el navegador?
-just aws deploy                            # 2. despliega (al mergear a main lo hace el workflow AgentCore)
-just aws visit wom.cl/baja-fibra           # 3. la tanda corre en AgentCore; el reporte queda en local/.state/aws/
+    --engine bedrock --browser agentcore
 ```
-
-`just aws status` muestra lo desplegado y `just aws logs` los logs del runtime (`--follow` para seguirlos). Los tres
-buscan el runtime en la cuenta, así que funcionan aunque lo haya desplegado el CI. La respuesta llega en stream: un
-aviso cada 20 s y, al final, el resultado de cada perfil y `report.md`. La corrida queda en `AGENTS_STORE` si el
-runtime lo define; si no, en una carpeta temporal de la sesión, y se pierde al cerrarla.
 
 ## Catálogo
 
@@ -194,7 +184,6 @@ revisar el resultado a mano: ni la ruta ni el juez lo usan.
 | `visitor/stage.py` | La etapa `visitor` de una revisión (`run_stage`): sus entradas y su corrida. |
 | `visitor/outcome.py` | El resultado de cada intento: ruta de la Guía, juez o sin medir. |
 | `visitor/scripted_engine.py` | El usuario guionizado de `--engine fake`. |
-| `agentcore_app.py` | Punto de entrada en AgentCore Runtime: recibe la tarea por HTTP y responde en stream. |
 | `visitor/batch.py` | Una tanda: usuarios en paralelo, su resultado, árbol y reporte. |
 | `visitor/harness.py` | El ciclo de cada usuario: captura → modelo → acción → registro. |
 | `visitor/turns.py` | Pedidos del modelo, sus resultados y el fin de un intento. |

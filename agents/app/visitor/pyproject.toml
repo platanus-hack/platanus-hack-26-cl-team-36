@@ -2,7 +2,7 @@
 name = "visitor"
 version = "0.1.0"
 description = "Visitante: usuarios sintéticos que intentan una tarea en un sitio viendo solo capturas."
-requires-python = ">=3.12,<3.13"   # la imagen de AgentCore usa la misma versión (Dockerfile)
+requires-python = ">=3.12,<3.13"   # la imagen de AgentCore usa la misma versión (agents/app/runtime/Dockerfile)
 dependencies = [
     "shared[browser,pixels,s3]",   # boto3 ya llega con anthropic[bedrock]: el extra no suma paquetes
     "anthropic[bedrock]>=2.12",
@@ -15,16 +15,12 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [tool.uv]
-# Se corre con `uv run main.py`, como un agente de AgentCore: no se empaqueta.
+# Se corre con `uv run main.py`; no se empaqueta.
 package = false
 
 [tool.uv.sources]
-# En la imagen de AgentCore se copia con la misma ruta relativa (ver Dockerfile).
+# En la imagen del runtime chameleon se copia con la misma ruta relativa (ver agents/app/runtime/Dockerfile).
 shared = { path = "../../shared", editable = true }
-
-[tool.agentcore]
-# Entrada en AgentCore Runtime; main.py es el comando local. La CLI copia esto a infra/agentcore/agentcore.json.
-entrypoint = "agentcore_app.py"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

@@ -5,8 +5,8 @@ de Lambda. Terraform la crea y la actualiza desde GitHub Actions, en el repo per
 [brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36).
 El backoffice (`backoffice/`) corre en ECS Fargate, en https://chameleonmode.app, y también lo crea Terraform
 (ver [El backoffice en chameleonmode.app](#el-backoffice-en-chameleonmodeapp)).
-El Visitante (`agents/app/visitor/`) corre en AgentCore Runtime; lo despliega la CLI de AgentCore desde
-`agentcore/`, en el mismo repo personal.
+Los agentes (`agents/`) corren en AgentCore Runtime, en un solo runtime, `chameleon`; lo despliega la CLI de
+AgentCore desde `agentcore/`, en el mismo repo personal.
 
 **Por qué un repo personal.** Este repo es público y de la organización: no podemos guardarle secretos, y los logs de
 Actions, con el plan de Terraform, quedarían a la vista. El repo personal es privado y es una copia de `main` de este.
@@ -33,11 +33,11 @@ Antes, el proyecto corría en una subcuenta de desarrollo de la organización de
 3. Si el cambio toca `backend/`, `backoffice/` (menos sus pruebas) o `infra/app/`, el workflow `Terraform` del repo
    personal hace `plan` y `apply`.
 4. Las URLs de la API y del backoffice quedan en el resumen de esa ejecución.
-5. Si el cambio toca `infra/agentcore/`, `agents/app/visitor/` o `agents/shared/`, el workflow `AgentCore` despliega
-   el Visitante con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol.
-   La CLI construye la imagen del Visitante (`agents/app/visitor/Dockerfile`, con `agents/` como contexto) en CodeBuild,
-   para arm64, y aplica su propio stack de CDK; no pasa por Terraform. La primera vez también prepara la cuenta para
-   CDK (`CDKToolkit`). Desde un computador: `just aws` (ver [el Visitante](../agents/app/visitor/README.md#en-aws-agentcore)).
+5. Si el cambio toca `infra/agentcore/`, `agents/` (menos las pruebas) o `.claude/skills/`, el workflow `AgentCore`
+   despliega el runtime `chameleon` con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore
+   deploy`), con el mismo rol. La CLI construye la imagen (`agents/app/runtime/Dockerfile`, con la raíz del repo como
+   contexto) en CodeBuild, para arm64, y aplica su propio stack de CDK; no pasa por Terraform. La primera vez también
+   prepara la cuenta para CDK (`CDKToolkit`). Desde un computador: `just aws`.
 
 Las PRs no muestran un plan. Antes de mergear un cambio de infraestructura, corre `terraform plan` en local (ver más
 abajo).
@@ -57,16 +57,20 @@ abajo).
   Un `POST` sobre una página cuya revisión quedó `failed`, o `queued`/`running` sin novedades hace más de una hora,
   dispara otra. Con `revisiones_en_curso_max` (5) revisiones
   `queued`/`running` con novedades en la última hora, un `POST` que crearía otra responde 429.
-- `agentcore/`: el Visitante en AgentCore Runtime. `infra/` es el proyecto de la
-  [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime
-  `web_evaluator_image`, con su código en `../agents/app/visitor/` y `../agents/` como contexto de la imagen, para que
-  entre `../agents/shared/`; `agentcore/cdk/` es el stack que la CLI genera. El runtime se llama así porque AgentCore no
-  deja pasar un runtime de zip a imagen: el anterior, `web_evaluator`, era de zip y se reemplazó.
+- `agentcore/`: los agentes en AgentCore Runtime. `infra/` es el proyecto de la
+  [CLI de AgentCore](https://github.com/aws/agentcore-cli): `agentcore/agentcore.json` declara el runtime `chameleon`
+  (desplegado como `ChameleonAgents_default_chameleon`), con su entrada en `../agents/app/runtime/` y la raíz del repo
+  como contexto de la imagen; `Dockerfile.dockerignore` deja entrar solo `agents/` y `.claude/skills/`.
+  `agentcore/cdk/` es el stack que la CLI genera. Cada invocación (`{stage, revision, url, ...}`) responde al
+  instante y corre el CLI de su etapa en segundo plano (modo async: la sesión sigue viva hasta 8 h); el conductor
+  (`stage: "revision"`) invoca las demás etapas en este mismo runtime, cuyo ARN saca de `OTEL_RESOURCE_ATTRIBUTES`.
   `agentcore/cdk/lib/cdk-stack.ts` le da al runtime `AGENTS_STORE=s3://chameleon-almacen-<cuenta>/`, lectura y
   escritura en ese bucket (lo crea Terraform) y permiso para invocar runtimes de la cuenta (el conductor).
   `agentcore/.cli/deployed-state.json` enlaza el proyecto con lo desplegado. `agentcore/aws-targets.json` queda con el
   id de la cuenta después de desplegar desde un computador: no lo subas, el repo es público.
-- `justfile`: `just aws`, los comandos del Visitante en AgentCore (`visit`, `deploy`, `status`, `logs`) y `seed`.
+- `justfile`: `just aws`, los comandos del runtime en AgentCore (`revision`, `deploy`, `status`, `logs`) y `seed`.
+  `just aws revision <url>` pide la revisión a la API (`POST /revisiones`), muestra cómo avanza cada etapa y guarda
+  `tema.css` en `local/.state/aws/`.
 - `siembra/`: `just aws seed`, ver [Sembrar revisiones](#sembrar-revisiones).
 - `../backend/lambda.js`: entrada de la Lambda. Levanta el servidor de `index.js` y le reenvía cada request, así
   `index.js` funciona igual en local y en AWS.
@@ -166,7 +170,7 @@ certificado.
 
 **Día a día.** Un cambio en `backoffice/` (menos `test/`) dispara `Terraform` y despliega una imagen nueva; si la
 tarea nueva no queda sana, ECS vuelve a la anterior y el apply falla. Los logs: `aws logs tail
-/ecs/chameleon-backoffice --follow`. El backoffice muestra lo que hay en el almacén: lo que escribe el Visitante en
+/ecs/chameleon-backoffice --follow`. El backoffice muestra lo que hay en el almacén: lo que escriben los agentes en
 AgentCore o lo que se sube a mano con `aws s3 sync agents/.runs/ s3://chameleon-almacen-<cuenta>/` (queda público).
 
 ## La API en api.chameleonmode.app
@@ -220,7 +224,7 @@ revisiones en curso (429) se vuelven a pedir solas.
 
 ## Al terminar la hackatón
 
-1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El Visitante no es parte de
+1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El runtime no es parte de
    Terraform: en CloudFormation (us-east-2), borra el stack `AgentCore-ChameleonAgents-…` y después `CDKToolkit`.
    El dominio sigue en Cloudflare: borra los cuatro `CNAME` y decide si se renueva (la renovación automática está activa).
 2. Desactiva `Sincroniza desde la organización`. Corre unas 290 veces al día y cada vez cuenta como un minuto de los

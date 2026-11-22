@@ -4,11 +4,11 @@
   "managedBy": "CDK",
   "runtimes": [
     {
-      "name": "web_evaluator_image",
-      "description": "Usuarios sintéticos que intentan una tarea en un sitio y unen sus recorridos",
+      "name": "chameleon",
+      "description": "Una imagen con todas las etapas de una revisión: el payload elige cuál corre (stage)",
       "build": "Container",
       "entrypoint": "agentcore_app.py",
-      "codeLocation": "../agents/app/visitor",
+      "codeLocation": "../agents/app/runtime",
       "protocol": "HTTP",
       "lifecycleConfiguration": {
         "idleRuntimeSessionTimeout": 900,
@@ -20,11 +20,11 @@
           "to": {
             "type": "browser"
           },
-          "description": "AgentCore Browser administrado por AWS: una sesión por usuario sintético"
+          "description": "AgentCore Browser administrado por AWS: una sesión por etapa o usuario sintético"
         }
       ],
-      "buildContextPath": "../agents",
-      "dockerfile": "app/visitor/Dockerfile"
+      "buildContextPath": "..",
+      "dockerfile": "agents/app/runtime/Dockerfile"
     }
   ],
   "memories": [],

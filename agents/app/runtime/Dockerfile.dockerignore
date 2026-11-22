@@ -1,0 +1,14 @@
+# Lo que entra a la imagen desde la raíz del repo (ver Dockerfile).
+*
+!agents/shared
+!agents/app
+!agents/tasks
+!.claude/skills
+**/.venv
+**/.env*
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.DS_Store
+**/tests
+**/node_modules

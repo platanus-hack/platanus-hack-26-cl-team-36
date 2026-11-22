@@ -1,0 +1,28 @@
+[project]
+name = "runtime"
+version = "0.1.0"
+description = "Entrada del runtime chameleon de AgentCore: recibe una etapa y corre su CLI en segundo plano."
+requires-python = ">=3.12,<3.13"   # la de la imagen (Dockerfile)
+dependencies = [
+    "shared[s3]",
+    "bedrock-agentcore>=1.27",
+    "aws-opentelemetry-distro>=0.10",   # AgentCore arranca el código con opentelemetry-instrument
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.uv]
+# Se corre como entrada de AgentCore (agentcore_app.py): no se empaqueta.
+package = false
+
+[tool.uv.sources]
+shared = { path = "../../shared", editable = true }
+
+[tool.agentcore]
+# Entrada en AgentCore Runtime. La CLI copia esto a infra/agentcore/agentcore.json.
+entrypoint = "agentcore_app.py"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
