@@ -24,9 +24,9 @@
 .marco-sitio .icono { flex: none; width: 12px; height: 12px; color: var(--texto-3); }
 .marco-sitio:hover { color: var(--texto-1); }
 
-/* Pestañas: enlaces, fijas arriba al desplazar. */
+/* Pestañas: enlaces, fijas arriba al desplazar (bajo la barra superior, que siempre está). */
 .pestanas {
-  position: sticky; top: 0; z-index: 5;
+  position: sticky; top: var(--alto-barra); z-index: 5;
   margin-inline: calc(-1 * var(--e-6)); padding-inline: var(--e-6);
   background: var(--fondo); border-bottom: 1px solid var(--borde-sutil);
 }
@@ -48,7 +48,7 @@
 .panel-tanda { padding-block-start: var(--e-5); min-width: 0; }
 
 @media (max-width: 819px) {
-  .pestanas { top: var(--alto-barra); margin-inline: calc(-1 * var(--e-4)); padding-inline: var(--e-4); }
+  .pestanas { margin-inline: calc(-1 * var(--e-4)); padding-inline: var(--e-4); }
 }
 @media (pointer: coarse) {
   .marco-pista { display: none; }
@@ -77,7 +77,7 @@
     }
     @keyframes pestanas-fijas {
       from { border-bottom-color: var(--borde-sutil); box-shadow: none; }
-      to { border-bottom-color: var(--borde); box-shadow: 0 8px 16px -12px oklch(0 0 0 / 0.8); }
+      to { border-bottom-color: var(--borde); box-shadow: 0 8px 16px -12px color-mix(in srgb, var(--negro) 80%, transparent); }
     }
   }
 }

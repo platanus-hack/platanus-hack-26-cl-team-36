@@ -1,21 +1,21 @@
-// Idiomas de la interfaz (diseño §5.13): español por defecto e inglés.
+// Idiomas de la interfaz (diseño §5.13): inglés por defecto y español (el selector muestra EN | ES).
 //
 // Los diccionarios son módulos ES por sección y por idioma (public/i18n/<idioma>/<sección>.js), cada uno con un
 // dueño, así los equipos nunca editan el mismo archivo. Un valor es un texto con {variables} o una función
-// (vars, { plural, fmt }) => texto. t() busca en el idioma activo, después en español y si no, devuelve la clave.
+// (vars, { plural, fmt }) => texto. t() busca en el idioma activo, después en inglés y si no, devuelve la clave.
 //
 // Importarlo no toca window ni localStorage: node:test usa `formatear` directamente.
 
 import { crearFormatos } from "./formato.js";
 
-export const IDIOMAS = ["es", "en"];
-export const IDIOMA_POR_DEFECTO = "es";
+export const IDIOMAS = ["en", "es"];
+export const IDIOMA_POR_DEFECTO = "en";
 export const EVENTO_IDIOMA = "backoffice:idioma";
 const CLAVE_ALMACEN = "backoffice:idioma";
 
 let actual = IDIOMA_POR_DEFECTO;
-/** { es: { comun: {...}, datos: {...} }, en: {...} } */
-const diccionarios = { es: {}, en: {} };
+/** { en: { comun: {...}, datos: {...} }, es: {...} } */
+const diccionarios = { en: {}, es: {} };
 const secciones = new Set();
 const pedidas = new Map(); // "<idioma>/<sección>" → Promise
 const avisadas = new Set();
@@ -53,8 +53,9 @@ function interpolar(texto, vars) {
 }
 
 /**
- * Núcleo puro de t(): busca `clave` en diccionarios[idioma], luego en diccionarios.es, y si no está devuelve la clave.
- * @param {Record<string, object>} dicc   { es: { <sección>: {...} }, en: {...} }
+ * Núcleo puro de t(): busca `clave` en diccionarios[idioma], luego en el idioma por defecto (diccionarios.en), y si no
+ * está devuelve la clave.
+ * @param {Record<string, object>} dicc   { en: { <sección>: {...} }, es: {...} }
  * @param {(clave: string, idioma: string) => void} [alFaltar]  se llama si falta en el idioma pedido
  */
 export function formatear(dicc, clave, vars = {}, idiomaPedido = IDIOMA_POR_DEFECTO, alFaltar = null) {
@@ -110,7 +111,7 @@ async function importarSeccion(idiomaDeSeccion, seccion) {
   diccionarios[idiomaDeSeccion][seccion] = await pedidas.get(llave);
 }
 
-/** Carga una sección del idioma activo (y la española, para el respaldo). Idempotente; nunca lanza. */
+/** Carga una sección del idioma activo (y la del idioma por defecto, para el respaldo). Idempotente; nunca lanza. */
 export async function cargarSeccion(seccion) {
   secciones.add(seccion);
   const idiomas = actual === IDIOMA_POR_DEFECTO ? [actual] : [actual, IDIOMA_POR_DEFECTO];
@@ -140,7 +141,7 @@ function aplicar(nuevo) {
 }
 
 /**
- * Elige el idioma (parámetro `idioma=` del hash → localStorage → "es") y carga "comun" y "datos".
+ * Elige el idioma (parámetro `idioma=` del hash → localStorage → "en") y carga "comun" y "datos".
  * @param {{ parametroDeHash?: string | null }} opciones
  */
 export async function iniciarI18n({ parametroDeHash = null } = {}) {

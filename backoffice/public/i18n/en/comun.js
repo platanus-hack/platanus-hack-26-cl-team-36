@@ -2,36 +2,19 @@
 
 export default {
   marca: {
-    nombre: "chameleon",
+    nombre: "chameleon mode",
     producto: "backoffice",
     titulo: "Backoffice",
   },
+  // Top bar (brand, reviews running, search) and the names of the views.
   shell: {
     saltar: "Skip to content",
-    navegacion: "Main navigation",
-    buscar: "Search…",
-    abrirBuscador: "Open search",
-    corridas: "Runs",
+    overview: "Overview",
     revisiones: "Reviews",
+    corridas: "Batches",
+    enCurso: ({ n }) => `${n} running`,
+    buscar: "Search",
     cuentaTandas: ({ n }, { plural }) => `${n} ${plural(n, { one: "batch", other: "batches" })}`,
-    tandasRecientes: "Recent batches",
-    sinTandas: "No batches yet.",
-    atajos: "Shortcuts",
-    idioma: "Language",
-    abrirMenu: "Open menu",
-    cerrarMenu: "Close menu",
-    estadoTanda: ({ logrados, validos, medidos = validos, errores }, { plural }) => {
-      let base = validos
-        ? `${logrados} of ${medidos} ${plural(logrados, { one: "reaches", other: "reach" })} the answer`
-        : "no valid attempts";
-      if (validos && !medidos) base = "not measured";
-      return errores ? `${base}, ${errores} with a tool error` : base;
-    },
-  },
-  idioma: {
-    es: "Español",
-    en: "English",
-    cambiarA: "Language: {nombre}",
   },
   pestana: {
     telarana: "Path map",
@@ -57,12 +40,16 @@ export default {
   },
   // Knowledge level of a profile, lowercase (goes in brackets after its name).
   nivel: { conoce_tema: "knows the topic", sin_contexto: "no context" },
+  // Outcome of an agent run (a square, a segment, a figure).
   resultado: {
     logrado: "Succeeded",
     fallido: "Failed",
-    abandonado: "Abandoned",
-    sin_medir: "Not measured",
+    abandonado: "Gave up",
+    sin_medir: "Unmeasured",
     error: "Tool error",
+    detenido: "Stalled",
+    en_curso: "Running",
+    en_cola: "Queued",
   },
   logro: {
     directo: "by the route",
@@ -99,14 +86,14 @@ export default {
     pasoFueraDeRango: ({ total }, { plural }) =>
       `The attempt has ${total} ${plural(total, { one: "step", other: "steps" })}; showing the last one.`,
     paginaNoExiste: "The page “{pagina}” does not exist in this batch.",
-    errorDeCarga: "The runs could not be loaded.",
+    errorDeCarga: "The batches could not be loaded.",
     errorDeTanda: "The batch could not be loaded.",
     errorDeVista: "This view failed to render.",
     sinConexion: "The backoffice server is not answering. Is it still running?",
     detalleTecnico: "Technical detail",
   },
   accion: {
-    irACorridas: "Go to Runs",
+    irACorridas: "Go to Batches",
     reintentar: "Retry",
     cerrar: "Close",
     copiar: "Copy",
@@ -134,7 +121,9 @@ export default {
     cerrar: "close",
     copiarEnlace: "Copy link",
     verAtajos: "Keyboard shortcuts",
-    irACorridas: "Go to Runs",
+    irAOverview: "Go to Overview",
+    irARevisiones: "Go to Reviews",
+    irACorridas: "Go to Batches",
     cambiarIdioma: "Language: Español",
     intento: "Replay · {resultado}",
     pagina: "Path map · {url}",
@@ -148,7 +137,8 @@ export default {
     grupo: {
       global: "Everywhere",
       tanda: "In a batch",
-      corridas: "Runs",
+      overview: "Overview",
+      corridas: "Batches",
       telarana: "Path map",
       replay: "Replay",
     },
@@ -164,8 +154,9 @@ export default {
       paleta: "Open the command palette",
       hoja: "Show shortcuts",
       cerrar: "Close the dialog or tooltip; then clear the selection",
-      irACorridas: "Go to Runs",
-      buscar: "In Runs, search; elsewhere, open the palette",
+      irAOverview: "Go to Overview",
+      irACorridas: "Go to Batches",
+      buscar: "In Batches, search; elsewhere, open the palette",
       vecinas: "Previous (older) / next (newer) batch",
       copiarEnlace: "Copy the link to this view",
       filas: "Next / previous row",

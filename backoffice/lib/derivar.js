@@ -259,6 +259,19 @@ export function errorDelIntento(run) {
   return tipo ? { tipo, resumen: resumenDeError(texto), detalle: String(texto ?? "") } : null;
 }
 
+/**
+ * Cómo terminó un intento según su run.json: "error" si falló la herramienta (errorDelIntento); si no, el veredicto
+ * (success → logrado, failed → fallido, abandoned → abandonado, unmeasured → sin_medir; otro o ninguno → abandonado).
+ * La usan la tanda (armarIntento) y el resumen del Overview (lib/clasificar.js), así cuentan igual.
+ * @param {object} run
+ * @param {ErrorDeHerramienta | null} [error]  el de errorDelIntento(run), si ya se calculó
+ * @returns {"logrado" | "fallido" | "abandonado" | "sin_medir" | "error"}
+ */
+export function resultadoDelRun(run, error = errorDelIntento(run)) {
+  if (error) return "error";
+  return RESULTADO_DEL_VEREDICTO[run.verdict?.outcome ?? "abandoned"] ?? "abandonado";
+}
+
 const DIRECCIONES = { down: "abajo", up: "arriba", left: "izquierda", right: "derecha" };
 // El evaluador corta el texto de un elemento a 80 caracteres (recording.py), a veces a mitad de palabra.
 const LARGO_DEL_TEXTO_DE_ELEMENTO = 80;
@@ -773,7 +786,7 @@ const fuenteDelVeredicto = (verdict) =>
 function armarIntento({ perfil: carpeta, run, video }, ubicacion, ruta, inicios) {
   const error = errorDelIntento(run);
   const resultadoJuez = run.verdict?.outcome ?? "abandoned";
-  const resultado = error ? "error" : (RESULTADO_DEL_VEREDICTO[resultadoJuez] ?? "abandonado");
+  const resultado = resultadoDelRun(run, error);
   const fuente = fuenteDelVeredicto(run.verdict);
   const declaroTerminar = typeof run.verdict?.claimed_done === "boolean" ? run.verdict.claimed_done : null;
   const repeticion = Number.isInteger(run.attempt) && run.attempt > 0 ? run.attempt : 1;

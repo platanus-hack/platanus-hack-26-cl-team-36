@@ -1,18 +1,37 @@
 // Gramática de las rutas (diseño §5.1). Puro: no toca document ni window, así node:test lo importa.
 //
-//   #/                          Corridas   ?q= &sitio= &filtro= &orden= &vista=
+//   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|delivered|failed
+//   #/corridas                  Corridas   ?q= &sitio= &filtro= &orden= &vista=
+//   #/?q=…&sitio=…              (enlace viejo, de cuando Corridas era #/) → #/corridas?… con esos parámetros
 //   #/t/<tandaId>               → #/t/<tandaId>/telarana
 //   #/t/<tandaId>/<pestaña>     telarana · replay · propuesta   (#/t/<tandaId>/resumen, de cuando existía, → telarana)
-//   #/revisiones                Revisiones (DynamoDB)
+//   #/revisiones                Revisiones (DynamoDB)   ?estado=live|done|failed   (live = running + queued)
 //   #/revisiones/<revision>     el avance de una revisión
 //
 // Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
-// saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan.
+// saca del hash (extraerIdioma), así los hashes canónicos nunca lo llevan. En el Overview y en el filtro de
+// Revisiones un valor desconocido se descarta, y los valores por defecto (all, recent) nunca se escriben.
 
 import { CORRIDA, REVISION, partesDeTanda } from "./almacen.js";
 
 export const PESTANAS = ["telarana", "replay", "propuesta"];
 export const PESTANA_POR_DEFECTO = "telarana";
+
+/** Filtro de dispositivo del Overview (el primero es el de por defecto). */
+export const DISPOSITIVOS = Object.freeze(["all", "desktop", "mobile"]);
+/** Pestañas de revisiones del Overview (la primera es la de por defecto). */
+export const PESTANAS_DEL_OVERVIEW = Object.freeze(["recent", "live", "delivered", "failed"]);
+/** Filtro `estado=` de la lista de Revisiones. */
+export const ESTADOS_DE_REVISIONES = Object.freeze(["live", "done", "failed"]);
+
+// Valores válidos de los parámetros con un conjunto cerrado; lo demás se descarta al leer y al escribir.
+const VALORES = {
+  overview: { dispositivo: DISPOSITIVOS, pestana: PESTANAS_DEL_OVERVIEW },
+  revisiones: { estado: ESTADOS_DE_REVISIONES },
+};
+
+// Parámetros de Corridas: si alguno viene en #/, es un enlace de cuando Corridas vivía ahí.
+const PARAMETROS_DE_CORRIDAS = ["q", "sitio", "filtro", "orden", "vista"];
 
 // Pestañas que ya no existen y adónde llevan sus enlaces viejos (sin sus parámetros).
 const PESTANAS_RETIRADAS = { resumen: "telarana" };
@@ -27,7 +46,9 @@ export const NOMBRES_DE_PESTANA = Object.freeze({
 
 // Orden estable de los parámetros conocidos; los demás van después, en orden alfabético.
 const ORDEN_DE_PARAMETROS = {
-  corridas: ["q", "sitio", "filtro", "orden", "vista"],
+  overview: ["dispositivo", "pestana"],
+  corridas: PARAMETROS_DE_CORRIDAS,
+  revisiones: ["estado"],
   telarana: ["pagina"],
   replay: ["intento", "paso"],
   propuesta: ["vista", "dispositivo"],
@@ -35,6 +56,7 @@ const ORDEN_DE_PARAMETROS = {
 
 // Valores por defecto: no se escriben en el hash.
 const POR_DEFECTO = {
+  overview: { dispositivo: DISPOSITIVOS[0], pestana: PESTANAS_DEL_OVERVIEW[0] },
   corridas: { vista: "lista", orden: "nuevas" },
 };
 
@@ -62,6 +84,29 @@ function leerParametros(consulta) {
     if (valor !== "" && !(clave in parametros)) parametros[clave] = valor;
   }
   return parametros;
+}
+
+/**
+ * Para las vistas con parámetros cerrados (overview, revisiones): solo las claves conocidas con un valor válido y
+ * distinto del de por defecto. El resto se descarta, así el hash canónico nunca lleva un valor que la vista no entiende.
+ */
+function soloValidos(vista, parametros) {
+  const validos = VALORES[vista];
+  const defecto = POR_DEFECTO[vista] ?? {};
+  const resultado = {};
+  for (const [clave, permitidos] of Object.entries(validos)) {
+    const valor = parametros?.[clave];
+    if (valor === null || valor === undefined) continue;
+    const texto = String(valor);
+    if (permitidos.includes(texto) && defecto[clave] !== texto) resultado[clave] = texto;
+  }
+  return resultado;
+}
+
+/** Los parámetros de Corridas que trae un hash de #/, o null si no trae ninguno (entonces es el Overview). */
+function parametrosDeCorridasEn(parametros) {
+  const presentes = PARAMETROS_DE_CORRIDAS.filter((clave) => clave in parametros);
+  return presentes.length ? Object.fromEntries(presentes.map((clave) => [clave, parametros[clave]])) : null;
 }
 
 function aplicarAlias(pestana, parametros) {
@@ -93,12 +138,18 @@ export function parsearHash(hash) {
   if (!partes) return { tipo: "desconocida", hash: original };
   const parametros = leerParametros(consulta);
 
-  if (partes.length === 0) return { tipo: "corridas", parametros };
+  if (partes.length === 0) {
+    const legado = traducirLegado(hash);
+    if (legado) return { tipo: "legado", ...legado };
+    return { tipo: "overview", parametros: soloValidos("overview", parametros) };
+  }
+
+  if (partes[0] === "corridas" && partes.length === 1) return { tipo: "corridas", parametros };
 
   if (partes[0] === "revisiones" && partes.length <= 2) {
     const revision = partes[1] ?? null;
     if (revision !== null && !REVISION.test(revision)) return { tipo: "desconocida", hash: original };
-    return { tipo: "revisiones", revision, parametros: {} };
+    return { tipo: "revisiones", revision, parametros: revision === null ? soloValidos("revisiones", parametros) : {} };
   }
 
   if (partes[0] === "t") {
@@ -140,15 +191,22 @@ function consultaCanonica(clave, parametros) {
   return texto ? `?${texto}` : "";
 }
 
-/** Hash canónico: orden estable de parámetros, sin valores vacíos ni por defecto, sin `idioma`. */
+/**
+ * Hash canónico: orden estable de parámetros, sin valores vacíos ni por defecto, sin `idioma`. Sin `tipo` (o con uno
+ * que no es una vista) es el Overview.
+ */
 export function hashDe({ tipo, tandaId, revision = null, pestana = PESTANA_POR_DEFECTO, parametros = {} }) {
-  if (tipo === "revisiones") return enlaceARevision(revision);
+  if (tipo === "revisiones") {
+    if (revision) return enlaceARevision(revision);
+    return `#/revisiones${consultaCanonica("revisiones", soloValidos("revisiones", parametros))}`;
+  }
   if (tipo === "tanda") {
     const id = String(tandaId).split("/").map(encodeURIComponent).join("/");
     const limpios = aplicarAlias(pestana, parametros);
     return `#/t/${id}/${pestana}${consultaCanonica(pestana, limpios)}`;
   }
-  return `#/${consultaCanonica("corridas", parametros)}`;
+  if (tipo === "corridas") return `#/corridas${consultaCanonica("corridas", parametros)}`;
+  return `#/${consultaCanonica("overview", soloValidos("overview", parametros))}`;
 }
 
 export function enlaceATanda(tandaId, pestana = PESTANA_POR_DEFECTO, parametros = {}) {
@@ -160,14 +218,27 @@ export function enlaceARevision(revision = null) {
   return revision ? `#/revisiones/${encodeURIComponent(revision)}` : "#/revisiones";
 }
 
+/** La lista de Revisiones, filtrada: "#/revisiones" o "#/revisiones?estado=failed" (live = running + queued). */
+export function enlaceARevisiones(estado = null) {
+  return hashDe({ tipo: "revisiones", parametros: { estado } });
+}
+
 /**
- * Enlaces de la v0 (#/telarana?t=…, #/replay?t=…&perfil=…).
+ * Enlaces viejos y adónde llevan:
+ *   - los de la v0 (#/telarana?t=…, #/replay?t=…&perfil=…) → la tanda; sin t= → Corridas, con aviso;
+ *   - los de Corridas de cuando vivía en #/ (#/?q=…&sitio=…&filtro=…&orden=…&vista=…) → #/corridas?…, solo con esos
+ *     parámetros (#/ es ahora el Overview).
  * @returns {{ destino: string, aviso: string | null } | null}  aviso es una clave del diccionario.
  */
 export function traducirLegado(hash) {
   const { camino, consulta } = separar(hash);
   const partes = segmentos(camino);
-  if (!partes || partes.length !== 1 || !PANTALLAS_LEGADAS.has(partes[0])) return null;
+  if (!partes) return null;
+  if (partes.length === 0) {
+    const deCorridas = parametrosDeCorridasEn(leerParametros(consulta));
+    return deCorridas ? { destino: hashDe({ tipo: "corridas", parametros: deCorridas }), aviso: null } : null;
+  }
+  if (partes.length !== 1 || !PANTALLAS_LEGADAS.has(partes[0])) return null;
   const pestana = partes[0];
   const { t: tandaId, ...resto } = leerParametros(consulta);
   if (!tandaId) return { destino: hashDe({ tipo: "corridas" }), aviso: AVISO_ENLACE_SIN_TANDA };

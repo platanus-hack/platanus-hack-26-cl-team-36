@@ -2,6 +2,15 @@
 
 export default {
   cuenta: ({ n }, { plural }) => `${n} ${plural(n, { one: "revisión", other: "revisiones" })}`,
+  cuentaFiltrada: ({ n, total }) => `${n} de ${total}`,
+  // Filtro de la lista (?estado=), el mismo corte que las pestañas del Overview: En vivo = en curso y en cola.
+  filtro: {
+    live: "En vivo",
+    done: "Entregadas",
+    failed: "Fallidas",
+    quitar: "Ver todas las revisiones",
+    vacio: "No hay revisiones con este estado.",
+  },
   enVivo: "Se actualiza cada pocos segundos.",
   errorAlRefrescar: "No se pudo actualizar; se vuelve a intentar sola.",
   noDisponible: {
@@ -12,9 +21,9 @@ export default {
   noExiste: "No existe la revisión «{revision}».",
   estado: {
     queued: "En cola",
-    running: "Corriendo",
-    done: "Lista",
-    failed: "Falló",
+    running: "En curso",
+    done: "Entregada",
+    failed: "Fallida",
     pending: "Pendiente",
     succeeded: "Terminó",
   },
