@@ -132,7 +132,7 @@ function cargar(pagina = {}, pathname = "/") {
     documentElement: new Elemento("html"),
   };
   const contexto = vm.createContext({ document, URL, HTMLSelectElement: Select, location: { href: `https://www.metro.cl${pathname}`, pathname }, console });
-  for (const archivo of ["content/registro.js", "comun/idioma.js", "content/plantillas.js", "componentes/lanzador.js", "componentes/atajo.js", "features/vista.js"]) {
+  for (const archivo of ["content/registro.js", "comun/idioma.js", "content/plantillas.js", "componentes/lanzador.js", "componentes/atajo.js", "componentes/buscador.js", "features/vista.js"]) {
     vm.runInContext(leer(archivo), contexto);
   }
   return vm.runInContext("globalThis.MiTema", contexto);
