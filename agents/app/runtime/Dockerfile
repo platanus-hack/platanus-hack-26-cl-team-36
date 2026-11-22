@@ -21,8 +21,6 @@ ENV PYTHONUNBUFFERED=1 \
     AGENTS_ENGINE=bedrock \
     AGENTS_BROWSER=agentcore \
     AGENTS_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0 \
-    VISITOR_ENGINE=bedrock \
-    VISITOR_BROWSER=agentcore \
     WEB_DESIGNER_SKILL=/chameleon/.claude/skills/disenar-tema/SKILL.md
 
 # Las mismas rutas que en el repo: los uv.lock nombran a shared como ../../shared.
