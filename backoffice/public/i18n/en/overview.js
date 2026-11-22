@@ -51,7 +51,8 @@ export default {
     delivered: "Delivered",
     failed: "Failed",
   },
-  verTodas: ({ cifra }) => `View all ${cifra}`,
+  verMas: ({ cifra }) => `Show ${cifra} more`,
+  sumadas: ({ n }, { plural }) => `${n} more ${plural(n, { one: "review", other: "reviews" })} shown`,
   vacio: "Nothing here yet.",
   noDisponible: "This source has no reviews table.",
   errorAlRefrescar: "Couldn't refresh; it will retry on its own.",
@@ -93,10 +94,6 @@ export default {
     menosDeUnMinuto: "<1 min",
     minutos: "{n} min",
     horas: "{h} h {min} min",
-  },
-  cola: {
-    titulo: "Up next",
-    mas: "+{n} more",
   },
   pista: {
     titulo: "Reviews start from the browser extension",

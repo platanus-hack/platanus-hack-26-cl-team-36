@@ -1,11 +1,12 @@
 // Una tarjeta de revisión del Overview (spec §3.5): barra de navegador, captura (según el dispositivo), nombre con
 // la marca y los cuadritos de agentes, las 4 etapas, los medidores por goal (o el motivo) y el pie.
 //
-// Enlaces (contrato §6.5): la tarjeta entera lleva a la telaraña del primer goal con tanda (si no hay, al avance de la
-// revisión) y cada fila de goal con tanda lleva a la suya. Un <a> no puede contener otros, así que va el patrón de
-// enlace estirado: el nombre del sitio es el enlace principal y su ::after cubre la tarjeta; lo que tiene su propio
-// enlace o un globo (etapas, cuadritos, goals, motivo, tiempo) queda encima, y un clic ahí que no es en un enlace sigue
-// al principal. El foco del principal se ve en toda la tarjeta.
+// Enlaces (contrato §6.5, §7.1): la tarjeta entera lleva a la telaraña del primer goal con tanda; si no hay, a la de
+// la tanda de su captura; solo si tampoco hay, al avance de la revisión. Cada fila de goal con tanda lleva a la suya.
+// Un <a> no puede contener otros, así que va el patrón de enlace estirado: el nombre del sitio es el enlace principal
+// y su ::after cubre la tarjeta; lo que tiene su propio enlace o un globo (etapas, cuadritos, goals, motivo, tiempo)
+// queda encima, y un clic ahí que no es en un enlace sigue al principal. El foco del principal se ve en toda la
+// tarjeta.
 //
 // Se reconcilia por partes: cada parte tiene su firma y solo se rehace la que cambió (al refrescar suele ser el
 // tiempo del pie), así no se reinician la línea de escaneo ni los pulsos. Los <img> de la captura son siempre los
@@ -206,7 +207,7 @@ function actualizarTarjeta(registro, modelo, deps) {
     registro.firmas[nombreDeParte] = firma;
   }
 
-  // El enlace principal: la telaraña del primer goal con tanda o, si no hay, el avance de la revisión.
+  // El enlace principal: la telaraña de modelo.tanda (primer goal con tanda, o la de la captura) o el avance.
   const enlace = registro.partes.nombre.querySelector(".ov-tarjeta-enlace");
   const href = modelo.tanda ? enlaceATanda(modelo.tanda) : deps.enlace(modelo.revision);
   if (enlace.getAttribute("href") !== href) enlace.setAttribute("href", href);

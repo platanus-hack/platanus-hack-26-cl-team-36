@@ -104,5 +104,5 @@ function soltar(img) {
   }
 }
 
-/** El banco de <img> que usan las tarjetas y "Up next". */
+/** El banco de <img> que usan las tarjetas. */
 export const imagenes = Object.freeze({ tomar, soltar });

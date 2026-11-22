@@ -87,9 +87,11 @@ enlaces de cada pantalla.
 **Overview** (`#/`, el inicio) tiene dos bloques. Arriba, los agentes: un solo total dividido por rol en el orden del
 flujo (Cataloger → Guide → Visitors → Designer), con un cuadrito por corrida y el % de éxito de cada rol. Abajo, las
 revisiones en tarjetas con la página revisada (captura de escritorio y teléfono), sus cuatro etapas (Catalog, Routes,
-Visits, Theme), un medidor por goal y un cuadrito por agente; pestañas Recent, Live, Delivered y Failed (hasta 6
-tarjetas cada una, con "View all" a Revisiones filtrada) y la cola ("Up next"). Una tarjeta lleva directo a la
-telaraña de su primer goal con tanda terminada (cada goal, a la suya); si todavía no hay, al avance de la revisión.
+Visits, Theme), un medidor por goal y un cuadrito por agente; pestañas Recent (todas, también las en cola), Live (en
+curso, detenidas y en cola), Delivered y Failed. Cada pestaña muestra 6 tarjetas y "Show 10 more" suma las siguientes
+abajo, paginadas en el servidor (`/api/overview?pestana=…&limite=…`). Una tarjeta lleva directo a Path map / Replay: la
+telaraña de su primer goal con tanda terminada (cada goal, a la suya); si la revisión todavía no tiene una, la de la
+tanda de su captura (la más nueva del mismo host y ruta); solo si no hay ninguna, al avance de la revisión.
 El filtro de dispositivo (All · Desktop · Mobile) cambia los visitantes, las capturas, los medidores y los cuadritos
 de cada tarjeta. El dispositivo y la pestaña quedan en la URL (`#/?dispositivo=mobile&pestana=failed`); la página
 vuelve a pedir cada 5 s mientras la pestaña del navegador está visible.
@@ -258,7 +260,7 @@ backoffice/
 │   ├── panel.js         ← arma /api/resumen y /api/overview: lee el almacén (indice.js) y la tabla, con caché de lo
 │   │                      cerrado y una sola lectura compartida por pedidos que llegan juntos
 │   ├── indice.js        ← el índice del almacén: corridas por rol y estado, intentos con resultado y dispositivo
-│   ├── overview.js      ← cifras del resumen, cuentas, pestañas y cola (puro)
+│   ├── overview.js      ← cifras del resumen, cuentas, pestañas y su paginado (puro)
 │   ├── tarjeta.js       ← una tarjeta: detenida, etapas, agentes, goals, motivo, capturas (puro)
 │   ├── clasificar.js    ← dispositivo por viewport y estado de un intento o de un manifest (puro)
 │   ├── sitio.js         ← host, ruta, nombre del sitio y acento del tema (puro)

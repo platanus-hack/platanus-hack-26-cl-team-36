@@ -1,25 +1,29 @@
-// Revisiones del Overview (spec §3.4, §3.5): pestañas e insignias, cuadritos y medidores con el filtro de
-// dispositivo, etapas, motivo, "Up next", "ver todas" y la pista de arranque vacío. El fixture tiene la forma del
-// contrato §2 con casos del mock (los mismos sitios y estados que los artboards).
+// Revisiones del Overview (spec §3.4, §3.5; contrato §7): pestañas e insignias, cuadritos y medidores con el filtro
+// de dispositivo, etapas, motivo, destino de la tarjeta, las en cola como tarjetas, el paginado ("Show N more") y la
+// pista de arranque vacío. El fixture tiene la forma del contrato §2 y §7 con casos del mock.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  ESTADO_EN_REVISIONES,
+  LIMITE_MAXIMO,
+  PASO,
+  TARJETAS_POR_PAGINA,
   avisoDeTarjeta,
-  colaDeOverview,
   columnasDePista,
   cuadritosDeTarjeta,
   etapasDeTarjeta,
   hayPista,
+  idsDePestana,
   insigniaDePestana,
   leerPestana,
+  limiteSiguiente,
   masDePestana,
   medidorDeGoal,
   medidoresDeTarjeta,
   modeloDeTarjeta,
   ordenarTramos,
   seVeEn,
+  sumadas,
   tandaDeGoal,
   tandaDeTarjeta,
   tarjetasDePestana,
@@ -140,42 +144,61 @@ const CLINICA = {
   acento: "#007E86",
 };
 
+// En cola: sin agentes ni goals, etapas pendientes; su captura es la más nueva del mismo host y ruta (otra revisión).
+const EN_COLA = {
+  revision: "mwracgf6-dbc496",
+  url: "https://www.aguasdelmaule.test/",
+  host: "aguasdelmaule.test",
+  ruta: "/",
+  sitio: "Aguas del Maule",
+  estado: "queued",
+  creada: "2026-11-22T03:36:48.930Z",
+  actualizada: "2026-11-22T03:36:48.930Z",
+  etapas: { catalog: "pendiente", guide: "pendiente", visitor: "pendiente", improver: "pendiente" },
+  agentes: [],
+  goals: [],
+  capturas: {
+    desktop: captura("aguasdelmaule.test/visitor/reportar-emergencia/2026-11-21T20-04-35Z", "desktop"),
+    mobile: captura("aguasdelmaule.test/visitor/reportar-emergencia/2026-11-21T20-04-35Z", "mobile"),
+  },
+  acento: null,
+  motivo: null,
+};
+
 const OVERVIEW = {
   ahora: AHORA,
   disponible: true,
   umbralDetenidaMin: 30,
-  cuentas: { total: 90, running: 5, stalled: 1, queued: 2, live: 7, delivered: 65, failed: 18 },
+  cuentas: { total: 90, running: 5, stalled: 1, queued: 2, live: 8, delivered: 65, failed: 18 },
   pestanas: {
-    recent: { ids: [TIENDA.revision, MOVILSUR.revision, BANCO.revision, CLINICA.revision, "falta-la-tarjeta"], total: 88 },
-    live: { ids: [TIENDA.revision, MOVILSUR.revision, BANCO.revision], total: 3 },
+    recent: { ids: [EN_COLA.revision, TIENDA.revision, MOVILSUR.revision, BANCO.revision, CLINICA.revision, "falta-la-tarjeta"], total: 90 },
+    live: { ids: [EN_COLA.revision, TIENDA.revision, MOVILSUR.revision, BANCO.revision], total: 8 },
     delivered: { ids: [CLINICA.revision], total: 65 },
-    failed: { ids: [UNILITORAL.revision], total: 18 },
+    failed: { ids: [UNILITORAL.revision], total: 1 },
   },
-  cola: { ids: ["mwracfin-1fb17c", "mwracgf6-dbc496"], total: 9 },
   tarjetas: {
     [MOVILSUR.revision]: MOVILSUR,
     [TIENDA.revision]: TIENDA,
     [BANCO.revision]: BANCO,
     [CLINICA.revision]: CLINICA,
     [UNILITORAL.revision]: UNILITORAL,
-    "mwracfin-1fb17c": { ...BANCO, revision: "mwracfin-1fb17c", estado: "queued", host: "aguasdelmaule.test", ruta: "/", sitio: "Aguas del Maule" },
-    "mwracgf6-dbc496": { ...BANCO, revision: "mwracgf6-dbc496", estado: "queued", host: "munilospinos.test", ruta: "/tramites", sitio: "Muni Los Pinos" },
+    [EN_COLA.revision]: EN_COLA,
   },
 };
 
-test("pestañas: un valor desconocido vale recent; el filtro equivalente en #/revisiones", () => {
+test("pestañas: un valor desconocido vale recent", () => {
   assert.equal(leerPestana("failed"), "failed");
   assert.equal(leerPestana("todas"), "recent");
   assert.equal(leerPestana(undefined), "recent");
-  assert.deepEqual(ESTADO_EN_REVISIONES, { recent: null, live: "live", delivered: "done", failed: "failed" });
 });
 
 test("insignias: Recent nunca; Live con cuentas.live; Delivered y Failed con su cuenta; con 0, ninguna", () => {
   const { cuentas } = OVERVIEW;
   assert.equal(insigniaDePestana("recent", cuentas), null);
-  assert.equal(insigniaDePestana("live", cuentas), 7);
+  assert.equal(insigniaDePestana("live", cuentas), 8);
   assert.equal(insigniaDePestana("delivered", cuentas), 65);
   assert.equal(insigniaDePestana("failed", cuentas), 18);
+  assert.equal(insigniaDePestana("live", cuentas), OVERVIEW.pestanas.live.total, "cuentas.live = pestanas.live.total (contrato §7.3)");
   // Arranque vacío (artboard 5): solo Live lleva insignia.
   const primera = { total: 1, running: 1, stalled: 0, queued: 0, live: 1, delivered: 0, failed: 0 };
   assert.deepEqual(["recent", "live", "delivered", "failed"].map((p) => insigniaDePestana(p, primera)), [null, 1, null, null]);
@@ -313,24 +336,54 @@ test("modelo de tarjeta: key revisión + dispositivo, tiempo contra `ahora`, ace
   assert.equal(modeloDeTarjeta({ ...BANCO, sitio: "" }).sitio, "bancoandino.test");
 });
 
-test("tarjetas de una pestaña: en el orden de la API, sin las que faltan, hasta 6", () => {
-  assert.deepEqual(tarjetasDePestana(OVERVIEW, "recent").map((t) => t.revision), [TIENDA.revision, MOVILSUR.revision, BANCO.revision, CLINICA.revision]);
-  assert.deepEqual(tarjetasDePestana(OVERVIEW, "inventada").length, 4);
+test("tarjetas de una pestaña: en el orden de la API (las en cola arriba, como más nuevas), sin las que faltan", () => {
+  assert.deepEqual(tarjetasDePestana(OVERVIEW, "recent").map((t) => t.revision), [EN_COLA.revision, TIENDA.revision, MOVILSUR.revision, BANCO.revision, CLINICA.revision]);
+  assert.deepEqual(tarjetasDePestana(OVERVIEW, "live").map((t) => t.estado), ["queued", "running", "running", "stalled"]);
+  assert.deepEqual(tarjetasDePestana(OVERVIEW, "inventada").length, 5);
   assert.deepEqual(tarjetasDePestana({}, "live"), []);
+  // Con el paginado una pestaña trae más de 6: no se recortan.
+  const muchas = { pestanas: { delivered: { ids: Array.from({ length: 26 }, (_, i) => `r${i}`), total: 65 } }, tarjetas: Object.fromEntries(Array.from({ length: 26 }, (_, i) => [`r${i}`, { ...CLINICA, revision: `r${i}` }])) };
+  assert.equal(tarjetasDePestana(muchas, "delivered").length, 26);
 });
 
-test("ver todas: solo si la pestaña tiene más de las que trae, con el filtro de #/revisiones", () => {
-  assert.deepEqual(masDePestana(OVERVIEW, "recent"), { total: 88, estado: null });
-  assert.deepEqual(masDePestana(OVERVIEW, "delivered"), { total: 65, estado: "done" });
-  assert.deepEqual(masDePestana(OVERVIEW, "failed"), { total: 18, estado: "failed" });
-  assert.equal(masDePestana(OVERVIEW, "live"), null);
+test("una en cola es una tarjeta: píldora Queued, etapas pendientes, sin cuadritos, goals ni motivo, con su tiempo", () => {
+  const modelo = modeloDeTarjeta(EN_COLA, { ahora: AHORA });
+  assert.equal(modelo.estado, "queued");
+  assert.deepEqual(modelo.etapas.map((e) => e.estado), ["pendiente", "pendiente", "pendiente", "pendiente"]);
+  assert.deepEqual(modelo.cuadritos, { estados: [], n: 0 });
+  assert.deepEqual(modelo.medidores, { visibles: [], mas: 0 });
+  assert.equal(modelo.aviso, null);
+  assert.deepEqual(modelo.tiempo, { tipo: "transcurrido", minutos: 0, horas: 0, resto: 0 });
+  assert.equal(modelo.capturas.desktop.carpeta, "desktop");
+  // Sin goals: va a la telaraña de la tanda de su captura (contrato §7.1).
+  assert.equal(modelo.tanda, "aguasdelmaule.test/visitor/reportar-emergencia/2026-11-21T20-04-35Z");
 });
 
-test("Up next: las en cola en orden de llegada y cuántas quedan fuera; sin cola, vacía", () => {
-  const cola = colaDeOverview(OVERVIEW);
-  assert.deepEqual(cola.tarjetas.map((t) => t.sitio), ["Aguas del Maule", "Muni Los Pinos"]);
-  assert.equal(cola.mas, 7);
-  assert.deepEqual(colaDeOverview({ cola: { ids: [], total: 0 } }), { tarjetas: [], mas: 0 });
+test("Show N more: lo que falta de la pestaña, de a 10", () => {
+  assert.deepEqual(masDePestana(OVERVIEW, "recent"), { total: 90, traidas: 6, faltan: 84, siguiente: 10 });
+  assert.deepEqual(masDePestana(OVERVIEW, "live"), { total: 8, traidas: 4, faltan: 4, siguiente: 4 });
+  assert.deepEqual(masDePestana(OVERVIEW, "delivered"), { total: 65, traidas: 1, faltan: 64, siguiente: 10 });
+  assert.equal(masDePestana(OVERVIEW, "failed"), null);
+  assert.equal(masDePestana({}, "recent"), null);
+  assert.deepEqual(idsDePestana(OVERVIEW, "failed"), [UNILITORAL.revision]);
+});
+
+test("límite de una pestaña: 6 por defecto y 10 más con cada Show more, con el tope del servidor", () => {
+  assert.equal(TARJETAS_POR_PAGINA, 6);
+  assert.equal(PASO, 10);
+  assert.equal(limiteSiguiente(6), 16);
+  assert.equal(limiteSiguiente(16), 26);
+  assert.equal(limiteSiguiente(undefined), 16);
+  assert.equal(limiteSiguiente(2), 16);
+  assert.equal(limiteSiguiente(495), LIMITE_MAXIMO);
+  assert.equal(limiteSiguiente(LIMITE_MAXIMO), LIMITE_MAXIMO);
+});
+
+test("cuántas se sumaron entre dos respuestas (0 si el servidor no trajo más)", () => {
+  const despues = { pestanas: { delivered: { ids: Array.from({ length: 16 }, (_, i) => `r${i}`), total: 65 } } };
+  assert.equal(sumadas(OVERVIEW, despues, "delivered"), 15);
+  assert.equal(sumadas(OVERVIEW, OVERVIEW, "delivered"), 0);
+  assert.equal(sumadas(despues, OVERVIEW, "delivered"), 0);
 });
 
 test("pista de arranque vacío: solo en Recent con menos de 3 revisiones", () => {
@@ -364,12 +417,15 @@ test("enlace de un goal (contrato §6.5): su tanda si sigue el layout; si no, nu
   assert.equal(medidorDeGoal(MOVILSUR.goals[1]).tanda, null);
 });
 
-test("la tarjeta lleva a la telaraña del primer goal con tanda; sin ninguna, al avance (tanda null)", () => {
+test("destino de la tarjeta (contrato §7.1): primer goal con tanda → tanda de la captura → avance (null)", () => {
   const conSegunda = { ...MOVILSUR, goals: [MOVILSUR.goals[1], { ...MOVILSUR.goals[2], tanda: "movilsur.test/visitor/portabilidad/2026-11-22T03-35-32Z" }, MOVILSUR.goals[0]] };
   assert.equal(tandaDeTarjeta(conSegunda), "movilsur.test/visitor/portabilidad/2026-11-22T03-35-32Z");
   assert.equal(tandaDeTarjeta(MOVILSUR), "movilsur.test/visitor/cobertura-5g/2026-11-22T03-28-29Z");
-  // En curso sin Visitante terminado, detenida o fallida antes de las visitas: sin tanda.
-  assert.equal(tandaDeTarjeta(TIENDA), null);
+  // Sin goal con tanda (en curso sin Visitante terminado): la tanda de su captura de escritorio, si no la móvil.
+  assert.equal(tandaDeTarjeta(TIENDA), "movilsur.test/visitor/portabilidad/2026-11-22T03-35-32Z");
+  assert.equal(tandaDeTarjeta({ ...TIENDA, capturas: { desktop: null, mobile: captura("tiendavolcan.test/visitor/devolver-producto/2026-11-22T03-31-29Z", "mobile") } }), "tiendavolcan.test/visitor/devolver-producto/2026-11-22T03-31-29Z");
+  assert.equal(tandaDeTarjeta({ ...TIENDA, capturas: { desktop: { tanda: "../../x", carpeta: "desktop", archivo: "step_00.png" }, mobile: null } }), null);
+  // Sin goals con tanda ni capturas (detenida antes de catalogar, fallida por 429): al avance.
   assert.equal(tandaDeTarjeta(BANCO), null);
   assert.equal(tandaDeTarjeta(UNILITORAL), null);
   assert.equal(modeloDeTarjeta(MOVILSUR, { ahora: AHORA }).tanda, "movilsur.test/visitor/cobertura-5g/2026-11-22T03-28-29Z");

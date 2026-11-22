@@ -1,13 +1,14 @@
-// Sección Reviews del Overview (spec §3.5): "Reviews" con sus pestañas (Recent, Live, Delivered, Failed), la grilla
-// de tarjetas, el enlace a la lista completa, la pista de arranque vacío y la franja "Up next". Se arma una vez; al
-// refrescar o al cambiar de pestaña o dispositivo se reconcilia la grilla por tarjeta (key = revisión + dispositivo):
-// las que siguen se actualizan por partes, las que salen sueltan sus <img> y las nuevas los toman.
+// Sección Reviews del Overview (spec §3.5, contrato §7): "Reviews" con sus pestañas (Recent, Live, Delivered,
+// Failed), la grilla de tarjetas, el botón "Show N more" y la pista de arranque vacío. Las revisiones en cola son
+// tarjetas como las demás (píldora "Queued"). Se arma una vez; al refrescar, al cambiar de pestaña o dispositivo o al
+// sumar más, se reconcilia la grilla por tarjeta (key = revisión + dispositivo): las que siguen se actualizan por
+// partes y no se mueven, las que salen sueltan sus <img> y las nuevas se suman abajo.
 
 import { urlDeArchivo } from "../nucleo/datos.js";
 import { conservarFoco, el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea } from "../nucleo/estados.js";
 import { icono24 } from "../nucleo/iconos.js";
-import * as rutas from "../nucleo/rutas.js";
+import { enlaceARevision } from "../nucleo/rutas.js";
 import { colorDeCaptura } from "./capturas.js";
 import { activarPestanas, marcarPestana } from "./dom-pestanas.js";
 import { ponerTexto } from "./dom-agentes.js";
@@ -16,7 +17,6 @@ import { colorDeRespaldo, textoSobre } from "./marca.js";
 import {
   ETAPAS,
   PESTANAS,
-  colaDeOverview,
   columnasDePista,
   hayPista,
   insigniaDePestana,
@@ -28,11 +28,6 @@ import {
 import { cifra } from "./textos.js";
 
 const ICONO_DE_ETAPA = { catalog: "catalogo", guide: "ruta", visitor: "visitantes", improver: "tema" };
-
-// Los enlaces salen de nucleo/rutas.js; con un respaldo por si una versión vieja no exporta enlaceARevisiones.
-const enlaceARevision = (revision) => rutas.enlaceARevision(revision);
-const enlaceARevisiones = (estado) =>
-  typeof rutas.enlaceARevisiones === "function" ? rutas.enlaceARevisiones(estado) : `#/revisiones${estado ? `?estado=${encodeURIComponent(estado)}` : ""}`;
 
 /** URL de una captura { tanda, carpeta, archivo } (o null). */
 const src = (captura) => (captura ? urlDeArchivo(captura.tanda, captura.carpeta, captura.archivo) : null);
@@ -79,29 +74,12 @@ function pista(t) {
   );
 }
 
-/** Un ítem de "Up next": miniatura (escritorio 40×24, o móvil 16×28 con el filtro Mobile), nombre y ruta. */
-function crearItemDeCola(tarjeta, dispositivo, { imagenes }) {
-  const captura = dispositivo === "mobile" ? tarjeta.capturas?.mobile : tarjeta.capturas?.desktop;
-  const ruta = src(captura ?? null);
-  const img = ruta ? imagenes.tomar(ruta) : null;
-  img?.setAttribute("class", "ov-cola-miniatura");
-  const a = el(
-    "a",
-    { class: "ov-cola-item", href: enlaceARevision(tarjeta.revision), "data-foco": `overview:cola:${tarjeta.revision}` },
-    img ?? el("span", { class: "ov-cola-miniatura ov-marcador", "aria-hidden": "true" }),
-    el("span", { class: "ov-cola-nombre", texto: tarjeta.sitio || tarjeta.host || tarjeta.revision }),
-    el("span", { class: "ov-cola-ruta", texto: tarjeta.ruta ?? "/" }),
-  );
-  const marca = colorDeCaptura(src(tarjeta.capturas?.desktop ?? null)) ?? colorDeRespaldo(tarjeta.host);
-  a.style.setProperty("--marca", marca);
-  return { li: el("li", {}, a), img, firma: JSON.stringify([tarjeta.sitio, tarjeta.host, tarjeta.ruta, ruta]) };
-}
-
 /**
- * Arma la sección. `imagenes`: el banco de <img> de capturas.js; `alElegirPestana(valor)` al elegir una pestaña.
- * → { nodo, actualizar({ overview, dispositivo, pestana, error }), soltar() }
+ * Arma la sección. `imagenes`: el banco de <img> de capturas.js; `alElegirPestana(valor)` al elegir una pestaña;
+ * `alPedirMas()` al presionar "Show N more". → { nodo, actualizar({ overview, dispositivo, pestana, error }),
+ * cargando(boolean), enfocarTarjeta(indice), soltar() }
  */
-export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana }) {
+export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, alPedirMas }) {
   const { t, fmt } = ctx;
 
   const pestanas = PESTANAS.map((id) => {
@@ -130,11 +108,16 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana }) {
   const aviso = el("div", { class: "ov-aviso-refresco", hidden: true });
   const grilla = el("ul", { class: "ov-grilla" });
   const vacio = el("p", { class: "ov-vacio", hidden: true, texto: t("overview.vacio") });
-  const mas = el("a", { class: "ov-mas", hidden: true });
+  // Mientras pide, el botón sigue enfocable (aria-disabled, no disabled: deshabilitarlo le quitaría el foco).
+  const mas = el("button", { type: "button", class: "boton boton-secundario ov-mas", "data-foco": "overview:mas", hidden: true });
+  mas.addEventListener(
+    "click",
+    () => {
+      if (mas.getAttribute("aria-disabled") !== "true") alPedirMas();
+    },
+    { signal: ctx.senal },
+  );
   const panel = el("div", { id: "ov-panel", class: "ov-panel", role: "tabpanel" }, grilla, vacio, mas);
-  const colaLista = el("ul", { class: "ov-cola-lista" });
-  const colaMas = el("span", { class: "ov-cola-mas", hidden: true });
-  const cola = el("div", { class: "ov-cola", hidden: true }, el("span", { class: "ov-cola-titulo", texto: t("overview.cola.titulo") }), colaLista, colaMas);
   const noDisponible = el("div", { class: "ov-no-disponible", hidden: true }, avisoEnLinea(t("overview.noDisponible")));
 
   const nodo = el(
@@ -144,14 +127,11 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana }) {
     aviso,
     noDisponible,
     panel,
-    cola,
   );
 
   const deps = { t, fmt, imagenes, src, enlace: enlaceARevision, marcaDe };
   /** key → registro de crearTarjeta */
   const tarjetas = new Map();
-  /** key → { li, img, firma } */
-  const itemsDeCola = new Map();
   let nodoPista = null;
   let conError = null;
 
@@ -195,7 +175,8 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana }) {
       nodos.push(nodoPista);
     }
 
-    // Solo se mueve lo que no está en su lugar (mover un nodo enfocado le quita el foco; conservarFoco lo devuelve).
+    // Solo se mueve lo que no está en su lugar: las que ya estaban se quedan y las nuevas se suman abajo (mover un
+    // nodo enfocado le quita el foco; conservarFoco lo devuelve).
     nodos.forEach((nodoDeCelda, indice) => {
       if (grilla.children[indice] !== nodoDeCelda) grilla.insertBefore(nodoDeCelda, grilla.children[indice] ?? null);
     });
@@ -203,52 +184,9 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana }) {
     vacio.hidden = nodos.length > 0;
     grilla.hidden = nodos.length === 0;
 
-    const todas = masDePestana(overview, pestana);
-    mas.hidden = !todas;
-    if (todas) {
-      const href = enlaceARevisiones(todas.estado);
-      if (mas.getAttribute("href") !== href) mas.setAttribute("href", href);
-      ponerTexto(mas, t("overview.verTodas", { n: todas.total, cifra: cifra(todas.total, fmt) }));
-    }
-  }
-
-  function ponerCola(overview, dispositivo) {
-    const { tarjetas: enCola, mas: fuera } = colaDeOverview(overview);
-    const claves = new Set(enCola.map((tarjeta) => `${tarjeta.revision}:${dispositivo}`));
-    for (const [key, item] of itemsDeCola) {
-      if (!claves.has(key)) {
-        imagenes.soltar(item.img);
-        item.li.remove();
-        itemsDeCola.delete(key);
-      }
-    }
-    const nodos = enCola.map((tarjeta) => {
-      const key = `${tarjeta.revision}:${dispositivo}`;
-      let item = itemsDeCola.get(key);
-      const nuevo = () => crearItemDeCola(tarjeta, dispositivo, { imagenes });
-      if (!item) {
-        item = nuevo();
-        itemsDeCola.set(key, item);
-      } else {
-        const firma = JSON.stringify([tarjeta.sitio, tarjeta.host, tarjeta.ruta, src((dispositivo === "mobile" ? tarjeta.capturas?.mobile : tarjeta.capturas?.desktop) ?? null)]);
-        if (firma !== item.firma) {
-          imagenes.soltar(item.img);
-          const reemplazo = nuevo();
-          item.li.replaceWith(reemplazo.li);
-          item = reemplazo;
-          itemsDeCola.set(key, item);
-        }
-      }
-      return item.li;
-    });
-    nodos.forEach((li, indice) => {
-      if (colaLista.children[indice] !== li) colaLista.insertBefore(li, colaLista.children[indice] ?? null);
-    });
-    while (colaLista.children.length > nodos.length) colaLista.lastElementChild.remove();
-    cola.hidden = nodos.length === 0;
-    cola.dataset.dispositivo = dispositivo;
-    colaMas.hidden = !fuera;
-    if (fuera) ponerTexto(colaMas, t("overview.cola.mas", { n: cifra(fuera, fmt) }));
+    const faltan = masDePestana(overview, pestana);
+    mas.hidden = !faltan;
+    if (faltan) ponerTexto(mas, t("overview.verMas", { n: faltan.siguiente, cifra: cifra(faltan.siguiente, fmt) }));
   }
 
   function actualizar({ overview, dispositivo, pestana, error }) {
@@ -264,24 +202,30 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana }) {
     panel.hidden = !disponible;
     if (!disponible) {
       soltar();
-      cola.hidden = true;
       return;
     }
     ponerPestanas(overview, pestana);
     conservarFoco(panel, () => ponerGrilla(overview, dispositivo, pestana));
-    conservarFoco(cola, () => ponerCola(overview, dispositivo));
   }
 
-  /** Al desmontar: devuelve todos los <img> al banco (ver capturas.js). */
+  /** Mientras se piden más: el botón no responde y la grilla se marca ocupada. */
+  function cargando(si) {
+    if (si) mas.setAttribute("aria-disabled", "true");
+    else mas.removeAttribute("aria-disabled");
+    if (si) grilla.setAttribute("aria-busy", "true");
+    else grilla.removeAttribute("aria-busy");
+  }
+
+  /** Enfoca el enlace principal de la tarjeta `indice` de la grilla (la primera nueva, si el botón ya no está). */
+  function enfocarTarjeta(indice) {
+    grilla.children[indice]?.querySelector(".ov-tarjeta-enlace")?.focus();
+  }
+
+  /** Al desmontar (o sin tabla): devuelve todos los <img> al banco (ver capturas.js). */
   function soltar() {
     for (const registro of tarjetas.values()) registro.soltar();
     tarjetas.clear();
-    for (const item of itemsDeCola.values()) {
-      imagenes.soltar(item.img);
-      item.li.remove();
-    }
-    itemsDeCola.clear();
   }
 
-  return { nodo, actualizar, soltar };
+  return { nodo, actualizar, cargando, enfocarTarjeta, soltar };
 }

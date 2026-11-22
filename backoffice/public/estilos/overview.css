@@ -243,8 +243,9 @@
 .p-overview .ov-celda { display: flex; min-width: 0; }
 .p-overview .ov-vacio { padding: 24px 0; color: var(--texto-3); }
 .p-overview .ov-panel { display: flex; flex-direction: column; }
-.p-overview .ov-mas { align-self: flex-end; margin-top: 12px; color: var(--texto-3); font-size: 12px; }
-.p-overview .ov-mas:hover { color: var(--texto-1); }
+/* "Show N more" (contrato §7.4): un botón secundario bajo la grilla; mientras pide, atenuado y sin responder. */
+.p-overview .ov-mas { align-self: center; margin-top: 20px; }
+.p-overview .ov-mas[aria-disabled="true"] { cursor: progress; }
 
 /* ── Tarjeta ─────────────────────────────────────────────────────────── */
 .p-overview .ov-tarjeta {
@@ -573,47 +574,6 @@
   color: var(--texto-1);
 }
 .p-overview .ov-pista-nombre { color: var(--texto-3); font-size: 12px; }
-
-/* ── Up next: las revisiones en cola ─────────────────────────────────── */
-.p-overview .ov-cola {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: var(--superficie-1);
-}
-.p-overview .ov-cola-titulo { color: var(--texto-3); font-size: 12px; font-weight: 500; }
-.p-overview .ov-cola-lista { display: flex; flex-wrap: wrap; gap: 12px; min-width: 0; }
-.p-overview .ov-cola-lista > li { display: flex; min-width: 0; }
-.p-overview .ov-cola-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  height: 36px;
-  padding: 0 10px 0 4px;
-  border-radius: 8px;
-  background: var(--superficie-2);
-  color: var(--texto-2);
-  font-weight: 500;
-  text-decoration: none;
-}
-.p-overview .ov-cola-item:hover { background: var(--superficie-3); color: var(--texto-1); text-decoration: none; }
-.p-overview .ov-cola-miniatura {
-  flex: none;
-  width: 40px;
-  height: 24px;
-  border-radius: 4px;
-  object-fit: cover;
-  object-position: top;
-  opacity: 0.85;
-}
-.p-overview .ov-cola[data-dispositivo="mobile"] .ov-cola-miniatura { width: 16px; height: 28px; }
-.p-overview .ov-cola-nombre { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.p-overview .ov-cola-ruta { flex: none; color: var(--texto-4); font-family: var(--fuente-mono); font-size: 11px; }
-.p-overview .ov-cola-mas { color: var(--texto-4); font-size: 12px; }
 
 /* ── Responsive: grilla 1 → 2 → 3 columnas según el ancho del contenido ── */
 @container ov (min-width: 640px) {

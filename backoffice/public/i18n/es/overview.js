@@ -51,7 +51,8 @@ export default {
     delivered: "Entregadas",
     failed: "Fallidas",
   },
-  verTodas: ({ cifra }) => `Ver las ${cifra}`,
+  verMas: ({ cifra }) => `Ver ${cifra} más`,
+  sumadas: ({ n }, { plural }) => `Se ${plural(n, { one: "sumó", other: "sumaron" })} ${n} ${plural(n, { one: "revisión", other: "revisiones" })}`,
   vacio: "Nada por aquí todavía.",
   noDisponible: "Esta fuente no tiene la tabla de revisiones.",
   errorAlRefrescar: "No se pudo refrescar; se reintenta solo.",
@@ -93,10 +94,6 @@ export default {
     menosDeUnMinuto: "<1 min",
     minutos: "{n} min",
     horas: "{h} h {min} min",
-  },
-  cola: {
-    titulo: "Próximas",
-    mas: "+{n} más",
   },
   pista: {
     titulo: "Las revisiones parten desde la extensión del navegador",
