@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clienteAgentCore, coincideRuntime, condicionRegistro, expresionActualizar, runtimeAgentes } from "../aws.js";
+import { clienteAgentCore, coincideRuntime, condicionRegistro, expresionActualizar, filtroEnCurso, runtimeAgentes } from "../aws.js";
 
 test("expresionActualizar: SET de los atributos, sin los undefined", () => {
   assert.deepEqual(expresionActualizar({ css_key: "a/tema.css", nada: undefined }), {
@@ -25,6 +25,14 @@ test("expresionActualizar: solo avanza desde los estados previos y, si se pide, 
 
 test("expresionActualizar: pending solo se escribe si no hay estado", () => {
   assert.equal(expresionActualizar({ status: "pending" }, { previos: [] }).ConditionExpression, "attribute_not_exists(#status)");
+});
+
+test("filtroEnCurso: META con esos estados y novedades desde la fecha", () => {
+  assert.deepEqual(filtroEnCurso(["queued", "running"], "2026-11-21T11:00:00.000Z"), {
+    FilterExpression: "SK = :meta AND #status IN (:e0, :e1) AND updated_at >= :desde",
+    ExpressionAttributeNames: { "#status": "status" },
+    ExpressionAttributeValues: { ":meta": "META", ":desde": "2026-11-21T11:00:00.000Z", ":e0": "queued", ":e1": "running" },
+  });
 });
 
 test("coincideRuntime: por nombre exacto o como sufijo del nombre de la CLI", () => {

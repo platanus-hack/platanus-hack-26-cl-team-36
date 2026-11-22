@@ -9,12 +9,12 @@ const URL_PAGINA = "https://www.ejemplo.cl/precios/?ref=1";
 const NORMALIZADA = "https://ejemplo.cl/precios";
 const PAGINA = "https://www.ejemplo.cl/precios/";
 
-function escenario({ falla, archivos } = {}) {
+function escenario({ falla, archivos, maxEnCurso } = {}) {
   const db = tablaFalsa();
   const almacen = almacenFalso(archivos);
   const agentes = agentesFalsos({ falla });
   let n = 0;
-  const api = crearRevisiones({ db, almacen, agentes, ahora: () => new Date(AHORA), idRevision: () => `rev-${++n}` });
+  const api = crearRevisiones({ db, almacen, agentes, ahora: () => new Date(AHORA), idRevision: () => `rev-${++n}`, maxEnCurso });
   return { db, agentes, api };
 }
 
@@ -42,7 +42,7 @@ test("POST de una página nueva: 202, URL y META queued, invoca el conductor", a
 });
 
 test("POST de una página ya vista: 200 con su estado, sin disparar otra revisión", async () => {
-  for (const status of ["queued", "running", "failed"]) {
+  for (const status of ["queued", "running", "done"]) {
     const { db, agentes, api } = escenario();
     await api.solicitar(URL_PAGINA);
     await db.actualizar(claveRevision("rev-1"), { status });
@@ -90,6 +90,40 @@ test("force dispara una revisión nueva para una página ya revisada", async () 
   assert.equal(db.item(claveUrl(NORMALIZADA)).revision, "rev-2");
   assert.equal(db.item(claveRevision("rev-2")).status, "queued");
   assert.deepEqual(agentes.invocaciones.map((p) => p.revision), ["rev-1", "rev-2"]);
+});
+
+test("POST sin force de una página cuya revisión falló: 202 con una revisión nueva", async () => {
+  const { db, agentes, api } = escenario();
+  await api.solicitar(URL_PAGINA);
+  await db.actualizar(claveRevision("rev-1"), { status: "failed" });
+  const respuesta = await api.solicitar(URL_PAGINA);
+  assert.deepEqual(respuesta, { estado: 202, datos: { success: true, revision: "rev-2", status: "queued" } });
+  assert.equal(db.item(claveUrl(NORMALIZADA)).revision, "rev-2");
+  assert.deepEqual(agentes.invocaciones.map((p) => p.revision), ["rev-1", "rev-2"]);
+});
+
+test("con el tope de revisiones en curso: 429 sin crear nada", async () => {
+  const { db, agentes, api } = escenario({ maxEnCurso: 2 });
+  await api.solicitar("https://a.cl/");
+  await api.solicitar("https://b.cl/");
+  const respuesta = await api.solicitar(URL_PAGINA);
+  assert.equal(respuesta.estado, 429);
+  assert.equal(respuesta.datos.success, false);
+  assert.match(respuesta.datos.error, /2 revisiones en curso/);
+  assert.equal(db.item(claveUrl(NORMALIZADA)), undefined);
+  assert.equal(agentes.invocaciones.length, 2);
+
+  // Una página ya vista responde igual, y al terminar una se libera el cupo.
+  assert.equal((await api.solicitar("https://a.cl/")).estado, 200);
+  await db.actualizar(claveRevision("rev-1"), { status: "done" });
+  assert.equal((await api.solicitar(URL_PAGINA)).estado, 202);
+});
+
+test("una revisión en curso sin novedades hace más de una hora no cuenta para el tope", async () => {
+  const { db, api } = escenario({ maxEnCurso: 1 });
+  await api.solicitar("https://a.cl/");
+  await db.actualizar(claveRevision("rev-1"), { updated_at: "2026-11-21T10:59:59.000Z" });
+  assert.equal((await api.solicitar(URL_PAGINA)).estado, 202);
 });
 
 test("si la invocación falla, META queda failed con el error", async () => {

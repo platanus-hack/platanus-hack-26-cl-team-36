@@ -15,7 +15,17 @@ const EN_CURSO = ["queued", "running"];
 // Solo lo que escribe el improver en el almacén (ver proyectora.js).
 const CSS = /^[a-z0-9.:-]+\/improver\/[^/]+\/tema\.css$/;
 
-export function crearRevisiones({ db, almacen, agentes, ahora = () => new Date(), idRevision = nuevaRevision }) {
+// Una revisión queued/running sin novedades en este rato no cuenta para el tope (un runtime caído la deja así).
+const VENTANA_EN_CURSO_MS = 60 * 60_000;
+
+export function crearRevisiones({
+  db,
+  almacen,
+  agentes,
+  ahora = () => new Date(),
+  idRevision = nuevaRevision,
+  maxEnCurso = 5,
+}) {
   async function vista(url) {
     const marca = await db.obtener(claveUrl(url));
     if (!marca) return null;
@@ -33,8 +43,16 @@ export function crearRevisiones({ db, almacen, agentes, ahora = () => new Date()
   async function solicitar(texto, { force = false } = {}, intentos = 3) {
     const { url, host, pagina } = normalizarUrl(texto);
     const previa = await vista(url);
-    // force no duplica una revisión en curso.
-    if (previa && (!force || EN_CURSO.includes(previa.datos.status))) return previa;
+    // Una fallida se reintenta sin force; force no duplica una revisión en curso.
+    if (previa && previa.datos.status !== "failed" && (!force || EN_CURSO.includes(previa.datos.status))) return previa;
+
+    // Aproximado: solicitudes simultáneas pueden pasar el tope (cuentan antes de que las otras registren).
+    const desde = new Date(ahora().getTime() - VENTANA_EN_CURSO_MS).toISOString();
+    const enCurso = await db.contarEnCurso(EN_CURSO, desde);
+    if (enCurso >= maxEnCurso) {
+      const error = `Hay ${enCurso} revisiones en curso (tope ${maxEnCurso}); intenta en unos minutos`;
+      return { estado: 429, datos: { success: false, error } };
+    }
 
     const revision = idRevision();
     const momento = ahora().toISOString();
