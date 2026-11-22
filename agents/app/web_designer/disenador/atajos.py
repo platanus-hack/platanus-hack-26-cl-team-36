@@ -41,7 +41,8 @@ _DE_FORMULARIO = {"select", "check", "uncheck", "fill", "type", "press"}
 
 @dataclass
 class SelectDePagina:
-    """Un `<select>` de la página abierta: un selector que lo encuentra, su id y name, y sus opciones usables."""
+    """Un `<select>` de la página abierta: un selector que lo encuentra, su id y name, y sus opciones usables; y la
+    voz del sitio a su alrededor: el texto de su opción vacía, el título de su sección y el del botón que lo envía."""
 
     selector: str
     id: str = ""
@@ -49,6 +50,9 @@ class SelectDePagina:
     etiqueta: str = ""
     valores: tuple[str, ...] = ()
     elegido: str = ""
+    vacia: str = ""
+    seccion: str = ""
+    boton: str = ""
 
 
 def mismo_sitio(url: str | None, inicio: str) -> str | None:
