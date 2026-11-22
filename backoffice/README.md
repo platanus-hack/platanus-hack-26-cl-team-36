@@ -88,9 +88,31 @@ que importa `app.js` y, según la ruta, la pantalla que va a abrir y los datos d
 
 El backoffice entero (la página, `api/`, `archivos/`, `resultados/` y `propuestas/`) vive bajo `/backoffice/`; `/backoffice` sin la barra
 final redirige ahí, porque la página pide todo con rutas relativas. La raíz (`/`) sirve la portada de
-[`portada/`](portada/): la marca y "Work in progress", sin enlaces al backoffice. Es lo que ve quien abre
-https://chameleonmode.app, la URL de la entrega en `platanus-hack-project.jsonc`. No es un control de acceso: quien
-conozca la ruta entra.
+[`portada/`](portada/): qué es Chameleon y cómo trabajan los agentes, con capturas reales (`portada/img/`), la descarga
+de la extensión para Firefox (Chrome aparece como próximamente) y el botón **Ir a la app**, que lleva a
+`/backoffice/`. Es lo que ve quien abre https://chameleonmode.app, la URL de la entrega en
+`platanus-hack-project.jsonc`. Sin build ni dependencias, como el backoffice: `index.html`, `estilos.css` y
+`portada.js` (el comparador antes/después, la versión publicada y la aparición al bajar; sin él la página se ve
+completa). De `portada/` solo se sirven sus archivos sueltos y las imágenes de `img/`; las imágenes salen con
+`Cache-Control: public, max-age=3600`.
+
+### La descarga de la extensión
+
+Los releases de la extensión viven en el repo personal, que es privado: un enlace al release le da 404 a cualquiera
+que no sea colaborador. Por eso el workflow [`descarga-extension.yml`](../.github/workflows/descarga-extension.yml)
+copia el `.xpi` del último release al almacén, en `_descargas/firefox/` (el `_` hace que no se confunda con un sitio),
+cada vez que termina bien **Publicar extensión**, y el servidor lo sirve con la misma fuente que las corridas
+([`lib/descargas.js`](lib/descargas.js)):
+
+| Ruta | Qué devuelve |
+|---|---|
+| `GET /descargas/firefox.json` | `{ disponible, version, publicado, url }` de `_descargas/firefox/ultima.json` (releído a lo más una vez por minuto); `{ disponible: false }` si no hay. La portada lo usa para mostrar la versión. |
+| `GET /descargas/firefox` | 302 al `.xpi` de la última versión: el enlace fijo de los botones. |
+| `GET /descargas/chameleon-mode-<versión>.xpi` | El `.xpi` firmado, como `application/x-xpinstall` (Firefox ofrece instalarlo), guardable en cualquier caché: Mozilla no firma dos veces la misma versión. |
+
+En local la fuente de archivos lo busca en `agents/.runs/_descargas/firefox/`: sin esa carpeta, la portada dice que
+la descarga está disponible pronto. Para subir a mano el último release (por ejemplo, el primero después de mergear
+el workflow): `gh workflow run descarga-extension.yml -R brayanmoreno/hackathon-grupo36`.
 
 ## Pantallas
 

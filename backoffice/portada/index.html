@@ -1,21 +1,268 @@
 <!doctype html>
-<html lang="en">
+<html lang="es" class="sin-js">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#0B0B10">
-  <title>Chameleon Mode</title>
+  <title>Chameleon Mode · Sitios web que se adaptan a quien los usa</title>
+  <meta name="description" content="Una extensión que rediseña los sitios difíciles de usar, con agentes de IA que los recorren como personas para encontrar dónde se pierden.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://chameleonmode.app/">
+  <meta property="og:title" content="Chameleon Mode">
+  <meta property="og:description" content="Una extensión que rediseña los sitios difíciles de usar, con agentes de IA que los recorren como personas para encontrar dónde se pierden.">
+  <meta property="og:image" content="https://chameleonmode.app/img/social.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="/estilos.css">
+  <script src="/portada.js" defer></script>
 </head>
 <body>
-  <main>
-    <h1><img src="/logo.svg" alt="chameleon mode" width="492" height="128"></h1>
-    <p>Work in progress</p>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="barra">
+    <div class="barra-interior">
+      <a class="marca" href="/" aria-label="Chameleon Mode, inicio"><img src="/logo.svg" alt="" width="492" height="128"></a>
+      <nav class="barra-nav" aria-label="Secciones">
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#descargar">Descargar</a>
+      </nav>
+      <a class="boton boton-chico boton-secundario" href="/backoffice/">Ir a la app <span aria-hidden="true">→</span></a>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <section class="portada" aria-labelledby="titulo">
+      <div class="contenedor portada-texto">
+        <p class="etiqueta">Extensión de navegador</p>
+        <h1 id="titulo">Los sitios web están hechos para el promedio. <span>Chameleon los adapta a quien los usa.</span></h1>
+        <p class="bajada">
+          Agentes de IA recorren cada sitio como lo haría una persona, encuentran dónde se pierde la gente y generan un
+          tema que la extensión aplica encima de la página. El sitio original no cambia, y siempre puedes volver a él.
+        </p>
+        <div class="acciones">
+          <a class="boton boton-primario" href="/descargas/firefox" data-descarga-firefox>
+            <svg class="icono" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Descargar para Firefox
+          </a>
+          <a class="boton boton-secundario" href="/backoffice/">Ir a la app <span aria-hidden="true">→</span></a>
+        </div>
+        <p class="nota" data-version-firefox>Firmada por Mozilla · Chrome, próximamente</p>
+      </div>
+
+      <div class="contenedor contenedor-ancho">
+        <figure class="comparador">
+          <div class="ventana">
+            <div class="ventana-barra" aria-hidden="true">
+              <span class="puntos"><i></i><i></i><i></i></span>
+              <span class="direccion">uchile.cl</span>
+            </div>
+            <div class="comparador-lienzo">
+              <img class="comparador-antes" src="/img/antes.jpg" width="1440" height="900"
+                   alt="La portada de la Universidad de Chile tal como es: el menú y, debajo, un carrusel de fotos que ocupa toda la pantalla.">
+              <img class="comparador-despues" src="/img/despues.jpg" width="1440" height="900"
+                   alt="La misma portada con el tema de Chameleon: un panel «Lo que buscas» con seis tareas directas, como postgrados, diplomados y admisión, y un buscador de tareas.">
+              <span class="rotulo rotulo-despues" aria-hidden="true">Con Chameleon</span>
+              <span class="rotulo rotulo-antes" aria-hidden="true">Original</span>
+              <span class="comparador-linea" aria-hidden="true"><span class="comparador-asa"></span></span>
+              <input class="comparador-control" type="range" min="0" max="100" value="50" step="1"
+                     aria-label="Comparar: a la izquierda la página con Chameleon, a la derecha la original">
+            </div>
+          </div>
+          <figcaption>
+            La Universidad de Chile con el tema que generaron los agentes y sin él: lo que la gente viene a buscar, arriba.
+            <span class="sin-js-oculto">Arrastra para comparar.</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="problema" aria-labelledby="titulo-problema">
+      <div class="contenedor problema-interior">
+        <h2 id="titulo-problema" class="frase">
+          Dar de baja un servicio, pedir un certificado, encontrar el horario de una sucursal.
+          <span>Tareas simples que en muchos sitios se vuelven un laberinto. El dueño del sitio rara vez lo arregla, y
+          quien lo sufre no puede hacer nada.</span>
+        </h2>
+        <div class="telefonos aparece">
+          <figure class="telefono">
+            <img src="/img/antes-movil.jpg" width="780" height="1688" loading="lazy"
+                 alt="metro.cl en el teléfono tal como es: un banner y el estado de cada línea; para planificar un viaje hay que seguir bajando.">
+            <figcaption>Original</figcaption>
+          </figure>
+          <figure class="telefono telefono-despues">
+            <img src="/img/despues-movil.jpg" width="780" height="1688" loading="lazy"
+                 alt="metro.cl con el tema de Chameleon: «Planifica tu viaje» y una lista numerada de tareas, cada una con el color de una línea.">
+            <figcaption>Con Chameleon</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="como-funciona" class="seccion" aria-labelledby="titulo-como">
+      <div class="contenedor">
+        <header class="seccion-cabecera">
+          <p class="etiqueta">Cómo funciona</p>
+          <h2 id="titulo-como">Antes de tocar un sitio, cuatro agentes lo estudian</h2>
+          <p>Cada cambio sale de ver a alguien perderse, no de una opinión sobre cómo debería verse la página.</p>
+        </header>
+
+        <ol class="pasos">
+          <li class="paso aparece">
+            <span class="paso-numero">01</span>
+            <span class="paso-rol">Catalogador</span>
+            <h3>Descubre a qué viene la gente</h3>
+            <p>Lee el sitio y hace un catálogo de lo que la gente viene a hacer en él: los trámites, las consultas, lo que buscan.</p>
+          </li>
+          <li class="paso aparece">
+            <span class="paso-numero">02</span>
+            <span class="paso-rol">Guía</span>
+            <h3>Encuentra el camino más corto</h3>
+            <p>Para cada objetivo busca y verifica la ruta de referencia: por dónde se llega, página a página.</p>
+          </li>
+          <li class="paso aparece">
+            <span class="paso-numero">03</span>
+            <span class="paso-rol">Visitantes</span>
+            <h3>Lo intentan como personas</h3>
+            <p>Usuarios sintéticos intentan la tarea viendo solo capturas de pantalla, en escritorio y en el teléfono: unos van directo, otros parten por el menú, el buscador o el pie.</p>
+          </li>
+          <li class="paso aparece">
+            <span class="paso-numero">04</span>
+            <span class="paso-rol">Diseñador</span>
+            <h3>Genera el tema</h3>
+            <p>Con lo que muestran los intentos, escribe un tema: más contraste, la tarea a la vista, atajos donde la gente se perdió.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="seccion evidencia" aria-label="Lo que dejan los agentes">
+      <div class="contenedor">
+        <article class="fila aparece">
+          <div class="fila-texto">
+            <p class="etiqueta">Mapa de caminos</p>
+            <h3>Dónde se separan de la ruta</h3>
+            <p>
+              Cada tanda de visitantes queda dibujada como una telaraña: la ruta recomendada como eje y, en ramas, los
+              desvíos, las vueltas atrás y los abandonos. El grosor dice cuántos pasaron por ahí, y una marca, dónde
+              alguien se trabó.
+            </p>
+          </div>
+          <figure class="fila-imagen">
+            <img src="/img/mapa.jpg" width="1440" height="900" loading="lazy"
+                 alt="El mapa de caminos de una tanda en metro.cl: la ruta de la portada a Informes Financieros como eje, dos desvíos en ramas y el panel de la página donde el visitante se trabó.">
+          </figure>
+        </article>
+
+        <article class="fila fila-invertida aparece">
+          <div class="fila-texto">
+            <p class="etiqueta">Replay</p>
+            <h3>Cada intento, paso a paso</h3>
+            <p>
+              Qué vio el visitante, dónde hizo clic, qué esperaba encontrar y dónde quedó. La misma evidencia que usa el
+              Diseñador está a la vista de cualquiera.
+            </p>
+          </div>
+          <figure class="fila-imagen">
+            <img src="/img/replay.jpg" width="1440" height="900" loading="lazy"
+                 alt="El Replay de un intento en metro.cl: la lista de pasos, la captura del paso 7 con el clic en «Transparencia Activa» y, al lado, la ruta de la Guía, los desvíos y qué esperaba el visitante.">
+          </figure>
+        </article>
+
+        <article class="fila aparece">
+          <div class="fila-texto">
+            <p class="etiqueta">Propuesta</p>
+            <h3>Un tema que se puede explicar</h3>
+            <p>
+              El Diseñador resume qué cambia y por qué. Cada ajuste del tema queda a la vista con una muestra, junto a sus
+              decisiones y el CSS que aplica la extensión.
+            </p>
+          </div>
+          <figure class="fila-imagen">
+            <img src="/img/propuesta.jpg" width="1440" height="900" loading="lazy"
+                 alt="La pestaña Propuesta para la Biblioteca Nacional: la página antes del tema, el resumen del Diseñador y sus tres cambios, interlineado, botones de 44 px y enlaces subrayados.">
+          </figure>
+        </article>
+      </div>
+    </section>
+
+    <section class="seccion multijugador" aria-labelledby="titulo-multi">
+      <div class="contenedor multijugador-interior aparece">
+        <div>
+          <p class="etiqueta">Multiplayer</p>
+          <h2 id="titulo-multi">Lo que se aprende de un sitio sirve para todos</h2>
+          <p>
+            Cuando alguien visita una página que todavía no tiene tema, los agentes la estudian y el resultado queda
+            disponible para cada persona que usa Chameleon. Cada visita mejora el sitio para la siguiente.
+          </p>
+          <ul class="puntos-clave">
+            <li><strong>Sin tocar el original.</strong> El tema va encima de la página; con el botón de la extensión vuelves a verla como era.</li>
+            <li><strong>A la vista.</strong> Todo lo que hacen los agentes se puede revisar en la app, sitio por sitio.</li>
+          </ul>
+        </div>
+        <figure class="popup">
+          <img src="/img/popup.png" width="300" height="400" loading="lazy"
+               alt="El panel de la extensión: el camaleón encendido y «Haz clic para volver a la página original».">
+        </figure>
+      </div>
+    </section>
+
+    <section id="descargar" class="seccion" aria-labelledby="titulo-descargar">
+      <div class="contenedor">
+        <header class="seccion-cabecera">
+          <p class="etiqueta">Descargar</p>
+          <h2 id="titulo-descargar">Instala Chameleon en tu navegador</h2>
+        </header>
+
+        <div class="descargas">
+          <article class="descarga">
+            <div class="descarga-cabecera">
+              <h3>Firefox</h3>
+              <span class="insignia insignia-lista" data-version-insignia>Disponible</span>
+            </div>
+            <p class="descarga-detalle" data-version-detalle>La última versión, firmada por Mozilla.</p>
+            <a class="boton boton-primario" href="/descargas/firefox" data-descarga-firefox>
+              <svg class="icono" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Descargar el .xpi
+            </a>
+            <p class="descarga-ayuda">
+              Firefox te pedirá permiso para instalarla: aprieta <em>Continuar con la instalación</em> y luego
+              <em>Añadir</em>. Si se descarga como archivo, arrástralo a una ventana de Firefox.
+            </p>
+          </article>
+
+          <article class="descarga descarga-pronto">
+            <div class="descarga-cabecera">
+              <h3>Chrome</h3>
+              <span class="insignia">Próximamente</span>
+            </div>
+            <p class="descarga-detalle">Estamos preparando la versión para Chrome.</p>
+            <button class="boton boton-deshabilitado" type="button" disabled>Próximamente</button>
+            <p class="descarga-ayuda">Mientras tanto, puedes usar Chameleon en Firefox o ver el trabajo de los agentes en la app.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="cierre" aria-labelledby="titulo-cierre">
+      <div class="contenedor cierre-interior aparece">
+        <h2 id="titulo-cierre">Mira a los agentes trabajar</h2>
+        <p>Los sitios revisados, las tandas de visitantes y los temas propuestos, en vivo.</p>
+        <a class="boton boton-primario" href="/backoffice/">Ir a la app <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
   </main>
+
+  <footer class="pie">
+    <div class="contenedor pie-interior">
+      <img src="/logo.svg" alt="Chameleon Mode" width="492" height="128" loading="lazy">
+      <p>chameleonmode.app · Hecho en Platanus Hack 26, Santiago</p>
+    </div>
+  </footer>
 </body>
 </html>

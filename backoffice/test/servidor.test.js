@@ -104,19 +104,68 @@ test("sirve la página con su política de seguridad", async () => {
   assert.equal((await pedir("/app.js")).status, 200);
 });
 
-test("la raíz es la portada: dice work in progress y no enlaza al backoffice", async () => {
+test("la raíz es la portada: lleva a la descarga para Firefox y al backoffice", async () => {
   const portada = await pedirEnRaiz("/");
   assert.equal(portada.status, 200);
   assert.equal(portada.headers.get("content-type"), "text/html; charset=utf-8");
   assert.match(portada.headers.get("content-security-policy"), /script-src 'self'/);
   const html = await portada.text();
-  assert.match(html, /Work in progress/);
-  assert.doesNotMatch(html, /backoffice/i);
+  assert.match(html, /href="\/descargas\/firefox"/);
+  assert.match(html, /href="\/backoffice\/"/);
   assert.equal((await pedirEnRaiz("/estilos.css")).headers.get("content-type"), "text/css; charset=utf-8");
+  assert.equal((await pedirEnRaiz("/portada.js")).headers.get("content-type"), "text/javascript; charset=utf-8");
   for (const archivo of ["/logo.svg", "/favicon.svg"]) {
     const respuesta = await pedirEnRaiz(archivo);
     assert.equal(respuesta.status, 200, archivo);
     assert.equal(respuesta.headers.get("content-type"), "image/svg+xml", archivo);
+  }
+});
+
+test("la portada pide existentes: cada src y href propio de index.html se sirve", async () => {
+  const html = await (await pedirEnRaiz("/")).text();
+  const propias = [...html.matchAll(/(?:src|href)="(\/[^"#]*)"/g)].map(([, ruta]) => ruta).filter((ruta) => !ruta.startsWith("/backoffice/") && !ruta.startsWith("/descargas/"));
+  assert.ok(propias.some((ruta) => ruta.startsWith("/img/")), "la portada tiene imágenes");
+  for (const ruta of new Set(propias)) {
+    const respuesta = await pedirEnRaiz(ruta, { method: "HEAD" });
+    assert.equal(respuesta.status, 200, ruta);
+    if (ruta.startsWith("/img/")) assert.equal(respuesta.headers.get("cache-control"), "public, max-age=3600", ruta);
+  }
+});
+
+test("de portada/ solo se sirven sus archivos sueltos y las imágenes de img/", async () => {
+  for (const ruta of ["/img", "/img/", "/img/x/y.jpg", "/img/../servidor.js", "/img/%2E%2E%2Fservidor.js", "/img/nada.jpg", "/img/foto.gif"]) {
+    const respuesta = await pedirEnRaiz(ruta);
+    assert.ok([400, 404].includes(respuesta.status), `${ruta} respondió ${respuesta.status}`);
+  }
+});
+
+test("/descargas/: la última versión para Firefox, su enlace fijo y el .xpi", async () => {
+  const info = await pedirEnRaiz("/descargas/firefox.json");
+  assert.equal(info.status, 200);
+  assert.deepEqual(await info.json(), { disponible: true, version: "0.6.0", publicado: "2026-11-22T07:46:23.000Z", url: "/descargas/firefox" });
+
+  const enlace = await pedirEnRaiz("/descargas/firefox", { redirect: "manual" });
+  assert.equal(enlace.status, 302);
+  assert.equal(enlace.headers.get("location"), "/descargas/chameleon-mode-0.6.0.xpi");
+  assert.equal(enlace.headers.get("cache-control"), "no-store");
+
+  const xpi = await pedirEnRaiz("/descargas/chameleon-mode-0.6.0.xpi");
+  assert.equal(xpi.status, 200);
+  assert.equal(xpi.headers.get("content-type"), "application/x-xpinstall");
+  assert.equal(xpi.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  assert.equal(await xpi.text(), "PK-xpi-de-prueba");
+
+  for (const ruta of [
+    "/descargas/chameleon-mode-9.9.9.xpi",
+    "/descargas/chameleon-mode-0.6.0.zip",
+    "/descargas/ultima.json",
+    "/descargas/firefox/ultima.json",
+    "/descargas/%2E%2E%2Fdemo.cl%2Fvisitor",
+    "/descargas",
+    "/_descargas/firefox/ultima.json",
+  ]) {
+    const respuesta = await pedirEnRaiz(ruta);
+    assert.ok([400, 404].includes(respuesta.status), `${ruta} respondió ${respuesta.status}`);
   }
 });
 

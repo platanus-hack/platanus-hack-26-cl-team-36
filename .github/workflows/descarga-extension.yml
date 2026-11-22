@@ -1,0 +1,81 @@
+# Copia el .xpi del último release de la extensión al almacén, de donde la portada de chameleonmode.app lo ofrece
+# para descargar (backoffice/lib/descargas.js). Hace falta porque los releases viven en el repo personal, que es
+# privado: un enlace directo al release le da 404 a quien no es colaborador.
+#
+#   s3://chameleon-almacen-<cuenta>/_descargas/firefox/chameleon-mode-<versión>.xpi
+#   s3://chameleon-almacen-<cuenta>/_descargas/firefox/ultima.json    { version, publicado, tag }
+#
+# Corre solo cuando termina bien "Publicar extensión" (just publish v0.7.0) y a mano desde la pestaña Actions o con
+# `gh workflow run descarga-extension.yml -R brayanmoreno/hackathon-grupo36`. Las dos corren sobre main, así que el
+# rol de AWS las acepta (su confianza es solo main: infra/bootstrap); "Publicar extensión" corre sobre el tag y no
+# podría. Siempre copia el último release: correrlo dos veces deja lo mismo.
+#
+# En el repo de la organización el job se salta.
+name: Descarga pública de la extensión
+
+on:
+  workflow_run:
+    workflows: ["Publicar extensión"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  id-token: write # OIDC: asumir el rol de AWS sin llaves guardadas
+  contents: read # leer los releases de este repo (privado)
+
+concurrency:
+  group: descarga-extension
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+
+jobs:
+  copiar:
+    if: >-
+      github.repository == 'brayanmoreno/hackathon-grupo36' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Baja el .xpi del último release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          read -r tag publicado < <(gh release view --repo "$GITHUB_REPOSITORY" --json tagName,publishedAt --jq '"\(.tagName) \(.publishedAt)"')
+          version="${tag#v}"
+          if ! [[ "$version" =~ ^(0|[1-9][0-9]{0,8})(\.(0|[1-9][0-9]{0,8})){2}$ ]]; then
+            echo "::error::El último release no tiene un tag vX.Y.Z: $tag"
+            exit 1
+          fi
+          mkdir xpi
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern '*.xpi' --dir xpi
+          shopt -s nullglob
+          archivos=(xpi/*.xpi)
+          if [ "${#archivos[@]}" -ne 1 ]; then
+            echo "::error::El release $tag debería traer un solo .xpi y trae ${#archivos[@]}."
+            exit 1
+          fi
+          mv "${archivos[0]}" "chameleon-mode-$version.xpi"
+          node -e '
+            const [version, publicado, tag] = process.argv.slice(1);
+            process.stdout.write(JSON.stringify({ version, publicado, tag }, null, 2) + "\n");
+          ' "$version" "$publicado" "$tag" > ultima.json
+          {
+            echo "VERSION=$version"
+            echo "TAG=$tag"
+          } >> "$GITHUB_ENV"
+
+      # El .xpi primero y ultima.json al final: la portada nunca apunta a un archivo que todavía no está.
+      - name: Sube al almacén
+        run: |
+          cuenta=$(aws sts get-caller-identity --query Account --output text)
+          destino="s3://chameleon-almacen-${cuenta}/_descargas/firefox"
+          aws s3 cp "chameleon-mode-$VERSION.xpi" "$destino/chameleon-mode-$VERSION.xpi" --content-type application/x-xpinstall --no-progress
+          aws s3 cp ultima.json "$destino/ultima.json" --content-type "application/json" --cache-control no-store --no-progress
+          echo "✔ $TAG en https://chameleonmode.app/descargas/firefox" >> "$GITHUB_STEP_SUMMARY"
