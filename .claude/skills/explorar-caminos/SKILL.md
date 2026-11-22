@@ -89,17 +89,17 @@ de página de la página inicial.
 
 ## La expectativa de cada acción
 
-Una sola frase, que empiece con la rama: `[rama 2, «Ayuda»] Espero ver preguntas frecuentes con una sección de bajas.`
+Una sola frase, que empiece con la rama: `[rama 2, «Nuestros animales»] Espero ver los perros con un enlace para adoptarlos.`
 Al volver: `[vuelvo a p1] Espero ver otra vez la página inicial.` No expliques tu razonamiento.
 
 ## Texto final (en `done`, `give_up` o `blocked`)
 
 ```
 RESPUESTA: <el dato que responde la tarea, como se ve en pantalla; o "no encontrada">
-RAMAS: 1) Inicio > Ayuda > Bajas (sirvió) 2) Inicio > Planes (callejón) 3) Inicio > buscador «baja» (sirvió, más corta)
+RAMAS: 1) Inicio > Adopciones > Cómo adoptar (sirvió) 2) Inicio > Nuestros animales (callejón) 3) Inicio > buscador «adoptar» (sirvió, más corta)
 HALLAZGOS:
-- [paso 4] respuesta: «Para dar de baja llama al 600 123 4567» | página Bajas
-- [paso 9] obstaculo: «Inicia sesión para continuar» | página Mi cuenta
+- [paso 4] respuesta: «Para adoptar trae tu cédula y agenda una entrevista» | página Cómo adoptar
+- [paso 9] obstaculo: «Inicia sesión para continuar» | página Voluntariado
 ```
 
 Tipos de hallazgo: `respuesta`, `alternativa`, `obstaculo`, `dato_util`. La cita va entre « », copiada de la pantalla,
@@ -108,25 +108,26 @@ máximo 15 palabras. El número de paso es el de "llevas N acciones" justo despu
 ## Ejemplos
 
 <ejemplo>
-Tarea: "Averiguar cómo dar de baja la fibra". B = 30.
-1. p1 Inicio. Candidatas: «Ayuda» (alto, menú), buscador (alto), «Planes Fibra» (medio, contenido), «Mi cuenta» (medio).
-2. Rama 1: clic «Ayuda» → p2 Ayuda → clic «Bajas» → p3 Bajas: muestra el teléfono de bajas. Hallazgo `respuesta`.
-   Quedan 26 (fase 2): `volver_a_nodo` p1.
-3. Rama 2: clic «Planes Fibra» → p4 Planes: solo precios. Callejón. `volver_a_nodo` p1.
-4. Rama 3: clic «Mi cuenta» → p5 pide login. Hallazgo `obstaculo`. `volver_a_nodo` p1.
-5. Rama 4: buscador, escribo «baja fibra», Enter → p6 Resultados → clic en el primero → p3 Bajas otra vez. Hallazgo
-   `alternativa`.
-6. Sub-rama: p2 Ayuda tenía también «Preguntas frecuentes»: `volver_a_nodo` p2 → clic → p7 Preguntas: no habla de
-   bajas. Callejón. Quedan 12: fase 3. `volver_a_nodo` p3 y `done`.
+Tarea: "Averiguar qué piden para adoptar un perro del refugio". B = 30.
+1. p1 Inicio. Candidatas: «Adopciones» (alto, menú), buscador (alto), «Nuestros animales» (medio, contenido),
+   «Voluntariado» (medio).
+2. Rama 1: clic «Adopciones» → p2 Adopciones → clic «Cómo adoptar» → p3 Cómo adoptar: lista lo que piden. Hallazgo
+   `respuesta`. Quedan 26 (fase 2): `volver_a_nodo` p1.
+3. Rama 2: clic «Nuestros animales» → p4 Galería: solo fotos y nombres. Callejón. `volver_a_nodo` p1.
+4. Rama 3: clic «Voluntariado» → p5 pide login. Hallazgo `obstaculo`. `volver_a_nodo` p1.
+5. Rama 4: buscador, escribo «adoptar perro», Enter → p6 Resultados → clic en el primero → p3 Cómo adoptar otra vez.
+   Hallazgo `alternativa`.
+6. Sub-rama: p2 Adopciones tenía también «Historias felices»: `volver_a_nodo` p2 → clic → p7 Historias: no dice qué
+   piden. Callejón. Quedan 12: fase 3. `volver_a_nodo` p3 y `done`.
 </ejemplo>
 
 <ejemplo>
-Tarea: "Encontrar el horario de la sucursal de Providencia". B = 30.
-1. Rama 1: «Sucursales» → mapa sin lista; 1 scroll, nada. Callejón. `volver_a_nodo` p1.
+Tarea: "Averiguar si al museo se puede entrar con coche de guagua". B = 30.
+1. Rama 1: «Exposiciones» → lista de salas, nada sobre el ingreso; 1 scroll, nada. Callejón. `volver_a_nodo` p1.
 2. Rama 2: pie de página «Contacto» → solo formulario. Callejón. `volver_a_nodo` p1.
-3. Rama 3: buscador «Providencia» → resultado «Sucursal Providencia» → horario visible. Hallazgo `respuesta`.
-4. Quedan 14: abro una rama más (menú «Nosotros» → callejón), vuelvo con `volver_a_nodo` a la página del horario y
-   termino con `done`.
+3. Rama 3: buscador «coche» → resultado «Visita con niños» → dice que el coche entra. Hallazgo `respuesta`.
+4. Quedan 14: abro una rama más (menú «Tienda» → callejón), vuelvo con `volver_a_nodo` a la página de la visita con
+   niños y termino con `done`.
 </ejemplo>
 
 ## Antes de terminar, revisa

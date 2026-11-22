@@ -96,8 +96,16 @@ export function montarMarco({ tanda, ruta, navegar }) {
   ponerVecinas();
 
   // En angosto la instrucción se corta en 2 líneas: se abre tocándola o con el botón (que sí llega el teclado).
+  // Con exploradores «sin contexto», la versión de la tarea que leyeron va como segunda línea.
   const instruccion = tanda.instruccion
-    ? el("p", { id: "marco-instruccion", class: "prosa marco-instruccion", texto: tanda.instruccion, title: t("comun.marco.verInstruccion") })
+    ? el(
+        "p",
+        { id: "marco-instruccion", class: "prosa marco-instruccion", title: t("comun.marco.verInstruccion") },
+        tanda.instruccion,
+        tanda.instruccionSinContexto
+          ? el("span", { class: "marco-sin-contexto" }, el("span", { class: "texto-3", texto: `${t("comun.marco.versionSinContexto")} ` }), tanda.instruccionSinContexto)
+          : null,
+      )
     : null;
   const verInstruccion = instruccion
     ? el("button", { type: "button", class: "boton boton-fantasma marco-ver-instruccion", "aria-expanded": "false", "aria-controls": "marco-instruccion", texto: t("comun.marco.verInstruccion") })

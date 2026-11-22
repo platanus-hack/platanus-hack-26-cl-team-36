@@ -41,6 +41,8 @@ export function crearCabecera({ t, fmt, tanda, senal }) {
   );
 
   const meta = el("p", { class: "replay-meta texto-3" });
+  // La tarea que leyó este intento (cada nivel de conocimiento lee la suya) y lo que no le dejaron escribir.
+  const tarea = el("div", { class: "replay-tarea" });
   const veredicto = el("div", { class: "replay-veredicto" });
   const panel = el("div", { class: "replay-panel tarjeta", id: "replay-panel-veredicto", hidden: true });
   const alternador = el(
@@ -64,6 +66,7 @@ export function crearCabecera({ t, fmt, tanda, senal }) {
     { class: "replay-cabecera" },
     titulo,
     el("div", { class: "replay-cabecera-fila" }, navegacion, meta),
+    tarea,
     el("div", { class: "replay-cabecera-fila replay-cabecera-veredicto" }, veredicto, alternador),
     panel,
   );
@@ -95,6 +98,16 @@ export function crearCabecera({ t, fmt, tanda, senal }) {
       typeof intento.duracion === "number" ? el("span", { title: t("replay.cabecera.duracionAyuda"), texto: fmt.duracion(intento.duracion) }) : null,
       viewport ? el("span", { title: t("replay.cabecera.viewportAyuda"), texto: t("replay.cabecera.viewport", { ancho: viewport.ancho, alto: viewport.alto }) }) : null,
     );
+
+    const instruccion = intento.instruccion ?? tanda.instruccion ?? "";
+    const rechazados = intento.terminosRechazados ?? [];
+    reemplazar(
+      tarea,
+      intento.conocimiento ? el("span", { class: `replay-nivel replay-nivel-${intento.conocimiento}`, texto: t(`replay.cabecera.nivel.${intento.conocimiento}`) }) : null,
+      instruccion ? el("p", { class: "replay-tarea-texto prosa" }, el("span", { class: "texto-3", texto: `${t("replay.cabecera.tarea")} ` }), instruccion) : null,
+      rechazados.length ? el("p", { class: "replay-tarea-rechazos texto-3", texto: t("replay.cabecera.rechazados", { terminos: fmt.lista(rechazados) }) }) : null,
+    );
+    tarea.hidden = !instruccion && !intento.conocimiento;
 
     const error = intento.resultado === "error" ? textoDeError(intento.error, t) : null;
     if (error) {

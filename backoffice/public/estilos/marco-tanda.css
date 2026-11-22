@@ -15,6 +15,7 @@
 
 .marco-titulo { margin-block-start: var(--e-2); overflow-wrap: anywhere; }
 .marco-instruccion { color: var(--texto-2); max-width: 80ch; }
+.marco-sin-contexto { display: block; margin-block-start: 2px; }
 .marco-ver-instruccion { display: none; min-height: 24px; padding: 0 var(--e-1); font-size: 12px; justify-self: start; }
 
 /* El "·" entre datos va en el hueco (position: absolute): el que cae al inicio de una línea queda fuera de la caja y

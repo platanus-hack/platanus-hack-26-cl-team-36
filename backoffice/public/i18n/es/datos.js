@@ -84,7 +84,8 @@ export default {
           ? (e > 0 ? "El único intento válido llega" : "El único intento llega")
           : (e > 0 ? `Los ${v} intentos válidos llegan` : `Los ${v} llegan`);
         let como = " por la ruta recomendada.";
-        if (d === 0) como = v === 1 ? ", pero no por la ruta recomendada." : ", ninguno por la ruta recomendada.";
+        if (directos === null || directos === undefined) como = "."; // sin ruta recomendada
+        else if (d === 0) como = v === 1 ? ", pero no por la ruta recomendada." : ", ninguno por la ruta recomendada.";
         else if (d < l) como = `; ${l - d} por otro camino.`;
         return `${sujeto} a la respuesta${como}`;
       }
@@ -131,7 +132,8 @@ export default {
       if (caso === "demora") return `${sujeto} a la respuesta, pero ${intento ?? ""} da ${n(cuenta)} pasos seguidos en «${pagina ?? ""}».`;
       return `${sujeto} a la respuesta, pero hay ${pasos(n(cuenta))} con tropiezos.`;
     },
-    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos }) => {
+    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos, logrados }) => {
+      if (!hayRuta && n(logrados) > 0) return "No hay una ruta recomendada que seguir: el eje es el camino más transitado.";
       if (!hayRuta) return "Nadie llegó a la respuesta: el eje es el camino más transitado.";
       const [s, v] = [n(siguen), n(validos)];
       let quienes;
@@ -151,6 +153,7 @@ export default {
       }
       const total = n(perfiles);
       const sujeto = total === 1 ? "El único perfil llega" : `Los ${total} perfiles llegan`;
+      if (caso === "llegan") return conNota(`${sujeto} a la respuesta.`, nota);
       return conNota(`${sujeto} con un costo parecido al de la ruta.`, nota);
     },
   },

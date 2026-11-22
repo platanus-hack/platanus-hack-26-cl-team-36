@@ -13,7 +13,7 @@
 // JS solo pone atributos, clases y textos; todo lo visual está en popup.css e idioma.css.
 
 import "../comun/idioma.js";
-import { crearCola, decidirVista, textoPendientes, validarEnvio } from "./estado.js";
+import { claveDeAyuda, crearCola, decidirVista, textoPendientes, validarEnvio } from "./estado.js";
 import { animarCambio, crearSelectorIdioma, ponerTexto } from "./idioma.js";
 import "./interruptor.js"; // animación del camaleón del interruptor (solo visual)
 
@@ -84,7 +84,8 @@ function dibujarInterruptor() {
   el.interruptor.setAttribute("aria-pressed", String(Boolean(activo)));
   el.chip.textContent = activo === null ? "…" : activo ? "ON" : "OFF"; // igual en todos los idiomas
   ponerTexto(el.estado, tx(activo === null ? "interruptor.cargando" : activo ? "interruptor.encendido" : "interruptor.apagado"));
-  ponerTexto(el.ayuda, activo === null ? "" : tx(activo ? "interruptor.ayudaEncendido" : "interruptor.ayudaApagado"));
+  const ayuda = claveDeAyuda(estado);
+  ponerTexto(el.ayuda, ayuda ? tx(ayuda) : "");
 }
 
 function dibujarOpinion() {

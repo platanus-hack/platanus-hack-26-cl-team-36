@@ -24,6 +24,17 @@
 .p-replay .replay-meta { display: flex; flex-wrap: wrap; font-size: 12px; font-variant-numeric: tabular-nums; }
 .p-replay .replay-meta > * + *::before { content: "·"; margin-inline: var(--e-2); color: var(--texto-4); }
 
+.p-replay .replay-tarea { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--e-1) var(--e-2); min-width: 0; font-size: 13px; }
+.p-replay .replay-tarea[hidden] { display: none; }
+.p-replay .replay-tarea-texto { color: var(--texto-2); max-width: 90ch; min-width: 0; flex: 1 1 320px; }
+.p-replay .replay-tarea-rechazos { flex-basis: 100%; font-size: 12px; }
+.p-replay .replay-nivel {
+  flex: none; padding: 1px 8px; border-radius: 999px; font-size: 11px; line-height: 18px; font-weight: 600;
+  border: 1px solid var(--borde); color: var(--texto-2); background: var(--superficie-2);
+}
+.p-replay .replay-nivel-sin_contexto { border-color: var(--aviso); color: var(--aviso); }
+.p-replay .replay-nivel-conoce_tema { border-color: var(--acento); color: var(--acento-fuerte); }
+
 .p-replay .replay-cabecera-veredicto { flex-wrap: nowrap; align-items: flex-start; }
 .p-replay .replay-veredicto { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--e-1) var(--e-2); min-width: 0; flex: 1; }
 .p-replay .replay-veredicto > .insignia { flex: none; margin-block-start: 1px; }

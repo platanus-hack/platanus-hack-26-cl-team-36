@@ -17,7 +17,8 @@
   --mt-borde: #2a2a38;
   --mt-texto: #fbfbfe;
   --mt-texto-suave: #a9a9bc;
-  --mt-texto-tenue: #75758a;
+  /* ≥ 4.5:1 sobre tinta, superficie y superficie-alta (test/popup.test.js lo comprueba). */
+  --mt-texto-tenue: #8e8ea3;
   --mt-error: #ff7a9c;
 
   --mt-espectro: linear-gradient(90deg, var(--mt-lima), var(--mt-turquesa), var(--mt-azul), var(--mt-violeta), var(--mt-magenta));
@@ -167,8 +168,31 @@ body[data-activo="si"] .mt-chip {
   display: none;
 }
 
-.mt-opinion:not([data-modo="completa"]) .mt-pregunta,
-.mt-opinion:not([data-modo="completa"]) .mt-opciones,
+/* La pregunta con sus opciones y el aviso van en la misma celda: la tarjeta mide lo mismo con o sin opciones
+   (el interruptor de abajo no salta al encender o apagar). Sin opciones, quedan invisibles pero ocupan su lugar. */
+.mt-eleccion {
+  display: grid;
+}
+
+.mt-eleccion > * {
+  grid-area: 1 / 1;
+}
+
+.mt-votar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mt-eleccion .mt-aviso {
+  align-self: start;
+}
+
+.mt-opinion[data-modo="solo-comentario"] .mt-votar {
+  visibility: hidden;
+}
+
+.mt-opinion:is([data-modo="no-disponible"], [data-modo="cargando"]) .mt-votar,
 .mt-opinion[data-modo="no-disponible"] .mt-formulario,
 .mt-opinion[data-modo="no-disponible"] .mt-privacidad,
 .mt-opinion[data-modo="cargando"] .mt-formulario {

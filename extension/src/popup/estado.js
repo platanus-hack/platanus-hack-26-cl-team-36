@@ -51,6 +51,15 @@ export function decidirVista({ activo, pagina }) {
   return { modo: "completa", aviso: null, privacidad: PRIVACIDAD.conCopia };
 }
 
+// La ayuda bajo el interruptor dice lo que hace el clic en esta pestaña. Con tema, el cambio se ve (vuelve a la
+// página original o aplica el diseño); sin tema (o sin saber todavía), solo se enciende o apaga Chameleon.
+export function claveDeAyuda({ activo, pagina }) {
+  if (activo === null || activo === undefined) return null;
+  const conTema = Boolean(pagina?.alcanzable && pagina?.temaId);
+  if (conTema) return activo ? "interruptor.ayudaEncendido" : "interruptor.ayudaApagado";
+  return activo ? "interruptor.ayudaEncendidoSinTema" : "interruptor.ayudaApagadoSinTema";
+}
+
 // Decide si se puede enviar y qué voto sale. `opcion` es el botón elegido
 // ("mejor" | "peor" | "comentario" | null); en "solo-comentario" no hay que elegir.
 // → { ok: true, voto, comentario } | { ok: false, motivo, parametros? } (motivo = clave del diccionario)

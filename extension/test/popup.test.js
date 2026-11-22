@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { AVISOS, MAX_COMENTARIO, PRIVACIDAD, crearCola, decidirVista, textoPendientes, validarEnvio } from "../src/popup/estado.js";
+import { AVISOS, MAX_COMENTARIO, PRIVACIDAD, claveDeAyuda, crearCola, decidirVista, textoPendientes, validarEnvio } from "../src/popup/estado.js";
 
 const { TEXTOS } = globalThis.MiTema.idioma; // lo carga estado.js
 
@@ -222,4 +222,59 @@ test("popup y textos visibles: ningún texto suelto en español en popup.js", ()
   const js = leer("popup/popup.js");
   // Los textos van por el diccionario: popup.js no asigna cadenas con letras a textContent/placeholder.
   assert.doesNotMatch(js, /(?:textContent|placeholder)\s*=\s*["'`][^"'`]*[a-zA-Záéíóúñ]{3}/);
+});
+
+// ── Contraste, interruptor quieto y ayuda verdadera ─────────────────────────────────────────────────────────────
+
+/** Contraste WCAG 2 entre dos colores #rrggbb. */
+function contraste(a, b) {
+  const luminancia = (hex) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [claro, oscuro] = [luminancia(a), luminancia(b)].sort((x, y) => y - x);
+  return (claro + 0.05) / (oscuro + 0.05);
+}
+
+test("el texto tenue del popup se lee (≥ 4.5:1) sobre el fondo y las dos superficies", () => {
+  const css = leer("popup/popup.css");
+  const variable = (nombre) => css.match(new RegExp(`--${nombre}:\\s*(#[0-9a-fA-F]{6})`))?.[1];
+  const tenue = variable("mt-texto-tenue");
+  assert.ok(tenue, "falta --mt-texto-tenue");
+  for (const fondo of ["mt-tinta", "mt-superficie", "mt-superficie-alta"]) {
+    const valor = contraste(tenue, variable(fondo));
+    assert.ok(valor >= 4.5, `--mt-texto-tenue sobre --${fondo}: ${valor.toFixed(2)}:1`);
+  }
+  assert.ok(contraste("#ffffff", "#000000") > 20.9 && contraste("#777777", "#ffffff") < 4.5, "la fórmula de contraste");
+});
+
+test("la pregunta con sus opciones y el aviso comparten celda: la tarjeta no cambia de alto al encender o apagar", () => {
+  const html = leer("popup/popup.html");
+  const css = leer("popup/popup.css");
+  const eleccion = html.slice(html.indexOf('class="mt-eleccion"'), html.indexOf("<form"));
+  for (const parte of ['class="mt-pregunta"', 'class="mt-opciones"', 'id="mt-aviso"']) assert.ok(eleccion.includes(parte), `${parte} dentro de .mt-eleccion`);
+  assert.match(css, /\.mt-eleccion > \*\s*\{\s*grid-area: 1 \/ 1;/);
+  // En solo-comentario las opciones se esconden sin dejar de ocupar su lugar (visibility, no display).
+  assert.match(css, /\.mt-opinion\[data-modo="solo-comentario"\] \.mt-votar\s*\{\s*visibility: hidden;/);
+  assert.doesNotMatch(css, /data-modo="completa"\]\) \.mt-(pregunta|opciones)/, "nada oculta las opciones con display al pasar a solo-comentario");
+});
+
+test("la ayuda del interruptor dice lo que hace el clic en esta pestaña, en los dos idiomas", () => {
+  const conTema = { alcanzable: true, temaId: "youtube" };
+  const sinTema = { alcanzable: true, temaId: null };
+  assert.equal(claveDeAyuda({ activo: true, pagina: conTema }), "interruptor.ayudaEncendido");
+  assert.equal(claveDeAyuda({ activo: false, pagina: conTema }), "interruptor.ayudaApagado");
+  assert.equal(claveDeAyuda({ activo: true, pagina: sinTema }), "interruptor.ayudaEncendidoSinTema");
+  assert.equal(claveDeAyuda({ activo: false, pagina: sinTema }), "interruptor.ayudaApagadoSinTema");
+  assert.equal(claveDeAyuda({ activo: true, pagina: null }), "interruptor.ayudaEncendidoSinTema", "sin saber todavía, lo que siempre es cierto");
+  assert.equal(claveDeAyuda({ activo: true, pagina: { alcanzable: false } }), "interruptor.ayudaEncendidoSinTema");
+  assert.equal(claveDeAyuda({ activo: null, pagina: conTema }), null);
+  for (const idioma of Object.keys(TEXTOS)) {
+    for (const clave of ["interruptor.ayudaEncendido", "interruptor.ayudaApagado", "interruptor.ayudaEncendidoSinTema", "interruptor.ayudaApagadoSinTema"]) {
+      const texto = TEXTOS[idioma][clave];
+      assert.ok(texto, `${idioma}: falta ${clave}`);
+      assert.doesNotMatch(texto, /\b(Toca|Tap)\b/, `${idioma}: «${texto}» habla de tocar en una extensión de escritorio`);
+    }
+    assert.doesNotMatch(TEXTOS[idioma]["interruptor.ayudaEncendidoSinTema"], /original/, "sin tema no se promete volver a la página original");
+  }
 });

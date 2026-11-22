@@ -17,6 +17,12 @@ export default {
     duracionAyuda: "Lo que duró el intento",
     viewport: "{ancho}×{alto}",
     viewportAyuda: "Tamaño de la ventana del navegador",
+    tarea: "Tarea que leyó:",
+    nivel: {
+      sin_contexto: "sin contexto",
+      conoce_tema: "conoce el tema",
+    },
+    rechazados: "Términos que no podía escribir: {terminos}",
   },
 
   veredicto: {

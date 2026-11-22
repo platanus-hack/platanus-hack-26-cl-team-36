@@ -41,6 +41,11 @@ def test_mapa(sitio):
     assert resultado["variables_css"]["total"] == 3
     assert any(b["selector"] == "button#pagar" and b["clases"] == ["cta"] and b["fondo"] == "rgb(10, 88, 202)" for b in resultado["botones_destacados"])
     assert resultado["conteos"]["botones"] == 2
+    # Los enlaces de la navegación, con un selector que los encuentra (la receta Tarea no tiene que inventarlo).
+    assert resultado["enlaces_de_navegacion"] == [
+        {"texto": "Inicio", "href": "#a", "selector": "a[href='#a']"},
+        {"texto": "Ayuda", "href": "#b", "selector": "a[href='#b']"},
+    ]
     completo, recortado = mapa.como_texto(resultado), mapa.como_texto(resultado, max_caracteres=600)
     assert len(recortado) < len(completo)
     assert json.loads(recortado)["contenedores"] == [] and json.loads(recortado)["variables_css"]
@@ -177,3 +182,21 @@ def test_sin_tema_no_se_pierde_nada(tmp_path):
 
     _en_pagina(archivo.as_uri(), cuerpo)
     assert resultado["despues"]["perdidos_total"] == 0 and resultado["despues"]["ocultos"] == 0
+
+
+def test_como_texto_recorta_los_enlaces_de_navegacion_antes_que_los_landmarks():
+    def lista(n, clave):
+        return [{clave: f"{clave}-{i}-" + "x" * 30} for i in range(n)]
+
+    def largo(mapa_):
+        return len(json.dumps(mapa_, ensure_ascii=False, separators=(",", ":")))
+
+    base = {"url": "u", "contenedores": lista(20, "c"), "encabezados": lista(20, "h"), "enlaces_de_navegacion": lista(15, "e"), "landmarks": lista(10, "l")}
+    sin_contenedores_ni_encabezados = largo({**base, "contenedores": [], "encabezados": []})
+    recortado = json.loads(mapa.como_texto(base, max_caracteres=sin_contenedores_ni_encabezados - 50))
+    assert recortado["contenedores"] == [] and recortado["encabezados"] == []
+    assert 0 < len(recortado["enlaces_de_navegacion"]) < 15
+    assert len(recortado["landmarks"]) == 10, "los landmarks se recortan al final"
+    assert json.loads(mapa.como_texto(base, max_caracteres=10**6)) == base
+    # Un mapa viejo sin la lista tampoco falla.
+    assert "enlaces_de_navegacion" not in json.loads(mapa.como_texto({k: v for k, v in base.items() if k != "enlaces_de_navegacion"}, 200))
