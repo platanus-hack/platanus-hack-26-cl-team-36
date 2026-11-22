@@ -61,8 +61,9 @@ export function crearTransmisor({ revisiones, cabeceras = {}, intervaloMs = 2000
       return responderJson(res, 404, { error: "No existe ese goal en esa revisión" });
     }
     const ultimoId = req.headers["last-event-id"] ?? null;
-    // Con el goal terminado, una reconexión recibe 204: así EventSource deja de reintentar.
-    if (req.method === "HEAD" || (ultimoId && goalTerminado(leido))) {
+    // Reconexión a un goal terminado sin nada pendiente: 204 para que EventSource no reintente (el cliente cierra al recibir `fin`).
+    const nadaPendiente = ultimoId && goalTerminado(leido) && !crearSeguimiento(ultimoId)(eventosDelGoal(leido)).length;
+    if (req.method === "HEAD" || nadaPendiente) {
       abiertas -= 1;
       res.writeHead(req.method === "HEAD" ? 200 : 204, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store", ...cabeceras });
       return res.end();

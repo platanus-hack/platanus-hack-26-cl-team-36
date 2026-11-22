@@ -205,9 +205,21 @@ test("el Visitante termina: sale su end, después fin, y se cierra", async () =>
   assert.deepEqual(mensajes.at(-1), { event: "fin", data: { revision: "en-curso", goal: "horario", estado: "succeeded" } });
 });
 
-test("goal terminado: una reconexión con Last-Event-ID recibe 204; sin ella, todo y fin", async () => {
-  const respuesta = await fetch(`${base}/en-curso/horario`, { headers: { "Last-Event-ID": `${VISITA}|desktop|2|end` } });
-  assert.equal(respuesta.status, 204);
+test("goal terminado: quien se cortó antes del end lo recibe con fin; sin nada pendiente, 204", async () => {
+  const cortado = await escuchar(`${base}/en-curso/horario`, { cabeceras: { "Last-Event-ID": `${VISITA}|desktop|2|step` } });
+  assert.equal(cortado.cerrado, true);
+  const delVisitante = eventos(cortado.mensajes).filter((m) => m.data.agent === "visitor").map((m) => m.id);
+  assert.deepEqual(delVisitante, [`${VISITA}|desktop|2|end`]);
+  assert.equal(cortado.mensajes.at(-1).event, "fin");
+  // Sin Guía en la revisión, el end del único intento deja todo enviado.
+  const guia = items.find((i) => i.SK === "GOAL#horario#guide");
+  items.splice(items.indexOf(guia), 1);
+  try {
+    const respuesta = await fetch(`${base}/en-curso/horario`, { headers: { "Last-Event-ID": `${VISITA}|desktop|2|end` } });
+    assert.equal(respuesta.status, 204);
+  } finally {
+    items.splice(1, 0, guia);
+  }
   const { mensajes, cerrado } = await escuchar(`${base}/en-curso/horario`);
   assert.equal(cerrado, true);
   assert.equal(eventos(mensajes).length, 8);
