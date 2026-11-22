@@ -55,7 +55,7 @@ export function contarAcciones(pasos) {
  * No cuenta la página final de un intento logrado (ahí lee la respuesta).
  *
  * Los pasos "en una página" son las acciones hechas estando en ella, contando la que la deja: la misma cuenta
- * que los pasos de un tramo de la ruta (Resumen: "3 pasos" bajo Inicio ↔ "da 6 pasos seguidos en «Inicio» (la
+ * que los pasos de un tramo de la ruta (la ruta: "3 pasos" bajo Inicio ↔ "da 6 pasos seguidos en «Inicio» (la
  * ruta: 3)"). El umbral se calcula con los pasos que se quedan en la página (diseño §2.6), que es lo mismo
  * con uno menos a cada lado.
  * @param {{ pasos: { numero: number, accion: string, pagina: string | null, salePagina: boolean }[] }} intento
@@ -320,7 +320,7 @@ function dificultad(tanda, lista) {
 }
 
 /**
- * Las frases con que abren Resumen (tanda), Telaraña y Perfiles, como clave + variables.
+ * Las frases con que abren la cabecera de la tanda (la tanda y sus intentos) y Telaraña, como clave + variables.
  * `tanda` lleva además `nivel`: "bien" (todos llegan sin dificultad), "dificultad" (todos llegan, pero alguien
  * tarda o tropieza: datos.titular.tanda) o el nivel del hallazgo `resultado`.
  * @param {{ intentos: any[], telarana: { ruta: any }, kpis: any, perfiles: any[] }} tanda
@@ -336,6 +336,8 @@ export function titulares(tanda, lista) {
     clave: "datos.titular.telarana",
     vars: {
       hayRuta: Boolean(ruta),
+      enInicio: Boolean(tanda.telarana.rutaEnInicio),
+      probabilidad: tanda.telarana.rutaEnInicio?.probabilidad ?? null,
       tramos: ruta?.tramos.length ?? 0,
       pasosIdeales: ruta?.pasosIdeales ?? null,
       siguen: kpis.siguenLaRuta,

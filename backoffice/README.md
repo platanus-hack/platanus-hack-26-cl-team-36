@@ -59,21 +59,38 @@ conozca la ruta entra.
 
 ## Pantallas
 
-**Corridas** (`#/`) lista las tandas, más nuevas primero y agrupadas por día. Cada fila abre la tanda y ya dice su
-hallazgo. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
+**Corridas** (`#/`) lista las tandas, más nuevas primero y agrupadas por día. Cada fila abre la tanda y dice solo qué
+tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor), los errores de la herramienta si los hay y
+cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
 
-Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene un marco común (migas, tanda anterior/siguiente, instrucción,
-veredicto) y cuatro pestañas:
+Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene una cabecera mínima, común a sus pestañas:
+la tarea (con tanda anterior/siguiente y copiar enlace) y, debajo, sitio, fecha y cuántos llegan. Debajo, dos
+pestañas (la primera es la de por defecto; los enlaces viejos a `/resumen` llevan a ella):
 
 | Pestaña | Qué pregunta responde | De dónde sale |
 |---|---|---|
-| **Resumen** (por defecto) | ¿Llegaron a la respuesta y qué hay que mirar? Abre con el titular y los hallazgos (desvíos, demoras, tropiezos, errores), cada uno con enlace al paso exacto en Replay y Telaraña; luego la ruta, los intentos y el criterio del juez. | `route_tree.json`, cada `<perfil>/run.json` y `criteria.json`, derivados en `lib/` |
-| **Telaraña** | ¿Por dónde fueron? Un grafo dirigido de izquierda a derecha: el inicio a la izquierda, la meta (el final de la ruta y las páginas donde alguien encontró la respuesta) a la derecha y las demás páginas en columnas según los pasos desde el inicio, ordenadas para cruzarse lo menos posible y repartidas encima y debajo de la ruta recomendada, que es una fila recta; los tramos son rectas (casi rectas si saltan columnas). Las vueltas atrás y los pasos laterales son arcos bajos, tenues y de un tono neutro, que se encienden al pasar el puntero o elegir una página. Grosor = intentos, color = cómo terminaron. Filtro por perfil (atenúa, no saca), panel por página, marcas donde alguien se trabó, modo historia (un intento recorriendo el mapa) y vista 3D. | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
-| **Replay** | ¿Qué hizo un intento, paso a paso? Riel de pasos, visor (después, antes, deslizar, superponer) y línea de tiempo sincronizados, con el veredicto y el criterio fijos arriba. Si hay `video.webm`, se puede ver el video. | `<perfil>/run.json`, `step_NN.png`, `video.webm` y `criteria.json` |
-| **Perfiles** | ¿A qué perfil le cuesta más? Resultado por intento, hasta qué hito de la ruta llega cada perfil, métricas por columna y la tabla de intentos ordenable. Toda marca abre el Replay en el paso que corresponde. | `perfiles` y `intentos` de la tanda derivada |
+| **Mapa de caminos** | ¿Por dónde fueron? Una telaraña: el inicio al centro, un anillo por paso y la ruta recomendada como eje recto; las demás rutas salen como ramas curvas (arriba las que vuelven o llegan, abajo las que fallan). Grosor = intentos, color = cómo terminaron (leyenda abajo); cada camino termina en su resultado (logrado, fallido, abandonado, error) y unas partículas lo recorren. Panel por página (quién pasó, adónde fue, cómo terminó, con enlace al paso en Replay) y marcas donde alguien se trabó. En pantallas más altas que anchas el eje apunta hacia abajo. | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
+| **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que se puede reproducir. | `<perfil>/run.json` y `step_NN.png` |
 
-Inventario y Propuestas no existen todavía: el menú solo las anuncia en "Próximamente", junto con cómo gatillar
-recorridos desde la terminal.
+### Animaciones del Replay
+
+Cada paso pasa de su captura de antes (`screenshot_before`) a la de después (`screenshot`) mostrando la acción, sobre
+la imagen y a su escala (las coordenadas vienen en px del `viewport` de `run.json`):
+
+| Acción | Cómo se ve |
+|---|---|
+| clic, doble clic | el cursor viaja en curva desde el punto anterior, con una estela, y deja una onda (dos si es doble) y una marca fija |
+| desplazar | la página corre como una tira en la dirección del scroll; una pastilla con la flecha queda donde estaba el mouse |
+| escribir | el texto aparece letra a letra en una etiqueta junto al último clic de esa página (o abajo, si no hay) |
+| tecla | un distintivo con la tecla (`⏎ Enter`, `Inicio`…) que se pulsa |
+| cambio de URL | la página nueva entra desde la derecha sobre la anterior, que se oscurece, con el rótulo `→ sitio/ruta` |
+| «volver a» y atrás | la página entra desde la izquierda, con el rótulo ámbar `↩ Volver a «…»` |
+
+Reproducir anima cada paso entero y lo deja quieto 0,7 s; elegir un paso a mano (lista, barra, flechas) lo anima en
+versión corta. Con `prefers-reduced-motion` no se mueve nada: se ve la captura final con la marca, el texto o la tecla.
+El plan de cada paso es puro (`public/replay/animacion.js`, con pruebas) y `public/replay/escena.js` lo dibuja con
+la Web Animations API. Sin three.js: todo es 2D sobre una captura, y CSS/WAAPI lo hace en la GPU con texto nítido
+del DOM, sin agregar una dependencia más pesada que todo el front.
 
 ## Cómo leer las cifras
 
@@ -84,8 +101,7 @@ recorridos desde la terminal.
   (`?s=…`) y el mismo título no vacío. El panel de la página lista las variantes de URL unidas. Los nodos sin
   título nunca se unen.
 - **Ruta recomendada, no happy path.** El eje es `recommended_route`, la ruta de menor costo entre las que hicieron
-  los intentos, y se rotula así en todas partes. El happy path con DOM es de una etapa que aún no existe. Si nadie llegó,
-  el eje es el camino más transitado.
+  los intentos, y se rotula así en todas partes. Si nadie llegó, el eje es el camino más transitado.
 - **Llegar no basta.** Si todos llegan pero alguno se demora, tropieza o da más pasos que la ruta, el titular lo dice
   ("Los 3 llegan a la respuesta, pero Apurado tarda 12 pasos (la ruta: 5).") y se marca como dificultad, no como
   éxito limpio. Los pasos en una página cuentan todas las acciones hechas ahí, incluida la que sale: la misma unidad
@@ -112,17 +128,17 @@ nunca se traducen.
 
 ## Teclado
 
-`?` muestra la hoja con los atajos activos en la vista actual. ⌘ en Mac, Ctrl en el resto.
+`?` muestra la hoja con los atajos que funcionan en la vista abierta: la arma con lo que está registrado en ese
+momento (`gruposDeLaHoja` en `public/nucleo/atajos.js`), así nunca anuncia una tecla que no existe. ⌘ en Mac, Ctrl en
+el resto.
 
 | Dónde | Teclas |
 |---|---|
 | Siempre | `⌘K` paleta de comandos · `?` atajos · `g c` ir a Corridas · `/` paleta (en Corridas, el buscador) |
 | Corridas | `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
-| Tanda | `1`–`4` Resumen, Telaraña, Replay, Perfiles · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
-| Resumen | `j` `k` hallazgo siguiente / anterior |
-| Telaraña | `+` `-` zoom · `0` ajustar · `p` `Shift+P` perfil · `h` historia (con ella: `Espacio`, `←` `→`) · `v` vista 3D · `Esc` cerrar |
-| Replay | `←` `→` o `j` `k` paso · `n` `Shift+N` paso con problema · `Inicio` `Fin` · `d` `a` `l` `o` modo del visor · mantener `b` ver "antes" · `Espacio` reproducir · `,` `.` velocidad · `v` video · `s` solo pasos · `i` `Shift+I` intento · `e` veredicto · `t` abrir el paso en la telaraña |
-| Perfiles | `j` `k` fila · `Enter` abrir en Replay |
+| Tanda | `1` `2` Mapa de caminos, Replay · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
+| Mapa de caminos | `+` `-` acercar / alejar · `0` ajustar · `Esc` cerrar (con el foco en el mapa, las flechas lo mueven) |
+| Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `↑` `↓` en la lista de pasos |
 
 ## Fuente de corridas
 
@@ -153,9 +169,9 @@ backoffice/
 ├── public/
 │   ├── index.html, app.js   ← arranque: idioma, menú, paleta, atajos globales, enrutador
 │   ├── nucleo/          ← enrutador por hash, marco de la tanda, atajos, paleta ⌘K, i18n, formatos, estados, íconos
-│   ├── pantallas/       ← una por vista: corridas, resumen, telarana, replay, perfiles
-│   ├── corridas/ telarana/ replay/ perfiles/   ← piezas de cada pantalla (las puras se prueban con node:test)
-│   ├── datos/textos.js  ← convierte { clave, vars } de la API en texto
+│   ├── pantallas/       ← una por vista: corridas, telarana, replay
+│   ├── corridas/ telarana/ replay/   ← piezas de cada pantalla (las puras se prueban con node:test)
+│   ├── datos/           ← textos.js convierte { clave, vars } de la API en texto; nombres.js, el nivel de cada perfil
 │   ├── i18n/{es,en}/    ← diccionarios por sección
 │   └── estilos/         ← tokens, base y componentes compartidos; un .css por pantalla, prefijado con .p-<id>
 └── test/                ← node:test, con dos tandas sintéticas en fixtures/corridas/

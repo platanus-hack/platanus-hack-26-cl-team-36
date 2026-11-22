@@ -125,6 +125,15 @@ export function tituloDesdeRuta(url) {
   return texto ? texto[0].toLocaleUpperCase("es") + texto.slice(1) : null;
 }
 
+/** ¿Es una dirección de la web (http o https)? */
+export function esDeLaWeb(url) {
+  try {
+    return ["http:", "https:"].includes(new URL(String(url ?? "")).protocol);
+  } catch {
+    return true; // una ruta relativa o rota se nombra como siempre
+  }
+}
+
 const ultimoSegmento = (url) => caminoDe(url).split("/").filter(Boolean).at(-1) ?? "";
 
 /**
@@ -133,11 +142,14 @@ const ultimoSegmento = (url) => caminoDe(url).split("/").filter(Boolean).at(-1) 
  * lo que la distingue de otra página de inicio ("m.sitio.cl") cuando hay más de una.
  * @template {{ titulo: string, url: string, variantes: { consulta: string }[] }} P
  * @param {P[]} paginas
- * @returns {(P & { tituloCorto: string | null, tituloTipo: "sitio" | "inicio" | "url" })[]}
+ * @returns {(P & { tituloCorto: string | null, tituloTipo: "sitio" | "inicio" | "url" | "error" })[]}
  */
 export function titularPaginas(paginas) {
   const sufijo = sufijoComun(paginas.map((pagina) => pagina.titulo));
   const conTitulo = paginas.map((pagina) => {
+    // Una página que no es de la web (chrome-error://, about:) es el navegador avisando que no pudo abrir algo:
+    // nunca la de inicio del sitio.
+    if (!esDeLaWeb(pagina.url)) return { ...pagina, tituloCorto: null, tituloTipo: "error" };
     if (caminoDe(pagina.url) === "/" && !new URL(pagina.url, "http://x").hash) {
       return { ...pagina, tituloCorto: null, tituloTipo: "inicio" };
     }
@@ -152,7 +164,7 @@ export function titularPaginas(paginas) {
   // queda con lo que las distingue y la pantalla dice "Inicio · m.sitio.cl".
   const repetidos = new Map();
   for (const pagina of conTitulo) {
-    const clave = pagina.tituloTipo === "inicio" ? "\u0000inicio" : pagina.tituloCorto;
+    const clave = pagina.tituloTipo === "inicio" ? "\u0000inicio" : pagina.tituloTipo === "error" ? `\u0000error:${pagina.url}` : pagina.tituloCorto;
     repetidos.set(clave, (repetidos.get(clave) ?? []).concat([pagina]));
   }
   for (const grupo of repetidos.values()) {

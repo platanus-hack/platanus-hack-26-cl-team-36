@@ -35,14 +35,14 @@ test("Revisiones: #/revisiones y #/revisiones/<revision>; una revisión inválid
 
 test("los valores por defecto y los vacíos no se escriben", () => {
   assert.equal(hashDe({ tipo: "corridas", parametros: { vista: "lista", orden: "nuevas", q: "" } }), "#/");
-  assert.equal(hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { modo: "despues", paso: "3", ver: null } }), `#/t/${CON_TAREA}/replay?paso=3`);
+  assert.equal(hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { paso: "3", intento: null } }), `#/t/${CON_TAREA}/replay?paso=3`);
 });
 
 test("orden estable de parámetros, sin importar el orden de entrada", () => {
-  const a = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { senales: "1", paso: "4", intento: "mobile", modo: "antes", ver: "video" } });
-  assert.equal(a, `#/t/${CON_TAREA}/replay?intento=mobile&paso=4&modo=antes&ver=video&senales=1`);
-  const b = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: { vista: "3d", paso: "2", historia: "mobile", pagina: "n2", perfil: "hurried", z: "1", a: "2" } });
-  assert.equal(b, `#/t/${CON_TAREA}/telarana?perfil=hurried&pagina=n2&historia=mobile&paso=2&vista=3d&a=2&z=1`);
+  const a = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { z: "1", paso: "4", intento: "mobile" } });
+  assert.equal(a, `#/t/${CON_TAREA}/replay?intento=mobile&paso=4&z=1`);
+  const b = hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: { pagina: "n2", z: "1", a: "2" } });
+  assert.equal(b, `#/t/${CON_TAREA}/telarana?pagina=n2&a=2&z=1`);
 });
 
 test("cada pestaña, con y sin tarea, va y vuelve", () => {
@@ -53,15 +53,19 @@ test("cada pestaña, con y sin tarea, va y vuelve", () => {
       assert.deepEqual(parsearHash(hash), { tipo: "tanda", tandaId, pestana, parametros: {} });
     }
   }
-  const perfiles = parsearHash(`#/t/${CON_TAREA}/perfiles?orden=-pasos`);
-  assert.deepEqual(perfiles.parametros, { orden: "-pasos" });
-  assert.equal(hashDe(perfiles), `#/t/${CON_TAREA}/perfiles?orden=-pasos`);
+  assert.deepEqual(PESTANAS, ["telarana", "replay"]);
+  // Perfiles ya no existe: su pestaña y su enlace de la v0 son rutas desconocidas.
+  assert.equal(parsearHash(`#/t/${CON_TAREA}/perfiles`).tipo, "desconocida");
+  assert.equal(parsearHash(`#/perfiles?t=${CON_TAREA}`).tipo, "desconocida");
 });
 
-test("#/t/<id> sin pestaña es el Resumen", () => {
+test("#/t/<id> sin pestaña abre el mapa; un enlace viejo a /resumen también", () => {
   const ruta = parsearHash(`#/t/${CON_TAREA}`);
-  assert.deepEqual(ruta, { tipo: "tanda", tandaId: CON_TAREA, pestana: "resumen", parametros: {} });
-  assert.equal(hashDe(ruta), `#/t/${CON_TAREA}/resumen`);
+  assert.deepEqual(ruta, { tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: {} });
+  assert.equal(hashDe(ruta), `#/t/${CON_TAREA}/telarana`);
+  const vieja = parsearHash(`#/t/${CON_TAREA}/resumen?x=1`);
+  assert.deepEqual(vieja, { tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: {} });
+  assert.equal(hashDe(vieja), `#/t/${CON_TAREA}/telarana`);
   assert.equal(parsearHash("#/t/2026-11-21_07-28-42").tipo, "desconocida");
 });
 
@@ -90,7 +94,7 @@ test("enlaces de la v0 se traducen a la tanda", () => {
     destino: "#/t/dt.gob.cl/visitor/reclamo-despido/2026-11-21T07-28-42Z/replay?intento=mobile&paso=3",
     aviso: null,
   });
-  assert.deepEqual(traducirLegado(`#/perfiles?t=${CON_TAREA}`), { destino: `#/t/${CON_TAREA}/perfiles`, aviso: null });
+  assert.equal(traducirLegado(`#/perfiles?t=${CON_TAREA}`), null);
   assert.equal(traducirLegado(`#/t/${CON_TAREA}/replay`), null);
   const legado = parsearHash(`#/replay?t=${CON_TAREA}&perfil=mobile`);
   assert.equal(legado.tipo, "legado");
@@ -98,7 +102,7 @@ test("enlaces de la v0 se traducen a la tanda", () => {
 });
 
 test("enlaces viejos sin t → Corridas con aviso", () => {
-  for (const hash of ["#/telarana", "#/replay?perfil=mobile&paso=2", "#/perfiles?x=1"]) {
+  for (const hash of ["#/telarana", "#/replay?perfil=mobile&paso=2"]) {
     const ruta = parsearHash(hash);
     assert.equal(ruta.tipo, "legado");
     assert.equal(ruta.destino, "#/");
@@ -115,22 +119,22 @@ test("idioma= se separa del hash y nunca vuelve a escribirse", () => {
 
 test("tandaId con caracteres especiales se codifica por segmento", () => {
   const hash = enlaceATanda("localhost:8080/visitor/baja/2026-11-21T07-28-42Z");
-  assert.equal(hash, "#/t/localhost%3A8080/visitor/baja/2026-11-21T07-28-42Z/resumen");
+  assert.equal(hash, "#/t/localhost%3A8080/visitor/baja/2026-11-21T07-28-42Z/telarana");
   assert.equal(parsearHash(hash).tandaId, "localhost:8080/visitor/baja/2026-11-21T07-28-42Z");
 });
 
 test("un tandaId que armaría otra ruta no es una tanda", () => {
   for (const hash of [
-    "#/t/..%2F..%2Fx/visitor/a/2026-01-01T00-00-00Z/resumen",
-    "#/t/../visitor/a/2026-01-01T00-00-00Z/resumen",
-    "#/t/s.cl/visitor/.oculta/2026-01-01T00-00-00Z/resumen",
-    "#/t/s.cl/visitor/a%5Cb/2026-01-01T00-00-00Z/resumen",
-    "#/t/s.cl/guide/a/2026-01-01T00-00-00Z/resumen",
+    "#/t/..%2F..%2Fx/visitor/a/2026-01-01T00-00-00Z/telarana",
+    "#/t/../visitor/a/2026-01-01T00-00-00Z/telarana",
+    "#/t/s.cl/visitor/.oculta/2026-01-01T00-00-00Z/telarana",
+    "#/t/s.cl/visitor/a%5Cb/2026-01-01T00-00-00Z/telarana",
+    "#/t/s.cl/guide/a/2026-01-01T00-00-00Z/telarana",
   ]) {
     assert.equal(parsearHash(hash).tipo, "desconocida", hash);
   }
-  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra-2/2026-01-01T00-00-00Z_01/resumen").tipo, "tanda");
-  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra/2026-01-01T00-00-00Z_00/resumen").tipo, "desconocida");
+  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra-2/2026-01-01T00-00-00Z_01/telarana").tipo, "tanda");
+  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra/2026-01-01T00-00-00Z_00/telarana").tipo, "desconocida");
 });
 
 test("normalizarPaso: vacío, inválido, fuera de rango", () => {

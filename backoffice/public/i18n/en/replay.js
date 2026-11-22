@@ -1,122 +1,61 @@
-// Section "replay" (owner: WP4). Texts of the step-by-step viewer of one attempt. Same key tree as
-// i18n/es/replay.js. Run data (expectations, justifications, titles, route actions) does not go through here: it
-// is shown as-is.
+// Section "replay" (owner: WP4). Texts of the step-by-step viewer of one attempt: steps, capture, analysis and
+// timeline. Same key tree as i18n/es/replay.js. Run data (expectations, justifications, titles) does not go through
+// here: it is shown as-is.
 
 export default {
-  titulo: "Replay of “{nombre}”",
   tituloDocumento: "Replay · {nombre}",
 
-  cabecera: {
-    intentos: "Attempts in this batch",
-    intento: "{nombre}: {resultado}",
-    pasos: ({ n, ruta }, { plural }) => {
-      const base = `${n} ${plural(n, { one: "step", other: "steps" })}`;
-      return ruta === null || ruta === undefined || ruta === "" ? base : `${base} (route ${ruta})`;
-    },
-    pasosAyuda: "Steps of this attempt and, in brackets, those of the recommended route",
-    duracionAyuda: "How long the attempt took",
-    viewport: "{ancho}×{alto}",
-    viewportAyuda: "Size of the browser window",
-    tarea: "Task it read:",
-    nivel: {
-      sin_contexto: "no context",
-      conoce_tema: "knows the topic",
-    },
-    rechazados: "Terms it could not type: {terminos}",
-  },
-
-  veredicto: {
-    mostrar: "Verdict and criterion",
-    justificacion: "What the judge said",
-    justificacionRuta: "Measured against the Guide's route",
-    justificacionSinMedir: "Why it was not measured",
-    respuesta: "The user’s answer",
-    sinRespuesta: "It left no answer.",
-    motivo: "How it ended",
-    criterio: "The judge’s criterion",
-    evidencias: "Evidence the judge looks for",
-    notaEvidencias: "The judge gives one verdict per attempt; it does not mark each piece of evidence.",
-    sinCriterio: "This batch did not save the judge’s criterion.",
-    sinJuez: "No judge: the result is whether it reached the final page of the Guide’s route.",
-    sinMedir: "No Guide route nor judge: the result is not measured.",
-  },
-
-  error: {
-    explicacion: "This attempt does not count in the figures: the tool failed, not the user. The steps shown did happen.",
-    corte: "After this step the tool failed ({titulo}) and the attempt did not go on.",
-    sinPasos: "The attempt stopped before the first step.",
-  },
-
-  rail: {
+  pasos: {
     titulo: "Steps",
     etiqueta: "Steps of the attempt",
-    soloSenales: "Only with signals",
-    soloSenalesAyuda: "Show only the steps with a signal or off the route",
-    ningunoConSenales: "No step has signals or leaves the route.",
-    repetido: ({ firma, n }, { plural }) => `${firma} · ${n} ${plural(n, { one: "time", other: "times" })}`,
+    intento: "Attempt",
     opcion: "Step {n}: {firma}",
-    opcionRepetida: "Steps {desde} to {hasta}: {firma}",
   },
 
-  visor: {
-    fuente: "What to show",
-    capturas: "Screenshots",
-    video: "Video",
-    modos: "Comparison mode",
-    despues: "After",
-    antes: "Before",
-    deslizar: "Slide",
-    superponer: "Overlay",
-    mantenB: "Hold B",
-    mantenBAyuda: "Show “Before” while you hold it",
-    verEnTelarana: "See in the route map",
-    deslizarEtiqueta: "Slide between before and after",
-    superponerEtiqueta: "Opacity of “After” over “Before”",
-    altAntes: "Screen before step {n}",
-    altDespues: "Screen after step {n}",
+  captura: {
+    alt: "Screen after step {n}",
     altInicio: "Starting screen of the attempt",
-    sinCaptura: "There is no screenshot of this step.",
-    clic: "Where step {n} clicked",
-    videoEtiqueta: "Video of {nombre}’s attempt",
-    videoNoCarga: "The video could not be loaded; showing the screenshots.",
-    aLos: "at {tiempo}",
-    accionCruda: "Recorded action: {accion}",
-    sinPasos: "This attempt has no steps.",
+    sinCaptura: "There is no capture for this step.",
   },
 
-  tarjeta: {
-    titulo: "Step {n}",
-    esperaba: "Expected",
-    loQuePaso: "What happened",
-    noLoDijo: "It did not say.",
-    coincide: "Did what it expected happen? (estimated)",
-    coincideAyuda: "The backoffice infers it from the signals and the page change; the judge does not assess each step.",
-    ruta: "Route",
-    usuario: "User",
-    rutaAccion: "{accion} → “{destino}”",
-    sigueEnPagina: "(stays on the page)",
+  analisis: {
+    titulo: "Analysis",
+    paso: "Step {n}",
+    senales: "Signals",
+    sinSenales: "No signals: nothing unusual in this step.",
+    senal: {
+      no_effect: "The action changed nothing on screen.",
+      went_back: "Went back to the previous page.",
+      visible_error: "The page showed an error message.",
+      security_block: "The site blocked the user (captcha or security check).",
+      revisit: "Went back to a page it had already seen.",
+    },
     fueraDeRuta: "This page is not on the recommended route.",
-    terminaRuta: "The route ends here: this is the answer.",
-    tramo: "leg {k} of {total}",
-    igual: "The user does the same as the route",
-    difiere: "The user leaves the route",
-    anterior: "Previous",
-    siguiente: "Next",
+    esperaba: "What it expected",
+    noLoDijo: "It didn't say.",
+    loQuePaso: "What happened",
+    pagina: "Where it ended up",
+    corte: "After this step the tool failed ({titulo}) and the attempt stopped.",
     fin: "End of the attempt: {motivo}.",
+    juez: "Judge's note",
+    juezRuta: "Measured against the Guide's route",
+    juezSinMedir: "Why it was not measured",
+    sinNota: "The judge left no note.",
+    sinJuez: "No judge: the result is whether it reached the final page of the Guide’s route.",
+    sinMedir: "No Guide route nor judge: the result is not measured.",
+    errorIntento: "This attempt doesn't count in the figures: the tool failed, not the user.",
+    sinPasos: "This attempt has no steps.",
+    cortadoAntes: "The attempt stopped before the first step.",
+  },
+
+  animacion: {
+    volver: "Back to «{pagina}»",
   },
 
   linea: {
     etiqueta: "Timeline",
     reproducir: "Play",
     pausar: "Pause",
-    velocidad: "Speed",
-    velocidadAyuda: "Playback speed (slower / faster)",
-    velocidadValor: "{v}×",
-    soloPasos: "Steps only",
-    soloPasosAyuda: "Skip the parts of the video without actions",
-    valor: "{actual} of {total}, step {n}",
-    reloj: "{actual} / {total}",
-    tira: "Screenshots of each step",
-    carril: "Route lane",
+    posicion: "Step {n} of {total}",
   },
 };

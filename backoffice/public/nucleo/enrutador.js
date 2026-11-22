@@ -20,7 +20,7 @@ import { conTransicion } from "./transiciones.js";
 
 export const EVENTO_RUTA = "backoffice:ruta";
 
-const ESQUELETO_DE_PESTANA = { resumen: "tabla", telarana: "lienzo", replay: "replay", perfiles: "tabla" };
+const ESQUELETO_DE_PESTANA = { telarana: "lienzo", replay: "replay" };
 
 let raiz = null;
 /** @type {import("./rutas.js").Ruta | null} */

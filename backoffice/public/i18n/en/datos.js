@@ -11,6 +11,7 @@ const conNota = (frase, nota) => (nota ? frase.replace(/\.$/, ` ${nota}.`) : fra
 export default {
   pagina: {
     inicio: "Home",
+    error: "Browser error page",
     // Cuando la tanda tiene más de una página de inicio (sitio.cl y m.sitio.cl).
     inicioDe: "Home · {sitio}",
   },
@@ -126,7 +127,7 @@ export default {
   },
 
   titular: {
-    // Everyone gets there, but someone struggled: the Resumen and Corridas headline does not hide it.
+    // Everyone gets there, but someone struggled: the tanda header and Corridas headline does not hide it.
     tanda: ({ validos, errores, caso, intento, pagina, pasos: cuenta, pasosIdeales }) => {
       const [v, e] = [n(validos), n(errores)];
       const sujeto = v === 1
@@ -138,7 +139,8 @@ export default {
       if (caso === "demora") return `${sujeto} the answer, but ${intento ?? ""} takes ${n(cuenta)} steps in a row on «${pagina ?? ""}».`;
       return `${sujeto} the answer, but ${pasos(n(cuenta))} ${segun(n(cuenta), "has", "have")} stumbles.`;
     },
-    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos, medidos, logrados }) => {
+    telarana: ({ hayRuta, enInicio, probabilidad, tramos, pasosIdeales, siguen, validos, medidos, logrados }) => {
+      if (!hayRuta && enInicio) return `The task is solved on the start page${probabilidad == null ? "" : ` (the evaluator estimates ${Math.round(probabilidad * 100)}%)`}: the axis is the busiest path.`;
       if (!hayRuta && n(validos) > 0 && medidos !== undefined && n(medidos) === 0) {
         return "Nobody's arrival was measured (no Guide route nor judge): the axis is the busiest path.";
       }

@@ -56,7 +56,6 @@ test("las repeticiones de un perfil son intentos aparte, en orden, con su carpet
 test("el resultado sale de la ruta de la Guía, sin juez ni criteria.json", async () => {
   const tanda = await leerTanda(RAIZ, CON_RUTA);
   assert.equal(tanda.criterio, null);
-  assert.equal(tanda.modeloJuez, null);
   assert.deepEqual(
     tanda.intentos.map((i) => [i.id, i.resultado, i.fuente, i.declaroTerminar, i.logro]),
     [
@@ -88,7 +87,8 @@ test("la telaraña reparte los tramos de un perfil entre las repeticiones que lo
   // El árbol del Visitante solo dice «desktop» y «mobile».
   assert.deepEqual(rama("n1>n2").perfiles, ["desktop", "mobile"]);
   assert.deepEqual(rama("n1>n2").intentosIds, ["desktop", "mobile", "mobile-2"]);
-  assert.deepEqual([rama("n1>n2").resultado, rama("n1>n2").llegaron, rama("n1>n2").noLlegaron], ["mixto", 2, 1]);
+  // El color de la rama es la marca del evaluador: 2 pasadas en camino a la meta y 1 que no.
+  assert.deepEqual([rama("n1>n2").resultado, rama("n1>n2").exitos, rama("n1>n2").fallos, rama("n1>n2").intentos], ["mixto", 2, 1, 3]);
   assert.deepEqual([rama("n1>n4").intentosIds, rama("n1>n4").resultado], [["desktop-2"], "fallo"]);
   assert.deepEqual(tanda.telarana.paginas.find((p) => p.id === "n4").finales, { logrado: 0, fallido: 1, abandonado: 0, sin_medir: 0, error: 0 });
 });

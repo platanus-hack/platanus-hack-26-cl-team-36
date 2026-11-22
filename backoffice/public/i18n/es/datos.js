@@ -14,6 +14,7 @@ const conNota = (frase, nota) => (nota ? frase.replace(/\.$/, ` ${nota}.`) : fra
 export default {
   pagina: {
     inicio: "Inicio",
+    error: "Página de error del navegador",
     // Cuando la tanda tiene más de una página de inicio (sitio.cl y m.sitio.cl).
     inicioDe: "Inicio · {sitio}",
   },
@@ -129,7 +130,7 @@ export default {
   },
 
   titular: {
-    // Todos llegan, pero alguien lo pasó mal: el titular de Resumen y Corridas no lo esconde.
+    // Todos llegan, pero alguien lo pasó mal: el titular de la cabecera de la tanda y de Corridas no lo esconde.
     tanda: ({ validos, errores, caso, intento, pagina, pasos: cuenta, pasosIdeales }) => {
       const [v, e] = [n(validos), n(errores)];
       const sujeto = v === 1
@@ -141,7 +142,8 @@ export default {
       if (caso === "demora") return `${sujeto} a la respuesta, pero ${intento ?? ""} da ${n(cuenta)} pasos seguidos en «${pagina ?? ""}».`;
       return `${sujeto} a la respuesta, pero hay ${pasos(n(cuenta))} con tropiezos.`;
     },
-    telarana: ({ hayRuta, tramos, pasosIdeales, siguen, validos, medidos, logrados }) => {
+    telarana: ({ hayRuta, enInicio, probabilidad, tramos, pasosIdeales, siguen, validos, medidos, logrados }) => {
+      if (!hayRuta && enInicio) return `La tarea se resuelve en la página de inicio${probabilidad == null ? "" : ` (el evaluador lo estima en un ${Math.round(probabilidad * 100)} %)`}: el eje es el camino más transitado.`;
       if (!hayRuta && n(validos) > 0 && medidos !== undefined && n(medidos) === 0) {
         return "No se midió quién llegó (no hay ruta de la Guía ni juez): el eje es el camino más transitado.";
       }

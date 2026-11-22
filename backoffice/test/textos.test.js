@@ -105,12 +105,6 @@ test("tanda nueva: titular y hallazgos en español e inglés", async () => {
   assert.equal(textoDeTitular(tanda.titulares.perfiles, tanda, en), "Adulto mayor does not reach the answer (1 attempt per profile).");
 });
 
-test("el titular de Corridas se resuelve con el resumen de la tanda", async () => {
-  const tanda = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z");
-  const resumen = { perfiles: tanda.intentos.map((i) => ({ intento: i.id, perfil: i.perfil, nombre: i.nombrePerfil })) };
-  assert.equal(textoDeTitular(tanda.titulares.tanda, resumen, es), "2 de 3 llegan a la respuesta. No llega: Adulto mayor.");
-});
-
 test("todo lo de las dos tandas se escribe sin restos de claves ni variables", async () => {
   for (const id of ["demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z", "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z"]) {
     const tanda = await leerTanda(RAIZ, id);
@@ -209,4 +203,57 @@ test("firmas, lo que pasó, conteos, errores y nombres de página", () => {
   assert.equal(nombreDePagina({ tituloTipo: "inicio", tituloCorto: "m.sitio.cl" }, en), "Home · m.sitio.cl");
   assert.equal(nombreDePagina({ tituloTipo: "url", tituloCorto: "Impuesto territorial" }, es), "Impuesto territorial");
   assert.equal(nombreDePagina(null, es), "");
+});
+
+test("página de error y ruta que no sale de la página de inicio, en ES y EN (C4-5)", () => {
+  const tEs = (clave, vars) => (clave === "datos.pagina.error" ? datosEs.pagina.error : clave === "datos.titular.telarana" ? datosEs.titular.telarana(vars) : clave);
+  const tEn = (clave, vars) => (clave === "datos.pagina.error" ? datosEn.pagina.error : clave === "datos.titular.telarana" ? datosEn.titular.telarana(vars) : clave);
+  assert.equal(nombreDePagina({ tituloTipo: "error", url: "chrome-error://chromewebdata/" }, tEs), "Página de error del navegador");
+  assert.equal(nombreDePagina({ tituloTipo: "error", url: "chrome-error://chromewebdata/" }, tEn), "Browser error page");
+  const vars = { hayRuta: false, enInicio: true, probabilidad: 0.57, tramos: 0, logrados: 3, validos: 8 };
+  assert.match(datosEs.titular.telarana(vars), /^La tarea se resuelve en la página de inicio \(el evaluador lo estima en un 57 %\)/);
+  assert.match(datosEn.titular.telarana(vars), /^The task is solved on the start page \(the evaluator estimates 57%\)/);
+  assert.doesNotMatch(datosEs.titular.telarana(vars), /No hay una ruta/);
+});
+
+test("textoDeAccion: las acciones del evaluador en el idioma de la pantalla; el objetivo no se traduce (C4-6)", async () => {
+  const { textoDeAccion } = await import("../public/datos/textos.js");
+  const { formatear } = await import("../public/nucleo/i18n.js");
+  const dicc = { es: { datos: datosEs }, en: { datos: datosEn } };
+  const t = (idioma) => (clave, vars) => formatear(dicc, clave, vars, idioma);
+  const casos = [
+    ["clic «Ir al Centro de Ayuda»", "clic «Ir al Centro de Ayuda»", "click «Ir al Centro de Ayuda»"],
+    ["volver a «Inicio»", "volver a «Inicio»", "jump back to «Inicio»"],
+    ["tecla Enter", "tecla Enter", "key Enter"],
+    ["escribir «retracto»", "escribir «retracto»", "type «retracto»"],
+    ["atrás", "volver atrás", "go back"],
+    ["scroll down x2", "desplazar ↓ ×2", "scroll ↓ ×2"],
+    ["algo nuevo", "algo nuevo", "algo nuevo"],
+  ];
+  for (const [accion, es, en] of casos) {
+    assert.equal(textoDeAccion(accion, t("es")), es);
+    assert.equal(textoDeAccion(accion, t("en")), en);
+  }
+});
+
+test("el nivel de conocimiento de un perfil en cada idioma, también dentro de su nombre (C4-6)", async () => {
+  const { textoDeNivel } = await import("../public/datos/nombres.js");
+  const { formatear } = await import("../public/nucleo/i18n.js");
+  const comunEs = (await import("../public/i18n/es/comun.js")).default;
+  const comunEn = (await import("../public/i18n/en/comun.js")).default;
+  const dicc = { es: { comun: comunEs }, en: { comun: comunEn } };
+  const t = (idioma) => (clave, vars) => formatear(dicc, clave, vars, idioma);
+  assert.equal(textoDeNivel("conoce el tema", t("en")), "knows the topic");
+  assert.equal(textoDeNivel("sin contexto", t("en")), "no context");
+  assert.equal(textoDeNivel("sin contexto", t("es")), "sin contexto");
+  assert.equal(textoDeNivel("otro nivel", t("en")), "otro nivel");
+  const { nombreConNivel } = await import("../public/datos/nombres.js");
+  assert.equal(nombreConNivel("Explorador del pie (conoce el tema)", t("en")), "Explorador del pie (knows the topic)");
+  assert.equal(nombreConNivel("Senior", t("en")), "Senior");
+});
+
+test("partirNombre: el nivel de conocimiento va aparte del resto del nombre", async () => {
+  const { partirNombre } = await import("../public/datos/nombres.js");
+  assert.deepEqual(partirNombre("Explorador del pie (conoce el tema)"), { base: "Explorador del pie", nivel: "conoce el tema" });
+  assert.deepEqual(partirNombre("Apurado"), { base: "Apurado", nivel: null });
 });

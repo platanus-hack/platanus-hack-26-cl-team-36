@@ -30,13 +30,12 @@ export function repiteAlAnterior(anterior, paso) {
 
 /**
  * @param {{ intentos?: object[] }} tanda
- * @param {string | null} [perfil]   solo los intentos de ese perfil (el filtro de la telaraña)
  * @returns {Map<string, Atasco[]>}   página → lo de cada intento que se trabó ahí, en el orden de los intentos
  */
-export function atascosPorPagina(tanda, perfil = null) {
+export function atascosPorPagina(tanda) {
   const porPagina = new Map();
   for (const intento of tanda?.intentos ?? []) {
-    if (intento.resultado === "error" || (perfil && intento.perfil !== perfil)) continue;
+    if (intento.resultado === "error") continue;
     const suyos = new Map();
     const de = (pagina) => {
       if (!suyos.has(pagina)) suyos.set(pagina, { intento: intento.id, demora: null, tropiezos: 0, repetidos: 0 });

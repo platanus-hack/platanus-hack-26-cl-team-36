@@ -25,7 +25,4 @@ test("atascos de la tanda nueva: demora, tropiezos y sin los intentos con error"
   assert.deepEqual(atascos.get("n2"), [{ intento: "hurried", demora: 7, tropiezos: 1, repetidos: 0 }]);
   assert.deepEqual(atascos.get("n6"), [{ intento: "senior", demora: null, tropiezos: 1, repetidos: 0 }]);
   assert.ok(![...atascos.values()].flat().some((a) => a.intento === "mobile"), "el error de la herramienta no cuenta");
-  // Con el filtro de perfil, solo lo de ese perfil.
-  assert.deepEqual([...atascosPorPagina(tanda, "senior").keys()], ["n6"]);
-  assert.equal(atascosPorPagina(tanda, "first_time").size, 0);
 });

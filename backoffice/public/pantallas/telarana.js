@@ -1,47 +1,41 @@
-// Pestaña Telaraña (diseño §10.5): un grafo dirigido de izquierda a derecha, con el inicio a la izquierda, la meta a
-// la derecha y las demás páginas en columnas según los pasos desde el inicio; la ruta recomendada es una fila recta.
-// Filtro por perfil que atenúa (nunca saca), panel de detalle, cámara (pan, zoom, ajuste) y modo historia ligado a
-// Replay.
+// Pestaña Telaraña (diseño §10.5): una telaraña radial con el inicio al centro, un anillo por paso y la ruta
+// recomendada como eje recto (hacia la derecha; hacia abajo si el lienzo es más alto que ancho), panel de detalle y
+// cámara (pan, zoom, ajuste).
 //
-// El estado de la vista vive en el hash: perfil=, pagina=, historia=, paso=. Los clics escriben parámetros con
+// El estado de la vista vive en el hash: pagina=. Los clics escriben parámetros con
 // ctx.actualizarParametros y actualizar(ctx) los aplica: una sola fuente de verdad.
 
 import { kbd } from "../nucleo/atajos.js";
 import { conservarFoco, el, esUrlWeb, recortarAlMedio, reemplazar, svg } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
-import { mostrarEnFila, seguirBordes } from "../nucleo/fila.js";
 import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
-import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
-import { normalizarPaso } from "../nucleo/rutas.js";
-import { nombreDePagina, textoDeFirma, textoDeTitular } from "../datos/textos.js";
-import { altoDeFilaPara, altoDelLienzo, crearCamara, zoomLegible } from "../telarana/camara.js";
+import { icono, insignia } from "../nucleo/iconos.js";
+import { nombreDePagina, textoDeAccion, textoDeTitular } from "../datos/textos.js";
+import { crearCamara } from "../telarana/camara.js";
 import {
-  activosDePerfil,
   finalesPorPagina,
   hitosDeRuta,
   intentosPorPagina,
-  perfilVecino,
-  recorridoDeHistoria,
   salidasDePagina,
   totalesDeTerminales,
   vecindario,
 } from "../telarana/cuentas.js";
-import { ALTO_FILA, RESULTADOS, distribuir, geometria } from "../telarana/distribuir.js";
+import { RESULTADOS, distribuir, geometriaRadial } from "../telarana/distribuir.js";
 import { atascosPorPagina } from "../telarana/atascos.js";
 import { claseDeTramo, dibujarEscena } from "../telarana/escena.js";
-import { crearHistoria } from "../telarana/historia.js";
-import { etiquetasDeEstaciones } from "../telarana/nombres.js";
+import { nombreConNivel } from "../datos/nombres.js";
 
 const PASO_DE_PAN = 60;
+/** Las acciones de una rama, las de la gente primero y los saltos del explorador al final. */
+const accionesEnOrden = (rama) => [...(rama?.acciones ?? [])].sort((a, b) => Number(!!a.salto) - Number(!!b.salto));
 const reducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-// Holgura para las etiquetas fuera de la caja de la geometría (la mitad del nombre del inicio a la izquierda, debajo
-// de las estaciones y a la derecha de las terminales).
-const HOLGURA = { izquierda: 50, derecha: 180, abajo: 40 };
-// Ajuste a la vista (en plano): el mapa entra a lo ancho (el inicio a la izquierda y la meta a la derecha) y las filas
-// se estiran lo que pida el nombre de una estación con ese zoom, para que no se monte sobre el punto o la marca de
-// atasco de la de abajo. Un mapa más alto que el lienzo agranda el lienzo (hasta el 80 % de la ventana) y, si aun así
-// no cabe, se recorre arrastrando.
+// Holgura para las etiquetas fuera de la caja de la geometría (debajo de las estaciones y a la derecha de las
+// terminales con el eje a la derecha; a los lados con el eje hacia abajo).
+const HOLGURA = {
+  derecha: { izquierda: 0, derecha: 150, abajo: 40 },
+  abajo: { izquierda: 60, derecha: 120, abajo: 20 },
+};
 
 function crearPantalla(contenedor, ctx) {
   const { tanda, t, fmt, senal } = ctx;
@@ -49,23 +43,17 @@ function crearPantalla(contenedor, ctx) {
   const ramas = new Map((tanda.telarana?.ramas ?? []).map((rama) => [rama.id, rama]));
   const intentos = new Map((tanda.intentos ?? []).map((intento) => [intento.id, intento]));
   const perfiles = (tanda.perfiles ?? []).map((perfil) => ({ id: perfil.perfil, nombre: perfil.nombre ?? perfil.perfil }));
-  const nombreDePerfil = (id) => perfiles.find((perfil) => perfil.id === id)?.nombre ?? intentos.get(id)?.nombrePerfil ?? id;
+  const nombreDePerfil = (id) => nombreConNivel(perfiles.find((perfil) => perfil.id === id)?.nombre ?? intentos.get(id)?.nombrePerfil ?? id, t);
   const nombre = (pagina) => nombreDePagina(pagina, t);
-  // Lo que se ve en cada estación: si varias empiezan igual, lo que las distingue va adelante (telarana/nombres.js).
-  const etiquetas = etiquetasDeEstaciones(tanda.telarana?.paginas ?? [], nombre, { primeras: tanda.telarana?.ruta?.paginas ?? [] });
+  // El grosor de los tramos y el eje (el camino más transitado) cuentan intentos distintos, no las veces que se pasó
+  // por cada tramo: un explorador que va y vuelve 40 veces entre dos páginas no engorda el tramo.
   const distribucion = distribuir(tanda.telarana ?? {});
-  const tramosExistentes = new Set(distribucion.tramos.map((tramo) => tramo.id));
 
   const estado = {
-    perfil: null,
     seleccion: null,
     resaltado: null, // Set de ids resaltados por puntero o foco
-    historiaId: null,
-    historia: null,
+    eje: null, // "derecha" o "abajo" (lienzos más altos que anchos)
     geo: null,
-    altoFila: null, // alto de fila con que se dibujó (depende del ancho del lienzo)
-    altoDelLienzo: null, // px: lo que queda de la ventana bajo el lienzo
-    zoomDelAncho: null, // zoom con que el mapa entra a lo ancho del lienzo
     dibujo: null,
     ancho: 0,
     introHecha: false,
@@ -77,7 +65,6 @@ function crearPantalla(contenedor, ctx) {
   // ── Textos que la escena necesita ─────────────────────────────────────
   const textos = {
     nombre,
-    etiqueta: (pagina) => etiquetas.get(pagina.id) ?? nombre(pagina),
     ariaDeEstacion(pagina, estacion, atascos = 0) {
       const partes = [nombre(pagina)];
       if (estacion.tipo === "inicio") partes.push(t("telarana.estacion.inicio"));
@@ -91,6 +78,7 @@ function crearPantalla(contenedor, ctx) {
     visitas: (n) => t("telarana.estacion.visitas", { n }),
     etiquetaDeResultado: (resultado) => t(`comun.resultado.${resultado}`),
     ariaDeTerminal: (resultado, n) => t("telarana.terminal.aria", { resultado: t(`comun.resultado.${resultado}`), n }),
+    anillo: (n) => t("telarana.anillo.paso", { n }),
   };
   const urlDeCaptura = (captura) => (captura?.archivo ? ctx.urlDeArchivo(captura.perfil, captura.archivo) : null);
 
@@ -98,63 +86,6 @@ function crearPantalla(contenedor, ctx) {
   contenedor.classList.add("p-telarana");
   const titular = el("h2", { class: "telarana-titular", tabindex: "-1", "data-foco-inicial": "", texto: textoDeTitular(tanda.titulares?.telarana, tanda, t) });
   const zonaDeAvisos = el("div", { class: "telarana-avisos" });
-
-  const chips = new Map();
-  const chip = (id, texto) => {
-    const boton = el("button", {
-      type: "button",
-      class: "chip",
-      "aria-pressed": "false",
-      "data-foco": `telarana:perfil:${id ?? "todos"}`,
-      texto,
-      onclick: () => ctx.actualizarParametros({ perfil: id }),
-    });
-    chips.set(id, boton);
-    return boton;
-  };
-  const grupoDePerfiles = el(
-    "div",
-    { class: "telarana-perfiles fila-desplazable", role: "group", "aria-label": t("telarana.perfiles.grupo") },
-    chip(null, t("telarana.perfiles.todos")),
-    perfiles.map((perfil) => chip(perfil.id, perfil.nombre)),
-  );
-  seguirBordes(grupoDePerfiles, senal);
-
-  const selectorDeHistoria = el(
-    "select",
-    { class: "telarana-intento", "aria-label": t("telarana.historia.intento"), "data-foco": "telarana:historia:intento" },
-    [...intentos.values()].map((intento) => el("option", { value: intento.id, texto: [intento.nombrePerfil ?? intento.id, t(`comun.resultado.${intento.resultado}`)].join(" · ") })),
-  );
-  selectorDeHistoria.addEventListener(
-    "change",
-    () => {
-      if (estado.historiaId) ctx.actualizarParametros({ historia: selectorDeHistoria.value, paso: null, pagina: null });
-    },
-    { signal: senal },
-  );
-  const botonDeHistoria = el(
-    "button",
-    { type: "button", class: "boton boton-secundario telarana-boton-historia", "aria-pressed": "false", "aria-keyshortcuts": "h", "data-foco": "telarana:historia" },
-    icono("historia"),
-    el("span", { texto: t("telarana.historia.boton") }),
-    el("span", { class: "telarana-pista", "aria-hidden": "true" }, kbd("h")),
-  );
-  botonDeHistoria.addEventListener("click", () => alternarHistoria(), { signal: senal });
-  const botonDe3d = el(
-    "button",
-    { type: "button", class: "boton boton-secundario telarana-boton-3d", "aria-pressed": "false", "aria-keyshortcuts": "v", "data-foco": "telarana:vista3d" },
-    icono("vista-3d"),
-    el("span", { texto: t("telarana.vista3d.boton") }),
-    el("span", { class: "telarana-pista", "aria-hidden": "true" }, kbd("v")),
-  );
-  botonDe3d.addEventListener("click", () => alternar3d(), { signal: senal });
-  conGlobo(botonDe3d, () => el("span", { class: "globo-con-tecla" }, el("span", { texto: t("telarana.vista3d.ayuda") }), kbd("v")), { senal });
-  const herramientas = el(
-    "div",
-    { class: "telarana-herramientas", role: "toolbar", "aria-label": t("telarana.herramientas") },
-    grupoDePerfiles,
-    el("div", { class: "telarana-historia-control" }, botonDeHistoria, intentos.size ? selectorDeHistoria : null, botonDe3d),
-  );
 
   const escena = el("div", { class: "escena" });
   const idInstrucciones = "telarana-instrucciones";
@@ -199,10 +130,10 @@ function crearPantalla(contenedor, ctx) {
 
   reemplazar(
     contenedor,
-    el("header", { class: "telarana-cabecera" }, titular, zonaDeAvisos, herramientas),
+    el("header", { class: "telarana-cabecera" }, titular, zonaDeAvisos),
     distribucion.estaciones.length
       ? el("div", { class: "telarana-cuerpo" }, el("div", { class: "telarana-columna" }, mapa, leyenda), panel)
-      : vacio({ titulo: t(tanda.arbol === "danado" ? "telarana.lienzo.arbolDanado" : tanda.arbol === "falta" ? "telarana.lienzo.arbolFalta" : "telarana.lienzo.vacio") }),
+      : vacio({ titulo: t("telarana.lienzo.vacio") }),
   );
 
   function construirLeyenda() {
@@ -217,24 +148,26 @@ function crearPantalla(contenedor, ctx) {
     const clases = new Set(fuera.map(claseDeTramo));
     const items = [
       ["tramo-tronco", distribucion.troncoEsRuta ? "ruta" : "eje"],
-      ...[["exito", "exito"], ["mixto", "mixto"], ["fallo", "fallo"], ["abandono", "abandono"], ["error", "error"]]
+      ...[["exito", "exito"], ["mixto", "mixto"], ["fallo", "fallo"], ["abandono", "abandono"], ["sin_medir", "sin_medir"], ["error", "error"]]
         .filter(([clase]) => clases.has(clase))
         .map(([clase, clave]) => [`tramo-${clase}`, clave]),
-      // Las vueltas atrás y los pasos laterales, con las mismas clases que los tramos dibujados.
-      ...["retroceso", "lateral"]
-        .filter((tipo) => fuera.some((tramo) => tramo.tipo === tipo))
-        .map((tipo) => [`tramo-${tipo} tramo-${claseDeTramo({ tipo })}`, tipo]),
+      fuera.some((tramo) => tramo.tipo === "retroceso") ? ["tramo-retroceso tramo-exito", "retroceso"] : null,
     ].filter(Boolean);
     const hayAtascos = atascosPorPagina(tanda).size > 0;
     return el(
       "div",
       { class: "telarana-leyenda" },
       el("span", { class: "visualmente-oculto", texto: t("telarana.leyenda.titulo") }),
+      // Primera fila: los tipos de línea; segunda: cómo leer el resto (anillos, atascos, grosor).
       el(
         "ul",
-        { "aria-label": t("telarana.leyenda.titulo") },
+        { class: "leyenda-lineas", "aria-label": t("telarana.leyenda.titulo") },
         items.map(([clasesDeMuestra, clave]) => el("li", {}, muestra(clasesDeMuestra), el("span", { texto: t(`telarana.leyenda.${clave}`) }))),
-        el("li", { class: "leyenda-columnas", texto: t("telarana.leyenda.columnas") }),
+      ),
+      el(
+        "ul",
+        { class: "leyenda-lectura" },
+        el("li", { class: "leyenda-anillo", texto: t("telarana.leyenda.anillo") }),
         hayAtascos ? el("li", { class: "leyenda-atasco" }, icono("atasco"), el("span", { texto: t("telarana.leyenda.atasco") })) : null,
         el("li", { class: "leyenda-grosor", texto: t("telarana.leyenda.grosor") }),
       ),
@@ -243,8 +176,8 @@ function crearPantalla(contenedor, ctx) {
 
   // ── Escena y cámara ───────────────────────────────────────────────────
   let camara = null;
-  // Dónde se trabaron (con el filtro de perfil actual): marca en la estación y líneas en su globo.
-  const atascosActuales = () => atascosPorPagina(tanda, estado.perfil);
+  // Dónde se trabaron: marca en la estación y líneas en su globo.
+  const atascosActuales = () => atascosPorPagina(tanda);
   const lineaDeAtasco = (atasco) => {
     const partes = [];
     if (atasco.demora) partes.push(t("telarana.atasco.demora", { n: atasco.demora }));
@@ -285,14 +218,18 @@ function crearPantalla(contenedor, ctx) {
     const rama = ramas.get(tramo.id);
     filas.push(el("span", { class: "telarana-globo-titulo", texto: t("telarana.tramo.titulo", { desde: nombre(desde), hasta: nombre(paginas.get(tramo.destino)) }) }));
     if (tramo.tipo === "retroceso") filas.push(el("span", { class: "texto-3", texto: t("telarana.tramo.vuelta") }));
-    for (const accion of rama?.acciones ?? []) filas.push(el("span", { class: "telarana-globo-accion" }, el("span", { texto: accion.accion }), el("span", { class: "num texto-3", texto: `×${accion.intentos}` })));
+    for (const accion of accionesEnOrden(rama)) filas.push(el("span", { class: "telarana-globo-accion" }, el("span", { texto: textoDeAccion(accion.accion, t) }), el("span", { class: "num texto-3", title: t("telarana.panel.intentosDeAccion"), texto: `×${accion.intentos}` })));
     const desglose = [t("telarana.tramo.intentos", { n: rama?.intentos ?? tramo.intentos })];
-    if (rama?.llegaron) desglose.push(t("telarana.tramo.llegaron", { n: rama.llegaron }));
-    if (rama?.noLlegaron) desglose.push(t("telarana.tramo.noLlegaron", { n: rama.noLlegaron }));
+    if (rama?.exitos) desglose.push(t("telarana.tramo.exitos", { n: rama.exitos }));
+    // Sin medir (sin ruta de la Guía ni juez): los fallos del árbol no dicen nada.
+    if (rama?.resultado === "sin_medir") desglose.push(t("comun.resultado.sin_medir"));
+    else if (rama?.fallos) desglose.push(t("telarana.tramo.fallos", { n: rama.fallos }));
     if (rama?.errores) desglose.push(t("telarana.tramo.errores", { n: rama.errores }));
     filas.push(el("span", { class: "texto-2", texto: desglose.join(" · ") }));
     const extra = [];
-    if (rama?.perfiles?.length) extra.push(fmt.lista(rama.perfiles.map(nombreDePerfil)));
+    // Con repeticiones, los intentos («Escritorio #2»), no solo los perfiles.
+    const quienes = rama?.intentosIds?.length ? rama.intentosIds : (rama?.perfiles ?? []);
+    if (quienes.length) extra.push(fmt.lista(quienes.map(nombreDePerfil)));
     if (Number.isFinite(rama?.medianaSegundos)) extra.push(t("telarana.tramo.mediana", { duracion: fmt.duracion(rama.medianaSegundos) }));
     if (extra.length) filas.push(el("span", { class: "texto-3", texto: extra.join(" · ") }));
     return el("span", { class: "telarana-globo" }, filas);
@@ -300,19 +237,14 @@ function crearPantalla(contenedor, ctx) {
 
   function cajaVisible() {
     const { caja } = estado.geo;
-    // En 3D las capturas se paran sobre las estaciones: más lugar arriba y a los lados.
-    if (camara?.inclinado) return { x: caja.x - 60, y: caja.y - 160, ancho: caja.ancho + HOLGURA.derecha + 120, alto: caja.alto + 160 };
-    return { x: caja.x - HOLGURA.izquierda, y: caja.y, ancho: caja.ancho + HOLGURA.izquierda + HOLGURA.derecha, alto: caja.alto + HOLGURA.abajo };
-  }
-
-  /** Zoom con que se ve el mapa entero a lo ancho del lienzo. */
-  function zoomDelAncho() {
-    const { caja } = geometria(distribucion);
-    return lienzo.clientWidth / (caja.ancho + HOLGURA.izquierda + HOLGURA.derecha);
+    const holgura = HOLGURA[estado.eje] ?? HOLGURA.derecha;
+    return { x: caja.x - holgura.izquierda, y: caja.y, ancho: caja.ancho + holgura.izquierda + holgura.derecha, alto: caja.alto + holgura.abajo };
   }
 
   function dibujar() {
-    estado.geo = geometria(distribucion, { altoFila: estado.altoFila ?? ALTO_FILA });
+    // Anillos como círculos simples y sin rayos: la estructura de la telaraña, sin decorarla como tela de araña.
+    estado.geo = geometriaRadial(distribucion, { eje: estado.eje, rayos: 0, caida: 0 });
+    lienzo.dataset.eje = estado.eje;
     estado.dibujo = dibujarEscena({
       escena,
       distribucion,
@@ -335,30 +267,13 @@ function crearPantalla(contenedor, ctx) {
       if (golpe) conGlobo(golpe, tooltipDeTramo(tramo), { senal });
     }
     estado.dibujo.marcarEleccion(estado.seleccion);
-    estado.dibujo.contarTerminales(totalesDeTerminales(finalesPorPagina(tanda, estado.perfil)));
+    estado.dibujo.contarTerminales(totalesDeTerminales(finalesPorPagina(tanda)));
     aislar();
-    estado.historia?.reubicar(estado.dibujo, estado.geo.posiciones);
   }
 
   function ajustar() {
     if (!camara || !estado.geo) return;
-    const caja = cajaVisible();
-    if (camara.inclinado) {
-      camara.poner(camara.encuadre(caja));
-      return;
-    }
-    const legible = zoomLegible(estado.altoFila ?? ALTO_FILA);
-    const encuadre = camara.encuadre(caja, { minimo: legible });
-    // Si aun así no cabe (teléfonos, tandas grandes): se ve desde el inicio (a la izquierda) y a la altura de la ruta,
-    // sin dejar vacío arriba ni abajo del mapa.
-    const { clientWidth: ancho, clientHeight: alto } = lienzo;
-    if (caja.ancho * encuadre.k > ancho) encuadre.tx = -caja.x * encuadre.k;
-    if (caja.alto * encuadre.k > alto) {
-      const arriba = -caja.y * encuadre.k;
-      const abajo = alto - (caja.y + caja.alto) * encuadre.k;
-      encuadre.ty = Math.min(arriba, Math.max(abajo, alto / 2));
-    }
-    camara.poner(encuadre);
+    camara.ajustar(cajaVisible());
   }
 
   function acercar() {
@@ -391,63 +306,39 @@ function crearPantalla(contenedor, ctx) {
     });
   }
 
-  /** El lienzo llena lo que queda de la ventana bajo su borde de arriba (con la página sin desplazar). */
-  function dimensionarLienzo() {
-    const arriba = lienzo.getBoundingClientRect().top + window.scrollY;
-    const alto = altoDelLienzo(window.innerHeight, arriba);
-    if (alto === estado.altoDelLienzo) return false;
-    estado.altoDelLienzo = alto;
-    contenedor.style.setProperty("--alto-del-lienzo", `${alto}px`);
-    return true;
-  }
-
   function alCambiarTamano() {
-    const cambioElAlto = dimensionarLienzo();
     const ancho = contenedor.clientWidth;
     if (!ancho || !distribucion.estaciones.length) return;
-    const primera = !estado.geo;
-    if (!primera && Math.abs(ancho - estado.ancho) < 2) {
-      if (cambioElAlto) ajustar();
-      return;
-    }
+    // Lienzo más alto que ancho (teléfonos): el eje baja, así la telaraña aprovecha el alto.
+    const eje = lienzo.clientHeight > lienzo.clientWidth * 1.05 ? "abajo" : "derecha";
+    const cambio = eje !== estado.eje;
+    if (!cambio && Math.abs(ancho - estado.ancho) < 2) return;
     estado.ancho = ancho;
-    // Alto de fila para que los nombres quepan viendo el mapa entero a lo ancho.
-    const zoom = zoomDelAncho();
-    const altoFila = altoDeFilaPara(zoom, ALTO_FILA);
-    const redibujar = primera || altoFila !== estado.altoFila || Math.abs(zoom - estado.zoomDelAncho) > 0.02;
-    estado.altoFila = altoFila;
-    estado.zoomDelAncho = zoom;
-    if (redibujar) dibujar();
-    if (primera) ponerVista3d(estado.ctx.parametros?.vista === "3d", { animar: false });
+    const primera = !estado.geo;
+    if (cambio) {
+      estado.eje = eje;
+      dibujar();
+    }
     ajustar();
     introducir();
     // Si el primer dibujo llegó después de aplicar los parámetros (ancho 0 al montar), se aplican de nuevo.
     if (primera && estado.montado) aplicar(estado.ctx.parametros);
   }
 
-  // ── Aislamiento: resaltado > historia > elección > perfil ─────────────
+  // ── Aislamiento: resaltado > elección ─────────────────────────────────
   function aislar() {
     if (!estado.dibujo) return;
-    const limite = activosDePerfil(tanda, estado.perfil);
-    let ids = limite;
-    if (estado.resaltado && !estado.historia) ids = estado.resaltado;
-    else if (estado.historia) ids = estado.historiaIds;
-    else if (estado.seleccion) ids = vecindario(distribucion, estado.seleccion, limite);
+    let ids = null;
+    if (estado.resaltado) ids = estado.resaltado;
+    else if (estado.seleccion) ids = vecindario(distribucion, estado.seleccion);
     estado.dibujo.aislar(ids);
-    // Las partículas de otros perfiles (o de otros intentos, en la historia) se apagan.
-    for (const particula of escena.querySelectorAll(".particula")) {
-      const intento = intentos.get(particula.dataset.intento);
-      const fuera = estado.historiaId ? particula.dataset.intento !== estado.historiaId : !!estado.perfil && intento?.perfil !== estado.perfil;
-      particula.classList.toggle("particula-fuera", fuera);
-    }
   }
 
   function resaltar(objetivo) {
     const estacion = objetivo?.closest?.(".estacion");
     const tramo = objetivo?.closest?.(".tramo");
     let ids = null;
-    const limite = activosDePerfil(tanda, estado.perfil);
-    if (estacion) ids = vecindario(distribucion, estacion.dataset.pagina, limite);
+    if (estacion) ids = vecindario(distribucion, estacion.dataset.pagina);
     else if (tramo && tramo.closest(".escena")) {
       const datos = distribucion.tramos.find((cada) => cada.id === tramo.dataset.tramo);
       if (datos) ids = new Set([datos.id, datos.origen, datos.destino]);
@@ -482,7 +373,6 @@ function crearPantalla(contenedor, ctx) {
       const flechas = { ArrowLeft: [PASO_DE_PAN, 0], ArrowRight: [-PASO_DE_PAN, 0], ArrowUp: [0, PASO_DE_PAN], ArrowDown: [0, -PASO_DE_PAN] };
       const movimiento = flechas[evento.key];
       if (!movimiento || !camara) return;
-      if (estado.historia && (evento.key === "ArrowLeft" || evento.key === "ArrowRight")) return; // la historia manda
       evento.preventDefault();
       camara.mover(...movimiento);
     },
@@ -491,88 +381,7 @@ function crearPantalla(contenedor, ctx) {
 
   // ── Elegir una página ─────────────────────────────────────────────────
   function elegir(id) {
-    if (estado.historia) {
-      ctx.actualizarParametros({ historia: null, paso: null, pagina: id });
-      return;
-    }
     ctx.actualizarParametros({ pagina: estado.seleccion === id ? null : id });
-  }
-
-  // ── Vista 3D (§10.5.4): el mismo mapa inclinado, con las capturas de pie sobre cada estación ─────────────
-  let relojDeVista = 0;
-  function ponerVista3d(pedida, { animar = true } = {}) {
-    const activa = !!pedida;
-    botonDe3d.setAttribute("aria-pressed", String(activa));
-    if (!camara || activa === camara.inclinado) return;
-    if (animar && !reducido()) {
-      lienzo.classList.add("cambiando-vista");
-      clearTimeout(relojDeVista);
-      relojDeVista = setTimeout(() => lienzo.classList.remove("cambiando-vista"), 650);
-    }
-    if (activa) lienzo.dataset.vista = "3d";
-    else delete lienzo.dataset.vista;
-    const { caja } = estado.geo ?? { caja: { x: 0, y: 0, ancho: 0, alto: 0 } };
-    camara.inclinar(activa, { x: Math.round(caja.x + caja.ancho / 2), y: Math.round(caja.y + caja.alto / 2) });
-    ajustar();
-  }
-  function alternar3d() {
-    ctx.actualizarParametros({ vista: camara?.inclinado ? null : "3d" });
-  }
-
-  // ── Historia ──────────────────────────────────────────────────────────
-  function intentoPorDefecto() {
-    const candidatos = [...intentos.values()];
-    const delPerfil = estado.perfil ? candidatos.filter((intento) => intento.perfil === estado.perfil) : candidatos;
-    const elegido = delPerfil.find((intento) => intento.id === selectorDeHistoria.value) ?? delPerfil.find((intento) => intento.resultado !== "error") ?? delPerfil[0];
-    return elegido?.id ?? null;
-  }
-
-  function alternarHistoria() {
-    if (estado.historiaId) ctx.actualizarParametros({ historia: null, paso: null });
-    else {
-      const id = intentoPorDefecto();
-      if (id) ctx.actualizarParametros({ historia: id, paso: null, pagina: null });
-    }
-  }
-
-  let quitarAtajosDeHistoria = null;
-  function iniciarHistoria(id) {
-    detenerHistoria();
-    const intento = intentos.get(id);
-    const recorrido = recorridoDeHistoria(intento, tramosExistentes);
-    estado.historiaId = id;
-    estado.historiaIds = recorrido.ids;
-    estado.historia = crearHistoria({
-      recorrido,
-      pasosDelIntento: intento.pasos ?? [],
-      dibujo: estado.dibujo,
-      posiciones: estado.geo.posiciones,
-      camara,
-      reducido,
-      alCambiar: (paso, { reproduciendo }) => {
-        pintarPanel();
-        const pagina = paginas.get(recorrido.pasos[paso - 1]?.pagina);
-        ctx.anunciar(t("telarana.historia.anuncio", { nombre: intento.nombrePerfil ?? id, paso, total: recorrido.pasos.length, pagina: pagina ? nombre(pagina) : "" }));
-        if (!reproduciendo) ctx.actualizarParametros({ paso: String(paso) });
-      },
-    });
-    selectorDeHistoria.value = id;
-    botonDeHistoria.setAttribute("aria-pressed", "true");
-    quitarAtajosDeHistoria = ctx.atajos.registrar({
-      Space: { descripcion: () => t("comun.atajos.desc.historiaPasos"), accion: () => { estado.historia?.alternar(); pintarPanel(); } },
-      ArrowLeft: { descripcion: () => t("comun.atajos.desc.historiaPasos"), accion: () => estado.historia?.mover(-1) },
-      ArrowRight: { descripcion: () => t("comun.atajos.desc.historiaPasos"), accion: () => estado.historia?.mover(1) },
-    });
-  }
-
-  function detenerHistoria() {
-    estado.historia?.destruir();
-    estado.historia = null;
-    estado.historiaId = null;
-    estado.historiaIds = null;
-    botonDeHistoria.setAttribute("aria-pressed", "false");
-    quitarAtajosDeHistoria?.();
-    quitarAtajosDeHistoria = null;
   }
 
   // ── Panel ─────────────────────────────────────────────────────────────
@@ -595,7 +404,7 @@ function crearPantalla(contenedor, ctx) {
     );
 
   function listaDeTerminales() {
-    const totales = totalesDeTerminales(finalesPorPagina(tanda, estado.perfil));
+    const totales = totalesDeTerminales(finalesPorPagina(tanda));
     const presentes = RESULTADOS.filter((r) => totales[r] > 0);
     if (!presentes.length) return el("p", { class: "texto-3", texto: t("telarana.panel.nadieTermino") });
     return el(
@@ -606,10 +415,10 @@ function crearPantalla(contenedor, ctx) {
   }
 
   function panelGeneral() {
-    const hitos = new Map(hitosDeRuta(tanda, estado.perfil).map((hito) => [hito.pagina, hito]));
+    const hitos = new Map(hitosDeRuta(tanda).map((hito) => [hito.pagina, hito]));
     return [
       el("p", { class: "panel-telarana-prompt", texto: t("telarana.panel.elegir") }),
-      distribucion.troncoEsRuta ? null : avisoEnLinea(t("telarana.panel.sinRuta")),
+      distribucion.troncoEsRuta ? null : avisoEnLinea(t(tanda.telarana?.rutaEnInicio ? "telarana.panel.rutaEnInicio" : "telarana.panel.sinRuta")),
       el(
         "section",
         { class: "panel-telarana-seccion" },
@@ -624,8 +433,7 @@ function crearPantalla(contenedor, ctx) {
               "button",
               { type: "button", class: "panel-telarana-hito", "data-foco": `telarana:ruta:${id}` },
               el("span", { class: "panel-telarana-numero", "aria-hidden": "true", texto: String(indice + 1) }),
-              // Lo que distingue a la página adelante (como en su estación); el nombre completo, al pasar el puntero.
-              el("span", { class: "truncar", title: nombre(pagina), texto: textos.etiqueta(pagina) }),
+              el("span", { class: "truncar", texto: nombre(pagina) }),
               hito?.de ? el("span", { class: "num texto-3", "aria-label": t("telarana.panel.conteoAria", hito), texto: t("telarana.panel.conteo", hito) }) : null,
             );
             boton.addEventListener("click", () => elegir(id));
@@ -640,10 +448,10 @@ function crearPantalla(contenedor, ctx) {
   function panelDePagina(id) {
     const pagina = paginas.get(id);
     const estacion = distribucion.estaciones.find((cada) => cada.id === id);
-    const finales = finalesPorPagina(tanda, estado.perfil).get(id);
+    const finales = finalesPorPagina(tanda).get(id);
     const terminan = finales ? RESULTADOS.filter((r) => finales[r] > 0) : [];
-    const pasaron = intentosPorPagina(tanda, id, estado.perfil);
-    const salidas = salidasDePagina(tanda, id, estado.perfil);
+    const pasaron = intentosPorPagina(tanda, id);
+    const salidas = salidasDePagina(tanda, id);
     const variantes = pagina.variantes ?? [];
     const captura = urlDeCaptura(pagina.captura);
     const marca =
@@ -713,8 +521,12 @@ function crearPantalla(contenedor, ctx) {
                 el(
                   "li",
                   {},
-                  el("span", { class: "panel-telarana-destino" }, icono("siguiente"), el("span", { texto: nombre(paginas.get(rama.destino)) }), el("span", { class: "num texto-3", texto: `×${rama.intentos}` })),
-                  (rama.acciones ?? []).map((accion) => el("span", { class: "texto-3 panel-telarana-accion", texto: `${accion.accion} ×${accion.intentos}` })),
+                  el("span", { class: "panel-telarana-destino" }, icono("siguiente"), el("span", { texto: nombre(paginas.get(rama.destino)) }), el("span", { class: "num texto-3", title: t("telarana.panel.intentosDeAccion"), texto: `×${rama.intentos}` })),
+                  // Cómo se llegó a esa salida: las acciones de la gente primero; un salto del explorador es una
+                  // acción más de esta salida (no otro destino).
+                  accionesEnOrden(rama).map((accion) =>
+                    el("span", { class: "texto-3 panel-telarana-accion", title: t("telarana.panel.intentosDeAccion"), texto: t(accion.salto ? "telarana.panel.accionSalto" : "telarana.panel.accion", { accion: textoDeAccion(accion.accion, t), n: accion.intentos }) }),
+                  ),
                 ),
               ),
             ),
@@ -729,7 +541,7 @@ function crearPantalla(contenedor, ctx) {
               "ul",
               { class: "panel-telarana-intentos" },
               pasaron.map(({ intento, paso }) =>
-                el("li", {}, el("span", { class: "truncar", texto: intento.nombrePerfil ?? intento.id }), insignia(intento.resultado, { logro: intento.logro, compacta: true }), enlaceAReplay(intento, paso)),
+                el("li", {}, el("span", { class: "truncar", texto: nombreConNivel(intento.nombrePerfil ?? intento.id, t) }), insignia(intento.resultado, { logro: intento.logro, compacta: true }), enlaceAReplay(intento, paso)),
               ),
             )
           : el("p", { class: "texto-3", texto: t("telarana.panel.nadiePaso") }),
@@ -737,65 +549,10 @@ function crearPantalla(contenedor, ctx) {
     ];
   }
 
-  function panelDeHistoria() {
-    const intento = intentos.get(estado.historiaId);
-    const historia = estado.historia;
-    const numero = historia.paso;
-    const paso = intento.pasos?.[numero - 1] ?? null;
-    const control = (clave, nombreIcono, accion, extra = {}) => {
-      const boton = el("button", { type: "button", class: "boton boton-icono", "aria-label": t(`telarana.historia.${clave}`), title: t(`telarana.historia.${clave}`), "data-foco": `telarana:historia:${clave}`, ...extra }, nombreIcono.map((n) => icono(n)));
-      boton.addEventListener("click", accion);
-      return boton;
-    };
-    const reproduciendo = historia.reproduciendo;
-    const captura = paso?.captura ? ctx.urlDeArchivo(intento.id, paso.captura) : null;
-    return [
-      el(
-        "div",
-        { class: "panel-telarana-cabecera" },
-        el("div", {}, encabezado(t("telarana.historia.titulo", { nombre: intento.nombrePerfil ?? intento.id })), historia.total ? el("p", { class: "texto-3 num", texto: t("telarana.historia.pasoDe", { paso: numero, total: historia.total }) }) : null),
-        botonQuitar("telarana.historia.quitar", () => ctx.actualizarParametros({ historia: null, paso: null }), "telarana:historia:quitar"),
-      ),
-      intento.resultado === "error" ? avisoEnLinea(t("telarana.historia.error"), "atencion") : null,
-      historia.total
-        ? el(
-            "div",
-            { class: "panel-telarana-controles", role: "group", "aria-label": t("telarana.historia.controles") },
-            control("primero", ["anterior", "anterior"], () => historia.extremo(false)),
-            control("anterior", ["anterior"], () => historia.mover(-1)),
-            control(reproduciendo ? "pausar" : "reproducir", [reproduciendo ? "pausar" : "reproducir"], () => {
-              historia.alternar();
-              pintarPanel();
-            }, { "data-foco": "telarana:historia:reproducir", "aria-keyshortcuts": "Space" }),
-            control("siguiente", ["siguiente"], () => historia.mover(1)),
-            control("ultimo", ["siguiente", "siguiente"], () => historia.extremo(true)),
-          )
-        : el("p", { class: "texto-3", texto: t("telarana.historia.sinPasos") }),
-      paso
-        ? [
-            el("p", { class: "panel-telarana-firma" }, el("span", { texto: textoDeFirma(paso.firma, t) }), (paso.senales ?? []).map((senal) => marcaDeSenal(senal, { compacta: false }))),
-            captura
-              ? el("img", { class: "panel-telarana-captura", src: captura, alt: t("telarana.historia.captura", { n: numero }) })
-              : el("p", { class: "texto-3", texto: t("telarana.historia.sinCaptura") }),
-            paso.expectativa
-              ? el("div", { class: "panel-telarana-esperaba" }, el("span", { class: "etiqueta-micro", texto: t("telarana.historia.esperaba") }), el("p", { class: "prosa texto-2", texto: paso.expectativa }))
-              : null,
-            el(
-              "a",
-              { class: "boton boton-secundario panel-telarana-abrir", href: ctx.enlace("replay", { intento: intento.id, paso: numero }), "data-foco": "telarana:historia:replay" },
-              el("span", { texto: t("telarana.historia.abrirEnReplay") }),
-              icono("siguiente"),
-            ),
-          ]
-        : null,
-    ];
-  }
-
   function pintarPanel() {
     if (!panel.isConnected) return;
     conservarFoco(panel, () => {
-      if (estado.historia) reemplazar(panel, panelDeHistoria());
-      else if (estado.seleccion && paginas.has(estado.seleccion)) reemplazar(panel, panelDePagina(estado.seleccion));
+      if (estado.seleccion && paginas.has(estado.seleccion)) reemplazar(panel, panelDePagina(estado.seleccion));
       else reemplazar(panel, panelGeneral());
     });
   }
@@ -811,21 +568,7 @@ function crearPantalla(contenedor, ctx) {
   }
 
   function aplicar(parametros) {
-    const raiz = estado.profundidad === 0;
-    if (raiz) estado.avisos = [];
-
-    // perfil=
-    let perfil = parametros.perfil ?? null;
-    if (perfil && !perfiles.some((cada) => cada.id === perfil)) {
-      estado.avisos.push(t("telarana.perfiles.noExiste", { perfil }));
-      perfil = null;
-      return reescribir({ perfil: null });
-    }
-    const cambioDePerfil = perfil !== estado.perfil;
-    estado.perfil = perfil;
-    for (const [id, boton] of chips) boton.setAttribute("aria-pressed", String(id === perfil));
-    // El perfil elegido (clic, p/P o la URL) siempre a la vista en su fila.
-    requestAnimationFrame(() => mostrarEnFila(grupoDePerfiles, chips.get(perfil)));
+    if (estado.profundidad === 0) estado.avisos = [];
 
     // pagina= (con los alias de páginas fusionadas)
     let pagina = parametros.pagina ?? null;
@@ -842,41 +585,6 @@ function crearPantalla(contenedor, ctx) {
     estado.seleccion = nuevaSeleccion;
     estado.dibujo?.marcarEleccion(estado.seleccion);
 
-    // historia= y paso=
-    const pedida = parametros.historia ?? null;
-    if (pedida && !intentos.has(pedida)) {
-      const respaldo = intentoPorDefecto();
-      estado.avisos.push(t("telarana.historia.noExiste", { intento: pedida, nombre: intentos.get(respaldo)?.nombrePerfil ?? respaldo ?? "" }));
-      return reescribir({ historia: respaldo, paso: null });
-    }
-    if (pedida && estado.geo) {
-      if (pedida !== estado.historiaId) iniciarHistoria(pedida);
-      const total = estado.historia.total;
-      // paso=0 es la pantalla inicial (enlaces de hitos): la historia la muestra en el paso 1, como Replay.
-      if (total && parametros.paso === "0") return reescribir({ paso: "1" });
-      if (total) {
-        const { paso, aviso } = normalizarPaso(parametros.paso, total);
-        if (aviso) {
-          estado.avisos.push(t(aviso.clave, aviso.vars));
-          return reescribir({ paso: String(paso) });
-        }
-        if (paso !== estado.historia.paso || !estado.historiaColocada) {
-          // Al montar, el mapa ya está ajustado entero: la cámara no se mueve hasta que la historia avance.
-          estado.historia.irA(paso, { conCamara: !!estado.montado });
-          estado.historiaColocada = true;
-        }
-      }
-    } else if (!pedida && estado.historiaId) {
-      detenerHistoria();
-      estado.historiaColocada = false;
-    }
-    if (!pedida) estado.historiaColocada = false;
-
-    ponerVista3d(parametros.vista === "3d");
-    if (estado.dibujo && cambioDePerfil) {
-      estado.dibujo.contarTerminales(totalesDeTerminales(finalesPorPagina(tanda, estado.perfil)));
-      marcarAtascos();
-    }
     aislar();
     pintarPanel();
     reemplazar(zonaDeAvisos, estado.avisos.map((texto) => avisoEnLinea(texto, "atencion")));
@@ -886,29 +594,19 @@ function crearPantalla(contenedor, ctx) {
       if (p && !camara.esVisible(p.x, p.y)) camara.volarA(p.x, p.y);
       ctx.anunciar(t("telarana.panel.elegida", { nombre: nombre(paginas.get(estado.seleccion)) }));
     }
-    if (cambioDePerfil && raiz && estado.dibujo) {
-      ctx.anunciar(perfil ? t("telarana.perfiles.anuncio", { nombre: nombreDePerfil(perfil) }) : t("telarana.perfiles.anuncioTodos"));
-    }
     return true;
   }
 
   // ── Atajos de la pestaña (§7) ─────────────────────────────────────────
-  const cambiarPerfil = (dir) => ctx.actualizarParametros({ perfil: perfilVecino(perfiles.map((perfil) => perfil.id), estado.perfil, dir) });
   ctx.atajos.registrar({
     "+": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => acercar() },
-    "=": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => acercar() },
     "-": { descripcion: () => t("comun.atajos.desc.zoom"), accion: () => alejar() },
     0: { descripcion: () => t("comun.atajos.desc.ajustar"), accion: () => ajustar() },
-    p: { descripcion: () => t("comun.atajos.desc.perfil"), accion: () => cambiarPerfil(1) },
-    "Shift+P": { descripcion: () => t("comun.atajos.desc.perfil"), accion: () => cambiarPerfil(-1) },
-    h: { descripcion: () => t("comun.atajos.desc.historia"), accion: () => alternarHistoria() },
-    v: { descripcion: () => t("comun.atajos.desc.vista3d"), accion: () => alternar3d() },
     Escape: {
       descripcion: () => t("comun.atajos.desc.cerrar"),
       accion: () => {
         if (ocultarGlobo()) return;
-        if (estado.historiaId) ctx.actualizarParametros({ historia: null, paso: null });
-        else if (estado.seleccion) {
+        if (estado.seleccion) {
           const id = estado.seleccion;
           ctx.actualizarParametros({ pagina: null });
           estado.dibujo?.estaciones.get(id)?.focus({ preventScroll: true });
@@ -931,15 +629,13 @@ function crearPantalla(contenedor, ctx) {
         reducido,
         puedeArrastrar: (evento) => !evento.target.closest?.(".estacion, button, a, select"),
         alTocarFondo: () => {
-          if (estado.seleccion && !estado.historia) ctx.actualizarParametros({ pagina: null });
+          if (estado.seleccion) ctx.actualizarParametros({ pagina: null });
         },
       });
       // Primer dibujo con el ancho real; después, al cambiar de tamaño.
       alCambiarTamano();
       const observador = new ResizeObserver(() => alCambiarTamano());
       observador.observe(contenedor);
-      // El alto de la ventana (y lo que ocupa la cabecera, p. ej. al abrir la instrucción) cambia el alto del lienzo.
-      window.addEventListener("resize", () => alCambiarTamano(), { signal: senal });
       senal.addEventListener("abort", () => observador.disconnect(), { once: true });
       aplicar(ctx.parametros);
       estado.montado = true;
@@ -948,10 +644,7 @@ function crearPantalla(contenedor, ctx) {
       estado.ctx = nuevo;
       return aplicar(nuevo.parametros) !== false;
     },
-    desmontar() {
-      detenerHistoria();
-      clearTimeout(relojDeVista);
-    },
+    desmontar() {},
   };
 }
 

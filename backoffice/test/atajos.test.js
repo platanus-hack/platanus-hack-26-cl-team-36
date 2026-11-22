@@ -24,3 +24,44 @@ test("en letras y teclas con nombre los modificadores siguen contando", () => {
   assert.equal(teclaDelEvento(evento("Alt", { altKey: true })), null);
   assert.equal(teclaDelEvento(evento("AltGraph")), null);
 });
+
+test("la hoja de atajos muestra solo lo registrado ahora, por grupo y una fila por descripción", async () => {
+  const { gruposDeLaHoja } = await import("../public/nucleo/atajos.js");
+  const vivos = [
+    { grupo: "telarana", tecla: "+", descripcion: "Acercar / alejar", mantener: false },
+    { grupo: "telarana", tecla: "-", descripcion: "Acercar / alejar", mantener: false },
+    { grupo: "telarana", tecla: "0", descripcion: "Ajustar", mantener: false },
+    { grupo: "tanda", tecla: "1", descripcion: "Pestañas", mantener: false },
+    { grupo: "tanda", tecla: "2", descripcion: "Pestañas", mantener: false },
+    { grupo: "global", tecla: "?", descripcion: "Ver los atajos", mantener: false },
+  ];
+  assert.deepEqual(gruposDeLaHoja(vivos), [
+    { grupo: "global", filas: [{ descripcion: "Ver los atajos", teclas: ["?"], mantener: false }] },
+    { grupo: "tanda", filas: [{ descripcion: "Pestañas", teclas: ["1", "2"], mantener: false }] },
+    {
+      grupo: "telarana",
+      filas: [
+        { descripcion: "Acercar / alejar", teclas: ["+", "-"], mantener: false },
+        { descripcion: "Ajustar", teclas: ["0"], mantener: false },
+      ],
+    },
+  ]);
+  assert.deepEqual(gruposDeLaHoja([]), []);
+});
+
+test("atajos de la tanda y de la telaraña: un juego chico, sin restos de lo que se sacó", async () => {
+  const { readFileSync } = await import("node:fs");
+  const fuente = (ruta) => readFileSync(new URL(`../public/${ruta}`, import.meta.url), "utf8");
+  const atajos = fuente("nucleo/atajos.js");
+  assert.doesNotMatch(atajos, /CATALOGO/, "la hoja no tiene una lista escrita a mano que pueda desviarse");
+  assert.doesNotMatch(atajos, /"perfiles"/);
+  // Las teclas que registra el mapa de caminos: + − 0 y Esc.
+  const telarana = fuente("pantallas/telarana.js");
+  const bloque = telarana.slice(telarana.indexOf("ctx.atajos.registrar({"));
+  const teclas = [...bloque.matchAll(/^ {4}("[^"]+"|\w+): \{/gm)].map((m) => m[1].replaceAll('"', ""));
+  assert.deepEqual(teclas, ["+", "-", "0", "Escape"]);
+  // La tanda: 1 mapa, 2 Replay (sin Resumen ni Perfiles), [ ] y c; sin j/k de hallazgos.
+  assert.deepEqual((await import("../public/nucleo/rutas.js")).PESTANAS, ["telarana", "replay"]);
+  assert.doesNotMatch(atajos, /"resumen"/);
+  assert.doesNotMatch(fuente("nucleo/marco-tanda.js"), /desc\.(pestanas|hallazgos)/);
+});

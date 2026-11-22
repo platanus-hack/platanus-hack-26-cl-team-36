@@ -95,3 +95,14 @@ test("varias páginas de inicio o mismo título en otro sitio: se distinguen por
   // Una sola página de inicio sigue sin título corto.
   assert.equal(titularPaginas([pagina("https://sitio.test/", "Sitio")])[0].tituloCorto, null);
 });
+
+test("una página de error del navegador (chrome-error://, about:) nunca es la de inicio (C4-5)", () => {
+  const paginas = titularPaginas([
+    { id: "n1", titulo: "SERNAC", url: "https://www.sernac.cl/portal/604/w3-channel.html", variantes: [] },
+    { id: "n2", titulo: "", url: "chrome-error://chromewebdata/", variantes: [] },
+    { id: "n3", titulo: "", url: "about:blank", variantes: [] },
+    { id: "n4", titulo: "Inicio", url: "https://www.sernac.cl/", variantes: [] },
+  ]);
+  assert.deepEqual(paginas.map((p) => p.tituloTipo), ["sitio", "error", "error", "inicio"]);
+  assert.equal(paginas[1].tituloCorto, null);
+});

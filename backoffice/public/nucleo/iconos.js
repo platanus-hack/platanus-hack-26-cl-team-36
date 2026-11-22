@@ -16,7 +16,7 @@ const FORMAS = {
   "error-herramienta": [
     ["path", { d: "M10.6 2.6a3.1 3.1 0 0 0-3 4.1l-4.8 4.8a1.25 1.25 0 0 0 1.8 1.8l4.8-4.8a3.1 3.1 0 0 0 4.1-3l-1.9 1.3-1.9-.5-.5-1.9z" }],
   ],
-  // Llegan, pero con dificultad (titular de Resumen y Corridas): un check dentro de un triángulo de aviso.
+  // Llegan, pero con dificultad (titular de la cabecera de la tanda y Corridas): un check dentro de un triángulo de aviso.
   dificultad: [["path", { d: "M8 1.75l6.5 11.5H1.5z" }], ["path", { d: "M5.6 9.6l1.6 1.6 3.2-3.4" }]],
   // Alguien se trabó en esta página (marca de la telaraña): triángulo de aviso con "!".
   atasco: [["path", { d: "M8 1.75l6.5 11.5H1.5z" }], ["path", { d: "M8 6v3.25" }], ["path", { d: "M8 11.1v.15" }]],
@@ -41,7 +41,6 @@ const FORMAS = {
   acercar: [["circle", { cx: 7, cy: 7, r: 4.5 }], ["path", { d: "M10.4 10.4L13.75 13.75M5 7h4M7 5v4" }]],
   alejar: [["circle", { cx: 7, cy: 7, r: 4.5 }], ["path", { d: "M10.4 10.4L13.75 13.75M5 7h4" }]],
   ajustar: [["path", { d: "M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" }]],
-  "vista-3d": [["path", { d: "M8 1.75l5.5 3.1v6.3L8 14.25l-5.5-3.1V4.85z" }], ["path", { d: "M2.5 4.85L8 8l5.5-3.15M8 8v6.25" }]],
   "enlace-externo": [
     ["path", { d: "M9 2.5h4.5V7M13.5 2.5L7.5 8.5" }],
     ["path", { d: "M11.5 9.5v2.75a1.25 1.25 0 0 1-1.25 1.25h-6.5a1.25 1.25 0 0 1-1.25-1.25v-6.5A1.25 1.25 0 0 1 3.75 4.5H6.5" }],
@@ -50,7 +49,6 @@ const FORMAS = {
   teclado: [["rect", { x: 1.5, y: 3.75, width: 13, height: 8.5, rx: 1.5 }], ["path", { d: "M4.5 6.75h.01M7 6.75h.01M9.5 6.75h.01M12 6.75h.01M5 9.5h6" }]],
   "orden-asc": [["path", { d: "M8 13V3M4.5 6.5L8 3l3.5 3.5" }]],
   "orden-desc": [["path", { d: "M8 3v10M4.5 9.5L8 13l3.5-3.5" }]],
-  historia: [["path", { d: "M2.5 13.5C4 8.5 7.5 5 12 3.25" }], ["circle", { cx: 12.75, cy: 3.25, r: 1.75, ...R }]],
   corridas: [["rect", { x: 2.5, y: 2.5, width: 11, height: 11, rx: 2 }], ["path", { d: "M2.5 6.25h11M2.5 9.75h11" }]],
   idioma: [["circle", { cx: 8, cy: 8, r: 6 }], ["path", { d: "M2 8h12M8 2c-2.2 2.4-2.2 9.6 0 12M8 2c2.2 2.4 2.2 9.6 0 12" }]],
   marca: [["circle", { cx: 8, cy: 8, r: 2.25 }], ["circle", { cx: 8, cy: 8, r: 6, "stroke-dasharray": "1.5 2.2" }], ["path", { d: "M10.25 8h4" }]],

@@ -1,6 +1,6 @@
-// Marco de una tanda (diseño §5.11, §10.3): migas, anterior/siguiente, copiar enlace, h1, instrucción, línea de
-// datos, resumen del veredicto, pestañas y el panel donde se montan las pestañas. Las pestañas son enlaces (cambian
-// la URL), no pestañas ARIA. Registra los atajos [ ] 1–4 c y las opciones de la tanda en la paleta.
+// Marco de una tanda (diseño §5.11, §10.3): una cabecera mínima de dos líneas (la tarea con anterior/siguiente y
+// copiar enlace; debajo, sitio, fecha y cuántos llegan), las pestañas y el panel donde se montan. Las pestañas son
+// enlaces (cambian la URL), no pestañas ARIA. Registra los atajos [ ] 1–2 c y las opciones de la tanda en la paleta.
 
 import { kbd, registrarAtajos } from "./atajos.js";
 import { copiarEnlace } from "./avisos.js";
@@ -8,7 +8,7 @@ import { nombreDePagina as nombreDePaginaConT } from "../datos/textos.js";
 import { el, esUrlWeb } from "./dom.js";
 import { conGlobo } from "./globo.js";
 import { fmt, t } from "./i18n.js";
-import { icono, insignia } from "./iconos.js";
+import { icono } from "./iconos.js";
 import { registrarFuenteDePaleta } from "./paleta.js";
 import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda } from "./rutas.js";
 
@@ -23,20 +23,23 @@ export function nombreDePagina(pagina) {
 function cifras(tanda) {
   const kpis = tanda.kpis ?? {};
   const intentos = kpis.intentos ?? tanda.intentos?.length ?? 0;
-  const errores = kpis.errores ?? 0;
-  const validos = kpis.validos ?? intentos - errores;
+  const validos = kpis.validos ?? intentos - (kpis.errores ?? 0);
+  // Los «sin medir» son válidos pero no cuentan en «llegan n de m».
   const medidos = kpis.medidos ?? validos;
   const logrados = kpis.logrados ?? kpis.exitos ?? 0;
-  return { intentos, errores, validos, medidos, logrados };
+  return { validos, medidos, logrados };
 }
 
-function resumenDelVeredicto({ logrados, validos, medidos }) {
+function insigniaDeLlegan({ logrados, validos, medidos }) {
   if (!validos) return el("span", { class: "insignia insignia-neutro" }, icono("abandonado"), el("span", { texto: t("comun.marco.ningunoValido") }));
   if (!medidos) return el("span", { class: "insignia insignia-sin_medir" }, icono("sin-medir"), el("span", { texto: t("comun.marco.sinMedir") }));
   const todos = logrados === medidos;
   return el(
     "span",
-    { class: `insignia ${todos ? "insignia-logrado" : "insignia-fallido"}` },
+    {
+      class: `insignia ${todos ? "insignia-logrado" : "insignia-fallido"}`,
+      title: medidos < validos ? t("comun.marco.algunosSinMedir", { n: validos - medidos }) : null,
+    },
     icono(todos ? "logrado" : "fallido"),
     el("span", { texto: t("comun.marco.llegan", { n: logrados, de: medidos }) }),
   );
@@ -83,7 +86,6 @@ function botonVecina({ id, pestana, tipo, senal }) {
 export function montarMarco({ tanda, ruta, navegar }) {
   const titulo = tanda.tarea ?? tanda.host ?? tanda.id;
   const fecha = tanda.fechaIso ?? tanda.fecha;
-  const { intentos, errores, validos, medidos, logrados } = cifras(tanda);
   const vecinas = tanda.vecinas ?? {};
   let pestanaActual = ruta.pestana;
   const controlador = new AbortController();
@@ -96,39 +98,6 @@ export function montarMarco({ tanda, ruta, navegar }) {
     siguiente.replaceChildren(botonVecina({ id: vecinas.siguiente, pestana: pestanaActual, tipo: "siguiente", senal }));
   };
   ponerVecinas();
-
-  // En angosto la instrucción se corta en 2 líneas: se abre tocándola o con el botón (que sí llega el teclado).
-  // Con exploradores «sin contexto», la versión de la tarea que leyeron va como segunda línea.
-  const instruccion = tanda.instruccion
-    ? el(
-        "p",
-        { id: "marco-instruccion", class: "prosa marco-instruccion", title: t("comun.marco.verInstruccion") },
-        tanda.instruccion,
-        tanda.instruccionSinContexto
-          ? el("span", { class: "marco-sin-contexto" }, el("span", { class: "texto-3", texto: `${t("comun.marco.versionSinContexto")} ` }), tanda.instruccionSinContexto)
-          : null,
-      )
-    : null;
-  const verInstruccion = instruccion
-    ? el("button", { type: "button", class: "boton boton-fantasma marco-ver-instruccion", "aria-expanded": "false", "aria-controls": "marco-instruccion", texto: t("comun.marco.verInstruccion") })
-    : null;
-  const alternarInstruccion = () => {
-    const abierta = instruccion.classList.toggle("expandida");
-    verInstruccion.setAttribute("aria-expanded", String(abierta));
-    verInstruccion.textContent = t(abierta ? "comun.marco.ocultarInstruccion" : "comun.marco.verInstruccion");
-  };
-  instruccion?.addEventListener("click", alternarInstruccion);
-  verInstruccion?.addEventListener("click", alternarInstruccion);
-  // El botón solo aparece cuando la instrucción de verdad quedó cortada (o ya está abierta, para cerrarla).
-  if (instruccion && typeof ResizeObserver === "function") {
-    const medir = () => {
-      const cortada = instruccion.classList.contains("expandida") || instruccion.scrollHeight > instruccion.clientHeight + 1;
-      instruccion.toggleAttribute("data-cortada", cortada);
-    };
-    const observador = new ResizeObserver(medir);
-    observador.observe(instruccion);
-    senal.addEventListener("abort", () => observador.disconnect(), { once: true });
-  }
 
   const enlacesDePestana = new Map(
     PESTANAS.map((pestana, indice) => [
@@ -144,26 +113,16 @@ export function montarMarco({ tanda, ruta, navegar }) {
 
   const panel = el("section", { id: "panel-tanda", class: "panel-tanda", tabindex: "-1" });
 
-  const meta = el(
-    "p",
-    { class: "marco-meta" },
-    tanda.url && !esUrlWeb(tanda.url) ? el("span", { class: "marco-sitio", texto: tanda.host || tanda.url }) : null,
-    tanda.url && esUrlWeb(tanda.url)
+  const sitio = !tanda.url
+    ? null
+    : esUrlWeb(tanda.url)
       ? el(
           "a",
           { class: "marco-sitio", href: tanda.url, target: "_blank", rel: "noreferrer noopener", title: t("comun.marco.abrirSitio", { host: tanda.host ?? tanda.url }) },
           el("span", { texto: tanda.host ?? tanda.url }),
           icono("enlace-externo"),
         )
-      : null,
-    fecha ? el("time", { class: "marco-fecha", datetime: tanda.fechaIso ?? null, texto: fmt.fechaLegible(fecha) }) : null,
-    fecha ? el("span", { class: "marco-relativo", title: fmt.fechaLegible(fecha), texto: fmt.tiempoRelativo(fecha) }) : null,
-    el("span", { class: "marco-intentos", texto: t("comun.marco.intentos", { n: intentos }) }),
-    el("span", { class: "marco-veredicto" }, resumenDelVeredicto({ logrados, validos, medidos })),
-    errores ? el("span", { class: "marco-errores" }, el("span", { class: "insignia insignia-error" }, icono("error-herramienta"), el("span", { texto: t("comun.marco.errores", { n: errores }) }))) : null,
-    tanda.modeloUsuarios ? el("span", { class: "marco-modelo", title: tanda.modeloUsuarios, texto: t("comun.marco.usuarios", { modelo: fmt.modelo(tanda.modeloUsuarios) }) }) : null,
-    tanda.modeloJuez ? el("span", { class: "marco-modelo", title: tanda.modeloJuez, texto: t("comun.marco.juez", { modelo: fmt.modelo(tanda.modeloJuez) }) }) : null,
-  );
+      : el("span", { class: "marco-sitio", texto: tanda.host || tanda.url });
 
   const copiar = el(
     "button",
@@ -184,28 +143,19 @@ export function montarMarco({ tanda, ruta, navegar }) {
         "div",
         { class: "marco-barra" },
         el(
-          "nav",
-          { class: "migas", "aria-label": t("comun.marco.migas") },
-          el(
-            "ol",
-            {},
-            el("li", { class: "migas-corridas" }, el("a", { href: "#/", "data-foco": "marco:migas:corridas" }, icono("anterior", { clase: "migas-volver" }), el("span", { texto: t("comun.shell.corridas") }))),
-            el("li", { class: "migas-tarea truncar", texto: titulo }),
-            fecha ? el("li", { class: "migas-fecha" }, el("span", { "aria-current": "page", texto: fmt.fechaCorta(fecha) })) : null,
-          ),
-        ),
-        el(
           "div",
-          { class: "marco-acciones" },
-          anterior,
-          siguiente,
-          copiar,
+          { class: "marco-identidad" },
+          el("h1", { class: "marco-titulo truncar", tabindex: "-1", title: tanda.instruccion || titulo, texto: titulo }),
         ),
+        el("div", { class: "marco-acciones" }, anterior, siguiente, copiar),
       ),
-      el("h1", { class: "marco-titulo", tabindex: "-1", texto: titulo }),
-      instruccion,
-      verInstruccion,
-      meta,
+      el(
+        "p",
+        { class: "marco-datos" },
+        sitio,
+        fecha ? el("time", { class: "marco-fecha", datetime: tanda.fechaIso ?? null, title: fmt.fechaLegible(fecha), texto: fmt.fechaCorta(fecha) }) : null,
+        insigniaDeLlegan(cifras(tanda)),
+      ),
     ),
     el("nav", { class: "pestanas", "aria-label": t("comun.marco.vistas") }, el("ul", {}, [...enlacesDePestana.values()].map((enlace) => el("li", {}, enlace)))),
     panel,
@@ -214,14 +164,12 @@ export function montarMarco({ tanda, ruta, navegar }) {
   function actualizar(nuevaRuta) {
     const enfocada = document.activeElement?.classList?.contains("pestana") && raiz.contains(document.activeElement);
     pestanaActual = nuevaRuta.pestana;
-    // La telaraña pide el alto para el mapa: su cabecera se compacta (marco-tanda.css).
-    raiz.dataset.pestana = pestanaActual;
     for (const [pestana, enlace] of enlacesDePestana) {
       if (pestana === pestanaActual) enlace.setAttribute("aria-current", "page");
       else enlace.removeAttribute("aria-current");
     }
     panel.setAttribute("aria-label", t(NOMBRES_DE_PESTANA[pestanaActual]));
-    // Si el foco estaba en una pestaña (p. ej. se cambió con 1–4), pasa a la pestaña elegida.
+    // Si el foco estaba en una pestaña (p. ej. se cambió con 1–2), pasa a la pestaña elegida.
     if (enfocada) enlacesDePestana.get(pestanaActual)?.focus({ preventScroll: true });
     // Anterior/siguiente conservan la pestaña (sin sus parámetros): se cambia el href en el lugar, sin perder foco.
     for (const [contenedor, id] of [[anterior, vecinas.anterior], [siguiente, vecinas.siguiente]]) {
@@ -232,12 +180,14 @@ export function montarMarco({ tanda, ruta, navegar }) {
   actualizar(ruta);
 
   const atajos = {
-    "[": { descripcion: t("comun.marco.anteriorDescripcion"), accion: () => vecinas.anterior && navegar(enlaceATanda(vecinas.anterior, pestanaActual)) },
-    "]": { descripcion: t("comun.marco.siguienteDescripcion"), accion: () => vecinas.siguiente && navegar(enlaceATanda(vecinas.siguiente, pestanaActual)) },
+    "[": { descripcion: t("comun.atajos.desc.vecinas"), accion: () => vecinas.anterior && navegar(enlaceATanda(vecinas.anterior, pestanaActual)) },
+    "]": { descripcion: t("comun.atajos.desc.vecinas"), accion: () => vecinas.siguiente && navegar(enlaceATanda(vecinas.siguiente, pestanaActual)) },
     c: { descripcion: t("comun.atajos.desc.copiarEnlace"), accion: () => copiarEnlace() },
   };
+  // Una fila en la hoja de atajos con los nombres de las pestañas, tal como dicen hoy («1 / 2: Mapa · Replay»).
+  const nombresDePestanas = () => PESTANAS.map((pestana) => t(NOMBRES_DE_PESTANA[pestana])).join(" · ");
   PESTANAS.forEach((pestana, indice) => {
-    atajos[String(indice + 1)] = { descripcion: t(NOMBRES_DE_PESTANA[pestana]), accion: () => navegar(enlaceATanda(tanda.id, pestana)) };
+    atajos[String(indice + 1)] = { descripcion: nombresDePestanas, accion: () => navegar(enlaceATanda(tanda.id, pestana)) };
   });
   const quitarAtajos = registrarAtajos(atajos, { ambito: "pantalla", grupo: "tanda" });
 
@@ -267,15 +217,6 @@ export function montarMarco({ tanda, ruta, navegar }) {
       palabras: `${pagina.titulo ?? ""} ${pagina.url ?? ""}`,
       href: enlaceATanda(tanda.id, "telarana", { pagina: pagina.id }),
       icono: pagina.enRuta ? "en-ruta" : "fuera-de-ruta",
-    })),
-    ...(tanda.perfiles ?? []).map((perfil) => ({
-      id: `tanda:perfil:${perfil.perfil}`,
-      grupo: "tanda",
-      titulo: perfil.nombre ?? perfil.perfil,
-      subtitulo: t("comun.paleta.perfil", { n: fmt.conteo(perfil.metricas?.exito ?? null) }),
-      palabras: perfil.perfil,
-      href: enlaceATanda(tanda.id, "perfiles"),
-      icono: "corridas",
     })),
   ]);
 

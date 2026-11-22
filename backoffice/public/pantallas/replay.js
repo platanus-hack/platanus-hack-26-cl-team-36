@@ -1,54 +1,34 @@
-// Replay (diseño §8 WP4, §10.6): un intento paso a paso en tres vistas sincronizadas (riel de pasos, visor y línea
-// de tiempo), con el veredicto y el criterio fijos arriba.
+// Replay: un intento paso a paso, solo con lo esencial. A la izquierda la lista de pasos, al centro la captura del
+// paso actual, a la derecha su análisis y abajo la línea de tiempo que se puede reproducir.
 //
-// Estado en la URL: ?intento= &paso= &modo=despues|antes|deslizar|superponer &ver=video &senales=1. Los cambios de
-// paso se aplican primero en la pantalla (en el lugar, sin reconstruir: el foco nunca se cae) y después se escriben
-// en el hash con replaceState; actualizar(ctx) compara la URL con el estado y solo aplica lo distinto (atrás,
-// adelante, enlaces). Velocidad y "solo pasos" son locales; la velocidad además queda guardada en este navegador
-// (localStorage), así sobrevive a recargas y a cambios de intento.
+// Estado en la URL: ?intento= &paso=. Los cambios de paso se aplican primero en la pantalla (en el lugar, sin
+// reconstruir: el foco nunca se cae) y después se escriben en el hash; actualizar(ctx) compara la URL con el estado
+// y solo aplica lo distinto (atrás, adelante, enlaces).
+//
+// Teclas de la pantalla: ← → paso anterior/siguiente, Inicio/Fin primer/último paso, Espacio reproducir/pausar.
+//
+// La captura anima lo que hizo el usuario en cada paso (replay/escena.js): completo al reproducir, corto al elegir
+// un paso a mano.
 
-import { el, reemplazar, conservarFoco } from "../nucleo/dom.js";
-import { kbd } from "../nucleo/atajos.js";
+import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
-import { conGlobo } from "../nucleo/globo.js";
-import { icono } from "../nucleo/iconos.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
-import { crearCabecera } from "../replay/cabecera.js";
+import { planDelPaso } from "../replay/animacion.js";
+import { contenidoDeAnalisis } from "../replay/analisis.js";
+import { crearEscena } from "../replay/escena.js";
 import { crearLineaDeTiempo } from "../replay/linea-de-tiempo.js";
-import { crearRail } from "../replay/rail.js";
-import { crearRelojVirtual, crearReproductorDeVideo } from "../replay/reproductor.js";
-import { cambiarVelocidad, duracionTotal, pasoEnSegundo, segmentosSoloPasos, siguienteConProblema, velocidadValida, ventanasDePasos } from "../replay/sincronia.js";
-import { contenidoDeTarjeta } from "../replay/tarjeta.js";
-import { MODOS, crearVisor } from "../replay/visor.js";
+import { crearListaDePasos } from "../replay/pasos.js";
+
+/** Cuánto se queda cada paso quieto en pantalla al reproducir, después de su animación. */
+const MS_DE_PAUSA = 700;
 
 let ctx = null;
 let partes = null;
 let estado = null;
-let reproductor = null;
-
-const CLAVE_VELOCIDAD = "backoffice:replay-velocidad";
-
-function leerVelocidadGuardada() {
-  try {
-    return velocidadValida(globalThis.localStorage?.getItem(CLAVE_VELOCIDAD));
-  } catch {
-    return velocidadValida(null);
-  }
-}
-
-function guardarVelocidad(valor) {
-  try {
-    globalThis.localStorage?.setItem(CLAVE_VELOCIDAD, String(valor));
-  } catch {
-    // Sin almacenamiento (modo privado, sitio bloqueado): la velocidad vale solo para esta visita.
-  }
-}
-
-const globoConTecla = (texto, ...teclas) => () => el("span", { class: "globo-con-tecla" }, el("span", { texto }), teclas.map((tecla) => kbd(tecla)));
 
 // ── Leer la URL ───────────────────────────────────────────────────────────
 
-/** Parámetros → estado pedido, con los arreglos que hay que escribir de vuelta en la URL y el aviso, si hay. */
+/** Parámetros → intento e índice pedidos, con los arreglos que hay que escribir de vuelta en la URL y el aviso. */
 function leerParametros(parametros, tanda) {
   const intentos = tanda.intentos ?? [];
   const cambios = {};
@@ -66,7 +46,7 @@ function leerParametros(parametros, tanda) {
   if (parametros.paso !== undefined) {
     if (!total) cambios.paso = null;
     else if (parametros.paso === "0") {
-      // paso=0 es la pantalla inicial (los hitos lo usan): se muestra el paso 1, cuya captura "Antes" es esa pantalla.
+      // paso=0 es la pantalla inicial (los hitos lo usan): se muestra el paso 1.
       cambios.paso = "1";
     } else {
       const { paso, aviso: problema } = normalizarPaso(parametros.paso, total);
@@ -77,19 +57,7 @@ function leerParametros(parametros, tanda) {
       }
     }
   }
-  let modo = parametros.modo ?? "despues";
-  if (!MODOS.includes(modo)) {
-    modo = "despues";
-    cambios.modo = null;
-  }
-  let video = parametros.ver === "video";
-  if (parametros.ver !== undefined && !(video && intento?.video)) {
-    video = false;
-    cambios.ver = null;
-  }
-  const soloSenales = parametros.senales === "1";
-  if (parametros.senales !== undefined && !soloSenales) cambios.senales = null;
-  return { intento, indice, modo, video, soloSenales, cambios, aviso: avisos.join(" ") || null };
+  return { intento, indice, cambios, aviso: avisos.join(" ") || null };
 }
 
 // ── Pintar ────────────────────────────────────────────────────────────────
@@ -99,183 +67,119 @@ function ponerAviso(texto) {
   reemplazar(partes.aviso, texto ? avisoEnLinea(texto, "atencion") : null);
 }
 
-function ventanas() {
-  return estado.ventanas;
-}
-
 function pintarIntento() {
   const { intento } = estado;
-  estado.ventanas = ventanasDePasos(intento.pasos ?? []);
-  estado.duracion = duracionTotal(intento);
-  partes.cabecera.pintar(intento);
-  partes.linea.pintar(intento, { duracion: estado.duracion });
-  partes.raiz.classList.toggle("intento-error", intento.resultado === "error");
-  partes.raiz.classList.toggle("sin-pasos", !(intento.pasos?.length));
-  partes.botonVideo.hidden = !intento.video;
-  partes.barraVideo.hidden = !intento.video;
-  crearReproductor();
+  partes.selector.value = intento.id;
+  const viewport = intento.viewport ?? {};
+  partes.captura.style.setProperty("--proporcion", String((viewport.ancho || 1024) / (viewport.alto || 768)));
+  partes.lista.pintar(intento);
+  partes.linea.pintar(intento);
 }
 
-function crearReproductor() {
-  reproductor?.destruir();
-  const { intento } = estado;
-  const comunes = {
-    alAvanzar: (t) => alAvanzar(t),
-    alCambiarEstado: (activo) => partes.linea.ponerReproduciendo(activo),
-  };
-  if (estado.video && intento.video) {
-    partes.visor.ponerVideo(true, {
-      src: ctx.urlDeArchivo(intento.id, "video.webm"),
-      etiqueta: ctx.t("replay.visor.videoEtiqueta", { nombre: intento.nombrePerfil ?? intento.id }),
-    });
-    // desfase = video_offset_s del evaluador: lo que grabó el video antes de que empezara el intento.
-    reproductor = crearReproductorDeVideo(partes.visor.video, { desfase: Number(intento.videoDesfase) || 0, senal: ctx.senal, ...comunes });
-  } else {
-    partes.visor.ponerVideo(false);
-    reproductor = crearRelojVirtual({ fin: estado.duracion, ...comunes });
-  }
-  reproductor.ponerVelocidad(estado.velocidad);
-  reproductor.ponerSoloPasos(estado.video && estado.soloPasos ? segmentosSoloPasos(ventanas()) : null);
-  partes.linea.ponerReproduciendo(false);
-  partes.linea.ponerSoloPasos(estado.soloPasos, estado.video);
-  const desde = ventanas()[estado.indice]?.desde ?? 0;
-  reproductor.ir(desde);
-  partes.linea.ponerTiempo(desde, estado.indice);
-}
-
-/** Muestra el paso `estado.indice` en el riel, el visor, la tarjeta y la línea de tiempo (en el lugar). */
-function pintarPaso() {
+/**
+ * Muestra el paso `estado.indice` en la lista, la captura, el análisis y la línea de tiempo. `modo`: cómo se anima
+ * la captura ("completo", "corto" o null). Devuelve la promesa de la animación.
+ */
+function pintarPaso(modo = "corto") {
   const { intento, indice } = estado;
-  partes.rail.pintar({ intento, indice, soloSenales: estado.soloSenales });
-  partes.visor.mostrar({ intento, indice, tanda: ctx.tanda });
-  // Una señal por tarjeta (atada a la de la vista): al cambiar de paso se sueltan los oyentes del globo anterior.
-  partes.senalDeTarjeta?.abort();
-  partes.senalDeTarjeta = new AbortController();
-  const senal = AbortSignal.any([ctx.senal, partes.senalDeTarjeta.signal]);
-  conservarFoco(partes.tarjeta, () =>
-    reemplazar(partes.contenidoTarjeta, contenidoDeTarjeta({ intento, indice, tanda: ctx.tanda, t: ctx.t, senal })),
-  );
-  partes.linea.marcar(indice);
-  const total = intento.pasos?.length ?? 0;
-  partes.anterior.setAttribute("aria-disabled", indice <= 0 ? "true" : "false");
-  partes.siguiente.setAttribute("aria-disabled", indice < 0 || indice >= total - 1 ? "true" : "false");
-  refrescarEnlaces();
+  const paso = intento.pasos?.[indice] ?? null;
+  const archivo = paso ? paso.captura : (intento.inicio?.captura ?? null);
+  const src = archivo ? ctx.urlDeArchivo(intento.id, archivo) : "";
+  const srcAntes = paso?.capturaAntes ? ctx.urlDeArchivo(intento.id, paso.capturaAntes) : "";
+  if (partes.imagen.getAttribute("src") !== src) partes.captura.classList.toggle("sin-captura", !src);
+  const animacion = partes.escena.mostrar({
+    plan: paso ? planDelPaso(intento.pasos, indice, { viewport: intento.viewport }) : null,
+    srcAntes,
+    srcDespues: src,
+    viewport: intento.viewport,
+    modo,
+  });
+  partes.imagen.alt = paso ? ctx.t("replay.captura.alt", { n: paso.numero }) : ctx.t("replay.captura.altInicio");
+  precargar(intento, indice + 1);
+
+  partes.lista.marcar(indice);
+  partes.linea.marcar(Math.max(0, indice));
+  reemplazar(partes.analisis, contenidoDeAnalisis({ intento, indice, tanda: ctx.tanda, t: ctx.t }));
+  partes.analisis.scrollTop = 0;
+  return animacion;
 }
 
-function refrescarEnlaces() {
-  const { intento, indice } = estado;
-  const paso = intento.pasos?.[indice];
-  partes.telarana.setAttribute("href", ctx.enlace("telarana", { historia: intento.id, paso: paso ? paso.numero : null }));
-  const base = { modo: estado.modo === "despues" ? null : estado.modo, senales: estado.soloSenales ? "1" : null };
-  partes.cabecera.enlazar((id) => ctx.enlace("replay", { intento: id, ...base }));
+function precargar(intento, indice) {
+  const archivo = intento.pasos?.[indice]?.captura;
+  if (!archivo) return;
+  const imagen = new Image();
+  imagen.decoding = "async";
+  imagen.src = ctx.urlDeArchivo(intento.id, archivo);
 }
 
-function pintarModo() {
-  partes.visor.ponerModo(estado.modo);
-  for (const [modo, boton] of partes.botonesDeModo) boton.setAttribute("aria-pressed", modo === estado.modo ? "true" : "false");
-  partes.modos.hidden = estado.video;
-  partes.mantenB.hidden = estado.video;
-  partes.botonCapturas.setAttribute("aria-pressed", estado.video ? "false" : "true");
-  partes.botonVideo.setAttribute("aria-pressed", estado.video ? "true" : "false");
-  partes.filtro.setAttribute("aria-pressed", estado.soloSenales ? "true" : "false");
+/** La vista ocupa el alto que queda en la ventana bajo el encabezado de la tanda (con un mínimo). */
+function ajustarAlto() {
+  if (!partes) return;
+  const arriba = partes.raiz.getBoundingClientRect().top + globalThis.scrollY;
+  partes.raiz.style.setProperty("--alto-replay", `${Math.max(460, globalThis.innerHeight - arriba - 24)}px`);
+  partes.lista.revelar();
+  partes.escena.ajustar(partes.captura);
 }
 
 // ── Moverse ───────────────────────────────────────────────────────────────
 
 /**
- * Va al paso `indice`. `origen`: "usuario" (escribe la URL y mueve la reproducción), "reproduccion" (escribe la URL,
- * no mueve la reproducción), "url" (no escribe la URL).
+ * Va al paso `indice` y devuelve la promesa de su animación. `desdeUrl`: el cambio vino de la URL, así que no se
+ * vuelve a escribir. `modo`: cómo se anima la captura.
  */
-function irA(indice, origen = "usuario") {
+function irA(indice, { desdeUrl = false, modo = "corto" } = {}) {
   const total = estado.intento.pasos?.length ?? 0;
-  if (!total) return;
+  if (!total) return Promise.resolve();
   const nuevo = Math.min(total - 1, Math.max(0, indice));
-  if (origen === "usuario" && estado.aviso) ponerAviso(null);
-  const cambio = nuevo !== estado.indice;
+  if (!desdeUrl && estado.aviso) ponerAviso(null);
+  if (nuevo === estado.indice) return Promise.resolve();
   estado.indice = nuevo;
-  if (cambio) pintarPaso();
-  if (origen !== "reproduccion") {
-    const desde = ventanas()[nuevo]?.desde ?? 0;
-    reproductor.ir(desde);
-    partes.linea.ponerTiempo(desde, nuevo);
+  const animacion = pintarPaso(modo);
+  if (!desdeUrl) ctx.actualizarParametros({ paso: String(estado.intento.pasos[nuevo].numero) });
+  return animacion;
+}
+
+function elegir(indice) {
+  pausar();
+  irA(indice);
+}
+
+function pausar() {
+  if (!estado?.reproduccion) return;
+  estado.reproduccion = 0;
+  clearTimeout(estado.reloj);
+  partes?.linea.ponerReproduciendo(false);
+}
+
+const esperar = (ms) => new Promise((listo) => (estado.reloj = setTimeout(listo, ms)));
+
+/** Reproduce desde el paso actual: anima cada paso entero, lo deja quieto un momento y pasa al siguiente. */
+async function alternarReproduccion() {
+  if (estado.reproduccion) {
+    pausar();
+    return;
   }
-  if (origen !== "url" && cambio) ctx.actualizarParametros({ paso: String(estado.intento.pasos[nuevo].numero) });
+  const total = estado.intento.pasos?.length ?? 0;
+  if (total < 2) return;
+  const mia = Date.now();
+  estado.reproduccion = mia;
+  partes.linea.ponerReproduciendo(true);
+  const sigue = () => estado?.reproduccion === mia;
+  // Desde el último paso, reproducir vuelve a empezar (y el primer paso también se anima).
+  if (estado.indice >= total - 1) {
+    estado.indice = -1;
+    await irA(0, { modo: "completo" });
+    if (sigue()) await esperar(MS_DE_PAUSA);
+  }
+  while (sigue() && estado.indice < total - 1) {
+    await irA(estado.indice + 1, { modo: "completo" });
+    if (sigue()) await esperar(MS_DE_PAUSA);
+  }
+  if (sigue()) pausar();
 }
 
-function alAvanzar(t) {
-  const indice = pasoEnSegundo(ventanas(), t);
-  partes.linea.ponerTiempo(t, indice >= 0 ? indice : estado.indice);
-  if (indice >= 0 && indice !== estado.indice) irA(indice, "reproduccion");
-}
-
-function buscarSegundo(t) {
-  reproductor.ir(t);
-  alAvanzar(t);
-}
-
-function irAProblema(direccion) {
-  const indice = siguienteConProblema(estado.intento.pasos ?? [], estado.indice, direccion);
-  if (indice !== null) irA(indice);
-}
-
-function cambiarModo(modo) {
-  if (estado.video) return;
-  if (estado.aviso) ponerAviso(null);
-  estado.modo = modo;
-  pintarModo();
-  refrescarEnlaces();
-  ctx.actualizarParametros({ modo: modo === "despues" ? null : modo });
-}
-
-function alternarVideo(forzar) {
-  if (!estado.intento.video) return;
-  const video = typeof forzar === "boolean" ? forzar : !estado.video;
-  if (video === estado.video) return;
-  estado.video = video;
-  crearReproductor();
-  pintarModo();
-  ctx.actualizarParametros({ ver: video ? "video" : null });
-}
-
-function alternarSoloSenales() {
-  estado.soloSenales = !estado.soloSenales;
-  pintarModo();
-  partes.rail.pintar({ intento: estado.intento, indice: estado.indice, soloSenales: estado.soloSenales });
-  refrescarEnlaces();
-  ctx.actualizarParametros({ senales: estado.soloSenales ? "1" : null });
-}
-
-function alternarSoloPasos() {
-  if (!estado.video) return;
-  estado.soloPasos = !estado.soloPasos;
-  reproductor.ponerSoloPasos(estado.soloPasos ? segmentosSoloPasos(ventanas()) : null);
-  partes.linea.ponerSoloPasos(estado.soloPasos, true);
-}
-
-function cambiarVelocidadEn(direccion) {
-  ponerVelocidad(cambiarVelocidad(estado.velocidad, direccion));
-}
-
-/** Aplica una velocidad de VELOCIDADES (desde el selector o los atajos), la guarda y la anuncia. */
-function ponerVelocidad(valor) {
-  // Aunque sea la misma no se corta: en los extremos "," o "." la vuelve a anunciar, así se nota el tope.
-  estado.velocidad = velocidadValida(valor);
-  guardarVelocidad(estado.velocidad);
-  reproductor.ponerVelocidad(estado.velocidad);
-  partes.linea.ponerVelocidad(estado.velocidad);
-  ctx.anunciar(ctx.t("replay.linea.velocidadValor", { v: ctx.fmt.numero(estado.velocidad) }));
-}
-
-function cambiarIntento(direccion) {
-  const intentos = ctx.tanda.intentos ?? [];
-  if (intentos.length < 2) return;
-  const actual = intentos.findIndex((intento) => intento.id === estado.intento.id);
-  const siguiente = intentos[(actual + direccion + intentos.length) % intentos.length];
-  ctx.actualizarParametros({ intento: siguiente.id, paso: null }, { historial: "agregar" });
-}
-
-function verEnTelarana() {
-  ctx.navegar(partes.telarana.getAttribute("href"));
+function cambiarIntento(id) {
+  ctx.actualizarParametros({ intento: id, paso: null }, { historial: "agregar" });
 }
 
 // ── Aplicar la URL ────────────────────────────────────────────────────────
@@ -283,167 +187,80 @@ function verEnTelarana() {
 function aplicar(parametros) {
   const pedido = leerParametros(parametros, ctx.tanda);
   const cambioDeIntento = pedido.intento.id !== estado.intento?.id;
-  // Un aviso viejo (de otro intento) no sigue al cambiar de intento.
   if (pedido.aviso) ponerAviso(pedido.aviso);
   else if (cambioDeIntento && estado.aviso) ponerAviso(null);
-  const cambioDeVideo = pedido.video !== estado.video;
-  const cambioDeFiltro = pedido.soloSenales !== estado.soloSenales;
-  estado.modo = pedido.modo;
-  estado.soloSenales = pedido.soloSenales;
-  estado.video = pedido.video;
   if (cambioDeIntento) {
+    pausar();
     estado.intento = pedido.intento;
     estado.indice = pedido.indice;
     pintarIntento();
     pintarPaso();
-  } else {
-    if (cambioDeVideo) crearReproductor();
-    if (pedido.indice !== estado.indice) irA(pedido.indice, "url");
-    else if (cambioDeFiltro) partes.rail.pintar({ intento: estado.intento, indice: estado.indice, soloSenales: estado.soloSenales });
-    refrescarEnlaces();
-  }
-  pintarModo();
+  } else if (pedido.indice !== estado.indice) irA(pedido.indice, { desdeUrl: true });
   if (Object.keys(pedido.cambios).length) ctx.actualizarParametros(pedido.cambios);
 }
 
 // ── Armar ─────────────────────────────────────────────────────────────────
 
 function armar(contenedor) {
-  const { t, fmt, senal } = ctx;
-  const cabecera = crearCabecera({ t, fmt, tanda: ctx.tanda, senal });
-  const rail = crearRail({ t, elegir: (indice) => irA(indice), mover: (delta) => irA(estado.indice + delta), senal });
-  const visor = crearVisor({ t, fmt, urlDeArchivo: ctx.urlDeArchivo, senal });
-  const linea = crearLineaDeTiempo({
-    t,
-    fmt,
-    urlDeArchivo: ctx.urlDeArchivo,
-    senal,
-    elegir: (indice) => irA(indice),
-    buscar: (segundo) => buscarSegundo(segundo),
-    alternar: () => reproductor.alternar(),
-    velocidad: (valor) => ponerVelocidad(valor),
-    soloPasos: () => alternarSoloPasos(),
-  });
-  visor.video.addEventListener(
-    "error",
-    () => {
-      if (!estado.video) return;
-      ponerAviso(t("replay.visor.videoNoCarga"));
-      alternarVideo(false);
-    },
-    { signal: senal },
+  const { t, senal } = ctx;
+  const lista = crearListaDePasos({ t, elegir, mover: (delta) => elegir(estado.indice + delta), senal });
+  const linea = crearLineaDeTiempo({ t, senal, elegir, alternar: () => alternarReproduccion() });
+
+  const selector = el(
+    "select",
+    { class: "replay-intento", "aria-label": t("replay.pasos.intento"), "data-foco": "replay:intento" },
+    (ctx.tanda.intentos ?? []).map((intento) => el("option", { value: intento.id, texto: intento.nombrePerfil ?? intento.id })),
   );
+  selector.addEventListener("change", () => cambiarIntento(selector.value), { signal: senal });
 
-  const boton = (atributos, ...hijos) => el("button", { type: "button", ...atributos }, ...hijos);
+  const escena = crearEscena({ t, senal });
+  const imagen = escena.imagen;
+  const captura = el("figure", { class: "replay-captura" }, escena.nodo, el("p", { class: "replay-sin-imagen texto-3", texto: t("replay.captura.sinCaptura") }));
+  imagen.addEventListener("error", () => imagen.getAttribute("src") && captura.classList.add("sin-captura"), { signal: senal });
+  imagen.addEventListener("load", () => captura.classList.remove("sin-captura"), { signal: senal });
 
-  const botonesDeModo = new Map(
-    MODOS.map((modo, indice) => {
-      const tecla = ["d", "a", "l", "o"][indice];
-      const b = boton({ "aria-pressed": "false", "aria-keyshortcuts": tecla, "data-foco": `replay:modo:${modo}`, texto: t(`replay.visor.${modo}`) });
-      b.addEventListener("click", () => cambiarModo(modo), { signal: senal });
-      conGlobo(b, globoConTecla(t(`replay.visor.${modo}`), tecla), { senal });
-      return [modo, b];
-    }),
-  );
-  const modos = el("div", { class: "segmentado replay-modos", role: "group", "aria-label": t("replay.visor.modos") }, [...botonesDeModo.values()]);
-
-  const botonCapturas = boton({ "aria-pressed": "true", "data-foco": "replay:ver:capturas", texto: t("replay.visor.capturas") });
-  const botonVideo = boton({ "aria-pressed": "false", "aria-keyshortcuts": "v", "data-foco": "replay:ver:video", texto: t("replay.visor.video") });
-  botonCapturas.addEventListener("click", () => alternarVideo(false), { signal: senal });
-  botonVideo.addEventListener("click", () => alternarVideo(true), { signal: senal });
-  conGlobo(botonVideo, globoConTecla(t("comun.atajos.desc.video"), "v"), { senal });
-  const barraVideo = el("div", { class: "segmentado replay-fuente", role: "group", "aria-label": t("replay.visor.fuente") }, botonCapturas, botonVideo);
-
-  const mantenB = boton({ class: "boton boton-secundario replay-manten-b", "aria-keyshortcuts": "b", "data-foco": "replay:manten-b" }, el("span", { texto: t("replay.visor.mantenB") }));
-  const mirar = (activo) => () => partes?.visor.mirarAntes(activo);
-  for (const tipo of ["pointerdown"]) mantenB.addEventListener(tipo, mirar(true), { signal: senal });
-  for (const tipo of ["pointerup", "pointerleave", "pointercancel", "blur"]) mantenB.addEventListener(tipo, mirar(false), { signal: senal });
-  mantenB.addEventListener("keydown", (evento) => (evento.key === " " || evento.key === "Enter") && (evento.preventDefault(), mirar(true)()), { signal: senal });
-  mantenB.addEventListener("keyup", (evento) => (evento.key === " " || evento.key === "Enter") && mirar(false)(), { signal: senal });
-  mantenB.addEventListener("contextmenu", (evento) => evento.preventDefault(), { signal: senal });
-  conGlobo(mantenB, () => el("span", { class: "globo-con-tecla" }, el("span", { texto: t("replay.visor.mantenBAyuda") }), kbd("b", { mantener: true })), { senal });
-
-  const telarana = el("a", { class: "boton boton-secundario replay-ver-telarana", href: "#", "aria-keyshortcuts": "t", "data-foco": "replay:telarana" }, icono("historia"), el("span", { texto: t("replay.visor.verEnTelarana") }));
-  conGlobo(telarana, globoConTecla(t("comun.atajos.desc.verEnTelarana"), "t"), { senal });
-
-  const filtro = el("button", { type: "button", class: "chip replay-filtro", "aria-pressed": "false", "data-foco": "replay:filtro", texto: t("replay.rail.soloSenales") });
-  filtro.addEventListener("click", () => alternarSoloSenales(), { signal: senal });
-  conGlobo(filtro, t("replay.rail.soloSenalesAyuda"), { senal });
-
-  const anterior = el("button", { type: "button", class: "boton boton-secundario replay-anterior", "aria-keyshortcuts": "ArrowLeft k", "data-foco": "replay:anterior" }, icono("anterior"), el("span", { texto: t("replay.tarjeta.anterior") }), el("span", { class: "replay-tecla", "aria-hidden": "true" }, kbd("ArrowLeft")));
-  const siguiente = el("button", { type: "button", class: "boton boton-secundario replay-siguiente", "aria-keyshortcuts": "ArrowRight j", "data-foco": "replay:siguiente" }, el("span", { texto: t("replay.tarjeta.siguiente") }), el("span", { class: "replay-tecla", "aria-hidden": "true" }, kbd("ArrowRight")), icono("siguiente"));
-  anterior.addEventListener("click", () => anterior.getAttribute("aria-disabled") !== "true" && irA(estado.indice - 1), { signal: senal });
-  siguiente.addEventListener("click", () => siguiente.getAttribute("aria-disabled") !== "true" && irA(estado.indice + 1), { signal: senal });
-
-  const contenidoTarjeta = el("div", { class: "replay-tarjeta-contenido" });
-  const tarjeta = el("article", { class: "tarjeta replay-tarjeta" }, contenidoTarjeta, el("nav", { class: "replay-navegacion", "aria-label": t("replay.rail.etiqueta") }, anterior, siguiente));
-
-  const leyendaRail = el(
-    "p",
-    { class: "replay-rail-leyenda texto-3 t-pequeno" },
-    el("span", {}, icono("en-ruta", { clase: "carril-en-ruta" }), el("span", { texto: t("comun.carril.en-ruta") })),
-    el("span", {}, icono("fuera-de-ruta", { clase: "carril-fuera-de-ruta" }), el("span", { texto: t("comun.carril.fuera-de-ruta") })),
-  );
-
+  const analisis = el("div", { class: "replay-analisis-contenido" });
   const aviso = el("div", { class: "replay-aviso" });
   const raiz = el(
     "div",
     { class: "replay" },
     aviso,
-    cabecera.nodo,
     el(
       "div",
-      { class: "replay-cuerpo" },
+      { class: "replay-columnas" },
       el(
         "aside",
-        { class: "replay-rail", "aria-label": t("replay.rail.titulo") },
-        el("div", { class: "replay-rail-cabecera" }, el("h3", { class: "etiqueta-micro", texto: t("replay.rail.titulo") }), filtro),
-        rail.nodo,
-        leyendaRail,
+        { class: "replay-columna replay-pasos", "aria-label": t("replay.pasos.titulo") },
+        el("div", { class: "replay-columna-cabecera" }, el("h3", { class: "etiqueta-micro", texto: t("replay.pasos.titulo") }), selector),
+        lista.nodo,
       ),
+      captura,
       el(
-        "div",
-        { class: "replay-visor" },
-        el("div", { class: "replay-barra-visor" }, barraVideo, modos, el("span", { class: "replay-separador" }), mantenB, telarana),
-        el("div", { class: "replay-escenario" }, visor.nodo, tarjeta),
+        "aside",
+        { class: "replay-columna replay-analisis", "aria-label": t("replay.analisis.titulo") },
+        el("div", { class: "replay-columna-cabecera" }, el("h3", { class: "etiqueta-micro", texto: t("replay.analisis.titulo") })),
+        analisis,
       ),
     ),
     linea.nodo,
   );
   contenedor.append(raiz);
-
-  partes = { raiz, aviso, cabecera, rail, visor, linea, tarjeta, contenidoTarjeta, anterior, siguiente, telarana, filtro, botonesDeModo, modos, mantenB, botonCapturas, botonVideo, barraVideo };
+  partes = { raiz, aviso, selector, lista, linea, captura, imagen, analisis, escena };
+  globalThis.addEventListener("resize", ajustarAlto, { signal: senal });
+  const observador = new ResizeObserver(() => escena.ajustar(captura));
+  observador.observe(captura);
+  senal.addEventListener("abort", () => observador.disconnect(), { once: true });
+  requestAnimationFrame(ajustarAlto);
 }
 
 function registrarAtajos() {
-  const { t } = ctx;
-  const d = (clave) => t(`comun.atajos.desc.${clave}`);
-  const siguiente = { descripcion: d("pasos"), accion: () => irA(estado.indice + 1) };
-  const anterior = { descripcion: d("pasos"), accion: () => irA(estado.indice - 1) };
-  const modo = (nombre) => ({ descripcion: d("modos"), accion: () => cambiarModo(nombre) });
+  const d = (clave) => ctx.t(`comun.atajos.desc.${clave}`);
   ctx.atajos.registrar({
-    ArrowRight: siguiente,
-    j: siguiente,
-    ArrowLeft: anterior,
-    k: anterior,
-    n: { descripcion: d("problemas"), accion: () => irAProblema(1) },
-    "Shift+N": { descripcion: d("problemas"), accion: () => irAProblema(-1) },
-    Home: { descripcion: d("extremos"), accion: () => irA(0) },
-    End: { descripcion: d("extremos"), accion: () => irA((estado.intento.pasos?.length ?? 1) - 1) },
-    b: { descripcion: d("antes"), mantener: true, accion: () => partes.visor.mirarAntes(true), alSoltar: () => partes.visor.mirarAntes(false) },
-    d: modo("despues"),
-    a: modo("antes"),
-    l: modo("deslizar"),
-    o: modo("superponer"),
-    Space: { descripcion: d("reproducir"), accion: () => reproductor.alternar() },
-    ",": { descripcion: d("velocidad"), accion: () => cambiarVelocidadEn(-1) },
-    ".": { descripcion: d("velocidad"), accion: () => cambiarVelocidadEn(1) },
-    v: { descripcion: d("video"), accion: () => alternarVideo() },
-    s: { descripcion: d("soloPasos"), accion: () => alternarSoloPasos() },
-    i: { descripcion: d("intentos"), accion: () => cambiarIntento(1) },
-    "Shift+I": { descripcion: d("intentos"), accion: () => cambiarIntento(-1) },
-    e: { descripcion: d("veredicto"), accion: () => partes.cabecera.alternar() },
-    t: { descripcion: d("verEnTelarana"), accion: () => verEnTelarana() },
+    ArrowRight: { descripcion: d("pasos"), accion: () => elegir(estado.indice + 1) },
+    ArrowLeft: { descripcion: d("pasos"), accion: () => elegir(estado.indice - 1) },
+    Home: { descripcion: d("extremos"), accion: () => elegir(0) },
+    End: { descripcion: d("extremos"), accion: () => elegir((estado.intento.pasos?.length ?? 1) - 1) },
+    Space: { descripcion: d("reproducir"), accion: () => alternarReproduccion() },
   });
 }
 
@@ -461,13 +278,12 @@ export default {
     // Si otra navegación reemplazó la vista mientras cargaba el CSS, no se arma ni se registra nada.
     if (contexto.senal.aborted || ctx !== contexto) return;
     if (!ctx.tanda?.intentos?.length) {
-      contenedor.append(vacio({ titulo: ctx.t("replay.visor.sinPasos") }));
+      contenedor.append(vacio({ titulo: ctx.t("replay.analisis.sinPasos") }));
       partes = null;
       return;
     }
-    estado = { intento: null, indice: -1, modo: "despues", video: false, soloSenales: false, soloPasos: false, velocidad: leerVelocidadGuardada(), aviso: null, ventanas: [], duracion: 0 };
+    estado = { intento: null, indice: -1, aviso: null, reproduccion: 0, reloj: 0 };
     armar(contenedor);
-    partes.linea.ponerVelocidad(estado.velocidad);
     registrarAtajos();
     aplicar(ctx.parametros);
   },
@@ -480,8 +296,8 @@ export default {
   },
 
   desmontar() {
-    reproductor?.destruir();
-    reproductor = null;
+    if (estado) clearTimeout(estado.reloj);
+    partes?.escena.detener();
     partes = null;
     estado = null;
   },

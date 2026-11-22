@@ -1,8 +1,8 @@
 // Gramática de las rutas (diseño §5.1). Puro: no toca document ni window, así node:test lo importa.
 //
 //   #/                          Corridas   ?q= &sitio= &filtro= &orden= &vista=
-//   #/t/<tandaId>               → #/t/<tandaId>/resumen
-//   #/t/<tandaId>/<pestaña>     resumen · telarana · replay · perfiles
+//   #/t/<tandaId>               → #/t/<tandaId>/telarana
+//   #/t/<tandaId>/<pestaña>     telarana · replay   (#/t/<tandaId>/resumen, de cuando existía, → telarana)
 //   #/revisiones                Revisiones (DynamoDB)
 //   #/revisiones/<revision>     el avance de una revisión
 //
@@ -11,31 +11,29 @@
 
 import { CORRIDA, REVISION, partesDeTanda } from "./almacen.js";
 
-export const PESTANAS = ["resumen", "telarana", "replay", "perfiles"];
-export const PESTANA_POR_DEFECTO = "resumen";
+export const PESTANAS = ["telarana", "replay"];
+export const PESTANA_POR_DEFECTO = "telarana";
+
+// Pestañas que ya no existen y adónde llevan sus enlaces viejos (sin sus parámetros).
+const PESTANAS_RETIRADAS = { resumen: "telarana" };
 
 // Claves del diccionario (no textos): t(NOMBRES_DE_PESTANA.replay) → "Replay".
 export const NOMBRES_DE_PESTANA = Object.freeze({
-  resumen: "comun.pestana.resumen",
   telarana: "comun.pestana.telarana",
   replay: "comun.pestana.replay",
-  perfiles: "comun.pestana.perfiles",
 });
 
 
 // Orden estable de los parámetros conocidos; los demás van después, en orden alfabético.
 const ORDEN_DE_PARAMETROS = {
   corridas: ["q", "sitio", "filtro", "orden", "vista"],
-  resumen: [],
-  telarana: ["perfil", "pagina", "historia", "paso", "vista"],
-  replay: ["intento", "paso", "modo", "ver", "senales"],
-  perfiles: ["orden"],
+  telarana: ["pagina"],
+  replay: ["intento", "paso"],
 };
 
 // Valores por defecto: no se escriben en el hash.
 const POR_DEFECTO = {
   corridas: { vista: "lista", orden: "nuevas" },
-  replay: { modo: "despues" },
 };
 
 // Sinónimos aceptados dentro de una tanda (se reescriben al nombre canónico).
@@ -44,7 +42,7 @@ const ALIAS = {
   telarana: { nodo: "pagina" },
 };
 
-const PANTALLAS_LEGADAS = new Set(["telarana", "replay", "perfiles"]);
+const PANTALLAS_LEGADAS = new Set(["telarana", "replay"]);
 
 export const AVISO_ENLACE_SIN_TANDA = "comun.aviso.enlaceSinTanda";
 
@@ -109,6 +107,8 @@ export function parsearHash(hash) {
     const tandaId = resto.slice(0, fin + 1).join("/");
     const despues = resto.slice(fin + 1);
     if (despues.length > 1) return { tipo: "desconocida", hash: original };
+    const retirada = PESTANAS_RETIRADAS[despues[0]];
+    if (retirada) return { tipo: "tanda", tandaId, pestana: retirada, parametros: {} };
     const pestana = despues[0] ?? PESTANA_POR_DEFECTO;
     if (!PESTANAS.includes(pestana)) return { tipo: "desconocida", hash: original };
     return { tipo: "tanda", tandaId, pestana, parametros: aplicarAlias(pestana, parametros) };
@@ -159,7 +159,7 @@ export function enlaceARevision(revision = null) {
 }
 
 /**
- * Enlaces de la v0 (#/telarana?t=…, #/replay?t=…&perfil=…, #/perfiles?t=…).
+ * Enlaces de la v0 (#/telarana?t=…, #/replay?t=…&perfil=…).
  * @returns {{ destino: string, aviso: string | null } | null}  aviso es una clave del diccionario.
  */
 export function traducirLegado(hash) {

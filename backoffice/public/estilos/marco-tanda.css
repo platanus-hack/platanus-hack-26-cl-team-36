@@ -1,36 +1,28 @@
-/* Marco de la tanda (diseño §10.3): cabecera de contexto, pestañas fijas y el panel de la pestaña. */
+/* Marco de la tanda (diseño §10.3): cabecera de dos líneas, pestañas fijas y el panel de la pestaña. */
 
-.marco-cabecera { display: grid; gap: var(--e-2); padding-block-end: var(--e-4); min-width: 0; }
-.marco-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-3); }
-.marco-barra .migas { min-width: 0; flex: 1 1 auto; font-size: 13px; }
-.migas-corridas a { display: inline-flex; align-items: center; gap: 2px; }
-.migas-volver { display: none; }
-.migas-tarea { max-width: 40ch; }
-.marco-acciones { display: flex; align-items: center; gap: var(--e-2); }
+.marco-cabecera { display: grid; gap: var(--e-1); padding-block-end: var(--e-3); min-width: 0; }
+.marco-barra { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-3); min-width: 0; }
+.marco-identidad { display: flex; align-items: center; gap: var(--e-3); min-width: 0; flex: 1 1 auto; }
+.marco-titulo { min-width: 0; flex: 0 1 auto; font-size: 20px; line-height: 28px; }
+.marco-acciones { display: flex; align-items: center; gap: var(--e-2); flex: none; }
 .marco-hueco { display: contents; }
 .marco-vecina[aria-disabled="true"] { opacity: 0.4; cursor: default; }
 .marco-vecina[aria-disabled="true"]:hover { background: var(--superficie-2); border-color: var(--borde); }
 .marco-pista { display: inline-flex; }
 .marco-pista kbd { margin: 0; }
 
-.marco-titulo { margin-block-start: var(--e-2); overflow-wrap: anywhere; }
-.marco-instruccion { color: var(--texto-2); max-width: 80ch; }
-.marco-sin-contexto { display: block; margin-block-start: 2px; }
-.marco-ver-instruccion { display: none; min-height: 24px; padding: 0 var(--e-1); font-size: 12px; justify-self: start; }
-
-/* El "·" entre datos va en el hueco (position: absolute): el que cae al inicio de una línea queda fuera de la caja y
-   se recorta, así nunca queda un "·" colgando al partir la línea. overflow-clip-margin deja ver los anillos de foco. */
-.marco-meta {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) 20px;
-  color: var(--texto-3); font-size: 12px; line-height: 22px;
+/* Segunda línea, apagada: sitio · fecha · cuántos llegan. El "·" va en el hueco y se recorta al inicio de línea. */
+.marco-datos {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) 20px; margin: 0; min-width: 0;
+  color: var(--texto-3); font-size: 13px; line-height: 22px;
   overflow: clip; overflow-clip-margin: 4px;
 }
-.marco-meta > * { position: relative; }
-.marco-meta > * + *::before { content: "·"; position: absolute; inset-inline-start: -12px; color: var(--texto-4); }
-.marco-sitio { display: inline-flex; align-items: center; gap: var(--e-1); color: var(--texto-2); }
-.marco-sitio .icono { width: 12px; height: 12px; color: var(--texto-3); }
+.marco-datos > * { position: relative; flex: none; }
+.marco-datos > * + *::before { content: "·"; position: absolute; inset-inline-start: -12px; color: var(--texto-4); }
+.marco-sitio { display: inline-flex; align-items: center; gap: var(--e-1); flex: 0 1 auto; min-width: 0; max-width: 100%; color: var(--texto-2); }
+.marco-sitio > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.marco-sitio .icono { flex: none; width: 12px; height: 12px; color: var(--texto-3); }
 .marco-sitio:hover { color: var(--texto-1); }
-.marco-veredicto, .marco-errores { display: inline-flex; align-items: center; }
 
 /* Pestañas: enlaces, fijas arriba al desplazar. */
 .pestanas {
@@ -55,24 +47,6 @@
 
 .panel-tanda { padding-block-start: var(--e-5); min-width: 0; }
 
-/* En la telaraña el mapa necesita el alto de la pantalla: la instrucción (y su versión sin contexto) va en una línea,
-   con el botón para abrirla al lado, y la cabecera ocupa menos. */
-.marco-tanda[data-pestana="telarana"] .marco-cabecera { grid-template-columns: minmax(0, 1fr) auto; gap: var(--e-1) var(--e-3); padding-block-end: var(--e-2); }
-.marco-tanda[data-pestana="telarana"] .marco-cabecera > * { grid-column: 1 / -1; }
-.marco-tanda[data-pestana="telarana"] .marco-cabecera > :is(.marco-instruccion, .marco-ver-instruccion) { grid-column: auto; }
-.marco-tanda[data-pestana="telarana"] .marco-titulo { margin-block-start: 0; }
-.marco-tanda[data-pestana="telarana"] .marco-instruccion:not(.expandida) {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; overflow: hidden; cursor: pointer;
-}
-.marco-tanda[data-pestana="telarana"] .marco-instruccion[data-cortada] + .marco-ver-instruccion { display: inline-flex; align-self: start; }
-.marco-tanda[data-pestana="telarana"] .panel-tanda { padding-block-start: var(--e-3); }
-/* La fecha completa y los modelos quedan en Resumen (la fecha relativa dice la completa al pasar el puntero). */
-.marco-tanda[data-pestana="telarana"] :is(.marco-fecha, .marco-modelo) { display: none; }
-@container contenido (width < 900px) {
-  .marco-tanda[data-pestana="telarana"] .marco-barra { flex-wrap: nowrap; }
-  .marco-tanda[data-pestana="telarana"] .marco-etiqueta-boton { display: none; }
-}
-
 @media (max-width: 819px) {
   .pestanas { top: var(--alto-barra); margin-inline: calc(-1 * var(--e-4)); padding-inline: var(--e-4); }
 }
@@ -80,21 +54,15 @@
   .marco-pista { display: none; }
 }
 
-/* Angosto (375 px): "‹ Corridas   ‹ › ⧉", instrucción en 2 líneas (completa al tocar), meta corta. */
+/* Angosto (375 px): "‹  Tarea   ‹ › ⧉" y debajo sitio · fecha · llegan (se parte en dos si no cabe). */
 @container contenido (width < 640px) {
-  .migas .migas-tarea, .migas .migas-fecha { display: none; }
-  .migas .migas-volver { display: inline-block; }
-  .marco-barra { flex-wrap: nowrap; }
   .marco-etiqueta-boton, .marco-pista { display: none; }
   .marco-vecina, .marco-copiar { min-width: 32px; padding: 0; }
-  .marco-titulo { margin-block-start: 0; }
-  .marco-instruccion:not(.expandida) {
-    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; cursor: pointer;
-  }
-  .marco-instruccion[data-cortada] + .marco-ver-instruccion { display: inline-flex; }
-  .marco-fecha, .marco-intentos, .marco-modelo { display: none; }
   .pestana { padding: 0 var(--e-2); }
   .pestana[aria-current="page"]::after { inset-inline: var(--e-2); }
+}
+@container contenido (width < 1000px) {
+  .marco-acciones .marco-etiqueta-boton { display: none; }
 }
 
 /* P3: la fila de pestañas gana borde y sombra cuando la cabecera ya salió de la vista. */

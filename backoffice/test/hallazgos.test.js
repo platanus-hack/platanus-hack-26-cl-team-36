@@ -79,7 +79,7 @@ test("titulares de las dos tandas", async () => {
   const nueva = await leerTanda(RAIZ, "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z");
   assert.deepEqual(nueva.titulares.tanda, { clave: nueva.hallazgos[0].clave, nivel: "atencion", vars: nueva.hallazgos[0].vars });
   assert.deepEqual(nueva.titulares.telarana, {
-    clave: "datos.titular.telarana", vars: { hayRuta: true, tramos: 2, pasosIdeales: 4, siguen: 2, validos: 3, medidos: 3, logrados: 2 },
+    clave: "datos.titular.telarana", vars: { hayRuta: true, enInicio: false, probabilidad: null, tramos: 2, pasosIdeales: 4, siguen: 2, validos: 3, medidos: 3, logrados: 2 },
   });
   assert.deepEqual(nueva.titulares.perfiles.vars, {
     caso: "noLlegan", intentos: ["senior"], pasos: null, pasosIdeales: 4, perfiles: 3, unoPorPerfil: true,

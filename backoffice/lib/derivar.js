@@ -112,7 +112,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} id
  * @property {string} titulo
  * @property {string | null} tituloCorto
- * @property {"sitio" | "inicio" | "url"} tituloTipo
+ * @property {"sitio" | "inicio" | "url" | "error"} tituloTipo
  * @property {string} url
  * @property {{ nodo: string, url: string, consulta: string, visitas: number, perfiles: string[] }[]} variantes
  * @property {number} visitas
@@ -128,20 +128,19 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} id
  * @property {string} origen
  * @property {string} destino
- * @property {{ accion: string, intentos: number, perfiles: string[], salto: boolean }[]} acciones  salto: un
+ * @property {{ accion: string, intentos: number, pasadas: number, perfiles: string[], salto: boolean }[]} acciones  salto: un
  *   «volver a …» del explorador (no lo hace un humano)
  * @property {string} accion
- * @property {number} exitos  pasadas que el evaluador marcó en camino a la página final
- * @property {number} fallos  pasadas que no (desvíos, saltos, vueltas)
+ * @property {number} exitos
+ * @property {number} fallos
  * @property {number} errores
- * @property {number} intentos
+ * @property {number} intentos  intentos distintos que tomaron el tramo
+ * @property {number} pasadas  veces que se pasó por el tramo (exitos + fallos + errores)
  * @property {string[]} perfiles     perfiles del Visitante que pasaron por ella
  * @property {string[]} intentosIds  ids de los intentos que pasaron por ella
  * @property {number | null} medianaSegundos
  * @property {number} pasosMinimos
- * @property {number} llegaron  intentos válidos que pasaron por la rama y lograron la tarea
- * @property {number} noLlegaron  intentos válidos que pasaron por la rama y no la lograron
- * @property {"exito" | "mixto" | "fallo" | "abandono" | "sin_medir" | "error"} resultado  cómo terminaron los que pasaron por ella
+ * @property {"exito" | "mixto" | "fallo" | "abandono" | "sin_medir" | "error"} resultado
  * @property {boolean} enRuta
  *
  * @typedef {Object} Ruta
@@ -174,8 +173,6 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} fecha
  * @property {string} fechaIso
  * @property {string | null} motor
- * @property {string | null} modeloUsuarios
- * @property {string | null} modeloJuez
  * @property {{ texto: string, evidencias: string[] } | null} criterio
  * @property {Intento[]} intentos
  * @property {{ paginas: Pagina[], ramas: Rama[], ruta: Ruta | null, alias: Record<string, string> }} telarana
@@ -407,7 +404,7 @@ function ubicarIntento(run, buscarNodo, paginaDeNodo) {
 // Une las ramas crudas según las páginas: suma lo que coincide, descarta los lazos que deja la unión
 // y separa los tramos de intentos con error de la herramienta (que el evaluador contó como fallos).
 // `intentosDelTramo(perfil, origen, destino)`: los ids de intento detrás de un perfil del árbol.
-function unirRamas(ramasCrudas, paginaDeNodo, intentosDelTramo, intentosConError) {
+export function unirRamas(ramasCrudas, paginaDeNodo, intentosDelTramo, intentosConError) {
   const porPar = new Map();
   for (const cruda of ramasCrudas) {
     const origen = paginaDeNodo.get(cruda.source);
@@ -437,19 +434,25 @@ function unirRamas(ramasCrudas, paginaDeNodo, intentosDelTramo, intentosConError
     const texto = String(cruda.action ?? "");
     const accion = rama.acciones.find((otra) => otra.accion.toLocaleLowerCase() === texto.toLocaleLowerCase());
     if (accion) {
-      accion.intentos += perfiles.length;
+      accion.pasadas += perfiles.length;
       for (const perfil of perfiles) if (!accion.perfiles.includes(perfil)) accion.perfiles.push(perfil);
     } else {
-      rama.acciones.push({ accion: texto, intentos: perfiles.length, perfiles: [...new Set(perfiles)], salto: esVolver(texto) });
+      rama.acciones.push({ accion: texto, pasadas: perfiles.length, perfiles: [...new Set(perfiles)], salto: esVolver(texto) });
     }
   }
   return [...porPar.values()].map(({ tiempos, pasos, ...rama }) => {
-    const acciones = rama.acciones.sort((a, b) => b.intentos - a.intentos || (a.accion < b.accion ? -1 : 1));
+    // intentos = cuántos intentos distintos tomaron el tramo o hicieron la acción (lo que dice «Grosor = intentos»);
+    // pasadas = cuántas veces se pasó por ahí (un explorador que vuelve pasa varias veces).
+    const acciones = rama.acciones
+      .map((accion) => ({ ...accion, intentos: accion.perfiles.length }))
+      .sort((a, b) => b.intentos - a.intentos || b.pasadas - a.pasadas || (a.accion < b.accion ? -1 : 1));
     return {
       ...rama,
       acciones,
       accion: acciones[0]?.accion ?? "",
-      intentos: rama.exitos + rama.fallos + rama.errores,
+      // Con repeticiones, un perfil del árbol son varios intentos: se cuentan los intentos, no los perfiles.
+      intentos: rama.intentosIds.length || rama.perfiles.length,
+      pasadas: rama.exitos + rama.fallos + rama.errores,
       medianaSegundos: mediana(tiempos),
       pasosMinimos: pasos.length ? Math.min(...pasos) : 1,
     };
@@ -457,25 +460,21 @@ function unirRamas(ramasCrudas, paginaDeNodo, intentosDelTramo, intentosConError
 }
 
 /**
- * Cómo terminaron los intentos que pasaron por una rama (su color): todos los válidos lograron la tarea → "exito";
- * algunos → "mixto"; ninguno → "abandono" si todos abandonaron, si no "fallo"; solo intentos con error de la
- * herramienta → "error"; solo intentos sin medir → "sin_medir" (no se sabe si llegaron). No es la marca del evaluador
- * de si el tramo iba hacia la página final (un desvío de alguien que después llegó no es una falla).
- * → { resultado, llegaron, noLlegaron }
- * @param {{ intentosIds?: string[], perfiles?: string[] }} rama
- * @param {Map<string, Resultado>} resultadoDe  resultado de cada intento por id
+ * Cómo terminó lo que pasó por una rama, para su color: la marca del evaluador (exitos/fallos), salvo que todos los
+ * intentos válidos que pasaron por ella estén sin medir (sin ruta de la Guía ni juez): entonces "sin_medir", porque
+ * esos fallos del árbol no dicen nada.
+ * @param {{ exitos: number, fallos: number, errores: number, intentosIds?: string[] }} rama
+ * @param {Finales} [finalesDelDestino]
+ * @param {Map<string, Resultado>} [resultadoDe]  resultado de cada intento por id
  */
-export function resultadoDeRama(rama, resultadoDe) {
-  const suyos = (rama.intentosIds ?? rama.perfiles ?? []).map((id) => resultadoDe.get(id)).filter(Boolean);
-  const validos = suyos.filter((resultado) => resultado !== "error" && resultado !== "sin_medir");
-  const llegaron = validos.filter((resultado) => resultado === "logrado").length;
-  const noLlegaron = validos.length - llegaron;
-  let resultado;
-  if (!validos.length) resultado = suyos.includes("sin_medir") ? "sin_medir" : suyos.length ? "error" : "fallo";
-  else if (!noLlegaron) resultado = "exito";
-  else if (llegaron) resultado = "mixto";
-  else resultado = validos.every((r) => r === "abandonado") ? "abandono" : "fallo";
-  return { resultado, llegaron, noLlegaron };
+export function resultadoDeRama(rama, finalesDelDestino, resultadoDe = new Map()) {
+  if (rama.exitos === 0 && rama.fallos === 0 && rama.errores > 0) return "error";
+  if (rama.exitos > 0 && rama.fallos === 0) return "exito";
+  if (rama.exitos > 0) return "mixto";
+  const validos = (rama.intentosIds ?? []).map((id) => resultadoDe.get(id)).filter((resultado) => resultado && resultado !== "error");
+  if (validos.length && validos.every((resultado) => resultado === "sin_medir")) return "sin_medir";
+  const finales = finalesDelDestino ?? {};
+  return (finales.abandonado ?? 0) > 0 && !(finales.fallido ?? 0) ? "abandono" : "fallo";
 }
 
 /** Distancia en ramas desde el inicio; lo inalcanzable queda un paso más allá del máximo. */
@@ -552,6 +551,18 @@ export function rutaEnPaginas(rutaCruda, paginaDeNodo, ramaPorId) {
     probabilidad: rutaCruda.estimated_probability ?? null,
     segundos,
   };
+}
+
+/**
+ * Una ruta del evaluador sin tramos que termina donde empieza: la tarea se resuelve en la página de inicio.
+ * → { pagina, probabilidad } o null (no hay ruta, o sí tiene tramos).
+ */
+export function rutaEnLaPaginaDeInicio(rutaCruda, paginaDeNodo) {
+  const inicio = rutaCruda ? paginaDeNodo.get(rutaCruda.start_node) : null;
+  if (!inicio) return null;
+  const fin = paginaDeNodo.get(rutaCruda.end_node ?? rutaCruda.start_node) ?? inicio;
+  const sale = (rutaCruda.steps ?? []).some((paso) => (paginaDeNodo.get(paso.target) ?? inicio) !== inicio);
+  return fin === inicio && !sale ? { pagina: inicio, probabilidad: rutaCruda.estimated_probability ?? null } : null;
 }
 
 /**
@@ -926,8 +937,6 @@ function armarPerfiles(intentos, ruta) {
 
 function armarKpis(intentos, ruta) {
   const validos = intentos.filter((intento) => intento.resultado !== "error");
-  const contar = (estado) =>
-    validos.reduce((total, intento) => total + intento.pasos.filter((paso) => paso.estado === estado).length, 0);
   return {
     intentos: intentos.length,
     validos: validos.length,
@@ -943,8 +952,6 @@ function armarKpis(intentos, ruta) {
     pasosIdeales: ruta?.pasosIdeales ?? null,
     tramos: ruta?.tramos.length ?? 0,
     hitos: ruta?.paginas.length ?? 0,
-    sinEfecto: contar("sin_efecto"),
-    noCumplidas: contar("no_cumplida"),
   };
 }
 
@@ -1003,11 +1010,12 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArb
   const nodoFinalDe = new Map(intentos.map((intento, i) => [intento.id, ubicaciones[i].nodoFinal]));
   const finalesPorNodo = finalesCorregidos(nodosCrudos, intentos, nodoFinalDe);
   const paginas = armarPaginas(grupos, finalesPorNodo, ruta, ramasUnidas, capturasDePaginas(intentos));
-  const tramosDeRuta = new Set((ruta?.tramos ?? []).map((tramo) => `${tramo.origen}>${tramo.destino}`));
+  const finalesDe = new Map(paginas.map((pagina) => [pagina.id, pagina.finales]));
   const resultadoDe = new Map(intentos.map((intento) => [intento.id, intento.resultado]));
+  const tramosDeRuta = new Set((ruta?.tramos ?? []).map((tramo) => `${tramo.origen}>${tramo.destino}`));
   const ramas = ramasUnidas.map((rama) => ({
     ...rama,
-    ...resultadoDeRama(rama, resultadoDe),
+    resultado: resultadoDeRama(rama, finalesDe.get(rama.destino), resultadoDe),
     enRuta: tramosDeRuta.has(rama.id),
   }));
 
@@ -1026,14 +1034,12 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArb
     fecha,
     fechaIso: fechaIsoDe(fecha),
     motor: arbol?.engine ?? null,
-    modeloUsuarios: arbol?.user_model ?? null,
-    modeloJuez: arbol?.judge_model ?? null,
     criterio: textoDelCriterio ? { texto: textoDelCriterio, evidencias: [...evidencias] } : null,
     // Tanda de exploradores: abren ramas a propósito (no pueden terminar antes del 40 % de las acciones), así que
     // sus pasos no dicen cuánto le cuesta el sitio a alguien.
     exploradores: Boolean(arbol?.conjunto_exploradores) || (intentos.length > 0 && intentos.every((intento) => intento.perfil.startsWith("explorador"))),
     intentos,
-    telarana: { paginas, ramas, ruta, alias },
+    telarana: { paginas, ramas, ruta, rutaEnInicio: ruta ? null : rutaEnLaPaginaDeInicio(arbol?.recommended_route ?? null, paginaDeNodo), alias },
     kpis: armarKpis(intentos, ruta),
     perfiles: armarPerfiles(intentos, ruta),
     porConocimiento: porConocimiento(intentos),
@@ -1054,9 +1060,9 @@ export const NIVELES_DE_CONOCIMIENTO = ["sin_contexto", "conoce_tema"];
 
 /**
  * Resultado por nivel de conocimiento (como la tabla del report.md del evaluador): por nivel, intentos, cuántos lo
- * lograron, mediana de pasos y de segundos, y escrituras rechazadas. null si la tanda no tiene los dos niveles.
- * @param {{ conocimiento: string | null, resultado: string, pasos: unknown[], duracion: number | null, terminosRechazados?: string[] }[]} intentos
- * @returns {{ nivel: string, intentos: number, logrados: number, pasosMediana: number | null, segundosMediana: number | null, rechazos: number }[] | null}
+ * lograron. null si la tanda no tiene los dos niveles.
+ * @param {{ conocimiento: string | null, resultado: string }[]} intentos
+ * @returns {{ nivel: string, intentos: number, logrados: number }[] | null}
  */
 export function porConocimiento(intentos) {
   const niveles = NIVELES_DE_CONOCIMIENTO.map((nivel) => [nivel, intentos.filter((intento) => intento.conocimiento === nivel)]);
@@ -1065,9 +1071,6 @@ export function porConocimiento(intentos) {
     nivel,
     intentos: suyos.length,
     logrados: suyos.filter((intento) => intento.resultado === "logrado").length,
-    pasosMediana: mediana(suyos.map((intento) => intento.pasos.length)),
-    segundosMediana: mediana(suyos.map((intento) => intento.duracion)),
-    rechazos: suyos.reduce((suma, intento) => suma + (intento.terminosRechazados?.length ?? 0), 0),
   }));
 }
 
@@ -1093,27 +1096,11 @@ export function capturaDeTanda(tanda) {
 }
 
 /**
- * Un titular con su `pagina` (id de nodo) cambiada por lo que hace falta para nombrarla sin la tanda: tipo de título,
- * título corto y título (public/datos/textos.js, nombreDePagina; «Inicio» se traduce allá).
- */
-function conPaginaNombrada(titular, paginas) {
-  const id = titular?.vars?.pagina;
-  if (id == null) return titular;
-  const pagina = paginas.find((cada) => cada.id === id);
-  const nombre = pagina
-    ? { tituloTipo: pagina.tituloTipo ?? null, tituloCorto: pagina.tituloCorto ?? null, titulo: pagina.titulo ?? null, url: pagina.url ?? null }
-    : { tituloTipo: null, tituloCorto: null, titulo: null, url: null };
-  return { ...titular, vars: { ...titular.vars, pagina: nombre } };
-}
-
-/**
  * Lo que muestra la lista de corridas: una fila liviana por tanda (GET /api/tandas).
  * @param {Tanda} tanda
  */
 export function resumirTanda(tanda) {
   const { kpis } = tanda;
-  // La lista no trae las páginas de la tanda: la página del titular va como su título (nunca un id de nodo, «n4»).
-  const titular = conPaginaNombrada(tanda.titulares.tanda, tanda.telarana.paginas);
   return {
     id: tanda.id,
     tarea: tanda.tarea,
@@ -1127,16 +1114,12 @@ export function resumirTanda(tanda) {
     medidos: kpis.medidos,
     errores: kpis.errores,
     logrados: kpis.logrados,
-    siguenLaRuta: kpis.siguenLaRuta,
-    pasosMediana: kpis.pasosMediana,
-    pasosIdeales: kpis.pasosIdeales,
     perfiles: tanda.intentos.map((intento) => ({
       intento: intento.id,
       perfil: intento.perfil,
       nombre: intento.nombrePerfil,
       resultado: intento.resultado,
     })),
-    titular,
     captura: capturaDeTanda(tanda),
     paginas: tanda.telarana.paginas.length,
     arbol: tanda.arbol ?? "ok",
