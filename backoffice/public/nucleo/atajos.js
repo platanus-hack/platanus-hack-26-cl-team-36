@@ -272,64 +272,27 @@ export function kbd(especificacion, { mantener = false } = {}) {
 
 // ── Hoja de atajos ("?") ─────────────────────────────────────────────────
 
+// Orden y título de los grupos. La hoja muestra solo los atajos registrados ahora (los de todas partes, los de la
+// tanda y los de la pantalla abierta): así nunca anuncia una tecla que no hace nada, ni calla una que sí.
 const GRUPOS = ["global", "tanda", "corridas", "resumen", "telarana", "replay"];
 
-// El mapa de §7: se muestra para las vistas que no están abiertas (las abiertas muestran lo que registraron).
-const CATALOGO = [
-  { grupo: "global", teclas: ["Mod+k"], clave: "paleta" },
-  { grupo: "global", teclas: ["?"], clave: "hoja" },
-  { grupo: "global", teclas: ["Escape"], clave: "cerrar" },
-  { grupo: "global", teclas: ["g c"], clave: "irACorridas" },
-  { grupo: "global", teclas: ["/"], clave: "buscar" },
-  { grupo: "tanda", teclas: ["1", "2", "3"], clave: "pestanas" },
-  { grupo: "tanda", teclas: ["[", "]"], clave: "vecinas" },
-  { grupo: "tanda", teclas: ["c"], clave: "copiarEnlace" },
-  { grupo: "corridas", teclas: ["j", "k", "ArrowDown", "ArrowUp"], clave: "filas" },
-  { grupo: "corridas", teclas: ["Enter"], clave: "abrirFila" },
-  { grupo: "corridas", teclas: ["v"], clave: "listaGrilla" },
-  { grupo: "resumen", teclas: ["j", "k"], clave: "hallazgos" },
-  { grupo: "telarana", teclas: ["+", "-"], clave: "zoom" },
-  { grupo: "telarana", teclas: ["0"], clave: "ajustar" },
-  { grupo: "telarana", teclas: ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"], clave: "mover" },
-  { grupo: "telarana", teclas: ["Tab", "Enter"], clave: "estaciones" },
-  { grupo: "telarana", teclas: ["p", "Shift+P"], clave: "perfil" },
-  { grupo: "telarana", teclas: ["h"], clave: "historia" },
-  { grupo: "telarana", teclas: ["Space", "ArrowLeft", "ArrowRight"], clave: "historiaPasos" },
-  { grupo: "telarana", teclas: ["v"], clave: "vista3d" },
-  { grupo: "replay", teclas: ["ArrowRight", "j", "ArrowLeft", "k"], clave: "pasos" },
-  { grupo: "replay", teclas: ["n", "Shift+N"], clave: "problemas" },
-  { grupo: "replay", teclas: ["Home", "End"], clave: "extremos" },
-  { grupo: "replay", teclas: ["b"], clave: "antes", mantener: true },
-  { grupo: "replay", teclas: ["d", "a", "l", "o"], clave: "modos" },
-  { grupo: "replay", teclas: ["Space"], clave: "reproducir" },
-  { grupo: "replay", teclas: [",", "."], clave: "velocidad" },
-  { grupo: "replay", teclas: ["v"], clave: "video" },
-  { grupo: "replay", teclas: ["s"], clave: "soloPasos" },
-  { grupo: "replay", teclas: ["i", "Shift+I"], clave: "intentos" },
-  { grupo: "replay", teclas: ["e"], clave: "veredicto" },
-  { grupo: "replay", teclas: ["t"], clave: "verEnTelarana" },
-];
-
-/** Las teclas de §7 (para pruebas y para la hoja). */
-export const CATALOGO_DE_ATAJOS = CATALOGO;
-
-function filasDelGrupo(grupo, vivos) {
-  const propios = vivos.filter((registro) => registro.grupo === grupo);
-  if (propios.length) {
+/**
+ * Los grupos de la hoja a partir de listarAtajos(): en el orden de GRUPOS (los desconocidos, al final) y, dentro de
+ * cada grupo, una fila por descripción con todas sus teclas. Puro: las pruebas lo usan sin navegador.
+ * → [{ grupo, filas: [{ descripcion, teclas: string[], mantener }] }]
+ */
+export function gruposDeLaHoja(vivos) {
+  const conocidos = GRUPOS.filter((grupo) => vivos.some((registro) => registro.grupo === grupo));
+  const otros = [...new Set(vivos.map((registro) => registro.grupo))].filter((grupo) => !GRUPOS.includes(grupo));
+  return [...conocidos, ...otros].map((grupo) => {
     const porDescripcion = new Map();
-    for (const registro of propios) {
+    for (const registro of vivos.filter((cada) => cada.grupo === grupo)) {
       const fila = porDescripcion.get(registro.descripcion) ?? { descripcion: registro.descripcion, teclas: [], mantener: registro.mantener };
       fila.teclas.push(registro.tecla);
       porDescripcion.set(registro.descripcion, fila);
     }
-    return { activo: true, filas: [...porDescripcion.values()] };
-  }
-  const filas = CATALOGO.filter((entrada) => entrada.grupo === grupo).map((entrada) => ({
-    descripcion: t(`comun.atajos.desc.${entrada.clave}`),
-    teclas: entrada.teclas,
-    mantener: !!entrada.mantener,
-  }));
-  return { activo: false, filas };
+    return { grupo, filas: [...porDescripcion.values()] };
+  });
 }
 
 let hoja = null;
@@ -343,13 +306,9 @@ function dialogoDeHoja() {
   return hoja;
 }
 
-/** Abre la hoja con todos los atajos: primero los de la vista abierta, después el resto del mapa de §7. */
+/** Abre la hoja con los atajos que funcionan en la vista actual. */
 export function abrirHojaDeAtajos() {
   const dialogo = dialogoDeHoja();
-  const vivos = listarAtajos();
-  const activos = new Set(registros.pantalla.map((registro) => registro.grupo));
-  const orden = [...GRUPOS.filter((g) => activos.has(g)), ...GRUPOS.filter((g) => !activos.has(g))];
-  const extras = [...new Set(vivos.map((registro) => registro.grupo))].filter((g) => !GRUPOS.includes(g));
   dialogo.setAttribute("aria-labelledby", "hoja-atajos-titulo");
   dialogo.replaceChildren(
     el(
@@ -367,14 +326,12 @@ export function abrirHojaDeAtajos() {
     el(
       "div",
       { class: "hoja-atajos-grupos" },
-      [...orden, ...extras].map((grupo) => {
-        const { activo, filas } = filasDelGrupo(grupo, vivos);
-        if (!filas.length) return null;
+      gruposDeLaHoja(listarAtajos()).map(({ grupo, filas }) => {
         const titulo = GRUPOS.includes(grupo) ? t(`comun.atajos.grupo.${grupo}`) : grupo;
         return el(
           "section",
-          { class: `hoja-atajos-grupo${activo && grupo !== "global" ? " activo" : ""}` },
-          el("h3", { class: "etiqueta-micro" }, titulo, activo && grupo !== "global" ? el("span", { class: "hoja-atajos-aqui", texto: ` · ${t("comun.atajos.enEstaVista")}` }) : null),
+          { class: "hoja-atajos-grupo" },
+          el("h3", { class: "etiqueta-micro", texto: titulo }),
           el(
             "dl",
             {},

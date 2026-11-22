@@ -230,12 +230,12 @@ export function montarMarco({ tanda, ruta, navegar }) {
   actualizar(ruta);
 
   const atajos = {
-    "[": { descripcion: t("comun.marco.anteriorDescripcion"), accion: () => vecinas.anterior && navegar(enlaceATanda(vecinas.anterior, pestanaActual)) },
-    "]": { descripcion: t("comun.marco.siguienteDescripcion"), accion: () => vecinas.siguiente && navegar(enlaceATanda(vecinas.siguiente, pestanaActual)) },
+    "[": { descripcion: t("comun.atajos.desc.vecinas"), accion: () => vecinas.anterior && navegar(enlaceATanda(vecinas.anterior, pestanaActual)) },
+    "]": { descripcion: t("comun.atajos.desc.vecinas"), accion: () => vecinas.siguiente && navegar(enlaceATanda(vecinas.siguiente, pestanaActual)) },
     c: { descripcion: t("comun.atajos.desc.copiarEnlace"), accion: () => copiarEnlace() },
   };
   PESTANAS.forEach((pestana, indice) => {
-    atajos[String(indice + 1)] = { descripcion: t(NOMBRES_DE_PESTANA[pestana]), accion: () => navegar(enlaceATanda(tanda.id, pestana)) };
+    atajos[String(indice + 1)] = { descripcion: t("comun.atajos.desc.pestanas"), accion: () => navegar(enlaceATanda(tanda.id, pestana)) };
   });
   const quitarAtajos = registrarAtajos(atajos, { ambito: "pantalla", grupo: "tanda" });
 
