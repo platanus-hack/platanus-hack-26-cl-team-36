@@ -209,13 +209,59 @@ test("popup.html: cada data-mt-texto* existe en el diccionario y el HTML trae el
   }
 });
 
-test("selector de idioma: listbox accesible con una opción por idioma", () => {
+test("vista principal: solo el interruptor y una fila con «Dar opinión» y ajustes; lo demás, oculto", () => {
   const html = leer("popup/popup.html");
-  assert.match(html, /id="mt-idioma-boton"[^>]*aria-haspopup="listbox"/);
-  assert.match(html, /aria-expanded="false"/);
-  assert.match(html, /role="listbox"/);
-  const opciones = [...html.matchAll(/role="option" data-idioma="([a-z]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(opciones.sort(), Object.keys(TEXTOS).sort());
+  const principal = html.slice(html.indexOf('id="mt-vista-principal"'), html.indexOf('id="mt-vista-opinion"'));
+  assert.ok(principal.includes('id="mt-interruptor"'));
+  assert.match(principal, /id="mt-abrir-opinion" aria-controls="mt-vista-opinion"/);
+  assert.match(principal, /id="mt-abrir-ajustes"\s+aria-expanded="false"\s+aria-controls="mt-ajustes"\s+data-mt-texto-aria-label="ajustes.titulo"/);
+  assert.ok(!html.includes('id="mt-gracias"'), "el agradecimiento lo dice el nombre del botón enfocado, sin otra región viva");
+  assert.match(html, /<section class="mt-vista mt-vista-opinion" id="mt-vista-opinion"[^>]*hidden>/);
+  assert.match(html, /<div class="mt-ajustes" id="mt-ajustes" hidden>/);
+  for (const quitado of ["mt-cabecera", "mt-marca", "mt-chip", 'role="listbox"']) assert.ok(!html.includes(quitado), `sobra ${quitado}`);
+});
+
+test("vista de opinión: botón volver con nombre, título y el formulario de siempre", () => {
+  const html = leer("popup/popup.html");
+  const opinion = html.slice(html.indexOf('id="mt-vista-opinion"'), html.indexOf('id="mt-ajustes"'));
+  assert.match(opinion, /id="mt-volver" data-mt-texto-aria-label="opinion.volver"/);
+  assert.match(opinion, /data-mt-texto="opinion.titulo"/);
+  for (const id of ["mt-opinion", "mt-aviso", "mt-formulario", "mt-comentario", "mt-enviar", "mt-mensaje", "mt-pendientes", "mt-privacidad"]) {
+    assert.ok(opinion.includes(`id="${id}"`), `falta #${id} en la vista de opinión`);
+  }
+});
+
+test("ajustes: velo solo para el mouse, botón cerrar, efectos y un ES | EN con aria-pressed, uno por idioma", () => {
+  const html = leer("popup/popup.html");
+  const ajustes = html.slice(html.indexOf('id="mt-ajustes"'));
+  assert.match(ajustes, /<button type="button" class="mt-velo" id="mt-velo" tabindex="-1" data-mt-texto-aria-label="ajustes.cerrar"/);
+  assert.match(ajustes, /role="dialog" aria-modal="true" aria-labelledby="mt-ajustes-titulo"/);
+  assert.match(ajustes, /id="mt-cerrar-ajustes" data-mt-texto-aria-label="ajustes.cerrar"/);
+  assert.match(ajustes, /role="group" aria-labelledby="mt-idioma-etiqueta"/);
+  const idiomas = [...ajustes.matchAll(/class="mt-segmento-opcion" data-idioma="([a-z]+)" lang="\1" aria-pressed="(true|false)"/g)];
+  assert.deepEqual(idiomas.map((m) => m[1]).sort(), Object.keys(TEXTOS).sort());
+  assert.equal(idiomas.filter((m) => m[2] === "true").length, 1);
+});
+
+test("popup.css: 300 px de ancho, alto fijo para las dos vistas y transiciones tranquilas con movimiento reducido", () => {
+  const css = leer("popup/popup.css");
+  assert.match(css, /body \{\s*width: 300px;/);
+  assert.match(css, /\.mt-panel \{[^}]*height: var\(--mt-alto\);/);
+  assert.match(css, /--mt-alto: \d+px;/);
+  const reducido = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.match(reducido, /\.mt-vista,\s*\.mt-hoja \{\s*animation: mt-aparecer/);
+});
+
+test("popup.js: abrir y cerrar mueve el foco, y el agradecimiento dura poco", () => {
+  const js = leer("popup/popup.js");
+  assert.match(js, /irA\("opinion", \{ enfocar: el\.volver \}\)/);
+  assert.match(js, /irA\("principal", \{ enfocar: el\.abrirOpinion \}\)/);
+  assert.match(js, /\(abrir \? el\.efectos : el\.abrirAjustes\)\.focus\(\)/);
+  assert.match(js, /el\.volver\.disabled = estado\.guardando/);
+  assert.match(js, /if \(estado\.vista === "opinion"\) irA\("principal"/);
+  assert.match(js, /DURACION_GRACIAS = 2500/);
+  assert.doesNotMatch(js, /crearSelectorIdioma/);
+  assert.doesNotMatch(leer("popup/idioma.js"), /crearSelectorIdioma|listbox/);
 });
 
 test("popup y textos visibles: ningún texto suelto en español en popup.js", () => {
@@ -277,54 +323,4 @@ test("la ayuda del interruptor dice lo que hace el clic en esta pestaña, en los
     }
     assert.doesNotMatch(TEXTOS[idioma]["interruptor.ayudaEncendidoSinTema"], /original/, "sin tema no se promete volver a la página original");
   }
-});
-
-// ── Opinión plegable ───────────────────────────────────────────────────────────────────────────────────────────
-
-test("opinión plegable: botón de divulgación cableado a su región, cerrado por defecto y bajo el interruptor", () => {
-  const html = leer("popup/popup.html");
-  const boton = html.match(/<button\b[^>]*id="mt-desplegar"[^>]*>/)?.[0];
-  assert.ok(boton, "falta el botón #mt-desplegar");
-  assert.match(boton, /type="button"/);
-  assert.match(boton, /aria-expanded="false"/, "empieza cerrado");
-  const controla = boton.match(/aria-controls="([^"]+)"/)?.[1];
-  assert.ok(controla, "el botón dice qué región controla");
-  const region = html.match(new RegExp(`<div\\b[^>]*id="${controla}"[^>]*>`))?.[0];
-  assert.ok(region, `aria-controls apunta a #${controla}, que existe`);
-  assert.match(region, /\binert\b/, "cerrada, la región no recibe foco ni la lee el lector de pantalla");
-  assert.match(html, /class="mt-opinion"[^>]*data-abierta="no"/);
-  // Todo el formulario de la opinión va adentro de la región plegable.
-  const dentro = html.slice(html.indexOf(`id="${controla}"`), html.indexOf("</section>", html.indexOf(`id="${controla}"`)));
-  for (const parte of ['id="mt-pregunta"', 'data-voto="mejor"', 'data-voto="peor"', 'data-voto="comentario"', 'id="mt-comentario"', 'id="mt-enviar"', 'id="mt-mensaje"', 'id="mt-aviso"', 'id="mt-privacidad"']) {
-    assert.ok(dentro.includes(parte), `${parte} dentro de la región plegable`);
-  }
-  // El interruptor va primero: abrir la opinión agranda el panel hacia abajo y el camaleón no se mueve.
-  assert.ok(html.indexOf('class="mt-control"') < html.indexOf('id="mt-opinion"'), "el interruptor va antes que la opinión");
-  // Con la opinión cerrada, «Guardando…» o el resultado del envío se anuncian junto al botón.
-  assert.match(html, /id="mt-opinion-resumen"[^>]*role="status"/);
-});
-
-test("opinión plegable: popup.js la abre y la cierra sin recordar el estado, y cerrada la deja inert", () => {
-  const js = leer("popup/popup.js");
-  assert.match(js, /opinionAbierta: false/, "empieza cerrada cada vez que se abre el panel");
-  assert.doesNotMatch(js, /storage\.local\.set\(\{[^}]*opinion/i, "no se guarda si estaba abierta");
-  assert.match(js, /setAttribute\("aria-expanded", String\(abierta\)\)/);
-  assert.match(js, /\.inert = !abierta/);
-  assert.match(js, /el\.desplegar\.addEventListener\("click"/);
-});
-
-test("opinión plegable: cerrada no ocupa lugar, la flecha gira y respeta el movimiento reducido", () => {
-  const css = leer("popup/popup.css");
-  assert.match(css, /\.mt-plegable\s*\{[^}]*grid-template-rows: 0fr;[^}]*visibility: hidden;/, "cerrada, la fila de la tarjeta mide 0");
-  assert.match(css, /\.mt-opinion\[data-abierta="si"\] \.mt-plegable\s*\{\s*grid-template-rows: 1fr;/);
-  assert.match(css, /\.mt-plegable-interior\s*\{\s*min-height: 0;\s*overflow: hidden;/);
-  assert.match(css, /\.mt-desplegar\[aria-expanded="true"\] \.mt-desplegar-flecha\s*\{\s*transform: rotate\(180deg\);/);
-  assert.match(css, /\.mt-desplegar:focus-visible\s*\{\s*outline:/, "foco visible");
-  const reducido = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
-  assert.match(reducido, /\.mt-plegable/, "con movimiento reducido se abre sin animación");
-});
-
-test("opinión plegable: el texto del botón está en los dos idiomas", () => {
-  for (const idioma of Object.keys(TEXTOS)) assert.ok(TEXTOS[idioma]["opinion.desplegar"], `${idioma}: falta opinion.desplegar`);
-  assert.equal(TEXTOS.es["opinion.desplegar"], "Dar mi opinión");
 });

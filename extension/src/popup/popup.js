@@ -1,26 +1,10 @@
-// Popup del ícono de la barra: interruptor ON/OFF de Chameleon y opinión sobre la página.
-//
-// - Interruptor: invierte `activo` en storage.local. content/motor.js escucha ese cambio y
-//   corre la metamorfosis en la pestaña; el background pinta el badge. El popup se
-//   redibuja con storage.onChanged, venga de donde venga el cambio.
-// - Opinión: pregunta a la pestaña activa `estado:pagina` (content/captura.js) para decidir
-//   qué mostrar (ver estado.js) y guarda con `voto:guardar` en el background. Va plegada bajo el
-//   interruptor: el botón «Dar mi opinión» la abre y la cierra, y cada vez que se abre el panel empieza
-//   cerrada (no se recuerda). Cerrada, «Guardando…» o el resultado del último envío se ven junto al botón.
-//
-// - Efectos: el interruptor «Efectos» (centrado en la cabecera) guarda `efectos` ("llamativos" | "sutiles",
-//   comun/efectos.js) en storage.local; content/motor.js y el camaleón (interruptor.js, por body[data-efectos])
-//   lo usan desde el próximo encendido o apagado.
-// - Idioma: el selector de la cabecera guarda `idioma` en storage.local. Todos los textos
-//   salen del diccionario (comun/idioma.js): los fijos del HTML con data-mt-texto*, los
-//   demás desde acá. Al cambiar de idioma se anima el cambio (idioma.js); al abrir, no.
-//
+// Popup del ícono de la barra: el interruptor ON/OFF y, detrás de botones, la opinión y los ajustes.
 // JS solo pone atributos, clases y textos; todo lo visual está en popup.css e idioma.css.
 
 import "../comun/idioma.js";
 import "../comun/efectos.js";
 import { claveDeAyuda, crearCola, decidirVista, textoPendientes, validarEnvio } from "./estado.js";
-import { animarCambio, crearSelectorIdioma, ponerTexto } from "./idioma.js";
+import { animarCambio, ponerTexto } from "./idioma.js";
 import "./interruptor.js"; // animación del camaleón del interruptor (solo visual)
 
 const { CLAVE_IDIOMA, IDIOMAS, TEXTOS, IDIOMA_POR_DEFECTO, normalizarIdioma, t } = globalThis.MiTema.idioma;
@@ -31,18 +15,21 @@ const el = {
   cuerpo: document.body,
   panel: document.querySelector(".mt-panel"),
   control: document.querySelector(".mt-control"),
-  idioma: $("mt-idioma"),
-  idiomaBoton: $("mt-idioma-boton"),
-  idiomaActual: $("mt-idioma-actual"),
+  principal: $("mt-vista-principal"),
+  vistaOpinion: $("mt-vista-opinion"),
+  abrirOpinion: $("mt-abrir-opinion"),
+  abrirOpinionTexto: $("mt-abrir-opinion-texto"),
+  volver: $("mt-volver"),
+  abrirAjustes: $("mt-abrir-ajustes"),
+  ajustes: $("mt-ajustes"),
+  velo: $("mt-velo"),
+  cerrarAjustes: $("mt-cerrar-ajustes"),
   efectos: $("mt-efectos"),
-  chip: $("mt-chip"),
+  idiomas: [...document.querySelectorAll(".mt-segmento-opcion")],
   interruptor: $("mt-interruptor"),
   estado: $("mt-estado"),
   ayuda: $("mt-estado-ayuda"),
   opinion: $("mt-opinion"),
-  desplegar: $("mt-desplegar"),
-  plegable: $("mt-opinion-cuerpo"),
-  resumen: $("mt-opinion-resumen"),
   aviso: $("mt-aviso"),
   formulario: $("mt-formulario"),
   opciones: [...document.querySelectorAll(".mt-opcion")],
@@ -60,18 +47,19 @@ const estado = {
   efectos: EFECTOS_POR_OMISION, // "llamativos" | "sutiles"
   tabId: null,
   pagina: null, // { alcanzable, privada, temaId } | null mientras se consulta
-  opinionAbierta: false, // la opinión empieza cerrada cada vez que se abre el panel
   opcion: null, // "mejor" | "peor" | "comentario" | null
   guardando: false,
   pendientes: null,
-  mensaje: null, // { tipo: "exito" | "error", clave, parametros } | { tipo, texto } | null
+  mensaje: null, // { tipo: "error", clave, parametros } | { tipo: "error", texto } | null
+  vista: "principal", // "principal" | "opinion"
+  ajustesAbiertos: false,
+  gracias: false,
 };
 
 const tx = (clave, parametros) => t(estado.idioma, clave, parametros);
 
 // ---------- Dibujo ----------
 
-// Textos fijos del HTML (data-mt-texto*), el selector y <html lang>.
 function dibujarIdioma() {
   const idioma = normalizarIdioma(estado.idioma);
   const html = document.documentElement;
@@ -86,9 +74,22 @@ function dibujarIdioma() {
   }
   for (const nodo of document.querySelectorAll("[data-mt-texto-title]")) nodo.title = tx(nodo.dataset.mtTextoTitle);
   el.control?.setAttribute("aria-label", tx("interruptor.seccion"));
-  ponerTexto(el.idiomaActual, IDIOMAS[idioma].corto);
-  el.idiomaBoton.setAttribute("aria-label", tx("idioma.boton", { nombre: IDIOMAS[idioma].nombre }));
-  selector.mostrar(idioma);
+  for (const boton of el.idiomas) {
+    boton.setAttribute("aria-pressed", String(boton.dataset.idioma === idioma));
+    ponerTexto(boton.querySelector(".mt-oculto-visual"), IDIOMAS[boton.dataset.idioma].nombre);
+  }
+}
+
+function dibujarVistas() {
+  const enOpinion = estado.vista === "opinion";
+  el.principal.hidden = enOpinion;
+  el.vistaOpinion.hidden = !enOpinion;
+  el.ajustes.hidden = !estado.ajustesAbiertos;
+  el.principal.inert = estado.ajustesAbiertos;
+  el.abrirAjustes.setAttribute("aria-expanded", String(estado.ajustesAbiertos));
+  el.abrirOpinion.dataset.gracias = String(estado.gracias);
+  // Sin región viva aparte: el foco vuelve a este botón y su nombre ya es el agradecimiento.
+  ponerTexto(el.abrirOpinionTexto, tx(estado.gracias ? "opinion.gracias" : "opinion.abrir"));
 }
 
 function dibujarEfectos() {
@@ -101,7 +102,6 @@ function dibujarInterruptor() {
   el.cuerpo.dataset.activo = activo === null ? "cargando" : activo ? "si" : "no";
   el.interruptor.disabled = activo === null;
   el.interruptor.setAttribute("aria-pressed", String(Boolean(activo)));
-  el.chip.textContent = activo === null ? "…" : activo ? "ON" : "OFF"; // igual en todos los idiomas
   ponerTexto(el.estado, tx(activo === null ? "interruptor.cargando" : activo ? "interruptor.encendido" : "interruptor.apagado"));
   const ayuda = claveDeAyuda(estado);
   ponerTexto(el.ayuda, ayuda ? tx(ayuda) : "");
@@ -111,7 +111,6 @@ function dibujarOpinion() {
   const cargando = estado.pagina === null || estado.activo === null;
   const vista = cargando ? { modo: "cargando", aviso: null, privacidad: null } : decidirVista(estado);
   el.opinion.dataset.modo = vista.modo;
-  dibujarPlegado();
   ponerTexto(el.aviso, vista.aviso ? tx(vista.aviso) : "");
   ponerTexto(el.privacidad, vista.privacidad ? tx(vista.privacidad) : "");
 
@@ -125,6 +124,7 @@ function dibujarOpinion() {
   const pideTexto = vista.modo === "solo-comentario" || estado.opcion === "comentario";
   el.comentario.placeholder = tx(pideTexto ? "opinion.comentarioObligatorio" : "opinion.comentarioOpcional");
   el.comentario.disabled = estado.guardando;
+  el.volver.disabled = estado.guardando;
 
   const envio = validarEnvio({ modo: vista.modo, opcion: estado.opcion, comentario: el.comentario.value });
   el.enviar.disabled = cargando || estado.guardando || !envio.ok;
@@ -140,19 +140,6 @@ function dibujarOpinion() {
   ponerTexto(el.pendientes, estado.pendientes === null ? "" : textoPendientes(estado.pendientes, estado.idioma));
 }
 
-// Abierta o cerrada. Cerrada, la región queda inert (ni teclado ni lector de pantalla) y lo que no debe perderse se
-// muestra junto al botón: «Guardando…» mientras se guarda, o el resultado del último envío.
-function dibujarPlegado() {
-  const abierta = estado.opinionAbierta;
-  el.opinion.dataset.abierta = abierta ? "si" : "no";
-  el.desplegar.setAttribute("aria-expanded", String(abierta));
-  el.plegable.inert = !abierta;
-  const resumen = abierta ? null : estado.guardando ? { tipo: "guardando", clave: "opinion.guardando" } : estado.mensaje;
-  // Región viva (role=status), como el mensaje: no se anima.
-  el.resumen.textContent = textoMensaje(resumen);
-  el.resumen.dataset.tipo = resumen?.tipo ?? "";
-}
-
 function textoMensaje(mensaje) {
   if (!mensaje) return "";
   return mensaje.clave ? tx(mensaje.clave, mensaje.parametros) : mensaje.texto;
@@ -160,6 +147,7 @@ function textoMensaje(mensaje) {
 
 function dibujar() {
   dibujarIdioma();
+  dibujarVistas();
   dibujarEfectos();
   dibujarInterruptor();
   dibujarOpinion();
@@ -167,13 +155,11 @@ function dibujar() {
 
 // ---------- Idioma ----------
 
-const selector = crearSelectorIdioma({ raiz: el.idioma, alElegir: elegirIdioma });
-
 // Elementos cuyo texto anima el cambio de idioma (el mensaje, región viva, no).
 function elementosConTexto() {
   return [
     ...document.querySelectorAll("[data-mt-texto]"),
-    el.idiomaActual,
+    el.abrirOpinionTexto,
     el.aviso,
     el.pista,
     el.enviar,
@@ -194,6 +180,7 @@ function aplicarIdioma(idioma, { animar = true } = {}) {
 }
 
 function elegirIdioma(idioma) {
+  if (normalizarIdioma(idioma) === estado.idioma) return;
   aplicarIdioma(idioma);
   browser.storage.local
     .set({ [CLAVE_IDIOMA]: normalizarIdioma(idioma) })
@@ -207,6 +194,50 @@ function mensajeDeError(respuesta) {
   if (respuesta?.error) return { tipo: "error", texto: respuesta.error };
   return { tipo: "error", clave: "error.guardar" };
 }
+
+for (const boton of el.idiomas) boton.addEventListener("click", () => elegirIdioma(boton.dataset.idioma));
+
+// ---------- Vistas y ajustes ----------
+
+let temporizadorGracias = null;
+const DURACION_GRACIAS = 2500;
+
+function irA(vista, { enfocar } = {}) {
+  estado.vista = vista;
+  estado.ajustesAbiertos = false;
+  if (vista === "opinion") {
+    clearTimeout(temporizadorGracias);
+    estado.gracias = false;
+  }
+  dibujar();
+  enfocar?.focus();
+}
+
+function mostrarGracias() {
+  clearTimeout(temporizadorGracias);
+  estado.gracias = true;
+  temporizadorGracias = setTimeout(() => {
+    estado.gracias = false;
+    dibujarVistas();
+  }, DURACION_GRACIAS);
+}
+
+function alternarAjustes(abrir) {
+  estado.ajustesAbiertos = abrir;
+  dibujarVistas();
+  (abrir ? el.efectos : el.abrirAjustes).focus();
+}
+
+el.abrirOpinion.addEventListener("click", () => irA("opinion", { enfocar: el.volver }));
+el.volver.addEventListener("click", () => irA("principal", { enfocar: el.abrirOpinion }));
+el.abrirAjustes.addEventListener("click", () => alternarAjustes(!estado.ajustesAbiertos));
+el.velo.addEventListener("click", () => alternarAjustes(false));
+el.cerrarAjustes.addEventListener("click", () => alternarAjustes(false));
+el.ajustes.addEventListener("keydown", (evento) => {
+  if (evento.key !== "Escape") return;
+  evento.preventDefault();
+  alternarAjustes(false);
+});
 
 // ---------- Efectos ----------
 
@@ -247,12 +278,6 @@ browser.storage.onChanged.addListener((cambios, area) => {
 
 // ---------- Opinión ----------
 
-// Botón nativo: Enter y Espacio ya lo activan. El foco se queda en el botón (patrón de divulgación).
-el.desplegar.addEventListener("click", () => {
-  estado.opinionAbierta = !estado.opinionAbierta;
-  dibujarPlegado();
-});
-
 for (const boton of el.opciones) {
   boton.addEventListener("click", () => {
     estado.opcion = estado.opcion === boton.dataset.voto ? null : boton.dataset.voto;
@@ -262,10 +287,7 @@ for (const boton of el.opciones) {
   });
 }
 
-el.comentario.addEventListener("input", () => {
-  if (estado.mensaje?.tipo === "exito") estado.mensaje = null;
-  dibujar();
-});
+el.comentario.addEventListener("input", () => dibujar());
 
 el.formulario.addEventListener("submit", async (evento) => {
   evento.preventDefault();
@@ -290,14 +312,16 @@ el.formulario.addEventListener("submit", async (evento) => {
   }
   estado.guardando = false;
   if (respuesta?.ok) {
-    estado.mensaje = { tipo: "exito", clave: "opinion.gracias" };
     estado.pendientes = respuesta.pendientes;
     estado.opcion = null;
     el.comentario.value = "";
+    mostrarGracias();
+    if (estado.vista === "opinion") irA("principal", { enfocar: el.abrirOpinion });
+    else dibujar();
   } else {
     estado.mensaje = mensajeDeError(respuesta);
+    dibujar();
   }
-  dibujar();
 });
 
 // ---------- Carga ----------
