@@ -88,9 +88,51 @@ que importa `app.js` y, según la ruta, la pantalla que va a abrir y los datos d
 
 El backoffice entero (la página, `api/`, `archivos/`, `resultados/` y `propuestas/`) vive bajo `/backoffice/`; `/backoffice` sin la barra
 final redirige ahí, porque la página pide todo con rutas relativas. La raíz (`/`) sirve la portada de
-[`portada/`](portada/): la marca y "Work in progress", sin enlaces al backoffice. Es lo que ve quien abre
-https://chameleonmode.app, la URL de la entrega en `platanus-hack-project.jsonc`. No es un control de acceso: quien
-conozca la ruta entra.
+[`portada/`](portada/): qué es Chameleon y cómo trabajan los agentes, con capturas reales (`portada/img/`), la descarga
+de la extensión para Firefox (`.xpi`) y Chrome (`.zip`) y el botón **Go to the app** (en español, **Ir a la app**), que lleva a `/backoffice/`. Es lo
+que ve quien abre https://chameleonmode.app, la URL de la entrega en `platanus-hack-project.jsonc`. Sin build ni
+dependencias, como el backoffice: `index.html`, `estilos.css` y `portada.js` (el español, el comparador antes/después,
+las versiones publicadas, el botón principal según el navegador de quien visita, los videos de la telaraña y del Replay, que corren solos
+mientras se ven, y la aparición al bajar; sin él la página se ve completa y quieta). Las animaciones respetan
+`prefers-reduced-motion`; las que siguen al scroll usan `animation-timeline` y donde no existe (Firefox) la página
+queda quieta. De `portada/` solo se sirven sus archivos sueltos y las imágenes y el video de `img/`, con
+`Cache-Control: public, max-age=3600` y por rangos (Safari no reproduce un video sin respuestas 206).
+
+**En inglés por defecto.** El HTML está en inglés (así se ve sin JavaScript) y el selector EN | ES de la barra la pasa a
+español con el diccionario `ES` de `portada.js`, por las claves `data-i18n` (texto), `data-i18n-html` (con marcas),
+`data-i18n-alt` y `data-i18n-aria-label`; lo que escribe el script (versiones, botones de descarga) está en `DINAMICOS`,
+en los dos idiomas. La elección queda en `localStorage` y `?lang=es` o `?lang=en` manda sobre ella.
+[`test/portada.test.js`](test/portada.test.js) exige que cada clave del HTML tenga su español y que el diccionario no
+guarde claves sin uso: un texto nuevo va en inglés en el HTML, con su clave, y en español en `ES`.
+
+`img/telarana.webm` es un ejemplo ilustrativo, no una corrida real: el Replay de la tanda más enredada de los datos de
+prueba (`bancoandino.test`, `horario-sucursales`: 8 visitantes, 37 páginas; 2 llegan, 2 fallan y 4 abandonan), en la
+telaraña viva del backoffice local, a 9× (la velocidad de la barra se cambia en el `data-v` del botón ×4). Se grabó
+cuadro a cuadro con el reloj falso de Playwright (`page.clock`), para que salga fluido, y se codificó en VP9;
+`img/telarana.jpg` es su último cuadro, el póster. `img/replay.webm` sí es real: el Replay de una tanda de metro.cl
+(`consultar-transparencia-activa`) en producción, a 2×, grabado en tiempo real con el screencast de Chromium (sus
+animaciones usan la Web Animations API, que el reloj falso no controla) y llevado a 25 fps constantes; su póster es
+`img/replay.jpg`. Los dos videos corren solos mientras se ven (`.video-auto` en `portada.js`).
+
+### La descarga de la extensión
+
+Los releases de la extensión viven en el repo personal, que es privado: un enlace al release le da 404 a cualquiera
+que no sea colaborador. Por eso el workflow [`descarga-extension.yml`](../.github/workflows/descarga-extension.yml)
+copia el `.xpi` y, si el release lo trae (desde v0.7.0), el `.zip` para Chrome del último release al almacén, en
+`_descargas/firefox/` y `_descargas/chrome/` (el `_` hace que no se confunda con un sitio), cada vez que termina bien
+**Publicar extensión**, y el servidor los sirve con la misma fuente que las corridas ([`lib/descargas.js`](lib/descargas.js)):
+
+| Ruta | Qué devuelve |
+|---|---|
+| `GET /descargas/<firefox\|chrome>.json` | `{ disponible, version, publicado, url }` de `_descargas/<navegador>/ultima.json` (releído a lo más una vez por minuto); `{ disponible: false }` si no hay. La portada lo usa para mostrar las versiones. |
+| `GET /descargas/<firefox\|chrome>` | 302 al archivo de la última versión: el enlace fijo de los botones. |
+| `GET /descargas/chameleon-mode-<versión>.xpi` | El `.xpi` firmado, como `application/x-xpinstall` (Firefox ofrece instalarlo). |
+| `GET /descargas/chameleon-mode-chrome-<versión>.zip` | El `.zip` para cargar descomprimido en `chrome://extensions` (Chrome 148 o superior). |
+
+Una versión publicada no cambia (Mozilla no firma dos veces la misma), así que los archivos salen guardables en
+cualquier caché. En local la fuente de archivos los busca en `agents/.runs/_descargas/<navegador>/`: sin esa carpeta,
+la portada dice que la descarga está disponible pronto. Para subir a mano el último release (por ejemplo, el primero después de mergear
+el workflow): `gh workflow run descarga-extension.yml -R brayanmoreno/hackathon-grupo36`.
 
 ## Pantallas
 
