@@ -3,7 +3,6 @@
 export default {
   marca: {
     nombre: "chameleon mode",
-    producto: "backoffice",
     titulo: "Backoffice",
   },
   // Top bar (brand, reviews running, search) and the names of the views.

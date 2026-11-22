@@ -9,10 +9,12 @@ test("barra superior: marca, revisiones en curso y buscador; sin navegación, id
   const shell = leer("../public/nucleo/shell.js");
   const html = leer("../public/index.html");
   // Lo que queda: la marca, la píldora y el buscador (abre la paleta).
-  for (const pieza of ["marca-insignia", "barra-en-curso", "barra-buscar", "abrirPaleta"]) assert.match(shell, new RegExp(pieza));
+  for (const pieza of ["marca-logo", "barra-en-curso", "barra-buscar", "abrirPaleta"]) assert.match(shell, new RegExp(pieza));
   // Lo que se fue (contrato §6): enlaces de sección, marca de sección actual, menú, cajón y el selector EN | ES (el
   // idioma se cambia con la acción de la paleta o con ?idioma=).
   assert.doesNotMatch(shell, /el\("nav"|aria-current|barra-menu|cajon|backoffice:ruta|barra-idioma|cambiarIdioma|IDIOMAS/);
+  // Tampoco la insignia "backoffice" junto al logo (contrato §7.2).
+  assert.doesNotMatch(shell, /marca-insignia|marca\.producto/);
   assert.match(html, /<header class="barra-superior" id="barra-superior"><\/header>/);
   assert.doesNotMatch(html, /id="cajon"|id="lateral"/);
 });

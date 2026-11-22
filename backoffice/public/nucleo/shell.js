@@ -1,6 +1,6 @@
 // Armazón (diseño §5.11, §10.1, contrato §6): una barra superior fija de 56 px, sin navegación, sin selector de idioma
-// y sin barra lateral. En orden: la marca (logo horizontal a 180 px, o el símbolo solo donde no cabe) con la insignia
-// "backoffice", las revisiones en curso (lleva a la pestaña Live del Overview) y el buscador (abre la paleta). A
+// y sin barra lateral. En orden: la marca (logo horizontal a 180 px, o el símbolo solo donde no cabe), las revisiones
+// en curso (lleva a la pestaña Live del Overview) y el buscador (abre la paleta). A
 // Reviews y Batches se llega por la paleta ⌘K, los atajos g o / g c y los enlaces de las pantallas; al español, por la
 // acción de la paleta o con `?idioma=es`. Se redibuja al cambiar de idioma.
 
@@ -46,7 +46,6 @@ function marca() {
       el("source", { media: MARCA.soloSimbolo, srcset: MARCA.simbolo.src, width: MARCA.simbolo.ancho, height: MARCA.simbolo.alto }),
       el("img", { class: "marca-logo", src: MARCA.logo.src, alt: t("comun.marca.nombre"), width: MARCA.logo.ancho, height: MARCA.logo.alto }),
     ),
-    el("span", { class: "marca-insignia", texto: t("comun.marca.producto") }),
   );
 }
 
