@@ -1,8 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  DISPOSITIVOS,
+  ESTADOS_DE_REVISIONES,
   PESTANAS,
+  PESTANAS_DEL_OVERVIEW,
   enlaceARevision,
+  enlaceARevisiones,
   enlaceATanda,
   extraerIdioma,
   hashDe,
@@ -13,28 +17,100 @@ import {
 
 const CON_TAREA = "wom.cl/visitor/baja-fibra/2026-11-21T07-28-42Z";
 
-test("Corridas: #/ y sus parámetros van y vuelven", () => {
-  assert.deepEqual(parsearHash(""), { tipo: "corridas", parametros: {} });
-  assert.deepEqual(parsearHash("#/"), { tipo: "corridas", parametros: {} });
-  const hash = "#/?q=sii&sitio=sii.cl&filtro=problemas&orden=exito&vista=grilla";
+test("Overview: #/ (y el hash vacío) con dispositivo y pestaña, que van y vuelven en ese orden", () => {
+  assert.deepEqual(parsearHash(""), { tipo: "overview", parametros: {} });
+  assert.deepEqual(parsearHash("#/"), { tipo: "overview", parametros: {} });
+  assert.deepEqual(parsearHash("#"), { tipo: "overview", parametros: {} });
+  const ruta = parsearHash("#/?pestana=failed&dispositivo=mobile");
+  assert.deepEqual(ruta, { tipo: "overview", parametros: { dispositivo: "mobile", pestana: "failed" } });
+  assert.equal(hashDe(ruta), "#/?dispositivo=mobile&pestana=failed");
+  assert.equal(hashDe({ tipo: "overview", parametros: { pestana: "live" } }), "#/?pestana=live");
+  assert.equal(hashDe({ tipo: "overview", parametros: { dispositivo: "desktop" } }), "#/?dispositivo=desktop");
+  assert.deepEqual(DISPOSITIVOS, ["all", "desktop", "mobile"]);
+  assert.deepEqual(PESTANAS_DEL_OVERVIEW, ["recent", "live", "delivered", "failed"]);
+  for (const dispositivo of DISPOSITIVOS) {
+    for (const pestana of PESTANAS_DEL_OVERVIEW) {
+      const hash = hashDe({ tipo: "overview", parametros: { dispositivo, pestana } });
+      assert.equal(hashDe(parsearHash(hash)), hash);
+    }
+  }
+});
+
+test("Overview: all y recent no se escriben; un valor o un parámetro desconocido se descarta", () => {
+  assert.equal(hashDe({ tipo: "overview", parametros: { dispositivo: "all", pestana: "recent" } }), "#/");
+  assert.deepEqual(parsearHash("#/?dispositivo=all&pestana=recent").parametros, {});
+  assert.deepEqual(parsearHash("#/?dispositivo=tablet&pestana=todo").parametros, {});
+  assert.deepEqual(parsearHash("#/?dispositivo=Mobile&pestana=live").parametros, { pestana: "live" });
+  assert.deepEqual(parsearHash("#/?foo=1&dispositivo=mobile").parametros, { dispositivo: "mobile" });
+  assert.equal(hashDe({ tipo: "overview", parametros: { dispositivo: "tablet", foo: "1", idioma: "en" } }), "#/");
+  // Sin tipo (o con uno que no es una vista) es el Overview.
+  assert.equal(hashDe({}), "#/");
+});
+
+test("Corridas: #/corridas y sus parámetros van y vuelven", () => {
+  assert.deepEqual(parsearHash("#/corridas"), { tipo: "corridas", parametros: {} });
+  const hash = "#/corridas?q=sii&sitio=sii.cl&filtro=problemas&orden=exito&vista=grilla";
   const ruta = parsearHash(hash);
   assert.equal(ruta.tipo, "corridas");
   assert.deepEqual(ruta.parametros, { q: "sii", sitio: "sii.cl", filtro: "problemas", orden: "exito", vista: "grilla" });
   assert.equal(hashDe(ruta), hash);
+  assert.equal(hashDe({ tipo: "corridas" }), "#/corridas");
+  assert.equal(parsearHash("#/corridas/otra").tipo, "desconocida");
+});
+
+test("enlaces viejos a Corridas (#/?q=…) se reescriben a #/corridas?… solo con sus parámetros", () => {
+  const viejo = "#/?vista=grilla&q=sii&dispositivo=mobile&orden=exito&filtro=problemas&sitio=sii.cl&x=1";
+  assert.deepEqual(traducirLegado(viejo), {
+    destino: "#/corridas?q=sii&sitio=sii.cl&filtro=problemas&orden=exito&vista=grilla",
+    aviso: null,
+  });
+  const ruta = parsearHash(viejo);
+  assert.equal(ruta.tipo, "legado");
+  assert.equal(ruta.destino, "#/corridas?q=sii&sitio=sii.cl&filtro=problemas&orden=exito&vista=grilla");
+  assert.equal(ruta.aviso, null);
+  // Cualquiera de esos parámetros basta, aunque traiga el valor por defecto (que no se escribe).
+  for (const [hash, destino] of [
+    ["#/?q=sii", "#/corridas?q=sii"],
+    ["#/?sitio=wom.cl", "#/corridas?sitio=wom.cl"],
+    ["#/?filtro=errores", "#/corridas?filtro=errores"],
+    ["#/?orden=nuevas", "#/corridas"],
+    ["#/?vista=lista&pestana=live", "#/corridas"],
+  ]) {
+    assert.deepEqual(parsearHash(hash), { tipo: "legado", destino, aviso: null }, hash);
+  }
+  // Sin parámetros de Corridas (o vacíos) es el Overview, no un enlace viejo.
+  assert.equal(traducirLegado("#/"), null);
+  assert.equal(traducirLegado("#/?dispositivo=mobile"), null);
+  assert.equal(parsearHash("#/?q=").tipo, "overview");
 });
 
 test("Revisiones: #/revisiones y #/revisiones/<revision>; una revisión inválida no es ruta", () => {
   assert.deepEqual(parsearHash("#/revisiones"), { tipo: "revisiones", revision: null, parametros: {} });
   assert.deepEqual(parsearHash("#/revisiones/abc-123"), { tipo: "revisiones", revision: "abc-123", parametros: {} });
   assert.equal(hashDe(parsearHash("#/revisiones/abc-123?x=1")), "#/revisiones/abc-123");
+  assert.equal(hashDe(parsearHash("#/revisiones/abc-123?estado=failed")), "#/revisiones/abc-123");
   assert.equal(enlaceARevision(), "#/revisiones");
   for (const hash of ["#/revisiones/ABC", "#/revisiones/..%2Fx", `#/revisiones/${"a".repeat(41)}`, "#/revisiones/a/b"]) {
     assert.equal(parsearHash(hash).tipo, "desconocida", hash);
   }
 });
 
+test("Revisiones: ?estado=live|done|failed filtra la lista; enlaceARevisiones arma el enlace", () => {
+  assert.deepEqual(ESTADOS_DE_REVISIONES, ["live", "done", "failed"]);
+  for (const estado of ESTADOS_DE_REVISIONES) {
+    const hash = `#/revisiones?estado=${estado}`;
+    assert.deepEqual(parsearHash(hash), { tipo: "revisiones", revision: null, parametros: { estado } });
+    assert.equal(hashDe(parsearHash(hash)), hash);
+    assert.equal(enlaceARevisiones(estado), hash);
+  }
+  assert.equal(enlaceARevisiones(), "#/revisiones");
+  assert.equal(enlaceARevisiones(null), "#/revisiones");
+  assert.equal(enlaceARevisiones("running"), "#/revisiones");
+  assert.deepEqual(parsearHash("#/revisiones?estado=running&x=1").parametros, {});
+});
+
 test("los valores por defecto y los vacíos no se escriben", () => {
-  assert.equal(hashDe({ tipo: "corridas", parametros: { vista: "lista", orden: "nuevas", q: "" } }), "#/");
+  assert.equal(hashDe({ tipo: "corridas", parametros: { vista: "lista", orden: "nuevas", q: "" } }), "#/corridas");
   assert.equal(hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "replay", parametros: { paso: "3", intento: null } }), `#/t/${CON_TAREA}/replay?paso=3`);
 });
 
@@ -105,16 +181,18 @@ test("enlaces viejos sin t → Corridas con aviso", () => {
   for (const hash of ["#/telarana", "#/replay?perfil=mobile&paso=2"]) {
     const ruta = parsearHash(hash);
     assert.equal(ruta.tipo, "legado");
-    assert.equal(ruta.destino, "#/");
+    assert.equal(ruta.destino, "#/corridas");
     assert.equal(ruta.aviso, "comun.aviso.enlaceSinTanda");
   }
 });
 
 test("idioma= se separa del hash y nunca vuelve a escribirse", () => {
   assert.deepEqual(extraerIdioma("#/?idioma=en"), { idioma: "en", hash: "#/" });
+  assert.deepEqual(extraerIdioma("#/?idioma=es&pestana=live"), { idioma: "es", hash: "#/?pestana=live" });
   assert.deepEqual(extraerIdioma(`#/t/${CON_TAREA}/replay?idioma=es&paso=2`), { idioma: "es", hash: `#/t/${CON_TAREA}/replay?paso=2` });
-  assert.deepEqual(extraerIdioma("#/?q=sii"), { idioma: null, hash: "#/?q=sii" });
-  assert.equal(hashDe({ tipo: "corridas", parametros: { idioma: "en", q: "x" } }), "#/?q=x");
+  assert.deepEqual(extraerIdioma("#/corridas?q=sii"), { idioma: null, hash: "#/corridas?q=sii" });
+  assert.equal(hashDe({ tipo: "corridas", parametros: { idioma: "en", q: "x" } }), "#/corridas?q=x");
+  assert.equal(hashDe({ tipo: "overview", parametros: { idioma: "en", pestana: "failed" } }), "#/?pestana=failed");
 });
 
 test("tandaId con caracteres especiales se codifica por segmento", () => {
