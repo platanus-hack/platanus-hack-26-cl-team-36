@@ -34,7 +34,7 @@ uv run main.py adopt --goal wom.cl/baja-fibra
 | `--site <url>` | El último catálogo del sitio, del [Catalogador](../cataloger/README.md): la ruta de sus objetivos sin `exclusion`, primero los menos prominentes, en desktop. |
 | `--routes N` | Con `--site`: deja hasta N objetivos con ruta verificada, o todos con `all` (por defecto 0); los que ya tienen una corrida verificada para la misma instrucción cuentan y no se rehacen. |
 | `--rerun` | Con `--site`: rehace también las rutas ya verificadas. |
-| `--viewports` | Viewports separados por coma: `desktop` (1024x768, el de `first_time` y `hurried`) y `mobile` (390x844). Por defecto, `desktop`. |
+| `--viewports` | Viewports separados por coma: `desktop` (1024x768, el del perfil `desktop` del Visitante) y `mobile` (390x844). Por defecto, `desktop`. |
 | `--shorter N` | Exploraciones más que buscan una ruta más corta que la primera verificada (por defecto 1). |
 
 `adopt`:

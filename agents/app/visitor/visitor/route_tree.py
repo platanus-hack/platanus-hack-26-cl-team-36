@@ -71,7 +71,7 @@ def build_route_tree(runs: list[dict]) -> dict:
                 "visits": 0,
                 "profiles": [],
                 "is_start": False,
-                "endings": {"success": 0, "failed": 0, "abandoned": 0},
+                "endings": {"success": 0, "failed": 0, "abandoned": 0, "unmeasured": 0},
             }
         node = nodes[key]
         node["visits"] += 1

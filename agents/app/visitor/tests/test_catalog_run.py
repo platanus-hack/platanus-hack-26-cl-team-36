@@ -6,7 +6,7 @@ from shared.catalog.goal import Goal
 from visitor import catalog_run
 from visitor.catalog_run import plan, run_planned
 
-PROFILES = ["first_time"]
+PROFILES = ["desktop"]
 START = "https://www.sitio.cl/"
 
 
@@ -50,7 +50,8 @@ def test_plan_runs_evaluable_goals_with_a_route_and_says_why_it_skips_the_rest(t
     }
     assert _skips(plan(backend, goals, PROFILES, ["s-hecho"], None, True))["s-hecho"] is None
     assert _skips(plan(backend, goals, PROFILES, ["s-hecho"], None, True))["s-a"] == "no pedido"
-    assert _skips(plan(backend, goals, ["mobile"], [], None, False))["s-a"] == "sin ruta verificada"
+    assert _skips(plan(backend, goals, ["mobile"], [], None, False))["s-a"] is None  # se mide con la de escritorio
+    assert _skips(plan(backend, goals, ["explorador"], [], None, False))["s-a"] == "sin ruta verificada"
 
 
 def test_a_visit_for_another_instruction_or_one_that_failed_does_not_count(tmp_path):
