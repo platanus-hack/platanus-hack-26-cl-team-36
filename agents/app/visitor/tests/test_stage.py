@@ -310,6 +310,23 @@ def test_without_a_verified_route_of_the_revision_the_users_run_with_the_judge(t
     assert args[5] == {} and kwargs["judge"] is True and kwargs["inputs"] == (catalog,)
 
 
+def test_with_route_the_explorers_are_judged_and_the_others_measured_by_the_route(tmp_path, site, monkeypatch):
+    backend = store.LocalBackend(tmp_path / "almacen")
+    goal = _goal(site)
+    _catalog(backend, site, REVISION, goal, 0)
+    _route(backend, site, REVISION, goal, 1)
+    calls = []
+
+    async def batch(*args, **kwargs):
+        calls.append(kwargs)
+        return "corrida"
+
+    monkeypatch.setattr("visitor.stage.run_batch", batch)
+    asyncio.run(run_stage(backend, site, REVISION, "horario", ["desktop"], engine="fake"))
+    asyncio.run(run_stage(backend, site, REVISION, "horario", ["desktop", "explorador"], engine="fake"))
+    assert "judge" not in calls[0] and calls[1]["judge"] is True
+
+
 def test_a_goal_starting_on_another_site_fails_where_the_conductor_waits(tmp_path, site):
     backend = store.LocalBackend(tmp_path / "almacen")
     goal = Goal(**{**asdict(_goal(site)), "start_url": "https://otro.cl/"})

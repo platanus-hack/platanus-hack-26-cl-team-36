@@ -13,7 +13,7 @@ from shared.catalog.files import read_catalog
 from shared.catalog.goal import Goal
 
 from visitor.batch import run_batch
-from visitor.comparison import References, reference_viewports
+from visitor.comparison import References, reference_for, reference_viewports
 
 
 class MissingInput(Exception):
@@ -71,6 +71,9 @@ async def run_stage(backend: store.Backend, url: str, revision: str, goal_id: st
     goal = found.goal
     if not found.references:
         print(f"[tanda] sin ruta verificada de la Guía para {goal_id}: el juez decide cada resultado", flush=True)
+        batch_options["judge"] = True
+    elif any(reference_for(found.references, key) is None for key in profile_keys):
+        # Los exploradores no se miden contra la ruta (entran por otro camino): sin juez quedarían sin medir.
         batch_options["judge"] = True
     return await run_batch(backend, prefix, goal.start_url, goal.instruction, profile_keys, found.references,
                            inputs=(found.catalog,), runs=runs, revision=revision, **batch_options)
