@@ -90,6 +90,15 @@ export function montarTelaranaViva(contenedor, opciones) {
 
   // ── Estado de la vista ──────────────────────────────────────────────
   const K = leerColores(raiz);
+  // El backoffice hoy es solo oscuro; si cambia el esquema, los colores de WebGL se releen de los tokens.
+  globalThis.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.(
+    "change",
+    () => {
+      Object.assign(K, leerColores(raiz));
+      escena.actualizarColores();
+    },
+    { signal: senal },
+  );
   const E = {
     m: crearModelo({ ruta }),
     vis: { nodos: new Map(), tramos: new Map(), agentes: new Map() },
@@ -326,7 +335,6 @@ export function montarTelaranaViva(contenedor, opciones) {
       introducir(E);
     },
     cambiarFuente(fuente) {
-      opciones.fuente = fuente;
       reiniciar();
       conectar(fuente);
     },
@@ -335,6 +343,3 @@ export function montarTelaranaViva(contenedor, opciones) {
     ajustar: () => camara.ajustar(),
   };
 }
-
-export { fuenteDeTanda, rutaDeTanda } from "./fuente-tanda.js";
-export { claveDePagina } from "../nucleo/url.js";

@@ -6,7 +6,7 @@ import * as THREE from "../vendor/three@0.160.0/three.module.js";
 import { anilloFinal, claveDeFinal } from "./modelo.js";
 import { acotar, puntoDeTramo, radio, segmentosDeTramo } from "./layout.js";
 
-export const TRAZO = 0.75; // s que tarda en dibujarse un tramo nuevo
+const TRAZO = 0.75; // s que tarda en dibujarse un tramo nuevo
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const salida3 = (t) => 1 - Math.pow(1 - t, 3);
 const hash = (s) => {
@@ -350,6 +350,12 @@ export function crearEscena(canvas, K) {
       matCinta.dispose();
       matPuntos.dispose();
       renderer.dispose();
+      // dispose() no suelta el contexto: sin esto, entrar y salir de la pestaña acumula contextos WebGL.
+      renderer.forceContextLoss();
+    },
+    /** Tras releer los colores (cambio de tema): el fondo de los puntos vive en un uniforme. */
+    actualizarColores() {
+      matPuntos.uniforms.bg.value.set(...K.lienzo);
     },
   };
 }
@@ -366,6 +372,7 @@ export function sincronizar(E, { instantaneo = false, agentes = [] } = {}) {
     E.vis.nodos.set(n.clave, {
       r: !instantaneo && origen ? origen.r : r,
       a: !instantaneo && origen && origen.r >= 1 ? origen.a : n.ang,
+      anillo: n.anillo,
       x: 0,
       y: 0,
       nace: E.anim + (instantaneo ? 0 : n.term ? TRAZO * 0.6 : origen ? TRAZO * 0.3 : 0),
@@ -403,6 +410,7 @@ export function introducir(E) {
     const v = E.vis.nodos.get(n.clave);
     v.r = n.term ? radio(T) : radio(n.anillo);
     v.a = n.ang;
+    v.anillo = n.anillo;
     v.nace = E.anim + 0.08 * anillo(n);
   }
   for (const e of E.m.tramos.values()) {
@@ -432,7 +440,7 @@ export function avanzarAgentes(E) {
 }
 
 /** Dónde dibujar un agente: alrededor de su página, o sobre el tramo que recorre. */
-export function posicionDeAgente(E, a, v) {
+function posicionDeAgente(E, a, v) {
   const n = E.m.nodos.get(a.nodo);
   const vn = E.vis.nodos.get(a.nodo);
   const ang = n.term ? vn.a + Math.PI + (v.h - 0.5) * 1.6 : v.h * Math.PI * 2;

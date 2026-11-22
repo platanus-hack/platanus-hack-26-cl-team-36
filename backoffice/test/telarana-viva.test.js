@@ -269,3 +269,12 @@ test("FINALES tiene un nodo final por resultado", () => {
   for (const [i, final] of FINALES.entries()) for (const ev of agente(`f${i}`, ["Inicio"], final)) aplicar(m, ev);
   for (const final of FINALES) assert.equal(m.nodos.get(claveDeFinal(final)).count, 1);
 });
+
+test("una vuelta atrás se abre según los anillos de sus extremos (el nodo visual necesita anillo)", () => {
+  const medio = (A, B) => Math.hypot(...Object.values(puntoDeTramo(A, B, "ret", 0, 0.5, {})));
+  const vecinos = medio({ r: radio(2), a: 0, anillo: 2 }, { r: radio(1), a: 0, anillo: 1 });
+  const mismo = medio({ r: radio(2), a: 0, anillo: 2 }, { r: radio(2), a: 0, anillo: 2 });
+  assert.equal(Math.round(vecinos), Math.round(radio(1.5) + PASO * 0.22));
+  assert.equal(Math.round(mismo), Math.round(radio(2) + PASO * 0.5));
+  assert.notEqual(medio({ r: radio(2), a: 0 }, { r: radio(1), a: 0 }), vecinos, "sin anillo, toda vuelta parece del mismo anillo");
+});
