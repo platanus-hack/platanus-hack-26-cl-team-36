@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { leerTanda } from "../lib/tandas.js";
-import { acomodar, contarCruces, distribuir, geometria, idDeTerminal, idDeTramoFinal } from "../public/telarana/distribuir.js";
+import { acomodar, contarCruces, distribuir, formasDeAvance, geometria, idDeTerminal, idDeTramoFinal, pendientesMonotonas } from "../public/telarana/distribuir.js";
 import {
   activosDePerfil,
   duracionDePaso,
@@ -286,14 +286,17 @@ test("determinista con la entrada en otro orden", async () => {
   }
 });
 
-test("geometría: x = capa·220, y = fila·96; los avances son curvas horizontales por sus paradas", async () => {
+test("geometría: x = capa·220, y = fila·96; un avance esquiva el nombre de la estación vecina de su llegada", async () => {
   const tanda = await leerTanda(RAIZ, VIEJA);
   const d = distribuir(tanda.telarana);
   const g = geometria(d);
   for (const e of d.estaciones) assert.deepEqual(g.posiciones.get(e.id), { x: e.capa * 220, y: Math.round(e.fila * 96 * 10) / 10 });
   assert.deepEqual(g.posiciones.get(idDeTerminal("logrado")), { x: 3 * 220, y: 0 });
+  // n1 → n4 llega a la columna de n2 (fila 0), una fila más abajo: en S pasaría por el nombre de n2 (debajo de su
+  // punto); baja enseguida al salir de n1 y llega horizontal.
   const n4 = g.posiciones.get("n4");
-  assert.equal(g.caminos.get("n1>n4"), `M0 0 C110 0, 110 ${n4.y}, 220 ${n4.y}`);
+  assert.equal(g.posiciones.get("n2").y, 0);
+  assert.equal(g.caminos.get("n1>n4"), `M0 0 C73.3 ${n4.y}, 146.7 ${n4.y}, 220 ${n4.y}`);
   for (const valor of Object.values(g.caja)) assert.equal(valor, Math.round(valor * 10) / 10);
   for (const [, camino] of g.caminos) assert.doesNotMatch(camino, /NaN|Infinity/);
 });
@@ -395,4 +398,133 @@ test("perfil vecino da la vuelta pasando por «todos»; duración de un paso aco
   assert.equal(duracionDePaso({ duracion: 3 }), 1500);
   assert.equal(duracionDePaso({ duracion: 60 }), 2500);
   assert.equal(duracionDePaso({}), 1000);
+});
+
+// ── C2-U1: avances más directos, sin picos en las vueltas atrás ──────────
+
+/** Los tramos cúbicos de un camino "M x y C … , … , x y …" como [p, c1, c2, q]. */
+function cubicas(camino) {
+  const numeros = camino.match(/-?[\d.]+/g).map(Number);
+  const puntos = [];
+  for (let i = 0; i < numeros.length; i += 2) puntos.push({ x: numeros[i], y: numeros[i + 1] });
+  assert.match(camino, /^M[^C]+( C[^C]+){1,}$/, `no es un camino de cúbicas: ${camino}`);
+  const tramos = [];
+  for (let i = 1; i + 2 < puntos.length; i += 3) tramos.push([puntos[i - 1], puntos[i], puntos[i + 1], puntos[i + 2]]);
+  return tramos;
+}
+const colineales = (a, b, c) => Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) < 1e-6 * Math.max(1, Math.hypot(c.x - a.x, c.y - a.y) ** 2);
+
+test("avance de un tramo: los puntos de control, a no más de un tercio del ancho de cada extremo", () => {
+  const p = { x: 0, y: 0 };
+  const q = { x: 220, y: 192 };
+  const formas = formasDeAvance([p, q]);
+  assert.ok(formas.length >= 4);
+  for (const [[a, c1, c2, b]] of formas) {
+    assert.deepEqual([a, b], [p, q]);
+    assert.ok(c1.x - a.x <= 220 / 3 + 1e-9 && b.x - c2.x <= 220 / 3 + 1e-9, "a un tercio, no a la mitad");
+    // Nunca se pasa de largo: los puntos de control quedan entre la altura de salida y la de llegada.
+    for (const c of [c1, c2]) assert.ok(c.y >= 0 && c.y <= 192);
+  }
+  // La preferida sale y llega a media pendiente de la cuerda (ni S marcada ni recta).
+  const [[, c1, c2]] = formas[0];
+  assert.equal(Math.round(((c1.y - p.y) / (c1.x - p.x)) * 1000) / 1000, Math.round(((192 / 220) * 0.5) * 1000) / 1000);
+  assert.equal(Math.round(((q.y - c2.y) / (q.x - c2.x)) * 1000) / 1000, Math.round(((192 / 220) * 0.5) * 1000) / 1000);
+  // En el dibujo, también un tercio.
+  const d = { estaciones: [{ id: "a", capa: 0, fila: 0 }, { id: "b", capa: 1, fila: 2 }], terminales: [], tramos: [{ id: "a>b", origen: "a", destino: "b", tipo: "avance", escalas: [] }] };
+  const [[a, c1d, c2d, b]] = cubicas(geometria(d).caminos.get("a>b"));
+  assert.ok(c1d.x - a.x <= 73.4 && b.x - c2d.x <= 73.4);
+});
+
+test("avance con paradas: la tangente es continua en cada parada (no se dobla en cada una)", () => {
+  const puntos = [{ x: 0, y: 0 }, { x: 220, y: 96 }, { x: 440, y: 288 }];
+  for (const forma of formasDeAvance(puntos)) {
+    const [[, , entrada, parada], [desde, salida]] = forma;
+    assert.deepEqual(parada, desde);
+    assert.ok(colineales(entrada, parada, salida), `${JSON.stringify(entrada)} · ${JSON.stringify(parada)} · ${JSON.stringify(salida)}`);
+    for (const [p, c1, c2, q] of forma) assert.ok(c1.x - p.x <= (q.x - p.x) / 3 + 1e-9 && q.x - c2.x <= (q.x - p.x) / 3 + 1e-9);
+  }
+  // La preferida pasa por la parada con la pendiente del recorrido (sube de forma pareja), no horizontal.
+  const [[, , entrada, parada], [, salida]] = formasDeAvance(puntos)[0];
+  assert.ok(entrada.y < parada.y && salida.y > parada.y);
+  // Y en el dibujo: tronco que salta una columna con una parada a otra altura.
+  const d = {
+    estaciones: [{ id: "a", capa: 0, fila: 0 }, { id: "b", capa: 2, fila: 3 }],
+    terminales: [],
+    tramos: [{ id: "a>b", origen: "a", destino: "b", tipo: "avance", escalas: [{ capa: 1, fila: 1 }] }],
+  };
+  const [[, , e, m], [, s]] = cubicas(geometria(d).caminos.get("a>b"));
+  assert.ok(colineales(e, m, s));
+});
+
+test("pendientesMonotonas: horizontal en un máximo o un mínimo; nunca se pasa de largo", () => {
+  assert.deepEqual(pendientesMonotonas([{ x: 0, y: 0 }, { x: 1, y: 5 }, { x: 2, y: 0 }]), [0, 0, 0]);
+  const [, medio] = pendientesMonotonas([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 3 }]);
+  assert.ok(medio > 1 && medio < 2, "entre las dos pendientes vecinas");
+  assert.deepEqual(pendientesMonotonas([{ x: 0, y: 0 }, { x: 2, y: 4 }], 0.5), [1, 1]);
+});
+
+test("un avance elige, de sus formas, la que no pasa por encima del nombre de otra estación", () => {
+  // a → b baja dos filas; c está una fila arriba de b, en su misma columna: su nombre (debajo de su punto) queda en el
+  // camino de una S, pero no en el de una curva que baja al salir.
+  const d = {
+    estaciones: [{ id: "a", capa: 0, fila: 0 }, { id: "c", capa: 1, fila: 1 }, { id: "b", capa: 1, fila: 2 }],
+    terminales: [],
+    tramos: [{ id: "a>b", origen: "a", destino: "b", tipo: "avance", escalas: [] }],
+  };
+  const g = geometria(d);
+  const [[a, c1, c2, b]] = cubicas(g.caminos.get("a>b"));
+  assert.deepEqual([c1.y, c2.y], [b.y, b.y], "baja al salir y llega horizontal");
+  // Sin nadie en el camino, la preferida (suave).
+  const solo = geometria({ ...d, estaciones: d.estaciones.filter((e) => e.id !== "c") });
+  const [[, s1]] = cubicas(solo.caminos.get("a>b"));
+  assert.equal(s1.y, Math.round((a.y + (b.y - a.y) / 6) * 10) / 10);
+  // Con la caja del nombre de otro tamaño (otro zoom), la elección cambia con ella.
+  const angosta = geometria(d, { etiqueta: { ancho: 40, alto: 20, arriba: 15 } });
+  assert.notEqual(angosta.caminos.get("a>b"), g.caminos.get("a>b"));
+});
+
+/** Alto que abarca un recorrido y si repite un segmento (ida y vuelta por el mismo lugar). */
+function forma(puntos) {
+  const ys = puntos.map((p) => p.y);
+  const clave = (p, q) => [p, q].map((r) => `${r.x},${r.y}`).sort().join("|");
+  const segmentos = puntos.slice(1).map((q, i) => clave(puntos[i], q));
+  return { alto: Math.max(...ys) - Math.min(...ys), repite: new Set(segmentos).size < segmentos.length, xs: new Set(puntos.map((p) => p.x)) };
+}
+
+test("vuelta atrás entre columnas vecinas a la misma altura: una vuelta de verdad, no un pico", () => {
+  const altoFila = 96;
+  const base = (extra = []) => ({
+    estaciones: [{ id: "n3", capa: 1, fila: 0 }, { id: "n4", capa: 2, fila: 0 }, ...extra],
+    terminales: [],
+    tramos: [{ id: "n4>n3", origen: "n4", destino: "n3", tipo: "retroceso", escalas: [] }],
+  });
+  // Sin estaciones arriba: por arriba, con las patas lejos de los nombres.
+  const g = geometria(base(), { altoFila });
+  const libre = forma(g.recorridos.get("n4>n3"));
+  assert.ok(libre.alto >= 0.3 * altoFila, `abarca ${libre.alto}`);
+  assert.equal(libre.repite, false);
+  assert.ok(Math.min(...g.recorridos.get("n4>n3").map((p) => p.y)) < 0, "por arriba");
+  const [, sale, , , llega] = g.recorridos.get("n4>n3");
+  assert.notEqual(sale.x, llega.x, "sube y baja por lugares distintos");
+  assert.doesNotMatch(g.caminos.get("n4>n3"), /NaN/);
+  // Con una estación justo arriba: por debajo de los nombres, con las patas en el pasillo.
+  const g2 = geometria(base([{ id: "n9", capa: 2, fila: -1 }]), { altoFila });
+  const abajo = forma(g2.recorridos.get("n4>n3"));
+  assert.ok(abajo.alto >= 0.3 * altoFila && !abajo.repite);
+  assert.ok(Math.max(...g2.recorridos.get("n4>n3").map((p) => p.y)) > 0.5 * altoFila, "por debajo de los nombres");
+  // Casi a la misma altura (un escalón de menos de 0.4 filas) también da la vuelta.
+  const casi = base();
+  casi.estaciones[0].fila = 0.2;
+  assert.ok(forma(geometria(casi, { altoFila }).recorridos.get("n4>n3")).alto >= 0.3 * altoFila);
+});
+
+test("en las tandas reales, ninguna vuelta atrás abarca menos de 0.3 filas", () => {
+  for (const [nombre, entrada] of [["sii", SII], ["wom", WOM], ["dt", DT]]) {
+    const d = distribuir(entrada);
+    const g = geometria(d);
+    for (const tramo of d.tramos.filter((t) => t.tipo === "retroceso")) {
+      const { alto, repite } = forma(g.recorridos.get(tramo.id));
+      assert.ok(alto >= 0.3 * 96 && !repite, `${nombre}: ${tramo.id} abarca ${alto}`);
+    }
+  }
 });

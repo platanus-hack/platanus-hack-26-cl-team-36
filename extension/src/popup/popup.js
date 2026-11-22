@@ -6,6 +6,9 @@
 // - Opinión: pregunta a la pestaña activa `estado:pagina` (content/captura.js) para decidir
 //   qué mostrar (ver estado.js) y guarda con `voto:guardar` en el background.
 //
+// - Efectos: el interruptor «Efectos» (centrado en la cabecera) guarda `efectos` ("llamativos" | "sutiles",
+//   comun/efectos.js) en storage.local; content/motor.js y el camaleón (interruptor.js, por body[data-efectos])
+//   lo usan desde el próximo encendido o apagado.
 // - Idioma: el selector de la cabecera guarda `idioma` en storage.local. Todos los textos
 //   salen del diccionario (comun/idioma.js): los fijos del HTML con data-mt-texto*, los
 //   demás desde acá. Al cambiar de idioma se anima el cambio (idioma.js); al abrir, no.
@@ -13,11 +16,13 @@
 // JS solo pone atributos, clases y textos; todo lo visual está en popup.css e idioma.css.
 
 import "../comun/idioma.js";
+import "../comun/efectos.js";
 import { claveDeAyuda, crearCola, decidirVista, textoPendientes, validarEnvio } from "./estado.js";
 import { animarCambio, crearSelectorIdioma, ponerTexto } from "./idioma.js";
 import "./interruptor.js"; // animación del camaleón del interruptor (solo visual)
 
 const { CLAVE_IDIOMA, IDIOMAS, TEXTOS, IDIOMA_POR_DEFECTO, normalizarIdioma, t } = globalThis.MiTema.idioma;
+const { CLAVE_EFECTOS, EFECTOS_POR_OMISION, normalizarEfectos } = globalThis.MiTema.efectos;
 
 const $ = (id) => document.getElementById(id);
 const el = {
@@ -27,6 +32,7 @@ const el = {
   idioma: $("mt-idioma"),
   idiomaBoton: $("mt-idioma-boton"),
   idiomaActual: $("mt-idioma-actual"),
+  efectos: $("mt-efectos"),
   chip: $("mt-chip"),
   interruptor: $("mt-interruptor"),
   estado: $("mt-estado"),
@@ -46,6 +52,7 @@ const el = {
 const estado = {
   idioma: null, // null mientras se lee storage
   activo: null, // null mientras se lee storage
+  efectos: EFECTOS_POR_OMISION, // "llamativos" | "sutiles"
   tabId: null,
   pagina: null, // { alcanzable, privada, temaId } | null mientras se consulta
   opcion: null, // "mejor" | "peor" | "comentario" | null
@@ -71,10 +78,16 @@ function dibujarIdioma() {
   for (const nodo of document.querySelectorAll("[data-mt-texto-aria-label]")) {
     nodo.setAttribute("aria-label", tx(nodo.dataset.mtTextoAriaLabel));
   }
+  for (const nodo of document.querySelectorAll("[data-mt-texto-title]")) nodo.title = tx(nodo.dataset.mtTextoTitle);
   el.control?.setAttribute("aria-label", tx("interruptor.seccion"));
   ponerTexto(el.idiomaActual, IDIOMAS[idioma].corto);
   el.idiomaBoton.setAttribute("aria-label", tx("idioma.boton", { nombre: IDIOMAS[idioma].nombre }));
   selector.mostrar(idioma);
+}
+
+function dibujarEfectos() {
+  el.efectos.setAttribute("aria-checked", String(estado.efectos === "llamativos"));
+  el.cuerpo.dataset.efectos = estado.efectos; // interruptor.js y interruptor.css eligen la animación del camaleón
 }
 
 function dibujarInterruptor() {
@@ -127,6 +140,7 @@ function textoMensaje(mensaje) {
 
 function dibujar() {
   dibujarIdioma();
+  dibujarEfectos();
   dibujarInterruptor();
   dibujarOpinion();
 }
@@ -174,6 +188,17 @@ function mensajeDeError(respuesta) {
   return { tipo: "error", clave: "error.guardar" };
 }
 
+// ---------- Efectos ----------
+
+// Se aplica ya (el próximo encendido o apagado lo usa) y se guarda; un error al guardar no cambia lo que se ve.
+el.efectos.addEventListener("click", () => {
+  estado.efectos = estado.efectos === "llamativos" ? "sutiles" : "llamativos";
+  dibujarEfectos();
+  browser.storage.local
+    .set({ [CLAVE_EFECTOS]: estado.efectos })
+    .catch((error) => console.error("[mi-tema] No se pudieron guardar los efectos:", error));
+});
+
 // ---------- Interruptor ----------
 
 const encolar = crearCola();
@@ -190,6 +215,10 @@ el.interruptor.addEventListener("click", () => {
 browser.storage.onChanged.addListener((cambios, area) => {
   if (area !== "local") return;
   if (CLAVE_IDIOMA in cambios) aplicarIdioma(cambios[CLAVE_IDIOMA].newValue);
+  if (CLAVE_EFECTOS in cambios) {
+    estado.efectos = normalizarEfectos(cambios[CLAVE_EFECTOS].newValue);
+    dibujarEfectos();
+  }
   if (!("activo" in cambios)) return;
   estado.activo = cambios.activo.newValue ?? true;
   estado.mensaje = null; // el aviso de la opinión anterior ya no corresponde a lo que se ve
@@ -294,8 +323,9 @@ async function iniciar() {
   // El interruptor primero, solo con storage: no espera al background ni a IndexedDB (contar
   // las opiniones), que pueden tardar en despertar o colgarse.
   const votos = browser.runtime.sendMessage({ tipo: "votos:estado" }).catch(() => ({ pendientes: null }));
-  const almacenado = await browser.storage.local.get("activo");
+  const almacenado = await browser.storage.local.get(["activo", CLAVE_EFECTOS]);
   estado.activo ??= almacenado.activo ?? true; // si el interruptor ya cambió, manda ese valor
+  estado.efectos = normalizarEfectos(almacenado[CLAVE_EFECTOS]);
   dibujar();
 
   const pestana = await pestanaObjetivo();

@@ -144,3 +144,27 @@ test("resultadosParaMedidor: logrados, fallidos, abandonados y errores, estable"
   assert.deepEqual(resultadosParaMedidor(perfiles).map((p) => p.intento), ["b", "d", "c", "e", "a"]);
   assert.deepEqual(resultadosParaMedidor(undefined), []);
 });
+
+// C2-1: el medidor de la lista (un tramo por intento) cabe en su caja con 8 exploradores, en ancho normal y angosto,
+// así que nunca tapa «N/8 llegan». Se lee la cuenta del CSS real para que un cambio de anchos no la rompa en silencio.
+test("medidor de la lista: 8 tramos de ≥ 3 px caben en su caja (ancho normal y angosto)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(new URL("../public/estilos/corridas.css", import.meta.url), "utf8");
+  const px = (patron) => {
+    const m = css.match(patron);
+    assert.ok(m, `no se encontró ${patron}`);
+    return Number(m[1]);
+  };
+  const ancho = px(/\.p-corridas \.corridas-medidor \{ width: (\d+)px; \}/);
+  const anchoAngosto = px(/\.p-corridas \.corridas-fila \.corridas-medidor \{ width: (\d+)px; \}/);
+  const separacion = px(/\.p-corridas \.corridas-llegan \.corridas-medidor \{ gap: (\d+)px; overflow: hidden; \}/);
+  const minimo = px(/\.p-corridas \.corridas-llegan \.medidor-tramo \{ min-width: (\d+)px; \}/);
+  assert.ok(minimo >= 3, "cada tramo se sigue leyendo como un tramo");
+  for (const caja of [ancho, anchoAngosto]) {
+    const necesita = 8 * minimo + 7 * separacion;
+    assert.ok(necesita <= caja, `8 tramos piden ${necesita} px y la caja tiene ${caja} px`);
+    assert.ok((caja - 7 * separacion) / 8 >= 3, "repartidos, cada tramo mide al menos 3 px");
+  }
+  // La columna del titular nunca crece más que la fila (en el angosto se metía bajo «N/8 llegan»).
+  assert.match(css, /\.p-corridas \.corridas-principal \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+});

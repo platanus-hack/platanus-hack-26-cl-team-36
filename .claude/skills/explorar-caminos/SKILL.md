@@ -36,8 +36,9 @@ en vez de contar. Con B = total de acciones (por ejemplo 30):
 Por qué: las ramas distintas son lo que buscamos; el cierre existe porque el juez solo mira tu última pantalla.
 **En la fase 2 el sistema no te deja terminar**: si usas `done`, `give_up` o `blocked` con más del 40 % de B y del
 tiempo por delante, te responde con un error y tienes que seguir abriendo ramas.
-**Nunca termines con `give_up` mientras te queden más del 10 % de B**: si no encontraste la respuesta, quedan ramas
-por abrir (buscador, pie de página, otra sección del menú, otra pregunta de la misma página).
+**Nunca termines con `give_up` mientras te queden más del 10 % de B** (y 45 s o más): el sistema tampoco te deja, te
+responde con un error. Si no encontraste la respuesta, quedan ramas por abrir (buscador, pie de página, otra sección
+del menú, otra pregunta de la misma página).
 Máximo **2 scroll seguidos** en una página: si no apareció nada, es un callejón. Única excepción: bajar hasta el pie
 de página de la página inicial.
 

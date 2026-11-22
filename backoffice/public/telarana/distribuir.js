@@ -355,6 +355,9 @@ const SEPARACION_DE_VUELTAS = 7;
 // Dentro de un pasillo, los pasos laterales van un poco a la derecha de su centro y las vueltas atrás un poco a la
 // izquierda, para no montarse.
 const DESVIO_EN_PASILLO = 6;
+// Una vuelta atrás entre columnas vecinas baja o sube por el pasillo si las separa al menos esta fracción de fila; si
+// no, da una vuelta (un escalón más chico se vería como un pico).
+const ESCALON_MINIMO = 0.4;
 const HACIA_LA_DERECHA = new Set(["tronco", "avance", "final"]);
 
 const distanciaEntre = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
@@ -363,16 +366,116 @@ const hacia = (desde, hasta, largo) => {
   return { x: redondear(desde.x + ((hasta.x - desde.x) * largo) / d), y: redondear(desde.y + ((hasta.y - desde.y) * largo) / d) };
 };
 
-/** Recorrido por los puntos dados con curvas horizontales entre cada par (sale y llega horizontal a cada uno). */
-function curvaPorPuntos(puntos) {
-  let d = `M${puntos[0].x} ${puntos[0].y}`;
-  for (let i = 1; i < puntos.length; i += 1) {
-    const [p, q] = [puntos[i - 1], puntos[i]];
-    const xm = redondear((p.x + q.x) / 2);
-    d += ` C${xm} ${p.y}, ${xm} ${q.y}, ${q.x} ${q.y}`;
+/**
+ * Pendiente (dy/dx) en cada punto de una curva que pasa por los puntos dados (x creciente) sin pasarse de largo:
+ * interpolación cúbica monótona (Fritsch–Carlson); en un punto intermedio que es un máximo o un mínimo pasa
+ * horizontal. En los extremos, `extremos` veces la pendiente de la cuerda vecina (0: horizontal).
+ */
+export function pendientesMonotonas(puntos, extremos = 0) {
+  const n = puntos.length;
+  const anchos = [];
+  const secantes = [];
+  for (let i = 0; i + 1 < n; i += 1) {
+    anchos.push(puntos[i + 1].x - puntos[i].x);
+    secantes.push((puntos[i + 1].y - puntos[i].y) / anchos[i]);
   }
-  return d;
+  return puntos.map((_, i) => {
+    if (i === 0) return extremos * secantes[0] || 0; // sin −0
+    if (i === n - 1) return extremos * secantes[n - 2] || 0;
+    const [antes, despues] = [secantes[i - 1], secantes[i]];
+    if (antes * despues <= 0) return 0;
+    const [w1, w2] = [2 * anchos[i] + anchos[i - 1], anchos[i] + 2 * anchos[i - 1]];
+    return (w1 + w2) / (w1 / antes + w2 / despues);
+  });
 }
+
+// Cómo sale un avance de su estación y cómo llega a la otra: la altura del primer punto de control es la de la salida
+// más esta fracción de lo que sube o baja el primer tramo (y la del último, la de llegada menos esta fracción del
+// último tramo). 1/6: a media pendiente de la cuerda (suave); 0: horizontal; 1: baja (o sube) enseguida al salir, o
+// recién al llegar. Las combinaciones van de la preferida a la última (nunca baja al salir y otra vez al llegar).
+const EXTREMOS = [
+  [1 / 6, 1 / 6],
+  [0, 0],
+  [1 / 6, 0],
+  [0, 1 / 6],
+  [1, 0],
+  [1, 1 / 6],
+  [0, 1],
+  [1 / 6, 1],
+];
+
+/**
+ * Formas posibles de un avance (tramos cúbicos [p, c1, c2, q]), de la preferida a la última. Todas llevan los puntos
+ * de control a un tercio del ancho de cada tramo (no se arquean como una S marcada) y la tangente continua en cada
+ * parada: con la pendiente de pendientesMonotonas (no se doblan en cada una) o, como última opción, horizontal;
+ * cambia cómo salen y cómo llegan.
+ */
+export function formasDeAvance(puntos) {
+  const ultimo = puntos.length - 1;
+  // Por las paradas: con la pendiente que sigue la forma del recorrido o, si eso enreda, horizontal (la última opción).
+  const porLasParadas = ultimo > 1 ? [pendientesMonotonas(puntos, 0), puntos.map(() => 0)] : [puntos.map(() => 0)];
+  return porLasParadas.flatMap((pendientes) => EXTREMOS.map(([salida, llegada]) => {
+    const tramos = [];
+    for (let i = 1; i < puntos.length; i += 1) {
+      const [p, q] = [puntos[i - 1], puntos[i]];
+      const tercio = (q.x - p.x) / 3;
+      const c1 = { x: p.x + tercio, y: i === 1 ? p.y + salida * (q.y - p.y) : p.y + pendientes[i - 1] * tercio };
+      const c2 = { x: q.x - tercio, y: i === ultimo ? q.y - llegada * (q.y - p.y) : q.y - pendientes[i] * tercio };
+      tramos.push([p, c1, c2, q]);
+    }
+    return tramos;
+  }));
+}
+
+const enCubica = ([p, c1, c2, q], t) => {
+  const u = 1 - t;
+  const [a, b, c, d] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+  return { x: a * p.x + b * c1.x + c * c2.x + d * q.x, y: a * p.y + b * c1.y + c * c2.y + d * q.y };
+};
+
+const MUESTRAS = 24;
+// Dos tramos que salen de (o llegan a) la misma estación se juntan ahí: eso no cuenta como cruce.
+const CERCA_DEL_EXTREMO = 12;
+// Un cruce enreda más que pasar por encima de un nombre (el nombre tiene fondo y se sigue leyendo).
+const PESO_DE_UN_CRUCE = 1.5;
+/** La curva como polilínea (24 muestras por tramo cúbico). */
+const muestrear = (tramos) => [tramos[0][0], ...tramos.flatMap((tramo) => Array.from({ length: MUESTRAS }, (_, k) => enCubica(tramo, (k + 1) / MUESTRAS)))];
+
+/** Cuántas cajas atraviesa la polilínea. */
+function cajasQueTapa(linea, cajas) {
+  let tapadas = 0;
+  for (const caja of cajas) if (linea.some(({ x, y }) => x > caja.x0 && x < caja.x1 && y > caja.y0 && y < caja.y1)) tapadas += 1;
+  return tapadas;
+}
+
+const cruzan = (p1, p2, p3, p4) => {
+  const lado = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  return lado(p3, p4, p1) * lado(p3, p4, p2) < 0 && lado(p1, p2, p3) * lado(p1, p2, p4) < 0;
+};
+const lejosDeLosExtremos = new WeakMap(); // polilínea → { puntos lejos de sus extremos, caja }
+function lejos(linea, cerca) {
+  if (!lejosDeLosExtremos.has(linea)) {
+    const [p0, p1] = [linea[0], linea.at(-1)];
+    const puntos = linea.filter((p) => Math.hypot(p.x - p0.x, p.y - p0.y) > cerca && Math.hypot(p.x - p1.x, p.y - p1.y) > cerca);
+    const xs = puntos.map((p) => p.x);
+    const ys = puntos.map((p) => p.y);
+    lejosDeLosExtremos.set(linea, { puntos, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) });
+  }
+  return lejosDeLosExtremos.get(linea);
+}
+/** ¿Se cruzan las dos polilíneas lejos de sus extremos (donde los tramos de una misma estación se juntan)? */
+function seCruzan(a, b, cerca) {
+  const [la, lb] = [lejos(a, cerca), lejos(b, cerca)];
+  if (la.puntos.length < 2 || lb.puntos.length < 2 || la.x1 < lb.x0 || lb.x1 < la.x0 || la.y1 < lb.y0 || lb.y1 < la.y0) return false;
+  for (let i = 1; i < la.puntos.length; i += 1) {
+    for (let j = 1; j < lb.puntos.length; j += 1) if (cruzan(la.puntos[i - 1], la.puntos[i], lb.puntos[j - 1], lb.puntos[j])) return true;
+  }
+  return false;
+}
+
+const caminoDeCubicas = (tramos) =>
+  `M${tramos[0][0].x} ${tramos[0][0].y}` +
+  tramos.map(([, c1, c2, q]) => ` C${redondear(c1.x)} ${redondear(c1.y)}, ${redondear(c2.x)} ${redondear(c2.y)}, ${q.x} ${q.y}`).join("");
 
 /** Recorrido en ángulos rectos por los puntos dados, con las esquinas redondeadas. */
 function trazoOrtogonal(puntos, radio) {
@@ -391,14 +494,26 @@ function trazoOrtogonal(puntos, radio) {
 
 /**
  * Coordenadas y caminos SVG: x = capa·anchoCapa, y = fila·altoFila.
- * - Tramos hacia la derecha: curvas horizontales que pasan por sus paradas (recta si todo va a la misma altura).
+ * - Tramos hacia la derecha: curvas suaves que pasan por sus paradas sin pasarse de largo (recta si todo va a la misma
+ *   altura), con los puntos de control a un tercio de cada tramo; de sus formas posibles (formasDeAvance), la que pasa
+ *   por encima de menos nombres de otras estaciones (`etiqueta`: la caja del nombre bajo el punto).
  * - Pasos laterales (dentro de una columna): rodean por el pasillo de la derecha.
  * - Vueltas atrás: salen por el pasillo de la izquierda; si saltan columnas, cruzan por encima (o por debajo, lo que
  *   quede más cerca) de las páginas de esas columnas y bajan por el pasillo de la derecha de la página de destino.
+ *   Entre columnas vecinas casi a la misma altura dan una vuelta por arriba o por abajo (nunca un pico).
  * → { posiciones: Map<id, {x, y}>, caminos: Map<tramoId, string>, recorridos: Map<tramoId, {x, y}[]> (los puntos
  *     por los que pasa cada camino: paradas o esquinas), caja: { x, y, ancho, alto } }
  */
-export function geometria(distribucion, { anchoCapa = 220, altoFila = 96, margen = 60 } = {}) {
+/** Alto de una fila de la telaraña, en px de escena (el ajuste a la vista lo usa para no alejar de más). */
+export const ALTO_FILA = 96;
+
+/**
+ * Caja del nombre de una estación respecto de su punto, en px de escena, con el ajuste a la vista de siempre
+ * (k ≈ 0.6). La pantalla pasa la del zoom con que se ve (camara.js, cajaDeEtiqueta).
+ */
+export const ETIQUETA = Object.freeze({ ancho: 200, alto: 54, arriba: 15 });
+
+export function geometria(distribucion, { anchoCapa = 220, altoFila = ALTO_FILA, margen = 60, etiqueta = ETIQUETA, elegirFormas = true } = {}) {
   const posiciones = new Map();
   const caminos = new Map();
   const recorridos = new Map();
@@ -419,9 +534,51 @@ export function geometria(distribucion, { anchoCapa = 220, altoFila = 96, margen
     const actual = alto.get(estacion.capa) ?? { min: y, max: y };
     alto.set(estacion.capa, { min: Math.min(actual.min, y), max: Math.max(actual.max, y) });
   }
+  // Nombres de las estaciones (debajo de su punto): los avances eligen la forma que pasa por encima de menos.
+  const nombres = estaciones.map((estacion) => {
+    const { x, y } = posiciones.get(estacion.id);
+    return { id: estacion.id, x0: x - etiqueta.ancho / 2, x1: x + etiqueta.ancho / 2, y0: y + etiqueta.arriba, y1: y + etiqueta.arriba + etiqueta.alto };
+  });
   const pasillo = anchoCapa / 2;
   const vueltas = { arriba: 0, abajo: 0 };
   const puntosDeCaja = [...posiciones.values()];
+
+  // Avances: de sus formas posibles, la que pasa por encima de menos nombres ajenos y cruza menos avances ya trazados
+  // (primero el tronco, después los más transitados); a igual cuenta, la preferida.
+  // Dos vueltas: en la segunda, cada avance se vuelve a elegir mirando todos los demás.
+  const avances = new Map();
+  const trazados = new Map(); // tramo → polilínea elegida (también los pasos laterales, que no cambian)
+  const prioridad = (tramo) => (tramo.tipo === "tronco" ? Infinity : tramo.intentos ?? 0);
+  const candidatos = [];
+  for (const tramo of distribucion.tramos ?? []) {
+    const [a, b] = [posiciones.get(tramo.origen), posiciones.get(tramo.destino)];
+    if (!a || !b) continue;
+    if (b.x === a.x) {
+      const x = a.x + pasillo + DESVIO_EN_PASILLO;
+      trazados.set(tramo.id, [a, { x, y: a.y }, { x, y: b.y }, b]);
+    }
+    if (b.x <= a.x) continue;
+    const puntos = [a, ...(tramo.escalas ?? []).map((escala) => punto(escala.capa, escala.fila)), b];
+    if (puntos.every((p) => p.y === a.y)) {
+      avances.set(tramo.id, `M${a.x} ${a.y} L${b.x} ${b.y}`);
+      trazados.set(tramo.id, [a, b]);
+      continue;
+    }
+    const ajenos = nombres.filter((caja) => caja.id !== tramo.origen && caja.id !== tramo.destino);
+    const formas = formasDeAvance(puntos).map((forma) => ({ forma, linea: muestrear(forma), tapadas: 0 }));
+    if (elegirFormas) for (const forma of formas) forma.tapadas = cajasQueTapa(forma.linea, ajenos);
+    candidatos.push({ tramo, formas });
+  }
+  candidatos.sort((x, y) => prioridad(y.tramo) - prioridad(x.tramo) || comparar(x.tramo.id, y.tramo.id));
+  for (let vuelta = 0; vuelta < (elegirFormas ? 2 : 1); vuelta += 1) {
+    for (const { tramo, formas } of candidatos) {
+      const otras = [...trazados].filter(([id]) => id !== tramo.id).map(([, linea]) => linea);
+      const costos = !elegirFormas ? [0] : formas.map(({ linea, tapadas }) => tapadas + PESO_DE_UN_CRUCE * otras.filter((otra) => seCruzan(linea, otra, CERCA_DEL_EXTREMO)).length);
+      const elegida = formas[costos.indexOf(Math.min(...costos))];
+      avances.set(tramo.id, caminoDeCubicas(elegida.forma));
+      trazados.set(tramo.id, elegida.linea);
+    }
+  }
 
   for (const tramo of distribucion.tramos ?? []) {
     const a = posiciones.get(tramo.origen);
@@ -431,7 +588,7 @@ export function geometria(distribucion, { anchoCapa = 220, altoFila = 96, margen
     let d;
     if (b.x > a.x) {
       puntos = [a, ...(tramo.escalas ?? []).map((escala) => punto(escala.capa, escala.fila)), b];
-      d = puntos.every((p) => p.y === a.y) ? `M${a.x} ${a.y} L${b.x} ${b.y}` : curvaPorPuntos(puntos);
+      d = avances.get(tramo.id);
     } else if (b.x === a.x) {
       const x = redondear(a.x + pasillo + DESVIO_EN_PASILLO);
       puntos = [a, { x, y: a.y }, { x, y: b.y }, b];
@@ -441,9 +598,22 @@ export function geometria(distribucion, { anchoCapa = 220, altoFila = 96, margen
       const hasta = capaDe.get(tramo.destino);
       const xa = redondear(a.x - pasillo - DESVIO_EN_PASILLO);
       const xb = redondear(b.x + pasillo - DESVIO_EN_PASILLO);
-      if (desde - hasta === 1 && Math.abs(a.y - b.y) >= 1) {
+      if (desde - hasta === 1 && Math.abs(a.y - b.y) >= altoFila * ESCALON_MINIMO) {
         // Columnas vecinas: por el pasillo que las separa.
         puntos = [a, { x: xa, y: a.y }, { x: xa, y: b.y }, b];
+        d = trazoOrtogonal(puntos, RADIO_DE_VUELTA);
+      } else if (desde - hasta === 1) {
+        // Columnas vecinas casi a la misma altura: por el pasillo quedaría un escalón invisible (o un pico sobre la
+        // fila). Da una vuelta: por arriba, sobre los puntos, si arriba de las dos no hay estaciones cerca (con las
+        // patas lejos de los nombres); si no, por debajo de los nombres, con las patas en el pasillo.
+        const libreArriba = !estaciones.some((e) => {
+          const p = posiciones.get(e.id);
+          return (e.capa === desde || e.capa === hasta) && p.y < Math.min(a.y, b.y) && p.y > Math.min(a.y, b.y) - altoFila * 1.6;
+        });
+        const [xSale, xLlega, yBanda] = libreArriba
+          ? [redondear(a.x - pasillo * 0.55), redondear(b.x + pasillo * 0.45), redondear(Math.min(a.y, b.y) - altoFila * 0.45)]
+          : [redondear(a.x - pasillo + DESVIO_EN_PASILLO), xa, redondear(Math.max(a.y, b.y) + altoFila * 0.85)];
+        puntos = [a, { x: xSale, y: a.y }, { x: xSale, y: yBanda }, { x: xLlega, y: yBanda }, { x: xLlega, y: b.y }, b];
         d = trazoOrtogonal(puntos, RADIO_DE_VUELTA);
       } else {
         let min = Math.min(a.y, b.y);

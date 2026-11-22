@@ -121,8 +121,10 @@ contenedor de una foto o video (tapa la imagen). Imágenes, videos, íconos de c
 1. Un botón, enlace o campo cuyo texto coincide con la tarea → **acción principal**.
 2. Si la respuesta no está en esta página (portada, menú): elige 1–3 de `enlaces_de_navegacion` (o de
    `botones_destacados`) del mapa que llevan a ella por su nombre o un sinónimo (tarifa → "Tarifas", "Pasajes";
-   devolver → "Derechos", "Garantía", "Retracto") y usa **su `selector`** tal cual. Nunca inventes un `href*=` con
-   palabras que no están en el mapa: no encuentra nada y el resaltado no se ve.
+   devolver → "Derechos", "Garantía", "Retracto") y usa **su `selector`** tal cual (encuentra solo a ese elemento,
+   o a sus `copias` en otro menú). Si su `selector` es `null`, ese no se puede resaltar: elige otro. Nunca inventes
+   un `href*=` con palabras que no están en el mapa (no encuentra nada y el resaltado no se ve) ni uses una etiqueta
+   sola (`a`, `button`: pinta todos los enlaces o botones como acción principal).
 3. Si es un artículo: el título de la sección que responde y su entrada en el índice ("fundación" → "Historia").
 Estilo de la acción principal (y del primer elemento del camino del punto 2, el más probable): `background-color: var(--mt-acento)`, `color: var(--mt-acento-texto)`, `font-weight:
 700`, `padding: 12px 24px`, `min-height: 44px`, radio de tu escala, y `html.mi-tema <selector> * { color: inherit

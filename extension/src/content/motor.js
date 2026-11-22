@@ -10,7 +10,9 @@
 //   4. Cuando el usuario aprieta el botón, anima el cambio (content/transicion.js), en
 //      cualquier sitio, tenga tema o no. Solo ahí: al cargar y al navegar la clase se
 //      pone sin animación.
-//   5. Mantiene al día el idioma de los textos que agregan las features
+//   5. Lee los efectos elegidos en el popup (comun/efectos.js): llamativos (la metamorfosis) o sutiles (un
+//      fundido corto), y los sigue si cambian, para la próxima vez que se apriete el botón.
+//   6. Mantiene al día el idioma de los textos que agregan las features
 //      (`MiTema.idioma`, comun/idioma.js): lo lee de storage y, si el usuario lo cambia
 //      en el popup, vuelve a correr las features.
 //
@@ -21,6 +23,7 @@
 (() => {
   let tema = null;
   let activo = true;
+  let efectos = MiTema.efectos.EFECTOS_POR_OMISION;
   let refrescar = null; // corre marcarHtml y las features; existe solo si hay tema
 
   // Repone la clase al instante si el sitio la pisa (ej. html.className = "...").
@@ -79,9 +82,14 @@
   // igual y simplemente no cambia nada debajo.
   let botonTocado = false; // si el botón cambió el estado antes de leerlo, manda el botón
   let idiomaTocado = false; // ídem con el idioma
+  let efectosTocados = false; // ídem con los efectos
   function escucharBoton() {
     browser.storage.onChanged.addListener((cambios, area) => {
       if (area !== "local") return;
+      if (MiTema.efectos.CLAVE_EFECTOS in cambios) {
+        efectosTocados = true;
+        efectos = MiTema.efectos.normalizarEfectos(cambios[MiTema.efectos.CLAVE_EFECTOS].newValue);
+      }
       if (MiTema.idioma.CLAVE_IDIOMA in cambios) {
         idiomaTocado = true;
         MiTema.idioma.fijar(cambios[MiTema.idioma.CLAVE_IDIOMA].newValue);
@@ -90,21 +98,26 @@
       if (!("activo" in cambios)) return;
       const pedido = cambios.activo.newValue ?? true;
       botonTocado = true;
-      MiTema.transicion.animar(pedido, () => {
-        activo = pedido;
-        marcarHtml();
-      });
+      MiTema.transicion.animar(
+        pedido,
+        () => {
+          activo = pedido;
+          marcarHtml();
+        },
+        { sutil: efectos === "sutiles" },
+      );
     });
   }
 
   async function iniciar() {
     escucharBoton();
     const [estado, respuesta] = await Promise.all([
-      browser.storage.local.get(["activo", MiTema.idioma.CLAVE_IDIOMA]),
+      browser.storage.local.get(["activo", MiTema.idioma.CLAVE_IDIOMA, MiTema.efectos.CLAVE_EFECTOS]),
       browser.runtime.sendMessage({ tipo: "tema:aplicar" }),
     ]);
     if (!botonTocado) activo = estado.activo ?? true;
     if (!idiomaTocado) MiTema.idioma.fijar(estado[MiTema.idioma.CLAVE_IDIOMA]);
+    if (!efectosTocados) efectos = MiTema.efectos.normalizarEfectos(estado[MiTema.efectos.CLAVE_EFECTOS]);
     if (!respuesta) return; // sin tema para este sitio (o la API no respondió)
 
     tema = respuesta;

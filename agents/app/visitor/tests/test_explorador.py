@@ -331,3 +331,74 @@ def test_volver_a_nodo_solo_a_paginas_del_mismo_sitio(tmp_path):
     assert run.steps[0].title == "Dos" and "localhost" in run.steps[0].url
     assert "Páginas vistas: p1 «Uno»." in engine.respuestas[0][-1]  # la página de otro sitio no tiene id
     assert "No hay una página vista con id 'p2'" in engine.respuestas[1][-1]
+
+
+def _guardia(profile, usadas, quedan_s, engine="claude-code", rechazados=0):
+    """El chequeo de fin temprano sobre un intento falso: `usadas` acciones hechas y `quedan_s` segundos por delante."""
+    import time
+    from types import SimpleNamespace
+
+
+    falso = SimpleNamespace(
+        profile=profile,
+        engine=SimpleNamespace(name=engine),
+        fines_rechazados=rechazados,
+        run=SimpleNamespace(steps=[None] * usadas, incidents=[], turns=1),
+        started_at=time.monotonic() - (profile.limite_segundos - quedan_s),
+        ramas_desde_inicio={"p2", "p3"},
+        paginas={"p1": ("Inicio", "https://ejemplo.test/")},
+        nodo_inicial="p1",
+        _paginas_vistas=lambda: "Páginas vistas: p1 Inicio.",
+        _log=lambda texto: None,
+    )
+    return SyntheticUser._rechazo_de_fin_temprano(falso, Turn(final=("gave_up", "nada"))), falso
+
+
+@pytest.mark.parametrize(
+    "usadas, quedan_s, rechazado",
+    [
+        (26, 300, True),  # quedan 4 de 30 (13 %): todavía no
+        (27, 300, False),  # quedan 3 (10 %): la reserva, se acepta
+        (29, 300, False),
+        (26, 44, False),  # menos de 45 s: la reserva, se acepta
+        (26, 50, True),
+        (10, 300, True),  # en el abanico también
+    ],
+)
+def test_el_explorador_no_se_rinde_antes_de_la_reserva(usadas, quedan_s, rechazado):
+    perfil = PROFILES["explorador"]
+    assert perfil.limite_acciones == 30 and perfil.limite_segundos == 420
+    rechazo, falso = _guardia(perfil, usadas, quedan_s)
+    assert (rechazo is not None) == rechazado
+    if rechazado and usadas > 18:
+        assert rechazo.text.startswith("Todavía no puedes rendirte") and "quedan 4 acciones" in rechazo.text
+        assert any("se le pidió seguir explorando" in incidente for incidente in falso.run.incidents)
+
+
+def test_done_y_blocked_con_presupuesto_fuera_del_abanico_se_aceptan():
+    import time
+    from types import SimpleNamespace
+
+
+    perfil = PROFILES["explorador"]
+    for motivo in ("done", "blocked"):
+        falso = SimpleNamespace(
+            profile=perfil, engine=SimpleNamespace(name="claude-code"), fines_rechazados=0,
+            run=SimpleNamespace(steps=[None] * 26, incidents=[], turns=1),
+            started_at=time.monotonic() - 100, ramas_desde_inicio=set(), paginas={"p1": ("Inicio", "u")},
+            nodo_inicial="p1", _paginas_vistas=lambda: "", _log=lambda texto: None,
+        )
+        assert SyntheticUser._rechazo_de_fin_temprano(falso, Turn(final=(motivo, "RESPUESTA: x"))) is None
+
+
+def test_el_rechazo_de_rendirse_no_trae_pistas_de_ninguna_tarea():
+    import json
+    from pathlib import Path
+
+    rechazo, _ = _guardia(PROFILES["explorador"], 26, 300)
+    texto = rechazo.text.replace("Páginas vistas: p1 Inicio.", "").lower()
+    tareas = sorted((Path(__file__).resolve().parents[3] / "tasks").glob("*/*.json"))
+    assert len(tareas) >= 8
+    terminos = {t.lower() for ruta in tareas for t in json.loads(ruta.read_text(encoding="utf-8"))["terminos_oficiales"]}
+    for termino in terminos | {"fibra", "baja", "arancel", "contribuciones", "despido", "tarifa", "horario", "préstamo"}:
+        assert termino not in texto, termino

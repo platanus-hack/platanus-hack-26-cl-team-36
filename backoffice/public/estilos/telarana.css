@@ -50,7 +50,8 @@
 /* ── Lienzo ─────────────────────────────────────────────────────────── */
 .p-telarana .telarana-mapa { position: relative; min-width: 0; }
 .p-telarana .lienzo {
-  position: relative; overflow: hidden; height: clamp(420px, 62vh, 760px);
+  /* Un mapa alto pide más lienzo (--alto-lienzo, lo que mide con el zoom legible), hasta el 80 % de la ventana. */
+  position: relative; overflow: hidden; height: clamp(420px, max(62vh, min(var(--alto-lienzo, 0px), 80vh)), 760px);
   background-color: var(--lienzo);
   background-image: radial-gradient(circle, oklch(1 0 0 / 0.07) 1px, transparent 1.5px);
   background-size: 16px 16px;
@@ -137,8 +138,10 @@
   color: var(--aviso); font-size: 10px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+.p-telarana .estacion-atasco { width: max-content; }
 .p-telarana .estacion-atasco[hidden] { display: none; }
-.p-telarana .estacion-atasco svg { width: 12px; height: 12px; }
+/* Sin flex: none, Firefox encoge el ícono a 0 px cuando la cuenta está vacía (1 intento trabado). */
+.p-telarana .estacion-atasco svg { flex: none; width: 12px; height: 12px; }
 .p-telarana .estacion-atasco-cuenta:empty { display: none; }
 .p-telarana .estacion:hover .estacion-punto::before, .p-telarana .estacion:focus-visible .estacion-punto::before { transform: scale(1.15); }
 .p-telarana .estacion[aria-pressed="true"] .estacion-punto::before { background: var(--acento); border-color: var(--acento-fuerte); }
@@ -165,8 +168,10 @@
   max-width: none; width: 120px; height: 75px; object-fit: cover; object-position: top; border-radius: var(--radio-1);
   border: 1px solid var(--borde); background: var(--superficie-2); margin-block-end: 2px;
 }
+/* Lejos (bajo) el nombre va en 2 líneas y en el medio en 3, sin el detalle de variantes: así cabe en su fila
+   (camara.js, cabeLaEtiqueta, cuenta con estas medidas). */
 .p-telarana .lienzo[data-detalle="bajo"] .estacion-nombre { -webkit-line-clamp: 2; line-clamp: 2; }
-.p-telarana .lienzo[data-detalle="bajo"] .estacion-detalle { display: none; }
+.p-telarana .lienzo:is([data-detalle="bajo"], [data-detalle="medio"]) .estacion-detalle { display: none; }
 .p-telarana .lienzo[data-detalle="alto"] :is(.estacion-url, .estacion-visitas) { display: block; }
 .p-telarana .lienzo[data-detalle="alto"] .estacion-miniatura { display: block; }
 

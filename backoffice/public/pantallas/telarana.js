@@ -13,7 +13,7 @@ import { conGlobo, ocultarGlobo } from "../nucleo/globo.js";
 import { icono, insignia, marcaDeSenal } from "../nucleo/iconos.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
 import { nombreDePagina, textoDeFirma, textoDeTitular } from "../datos/textos.js";
-import { crearCamara } from "../telarana/camara.js";
+import { altoDeFilaPara, cajaDeEtiqueta, crearCamara, zoomLegible } from "../telarana/camara.js";
 import {
   activosDePerfil,
   finalesPorPagina,
@@ -25,17 +25,22 @@ import {
   totalesDeTerminales,
   vecindario,
 } from "../telarana/cuentas.js";
-import { RESULTADOS, distribuir, geometria } from "../telarana/distribuir.js";
+import { ALTO_FILA, RESULTADOS, distribuir, geometria } from "../telarana/distribuir.js";
 import { atascosPorPagina } from "../telarana/atascos.js";
 import { claseDeTramo, dibujarEscena } from "../telarana/escena.js";
 import { crearHistoria } from "../telarana/historia.js";
+import { etiquetasDeEstaciones } from "../telarana/nombres.js";
 
 const PASO_DE_PAN = 60;
 const reducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-// Holgura para las etiquetas fuera de la caja de la geometría (debajo de las estaciones y a la derecha de las
-// terminales).
-const HOLGURA = { derecha: 150, abajo: 40 };
+// Holgura para las etiquetas fuera de la caja de la geometría (la mitad del nombre del inicio a la izquierda, debajo
+// de las estaciones y a la derecha de las terminales).
+const HOLGURA = { izquierda: 50, derecha: 180, abajo: 40 };
+// Ajuste a la vista (en plano): el mapa entra a lo ancho (el inicio a la izquierda y la meta a la derecha) y las filas
+// se estiran lo que pida el nombre de una estación con ese zoom, para que no se monte sobre el punto o la marca de
+// atasco de la de abajo. Un mapa más alto que el lienzo agranda el lienzo (hasta el 80 % de la ventana) y, si aun así
+// no cabe, se recorre arrastrando.
 
 function crearPantalla(contenedor, ctx) {
   const { tanda, t, fmt, senal } = ctx;
@@ -45,6 +50,8 @@ function crearPantalla(contenedor, ctx) {
   const perfiles = (tanda.perfiles ?? []).map((perfil) => ({ id: perfil.perfil, nombre: perfil.nombre ?? perfil.perfil }));
   const nombreDePerfil = (id) => perfiles.find((perfil) => perfil.id === id)?.nombre ?? intentos.get(id)?.nombrePerfil ?? id;
   const nombre = (pagina) => nombreDePagina(pagina, t);
+  // Lo que se ve en cada estación: si varias empiezan igual, lo que las distingue va adelante (telarana/nombres.js).
+  const etiquetas = etiquetasDeEstaciones(tanda.telarana?.paginas ?? [], nombre, { primeras: tanda.telarana?.ruta?.paginas ?? [] });
   const distribucion = distribuir(tanda.telarana ?? {});
   const tramosExistentes = new Set(distribucion.tramos.map((tramo) => tramo.id));
 
@@ -55,6 +62,8 @@ function crearPantalla(contenedor, ctx) {
     historiaId: null,
     historia: null,
     geo: null,
+    altoFila: null, // alto de fila con que se dibujó (depende del ancho del lienzo)
+    zoomDelAncho: null, // zoom con que el mapa entra a lo ancho del lienzo
     dibujo: null,
     ancho: 0,
     introHecha: false,
@@ -66,6 +75,7 @@ function crearPantalla(contenedor, ctx) {
   // ── Textos que la escena necesita ─────────────────────────────────────
   const textos = {
     nombre,
+    etiqueta: (pagina) => etiquetas.get(pagina.id) ?? nombre(pagina),
     ariaDeEstacion(pagina, estacion, atascos = 0) {
       const partes = [nombre(pagina)];
       if (estacion.tipo === "inicio") partes.push(t("telarana.estacion.inicio"));
@@ -287,11 +297,19 @@ function crearPantalla(contenedor, ctx) {
     const { caja } = estado.geo;
     // En 3D las capturas se paran sobre las estaciones: más lugar arriba y a los lados.
     if (camara?.inclinado) return { x: caja.x - 60, y: caja.y - 160, ancho: caja.ancho + HOLGURA.derecha + 120, alto: caja.alto + 160 };
-    return { x: caja.x, y: caja.y, ancho: caja.ancho + HOLGURA.derecha, alto: caja.alto + HOLGURA.abajo };
+    return { x: caja.x - HOLGURA.izquierda, y: caja.y, ancho: caja.ancho + HOLGURA.izquierda + HOLGURA.derecha, alto: caja.alto + HOLGURA.abajo };
+  }
+
+  /** Zoom con que se ve el mapa entero a lo ancho del lienzo. */
+  function zoomDelAncho() {
+    const { caja } = geometria(distribucion, { elegirFormas: false }); // la caja no depende de la forma de los avances
+    return lienzo.clientWidth / (caja.ancho + HOLGURA.izquierda + HOLGURA.derecha);
   }
 
   function dibujar() {
-    estado.geo = geometria(distribucion);
+    // Los avances esquivan los nombres del tamaño con que se verán al ajustar la vista.
+    const etiqueta = cajaDeEtiqueta(Math.max(estado.zoomDelAncho ?? 1, zoomLegible(estado.altoFila ?? ALTO_FILA)));
+    estado.geo = geometria(distribucion, { altoFila: estado.altoFila ?? ALTO_FILA, etiqueta });
     estado.dibujo = dibujarEscena({
       escena,
       distribucion,
@@ -322,12 +340,21 @@ function crearPantalla(contenedor, ctx) {
   function ajustar() {
     if (!camara || !estado.geo) return;
     const caja = cajaVisible();
-    const encuadre = camara.encuadre(caja);
-    // Si el mapa no cabe ni con el zoom mínimo (teléfonos, tandas grandes): se ve desde el inicio (a la izquierda) y
-    // a la altura de la ruta, en vez de su centro.
-    if (!camara.inclinado) {
-      if (caja.ancho * encuadre.k > lienzo.clientWidth) encuadre.tx = -caja.x * encuadre.k;
-      if (caja.alto * encuadre.k > lienzo.clientHeight) encuadre.ty = lienzo.clientHeight / 2;
+    if (camara.inclinado) {
+      camara.poner(camara.encuadre(caja));
+      return;
+    }
+    const legible = zoomLegible(estado.altoFila ?? ALTO_FILA);
+    lienzo.style.setProperty("--alto-lienzo", `${Math.ceil(caja.alto * Math.max(legible, Math.min(1.25, lienzo.clientWidth / caja.ancho)))}px`);
+    const encuadre = camara.encuadre(caja, { minimo: legible });
+    // Si aun así no cabe (teléfonos, tandas grandes): se ve desde el inicio (a la izquierda) y a la altura de la ruta,
+    // sin dejar vacío arriba ni abajo del mapa.
+    const { clientWidth: ancho, clientHeight: alto } = lienzo;
+    if (caja.ancho * encuadre.k > ancho) encuadre.tx = -caja.x * encuadre.k;
+    if (caja.alto * encuadre.k > alto) {
+      const arriba = -caja.y * encuadre.k;
+      const abajo = alto - (caja.y + caja.alto) * encuadre.k;
+      encuadre.ty = Math.min(arriba, Math.max(abajo, alto / 2));
     }
     camara.poner(encuadre);
   }
@@ -368,10 +395,14 @@ function crearPantalla(contenedor, ctx) {
     const primera = !estado.geo;
     if (!primera && Math.abs(ancho - estado.ancho) < 2) return;
     estado.ancho = ancho;
-    if (primera) {
-      dibujar();
-      ponerVista3d(estado.ctx.parametros?.vista === "3d", { animar: false });
-    }
+    // Alto de fila para que los nombres quepan viendo el mapa entero a lo ancho.
+    const zoom = zoomDelAncho();
+    const altoFila = altoDeFilaPara(zoom, ALTO_FILA);
+    const redibujar = primera || altoFila !== estado.altoFila || Math.abs(zoom - estado.zoomDelAncho) > 0.02;
+    estado.altoFila = altoFila;
+    estado.zoomDelAncho = zoom;
+    if (redibujar) dibujar();
+    if (primera) ponerVista3d(estado.ctx.parametros?.vista === "3d", { animar: false });
     ajustar();
     introducir();
     // Si el primer dibujo llegó después de aplicar los parámetros (ancho 0 al montar), se aplican de nuevo.

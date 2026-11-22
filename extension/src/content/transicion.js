@@ -17,7 +17,10 @@
 //     `document.startViewTransition`.
 //   - Sin View Transitions: se aplica el tema al instante y una versión liviana (el
 //     frente encima de la página y un destello por pieza). Al desactivar, sin efecto.
-//   - Con `prefers-reduced-motion`: un fundido de 150 ms (o nada, sin View Transitions).
+//   - Con los efectos «sutiles» (comun/efectos.js, el interruptor «Efectos» del popup): un fundido de 220 ms
+//     de la página entera, sin piezas ni frente (o nada, sin View Transitions).
+//   - Con `prefers-reduced-motion`: un fundido de 150 ms (o nada, sin View Transitions), elija los efectos que
+//     elija.
 //
 // Solo corre cuando el usuario aprieta el botón (motor.js la llama desde el cambio de
 // `activo` en storage), nunca al cargar ni al navegar. Siempre deja la página limpia:
@@ -144,10 +147,11 @@
     );
   }
 
-  // Qué versión de la transición corre. null = cambio instantáneo.
-  function elegirModo(activar, { visible, conTransiciones, conClases, reducirMovimiento }) {
+  // Qué versión de la transición corre. null = cambio instantáneo. El movimiento reducido manda sobre los efectos.
+  function elegirModo(activar, { visible, conTransiciones, conClases, reducirMovimiento, sutil = false }) {
     if (!visible) return null; // pestañas de fondo: el navegador no anima y nadie mira
     if (reducirMovimiento) return conTransiciones ? "suave" : null;
+    if (sutil) return conTransiciones ? "sutil" : null;
     if (conTransiciones && conClases) return activar ? "entrada" : "salida";
     return activar ? "ligera" : null;
   }
@@ -268,7 +272,8 @@
 
     // Pasa de un estado al otro animando. `aplicar` hace el cambio real (en el motor:
     // poner o quitar la clase `mi-tema`); se llama siempre, una vez, haya animación o no.
-    function animar(activar, aplicar) {
+    // `sutil`: los efectos que eligió el usuario son los sutiles (un fundido, sin piezas).
+    function animar(activar, aplicar, { sutil = false } = {}) {
       // Otro clic a mitad de camino: la corrida anterior salta a su final y se limpia ya,
       // antes de marcar nada nuevo (sus piezas podrían repetirse en esta).
       const anterior = actual;
@@ -277,7 +282,7 @@
         anterior.vt?.skipTransition();
       }
 
-      const modo = elegirModo(activar, soporte());
+      const modo = elegirModo(activar, { ...soporte(), sutil });
       if (!modo) return aplicar();
 
       const corrida = { modo, vt: null, piezas: new Map(), indices: 0, frente: null, temporizador: null, limpia: false };
@@ -292,11 +297,13 @@
         return;
       }
 
-      if (modo !== "suave") marcar(corrida, buscarPiezas({}));
+      // Los fundidos (suave y sutil) cambian la página entera, sin piezas ni frente.
+      const fundido = modo === "suave" || modo === "sutil";
+      if (!fundido) marcar(corrida, buscarPiezas({}));
       try {
         corrida.vt = documento.startViewTransition(() => {
           aplicar();
-          if (modo === "suave" || corrida.limpia) return;
+          if (fundido || corrida.limpia) return;
           remarcar(corrida);
           ponerFrente(corrida);
         });
@@ -321,14 +328,14 @@
 
   globalThis.MiTema.transicion = {
     // El motor llama a esto. Se crea al primer uso: la mayoría de las páginas nunca lo usa.
-    animar(activar, aplicar) {
+    animar(activar, aplicar, opciones) {
       instancia ??= crear({
         documento: document,
         ventana: window,
         programar: (fn, ms) => setTimeout(fn, ms),
         cancelar: (id) => clearTimeout(id),
       });
-      instancia.animar(activar, aplicar);
+      instancia.animar(activar, aplicar, opciones);
     },
     // Para los tests.
     MAX_NOMBRES,

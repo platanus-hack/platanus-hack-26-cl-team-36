@@ -35,6 +35,7 @@
       "js": [
         "content/registro.js",
         "comun/idioma.js",
+        "comun/efectos.js",
         "content/captura.js",
         "content/plantillas.js",
         "content/transicion.js",

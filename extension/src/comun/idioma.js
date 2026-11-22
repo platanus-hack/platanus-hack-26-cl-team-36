@@ -78,6 +78,10 @@
       "error.contar": "No se pudieron leer las opiniones guardadas.",
 
       // Interruptor ON/OFF
+      // Interruptor «Efectos» (cabecera del popup)
+      "efectos.etiqueta": "Efectos",
+      "efectos.ayuda": "Encendido: transición llamativa al encender y apagar. Apagado: un fundido sutil.",
+
       "interruptor.seccion": "Encender o apagar Chameleon",
       "interruptor.cargando": "Cargando…",
       "interruptor.encendido": "Encendido",
@@ -144,6 +148,10 @@
       "error.privada": "Feedback isn't saved in private windows.",
       "error.guardar": "Couldn't save your feedback. Please try again.",
       "error.contar": "Couldn't read your saved feedback.",
+
+      // «Effects» switch (popup header)
+      "efectos.etiqueta": "Effects",
+      "efectos.ayuda": "On: an eye-catching transition when turning on and off. Off: a subtle fade.",
 
       "interruptor.seccion": "Turn Chameleon on or off",
       "interruptor.cargando": "Loading…",
