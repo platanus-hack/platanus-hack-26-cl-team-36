@@ -4,9 +4,12 @@
 
 export default {
   vistas: {
-    etiqueta: "Páginas de la propuesta",
-    titulo: "Vistas · {n}",
+    etiqueta: "Páginas de la propuesta, de donde más visitantes se quedaron",
+    titulo: "Páginas",
+    orden: "donde se quedaron",
     paradas: "{n}/{de}",
+    detalle: ({ n }) => (n === 1 ? "un visitante se quedó aquí sin llegar" : `${n} visitantes se quedaron aquí sin llegar`),
+    fueraDeRuta: "fuera de la ruta",
     paradasAyuda: ({ n, de }, { plural }) => `${n} de ${de} ${plural(n, { one: "visitante se quedó", other: "visitantes se quedaron" })} aquí sin llegar`,
   },
   dispositivo: {
@@ -44,6 +47,7 @@ export default {
     pendiente: "El Diseñador todavía está decidiendo este cambio.",
   },
   decisiones: ({ n }) => `Decisiones del Diseñador (${n})`,
+  tema: "Tema",
   paleta: {
     etiqueta: "Colores del tema: {colores}",
     fondo: "fondo {color}",

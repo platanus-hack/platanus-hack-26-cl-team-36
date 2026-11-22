@@ -1,7 +1,7 @@
-// Propuesta: el tema que propone el Diseñador para el sitio, por qué y cómo se ve. A la izquierda las páginas de la
-// ruta (vistas) con dónde se quedaron los visitantes; al centro la página elegida antes y después del tema, con un
-// divisor que se arrastra y las notas marcadas con su número sobre la página; a la derecha el relato: la frase del
-// Diseñador, las notas (la evidencia de los visitantes y cada cambio con una muestra) y la paleta.
+// Propuesta: el tema que propone el Diseñador para el sitio, por qué y cómo se ve. A la izquierda el riel de páginas,
+// primero donde más visitantes se quedaron; al centro la página elegida antes y después del tema, con un divisor
+// que se arrastra y las notas marcadas con su número sobre la página; a la derecha por qué este cambio (la evidencia
+// de los visitantes y cada cambio con una muestra), la paleta con tema.css y, plegadas, las decisiones del Diseñador.
 //
 // Mientras el Diseñador diseña, el «después» es un esqueleto con un barrido y las notas de los cambios esperan; la
 // pantalla vuelve a pedir la propuesta cada pocos segundos hasta que termina.
@@ -13,7 +13,8 @@ import { EVENTO_PROPUESTA, pedirPropuesta, urlDePropuesta, urlDeResultado } from
 import { conservarFoco, el, reemplazar } from "../nucleo/dom.js";
 import { errorDePantalla, esqueleto, vacio } from "../nucleo/estados.js";
 import { icono } from "../nucleo/iconos.js";
-import { DISPOSITIVOS, evidenciaDeLaTanda, notasDeLaPropuesta, vistasDeLaPropuesta } from "../propuesta/vistas.js";
+import { DISPOSITIVOS, evidenciaDeLaTanda, notasDeLaPropuesta, ordenarPorParadas, vistasDeLaPropuesta } from "../propuesta/vistas.js";
+import { crearRiel } from "../tanda/riel.js";
 
 const MS_ENTRE_PEDIDOS = 5000;
 const PROPORCION = { desktop: 1024 / 768, mobile: 390 / 844 };
@@ -70,58 +71,34 @@ function elegidas(derivado) {
   return { vista, dispositivo };
 }
 
-// ── Vistas (columna izquierda) ────────────────────────────────────────────
+// ── Páginas (riel de la izquierda) ────────────────────────────────────────
 
-function listaDeVistas(derivado, vista, dispositivo) {
+/** El riel se arma una vez por juego de páginas; al elegir solo cambia la marcada. */
+function pintarRiel(derivado, vista) {
   const { t } = ctx;
-  const de = (ctx.tanda?.intentos ?? []).filter((intento) => intento.resultado !== "error").length;
-  return el(
-    "nav",
-    { class: "propuesta-vistas", "aria-label": t("propuesta.vistas.etiqueta") },
-    el("h3", { class: "etiqueta-micro", texto: t("propuesta.vistas.titulo", { n: derivado.vistas.length }) }),
-    el(
-      "ul",
-      { class: "propuesta-lista-vistas" },
-      derivado.vistas.map((cada) => {
-        // La miniatura es la del dispositivo elegido; si esa página no tiene, la del otro.
-        const propio = cada.capturas[dispositivo].antes || cada.capturas[dispositivo].despues ? dispositivo : (DISPOSITIVOS.find((otro) => cada.capturas[otro].antes) ?? dispositivo);
-        const captura = cada.capturas[propio].antes ?? cada.capturas[propio].despues;
-        const nombre = nombreDeVista(cada);
-        return el(
-          "li",
-          {},
-          el(
-            "button",
-            {
-              type: "button",
-              class: "propuesta-vista",
-              "aria-pressed": String(cada.id === vista?.id),
-              "data-foco": `propuesta:vista:${cada.id}`,
-              onclick: () => elegir({ vista: cada.id }),
-            },
-            el(
-              "span",
-              { class: `propuesta-miniatura propuesta-miniatura-${propio}` },
-              captura ? el("img", { src: urlDeCaptura(captura), alt: "", loading: "lazy", decoding: "async" }) : null,
-            ),
-            el(
-              "span",
-              { class: "propuesta-vista-pie" },
-              el("span", { class: "propuesta-vista-nombre", title: cada.url, texto: nombre }),
-              cada.paradas
-                ? el(
-                    "span",
-                    { class: "insignia insignia-fallido propuesta-paradas", title: t("propuesta.vistas.paradasAyuda", { n: cada.paradas, de }) },
-                    icono("fallido"),
-                    el("span", { texto: t("propuesta.vistas.paradas", { n: cada.paradas, de }) }),
-                  )
-                : null,
-            ),
-          ),
-        );
-      }),
-    ),
-  );
+  const ordenadas = ordenarPorParadas(derivado.vistas);
+  const firma = ordenadas.map((cada) => `${cada.id}:${cada.paradas}`).join("|");
+  if (firma !== partes.firmaDelRiel) {
+    partes.firmaDelRiel = firma;
+    const de = (ctx.tanda?.intentos ?? []).filter((intento) => intento.resultado !== "error").length;
+    partes.riel = crearRiel({
+      titulo: t("propuesta.vistas.titulo"),
+      orden: t("propuesta.vistas.orden"),
+      etiqueta: t("propuesta.vistas.etiqueta"),
+      senal: ctx.senal,
+      alElegir: (id) => elegir({ vista: id }),
+      filas: ordenadas.map((cada) => ({
+        id: cada.id,
+        nombre: nombreDeVista(cada),
+        cifra: t("propuesta.vistas.paradas", { n: cada.paradas, de }),
+        cifraAviso: cada.paradas > 0,
+        detalle: cada.paradas ? t("propuesta.vistas.detalle", { n: cada.paradas }) : cada.fueraDeRuta ? t("propuesta.vistas.fueraDeRuta") : null,
+        titulo: cada.paradas ? t("propuesta.vistas.paradasAyuda", { n: cada.paradas, de }) : cada.url,
+      })),
+    });
+    reemplazar(partes.rielSlot, partes.riel.nodo);
+  }
+  partes.riel.marcar(vista?.id ?? null);
 }
 
 // ── Escenario (centro) ────────────────────────────────────────────────────
@@ -238,14 +215,18 @@ function escenario(vista, dispositivo, notas) {
   return el(
     "section",
     { class: "propuesta-escenario", "aria-label": t("propuesta.escenario.etiqueta") },
+    selectorDeDispositivo(vista, dispositivo),
     el(
       "div",
-      { class: "propuesta-escenario-cabecera" },
-      el("span", { class: "etiqueta-micro", texto: t("propuesta.escenario.antes") }),
-      selectorDeDispositivo(vista, dispositivo),
-      el("span", { class: "etiqueta-micro propuesta-etiqueta-despues" }, etiquetaDespues),
+      { class: "propuesta-marco-lienzo" },
+      el(
+        "div",
+        { class: "propuesta-escenario-cabecera" },
+        el("span", { class: "etiqueta-micro", texto: t("propuesta.escenario.antes") }),
+        el("span", { class: "etiqueta-micro propuesta-etiqueta-despues" }, etiquetaDespues),
+      ),
+      lienzo,
     ),
-    el("div", { class: "propuesta-marco-lienzo" }, lienzo),
   );
 }
 
@@ -371,23 +352,18 @@ function relato(derivado) {
   // Mientras diseña, los cambios todavía no existen: dos notas esperando después de la evidencia.
   if (enCurso) for (let i = 0; i < 2; i += 1) notas.push(notaPendiente(notas.length + 1));
   const colores = propuesta.paleta.map(({ rol, color }) => t(`propuesta.paleta.${rol}`, { color }));
+  const decisiones = entregada ? [propuesta.resumen, ...propuesta.decisiones].filter(Boolean) : [];
+  const otraTarea = propuesta.tarea && propuesta.tarea.id !== ctx.tanda?.tarea ? propuesta.tarea : null;
+  const seccion = (titulo, ...hijos) => el("section", { class: "propuesta-seccion" }, el("h3", { class: "tanda-etiqueta", texto: titulo }), ...hijos);
   return el(
     "aside",
-    { class: "propuesta-relato", "aria-label": t("propuesta.notas.etiqueta") },
-    tarjetaDelDisenador(),
-    notas.length ? el("ol", { class: "propuesta-notas" }, notas) : null,
-    entregada && propuesta.decisiones.length
-      ? el(
-          "details",
-          { class: "propuesta-decisiones" },
-          el("summary", { texto: t("propuesta.decisiones", { n: propuesta.decisiones.length }) }),
-          el("ul", {}, propuesta.decisiones.map((decision) => el("li", { texto: decision }))),
-        )
-      : null,
+    { class: "tanda-lado propuesta-relato", "aria-label": t("propuesta.notas.etiqueta") },
+    // El Diseñador se nombra solo mientras diseña o si falló; entregada, habla su propuesta.
+    entregada ? null : tarjetaDelDisenador(),
+    notas.length ? seccion(t("propuesta.notas.etiqueta"), el("ol", { class: "propuesta-notas" }, notas)) : null,
     entregada && (propuesta.paleta.length || propuesta.tema)
-      ? el(
-          "footer",
-          { class: "propuesta-pie" },
+      ? seccion(
+          t("propuesta.tema"),
           propuesta.paleta.length
             ? el(
                 "span",
@@ -396,13 +372,18 @@ function relato(derivado) {
               )
             : null,
           propuesta.tema
-            ? el(
-                "a",
-                { class: "propuesta-tema mono", href: urlDeResultado(propuesta.tema), target: "_blank", rel: "noreferrer noopener", title: t("propuesta.verTema") },
-                icono("documento"),
-                el("span", { texto: propuesta.tema.split("/").at(-1) }),
-              )
+            ? el("a", { class: "propuesta-tema", href: urlDeResultado(propuesta.tema), target: "_blank", rel: "noreferrer noopener" }, el("span", { texto: t("propuesta.verTema") }))
             : null,
+        )
+      : null,
+    decisiones.length
+      ? el(
+          "details",
+          { class: "propuesta-decisiones" },
+          el("summary", { texto: t("propuesta.decisiones", { n: propuesta.decisiones.length }) }),
+          propuesta.resumen ? el("p", { class: "propuesta-frase", texto: propuesta.resumen }) : null,
+          propuesta.decisiones.length ? el("ul", {}, propuesta.decisiones.map((decision) => el("li", { texto: decision }))) : null,
+          otraTarea ? el("p", { class: "texto-3", texto: t("propuesta.disenador.paraTarea", { tarea: otraTarea.descripcion || otraTarea.id }) }) : null,
         )
       : null,
   );
@@ -414,23 +395,23 @@ function pintar() {
   if (!partes) return;
   const { propuesta } = estado;
   if (!propuesta || propuesta.estado === "ninguna") {
+    partes.columnas = null;
     reemplazar(partes.raiz, vacio({ titulo: ctx.t("propuesta.vacio.titulo"), texto: ctx.t("propuesta.vacio.texto"), icono: "disenador" }));
     return;
   }
   const derivado = derivar();
   const { vista, dispositivo } = elegidas(derivado);
-  conservarFoco(partes.raiz, () =>
-    reemplazar(
-      partes.raiz,
-      el(
-        "div",
-        { class: `propuesta propuesta-${propuesta.estado}` },
-        listaDeVistas(derivado, vista, dispositivo),
-        escenario(vista, dispositivo, derivado.notas),
-        relato(derivado),
-      ),
-    ),
-  );
+  if (!partes.columnas) {
+    partes.rielSlot = el("div", { class: "propuesta-riel" });
+    partes.centro = el("div", { class: "tanda-centro propuesta-centro" });
+    partes.lado = el("div", { class: "propuesta-lado" });
+    partes.columnas = el("div", { class: "tanda-columnas propuesta" }, partes.rielSlot, partes.centro, partes.lado);
+    reemplazar(partes.raiz, partes.columnas);
+  }
+  partes.columnas.className = `tanda-columnas propuesta propuesta-${propuesta.estado}`;
+  pintarRiel(derivado, vista);
+  conservarFoco(partes.centro, () => reemplazar(partes.centro, escenario(vista, dispositivo, derivado.notas)));
+  conservarFoco(partes.lado, () => reemplazar(partes.lado, relato(derivado)));
   tic();
 }
 

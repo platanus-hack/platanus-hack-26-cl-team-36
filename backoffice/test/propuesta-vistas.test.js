@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { claveDeUrl, dispositivoDelIntento, evidenciaDeLaTanda, notasDeLaPropuesta, sufijoDeLaTanda, vistasDeLaPropuesta } from "../public/propuesta/vistas.js";
+import { claveDeUrl, dispositivoDelIntento, evidenciaDeLaTanda, notasDeLaPropuesta, ordenarPorParadas, sufijoDeLaTanda, vistasDeLaPropuesta } from "../public/propuesta/vistas.js";
 
 const URL_DE = { inicio: "https://www.movilsur.test/", soporte: "https://www.movilsur.test/soporte", baja: "https://www.movilsur.test/soporte/dar-de-baja" };
 const REQUISITOS = "https://www.movilsur.test/soporte/dar-de-baja/requisitos";
@@ -110,4 +110,15 @@ test("las notas van en el orden de sus marcas: evidencia (con los enlaces), letr
 test("el sufijo del sitio sale de una página con título corto", () => {
   assert.equal(sufijoDeLaTanda(TANDA), " - Móvil Sur");
   assert.equal(sufijoDeLaTanda({ telarana: { paginas: [] } }), "");
+});
+
+test("el riel de la Propuesta ordena las páginas por cuántos se quedaron, y a igual cifra por la ruta", () => {
+  const vistas = [
+    { id: "inicio", paradas: 0 },
+    { id: "ayuda", paradas: 1 },
+    { id: "horario", paradas: 0 },
+    { id: "contacto", paradas: 2 },
+  ];
+  assert.deepEqual(ordenarPorParadas(vistas).map((v) => v.id), ["contacto", "ayuda", "inicio", "horario"]);
+  assert.deepEqual(vistas.map((v) => v.id), ["inicio", "ayuda", "horario", "contacto"], "no cambia el arreglo");
 });
