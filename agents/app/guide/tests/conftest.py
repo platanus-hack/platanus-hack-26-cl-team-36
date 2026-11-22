@@ -66,7 +66,8 @@ class ScriptedDecider:
         self.usage = {"input_tokens": 0}
         self.cost_usd = 0.0
 
-    async def decide(self, text: str, screenshot: bytes) -> Decision:
+    async def decide(self, prompt, screenshot: bytes) -> Decision:
+        text = str(prompt)
         self.prompts.append(text)
         action, name, extra = self.script.pop(0)
         if action == "done" and self.on_done:

@@ -1,6 +1,4 @@
-/* Popup de Chameleon. Colores de marca: docs/marca/README.md.
-   popup.js solo pone atributos (data-activo, data-modo, aria-pressed, data-tipo) y textos;
-   todo lo visual está acá. */
+/* Popup de Chameleon. Colores de marca: docs/marca/README.md. */
 
 :root {
   color-scheme: dark;
@@ -34,6 +32,9 @@
 
   --mt-radio: 12px;
   --mt-transicion: 180ms ease;
+  /* Alto fijo para las dos vistas: Firefox no cambia el tamaño del popup al alternar. Elegido para que la vista
+     de opinión quepa en los tres modos y en los dos idiomas. */
+  --mt-alto: 400px;
 }
 
 * {
@@ -46,7 +47,7 @@ body {
 }
 
 body {
-  width: 360px;
+  width: 300px;
   background:
     radial-gradient(120% 60% at 50% 100%, rgb(46 230 197 / 0.1), transparent 70%),
     var(--mt-tinta);
@@ -68,8 +69,13 @@ textarea {
 }
 
 p,
-h1 {
+h1,
+h2 {
   margin: 0;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 .mt-oculto-visual {
@@ -82,64 +88,202 @@ h1 {
 }
 
 .mt-panel {
+  position: relative;
+  height: var(--mt-alto);
+  overflow: hidden;
+}
+
+/* ---------- Vistas ---------- */
+
+.mt-vista {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px 14px;
+  animation: mt-vista-entrar 200ms ease-out;
 }
 
-/* ---------- Cabecera ---------- */
+@keyframes mt-vista-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
 
-/* Marca a la izquierda, «Efectos» centrado (columnas laterales iguales) e idioma + ON/OFF a la derecha. */
-.mt-cabecera {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+.mt-vista-principal .mt-control {
+  flex: 1;
+  justify-content: center;
+  padding: 16px 16px 0;
+}
+
+.mt-fila {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  padding: 8px 10px 10px;
 }
 
-.mt-cabecera-controles {
-  justify-self: end;
-}
-
-/* ---------- Interruptor «Efectos» (role="switch"; aria-checked = efectos llamativos) ---------- */
-
-.mt-efectos {
+.mt-secundario {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 4px 0 8px;
-  border: 1px solid var(--mt-borde);
-  border-radius: 999px;
-  background: var(--mt-superficie-alta);
+  gap: 7px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: var(--mt-texto-suave);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
   transition:
-    border-color var(--mt-transicion),
-    color var(--mt-transicion);
+    color var(--mt-transicion),
+    background var(--mt-transicion);
 }
 
-.mt-efectos:hover {
-  border-color: color-mix(in srgb, var(--mt-turquesa) 60%, var(--mt-borde));
+.mt-secundario:hover,
+.mt-secundario[aria-expanded="true"] {
+  background: var(--mt-superficie);
   color: var(--mt-texto);
 }
 
-.mt-efectos:focus-visible {
+.mt-secundario:focus-visible,
+.mt-efectos:focus-visible,
+.mt-segmento-opcion:focus-visible,
+.mt-velo:focus-visible {
   outline: 2px solid var(--mt-turquesa);
   outline-offset: 2px;
 }
 
-.mt-efectos-riel {
+.mt-secundario-icono {
+  flex: none;
+  justify-content: center;
+  width: 32px;
+  padding: 0;
+}
+
+.mt-secundario-svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mt-secundario[data-gracias="true"] {
+  color: var(--mt-turquesa);
+}
+
+/* ---------- Vista de opinión ---------- */
+
+.mt-vista-opinion {
+  overflow-y: auto; /* por si un texto muy largo no cupiera en el alto fijo */
+}
+
+.mt-vista-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 2px;
+}
+
+/* ---------- Ajustes ---------- */
+
+.mt-ajustes {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+
+.mt-velo {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: rgb(5 5 8 / 0.55);
+  cursor: default;
+  animation: mt-aparecer 200ms ease-out;
+}
+
+.mt-hoja {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 16px 18px;
+  border-top: 1px solid var(--mt-borde);
+  border-radius: 14px 14px 0 0;
+  background: var(--mt-superficie);
+  animation: mt-subir 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.mt-hoja-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -8px -8px -4px 0;
+}
+
+.mt-hoja-titulo {
+  color: var(--mt-texto-suave);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes mt-aparecer {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes mt-subir {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.mt-ajuste {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mt-ajuste-textos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mt-ajuste-nombre {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mt-ajuste-ayuda {
+  color: var(--mt-texto-tenue);
+  font-size: 12px;
+}
+
+.mt-efectos {
   position: relative;
   flex: none;
-  width: 26px;
-  height: 16px;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
   background: var(--mt-borde);
+  cursor: pointer;
   transition: background var(--mt-transicion);
 }
 
@@ -147,8 +291,8 @@ h1 {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--mt-texto-suave);
   transition:
@@ -156,186 +300,62 @@ h1 {
     background var(--mt-transicion);
 }
 
-.mt-efectos[aria-checked="true"] .mt-efectos-riel {
-  background: var(--mt-espectro);
+.mt-efectos[aria-checked="true"] {
+  background: var(--mt-turquesa);
 }
 
 .mt-efectos[aria-checked="true"] .mt-efectos-perilla {
-  transform: translateX(10px);
+  transform: translateX(16px);
   background: var(--mt-tinta);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .mt-efectos-riel,
-  .mt-efectos-perilla {
-    transition: none;
-  }
-}
-
-.mt-marca {
-  font-size: 15px;
-  font-weight: 750;
-  letter-spacing: 0.01em;
-  background: var(--mt-espectro);
-  background-clip: text;
-  color: transparent;
-}
-
-.mt-chip {
-  min-width: 38px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-align: center;
-  background: var(--mt-superficie-alta);
-  color: var(--mt-texto-tenue);
-  transition: background var(--mt-transicion), color var(--mt-transicion);
-}
-
-body[data-activo="si"] .mt-chip {
-  background: var(--mt-turquesa);
-  color: var(--mt-tinta);
-}
-
-/* ---------- Opinión (plegable, bajo el interruptor) ---------- */
-
-/* La barra con «Dar mi opinión» y, debajo, la tarjeta plegable. Va bajo el interruptor: al abrirla el panel crece
-   hacia abajo y el camaleón no se mueve. */
-.mt-opinion {
-  --mt-plegado-duracion: 260ms;
-  --mt-plegado: var(--mt-plegado-duracion) cubic-bezier(0.2, 0.7, 0.2, 1);
-
+.mt-segmento {
   display: flex;
-  flex-direction: column;
+  flex: none;
+  padding: 2px;
+  border: 1px solid var(--mt-borde);
+  border-radius: 8px;
+  background: var(--mt-tinta);
 }
 
-.mt-opinion-barra {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-/* El botón es discreto (texto tenue, sin fondo) para que el interruptor sea lo principal. */
-.mt-desplegar {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 4px 10px 4px 12px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: none;
-  color: var(--mt-texto-tenue);
-  font-size: 12.5px;
+.mt-segmento-opcion {
+  min-width: 40px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mt-texto-suave);
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition:
-    border-color var(--mt-transicion),
     color var(--mt-transicion),
     background var(--mt-transicion);
 }
 
-.mt-desplegar:hover,
-.mt-desplegar[aria-expanded="true"] {
-  border-color: var(--mt-borde);
-  background: var(--mt-superficie);
+.mt-segmento-opcion:hover {
   color: var(--mt-texto);
 }
 
-.mt-desplegar:focus-visible {
-  outline: 2px solid var(--mt-turquesa);
-  outline-offset: 2px;
+.mt-segmento-opcion[aria-pressed="true"] {
+  background: var(--mt-borde);
+  color: var(--mt-texto);
 }
 
-.mt-desplegar-flecha {
-  flex: none;
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: transform var(--mt-plegado);
-}
+/* ---------- Opinión ---------- */
 
-.mt-desplegar[aria-expanded="true"] .mt-desplegar-flecha {
-  transform: rotate(180deg);
-}
-
-/* Con la opinión cerrada: «Guardando…» o el resultado del último envío (popup.js lo deja vacío si está abierta). */
-.mt-opinion-resumen {
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-  color: var(--mt-texto-suave);
-}
-
-.mt-opinion-resumen:empty {
-  display: none;
-}
-
-.mt-opinion-resumen[data-tipo="exito"] {
-  color: var(--mt-turquesa);
-}
-
-.mt-opinion-resumen[data-tipo="error"] {
-  color: var(--mt-error);
-}
-
-/* Una sola fila que va de 0fr (cerrada: nada ocupa lugar) a 1fr (el alto de la tarjeta), con un fundido. Al terminar
-   de cerrarse queda `visibility: hidden` (fuera del lector de pantalla y del teclado, junto con el `inert` que pone
-   popup.js); al abrir, visible desde el primer cuadro. */
-.mt-plegable {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    grid-template-rows var(--mt-plegado),
-    opacity var(--mt-plegado),
-    visibility 0s linear var(--mt-plegado-duracion);
-}
-
-.mt-opinion[data-abierta="si"] .mt-plegable {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  visibility: visible;
-  transition:
-    grid-template-rows var(--mt-plegado),
-    opacity var(--mt-plegado),
-    visibility 0s;
-}
-
-.mt-plegable-interior {
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* El margen (el espacio bajo el botón) va adentro de lo que se pliega: cerrada, no queda ni el hueco. */
-.mt-tarjeta {
-  position: relative;
-  margin-top: 8px;
+.mt-opinion {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 8px;
-  padding: 14px 12px 12px;
-  overflow: hidden;
-  border: 1px solid var(--mt-borde);
-  border-radius: var(--mt-radio);
-  background: var(--mt-superficie);
+  padding: 4px 16px 14px;
 }
 
-/* Filete del espectro arriba de la tarjeta. */
-.mt-tarjeta::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: var(--mt-espectro);
+.mt-opinion-titulo {
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .mt-pregunta {
@@ -355,8 +375,7 @@ body[data-activo="si"] .mt-chip {
   display: none;
 }
 
-/* La pregunta con sus opciones y el aviso van en la misma celda: la tarjeta mide lo mismo con o sin opciones
-   (el panel no cambia de alto al encender o apagar). Sin opciones, quedan invisibles pero ocupan su lugar. */
+/* La pregunta con sus opciones y el aviso van en la misma celda: sin opciones, quedan invisibles pero ocupan su lugar. */
 .mt-eleccion {
   display: grid;
 }
@@ -421,8 +440,7 @@ body[data-activo="si"] .mt-chip {
     transform var(--mt-transicion);
 }
 
-/* Siempre dos líneas de alto («Solo quiero comentar» ocupa dos; «Just comment», una): la tarjeta no cambia de alto
-   con el idioma y el panel no cambia de alto. */
+/* Siempre dos líneas de alto. */
 .mt-opcion-texto {
   display: flex;
   align-items: center;
@@ -468,7 +486,7 @@ body[data-activo="si"] .mt-chip {
   border: 1px solid var(--mt-borde);
   border-radius: 10px;
   background: var(--mt-tinta);
-  resize: vertical;
+  resize: none;
   transition: border-color var(--mt-transicion);
 }
 
@@ -531,7 +549,7 @@ body[data-activo="si"] .mt-chip {
   cursor: progress;
 }
 
-/* Resultado del último envío: ocupa el lugar de la pista, a la izquierda de "Enviar". */
+/* Error del último envío: ocupa el lugar de la pista, a la izquierda de "Enviar". */
 .mt-mensaje {
   font-size: 12.5px;
   font-weight: 600;
@@ -542,16 +560,13 @@ body[data-activo="si"] .mt-chip {
   display: none;
 }
 
-.mt-mensaje[data-tipo="exito"] {
-  color: var(--mt-turquesa);
-}
-
 .mt-mensaje[data-tipo="error"] {
   color: var(--mt-error);
 }
 
 .mt-pie {
   display: flex;
+  margin-top: auto;
   flex-direction: column;
   gap: 2px;
   padding-top: 7px;
@@ -581,10 +596,8 @@ body[data-activo="si"] .mt-chip {
     transform: none;
   }
 
-  /* La opinión se abre y se cierra de golpe (sin el retraso del visibility). */
-  .mt-plegable,
-  .mt-opinion[data-abierta="si"] .mt-plegable,
-  .mt-desplegar-flecha {
-    transition: none;
+  .mt-vista,
+  .mt-hoja {
+    animation: mt-aparecer 150ms ease-out;
   }
 }

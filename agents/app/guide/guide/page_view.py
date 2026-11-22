@@ -1,12 +1,13 @@
 """Vista del DOM que recibe el modelo: encabezados, elementos interactivos con ref y texto visible."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from playwright.async_api import ElementHandle, Page
 
 from shared.dom.visibility import HELPERS_JS
-from shared.nodes.urls import same_site
+from shared.nodes.urls import on_site
 
 from guide import config
 
@@ -135,16 +136,14 @@ class Element:
     in_viewport: bool       # su centro está dentro del viewport
     revealed_by: str | None  # ref del control que lo muestra, si está oculto y se sabe cuál es
 
-    def same_host_href(self, page_url: str) -> str | None:
-        """El href si apunta al mismo sitio; los enlaces externos no se le muestran al modelo."""
-        if not self.href:
-            return None
-        return self.href if same_site(self.href, page_url) or same_site(page_url, self.href) else None
+    def site_href(self, site_urls: Sequence[str]) -> str | None:
+        """El href si es del sitio; los enlaces externos no se le muestran al modelo."""
+        return self.href if self.href and on_site(self.href, site_urls) else None
 
-    def leaves_site(self, start_url: str) -> bool:
-        """Si es un enlace web fuera del sitio de la página inicial."""
+    def leaves_site(self, site_urls: Sequence[str]) -> bool:
+        """Si es un enlace web fuera del sitio."""
         return bool(self.href) and urlsplit(self.href).scheme in ("http", "https") and \
-            not same_site(self.href, start_url)
+            not on_site(self.href, site_urls)
 
 
 @dataclass
