@@ -29,6 +29,36 @@ resource "aws_iam_role_policy_attachment" "backend_logs" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# /revisiones: marca páginas y crea revisiones (TransactWriteItems pide los permisos de
+# cada Put), lee el tema.css del almacén y dispara el conductor, que busca por nombre.
+data "aws_iam_policy_document" "backend" {
+  statement {
+    actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+    resources = [aws_dynamodb_table.revisiones.arn]
+  }
+
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["${aws_s3_bucket.almacen.arn}/*"]
+  }
+
+  statement {
+    actions   = ["bedrock-agentcore:InvokeAgentRuntime"]
+    resources = ["arn:aws:bedrock-agentcore:${var.region}:${data.aws_caller_identity.actual.account_id}:runtime/*"]
+  }
+
+  statement {
+    actions   = ["bedrock-agentcore:ListAgentRuntimes"]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "backend" {
+  name   = "revisiones"
+  role   = aws_iam_role.backend.id
+  policy = data.aws_iam_policy_document.backend.json
+}
+
 # Se crea antes que la Lambda para que Terraform controle la retención y lo borre
 # en un destroy (si no, Lambda lo crea solo y queda huérfano).
 resource "aws_cloudwatch_log_group" "backend" {
@@ -45,7 +75,16 @@ resource "aws_lambda_function" "backend" {
   filename         = data.archive_file.backend.output_path
   source_code_hash = data.archive_file.backend.output_base64sha256
   memory_size      = 256
-  timeout          = 10
+  # POST /revisiones espera a que AgentCore acepte la invocación del conductor (hasta 10 s).
+  timeout = 30
+
+  environment {
+    variables = {
+      REVISIONES_TABLA = aws_dynamodb_table.revisiones.name
+      ALMACEN_BUCKET   = aws_s3_bucket.almacen.bucket
+      AGENTE_RUNTIME   = var.runtime_agentes
+    }
+  }
 
   depends_on = [
     aws_cloudwatch_log_group.backend,

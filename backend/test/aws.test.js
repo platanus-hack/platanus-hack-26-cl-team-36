@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { expresionActualizar } from "../aws.js";
+import { coincideRuntime, expresionActualizar } from "../aws.js";
 
 test("expresionActualizar: SET de los atributos, sin los undefined", () => {
   assert.deepEqual(expresionActualizar({ css_key: "a/tema.css", nada: undefined }), {
@@ -25,4 +25,11 @@ test("expresionActualizar: solo avanza desde los estados previos y, si se pide, 
 
 test("expresionActualizar: pending solo se escribe si no hay estado", () => {
   assert.equal(expresionActualizar({ status: "pending" }, { previos: [] }).ConditionExpression, "attribute_not_exists(#status)");
+});
+
+test("coincideRuntime: por nombre exacto o como sufijo del nombre de la CLI", () => {
+  assert.ok(coincideRuntime("chameleon", "chameleon"));
+  assert.ok(coincideRuntime("ChameleonAgents_default_chameleon", "chameleon"));
+  assert.ok(!coincideRuntime("ChameleonAgents_default_web_evaluator_image", "chameleon"));
+  assert.ok(!coincideRuntime("otro_chameleon2", "chameleon"));
 });

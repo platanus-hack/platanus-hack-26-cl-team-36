@@ -10,6 +10,12 @@ variable "nombre" {
   default     = "chameleon-backend"
 }
 
+variable "runtime_agentes" {
+  description = "Runtime de AgentCore que corre las revisiones: su nombre o el final de él (la CLI le antepone `<proyecto>_<destino>_`)."
+  type        = string
+  default     = "chameleon"
+}
+
 variable "goals_max" {
   description = "Goals por revisión que la proyectora espera del catálogo; el mismo default que el conductor."
   type        = number
