@@ -1,14 +1,10 @@
-// Archivos estáticos del backoffice (public/ y portada/): en memoria, con su ETag y comprimidos una sola vez; la
-// versión de public/ (un hash de su contenido) y la página index.html con las URL versionadas y las precargas.
+// Archivos estáticos de public/ y portada/: en memoria, con ETag y comprimidos una sola vez.
 //
-// Versión: la página pide todo lo suyo bajo v/<versión>/ (app.js, las hojas de estilos, y por las rutas relativas, cada
-// módulo que importa), y servidor.js sirve v/<versión>/ con caché inmutable solo si es la versión actual. Un despliegue
-// cambia la versión: una página nueva nunca recibe un módulo viejo de la caché, y una vieja que pide un módulo después
-// del despliegue recibe 404, no uno nuevo que no calza con los suyos. La versión es un hash del contenido de public/,
-// calculado al arrancar (sin tocar la imagen ni la infra) y otra vez si cambia un archivo (con `npm run dev`).
+// Versión: un hash del contenido de public/, calculado al arrancar (en modo dev, cada segundo). La página pide todo
+// bajo v/<versión>/; servidor.js lo sirve inmutable solo para la versión actual.
 //
-// Precargas: los <link rel="modulepreload"> de todo lo que importan precarga.js y app.js (así no se descubre nivel por nivel) y, por
-// pantalla, un <meta name="precarga:<pantalla>"> con lo que esa pantalla agrega: precarga.js elige el de la ruta.
+// Precargas: modulepreload de lo que importan precarga.js y app.js y, por pantalla, un <meta name="precarga:<id>">
+// con lo suyo (precarga.js elige el de la ruta).
 
 import { createHash } from "node:crypto";
 import { readFile, readdir, stat } from "node:fs/promises";
@@ -68,8 +64,8 @@ export function comprimir(cuerpo, codificacion, { estatico = false } = {}) {
 const hashDe = (cuerpo) => createHash("sha256").update(cuerpo).digest("base64url").slice(0, 22);
 
 /**
- * Un archivo en memoria: `etag` es el de la versión sin comprimir; cada comprimida agrega su codificación ("…-br"), así
- * un caché no confunde una con otra.
+ * Un archivo en memoria: `etag` es el de la versión sin comprimir; cada comprimida agrega su codificación ("…-br"),
+ * así un caché no confunde una con otra.
  * @typedef {Object} Estatico
  * @property {Buffer} cuerpo
  * @property {string} hash
@@ -87,15 +83,17 @@ function enMemoria(cuerpo) {
 export const etagDe = (archivo, codificacion) => (codificacion ? `"${archivo.hash}-${codificacion}"` : archivo.etag);
 
 /**
- * true si If-None-Match nombra a `archivo` en cualquiera de sus codificaciones (comparación débil, RFC 9110 §13.1.2).
+ * true si If-None-Match nombra a `archivo` con `codificacion` (comparación débil, RFC 9110 §13.1.2).
  * @param {string | undefined} cabecera
  * @param {Estatico} archivo
+ * @param {"br" | "gzip" | null} codificacion
  */
-export function sigueVigente(cabecera, archivo) {
+export function sigueVigente(cabecera, archivo, codificacion) {
   if (!cabecera) return false;
+  const etag = etagDe(archivo, codificacion);
   return cabecera.split(",").some((parte) => {
     const etiqueta = parte.trim().replace(/^W\//, "");
-    return etiqueta === "*" || etiqueta === archivo.etag || etiqueta.startsWith(`"${archivo.hash}-`);
+    return etiqueta === "*" || etiqueta === etag;
   });
 }
 
@@ -118,24 +116,27 @@ export function importsDe(texto) {
   return [...String(texto).matchAll(IMPORTACION)].map((partes) => partes[1]);
 }
 
-const MARCA_DE_PRECARGAS = "<!-- precargas: las escribe el servidor (lib/estaticos.js) -->";
-const PREFIJO_DE_VERSION = "v";
+export const MARCA_DE_PRECARGAS = "<!-- precargas: las escribe el servidor (lib/estaticos.js) -->";
+export const PREFIJO_DE_VERSION = "v";
 // Los módulos que la página carga con <script>: no se precargan.
 const ENTRADAS = ["precarga.js", "app.js"];
 // Las secciones del diccionario que se cargan al empezar (iniciarI18n), en el idioma por defecto.
 const SECCIONES_SIEMPRE = ["i18n/en/comun.js", "i18n/en/datos.js"];
 
-const escaparAtributo = (texto) => String(texto).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+const escaparAtributo = (texto) =>
+  String(texto).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
 /**
  * @param {string} raiz  la carpeta de los archivos (public/ o portada/)
+ * @param {{ vigilar?: boolean }} [opciones]  `vigilar`: recalcular la versión si cambia un archivo (modo dev,
+ *        BACKOFFICE_DEV=1); si no, se calcula una vez
  */
-export function crearEstaticos(raiz) {
+export function crearEstaticos(raiz, { vigilar = process.env.BACKOFFICE_DEV === "1" } = {}) {
   /** @type {Map<string, { firma: string, promesa: Promise<Estatico> }>} */
   const archivos = new Map();
 
   /**
-   * El archivo de `ruta` (absoluta, dentro de la raíz), o null si no existe. Se relee si cambió su fecha o su tamaño.
+   * El archivo de `ruta` (absoluta, dentro de la raíz), o null si no existe. Se relee si cambió su fecha o tamaño.
    * @param {string} ruta
    * @returns {Promise<Estatico | null>}
    */
@@ -162,8 +163,8 @@ export function crearEstaticos(raiz) {
       .sort();
   }
 
-  // La versión: un hash de cada ruta con el de su contenido. Se recalcula a lo más cada segundo (y solo relee lo que
-  // cambió): así la página de `npm run dev` ve un archivo editado sin reiniciar.
+  // La versión: un hash de cada ruta con el de su contenido. En modo dev se recalcula a lo más cada segundo (y solo
+  // relee lo que cambió), así la página ve un archivo editado sin reiniciar; si no, se calcula una sola vez.
   const version = memorizar(async () => {
     const hash = createHash("sha256");
     for (const relativa of await relativas()) {
@@ -171,7 +172,7 @@ export function crearEstaticos(raiz) {
       if (archivo) hash.update(`${relativa} ${archivo.hash}\n`);
     }
     return hash.digest("hex").slice(0, 12);
-  }, 1000);
+  }, vigilar ? 1000 : Number.POSITIVE_INFINITY);
 
   /** Todo lo que importa `inicio` (relativa a la raíz), sin repetir, `inicio` primero; solo archivos que existen. */
   async function cierre(inicio, vistos = new Set()) {
@@ -197,7 +198,8 @@ export function crearEstaticos(raiz) {
     const comunes = [...[...deApp].filter((relativa) => !ENTRADAS.includes(relativa)), ...SECCIONES_SIEMPRE];
     const enlaces = [];
     for (const relativa of comunes) {
-      if (await existe(relativa)) enlaces.push(`<link rel="modulepreload" href="${escaparAtributo(prefijo + relativa)}">`);
+      if (!(await existe(relativa))) continue;
+      enlaces.push(`<link rel="modulepreload" href="${escaparAtributo(prefijo + relativa)}">`);
     }
     const pantallas = (await relativas()).filter((relativa) => /^pantallas\/[a-z0-9-]+\.js$/.test(relativa));
     for (const pantalla of pantallas) {
@@ -210,7 +212,8 @@ export function crearEstaticos(raiz) {
     const texto = original.cuerpo
       .toString("utf8")
       // Lo propio de la página (relativo, sin esquema): bajo la versión.
-      .replace(/\b(href|src)="(?![a-z][a-z0-9+.-]*:|\/|#)([^"]+)"/gi, (_, atributo, valor) => `${atributo}="${prefijo}${valor}"`)
+      .replace(/\b(href|src)="(?![a-z][a-z0-9+.-]*:|\/|#)([^"]+)"/gi, (_, atributo, valor) =>
+        `${atributo}="${prefijo}${valor}"`)
       .replace(MARCA_DE_PRECARGAS, enlaces.join("\n  "));
     return enMemoria(Buffer.from(texto, "utf8"));
   }
@@ -243,8 +246,8 @@ export function crearEstaticos(raiz) {
     },
 
     /**
-     * Lee y comprime de antemano lo que se puede comprimir (al arrancar, para que el primer pedido no espere el brotli
-     * de three.js). Nunca lanza.
+     * Lee y comprime de antemano lo que se puede comprimir (al arrancar: el primer pedido no espera el brotli de
+     * three.js). Nunca lanza.
      * @param {(relativa: string) => string} tipoDe  el Content-Type de cada archivo
      */
     async calentar(tipoDe) {
@@ -252,7 +255,8 @@ export function crearEstaticos(raiz) {
         await this.pagina();
         for (const relativa of await relativas()) {
           const archivo = await leerRelativa(relativa);
-          if (!archivo || !esComprimible(tipoDe(relativa)) || archivo.cuerpo.length < MINIMO_PARA_COMPRIMIR) continue;
+          if (!archivo || !esComprimible(tipoDe(relativa))) continue;
+          if (archivo.cuerpo.length < MINIMO_PARA_COMPRIMIR) continue;
           await Promise.all([cuerpoDe(archivo, "br"), cuerpoDe(archivo, "gzip")]);
         }
       } catch (error) {
@@ -261,5 +265,3 @@ export function crearEstaticos(raiz) {
     },
   };
 }
-
-export { MARCA_DE_PRECARGAS, PREFIJO_DE_VERSION };

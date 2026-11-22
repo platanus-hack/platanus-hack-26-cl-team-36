@@ -76,8 +76,10 @@ cambiar de paso o de intento. La API sale con `no-store`. Una tanda que ya apare
 no se vuelve a listar para servir sus archivos, y una captura entera es un solo `GetObject`.
 
 La página pide sus módulos y hojas bajo `v/<versión>/` (un hash del contenido de `public/` que el servidor calcula al
-arrancar, [`lib/estaticos.js`](lib/estaticos.js)), con caché inmutable, igual que `vendor/<lib>@x.y.z/`: tras un
-despliegue, una página vieja recibe 404 por un módulo nuevo en vez de mezclar versiones. `index.html` y lo demás de
+arrancar, [`lib/estaticos.js`](lib/estaticos.js)), con caché inmutable, igual que `vendor/<lib>@x.y.z/`: un
+despliegue nunca deja un módulo viejo guardado. Una página de antes del despliegue recibe el archivo actual con
+`no-store`, y si una pantalla no carga, se recarga una vez (`nucleo/recarga.js`). En local, `npm run dev` y
+`npm run mock` (`BACKOFFICE_DEV=1`) recalculan la versión al editar un archivo. `index.html` y lo demás de
 `public/` se revalidan con `ETag` (304). JS, CSS, JSON, SVG y HTML van con brotli o gzip (lo estático se comprime una
 vez, al arrancar); nunca un pedido con `Range` ni el SSE de `/api/vivo`. La página precarga (`modulepreload`) todo lo
 que importa `app.js` y, según la ruta, la pantalla que va a abrir y los datos de la tanda (`precarga.js`).

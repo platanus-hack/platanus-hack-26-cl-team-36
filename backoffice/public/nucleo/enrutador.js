@@ -22,6 +22,7 @@ import { conCarga, errorDePantalla, esqueleto, vacio } from "./estados.js";
 import { EVENTO_IDIOMA, IDIOMAS, cambiarIdioma, cargarSeccion, fmt, idioma, t } from "./i18n.js";
 import { registrarAtajos } from "./atajos.js";
 import { abrirHoja } from "./hoja.js";
+import { recargarUnaVez } from "./recarga.js";
 import { montarMarco } from "./marco-tanda.js";
 import { NOMBRES_DE_PESTANA, enlaceATanda, extraerIdioma, hashDe, origenDeHoja, parsearHash } from "./rutas.js";
 import { conTransicion } from "./transiciones.js";
@@ -94,6 +95,8 @@ function cargarPantalla(id) {
         return pantalla;
       })
       .catch((error) => {
+        // Lo más probable: un despliegue nuevo y esta página es de antes. Se recarga una vez por versión.
+        if (recargarUnaVez()) return new Promise(() => {});
         console.warn(`enrutador: la pantalla «${id}» no está lista; se muestra el aviso.`, error?.message ?? error);
         modulos.delete(id); // se reintenta en la próxima navegación (puede aparecer mientras corre el servidor)
         return pantallaPendiente(id);

@@ -1,6 +1,6 @@
 // Compresión (brotli y gzip según Accept-Encoding, Vary, nunca con Range ni SSE), ETag y 304, la caché inmutable de
-// vendor/ y de v/<versión>/, las URL versionadas de la página (un despliegue nuevo no sirve módulos de otro) y las
-// precargas.
+// vendor/ y de v/<versión>/, las URL versionadas de la página (otra versión recibe el archivo actual sin guardarse,
+// nunca un 404) y las precargas.
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
 import { cp, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
@@ -98,16 +98,20 @@ test("un pedido con Range no se comprime", async () => {
   assert.equal(conRango.cabeceras["content-encoding"], undefined);
 });
 
-test("ETag: un If-None-Match vigente responde 304 sin cuerpo, con cualquier codificación; uno viejo, 200", async () => {
+test("ETag: un If-None-Match vigente para esa codificación responde 304 sin cuerpo; otro, 200", async () => {
   for (const ruta of ["/", "/app.js", "/estilos/base.css"]) {
     const primera = await pedir(ruta, { "Accept-Encoding": "br" });
     const etag = primera.cabeceras.etag;
-    assert.match(etag, /^"[\w-]+"$/, ruta);
+    assert.match(etag, /^"[\w-]+-br"$/, ruta);
     assert.equal(primera.cabeceras["cache-control"], "no-cache", `${ruta}: se guarda, pero se revalida`);
-    const otra = await pedir(ruta, { "If-None-Match": etag });
-    assert.equal(otra.estado, 304, `${ruta}: la etiqueta de la versión br vale para la sin comprimir`);
+    const otra = await pedir(ruta, { "Accept-Encoding": "br", "If-None-Match": etag });
+    assert.equal(otra.estado, 304, ruta);
     assert.equal(otra.cuerpo.length, 0);
-    assert.equal(otra.cabeceras.etag, (await pedir(ruta)).cabeceras.etag);
+    assert.equal(otra.cabeceras.etag, etag);
+    const sinCodificar = await pedir(ruta, { "If-None-Match": etag });
+    assert.equal(sinCodificar.estado, 200, `${ruta}: la etiqueta br no vale sin comprimir`);
+    const sinComprimir = (await pedir(ruta)).cabeceras.etag;
+    assert.equal((await pedir(ruta, { "If-None-Match": sinComprimir })).estado, 304, ruta);
     assert.equal((await pedir(ruta, { "If-None-Match": '"otra"' })).estado, 200, ruta);
   }
 });
@@ -160,38 +164,68 @@ test("importsDe lee los imports relativos, también los de varias líneas, y no 
   assert.deepEqual(importsDe(texto), ["./a.js", "../b.js", "../vendor/three@0.160.0/three.module.js", "./efecto.js", "./d.js"]);
 });
 
-test("un despliegue nuevo no sirve módulos de otra versión: 404, nunca una mezcla", async () => {
+test("otra versión recibe el archivo actual sin guardarse (nunca 404); solo la actual es inmutable", async () => {
   const carpeta = await mkdtemp(path.join(tmpdir(), "backoffice-versiones-"));
   const vieja = path.join(carpeta, "vieja");
   const nueva = path.join(carpeta, "nueva");
   await cp(PUBLICO, vieja, { recursive: true });
   await cp(PUBLICO, nueva, { recursive: true });
   await writeFile(path.join(nueva, "nucleo", "dom.js"), "export const cambio = 1;\n", { flag: "a" });
-  const [deVieja, deNueva] = await Promise.all([escuchar({ raizCorridas: RAIZ, publico: vieja }), escuchar({ raizCorridas: RAIZ, publico: nueva })]);
+  const [deVieja, deNueva] = await Promise.all([
+    escuchar({ raizCorridas: RAIZ, publico: vieja }),
+    escuchar({ raizCorridas: RAIZ, publico: nueva }),
+  ]);
   try {
     const a = deVieja.address().port;
     const b = deNueva.address().port;
     const [versionVieja, versionNueva] = [await versionActual(a), await versionActual(b)];
     assert.notEqual(versionVieja, versionNueva, "cambiar un archivo cambia la versión");
-    assert.equal((await pedir(`/v/${versionVieja}/nucleo/dom.js`, {}, { a })).estado, 200);
-    const mezcla = await pedir(`/v/${versionVieja}/nucleo/dom.js`, {}, { a: b });
-    assert.equal(mezcla.estado, 404, "el despliegue nuevo no responde por la versión vieja");
-    assert.equal(mezcla.cabeceras["cache-control"], "no-store");
-    assert.equal((await pedir(`/v/${versionNueva}/app.js`, {}, { a })).estado, 404, "ni el viejo por la nueva");
-    assert.ok((await pedir(`/v/${versionNueva}/nucleo/dom.js`, {}, { a: b })).cuerpo.toString("utf8").endsWith("export const cambio = 1;\n"));
+    const propia = await pedir(`/v/${versionVieja}/nucleo/dom.js`, {}, { a });
+    assert.equal(propia.cabeceras["cache-control"], "public, max-age=31536000, immutable");
+    // Una pestaña de antes del despliegue (o el ALB que la manda a la tarea nueva): el archivo actual, sin guardarse.
+    const deOtra = await pedir(`/v/${versionVieja}/nucleo/dom.js`, {}, { a: b });
+    assert.equal(deOtra.estado, 200);
+    assert.equal(deOtra.cabeceras["cache-control"], "no-store", "nunca queda guardado bajo la versión vieja");
+    assert.ok(deOtra.cuerpo.toString("utf8").endsWith("export const cambio = 1;\n"));
+    const alReves = await pedir(`/v/${versionNueva}/app.js`, {}, { a });
+    assert.equal(alReves.estado, 200);
+    assert.equal(alReves.cabeceras["cache-control"], "no-store");
+    const fuera = await pedir(`/v/${versionNueva}/servidor.js`, {}, { a });
+    assert.equal(fuera.estado, 404, "la validación de rutas sigue");
 
-    // En el mismo proceso (npm run dev), un archivo editado cambia la versión (se revisa a lo más cada segundo).
+    // Sin modo dev, la versión se calcula una sola vez: editar un archivo no la cambia.
     await writeFile(path.join(vieja, "app.js"), "// editado\n", { flag: "a" });
     const futuro = new Date(Date.now() + 5000);
     await utimes(path.join(vieja, "app.js"), futuro, futuro);
     await new Promise((listo) => setTimeout(listo, 1100));
-    const editada = await versionActual(a);
-    assert.notEqual(editada, versionVieja);
-    assert.equal((await pedir(`/v/${versionVieja}/app.js`, {}, { a })).estado, 404);
-    assert.ok((await pedir(`/v/${editada}/app.js`, {}, { a })).cuerpo.toString("utf8").endsWith("// editado\n"));
+    assert.equal(await versionActual(a), versionVieja);
   } finally {
     deVieja.close();
     deNueva.close();
+    await rm(carpeta, { recursive: true, force: true });
+  }
+});
+
+test("en modo dev (BACKOFFICE_DEV=1), un archivo editado cambia la versión", async () => {
+  const carpeta = await mkdtemp(path.join(tmpdir(), "backoffice-dev-"));
+  await cp(PUBLICO, carpeta, { recursive: true });
+  const antes = process.env.BACKOFFICE_DEV;
+  process.env.BACKOFFICE_DEV = "1";
+  const dev = await escuchar({ raizCorridas: RAIZ, publico: carpeta });
+  if (antes === undefined) delete process.env.BACKOFFICE_DEV;
+  else process.env.BACKOFFICE_DEV = antes;
+  try {
+    const a = dev.address().port;
+    const original = await versionActual(a);
+    await writeFile(path.join(carpeta, "app.js"), "// editado\n", { flag: "a" });
+    const futuro = new Date(Date.now() + 5000);
+    await utimes(path.join(carpeta, "app.js"), futuro, futuro);
+    await new Promise((listo) => setTimeout(listo, 1100));
+    const editada = await versionActual(a);
+    assert.notEqual(editada, original);
+    assert.ok((await pedir(`/v/${editada}/app.js`, {}, { a })).cuerpo.toString("utf8").endsWith("// editado\n"));
+  } finally {
+    dev.close();
     await rm(carpeta, { recursive: true, force: true });
   }
 });

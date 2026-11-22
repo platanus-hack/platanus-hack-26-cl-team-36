@@ -8,7 +8,8 @@
 //   GET /                                 → la portada; GET /<archivo>.{html,css,svg} → archivos de portada/
 //   GET /backoffice                       → 301 a /backoffice/ (la página pide lo suyo con rutas relativas)
 //   GET /backoffice/                      → la página del backoffice (public/index.html)
-//   GET /backoffice/api/tandas            → { carpeta, tandas: resumen de cada tanda, de la más nueva a la más vieja }
+//   GET /backoffice/api/tandas            → { carpeta, tandas: resumen de cada tanda, de la más nueva a la más
+//                                           vieja }
 //   GET /backoffice/api/tandas/<host>/visitor/<objetivo>/<corrida>  → la tanda completa, ya derivada para las pantallas
 //   GET /backoffice/archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<step_NN.png | video.webm>
 //   GET /backoffice/api/revisiones        → { disponible, revisiones, historial }: la vigente de cada página y las que
@@ -27,7 +28,7 @@
 //   GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>  → la propuesta del Diseñador para esa tanda
 //   GET /backoffice/propuestas/<host>/improver/<corrida>/vistas/<nombre>.png  → una captura antes/después del tema
 //   GET /backoffice/<ruta>.{html,js,css,svg,woff2}  → archivos de public/ (también public/vendor/<lib>@<versión>/)
-//   GET /backoffice/v/<versión>/<ruta>    → lo mismo, de la versión actual de public/ (lib/estaticos.js), inmutable
+//   GET /backoffice/v/<versión>/<ruta>    → lo mismo; inmutable si es la versión actual (lib/estaticos.js)
 //   GET /salud                            → { ok: true }, con cualquier Host (el health check del balanceador)
 //
 // Solo responde a pedidos dirigidos a este computador (Host localhost, 127.0.0.1 o [::1] con el puerto del
@@ -205,7 +206,7 @@ const VENDOR = /^vendor\/[a-z0-9-]+@\d+\.\d+\.\d+\//;
 async function enviarEstatico(req, res, archivo, { tipo, cache, seguridad = CABECERAS_DE_SEGURIDAD }) {
   const codificacion = archivo.cuerpo.length >= MINIMO_PARA_COMPRIMIR ? codificacionPara(req, tipo) : null;
   const cabeceras = { "Cache-Control": cache, ETag: etagDe(archivo, codificacion), ...variaSegun(tipo), ...seguridad };
-  if (sigueVigente(req.headers["if-none-match"], archivo)) {
+  if (sigueVigente(req.headers["if-none-match"], archivo, codificacion)) {
     res.writeHead(304, cabeceras);
     return res.end();
   }
@@ -399,13 +400,14 @@ export function crearServidor({
         return responderJson(res, 404, { error: "No encontrado" });
       }
 
-      // v/<versión>/<ruta>: solo la versión actual (una página de otro despliegue recibe 404, nunca una mezcla).
+      // v/<versión>/<ruta>: inmutable solo en la versión actual. Otra (una pestaña de antes de un despliegue, o el
+      // ALB que reparte entre la tarea vieja y la nueva) recibe el archivo actual sin guardarse, no un 404.
       const versionada = partes[0] === PREFIJO_DE_VERSION && partes.length >= 3;
-      if (versionada && partes[1] !== (await estaticos.version())) return responderJson(res, 404, { error: "Otra versión" });
+      const actual = versionada && partes[1] === (await estaticos.version());
       const relativa = (versionada ? partes.slice(2) : partes).join("/");
       if (RUTA_PUBLICA.test(relativa)) {
         const ruta = path.join(raizPublica, relativa);
-        const cache = versionada || VENDOR.test(relativa) ? INMUTABLE_PUBLICO : REVALIDAR;
+        const cache = actual || VENDOR.test(relativa) ? INMUTABLE_PUBLICO : versionada ? "no-store" : REVALIDAR;
         if (ruta.startsWith(raizPublica + path.sep)) return servirEstatico(req, res, estaticos, ruta, cache, seguridad);
       }
       return responderJson(res, 404, { error: "No encontrado" });
