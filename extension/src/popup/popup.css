@@ -1,69 +1,472 @@
-/* Panel compacto: una acción principal y opinión progresiva. */
-@font-face {
-  font-family: Inter;
-  src: url("../brand/InterVariable.woff2") format("woff2");
-  font-weight: 100 900;
-  font-display: swap;
-}
+/* Popup de Chameleon. Colores de marca: docs/marca/README.md.
+   popup.js solo pone atributos (data-activo, data-modo, aria-pressed, data-tipo) y textos;
+   todo lo visual está acá. */
+
 :root {
   color-scheme: dark;
+
+  --mt-lima: #b8ff5c;
+  --mt-turquesa: #2ee6c5;
+  --mt-azul: #4c8dff;
+  --mt-violeta: #8b5cf6;
+  --mt-magenta: #f472b6;
+
   --mt-tinta: #0b0b10;
   --mt-superficie: #15151d;
   --mt-superficie-alta: #1c1c27;
-  --mt-texto: #f5f5f7;
-  --mt-texto-suave: #c4c4d0;
-  --mt-texto-tenue: #a4a4b4;
-  --mt-borde: #32323f;
-  --mt-turquesa: #2ee6c5;
-  --mt-radio: 8px;
+  --mt-borde: #2a2a38;
+  --mt-texto: #fbfbfe;
+  --mt-texto-suave: #a9a9bc;
+  /* ≥ 4.5:1 sobre tinta, superficie y superficie-alta (test/popup.test.js lo comprueba). */
+  --mt-texto-tenue: #8e8ea3;
+  --mt-error: #ff7a9c;
+
+  --mt-espectro: linear-gradient(90deg, var(--mt-lima), var(--mt-turquesa), var(--mt-azul), var(--mt-violeta), var(--mt-magenta));
+  --mt-espectro-circular: conic-gradient(
+    from 0deg,
+    var(--mt-lima),
+    var(--mt-turquesa),
+    var(--mt-azul),
+    var(--mt-violeta),
+    var(--mt-magenta),
+    var(--mt-lima)
+  );
+
+  --mt-radio: 12px;
+  --mt-transicion: 180ms ease;
 }
-* { box-sizing: border-box; }
-body { margin: 0; width: 360px; min-width: 320px; background: var(--mt-tinta); color: var(--mt-texto); font: 400 13px/1.5 Inter, system-ui, sans-serif; }
-button, textarea { font: inherit; color: inherit; }
-button, summary { cursor: pointer; }
-button { border: 0; }
-button:disabled { cursor: default; }
-button:focus-visible, summary:focus-visible, textarea:focus-visible { outline: 2px solid var(--mt-turquesa); outline-offset: 3px; }
-p { margin: 0; }
-img, svg { display: block; }
-[hidden] { display: none !important; }
-.mt-panel { padding: 22px; }
-.mt-cabecera { display: flex; align-items: center; min-height: 40px; margin-bottom: 24px; }
-.mt-marca { width: 184px; height: auto; }
-.mt-oculto-visual { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-.mt-opinion-panel { border-top: 1px solid var(--mt-borde); border-bottom: 1px solid var(--mt-borde); }
-.mt-opinion-resumen { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; list-style: none; font-size: 12px; font-weight: 500; }
-.mt-opinion-resumen::-webkit-details-marker { display: none; }
-.mt-chevron { width: 16px; height: 16px; fill: none; stroke: var(--mt-texto-tenue); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.mt-opinion-panel[open] .mt-chevron { transform: rotate(180deg); }
-.mt-opinion { padding-bottom: 18px; }
-.mt-pregunta, .mt-aviso { font-size: 12px; color: var(--mt-texto-suave); line-height: 1.6; margin-bottom: 14px; }
-.mt-aviso:empty { display: none; }
-.mt-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-.mt-opcion { padding: 10px 8px; border: 1px solid var(--mt-borde); border-radius: 7px; background: var(--mt-superficie); font-size: 12px; line-height: 1.4; }
-.mt-opcion[data-voto="comentario"] { grid-column: 1 / -1; }
-.mt-opcion:hover:not(:disabled) { background: var(--mt-superficie-alta); }
-.mt-opcion[aria-pressed="true"] { border-color: var(--mt-turquesa); color: var(--mt-turquesa); background: #15342e; }
-.mt-opinion:not([data-modo="completa"]) .mt-votar,
-.mt-opinion:is([data-modo="cargando"], [data-modo="no-disponible"]) .mt-formulario,
-.mt-opinion:is([data-modo="cargando"], [data-modo="no-disponible"]) .mt-pie { display: none; }
-.mt-comentario { display: block; width: 100%; resize: vertical; min-height: 82px; max-height: 160px; padding: 11px 12px; border: 1px solid var(--mt-borde); border-radius: 7px; background: var(--mt-superficie); font-size: 12px; line-height: 1.5; }
-.mt-comentario::placeholder { color: var(--mt-texto-tenue); }
-.mt-envio { margin-top: 12px; }
-.mt-pista, .mt-mensaje { font-size: 11px; line-height: 1.6; color: var(--mt-texto-suave); margin-bottom: 10px; }
-.mt-pista:empty, .mt-mensaje:empty { display: none; }
-.mt-mensaje[data-tipo="exito"] { color: #63d5a4; }
-.mt-mensaje[data-tipo="error"] { color: #f18391; }
-.mt-enviar { width: 100%; min-height: 38px; border-radius: 7px; background: var(--mt-turquesa); color: var(--mt-tinta); font-size: 12px; font-weight: 600; }
-.mt-enviar:disabled { color: var(--mt-texto-tenue); background: var(--mt-superficie-alta); }
-.mt-pie { display: grid; gap: 8px; margin-top: 16px; color: var(--mt-texto-tenue); font-size: 11px; line-height: 1.6; }
-.mt-preferencias { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 15px; }
-.mt-efectos { display: flex; align-items: center; gap: 9px; min-height: 34px; padding: 0; background: none; color: var(--mt-texto-tenue); font-size: 11px; }
-.mt-efectos:focus-visible { outline: 2px solid var(--mt-turquesa); outline-offset: 3px; }
-.mt-efectos-riel { width: 28px; height: 17px; padding: 3px; border-radius: 20px; background: #555563; }
-.mt-efectos-perilla { display: block; width: 11px; height: 11px; border-radius: 50%; background: var(--mt-texto); }
-.mt-efectos[aria-checked="true"] .mt-efectos-riel { background: var(--mt-turquesa); }
-.mt-efectos[aria-checked="true"] .mt-efectos-perilla { transform: translateX(11px); background: var(--mt-tinta); }
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  width: 360px;
+  background:
+    radial-gradient(120% 60% at 50% 100%, rgb(46 230 197 / 0.1), transparent 70%),
+    var(--mt-tinta);
+  color: var(--mt-texto);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body[data-activo="no"] {
+  background:
+    radial-gradient(120% 60% at 50% 100%, rgb(117 117 138 / 0.08), transparent 70%),
+    var(--mt-tinta);
+}
+
+button,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+p,
+h1 {
+  margin: 0;
+}
+
+.mt-oculto-visual {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px;
+}
+
+/* ---------- Cabecera ---------- */
+
+/* Marca a la izquierda, «Efectos» centrado (columnas laterales iguales) e idioma + ON/OFF a la derecha. */
+.mt-cabecera {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.mt-cabecera-controles {
+  justify-self: end;
+}
+
+/* ---------- Interruptor «Efectos» (role="switch"; aria-checked = efectos llamativos) ---------- */
+
+.mt-efectos {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--mt-borde);
+  border-radius: 999px;
+  background: var(--mt-superficie-alta);
+  color: var(--mt-texto-suave);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    border-color var(--mt-transicion),
+    color var(--mt-transicion);
+}
+
+.mt-efectos:hover {
+  border-color: color-mix(in srgb, var(--mt-turquesa) 60%, var(--mt-borde));
+  color: var(--mt-texto);
+}
+
+.mt-efectos:focus-visible {
+  outline: 2px solid var(--mt-turquesa);
+  outline-offset: 2px;
+}
+
+.mt-efectos-riel {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--mt-borde);
+  transition: background var(--mt-transicion);
+}
+
+.mt-efectos-perilla {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--mt-texto-suave);
+  transition:
+    transform var(--mt-transicion),
+    background var(--mt-transicion);
+}
+
+.mt-efectos[aria-checked="true"] .mt-efectos-riel {
+  background: var(--mt-espectro);
+}
+
+.mt-efectos[aria-checked="true"] .mt-efectos-perilla {
+  transform: translateX(10px);
+  background: var(--mt-tinta);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .mt-efectos-riel,
+  .mt-efectos-perilla {
+    transition: none;
+  }
+}
+
+.mt-marca {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  background: var(--mt-espectro);
+  background-clip: text;
+  color: transparent;
+}
+
+.mt-chip {
+  min-width: 38px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  background: var(--mt-superficie-alta);
+  color: var(--mt-texto-tenue);
+  transition: background var(--mt-transicion), color var(--mt-transicion);
+}
+
+body[data-activo="si"] .mt-chip {
+  background: var(--mt-turquesa);
+  color: var(--mt-tinta);
+}
+
+/* ---------- Opinión ---------- */
+
+.mt-opinion {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 12px 12px;
+  overflow: hidden;
+  border: 1px solid var(--mt-borde);
+  border-radius: var(--mt-radio);
+  background: var(--mt-superficie);
+}
+
+/* Filete del espectro arriba de la tarjeta. */
+.mt-opinion::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--mt-espectro);
+}
+
+.mt-opinion-titulo {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.mt-pregunta {
+  color: var(--mt-texto-suave);
+}
+
+.mt-aviso {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--mt-superficie-alta);
+  color: var(--mt-texto-suave);
+  font-size: 12.5px;
+}
+
+.mt-aviso:empty,
+.mt-privacidad:empty {
+  display: none;
+}
+
+/* La pregunta con sus opciones y el aviso van en la misma celda: la tarjeta mide lo mismo con o sin opciones
+   (el interruptor de abajo no salta al encender o apagar). Sin opciones, quedan invisibles pero ocupan su lugar. */
+.mt-eleccion {
+  display: grid;
+}
+
+.mt-eleccion > * {
+  grid-area: 1 / 1;
+}
+
+.mt-votar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mt-eleccion .mt-aviso {
+  align-self: start;
+}
+
+.mt-opinion[data-modo="solo-comentario"] .mt-votar {
+  visibility: hidden;
+}
+
+.mt-opinion:is([data-modo="no-disponible"], [data-modo="cargando"]) .mt-votar,
+.mt-opinion[data-modo="no-disponible"] .mt-formulario,
+.mt-opinion[data-modo="no-disponible"] .mt-privacidad,
+.mt-opinion[data-modo="cargando"] .mt-formulario {
+  display: none;
+}
+
+.mt-formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mt-opciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.35fr;
+  gap: 6px;
+}
+
+.mt-opcion {
+  --mt-acento: var(--mt-turquesa);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: 6px;
+  border: 1px solid var(--mt-borde);
+  border-radius: 10px;
+  background: var(--mt-superficie-alta);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--mt-transicion),
+    background var(--mt-transicion),
+    transform var(--mt-transicion);
+}
+
+/* Siempre dos líneas de alto («Solo quiero comentar» ocupa dos; «Just comment», una): la tarjeta no cambia de alto
+   con el idioma y el interruptor de abajo no se mueve. */
+.mt-opcion-texto {
+  display: flex;
+  align-items: center;
+  min-height: 2.4em;
+}
+
+.mt-opcion[data-voto="mejor"] {
+  --mt-acento: var(--mt-lima);
+}
+
+.mt-opcion[data-voto="peor"] {
+  --mt-acento: var(--mt-magenta);
+}
+
+.mt-opcion:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--mt-acento) 55%, var(--mt-borde));
+}
+
+.mt-opcion:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.mt-opcion[aria-pressed="true"] {
+  border-color: var(--mt-acento);
+  background: color-mix(in srgb, var(--mt-acento) 14%, var(--mt-superficie-alta));
+  box-shadow: 0 0 0 1px var(--mt-acento) inset;
+}
+
+.mt-opcion-icono {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--mt-acento);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mt-comentario {
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid var(--mt-borde);
+  border-radius: 10px;
+  background: var(--mt-tinta);
+  resize: vertical;
+  transition: border-color var(--mt-transicion);
+}
+
+.mt-comentario::placeholder {
+  color: var(--mt-texto-tenue);
+}
+
+.mt-comentario:focus {
+  border-color: var(--mt-turquesa);
+  outline: none;
+}
+
+.mt-envio {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mt-pista {
+  color: var(--mt-texto-tenue);
+  font-size: 12px;
+}
+
+.mt-enviar {
+  flex: none;
+  margin-left: auto;
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mt-espectro);
+  color: var(--mt-tinta);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    opacity var(--mt-transicion),
+    transform var(--mt-transicion);
+}
+
+.mt-enviar:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.mt-enviar:disabled {
+  background: var(--mt-superficie-alta);
+  color: var(--mt-texto-tenue);
+  cursor: not-allowed;
+}
+
+.mt-formulario[aria-busy="true"] .mt-enviar {
+  background: var(--mt-espectro);
+  color: var(--mt-tinta);
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.mt-opcion:disabled,
+.mt-comentario:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* Resultado del último envío: ocupa el lugar de la pista, a la izquierda de "Enviar". */
+.mt-mensaje {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.mt-mensaje:empty {
+  display: none;
+}
+
+.mt-mensaje[data-tipo="exito"] {
+  color: var(--mt-turquesa);
+}
+
+.mt-mensaje[data-tipo="error"] {
+  color: var(--mt-error);
+}
+
+.mt-pie {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 7px;
+  border-top: 1px solid var(--mt-borde);
+  color: var(--mt-texto-tenue);
+  font-size: 11.5px;
+}
+
+.mt-pendientes {
+  color: var(--mt-texto-suave);
+  font-weight: 600;
+}
+
+/* El interruptor ON/OFF (el camaleón) tiene su propia hoja: interruptor.css. */
+
+/* ---------- Movimiento reducido ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+  }
+
+  .mt-opcion:active:not(:disabled),
+  .mt-enviar:active:not(:disabled) {
+    transform: none;
+  }
 }

@@ -4,9 +4,8 @@ Sistema de marca para **chameleonmode.app**. La geometría y el orden cromático
 
 ## Entrega
 
-- [Brandbook PDF](brandbook.pdf) y [fuente editable](brandbook.html): siete páginas con identidad, color, formatos y estados de la extensión.
+- [Brandbook PDF](brandbook.pdf) y [fuente editable](brandbook.html): seis páginas con identidad, color, formatos y estados del icono de la extensión.
 - [Assets](assets/) e [inventario](manifest-assets.json): 70 archivos con dimensiones, uso, transparencia y SHA-256.
-- `previews/extension-*.png`: capturas del popup implementado con respuestas de página simuladas, sin backend ni votos reales.
 - `sources/`: cuatro maestros originales. `fonts/`: Inter y JetBrains Mono con sus licencias OFL.
 - [Referencias](references.md): investigación y decisiones concretas.
 
@@ -18,18 +17,16 @@ Margen libre mínimo: 1/8 del ancho del símbolo alrededor del conjunto. Tamaño
 
 Las firmas `on-light` llevan texto oscuro; `on-dark`, texto blanco. Ambas conservan el símbolo original. SVG es el maestro escalable; los PNG transparentes son alternativas para presentaciones y herramientas sin SVG. Las letras están convertidas en trazos y no requieren fuentes instaladas.
 
-## Estados de la extensión
+## Icono encendido y apagado
 
-La marca de la cabecera permanece igual. Los archivos `extension-on*` y `extension-off*` pertenecen al control funcional:
+La barra del navegador usa dos variantes del mismo camaleón:
 
-- **ON / Encendido:** camaleón original a color, con texto ON. Indica que Chameleon está habilitado globalmente.
-- **OFF / Apagado:** geometría y ojo intactos; relleno neutro `#A7A7B5`, sin filtros, sobre la baldosa original. Se acompaña de OFF, de modo que el estado no depende sólo del color.
-- **Encendido con tema disponible:** el estado contextual indica disponibilidad; no equivale a una comprobación de aplicación.
-- **Encendido sin tema / página no disponible:** el control continúa ON, y la línea de contexto explica la situación de la pestaña.
+- **Encendido:** espectro original. Conserva el badge ON existente.
+- **Apagado:** geometría y ojo intactos, relleno neutro `#A7A7B5` sobre la baldosa original. Como antes, el badge queda vacío.
 
-El interruptor afecta a todos los sitios compatibles. No existe una preferencia por sitio. El tooltip de la barra se traduce al español o inglés y expresa el estado global. El background restaura icono, título y badge desde storage al arrancar y sigue los cambios de estado e idioma.
+El icono sigue la preferencia global `activo` en storage. No representa la disponibilidad de un tema en la página. La implementación añade la selección del icono a la actualización de badge existente, con recursos de 16 y 32 px.
 
-El popup tiene una sola acción principal arriba. La opinión queda plegada; idioma y efectos permanecen como controles secundarios al pie. Se conservan votos, privacidad, idioma, efectos de la página y la cola de clics. La simplificación retira del popup las capas decorativas, la mirada animada y la transición de letras; la preferencia de efectos de la página sigue funcionando.
+El popup conserva íntegramente su diseño, textos, controles y animaciones de despertar/dormirse, mirada, idioma y efectos. Las variantes estáticas de este kit se aplican al icono de la barra.
 
 ## Color y tipografía
 
@@ -39,7 +36,7 @@ Espectro original: lima `#B8FF5C`, turquesa `#2EE6C5`, azul `#4C8DFF`, violeta `
 
 ## Integración reproducible
 
-La extensión consume recursos locales del kit. `extension/scripts/sincronizar-marca.js` copia wordmark, estados ON/OFF, Inter y su licencia, los iconos del manifest y el logo del proyecto. `brand:check` compara los bytes para detectar divergencias.
+La extensión consume recursos locales del kit. `extension/scripts/sincronizar-marca.js` copia los estados ON/OFF de la barra, los iconos del manifest y el logo del proyecto. `brand:check` compara los bytes para detectar divergencias.
 
 ```sh
 npm --prefix extension run brand:sync
@@ -52,12 +49,12 @@ Para regenerar los maestros y exportaciones:
 python3 scripts/export-logos.py
 ```
 
-El exportador declara sus dependencias y usa exclusivamente `sources/` y `fonts/` dentro de este kit. Para renderizar capturas y PDF, instalar Playwright con Chromium y ejecutar `node scripts/render-brandbook.cjs`. El render usa el popup real desde el repositorio y una API `browser` simulada; necesita la estructura del repositorio, a diferencia del exportador de logos.
+El exportador declara sus dependencias y usa exclusivamente `sources/` y `fonts/` dentro de este kit. Para renderizar el PDF y sus vistas previas, instalar Playwright con Chromium y ejecutar `node scripts/render-brandbook.cjs`. Ambos procesos usan los archivos locales del kit.
 
 ## Destinos
 
 - Favicon: SVG óptico y ICO con 16, 32 y 48 px.
-- Extensión: PNG ON/OFF 16, 32, 48, 96 y 128 px; SVG para el control del popup.
+- Extensión: PNG ON/OFF 16, 32, 48, 96 y 128 px; SVG maestro de cada estado.
 - Apple touch: PNG opaco 180 px.
 - PWA: 192 y 512 px; maskable 512 px con zona segura circular propia.
 - Avatar: 1024 px, protegido para recorte circular.

@@ -51,20 +51,13 @@ export function decidirVista({ activo, pagina }) {
   return { modo: "completa", aviso: null, privacidad: PRIVACIDAD.conCopia };
 }
 
-// El interruptor es global. Su ayuda no promete que la página ya cambió de diseño.
-export function claveDeAyuda({ activo }) {
+// La ayuda bajo el interruptor dice lo que hace el clic en esta pestaña. Con tema, el cambio se ve (vuelve a la
+// página original o aplica el diseño); sin tema (o sin saber todavía), solo se enciende o apaga Chameleon.
+export function claveDeAyuda({ activo, pagina }) {
   if (activo === null || activo === undefined) return null;
-  return activo ? "interruptor.ayudaEncendido" : "interruptor.ayudaApagado";
-}
-
-// Disponibilidad de la página, separada del estado global. Un tema disponible no
-// demuestra que se haya aplicado: la transición puede seguir en curso.
-export function claveDePagina({ activo, pagina }) {
-  if (pagina === null || pagina === undefined) return "pagina.cargando";
-  if (pagina.privada) return "pagina.privada";
-  if (!pagina.alcanzable) return "pagina.noDisponible";
-  if (!pagina.temaId) return "pagina.sinTema";
-  return activo ? "pagina.conTema" : "pagina.conTemaApagado";
+  const conTema = Boolean(pagina?.alcanzable && pagina?.temaId);
+  if (conTema) return activo ? "interruptor.ayudaEncendido" : "interruptor.ayudaApagado";
+  return activo ? "interruptor.ayudaEncendidoSinTema" : "interruptor.ayudaApagadoSinTema";
 }
 
 // Decide si se puede enviar y qué voto sale. `opcion` es el botón elegido

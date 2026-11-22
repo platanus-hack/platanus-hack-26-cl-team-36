@@ -6,13 +6,13 @@ Investigación realizada por tres agentes: identidad visual, producto y producci
 
 1. [Linear: Behind the latest design refresh](https://linear.app/now/behind-the-latest-design-refresh), 12 marzo 2026. Sidebar atenuado, menos íconos y separadores, grises más cálidos. Adoptamos calma y jerarquía; no su acento ni su identidad.
 2. [Linear: Brand](https://linear.app/brand). Consistencia entre marca y producto; no usamos sus activos.
-3. [Vercel: Geist](https://vercel.com/geist/introduction), [color](https://vercel.com/geist/colors) y [tipografía](https://vercel.com/geist/typography). Roles consistentes para superficie, interacción, borde y texto. Adoptamos tokens semánticos y cifras tabulares; no la grilla como adorno.
+3. [Vercel: Geist](https://vercel.com/geist/introduction), [color](https://vercel.com/geist/colors) y [tipografía](https://vercel.com/geist/typography). Roles consistentes para superficie, interacción, borde y texto. Referencia para roles de color y tipografía de la guía.
 4. [Raycast: Press kit](https://www.raycast.com/press). Diferencia símbolo, wordmark e ícono de app. Adoptamos versiones por contexto.
 5. [Raycast: The New Raycast](https://www.raycast.com/blog/the-new-raycast), mayo 2026. Búsqueda, atajos y superficies coherentes. Priorizamos familiaridad y rapidez.
 6. [Resend: Rebranding Resend](https://resend.com/blog/rebranding-resend) y [Brand](https://resend.com/brand). Relación entre símbolo, tipografía y expresión de producto. No adoptamos cromo, vidrio ni serif como fórmula de elegancia.
 7. [Supabase: Brand](https://supabase.com/brand). Kit práctico con SVG, PNG y monocromos. Adoptamos nomenclatura por fondo, formato y función.
 8. [PostHog: Brand assets](https://posthog.com/handbook/brand/assets). Un animal reconocible puede coexistir con una herramienta profesional. Adoptamos una firma cercana y usos diferenciados, sin multiplicar mascotas en la interfaz.
-9. [Stripe: Components](https://docs.stripe.com/stripe-apps/components). Patrones funcionales para listas, detalles y estados. Adoptamos lista para comparar, detalle para investigar.
+9. [Stripe: Components](https://docs.stripe.com/stripe-apps/components). Patrones funcionales para listas, detalles y estados. Referencia de producto; sin cambios de interfaz en esta entrega.
 10. [Stripe: Designing accessible color systems](https://stripe.com/blog/accessible-color-systems), 2019. Referencia metodológica sobre contraste y percepción, no una tendencia nueva de 2026. Verificamos pares reales y acompañamos color con etiquetas.
 
 ## Formatos y fuentes
@@ -27,16 +27,14 @@ Investigación realizada por tres agentes: identidad visual, producto y producci
 
 ## Resultado de la síntesis
 
-Mantener exacto el camaleón y su espectro. Wordmark sobrio en Inter, sistema carbón/blanco suave y turquesa funcional. Las exportaciones de producción proceden del SVG original. La portada se reduce a marca y dominio. El popup integra estos activos y separa la habilitación global de la disponibilidad del tema.
+Mantener exacto el camaleón y su espectro. Wordmark en Inter, con «mode» secundario; versiones para fondos claros y oscuros, monocromos y formatos por destino. Las exportaciones proceden del SVG original. Portada y tarjeta social reducidas a marca y dominio.
 
+La integración en el producto se limita a los iconos de la barra y el nombre del manifest. El popup y sus animaciones se conservan. Las referencias generales de producto anteriores son contexto de investigación, no cambios de interfaz incluidos en esta entrega.
 
-## Investigación aplicada a la extensión
+## Iconos de la extensión
 
-- [Dark Reader: ayuda](https://darkreader.org/help/en/): distingue On/Off global, control por sitio y páginas restringidas. Decisión: estado global separado de disponibilidad; no inventar un control por sitio.
-- [uBlock Origin: popup](https://github.com/gorhill/uBlock/wiki/Quick-guide%3A-popup-user-interface): acción principal y opciones progresivas. Su interruptor es por sitio; el nuestro es global y lo declara explícitamente. La opinión queda plegada; idioma y efectos permanecen como controles secundarios al pie.
-- [Firefox / MDN: Toolbar button](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/user_interface/Toolbar_button): popup transitorio e iconos por contexto. Decisión: panel breve sin introducción promocional. Las variantes ON/OFF representan habilitación, no el tema claro/oscuro del navegador; la baldosa mantiene legibilidad en ambos.
-- [Chrome: Action](https://developer.chrome.com/docs/extensions/reference/api/action): badges breves y tooltip accesible. Decisión: ON/OFF y título localizado. La implementación usa exclusivamente las APIs `browser.*` de Firefox.
-- [Firefox / MDN: setIcon](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/action/setIcon) y [setTitle](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/action/setTitle): recursos por tamaño y título global; sin `tabId` para que coincida con la preferencia global.
-- [Bitwarden: 2026 design update](https://bitwarden.com/blog/2026-design-update/), 19 noviembre 2026: lenguaje familiar, navegación y espaciado. Decisión: etiquetas directas y una sola acción principal.
+- [Firefox / MDN: setIcon](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/action/setIcon): permite elegir recursos por tamaño. Se usan PNG de 16 y 32 px y se actualizan con la preferencia global de encendido.
+- [Firefox / MDN: Toolbar button](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/user_interface/Toolbar_button): iconos de la barra y su contexto. Las variantes ON/OFF representan habilitación, no el tema claro/oscuro del navegador; la baldosa mantiene legibilidad en ambos.
+- [Dark Reader: ayuda](https://darkreader.org/help/en/): distingue activación global, controles por sitio y páginas restringidas. El icono de Chameleon refleja exclusivamente el encendido global existente.
 
-ON no confirma que se haya aplicado un tema: el popup muestra disponibilidad separadamente. La versión OFF cambia sólo el relleno funcional a neutro; la marca de cabecera no cambia. Estas decisiones son una síntesis propia, no una afirmación de que todas las referencias implementen el mismo sistema.
+La versión apagada conserva geometría y ojo con relleno neutro. Se conserva el badge ON y el badge vacío al apagar. El camaleón animado del popup sigue usando su implementación original.

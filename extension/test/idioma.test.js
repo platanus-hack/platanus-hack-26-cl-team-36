@@ -1,11 +1,11 @@
 // Tests del diccionario (src/comun/idioma.js), de su carga en los content scripts y del
-// cambio inmediato del texto del popup (src/popup/idioma.js).
+// texto intermedio de la animación del popup (src/popup/idioma.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import vm from "node:vm";
 import "../src/comun/idioma.js";
-import { ponerTexto } from "../src/popup/idioma.js";
+import { textoIntermedio } from "../src/popup/idioma.js";
 
 const { CLAVE_IDIOMA, IDIOMA_POR_DEFECTO, IDIOMAS, TEXTOS, normalizarIdioma, t, fijar, texto, actual } = globalThis.MiTema.idioma;
 
@@ -121,24 +121,28 @@ test("los content scripts que muestran texto lo sacan del diccionario", () => {
   assert.doesNotMatch(leer("features/modo-foco.js"), /"🎯 /);
 });
 
-// ---------- Textos del popup ----------
+// ---------- Animación del popup ----------
 
-test("ponerTexto actualiza solo el texto y evita escrituras repetidas", () => {
-  let actual = "Enviar";
-  let escrituras = 0;
-  const nodo = { get textContent() { return actual; }, set textContent(valor) { actual = valor; escrituras++; } };
-  ponerTexto(nodo, "Enviar");
-  assert.equal(escrituras, 0);
-  ponerTexto(nodo, "Send");
-  assert.equal(actual, "Send");
-  assert.equal(escrituras, 1);
-  ponerTexto(nodo, "Send");
-  assert.equal(escrituras, 1);
+test("textoIntermedio: empieza en el texto viejo y termina en el nuevo", () => {
+  assert.equal(textoIntermedio("Enviar", "Send", 0), "Enviar");
+  assert.equal(textoIntermedio("Enviar", "Send", 1), "Send");
 });
 
-test("el nombre del control de la barra aclara alcance global en ambos idiomas", () => {
-  assert.equal(t("es", "accion.encendida"), "Chameleon Mode: encendido en los sitios compatibles");
-  assert.equal(t("es", "accion.apagada"), "Chameleon Mode: apagado en todos los sitios");
-  assert.equal(t("en", "accion.encendida"), "Chameleon Mode: on for supported sites");
-  assert.equal(t("en", "accion.apagada"), "Chameleon Mode: off for all sites");
+test("textoIntermedio: el largo pasa de a poco y lo ya resuelto es el texto nuevo", () => {
+  const desde = "Ayúdanos a mejorar tu experiencia";
+  const hasta = "Help us improve your experience";
+  let largoAnterior = desde.length;
+  for (let paso = 1; paso < 20; paso++) {
+    const p = paso / 20;
+    const intermedio = textoIntermedio(desde, hasta, p, paso);
+    const largo = intermedio.length;
+    assert.ok(Math.abs(largo - largoAnterior) <= 2, "el largo no salta de golpe");
+    largoAnterior = largo;
+    // Al final del camino, el comienzo ya es el texto nuevo.
+    if (p >= 0.9) assert.ok(intermedio.startsWith(hasta.slice(0, 10)), intermedio);
+  }
+});
+
+test("textoIntermedio: es estable dentro de una misma tanda (no parpadea en cada cuadro)", () => {
+  assert.equal(textoIntermedio("Mejor", "Better", 0.4, 3, 1), textoIntermedio("Mejor", "Better", 0.4, 3, 1));
 });

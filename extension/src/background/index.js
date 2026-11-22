@@ -2,13 +2,12 @@
 // En Firefox MV3 corre como "event page" (background.scripts), NO como service worker.
 //
 // Responsabilidades:
-//   1. Badge ON/OFF del ícono, sincronizado con `activo` en storage (el interruptor está en el popup).
+//   1. Ícono y badge sincronizados con `activo` en storage (el interruptor está en el popup).
 //   2. Preguntarle a la API qué tema corresponde a cada página e inyectar su CSS. Si no hay tema
 //      empaquetado, pedir una revisión (un tema generado para esa página, ver revisiones.js).
 //   3. Guardar en el equipo los votos del usuario sobre la página con tema (ver votos.js).
 
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
-import { crearActualizadorIndicador } from "./indicador.js";
 import { consultarRevision, consultarTema, pedirRevision } from "./api.js";
 import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
 import { cargarTemaLocal } from "./temas-locales.js";
@@ -18,7 +17,7 @@ import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, vali
 // ---------- 1. Estado ON/OFF y badge ----------
 
 // El ON/OFF vive en el popup (popup/popup.js), que guarda `activo` en storage.local;
-// content/motor.js escucha ese cambio y anima la página. Acá solo se pinta el badge,
+// content/motor.js escucha ese cambio y anima la página. Acá se pintan ícono y badge,
 // escuchando storage: así queda al día venga de donde venga el cambio.
 
 async function leerActivo() {
@@ -26,23 +25,29 @@ async function leerActivo() {
   return activo;
 }
 
-const pintarIndicador = crearActualizadorIndicador({ action: browser.action, storage: browser.storage.local });
-const actualizarIndicador = () => pintarIndicador().catch((error) => console.error("[mi-tema] No se pudo pintar el estado:", error));
+async function pintarBadge(activo) {
+  const estado = activo ? "on" : "off";
+  await browser.action.setIcon({ path: {
+    16: `icons/extension-${estado}-16.png`,
+    32: `icons/extension-${estado}-32.png`,
+  } });
+  await browser.action.setBadgeText({ text: activo ? "ON" : "" });
+  // Colores de marca: turquesa del espectro con texto tinta (ver docs/marca/).
+  await browser.action.setBadgeBackgroundColor({ color: "#2EE6C5" });
+  if (browser.action.setBadgeTextColor) await browser.action.setBadgeTextColor({ color: "#0B0B10" });
+}
 
 browser.storage.onChanged.addListener((cambios, area) => {
-  if (area !== "local" || (!("activo" in cambios) && !("idioma" in cambios))) return;
-  actualizarIndicador();
+  if (area !== "local" || !("activo" in cambios)) return;
+  pintarBadge(cambios.activo.newValue ?? true).catch((error) => console.error("[mi-tema] No se pudo pintar el badge:", error));
 });
 
-browser.runtime.onStartup.addListener(actualizarIndicador);
-
-// Los event pages pueden descargarse y volver a arrancar sin onStartup ni onInstalled.
-actualizarIndicador();
+browser.runtime.onStartup.addListener(async () => pintarBadge(await leerActivo()));
 
 // onInstalled se dispara al instalar y cada vez que `npm run dev` recarga la extensión.
 // `temporary` solo es true si la extensión se cargó con web-ext o about:debugging.
 browser.runtime.onInstalled.addListener(async ({ temporary }) => {
-  await actualizarIndicador();
+  await pintarBadge(await leerActivo());
   if (temporary) await refrescarPestanasConTema();
 });
 

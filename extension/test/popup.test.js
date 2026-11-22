@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { AVISOS, MAX_COMENTARIO, PRIVACIDAD, claveDeAyuda, claveDePagina, crearCola, decidirVista, textoPendientes, validarEnvio } from "../src/popup/estado.js";
+import { AVISOS, MAX_COMENTARIO, PRIVACIDAD, claveDeAyuda, crearCola, decidirVista, textoPendientes, validarEnvio } from "../src/popup/estado.js";
 
 const { TEXTOS } = globalThis.MiTema.idioma; // lo carga estado.js
 
@@ -248,41 +248,33 @@ test("el texto tenue del popup se lee (≥ 4.5:1) sobre el fondo y las dos super
   assert.ok(contraste("#ffffff", "#000000") > 20.9 && contraste("#777777", "#ffffff") < 4.5, "la fórmula de contraste");
 });
 
-test("el estado global precede a la opinión, cerrada por defecto", () => {
+test("la pregunta con sus opciones y el aviso comparten celda: la tarjeta no cambia de alto al encender o apagar", () => {
   const html = leer("popup/popup.html");
-  assert.ok(html.indexOf('id="mt-interruptor"') < html.indexOf('<details'));
-  const detalles = html.match(/<details[^>]*id="mt-opinion-panel"[^>]*>/)[0];
-  assert.doesNotMatch(detalles, /\bopen\b/);
-  assert.match(html, /<summary[^>]*>[\s\S]*?opinion.titulo[\s\S]*?<\/summary>/);
-  assert.ok(html.indexOf('<details') < html.indexOf('class="mt-preferencias"'));
+  const css = leer("popup/popup.css");
+  const eleccion = html.slice(html.indexOf('class="mt-eleccion"'), html.indexOf("<form"));
+  for (const parte of ['class="mt-pregunta"', 'class="mt-opciones"', 'id="mt-aviso"']) assert.ok(eleccion.includes(parte), `${parte} dentro de .mt-eleccion`);
+  assert.match(css, /\.mt-eleccion > \*\s*\{\s*grid-area: 1 \/ 1;/);
+  // En solo-comentario las opciones se esconden sin dejar de ocupar su lugar (visibility, no display).
+  assert.match(css, /\.mt-opinion\[data-modo="solo-comentario"\] \.mt-votar\s*\{\s*visibility: hidden;/);
+  assert.doesNotMatch(css, /data-modo="completa"\]\) \.mt-(pregunta|opciones)/, "nada oculta las opciones con display al pasar a solo-comentario");
 });
 
-test("la ayuda habla de encender o apagar globalmente, sin prometer aplicación", () => {
-  for (const pagina of [null, { alcanzable: false }, { alcanzable: true, temaId: null }, { alcanzable: true, temaId: "youtube" }]) {
-    assert.equal(claveDeAyuda({ activo: true, pagina }), "interruptor.ayudaEncendido");
-    assert.equal(claveDeAyuda({ activo: false, pagina }), "interruptor.ayudaApagado");
-  }
-  assert.equal(claveDeAyuda({ activo: null }), null);
+test("la ayuda del interruptor dice lo que hace el clic en esta pestaña, en los dos idiomas", () => {
+  const conTema = { alcanzable: true, temaId: "youtube" };
+  const sinTema = { alcanzable: true, temaId: null };
+  assert.equal(claveDeAyuda({ activo: true, pagina: conTema }), "interruptor.ayudaEncendido");
+  assert.equal(claveDeAyuda({ activo: false, pagina: conTema }), "interruptor.ayudaApagado");
+  assert.equal(claveDeAyuda({ activo: true, pagina: sinTema }), "interruptor.ayudaEncendidoSinTema");
+  assert.equal(claveDeAyuda({ activo: false, pagina: sinTema }), "interruptor.ayudaApagadoSinTema");
+  assert.equal(claveDeAyuda({ activo: true, pagina: null }), "interruptor.ayudaEncendidoSinTema", "sin saber todavía, lo que siempre es cierto");
+  assert.equal(claveDeAyuda({ activo: true, pagina: { alcanzable: false } }), "interruptor.ayudaEncendidoSinTema");
+  assert.equal(claveDeAyuda({ activo: null, pagina: conTema }), null);
   for (const idioma of Object.keys(TEXTOS)) {
-    for (const clave of ["interruptor.ayudaEncendido", "interruptor.ayudaApagado"]) {
-      assert.ok(TEXTOS[idioma][clave]);
-      assert.doesNotMatch(TEXTOS[idioma][clave], /original|aplicar|apply|aplicado|applied/i);
+    for (const clave of ["interruptor.ayudaEncendido", "interruptor.ayudaApagado", "interruptor.ayudaEncendidoSinTema", "interruptor.ayudaApagadoSinTema"]) {
+      const texto = TEXTOS[idioma][clave];
+      assert.ok(texto, `${idioma}: falta ${clave}`);
+      assert.doesNotMatch(texto, /\b(Toca|Tap)\b/, `${idioma}: «${texto}» habla de tocar en una extensión de escritorio`);
     }
-    assert.ok(TEXTOS[idioma]["interruptor.alcance"]);
-  }
-});
-
-test("la disponibilidad de esta pestaña es independiente del encendido global", () => {
-  for (const activo of [true, false]) {
-    assert.equal(claveDePagina({ activo, pagina: null }), "pagina.cargando");
-    assert.equal(claveDePagina({ activo, pagina: { privada: true } }), "pagina.privada");
-    assert.equal(claveDePagina({ activo, pagina: { alcanzable: false } }), "pagina.noDisponible");
-    assert.equal(claveDePagina({ activo, pagina: { alcanzable: true, temaId: null } }), "pagina.sinTema");
-  }
-  assert.equal(claveDePagina({ activo: true, pagina: { alcanzable: true, temaId: "youtube", temaActivo: false } }), "pagina.conTema");
-  assert.equal(claveDePagina({ activo: false, pagina: { alcanzable: true, temaId: "youtube" } }), "pagina.conTemaApagado");
-  for (const idioma of Object.keys(TEXTOS)) {
-    for (const clave of ["cargando", "privada", "noDisponible", "sinTema", "conTema", "conTemaApagado"]) assert.ok(TEXTOS[idioma][`pagina.${clave}`]);
-    assert.doesNotMatch(TEXTOS[idioma]["pagina.conTema"], /aplicado|applied/i);
+    assert.doesNotMatch(TEXTOS[idioma]["interruptor.ayudaEncendidoSinTema"], /original/, "sin tema no se promete volver a la página original");
   }
 });

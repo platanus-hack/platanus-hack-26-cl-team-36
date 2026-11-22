@@ -1,9 +1,10 @@
-// Interruptor «Efectos»: llamativos (la metamorfosis) o sutiles (un fundido), en las preferencias del
+// Interruptor «Efectos» (C2-U3): llamativos (la metamorfosis) o sutiles (un fundido), centrado en la cabecera del
 // popup; prefers-reduced-motion manda siempre.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
+import { DURACION_SUTIL, claseDeCambio } from "../src/popup/interruptor.js";
 
 const src = new URL("../src/", import.meta.url);
 const leer = (ruta) => readFileSync(new URL(ruta, src), "utf8");
@@ -81,7 +82,20 @@ test("el motor lee los efectos guardados, los sigue si cambian y se los pasa a l
   assert.ok(js.indexOf("comun/efectos.js") > js.indexOf("content/registro.js") && js.indexOf("comun/efectos.js") < js.indexOf("content/motor.js"));
 });
 
-test("el interruptor «Efectos»: role=switch con aria-checked, nombre visible ES/EN y secundario al ON/OFF", () => {
+test("el camaleón: con efectos sutiles se funde (sin despertar ni dormirse); la primera pintura no anima", () => {
+  assert.equal(claseDeCambio("no", "si", "sutiles"), "cambio-sutil");
+  assert.equal(claseDeCambio("si", "no", "sutiles"), "cambio-sutil");
+  assert.equal(claseDeCambio("no", "si", "llamativos"), "despertando");
+  assert.equal(claseDeCambio("si", "no", undefined), "durmiendo");
+  assert.equal(claseDeCambio("cargando", "si", "sutiles"), null);
+  const css = leer("popup/interruptor.css");
+  assert.match(css, new RegExp(`\\.mt-control\\.mt-cambio-sutil :is\\(\\.mt-cuerpo, \\.mt-sello\\) \\{\\s*animation: mt-fundido ${DURACION_SUTIL}ms`));
+  // Movimiento reducido: también con efectos sutiles queda el fundido corto (y nada más).
+  const reducido = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.match(reducido, /\.mt-control:is\(\.mt-despertando, \.mt-durmiendo, \.mt-cambio-sutil\)/);
+});
+
+test("el interruptor «Efectos»: role=switch con aria-checked, nombre visible ES/EN, centrado y antes del idioma", () => {
   const html = leer("popup/popup.html");
   const boton = html.match(/<button[^>]*id="mt-efectos"[^>]*>/)[0];
   assert.match(boton, /type="button"/);
@@ -92,11 +106,11 @@ test("el interruptor «Efectos»: role=switch con aria-checked, nombre visible E
   assert.equal(TEXTOS.es["efectos.etiqueta"], "Efectos");
   assert.equal(TEXTOS.en["efectos.etiqueta"], "Effects");
   assert.ok(TEXTOS.es["efectos.ayuda"] && TEXTOS.en["efectos.ayuda"]);
-  // Preferencias después de la acción principal; conserva los nombres y la persistencia.
+  // Orden de tabulación: marca (no enfocable), «Efectos», idioma.
   assert.ok(html.indexOf('id="mt-efectos"') < html.indexOf('id="mt-idioma-boton"'));
   assert.ok(html.indexOf('class="mt-marca"') < html.indexOf('id="mt-efectos"'));
   const css = leer("popup/popup.css");
-  assert.ok(html.indexOf('id="mt-interruptor"') < html.indexOf('id="mt-efectos"'));
+  assert.match(css, /\.mt-cabecera \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\);/);
   assert.match(css, /\.mt-efectos:focus-visible \{[^}]*outline: 2px solid/);
   // El popup lo dibuja, lo guarda y lo sigue si cambia en otra ventana.
   const js = leer("popup/popup.js");
@@ -104,4 +118,10 @@ test("el interruptor «Efectos»: role=switch con aria-checked, nombre visible E
   assert.match(js, /storage\.local\s*\.set\(\{ \[CLAVE_EFECTOS\]: estado\.efectos \}\)/);
   assert.match(js, /CLAVE_EFECTOS in cambios/);
   assert.match(js, /dataset\.efectos = estado\.efectos/);
+});
+
+test("cambiar de idioma no mueve el interruptor ON/OFF: las opciones reservan dos líneas en los dos idiomas", () => {
+  const css = leer("popup/popup.css");
+  assert.match(css, /\.mt-opcion-texto \{[^}]*min-height: 2\.4em;/);
+  assert.match(css, /\.mt-opcion \{[^}]*line-height: 1\.2;/, "2.4em = dos líneas de 1.2");
 });

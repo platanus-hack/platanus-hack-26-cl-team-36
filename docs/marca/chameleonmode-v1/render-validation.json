@@ -1,37 +1,5 @@
 {
-  "pageCount": 7,
-  "popupScreenshots": [
-    {
-      "state": "on",
-      "width": 360,
-      "height": 434.15625,
-      "fixture": true
-    },
-    {
-      "state": "off",
-      "width": 360,
-      "height": 434.15625,
-      "fixture": true
-    },
-    {
-      "state": "no-theme",
-      "width": 360,
-      "height": 434.15625,
-      "fixture": true
-    },
-    {
-      "state": "unavailable",
-      "width": 360,
-      "height": 434.15625,
-      "fixture": true
-    },
-    {
-      "state": "private",
-      "width": 360,
-      "height": 434.15625,
-      "fixture": true
-    }
-  ],
+  "pageCount": 6,
   "javascriptErrors": [],
   "missingImages": [],
   "brandbookOverflow": []
