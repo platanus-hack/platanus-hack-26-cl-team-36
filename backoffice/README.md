@@ -25,15 +25,16 @@ Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 
 ## Pantallas
 
-**Corridas** (`#/`) lista las tandas, más nuevas primero y agrupadas por día. Cada fila abre la tanda y ya dice su
-hallazgo. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
+**Corridas** (`#/`) lista las tandas, más nuevas primero y agrupadas por día. Cada fila abre la tanda y dice solo qué
+tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor), los errores de la herramienta si los hay y
+cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
 
 Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene un marco común (migas, tanda anterior/siguiente, instrucción,
 veredicto) y tres pestañas:
 
 | Pestaña | Qué pregunta responde | De dónde sale |
 |---|---|---|
-| **Resumen** (por defecto) | ¿Llegaron a la respuesta y qué hay que mirar? Abre con el titular y los hallazgos (desvíos, demoras, tropiezos, errores), cada uno con enlace al paso exacto en Replay y Telaraña; luego la ruta, los intentos y el criterio del juez. | `route_tree.json`, cada `<perfil>/run.json` y `criteria.json`, derivados en `lib/` |
+| **Resumen** (por defecto) | ¿Llegaron a la respuesta y qué hay que mirar? Una pantalla: el titular, cuántos llegan y los pasos (mediana contra la ruta), los dos niveles de conocimiento lado a lado, los 3 hallazgos que más pesan (quien no llega, errores, tropiezos, desvíos), cada uno con enlace al paso exacto en Replay y Telaraña, y la ruta recomendada. | `route_tree.json` y cada `<perfil>/run.json`, derivados en `lib/` |
 | **Telaraña** | ¿Por dónde fueron? Un grafo de izquierda a derecha: el inicio al medio a la izquierda, la meta (el final de la ruta y las páginas donde alguien encontró la respuesta) al medio a la derecha y las demás páginas entre ellos, repartidas encima y debajo, en columnas según los pasos desde el inicio. Dos caminos y nada más: **camino feliz** (la ruta recomendada, una fila recta) y **camino ineficiente** (desvíos, vueltas atrás y caminos que dan vueltas o no llegan); la leyenda de dos botones resalta uno u otro. Los avances son rectas; las vueltas atrás y los pasos laterales, curvas suaves. Panel por página (quién pasó, adónde fue, cómo terminó, con enlace al paso en Replay). | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
 | **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que se puede reproducir. | `<perfil>/run.json` y `step_NN.png` |
 

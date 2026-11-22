@@ -146,9 +146,8 @@ test("lista las tandas del fixture, de la más nueva a la más vieja, con su res
   assert.equal(vieja.fechaIso, "2026-11-21T10:00:00");
   assert.deepEqual([vieja.intentos, vieja.validos, vieja.errores, vieja.logrados], [3, 3, 0, 2]);
   assert.deepEqual(vieja.captura, { perfil: "first_time", archivo: "step_00.png" });
-  assert.deepEqual([nueva.intentos, nueva.validos, nueva.errores, nueva.logrados, nueva.siguenLaRuta], [4, 3, 1, 2, 2]);
-  // La ruta del evaluador: «clic «Close»», «escribir «baja»», «clic «Buscar»» (3 pasos) y «clic «Dar de baja»» (1).
-  assert.deepEqual([nueva.pasosMediana, nueva.pasosIdeales, nueva.paginas], [4, 4, 5]);
+  assert.deepEqual([nueva.intentos, nueva.validos, nueva.errores, nueva.logrados], [4, 3, 1, 2]);
+  assert.equal(nueva.paginas, 5);
   // El primer clic que se queda en el inicio y cambia la pantalla: cerrar el aviso.
   assert.deepEqual(nueva.captura, { perfil: "first_time", archivo: "step_01.png" });
   assert.deepEqual(nueva.perfiles.map((p) => [p.intento, p.nombre, p.resultado]), [
@@ -157,8 +156,6 @@ test("lista las tandas del fixture, de la más nueva a la más vieja, con su res
     ["mobile", "Móvil", "error"],
     ["senior", "Adulto mayor", "fallido"],
   ]);
-  assert.equal(nueva.titular.clave, "datos.hallazgo.resultado");
-  assert.deepEqual(nueva.titular.vars.intentos, ["senior"]);
 });
 
 test("telaraña de la tanda vieja: ruta, distancias, capturas y ramas", async () => {
@@ -207,7 +204,7 @@ test("KPIs y métricas por perfil: pares {n, de} y null cuando no aplica", async
   const tanda = await leerTanda(RAIZ, VIEJA);
   assert.deepEqual(tanda.kpis, {
     intentos: 3, validos: 3, errores: 0, logrados: 2, directos: 2, siguenLaRuta: 2,
-    pasosMediana: 2, segundosMediana: 10, pasosIdeales: 2, tramos: 2, hitos: 3, sinEfecto: 1, noCumplidas: 2,
+    pasosMediana: 2, segundosMediana: 10, pasosIdeales: 2, tramos: 2, hitos: 3,
   });
   const porPerfil = Object.fromEntries(tanda.perfiles.map((p) => [p.perfil, p]));
   assert.deepEqual(porPerfil.first_time.metricas.exito, { n: 1, de: 1 });
@@ -588,26 +585,6 @@ test("exploradores: sin hallazgos de demora ni titular «da N pasos seguidos»; 
   assert.ok(exploradores.intentos.some((intento) => intento.demoras.length > 0), "las marcas de atasco de la telaraña siguen");
 });
 
-test("lista: el titular nombra la página (nunca «n4»), traducida en el navegador", async () => {
-  const { resumirTanda } = await import("../lib/derivar.js");
-  const { textoDeTitular } = await import("../public/datos/textos.js");
-  const tanda = await leerTanda(RAIZ, NUEVA);
-  // Un titular de demora (todos llegan, pero alguien da muchos pasos en una página).
-  tanda.titulares.tanda = { clave: "datos.titular.tanda", nivel: "dificultad", vars: { validos: 3, errores: 0, caso: "demora", intento: "hurried", pagina: "n2", pasos: 7 } };
-  const resumen = resumirTanda(tanda);
-  assert.equal(typeof resumen.titular.vars.pagina, "object");
-  assert.doesNotMatch(JSON.stringify(resumen.titular), /"n\d+"/);
-  assert.deepEqual(resumen.titular.vars.pagina, { tituloTipo: "sitio", tituloCorto: "Ayuda", titulo: resumen.titular.vars.pagina.titulo, url: "https://ejemplo.test/ayuda" });
-  const t = (clave, vars) => (clave === "datos.titular.tanda" ? `… da ${vars.pasos} pasos seguidos en «${vars.pagina}».` : clave);
-  assert.equal(textoDeTitular(resumen.titular, resumen, t), "… da 7 pasos seguidos en «Ayuda».");
-  // La página de inicio se nombra con el diccionario (Inicio / Home), también desde la lista.
-  tanda.titulares.tanda.vars.pagina = "n1";
-  const inicio = resumirTanda(tanda).titular;
-  assert.equal(inicio.vars.pagina.tituloTipo, "inicio");
-  const conInicio = (clave, vars) => (clave === "datos.pagina.inicio" ? "Inicio" : clave === "datos.titular.tanda" ? `«${vars.pagina}»` : clave);
-  assert.equal(textoDeTitular(inicio, resumirTanda(tanda), conInicio), "«Inicio»");
-});
-
 test("un explorador que vuelve a una página con volver_a_nodo no tropieza", async () => {
   const conSaltos = (accion) => {
     const cruda = tandaViejaCruda();
@@ -689,8 +666,8 @@ test("resultado por nivel de conocimiento: intentos, logrados, medianas y escrit
     intento("conoce_tema", "logrado", 24, 91, ["ipc"]), intento("conoce_tema", "fallido", 30, 120), intento("conoce_tema", "error", 2, 5),
   ];
   assert.deepEqual(porConocimiento(intentos), [
-    { nivel: "sin_contexto", intentos: 2, logrados: 2, pasosMediana: 19, segundosMediana: 74, rechazos: 0 },
-    { nivel: "conoce_tema", intentos: 3, logrados: 1, pasosMediana: 24, segundosMediana: 91, rechazos: 1 },
+    { nivel: "sin_contexto", intentos: 2, logrados: 2, pasosMediana: 19, segundosMediana: 74 },
+    { nivel: "conoce_tema", intentos: 3, logrados: 1, pasosMediana: 24, segundosMediana: 91 },
   ]);
   // Sin los dos niveles (perfiles comunes, o un solo nivel), no hay comparación.
   assert.equal(porConocimiento(intentos.map((i) => ({ ...i, conocimiento: null }))), null);

@@ -124,8 +124,6 @@ function contextoDe(tanda) {
 
 function resolver(valor, clave, contexto, t) {
   const nombre = (id) => contexto.nombres.get(id) ?? String(id ?? "");
-  // En la lista (ResumenDeTanda) la página del titular ya viene descrita (lib/derivar.js, conPaginaNombrada).
-  if ((clave === "pagina" || clave?.endsWith("Pagina")) && valor && typeof valor === "object") return nombreDePagina(valor, t);
   if (clave === "intentos" && Array.isArray(valor)) return [...new Set(valor.filter((id) => id != null).map(nombre))];
   if (clave === "conteos" && valor && typeof valor === "object") return textoDeConteos(valor, t);
   if (Array.isArray(valor)) return valor.map((cada) => resolver(cada, null, contexto, t));
@@ -159,9 +157,9 @@ export function textoDeHallazgo(hallazgo, tanda, t) {
 }
 
 /**
- * La frase de un titular (titulares.tanda / .telarana / .perfiles, o ResumenDeTanda.titular).
+ * La frase de un titular (titulares.tanda / .telarana / .perfiles).
  * @param {{ clave: string, vars: Record<string, unknown> } | null} titular
- * @param {object} tanda   la Tanda o, en Corridas, el ResumenDeTanda
+ * @param {object} tanda
  * @param {Traductor} t
  */
 export function textoDeTitular(titular, tanda, t) {

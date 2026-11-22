@@ -895,8 +895,6 @@ function armarPerfiles(intentos, ruta) {
 
 function armarKpis(intentos, ruta) {
   const validos = intentos.filter((intento) => intento.resultado !== "error");
-  const contar = (estado) =>
-    validos.reduce((total, intento) => total + intento.pasos.filter((paso) => paso.estado === estado).length, 0);
   return {
     intentos: intentos.length,
     validos: validos.length,
@@ -910,8 +908,6 @@ function armarKpis(intentos, ruta) {
     pasosIdeales: ruta?.pasosIdeales ?? null,
     tramos: ruta?.tramos.length ?? 0,
     hitos: ruta?.paginas.length ?? 0,
-    sinEfecto: contar("sin_efecto"),
-    noCumplidas: contar("no_cumplida"),
   };
 }
 
@@ -1002,7 +998,7 @@ export const NIVELES_DE_CONOCIMIENTO = ["sin_contexto", "conoce_tema"];
  * Resultado por nivel de conocimiento (como la tabla del report.md del evaluador): por nivel, intentos, cuántos lo
  * lograron, mediana de pasos y de segundos, y escrituras rechazadas. null si la tanda no tiene los dos niveles.
  * @param {{ conocimiento: string | null, resultado: string, pasos: unknown[], duracion: number | null, terminosRechazados?: string[] }[]} intentos
- * @returns {{ nivel: string, intentos: number, logrados: number, pasosMediana: number | null, segundosMediana: number | null, rechazos: number }[] | null}
+ * @returns {{ nivel: string, intentos: number, logrados: number, pasosMediana: number | null, segundosMediana: number | null }[] | null}
  */
 export function porConocimiento(intentos) {
   const niveles = NIVELES_DE_CONOCIMIENTO.map((nivel) => [nivel, intentos.filter((intento) => intento.conocimiento === nivel)]);
@@ -1013,7 +1009,6 @@ export function porConocimiento(intentos) {
     logrados: suyos.filter((intento) => intento.resultado === "logrado").length,
     pasosMediana: mediana(suyos.map((intento) => intento.pasos.length)),
     segundosMediana: mediana(suyos.map((intento) => intento.duracion)),
-    rechazos: suyos.reduce((suma, intento) => suma + (intento.terminosRechazados?.length ?? 0), 0),
   }));
 }
 
@@ -1039,27 +1034,11 @@ export function capturaDeTanda(tanda) {
 }
 
 /**
- * Un titular con su `pagina` (id de nodo) cambiada por lo que hace falta para nombrarla sin la tanda: tipo de título,
- * título corto y título (public/datos/textos.js, nombreDePagina; «Inicio» se traduce allá).
- */
-function conPaginaNombrada(titular, paginas) {
-  const id = titular?.vars?.pagina;
-  if (id == null) return titular;
-  const pagina = paginas.find((cada) => cada.id === id);
-  const nombre = pagina
-    ? { tituloTipo: pagina.tituloTipo ?? null, tituloCorto: pagina.tituloCorto ?? null, titulo: pagina.titulo ?? null, url: pagina.url ?? null }
-    : { tituloTipo: null, tituloCorto: null, titulo: null, url: null };
-  return { ...titular, vars: { ...titular.vars, pagina: nombre } };
-}
-
-/**
  * Lo que muestra la lista de corridas: una fila liviana por tanda (GET /api/tandas).
  * @param {Tanda} tanda
  */
 export function resumirTanda(tanda) {
   const { kpis } = tanda;
-  // La lista no trae las páginas de la tanda: la página del titular va como su título (nunca un id de nodo, «n4»).
-  const titular = conPaginaNombrada(tanda.titulares.tanda, tanda.telarana.paginas);
   return {
     id: tanda.id,
     tarea: tanda.tarea,
@@ -1072,16 +1051,12 @@ export function resumirTanda(tanda) {
     validos: kpis.validos,
     errores: kpis.errores,
     logrados: kpis.logrados,
-    siguenLaRuta: kpis.siguenLaRuta,
-    pasosMediana: kpis.pasosMediana,
-    pasosIdeales: kpis.pasosIdeales,
     perfiles: tanda.intentos.map((intento) => ({
       intento: intento.id,
       perfil: intento.perfil,
       nombre: intento.nombrePerfil,
       resultado: intento.resultado,
     })),
-    titular,
     captura: capturaDeTanda(tanda),
     paginas: tanda.telarana.paginas.length,
     arbol: tanda.arbol ?? "ok",

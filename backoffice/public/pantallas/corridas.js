@@ -1,13 +1,13 @@
 // Corridas (diseño §10.2): la lista de tandas, más nuevas primero, agrupadas por día. Cada fila es un enlace a la
-// tanda (abre en Resumen) y dice su hallazgo: el titular, cuántos llegan, los resultados por intento, los pasos
-// contra la ruta y hace cuánto corrió. Búsqueda, chips de filtro, sitio, orden y lista/grilla viven en el hash.
+// tanda (abre en Resumen) y dice solo qué tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor),
+// los errores de la herramienta si los hay y cuándo corrió. Búsqueda, chips de filtro, sitio, orden y lista/grilla
+// viven en el hash.
 
 import { kbd } from "../nucleo/atajos.js";
 import { urlDeArchivo } from "../nucleo/datos.js";
 import { conservarFoco, el, reemplazar } from "../nucleo/dom.js";
 import { vacio } from "../nucleo/estados.js";
-import { icono, insignia, textoDeResultado } from "../nucleo/iconos.js";
-import { textoDeTitular } from "../datos/textos.js";
+import { icono, textoDeResultado } from "../nucleo/iconos.js";
 import {
   cifrasDeTanda,
   prepararLista,
@@ -62,32 +62,10 @@ function medidor(resumen, ctx) {
   );
 }
 
-/** Puntos por intento en el orden del evaluador, con nombre y resultado en el globo nativo. */
-function puntos(resumen, ctx) {
-  return el(
-    "span",
-    { class: "corridas-puntos", "aria-hidden": "true" },
-    (resumen.perfiles ?? []).map((perfil) => {
-      const marca = insignia(perfil.resultado, { compacta: true });
-      marca.removeAttribute("role");
-      marca.removeAttribute("aria-label");
-      marca.setAttribute("title", ctx.t("corridas.fila.intentoResultado", { nombre: perfil.nombre ?? perfil.perfil, resultado: textoDeResultado(perfil.resultado) }));
-      return marca;
-    }),
-  );
-}
-
 function textoLlegan(resumen, ctx) {
   const { validos, logrados } = cifrasDeTanda(resumen);
   if (!validos) return ctx.t("corridas.fila.sinValidos");
   return ctx.t("comun.marco.llegan", { n: logrados, de: validos });
-}
-
-function textoPasos(resumen, ctx) {
-  const { pasosMediana: mediana, pasosIdeales: ruta } = resumen;
-  if (typeof mediana !== "number") return { texto: "—", titulo: ctx.t("corridas.fila.sinPasos") };
-  if (typeof ruta !== "number") return { texto: ctx.t("corridas.fila.pasos", { n: mediana }), titulo: ctx.t("corridas.fila.pasosTitulo") };
-  return { texto: ctx.t("corridas.fila.pasosRuta", { n: mediana, ruta }), titulo: ctx.t("corridas.fila.pasosTitulo") };
 }
 
 function insigniaDeErrores(resumen, ctx, { corta = false } = {}) {
@@ -121,18 +99,6 @@ function tiempo(resumen, ctx) {
   });
 }
 
-function titular(resumen, ctx) {
-  const falla = tieneProblemas(resumen);
-  const dificultad = !falla && resumen.titular?.nivel === "dificultad";
-  return el(
-    "span",
-    { class: "corridas-titular" },
-    falla ? icono("fallido", { clase: "corridas-titular-icono" }) : null,
-    dificultad ? icono("dificultad", { clase: "corridas-titular-icono corridas-titular-dificultad" }) : null,
-    el("span", { class: "truncar", texto: resumen.titular ? textoDeTitular(resumen.titular, resumen, ctx.t) : "" }),
-  );
-}
-
 function claseDeFila(resumen, base) {
   const clases = [base];
   if (tieneProblemas(resumen)) clases.push("con-problemas");
@@ -141,7 +107,6 @@ function claseDeFila(resumen, base) {
 }
 
 function fila(resumen, ctx) {
-  const pasos = textoPasos(resumen, ctx);
   return el(
     "li",
     {},
@@ -164,25 +129,16 @@ function fila(resumen, ctx) {
           insigniaDeErrores(resumen, ctx),
           insigniaDelArbol(resumen, ctx),
         ),
-        titular(resumen, ctx),
-        el(
-          "span",
-          { class: "corridas-meta-corta" },
-          el("span", { texto: resumen.host ?? "" }),
-          tiempo(resumen, ctx),
-        ),
+        // El sitio; en el angosto, también cuándo corrió (la columna del tiempo no cabe).
+        el("span", { class: "corridas-sitio" }, el("span", { class: "truncar", texto: resumen.host ?? "" }), tiempo(resumen, ctx)),
       ),
-      el("span", { class: "corridas-host truncar", texto: resumen.host ?? "" }),
-      puntos(resumen, ctx),
       el("span", { class: "corridas-llegan" }, medidor(resumen, ctx), el("span", { class: "corridas-llegan-texto", texto: textoLlegan(resumen, ctx) })),
-      el("span", { class: "corridas-pasos", title: pasos.titulo, texto: pasos.texto }),
       tiempo(resumen, ctx),
     ),
   );
 }
 
 function tarjeta(resumen, ctx) {
-  const pasos = textoPasos(resumen, ctx);
   return el(
     "li",
     {},
@@ -210,14 +166,7 @@ function tarjeta(resumen, ctx) {
           insigniaDeErrores(resumen, ctx, { corta: true }),
         ),
         resumen.instruccion ? el("span", { class: "corridas-instruccion", texto: resumen.instruccion }) : null,
-        titular(resumen, ctx),
-        el(
-          "span",
-          { class: "corridas-tarjeta-meta" },
-          el("span", { texto: resumen.host ?? "" }),
-          el("span", { title: pasos.titulo, texto: pasos.texto }),
-          tiempo(resumen, ctx),
-        ),
+        el("span", { class: "corridas-tarjeta-meta" }, el("span", { texto: resumen.host ?? "" }), tiempo(resumen, ctx)),
       ),
     ),
   );
