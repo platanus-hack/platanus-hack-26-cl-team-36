@@ -43,6 +43,26 @@ function claveDeCorrida(valor) {
   return partesDeCorrida(clave) ? clave : null;
 }
 
+/**
+ * La run_key de un ítem de la tabla, solo si es una corrida del rol esperado (y, con `goal`, de ese goal): la misma
+ * regla que paso(). Lo que lee del almacén el Overview (lib/panel.js) pasa por aquí. → la clave de la corrida o null.
+ * @param {object | null | undefined} item
+ * @param {"cataloger" | "guide" | "visitor" | "improver"} rol
+ * @param {string} [goal]
+ */
+export function claveDeCorridaDelItem(item, rol, goal) {
+  const clave = item ? claveDeCorrida(item.run_key) : null;
+  const corrida = clave ? partesDeCorrida(clave) : null;
+  if (!corrida || corrida.agente !== rol || (goal !== undefined && corrida.objetivo !== goal)) return null;
+  return clave;
+}
+
+/** La clave de la corrida del improver de un css_key de META ("<corrida>/tema.css"), o null. */
+export function claveDelTema(cssKey) {
+  const resultado = partesDeResultado(cssKey);
+  return resultado?.archivo === "tema.css" && partesDeCorrida(resultado.runKey)?.agente === "improver" ? resultado.runKey : null;
+}
+
 const CARPETA = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
 const TRAZA = "trace.json";
 
@@ -324,22 +344,29 @@ export function crearRevisiones({ tabla, cliente, comandos, fuente = null }) {
     } while (desde);
     return items;
   }
+  /** Los ítems META tal cual (Scan con SK = META), en cualquier orden. */
+  const metas = () => todas(ScanCommand, { FilterExpression: "SK = :meta", ExpressionAttributeValues: { ":meta": "META" } });
+  /** Todos los ítems de una revisión tal cual (Query por PK = REV#<revision>); [] si el id no es válido. */
+  const items = async (revision) =>
+    esRevision(revision) ? todas(QueryCommand, { KeyConditionExpression: "PK = :pk", ExpressionAttributeValues: { ":pk": `REV#${revision}` } }) : [];
   return {
     descripcion: `dynamodb://${tabla}`,
 
     /** Resúmenes de todas las revisiones, de la más nueva a la más vieja. */
     async listar() {
-      const metas = await todas(ScanCommand, { FilterExpression: "SK = :meta", ExpressionAttributeValues: { ":meta": "META" } });
-      return metas.map(resumenDeMeta).sort(porFecha);
+      return (await metas()).map(resumenDeMeta).sort(porFecha);
     },
 
     /** El avance de una revisión, o null si no existe. */
     async leer(revision) {
       if (!esRevision(revision)) return null;
-      const items = await todas(QueryCommand, { KeyConditionExpression: "PK = :pk", ExpressionAttributeValues: { ":pk": `REV#${revision}` } });
-      const avance = avanceDeRevision(items);
+      const avance = avanceDeRevision(await items(revision));
       if (!avance || !completarGoal) return avance;
       return { ...avance, goals: await Promise.all(avance.goals.map(completarGoal)) };
     },
+
+    // Crudos, para el Overview (lib/panel.js): necesita campos que listar() y leer() no entregan (META.error).
+    metas,
+    items,
   };
 }

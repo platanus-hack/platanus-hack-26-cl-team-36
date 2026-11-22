@@ -59,6 +59,20 @@ export function pedirTanda(id) {
 export const pedirRevisiones = () => pedirJson("api/revisiones");
 /** → AvanceDeRevision | null (404) */
 export const pedirRevision = (revision) => pedirJson(`api/revisiones/${encodeURIComponent(revision)}`);
+// El Overview también se refresca cada pocos segundos: sin caché.
+/** → { ahora, roles: { cataloger, guide, visitor: { all, desktop, mobile }, improver } } (contrato §1) | null (404) */
+export const pedirResumen = () => pedirJson("api/resumen");
+/**
+ * → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, tarjetas } (contrato §2 y §7) | null (404). Con
+ * `pestana` y `limite`, esa pestaña trae hasta `limite` ids (paginado, contrato §7.4); las demás, 6.
+ */
+export function pedirOverview({ pestana = null, limite = null } = {}) {
+  const consulta = new URLSearchParams();
+  if (pestana) consulta.set("pestana", pestana);
+  if (limite) consulta.set("limite", String(limite));
+  const texto = consulta.toString();
+  return pedirJson(`api/overview${texto ? `?${texto}` : ""}`);
+}
 /** "resultados/<clave de corrida>/<archivo>" */
 export const urlDeResultado = (clave) => `resultados/${segmentosCodificados(clave)}`;
 

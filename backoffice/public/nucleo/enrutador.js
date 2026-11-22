@@ -22,6 +22,16 @@ export const EVENTO_RUTA = "backoffice:ruta";
 
 const ESQUELETO_DE_PESTANA = { telarana: "lienzo", replay: "replay" };
 
+// Corridas y la tanda trabajan sobre la lista de tandas y la esperan. El Overview y Revisiones traen sus propios
+// datos: no esperan /api/tandas (que con S3 tarda) y la usan si ya llegó; mientras, la lista se carga en segundo plano.
+const ESPERAN_LA_LISTA = new Set(["corridas", "tanda"]);
+// Vistas cuyos parámetros cambian sin remontar (actualizarParametros → actualizar(ctx) de la pantalla).
+const CON_PARAMETROS = new Set(["overview", "corridas", "tanda", "revisiones"]);
+// Título de respaldo de una vista sin título propio.
+const TITULO_DE_VISTA = { overview: "comun.shell.overview", corridas: "comun.shell.corridas", revisiones: "comun.shell.revisiones" };
+
+const irACorridas = () => ({ texto: t("comun.accion.irACorridas"), href: hashDe({ tipo: "corridas" }) });
+
 let raiz = null;
 /** @type {import("./rutas.js").Ruta | null} */
 let ruta = null;
@@ -92,8 +102,9 @@ function crearContexto(v) {
     tanda: v.tanda ?? null,
     pestana: v.pestana ?? null,
     urlDeArchivo: (intentoId, archivo) => urlDeArchivo(tandaId, carpetaDeIntento(v.tanda, intentoId), archivo),
+    // En una tanda, el enlace a una de sus pestañas; fuera de ella, a esta misma vista con otros parámetros.
     enlace: (pestana, parametros = {}) =>
-      tandaId ? enlaceATanda(tandaId, pestana, parametros) : hashDe({ tipo: "corridas", parametros }),
+      tandaId ? enlaceATanda(tandaId, pestana, parametros) : hashDe({ tipo: v.ruta.tipo, revision: v.ruta.revision ?? null, parametros }),
     enlaceATanda,
     navegar,
     actualizarParametros: (cambios, opciones) => (vigente() ? actualizarParametros(cambios, opciones) : Promise.resolve()),
@@ -122,7 +133,7 @@ function ponerTitulo(v) {
   } catch (error) {
     console.error("enrutador: titulo() falló", error);
   }
-  if (!titulo) titulo = v.tipo === "tanda" ? t(NOMBRES_DE_PESTANA[v.pestana]) : t("comun.shell.corridas");
+  if (!titulo) titulo = v.tipo === "tanda" ? t(NOMBRES_DE_PESTANA[v.pestana]) : t(TITULO_DE_VISTA[v.tipo] ?? "comun.shell.overview");
   const tanda = v.tanda ? (v.tanda.tarea ?? v.tanda.host ?? v.tanda.id) : null;
   document.title = [titulo, tanda, t("comun.marca.titulo")].filter(Boolean).join(" · ");
 }
@@ -203,7 +214,7 @@ function enfocarDespues({ clave, completa, panel, quedarseEnArmazon = false }) {
     }
   }
   const perdido = !activo || activo === document.body || !activo.isConnected;
-  const enArmazon = !!activo?.closest?.(".lateral, .cajon, .barra-superior, .paleta");
+  const enArmazon = !!activo?.closest?.(".barra-superior, .paleta");
   if (!perdido && !(completa && enArmazon && !quedarseEnArmazon)) return;
   const objetivo = completa
     ? (raiz.querySelector("h1") ?? raiz.querySelector("[data-foco-inicial]") ?? raiz)
@@ -266,7 +277,7 @@ function noExisteLaTanda(id) {
           ),
         ]
       : null,
-    accion: { texto: t("comun.accion.irACorridas"), href: "#/" },
+    accion: irACorridas(),
   });
 }
 
@@ -284,13 +295,21 @@ function errorDeCarga(error, tipo) {
 }
 
 async function cargarRuta(nueva) {
+  const espera = ESPERAN_LA_LISTA.has(nueva.tipo);
+  if (!espera) {
+    pedirTandas()
+      .then((lista) => {
+        listaDeTandas = lista;
+      })
+      .catch(() => {});
+  }
   const [lista, extra] = await Promise.all([
-    pedirTandas(),
+    espera ? pedirTandas() : null,
     nueva.tipo === "tanda"
       ? Promise.all([pedirTanda(nueva.tandaId), cargarPantalla(nueva.pestana)])
       : cargarPantalla(nueva.tipo),
   ]);
-  listaDeTandas = lista;
+  if (lista) listaDeTandas = lista;
   if (nueva.tipo === "tanda") return { tanda: extra[0], modulo: extra[1] };
   return { modulo: extra };
 }
@@ -329,7 +348,7 @@ async function procesar({ origen = "historial" } = {}) {
     hash = nueva.destino;
     nueva = parsearHash(hash);
   }
-  if (nueva.tipo === "corridas" || nueva.tipo === "tanda" || nueva.tipo === "revisiones") {
+  if (CON_PARAMETROS.has(nueva.tipo)) {
     const canonico = hashDe(nueva);
     if (canonico !== hash) {
       history.replaceState(history.state, "", canonico);
@@ -346,7 +365,8 @@ async function procesar({ origen = "historial" } = {}) {
   const mismaVista =
     !remontarTodo &&
     vista?.modulo &&
-    ((nueva.tipo === "corridas" && vista.tipo === "corridas") ||
+    ((nueva.tipo === "overview" && vista.tipo === "overview") ||
+      (nueva.tipo === "corridas" && vista.tipo === "corridas") ||
       (nueva.tipo === "revisiones" && vista.tipo === "revisiones" && vista.ruta.revision === nueva.revision) ||
       (nueva.tipo === "tanda" && vista.tipo === "tanda" && vista.tandaId === nueva.tandaId && vista.pestana === nueva.pestana));
   if (mismaVista) {
@@ -359,7 +379,7 @@ async function procesar({ origen = "historial" } = {}) {
 
   if (nueva.tipo === "desconocida") {
     fijarRuta(nueva, hash);
-    await conTransicion(() => vistaDeEstado(vacio({ titulo: t("comun.estado.pantallaNoExiste"), nivel: 1, accion: { texto: t("comun.accion.irACorridas"), href: "#/" } })), {
+    await conTransicion(() => vistaDeEstado(vacio({ titulo: t("comun.estado.pantallaNoExiste"), nivel: 1, accion: irACorridas() })), {
       direccion: direccionEntre(anterior, nueva),
     });
     document.title = [t("comun.estado.pantallaNoExiste"), t("comun.marca.titulo")].join(" · ");
@@ -498,7 +518,7 @@ export function navegar(hash, { reemplazar: sinHistorial = false } = {}) {
  * con historial "agregar") y llama a actualizar(contexto) de la pantalla activa; si devuelve false, la remonta.
  */
 export function actualizarParametros(cambios, { historial = "reemplazar" } = {}) {
-  if (!ruta || (ruta.tipo !== "corridas" && ruta.tipo !== "tanda")) return Promise.resolve();
+  if (!ruta || !CON_PARAMETROS.has(ruta.tipo)) return Promise.resolve();
   const parametros = { ...ruta.parametros };
   for (const [clave, valor] of Object.entries(cambios ?? {})) {
     if (valor === null || valor === undefined || valor === "") delete parametros[clave];

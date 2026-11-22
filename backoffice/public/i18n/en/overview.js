@@ -1,0 +1,101 @@
+// Sección "overview" (the home: agents and reviews), in English. Same key tree as i18n/es/overview.js.
+// Terms that already exist live in "comun" (comun.resultado.*, comun.shell.revisiones).
+
+export default {
+  agentes: {
+    unidad: ({ n }, { plural }) => plural(n, { one: "agent", other: "agents" }),
+    etiqueta: "Agents by role",
+  },
+  rol: {
+    cataloger: "Cataloger",
+    guide: "Guide",
+    visitor: "Visitors",
+    improver: "Designer",
+  },
+  dispositivo: {
+    etiqueta: "Device",
+    all: "All",
+    desktop: "Desktop",
+    mobile: "Mobile",
+    visitantes: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "visitor", other: "visitors" })}`,
+  },
+  leyenda: {
+    escala: ({ k, cifra }, { plural }) => `1 square = ${cifra} ${plural(k, { one: "run", other: "runs" })}`,
+  },
+  resumen: {
+    fila: ({ sujeto, detalle, exito }) => `${sujeto}: ${detalle}. ${exito}`,
+    rol: {
+      cataloger: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "cataloger run", other: "cataloger runs" })}`,
+      guide: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "guide run", other: "guide runs" })}`,
+      visitor: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "visitor", other: "visitors" })}`,
+      improver: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "designer run", other: "designer runs" })}`,
+    },
+    estado: {
+      logrado: ({ cifra }) => `${cifra} succeeded`,
+      fallido: ({ cifra }) => `${cifra} failed`,
+      abandonado: ({ cifra }) => `${cifra} gave up`,
+      sin_medir: ({ cifra }) => `${cifra} unmeasured`,
+      error: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "tool error", other: "tool errors" })}`,
+      detenido: ({ cifra }) => `${cifra} stalled`,
+      en_curso: ({ cifra }) => `${cifra} running`,
+      en_cola: ({ cifra }) => `${cifra} queued`,
+    },
+    exito: ({ texto }) => `${texto} succeeded.`,
+    sinMedidos: "Nothing measured yet.",
+    ninguna: "no runs yet",
+  },
+  pestanas: "Reviews by status",
+  pestana: {
+    recent: "Recent",
+    live: "Live",
+    delivered: "Delivered",
+    failed: "Failed",
+  },
+  verMas: ({ cifra }) => `Show ${cifra} more`,
+  sumadas: ({ n }, { plural }) => `${n} more ${plural(n, { one: "review", other: "reviews" })} shown`,
+  vacio: "Nothing here yet.",
+  noDisponible: "This source has no reviews table.",
+  errorAlRefrescar: "Couldn't refresh; it will retry on its own.",
+  estado: {
+    running: "Running",
+    stalled: "Stalled",
+    queued: "Queued",
+    delivered: "Delivered",
+    failed: "Failed",
+  },
+  etapa: {
+    catalog: "Catalog",
+    guide: "Routes",
+    visitor: "Visits",
+    improver: "Theme",
+  },
+  tarjeta: {
+    etiqueta: ({ sitio, direccion, estado, tiempo }) => `${sitio} · ${direccion} · ${estado} · ${tiempo}`,
+    agentes: ({ n, cifra }, { plural }) => `${cifra} ${plural(n, { one: "agent", other: "agents" })}`,
+    capturaEscritorio: "Desktop screenshot of {sitio}",
+    capturaMovil: "Mobile screenshot of {sitio}",
+    masGoals: ({ n }, { plural }) => `+${n} ${plural(n, { one: "goal", other: "goals" })}`,
+    tema: "theme",
+  },
+  aviso: {
+    sin_avance: "No progress for {duracion}",
+    limite: "Rate limited · AgentCore 429",
+    catalogador: "Cataloger failed",
+    guia: "Guide failed",
+    disenador: "Designer failed",
+    error: "Review failed",
+  },
+  duracion: {
+    min: "{n} min",
+    h: "{n} h",
+    d: "{n} d",
+  },
+  tiempo: {
+    menosDeUnMinuto: "<1 min",
+    minutos: "{n} min",
+    horas: "{h} h {min} min",
+  },
+  pista: {
+    titulo: "Reviews start from the browser extension",
+  },
+};

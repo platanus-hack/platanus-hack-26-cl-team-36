@@ -6,6 +6,7 @@ import { crearFuenteDeArchivos } from "../lib/fuentes/archivos.js";
 import { crearFuenteS3, parsearAlmacen } from "../lib/fuentes/s3.js";
 import { leerTanda, listarTandas } from "../lib/tandas.js";
 import { crearServidor } from "../servidor.js";
+import { CLAVES_DE_EJEMPLO, CORRIDAS_DE_EJEMPLO } from "./almacen-en-memoria.js";
 import { clienteS3Falso, comandosS3, objetosDeCarpeta } from "./aws-falso.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
@@ -108,6 +109,31 @@ test("fuente S3: una corrida de otro agente se abre por su clave (resultados de 
   const { fuente } = almacen();
   const goals = await fuente.abrirArchivo(CATALOGO, "goals.json");
   assert.match(await texto(goals.cuerpo), /tarea-demo/);
+});
+
+for (const prefijo of ["", "corridas/"]) {
+  test(`fuente S3 (prefijo «${prefijo}»): listarCorridas ve los cuatro roles, terminadas o no, y nada fuera del layout`, async () => {
+    const objetos = Object.fromEntries(Object.entries(CORRIDAS_DE_EJEMPLO).map(([clave, valor]) => [`${prefijo}${clave}`, valor]));
+    const fuente = crearFuenteS3({ bucket: BUCKET, prefijo, cliente: clienteS3Falso(BUCKET, objetos), comandos: comandosS3 });
+    assert.deepEqual((await fuente.listarCorridas()).sort(), CLAVES_DE_EJEMPLO);
+    assert.deepEqual(await fuente.listarIds(), [], "listarIds sigue pidiendo route_tree.json");
+  });
+}
+
+test("fuente S3: leerTexto guarda el de una corrida cerrada y vuelve a leer el de una en curso", async () => {
+  const objetos = { ...CORRIDAS_DE_EJEMPLO, "demo.cl/improver/2026-11-21T15-00-00Z/tema.css": "html.mi-tema { --mi-acento: #123; }" };
+  const cliente = clienteS3Falso(BUCKET, objetos);
+  const fuente = crearFuenteS3({ bucket: BUCKET, cliente, comandos: comandosS3 });
+  const CERRADA = "demo.cl/improver/2026-11-21T14-00-00Z";
+  const EN_CURSO = "demo.cl/improver/2026-11-21T15-00-00Z";
+  const lecturasDe = (clave) => cliente.llamadas.filter((c) => c.constructor.name === "GetObjectCommand" && c.input.Key === clave).length;
+  for (let i = 0; i < 3; i += 1) {
+    assert.equal(await fuente.leerTexto(CERRADA, "tema.css"), "html.mi-tema { --mi-acento: #ABC; }");
+    assert.equal(await fuente.leerTexto(EN_CURSO, "tema.css"), "html.mi-tema { --mi-acento: #123; }");
+  }
+  assert.equal(lecturasDe(`${CERRADA}/tema.css`), 1, "cerrada: una sola vez");
+  assert.equal(lecturasDe(`${EN_CURSO}/tema.css`), 3, "en curso: cada vez");
+  assert.equal(await fuente.leerTexto(CERRADA, "no-existe.css"), null);
 });
 
 let servidor;

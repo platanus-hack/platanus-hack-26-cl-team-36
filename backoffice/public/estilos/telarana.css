@@ -25,7 +25,7 @@
 .p-telarana .lienzo {
   position: relative; overflow: hidden; height: clamp(420px, 62vh, 760px);
   background-color: var(--lienzo);
-  background-image: radial-gradient(circle, oklch(1 0 0 / 0.07) 1px, transparent 1.5px);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--blanco) 7%, transparent) 1px, transparent 1.5px);
   background-size: 16px 16px;
   border: 1px solid var(--borde-sutil); border-radius: var(--radio-3);
   touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none;
@@ -45,8 +45,8 @@
   position: absolute; left: var(--x); top: var(--y); overflow: visible; pointer-events: none;
   max-width: none; max-height: none;
 }
-.p-telarana .guia-rayo { fill: none; stroke: oklch(1 0 0 / 0.07); stroke-width: calc(1px / var(--k)); }
-.p-telarana .guia-anillo { fill: none; stroke: oklch(1 0 0 / 0.14); stroke-width: calc(1.2px / var(--k)); }
+.p-telarana .guia-rayo { fill: none; stroke: color-mix(in srgb, var(--blanco) 7%, transparent); stroke-width: calc(1px / var(--k)); }
+.p-telarana .guia-anillo { fill: none; stroke: color-mix(in srgb, var(--blanco) 14%, transparent); stroke-width: calc(1.2px / var(--k)); }
 .p-telarana .guia-etiqueta {
   fill: var(--texto-3); font-family: var(--fuente-mono, ui-monospace, monospace);
   font-size: max(11px, calc(10px / var(--k))); letter-spacing: 0.02em;
@@ -75,7 +75,9 @@
 .p-telarana .particula-logrado { fill: var(--exito); }
 .p-telarana .particula-fallido { fill: var(--peligro); }
 .p-telarana .particula-abandonado, .p-telarana .particula-sin_medir, .p-telarana .particula-error { fill: var(--neutro); }
-.p-telarana .tramo-tronco .particula-logrado { fill: var(--acento-fuerte); }
+/* Sobre el eje turquesa la partícula conserva el color de cómo terminó (el turquesa nunca es "logrado"); un borde del
+   color del lienzo la separa del trazo. */
+.p-telarana .tramo-tronco .particula { stroke: var(--lienzo); stroke-width: calc(1px / var(--k)); }
 
 /* ── Estaciones ─────────────────────────────────────────────────────── */
 .p-telarana .estacion {
@@ -116,7 +118,7 @@
 .p-telarana .estacion-atasco-cuenta:empty { display: none; }
 .p-telarana .estacion:hover .estacion-punto::before, .p-telarana .estacion:focus-visible .estacion-punto::before { transform: scale(1.15); }
 .p-telarana .estacion[aria-pressed="true"] .estacion-punto::before { background: var(--acento); border-color: var(--acento-fuerte); }
-.p-telarana .estacion[aria-pressed="true"] .estacion-numero { color: oklch(0.18 0.03 245); }
+.p-telarana .estacion[aria-pressed="true"] .estacion-numero { color: var(--sobre-acento); }
 .p-telarana .estacion[aria-pressed="true"] .estacion-nombre { color: var(--acento-fuerte); }
 
 /* Etiqueta: se contraescala para no bajar de ~11.7 px en pantalla y se angosta al alejar para no pisar a la vecina. */

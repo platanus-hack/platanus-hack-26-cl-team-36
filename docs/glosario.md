@@ -63,6 +63,7 @@ Dos palabras se usan siempre con un solo sentido:
 | **Catalogador** | Lee el DOM de un sitio y cataloga sus objetivos, clasificados. | `cataloger` |
 | **Guía** | Encuentra y verifica la ruta de referencia de un objetivo, leyendo el DOM y capturas. | `guide` |
 | **Visitante** | Lanza usuarios sintéticos que intentan un objetivo viendo solo capturas, y guarda sus recorridos. Su diseño está en [evaluador](agents/evaluador.md). | `visitor` |
+| **Diseñador** | En la última etapa de una revisión, escribe el tema (una hoja CSS) a partir de lo que midieron el Catalogador, la Guía y el Visitante. El backoffice lo muestra como Diseñador (Designer), nunca como `improver`. | `web_designer`; su etapa y su carpeta en el almacén, `improver` |
 | **Resumen del sitio** | Compara, por objetivo, la ruta de la Guía con los intentos del Visitante. | `summary` |
 | **Optimizador** | Propone parches a partir de lo que deja el Visitante y decide cuál se acepta. | `optimizer` (se propone `web_optimizer`) |
 | **Harness** | El programa que controla el ciclo de un agente: le entrega la captura, recibe su acción y la hace ejecutar. Es parte del Visitante. | `harness` |
