@@ -66,10 +66,11 @@ def test_detour_and_useless_step_are_removed_and_route_verifies(site, tmp_path):
     assert document["final_node"] == document["nodes"][-1]
     assert document["verification"] == {"replays": 4, "removed_steps": 1, "error": None}
     assert document["exploration"]["steps"] == 7 and document["exploration"]["turns"] == 10
-    times = [(step["executed_at"], step["settled_at"], step["seconds_since_start"]) for step in document["steps"]]
-    assert all(datetime.fromisoformat(executed).tzinfo and executed <= settled for executed, settled, _ in times)
+    times = [(step["decided_at"], step["executed_at"], step["settled_at"], step["seconds_since_start"])
+             for step in document["steps"]]
+    assert all(datetime.fromisoformat(decided).tzinfo and decided <= executed <= settled
+               for decided, executed, settled, _ in times)   # también la ruta verificada, que sale de una repetición
     assert [seconds for *_, seconds in times] == sorted(seconds for *_, seconds in times)
-    assert {step["decided_at"] for step in document["steps"]} == {""}   # la ruta verificada sale de una repetición
     assert (document["viewport"], document["viewport_size"]) == ("desktop", "1024x768")
     saved = json.loads((out_dir / "route.json").read_text(encoding="utf-8"))
     assert saved["steps"][2]["node_after"].endswith("ayuda.html | Ayuda")

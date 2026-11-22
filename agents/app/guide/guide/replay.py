@@ -55,10 +55,11 @@ async def _run_steps(session: BrowserSession, route: list[Step], replay: Replay,
                      reappear_s: float) -> None:
     started = now()
     for number, step in enumerate(route, 1):
+        decided = now()  # al repetir, decide la ruta: el paso empieza al buscar su elemento
         try:
             handle = await resolve(session.page, step.target.locators) if step.target else None
             replay.steps.append(await perform_step(session, step.action, step.value, handle, step.target, reappear_s,
-                                                    started))
+                                                    started, decided))
         except (ActionRejected, PlaywrightError) as error:
             replay.error = f"paso {number} ({step.label}): {error}"
             return

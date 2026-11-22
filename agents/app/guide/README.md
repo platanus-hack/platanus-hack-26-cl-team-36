@@ -121,10 +121,10 @@ nueva de guide cuyos `inputs` son la ruta anterior y la corrida del Visitante. C
 ```
 
 Mientras explora, cada paso sube al almacén su `step_NN.png` y `trace.json` (`steps` con la forma de route.json), sin
-esperar al final. Cada paso lleva, como los del Visitante, `decided_at`, `executed_at` y `settled_at` (ISO con zona;
-`decided_at` vacío en los pasos de una repetición) y `seconds_since_start`. Con `--shorter`, trace.json sigue la exploración en curso: al empezar otra vuelve a cero pasos. Al
-terminar con la ruta verificada, trace.json pasa a ella y se quitan las capturas que no usa; sin ruta verificada
-conserva los pasos explorados y sus capturas (las que route.json pisaría quedan como `explore_NN.png`).
+esperar al final. Cada paso lleva, como los del Visitante, `decided_at`, `executed_at` y `settled_at` (ISO con zona)
+y `seconds_since_start`. Con `--shorter`, trace.json sigue la exploración en curso: al empezar otra vuelve a cero
+pasos. Al terminar con la ruta verificada, trace.json pasa a ella y se quitan las capturas que no usa; sin ruta
+verificada conserva los pasos explorados y sus capturas (las que route.json pisaría quedan como `explore_NN.png`).
 
 La respuesta que encontró la ruta queda en `answer` de route.json: es la que va en `expected_answer` al promover un
 objetivo a tarea.

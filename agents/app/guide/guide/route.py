@@ -30,7 +30,7 @@ class Step:
     in_viewport: bool | None  # si el elemento estaba en pantalla al actuar; None sin elemento
     screenshot: bytes = field(default=b"", repr=False)
     # Como en los pasos del Visitante: hora ISO con zona y segundos desde el inicio de la exploración o repetición.
-    decided_at: str = ""     # el modelo pidió la acción; vacío al repetir una ruta
+    decided_at: str = ""     # el modelo pidió la acción, o al repetir una ruta, se empezó a buscar su elemento
     executed_at: str = ""
     settled_at: str = ""
     seconds_since_start: float = 0.0  # hasta settled_at
