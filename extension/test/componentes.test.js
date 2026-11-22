@@ -388,8 +388,9 @@ test("vista: si el componente se niega, deja la página como estaba", () => {
 test("kit de metro.cl: el CSS pasa el saneador sin rechazos y las vistas piden componentes que existen", async () => {
   const { sanearCss } = await import("../src/background/css-remoto.js");
   const { normalizarTema } = await import("../src/background/temas.js");
-  assert.deepEqual(sanearCss(leer("temas/metro/tema.css")).rechazos, []);
-  const tema = normalizarTema({ id: "metro", css: "", ...JSON.parse(leer("temas/metro/tema.json")) });
+  const fixture = (archivo) => readFileSync(new URL(`fixtures/metro/${archivo}`, import.meta.url), "utf8");
+  assert.deepEqual(sanearCss(fixture("tema.css")).rechazos, []);
+  const tema = normalizarTema({ id: "metro", css: "", ...JSON.parse(fixture("tema.json")) });
   const MiTema = cargar();
   for (const vista of tema.features.vista) assert.ok(MiTema.componentes.has(vista.componente), vista.componente);
 });
