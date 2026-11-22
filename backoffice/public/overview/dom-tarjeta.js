@@ -119,7 +119,7 @@ function goals(modelo, t) {
           {},
           el(
             "a",
-            { class: "ov-goal ov-goal-enlace", href: enlaceATanda(medidor.tanda), title: medidor.instruccion, "data-foco": `overview:goal:${modelo.key}:${medidor.goal}` },
+            { class: "ov-goal ov-goal-enlace", href: enlaceATanda(medidor.tanda, undefined, { revision: modelo.revision }), title: medidor.instruccion, "data-foco": `overview:goal:${modelo.key}:${medidor.goal}` },
             hijos,
           ),
         )
@@ -215,7 +215,9 @@ function actualizarTarjeta(registro, modelo, deps) {
   // El enlace principal: la hoja de la falla (fallida sin tanda propia), la telaraña de modelo.tanda (primer goal con
   // tanda, o la de la captura) o el avance.
   const enlace = registro.partes.nombre.querySelector(".ov-tarjeta-enlace");
-  const href = modelo.falla ? enlaceAFallo(modelo.revision) : modelo.tanda ? enlaceATanda(modelo.tanda) : deps.enlace(modelo.revision);
+  const href = modelo.falla ? enlaceAFallo(modelo.revision) : modelo.tanda
+      ? enlaceATanda(modelo.tanda, undefined, modelo.tandaPropia ? { revision: modelo.revision } : {})
+      : deps.enlace(modelo.revision);
   if (enlace.getAttribute("href") !== href) enlace.setAttribute("href", href);
   const etiqueta = etiquetaDeTarjeta(modelo, deps);
   if (enlace.getAttribute("aria-label") !== etiqueta) enlace.setAttribute("aria-label", etiqueta);

@@ -9,10 +9,16 @@
 //   - montarMarcoDeFallo: una revisión que falló antes de tener tanda. Las tres pestañas se ven apagadas (con un globo
 //     que dice qué falta) y el panel muestra la cadena de etapas (pantallas/fallo.js).
 // Los atajos (1–3, Esc) van en el globo de cada botón.
+//
+// Franja de goals: si la tanda se abrió desde la tarjeta de una revisión (?revision= en el hash), entre el título y
+// las pestañas va una fila con los goals de esa revisión (GET /api/tarjetas/<revision>; modelo en tanda/franja.js),
+// cada uno con su número, su instrucción, su medidor y su cifra. Elegir otro abre su tanda en la misma hoja, en la
+// misma pestaña; ‹ › y los atajos [ ] van al anterior y al siguiente. Con franja, el título es el sitio y la pastilla,
+// el estado de la revisión. La tarjeta queda en memoria un rato: al cambiar de goal la franja se arma al instante.
 
 import { kbd, registrarAtajos } from "./atajos.js";
 import { partesDeTanda } from "./almacen.js";
-import { EVENTO_PROPUESTA, pedirPropuesta } from "./datos.js";
+import { EVENTO_PROPUESTA, pedirPropuesta, pedirTarjeta } from "./datos.js";
 import { el, esUrlWeb, reemplazar } from "./dom.js";
 import { esqueleto } from "./estados.js";
 import { conGlobo, ocultarGlobo } from "./globo.js";
@@ -20,6 +26,7 @@ import { fmt, t } from "./i18n.js";
 import { icono, icono24 } from "./iconos.js";
 import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda, parametrosQueSiguen } from "./rutas.js";
 import { limpiarTitulos } from "../tanda/titulos.js";
+import { modeloDeFranja, vecinoDe } from "../tanda/franja.js";
 
 /** El ícono de cada pestaña: el camino (como la Guía), reproducir y la paleta del Diseñador (como en el Overview). */
 const ICONO_DE_PESTANA = {
@@ -85,6 +92,7 @@ function armarCabecera({ textoDelTitulo, pestanas, alCerrar, senal }) {
   cerrar.addEventListener("click", () => alCerrar(), { signal: senal });
   conGlobo(cerrar, globoConTecla(t("comun.marco.cerrar"), "Escape"), { senal });
 
+  const franja = el("div", { class: "marco-hueco" });
   const metas = new Map();
   const enlaces = new Map(
     pestanas.map(({ id, href, tecla, porque }) => {
@@ -117,10 +125,12 @@ function armarCabecera({ textoDelTitulo, pestanas, alCerrar, senal }) {
     "header",
     { class: "marco-cabecera" },
     el("div", { class: "marco-fila" }, el("div", { class: "marco-identidad" }, titulo, sitio, insignia), cerrar),
+    franja,
     nav,
   );
   return {
     nodo,
+    franja,
     titulo,
     sitio,
     insignia,
@@ -137,6 +147,133 @@ function metaDePropuesta(estado) {
   if (estado === "succeeded") return [el("span", { class: "pestana-punto", "aria-hidden": "true" }), el("span", { texto: t("comun.marco.meta.propuestaLista") })];
   if (estado === "running") return [el("span", { class: "pestana-punto pestana-punto-vivo", "aria-hidden": "true" }), el("span", { texto: t("comun.marco.meta.propuestaEnCurso") })];
   return null;
+}
+
+// ── Franja de goals ────────────────────────────────────────────────────────
+
+/** Cuánto vale una tarjeta en memoria antes de volver a pedirla al montar otra hoja de la misma revisión. */
+const FRESCA_MS = 15000;
+/** revision → { tarjeta, en } */
+const tarjetasEnMemoria = new Map();
+/** El data-foco de lo que se usó en la franja (una celda o una flecha): la hoja nueva le devuelve el foco. */
+let focoDeLaFranjaAnterior = null;
+
+/** La tarjeta de una revisión: la de memoria al instante (y si está vieja, la pide de nuevo); `alLlegar` con cada una. */
+function tarjetaDe(revision, senal, alLlegar) {
+  const guardada = tarjetasEnMemoria.get(revision);
+  if (guardada) alLlegar(guardada.tarjeta);
+  if (guardada && Date.now() - guardada.en < FRESCA_MS) return;
+  pedirTarjeta(revision)
+    .then((respuesta) => {
+      const tarjeta = respuesta?.tarjeta ?? null;
+      if (!tarjeta) return;
+      tarjetasEnMemoria.set(revision, { tarjeta, en: Date.now() });
+      if (!senal.aborted) alLlegar(tarjeta);
+    })
+    .catch(() => {});
+}
+
+/** La pastilla del estado de la revisión (con franja): Running, Queued, Stalled, Delivered o Failed. */
+function insigniaDeRevision(estado) {
+  const tono = { running: "acento", queued: "neutro", stalled: "aviso", delivered: "logrado", failed: "fallido" }[estado] ?? "neutro";
+  const forma = { running: "reproducir", queued: "proximamente", stalled: "info", delivered: "logrado", failed: "fallido" }[estado] ?? "info";
+  return el("span", { class: `insignia insignia-${tono}` }, icono(forma), el("span", { texto: t(`comun.marco.revision.${estado}`) }));
+}
+
+/** El medidor de una celda: un tramo por intento (los colores del Overview), o una barra vacía. */
+function medidorDeCelda(goal) {
+  return el(
+    "span",
+    { class: "franja-medidor", "aria-hidden": "true" },
+    goal.tramos.length ? goal.tramos.map((tramo) => el("span", { class: `franja-tramo franja-tramo-${tramo}` })) : el("span", { class: "franja-tramo franja-tramo-vacio" }),
+  );
+}
+
+/**
+ * Arma la franja. `enlace(goal)`: el hash de la tanda de ese goal en la pestaña actual.
+ * → { nodo, refrescar(), buscar(dataFoco), celdaElegida, irA(paso) }
+ */
+function armarFranja(modelo, { enlace, navegar, senal }) {
+  const celdas = modelo.goals.map((goal) => {
+    const hijos = [
+      el("span", { class: "franja-num", "aria-hidden": "true", texto: String(goal.n) }),
+      el("span", { class: "franja-texto", texto: goal.instruccion }),
+      el("span", { class: "franja-pie" }, medidorDeCelda(goal), el("span", { class: `franja-cifra franja-tono-${goal.tono}`, texto: goal.texto })),
+    ];
+    const etiqueta = t("comun.marco.goal", { n: goal.n, instruccion: goal.instruccion, cifra: goal.texto });
+    const celda = goal.elegible
+      ? el("a", { class: "franja-goal", "aria-current": goal.elegido ? "true" : null, "aria-label": etiqueta, title: goal.instruccion, "data-foco": `marco:goal:${goal.goal}` }, hijos)
+      : el("span", { class: "franja-goal", "aria-disabled": "true", "aria-label": `${etiqueta} · ${t("comun.marco.sinTanda")}`, title: t("comun.marco.sinTanda") }, hijos);
+    return { goal, celda };
+  });
+  const flecha = (paso) => {
+    const etiqueta = t(paso < 0 ? "comun.marco.goalAnterior" : "comun.marco.goalSiguiente");
+    const tecla = paso < 0 ? "[" : "]";
+    const nodo = el(
+      "a",
+      { class: "franja-flecha", "aria-label": etiqueta, "aria-keyshortcuts": tecla, "data-foco": `marco:goal:${paso < 0 ? "anterior" : "siguiente"}` },
+      icono(paso < 0 ? "anterior" : "siguiente"),
+    );
+    conGlobo(nodo, globoConTecla(etiqueta, tecla), { senal });
+    return nodo;
+  };
+  const anterior = flecha(-1);
+  const siguiente = flecha(1);
+  const lista = el("ol", { class: "franja-lista" }, celdas.map(({ celda }) => el("li", {}, celda)));
+  const nodo = el("nav", { class: "franja", "aria-label": t("comun.marco.goals") }, anterior, lista, siguiente);
+
+  function refrescar() {
+    for (const { goal, celda } of celdas) if (goal.elegible) celda.setAttribute("href", enlace(goal));
+    for (const [boton, paso] of [[anterior, -1], [siguiente, 1]]) {
+      const vecino = vecinoDe(modelo, paso);
+      if (vecino) {
+        boton.setAttribute("href", enlace(vecino));
+        boton.removeAttribute("aria-disabled");
+      } else {
+        boton.removeAttribute("href");
+        boton.setAttribute("aria-disabled", "true");
+      }
+    }
+  }
+  refrescar();
+
+  // La hoja del goal elegido devuelve el foco a lo que se usó aquí (montarMarco → focoInicial).
+  nodo.addEventListener(
+    "click",
+    (evento) => {
+      const usado = evento.target instanceof Element ? evento.target.closest("a[href]") : null;
+      if (usado && nodo.contains(usado)) focoDeLaFranjaAnterior = usado.dataset.foco ?? null;
+    },
+    { signal: senal },
+  );
+
+  // ← → recorren las celdas que se pueden abrir (sin abrirlas: Enter abre).
+  lista.addEventListener(
+    "keydown",
+    (evento) => {
+      if ((evento.key !== "ArrowLeft" && evento.key !== "ArrowRight") || evento.altKey || evento.ctrlKey || evento.metaKey) return;
+      const abribles = celdas.filter(({ goal }) => goal.elegible).map(({ celda }) => celda);
+      const actual = abribles.indexOf(document.activeElement);
+      if (actual === -1) return;
+      evento.preventDefault();
+      const destino = (actual + (evento.key === "ArrowRight" ? 1 : -1) + abribles.length) % abribles.length;
+      abribles[destino].focus();
+    },
+    { signal: senal },
+  );
+
+  return {
+    nodo,
+    refrescar,
+    buscar: (dataFoco) => (dataFoco ? nodo.querySelector(`[data-foco="${CSS.escape(dataFoco)}"]`) : null),
+    celdaElegida: celdas.find(({ goal }) => goal.elegido)?.celda ?? null,
+    irA(paso) {
+      const vecino = vecinoDe(modelo, paso);
+      if (!vecino) return;
+      focoDeLaFranjaAnterior = `marco:goal:${paso < 0 ? "anterior" : "siguiente"}`;
+      navegar(enlace(vecino));
+    },
+  };
 }
 
 /**
@@ -161,6 +298,36 @@ export function montarMarco({ tandaId, ruta, navegar, volver, alVolver = () => n
   const { titulo, enlaces } = cabecera;
   reemplazar(cabecera.sitio, sitioDe({ host: partes.host }));
 
+  // Con ?revision=: la franja de goals, y el título y la pastilla de la revisión (ponerTanda ya no los pisa).
+  const revision = ruta.parametros?.revision ?? null;
+  let franja = null;
+  let quitarAtajosDeFranja = () => {};
+  const enlaceDeGoal = (goal) => enlaceATanda(goal.tanda, rutaActual.pestana, { revision });
+  function ponerFranja(tarjeta) {
+    const modelo = modeloDeFranja(tarjeta, tandaId);
+    if (!modelo) return;
+    const enfocada = franja?.nodo.contains(document.activeElement) ? document.activeElement.dataset.foco : null;
+    franja = armarFranja(modelo, { enlace: enlaceDeGoal, navegar, senal });
+    reemplazar(cabecera.franja, franja.nodo);
+    franja.buscar(enfocada)?.focus({ preventScroll: true });
+    titulo.textContent = modelo.sitio || partes.host || partes.objetivo;
+    titulo.title = modelo.goals[modelo.indice].instruccion;
+    reemplazar(cabecera.sitio, sitioDe({ url: modelo.url, host: modelo.host }));
+    reemplazar(cabecera.insignia, insigniaDeRevision(modelo.estado));
+    quitarAtajosDeFranja();
+    quitarAtajosDeFranja = registrarAtajos(
+      {
+        "[": { descripcion: t("comun.marco.goalAnterior"), accion: () => franja?.irA(-1) },
+        "]": { descripcion: t("comun.marco.goalSiguiente"), accion: () => franja?.irA(1) },
+      },
+      { ambito: "pantalla", grupo: "tanda" },
+    );
+  }
+  if (revision) tarjetaDe(revision, senal, ponerFranja);
+  // Si se llegó desde la franja de la hoja anterior, el foco vuelve a la franja (no al título).
+  const focoInicial = franja && focoDeLaFranjaAnterior ? (franja.buscar(focoDeLaFranjaAnterior) ?? franja.celdaElegida) : null;
+  focoDeLaFranjaAnterior = null;
+
   const panel = el("section", { id: "panel-tanda", class: "panel-tanda", tabindex: "-1" }, esqueleto("hoja"));
   const raiz = el("div", { class: "marco-tanda" }, cabecera.nodo, panel);
 
@@ -174,6 +341,7 @@ export function montarMarco({ tandaId, ruta, navegar, volver, alVolver = () => n
   function actualizar(nuevaRuta) {
     const enfocada = document.activeElement?.classList?.contains("pestana") && raiz.contains(document.activeElement);
     rutaActual = nuevaRuta;
+    franja?.refrescar();
     const siguen = parametrosQueSiguen(nuevaRuta.parametros);
     for (const [pestana, enlace] of enlaces) {
       enlace.setAttribute("href", enlaceATanda(tandaId, pestana, siguen));
@@ -187,11 +355,14 @@ export function montarMarco({ tandaId, ruta, navegar, volver, alVolver = () => n
 
   function ponerTanda(datos) {
     const tanda = limpiarTitulos(datos);
-    titulo.textContent = tanda.tarea ?? tanda.host ?? partes.objetivo;
-    titulo.title = tanda.instruccion || titulo.textContent;
-    reemplazar(cabecera.sitio, sitioDe(tanda));
     const numeros = cifras(tanda);
-    reemplazar(cabecera.insignia, insigniaDeLlegan(numeros));
+    // Con franja, el título es el sitio y la pastilla el estado de la revisión (los puso ponerFranja).
+    if (!franja) {
+      titulo.textContent = tanda.tarea ?? tanda.host ?? partes.objetivo;
+      titulo.title = tanda.instruccion || titulo.textContent;
+      reemplazar(cabecera.sitio, sitioDe(tanda));
+      reemplazar(cabecera.insignia, insigniaDeLlegan(numeros));
+    }
     const paginas = tanda.telarana?.paginas?.length ?? 0;
     cabecera.ponerMeta("telarana", paginas ? t("comun.marco.meta.paginas", { n: paginas, cifra: fmt.numero(paginas) }) : null);
     cabecera.ponerMeta("replay", numeros.intentos ? t("comun.marco.meta.intentos", { n: numeros.intentos, cifra: fmt.numero(numeros.intentos) }) : null);
@@ -220,11 +391,14 @@ export function montarMarco({ tandaId, ruta, navegar, volver, alVolver = () => n
     raiz,
     panel,
     titulo,
+    /** Dónde va el foco al abrir (null: el título): la celda o la flecha de la franja si se llegó desde ella. */
+    focoInicial,
     ponerTanda,
     actualizar,
     desmontar() {
       controlador.abort();
       quitarAtajos();
+      quitarAtajosDeFranja();
     },
   };
 }

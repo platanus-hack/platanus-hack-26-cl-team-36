@@ -4,7 +4,7 @@
 //   #/corridas                  Corridas   ?q= &sitio= &filtro= &orden= &vista=
 //   #/?q=…&sitio=…              (enlace viejo, de cuando Corridas era #/) → #/corridas?… con esos parámetros
 //   #/t/<tandaId>               → #/t/<tandaId>/path-map
-//   #/t/<tandaId>/<segmento>    path-map · replay · propuesta   (la pestaña interna telarana va en el hash como path-map;
+//   #/t/<tandaId>/<segmento>    path-map · replay · propuesta   ?revision=<id>: la revisión de la tarjeta (franja de goals)   (la pestaña interna telarana va en el hash como path-map;
 //                               #/t/<tandaId>/telarana, el nombre anterior, y /resumen, de cuando existía, → path-map)
 //   #/revisiones                Revisiones (DynamoDB)   ?estado=live|done|failed|historial   (live = running + queued)
 //   #/revisiones/<revision>     el avance de una revisión
@@ -64,9 +64,9 @@ const ORDEN_DE_PARAMETROS = {
   overview: ["dispositivo", "pestana", "link", "pagina"],
   corridas: PARAMETROS_DE_CORRIDAS,
   revisiones: ["estado"],
-  telarana: ["intento", "pagina"],
-  replay: ["intento", "paso"],
-  propuesta: ["vista", "dispositivo"],
+  telarana: ["intento", "pagina", "revision"],
+  replay: ["intento", "paso", "revision"],
+  propuesta: ["vista", "dispositivo", "revision"],
 };
 
 // Valores por defecto: no se escriben en el hash.
@@ -123,6 +123,16 @@ function soloValidos(vista, parametros) {
 function parametrosDeCorridasEn(parametros) {
   const presentes = PARAMETROS_DE_CORRIDAS.filter((clave) => clave in parametros);
   return presentes.length ? Object.fromEntries(presentes.map((clave) => [clave, parametros[clave]])) : null;
+}
+
+/**
+ * Los parámetros de una tanda sin una `revision` inválida. `revision` es la revisión desde la que se abrió (la tarjeta
+ * del Overview): con ella la hoja muestra la franja de goals de esa revisión (nucleo/marco-tanda.js).
+ */
+function sinRevisionInvalida(parametros) {
+  if (!parametros || !("revision" in parametros) || REVISION.test(String(parametros.revision))) return parametros;
+  const { revision: _descartada, ...resto } = parametros;
+  return resto;
 }
 
 function aplicarAlias(pestana, parametros) {
@@ -189,7 +199,7 @@ export function parsearHash(hash) {
     // El id interno también vale (#/t/…/telarana, el nombre anterior): el enrutador reescribe el hash a path-map.
     const pestana = segmento === undefined ? PESTANA_POR_DEFECTO : (PESTANA_DE_SEGMENTO[segmento] ?? segmento);
     if (!PESTANAS.includes(pestana)) return { tipo: "desconocida", hash: original };
-    return { tipo: "tanda", tandaId, pestana, parametros: aplicarAlias(pestana, parametros) };
+    return { tipo: "tanda", tandaId, pestana, parametros: sinRevisionInvalida(aplicarAlias(pestana, parametros)) };
   }
 
   if (partes.length === 1 && PANTALLAS_LEGADAS.has(partes[0])) {
@@ -229,7 +239,7 @@ export function hashDe({ tipo, tandaId, revision = null, goal = null, pestana = 
   if (tipo === "fallo") return enlaceAFallo(revision);
   if (tipo === "tanda") {
     const id = String(tandaId).split("/").map(encodeURIComponent).join("/");
-    const limpios = aplicarAlias(pestana, parametros);
+    const limpios = sinRevisionInvalida(aplicarAlias(pestana, parametros));
     return `#/t/${id}/${segmentoDePestana(pestana)}${consultaCanonica(pestana, limpios)}`;
   }
   if (tipo === "corridas") return `#/corridas${consultaCanonica("corridas", parametros)}`;
@@ -240,9 +250,15 @@ export function enlaceATanda(tandaId, pestana = PESTANA_POR_DEFECTO, parametros 
   return hashDe({ tipo: "tanda", tandaId, pestana, parametros });
 }
 
-/** Los parámetros de una pestaña de la tanda que siguen al cambiar a otra: la traza elegida (?intento=). */
+/**
+ * Los parámetros de una pestaña de la tanda que siguen al cambiar a otra: la traza elegida (?intento=) y la revisión
+ * desde la que se abrió (?revision=, la franja de goals).
+ */
 export function parametrosQueSiguen(parametros) {
-  return parametros?.intento ? { intento: parametros.intento } : {};
+  const siguen = {};
+  if (parametros?.intento) siguen.intento = parametros.intento;
+  if (parametros?.revision) siguen.revision = parametros.revision;
+  return siguen;
 }
 
 const ORIGENES = new Set(["overview", "revisiones", "corridas", "vivo"]);

@@ -45,6 +45,13 @@ export default {
     algunosSinMedir: "{n} sin medir (sin ruta de la Guía ni juez): no cuentan en la cifra",
     errores: ({ n }, { plural }) =>
       `${n} ${plural(n, { one: "error de la herramienta", other: "errores de la herramienta" })}`,
+    // Franja de goals: los goals de la revisión entre el título y las pestañas.
+    goals: "Goals",
+    goal: "Goal {n}: {instruccion} · {cifra}",
+    goalAnterior: "Goal anterior",
+    goalSiguiente: "Goal siguiente",
+    sinTanda: "Todavía sin tanda",
+    revision: { running: "En curso", queued: "En cola", stalled: "Detenida", delivered: "Entregada", failed: "Falló" },
   },
   // Riel de trazas del Mapa y el Replay: las trazas ordenadas por interés y por qué (tanda/priorizar.js).
   traza: {
