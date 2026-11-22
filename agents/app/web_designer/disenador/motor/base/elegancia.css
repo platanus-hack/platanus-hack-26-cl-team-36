@@ -1,0 +1,296 @@
+/* base-elegancia.css — capa base genérica de Chameleon.
+   Todo cuelga de html.mi-tema. Especificidad mínima posible: html.mi-tema :where(...) = (0,1,1).
+   Secciones: 1 tokens · 2 tokens oscuros · 3 ciega (cualquier sitio) · 4 contenido (main/article)
+   · 5 controles · 6 superficies (requiere saber si el sitio es claro) · 7 movimiento.
+   El motor sobrescribe tokens --mt-* y puede ampliar los selectores de la sección 4 con los medidos. */
+
+/* ---------- 1. Tokens ---------- */
+html.mi-tema {
+  --mt-marca: oklch(0.5 0.14 255);
+
+  --mt-familia-texto: "Inter", "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mt-familia-display: var(--mt-familia-texto);
+  --mt-familia-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --mt-rasgos-texto: normal;
+  --mt-rasgos-display: normal;
+  --mt-peso-texto: 400;
+  --mt-peso-fuerte: 600;
+  --mt-peso-display: 650;
+  --mt-ajuste-x: none;
+
+  --mt-paso--1: clamp(0.8333rem, 0.8101rem + 0.1159vw, 0.9rem);
+  --mt-paso-0: clamp(1rem, 0.9783rem + 0.1087vw, 1.0625rem);
+  --mt-paso-1: clamp(1.2rem, 1.1283rem + 0.3587vw, 1.4063rem);
+  --mt-paso-2: clamp(1.44rem, 1.3295rem + 0.5527vw, 1.7578rem);
+  --mt-paso-3: clamp(1.728rem, 1.5648rem + 0.8161vw, 2.1973rem);
+  --mt-paso-4: clamp(2.0736rem, 1.8395rem + 1.1704vw, 2.7466rem);
+
+  --mt-interlinea-texto: 0.6rem;
+  --mt-interlinea-display: 0.3rem;
+  --mt-tracking-1: -0.022em;
+  --mt-tracking-2: -0.016em;
+  --mt-tracking-3: -0.01em;
+  --mt-medida: 70ch;
+
+  --mt-esp-s: clamp(1rem, 0.9565rem + 0.2174vw, 1.125rem);
+  --mt-esp-3xs: calc(var(--mt-esp-s) * 0.25);
+  --mt-esp-2xs: calc(var(--mt-esp-s) * 0.5);
+  --mt-esp-xs: calc(var(--mt-esp-s) * 0.75);
+  --mt-esp-m: calc(var(--mt-esp-s) * 1.5);
+  --mt-esp-l: calc(var(--mt-esp-s) * 2);
+  --mt-esp-xl: calc(var(--mt-esp-s) * 3);
+
+  --mt-radio-1: 6px;
+  --mt-radio-2: 10px;
+  --mt-radio-3: 16px;
+
+  --mt-superficie: oklch(from var(--mt-marca) 0.993 0.003 h);
+  --mt-superficie-2: oklch(from var(--mt-marca) 0.965 0.01 h);
+  --mt-tinta: oklch(from var(--mt-marca) 0.24 0.018 h);
+  --mt-tinta-2: oklch(from var(--mt-marca) 0.46 0.02 h);
+  --mt-acento: oklch(from var(--mt-marca) clamp(0.38, l, 0.52) min(c, 0.2) h);
+  --mt-acento-suave: color-mix(in oklch, var(--mt-acento) 12%, var(--mt-superficie));
+  --mt-linea: oklch(from var(--mt-tinta) l c h / 0.12);
+  --mt-linea-fuerte: oklch(from var(--mt-tinta) l c h / 0.24);
+  --mt-subrayado: color-mix(in oklch, currentColor 35%, transparent);
+  --mt-seleccion: color-mix(in oklch, var(--mt-acento) 22%, transparent);
+  --mt-foco: var(--mt-acento);
+  --mt-halo: color-mix(in oklch, var(--mt-foco) 25%, transparent);
+
+  --mt-sombra-1: 0 1px 1px oklch(from var(--mt-tinta) l c h / 0.04), 0 2px 6px -2px oklch(from var(--mt-tinta) l c h / 0.08);
+  --mt-sombra-2: 0 1px 1px oklch(from var(--mt-tinta) l c h / 0.04), 0 4px 8px -2px oklch(from var(--mt-tinta) l c h / 0.06), 0 16px 32px -12px oklch(from var(--mt-tinta) l c h / 0.14);
+
+  --mt-duracion: 160ms;
+  --mt-curva: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ---------- 2. Tokens oscuros (el motor añade .mt-oscuro si el sitio o la dirección es oscura) ---------- */
+html.mi-tema.mt-oscuro {
+  --mt-superficie: oklch(from var(--mt-marca) 0.17 0.012 h);
+  --mt-superficie-2: oklch(from var(--mt-marca) 0.215 0.016 h);
+  --mt-tinta: oklch(from var(--mt-marca) 0.94 0.008 h);
+  --mt-tinta-2: oklch(from var(--mt-marca) 0.75 0.015 h);
+  --mt-acento: oklch(from var(--mt-marca) clamp(0.72, l, 0.84) min(c, 0.15) h);
+  --mt-linea: oklch(from var(--mt-tinta) l c h / 0.14);
+  --mt-linea-fuerte: oklch(from var(--mt-tinta) l c h / 0.26);
+  --mt-sombra-1: 0 0 0 1px oklch(0 0 0 / 0.3), 0 2px 6px -2px oklch(0 0 0 / 0.4);
+  --mt-sombra-2: 0 0 0 1px oklch(0 0 0 / 0.3), 0 16px 32px -12px oklch(0 0 0 / 0.55);
+  color-scheme: dark;
+}
+
+/* ---------- 3. Ciega: segura en cualquier sitio ---------- */
+html.mi-tema {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  font-kerning: normal;
+  font-optical-sizing: auto;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: var(--mt-linea-fuerte) transparent;
+  accent-color: var(--mt-acento);
+}
+
+html.mi-tema :where(body, h1, h2, h3, h4, h5, h6, p, li, dt, dd, td, th, caption, label, legend, blockquote, figcaption, summary, a, button, input, select, textarea):where(:not([class*="icon" i], [class*="fa-" i], [class~="fa" i], [class*="glyph" i], [class*="symbol" i], [class*="material" i], [aria-hidden="true"])) {
+  font-family: var(--mt-familia-texto);
+  font-feature-settings: var(--mt-rasgos-texto);
+  font-size-adjust: var(--mt-ajuste-x);
+}
+
+html.mi-tema :where(h1, h2, h3, h4, h5, h6):where(:not([class*="icon" i], [aria-hidden="true"])) {
+  font-family: var(--mt-familia-display);
+  font-feature-settings: var(--mt-rasgos-display);
+  font-variant-numeric: lining-nums;
+  text-wrap: balance;
+}
+
+html.mi-tema :where(p) {
+  line-height: calc(1em + var(--mt-interlinea-texto));
+}
+
+html.mi-tema :where(h1, h2, h3) {
+  line-height: calc(1em + var(--mt-interlinea-display));
+}
+
+html.mi-tema :where(h1) {
+  letter-spacing: var(--mt-tracking-1);
+}
+
+html.mi-tema :where(h2) {
+  letter-spacing: var(--mt-tracking-2);
+}
+
+html.mi-tema :where(p, li, dd, blockquote, figcaption) {
+  text-wrap: pretty;
+  hanging-punctuation: first allow-end;
+}
+
+html.mi-tema :where(b, strong) {
+  font-weight: var(--mt-peso-fuerte);
+}
+
+html.mi-tema :where(a) {
+  text-decoration-thickness: from-font;
+  text-underline-offset: 0.2em;
+  text-decoration-color: var(--mt-subrayado);
+  text-decoration-skip-ink: auto;
+  transition-property: color, background-color, text-decoration-color;
+  transition-duration: var(--mt-duracion);
+  transition-timing-function: var(--mt-curva);
+}
+
+html.mi-tema :where(a):where(:hover) {
+  text-decoration-color: currentColor;
+}
+
+html.mi-tema :where(table) {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+html.mi-tema :where(table, thead, tbody, tfoot, tr, th, td, hr, fieldset) {
+  border-color: var(--mt-linea);
+}
+
+html.mi-tema :where(hr) {
+  border: 0;
+  block-size: 1px;
+  background-color: var(--mt-linea);
+}
+
+html.mi-tema :where(code, kbd, samp, pre) {
+  font-family: var(--mt-familia-mono);
+  font-size: 0.9em;
+  font-variant-ligatures: none;
+}
+
+html.mi-tema :where(abbr[title]) {
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--mt-subrayado);
+}
+
+html.mi-tema :where(:focus-visible) {
+  outline: 2px solid var(--mt-foco);
+  outline-offset: 2px;
+}
+
+html.mi-tema ::selection {
+  background-color: var(--mt-seleccion);
+}
+
+/* ---------- 4. Contenido: main/article (el motor puede añadir el selector medido del cuerpo) ---------- */
+html.mi-tema :where(main, article, [role="main"]) :where(p, dd, blockquote, li:not(:where(nav, header, footer, menu, [role="navigation"], [role="tablist"], [role="menu"], [role="menubar"], [role="toolbar"]) li)) {
+  font-size: var(--mt-paso-0);
+  line-height: calc(1em + var(--mt-interlinea-texto));
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(p) {
+  max-inline-size: var(--mt-medida);
+  margin-block: 0 var(--mt-esp-s);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(h1, h2, h3, h4) {
+  font-weight: var(--mt-peso-display);
+  line-height: calc(1em + var(--mt-interlinea-display));
+  color: var(--mt-tinta);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(h1) {
+  font-size: var(--mt-paso-4);
+  letter-spacing: var(--mt-tracking-1);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(h2) {
+  font-size: var(--mt-paso-3);
+  letter-spacing: var(--mt-tracking-2);
+  margin-block: var(--mt-esp-l) var(--mt-esp-xs);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(h3) {
+  font-size: var(--mt-paso-2);
+  letter-spacing: var(--mt-tracking-3);
+  margin-block: var(--mt-esp-m) var(--mt-esp-2xs);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(h4) {
+  font-size: var(--mt-paso-1);
+  margin-block: var(--mt-esp-m) var(--mt-esp-2xs);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(blockquote) {
+  margin-inline: 0;
+  padding-inline-start: var(--mt-esp-s);
+  border-inline-start: 2px solid var(--mt-linea-fuerte);
+  color: var(--mt-tinta-2);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(figcaption, caption, small) {
+  font-size: var(--mt-paso--1);
+  color: var(--mt-tinta-2);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(th, td) {
+  padding: var(--mt-esp-2xs) var(--mt-esp-xs);
+  line-height: 1.45;
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(th) {
+  font-weight: var(--mt-peso-fuerte);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(pre) {
+  padding: var(--mt-esp-s);
+  border-radius: var(--mt-radio-2);
+  background-color: var(--mt-superficie-2);
+  border: 1px solid var(--mt-linea);
+  overflow: auto;
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(:not(pre) > code) {
+  padding: 0.1em 0.35em;
+  border-radius: var(--mt-radio-1);
+  background-color: var(--mt-superficie-2);
+}
+
+html.mi-tema :where(main, article, [role="main"]) :where(img, video, figure) {
+  border-radius: var(--mt-radio-1);
+}
+
+/* ---------- 5. Controles ---------- */
+html.mi-tema :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="image"], [type="hidden"]), select, textarea) {
+  border-radius: var(--mt-radio-1);
+  border-color: var(--mt-linea-fuerte);
+  transition-property: border-color, box-shadow;
+  transition-duration: var(--mt-duracion);
+  transition-timing-function: var(--mt-curva);
+}
+
+html.mi-tema :where(input, select, textarea):where(:focus-visible) {
+  border-color: var(--mt-foco);
+  box-shadow: 0 0 0 3px var(--mt-halo);
+  outline-offset: 0;
+}
+
+html.mi-tema :where(button, input[type="submit"], input[type="button"], input[type="reset"]) {
+  border-radius: var(--mt-radio-1);
+}
+
+html.mi-tema :where(dialog, [role="dialog"][aria-modal="true"]) {
+  border-radius: var(--mt-radio-3);
+  border-color: var(--mt-linea);
+  box-shadow: var(--mt-sombra-2);
+}
+
+/* ---------- 6. Superficies (aplicar solo si el mapa dice que el fondo del sitio es claro, o con .mt-oscuro) ---------- */
+html.mi-tema :where(body) {
+  background-color: var(--mt-superficie);
+  color: var(--mt-tinta);
+}
+
+/* ---------- 7. Movimiento ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html.mi-tema :where(*) {
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    scroll-behavior: auto;
+  }
+}

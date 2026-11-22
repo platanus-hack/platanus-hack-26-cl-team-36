@@ -1,0 +1,100 @@
+/* Receta «placas»: cada estación elegida toma el color y el número de su categoría (línea), como un letrero de andén. */
+html.mi-tema .mt-atajo :is([data-mt-campo="inicio"], [data-mt-campo="fin"]) {
+  --mt-a-alto: calc(var(--mt-d) * 72px);
+  --mt-cat: var(--mt-linea-fuerte);
+  --mt-cat-tinta: var(--mt-tinta);
+  --mt-cat-num: "·";
+  position: relative;
+}
+{{#cats}}html.mi-tema .mt-atajo :is([data-mt-campo="inicio"], [data-mt-campo="fin"]):has(optgroup[label="{{nombre}}"] option:checked) {
+  --mt-cat: var(--mt-c{{i}});
+  --mt-cat-tinta: var(--mt-c{{i}}-tinta);
+  --mt-cat-num: "{{num}}";
+}
+{{/cats}}html.mi-tema .mt-atajo :is([data-mt-campo="inicio"], [data-mt-campo="fin"]) .mt-atajo__select {
+  padding-left: 72px;
+  border: 0;
+  background: var(--mt-campo);
+  box-shadow: inset 0 -4px 0 var(--mt-cat);
+  font-family: var(--mt-familia-display);
+  font-size: clamp(20px, 2.4vw, 27px);
+  font-weight: 680;
+  font-stretch: var(--mt-texto-ancho);
+  transition: box-shadow 0.25s, background-color 0.2s;
+}
+html.mi-tema .mt-atajo :is([data-mt-campo="inicio"], [data-mt-campo="fin"]) .mt-atajo__etiqueta {
+  padding-left: 72px;
+}
+html.mi-tema .mt-atajo :is([data-mt-campo="inicio"], [data-mt-campo="fin"]) .mt-atajo__control::before {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 16px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-top: -22px;
+  border-radius: 50%;
+  background: var(--mt-cat);
+  color: var(--mt-cat-tinta);
+  font: 760 19px/1 var(--mt-familia-display);
+  font-stretch: var(--mt-texto-ancho);
+  content: var(--mt-cat-num);
+  pointer-events: none;
+  transition: background-color 0.25s, color 0.25s;
+}
+html.mi-tema .mt-atajo [data-mt-campo="fin"] .mt-atajo__control::before {
+  box-shadow: 0 0 0 3px var(--mt-campo), 0 0 0 4px var(--mt-cat);
+}
+html.mi-tema .mt-atajo__invertir {
+  width: 48px;
+  height: var(--mt-a-alto);
+  margin: 0 -4px;
+  border-radius: var(--mt-radio-1);
+  background: var(--mt-campo);
+}
+html.mi-tema .mt-atajo [data-mt-campo="horario"],
+html.mi-tema .mt-atajo [data-mt-campo="dia"],
+html.mi-tema .mt-atajo__ir {
+  --mt-a-alto: calc(var(--mt-d) * 52px);
+}
+@container (max-width: 640px) {
+  html.mi-tema .mt-atajo :is([data-mt-campo="inicio"], [data-mt-campo="fin"]) {
+    --mt-a-alto: 62px;
+  }
+  html.mi-tema .mt-atajo__invertir {
+    width: 40px;
+    height: 40px;
+    margin: 10px 0 -50px;
+    border-radius: 50%;
+  }
+  html.mi-tema .mt-atajo [data-mt-campo="fin"] .mt-atajo__etiqueta {
+    line-height: 40px;
+  }
+  /* El tramo: una línea del color del origen baja hasta el destino, como en el plano. */
+  html.mi-tema .mt-atajo [data-mt-campo="inicio"]::after {
+    position: absolute;
+    z-index: 2;
+    top: calc(100% - 10px);
+    left: 34px;
+    width: 4px;
+    height: 72px;
+    border-radius: 2px;
+    background: var(--mt-cat);
+    transition: background-color 0.25s;
+    content: "";
+    pointer-events: none;
+  }
+  html.mi-tema .mt-atajo [data-mt-campo="fin"] {
+    gap: 0;
+  }
+  html.mi-tema .mt-atajo__ir {
+    --mt-a-alto: 56px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.mi-tema .mt-atajo :is(.mt-atajo__select, .mt-atajo__control::before, [data-mt-campo="inicio"]::after) {
+    transition: none;
+  }
+}

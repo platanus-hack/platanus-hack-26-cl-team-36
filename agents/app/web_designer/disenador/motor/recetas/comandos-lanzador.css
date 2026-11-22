@@ -1,0 +1,49 @@
+/* Receta «comandos»: cada tarea lleva su número como una tecla, teñida de una categoría; al pasar, la luz sale de la esquina. */
+html.mi-tema .mt-lanzador__lista {
+  counter-reset: mt-tarea;
+}
+html.mi-tema .mt-lanzador__lista > li {
+  --mt-cat: var(--mt-acento-legible);
+}
+{{#lanz}}html.mi-tema .mt-lanzador__lista > li:nth-child({{i}}) {
+  --mt-cat: var(--mt-c{{c}}-luz);
+}
+{{/lanz}}html.mi-tema .mt-lanzador__tarea::before {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid color-mix(in oklch, var(--mt-cat) 45%, transparent);
+  border-radius: var(--mt-radio-1);
+  background: color-mix(in oklch, var(--mt-cat) 12%, transparent);
+  color: var(--mt-cat);
+  font: 600 13px/1 var(--mt-familia-mono);
+  counter-increment: mt-tarea;
+  content: counter(mt-tarea, decimal-leading-zero);
+}
+html.mi-tema .mt-lanzador__tarea::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 160% at 0% 0%, color-mix(in oklch, var(--mt-cat) 20%, transparent), transparent 60%);
+  opacity: 0;
+  content: "";
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+html.mi-tema .mt-lanzador__tarea:hover {
+  border-color: color-mix(in oklch, var(--mt-cat) 50%, transparent);
+  transform: translateY(-1px);
+}
+html.mi-tema .mt-lanzador__tarea:hover::after {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.mi-tema .mt-lanzador__tarea::after {
+    transition: none;
+  }
+  html.mi-tema .mt-lanzador__tarea:hover {
+    transform: none;
+  }
+}

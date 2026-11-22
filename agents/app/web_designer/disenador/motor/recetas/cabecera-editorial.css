@@ -1,0 +1,14 @@
+/* Receta «cabecera editorial»: titular a la izquierda, bajada a la derecha tras un hilo, sobre la línea base. */
+@container (min-width: 760px) {
+  html.mi-tema .mt-atajo__cabecera {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+    gap: 40px;
+    align-items: end;
+  }
+  html.mi-tema .mt-atajo__bajada {
+    margin: 0 0 0.4em;
+    padding-left: 18px;
+    border-left: 1px solid var(--mt-linea-fuerte);
+  }
+}

@@ -1,0 +1,59 @@
+/* metro.cl, hero «atmósfera»: el video queda detrás del atajo, oscurecido por un velo del fondo. */
+html.mi-tema body {
+  position: relative;
+  overflow-x: clip;
+}
+html.mi-tema body > :is(.container, footer) {
+  position: relative;
+  z-index: 1;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) body > div:has(> #home) {
+  position: static !important;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) body > div:has(> #home) > :has(#video-home) {
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 auto;
+  height: clamp(640px, 92svh, 820px);
+  margin: 0 !important;
+  overflow: hidden;
+  background: var(--mt-fondo);
+  pointer-events: none;
+  mask-image: linear-gradient(180deg, black 62%, transparent);
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) body > div:has(> #home) > :has(#video-home) > * {
+  width: 100%;
+  height: 100%;
+  padding: 0 !important;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) body > div:has(> #home) > :has(#video-home) .ratio {
+  height: 100%;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) body > div:has(> #home) > :has(#video-home) .ratio::before {
+  display: none;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) :is(#video-home, #video-home-mobile) {
+  width: 100%;
+  height: 100%;
+  border-radius: 0 !important;
+  object-fit: cover;
+  filter: brightness(0.42) saturate(0.6) contrast(1.05);
+  transform: scale(1.04);
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) body > div:has(> #home) > :has(#video-home)::after {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(100deg, var(--mt-velo-fuerte) 0%, var(--mt-velo) 70%),
+    linear-gradient(180deg, var(--mt-velo-fuerte) 0%, var(--mt-velo) 45%, var(--mt-fondo) 100%);
+  content: "";
+}
+html.mi-tema body > .mt-vista[data-mt-vista="{{v.atajo}}"] {
+  margin-top: 0;
+  padding-top: clamp(32px, 6vh, 56px);
+}
+@media (prefers-reduced-motion: reduce) {
+  html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) :is(#video-home, #video-home-mobile) {
+    visibility: hidden;
+  }
+}

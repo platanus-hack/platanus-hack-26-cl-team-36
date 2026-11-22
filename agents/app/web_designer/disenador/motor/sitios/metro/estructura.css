@@ -1,0 +1,328 @@
+/* metro.cl: lo que depende del sitio (selectores medidos) y vale para toda dirección. Solo tokens. */
+
+/* Colores fijos del sitio (con !important) pensados para fondo claro. */
+html.mi-tema :is(.font-color-rojo, a.font-color-rojo) {
+  color: var(--mt-acento-legible) !important;
+}
+html.mi-tema :is(.font-color-negro, a.font-color-negro) {
+  color: var(--mt-tinta-2) !important;
+}
+html.mi-tema :is(.font-color-gris, a.font-color-gris) {
+  color: var(--mt-tinta-2) !important;
+}
+html.mi-tema .btn-danger {
+  border-color: transparent !important;
+  background: var(--mt-acento) !important;
+  color: var(--mt-acento-texto) !important;
+}
+html.mi-tema .btn-danger:hover {
+  background: var(--mt-acento-hover) !important;
+}
+
+/* ---------- Navegación ---------- */
+html.mi-tema #menu {
+  position: relative;
+  z-index: 5;
+}
+html.mi-tema #menu .navbar > .container-fluid {
+  border: 0 !important;
+  border-radius: var(--mt-nav-radio) !important;
+  background: var(--mt-nav-fondo) !important;
+  box-shadow: var(--mt-nav-sombra);
+}
+html.mi-tema #menu :is(.navbar-brand, .nav-link:not(.rounded-pill)) {
+  color: var(--mt-tinta) !important;
+  font-weight: 560;
+}
+html.mi-tema #menu a.nav-link.rounded-pill {
+  padding-inline: 16px !important;
+  border-radius: var(--mt-radio-pildora) !important;
+  font-weight: 600;
+}
+html.mi-tema #menu .navbar-toggler {
+  border-color: var(--mt-linea-fuerte) !important;
+}
+html.mi-tema #menu .navbar-toggler-icon {
+  filter: var(--mt-iconos);
+}
+html.mi-tema #menu .dropdown-menu {
+  border: 1px solid var(--mt-linea) !important;
+  border-radius: var(--mt-radio-2) !important;
+  background: var(--mt-superficie) !important;
+  box-shadow: var(--mt-sombra-2);
+  color: var(--mt-tinta);
+}
+html.mi-tema #menu .dropdown-menu .h6 {
+  color: var(--mt-tinta);
+}
+html.mi-tema #menu .dropdown-item {
+  border-radius: var(--mt-radio-1);
+  color: var(--mt-tinta-2) !important;
+}
+html.mi-tema #menu .dropdown-item:is(:hover, :focus) {
+  background: var(--mt-superficie-2) !important;
+  color: var(--mt-tinta) !important;
+}
+
+/* ---------- Portada: el planificador del sitio cede su lugar al atajo ---------- */
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) #home :is(:has(> * > * > #formPlanificador), :has(> h1)) {
+  display: none !important;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) #home {
+  position: static !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) #home > * {
+  padding: 0 !important;
+}
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) #home > * > * > :has(.background-color-gris),
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.atajo}}"]) #home :has(> .background-color-gris) {
+  width: 100% !important;
+  max-width: none !important;
+  flex: 1 1 100% !important;
+}
+
+/* ---------- La red en tiempo real: siete celdas, cada una con el filo de su línea ---------- */
+html.mi-tema #home .card.background-color-gris {
+  margin-top: var(--mt-hueco);
+  border: 0 !important;
+  border-radius: var(--mt-radio-3) !important;
+  background: var(--mt-panel) !important;
+  box-shadow: inset 0 0 0 1px var(--mt-panel-linea);
+  color: var(--mt-panel-texto);
+}
+html.mi-tema #home .card.background-color-gris > .card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 !important;
+  padding: calc(var(--mt-d) * 18px) 20px 0 !important;
+  color: var(--mt-panel-texto-2) !important;
+  font-size: 12px !important;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+html.mi-tema #home .card.background-color-gris > .card-body {
+  padding: 12px 14px 14px !important;
+}
+html.mi-tema #home .card.background-color-gris > .card-body > .row {
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) 44px;
+  gap: 8px;
+  margin: 0 !important;
+}
+html.mi-tema #home .card.background-color-gris > .card-body > .row > * {
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+html.mi-tema #home .card.background-color-gris .rounded-3 {
+  height: 100%;
+  padding: 10px !important;
+  border-radius: var(--mt-radio-1) !important;
+  background: var(--mt-panel-2) !important;
+  box-shadow: inset 0 2px 0 var(--mt-cat, var(--mt-linea));
+}
+html.mi-tema #home .card.background-color-gris .rounded-3 > .row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+html.mi-tema #home .card.background-color-gris .rounded-3 > .row > * {
+  width: auto;
+  padding: 0;
+}
+html.mi-tema #home .card.background-color-gris .rounded-3 > .row > :nth-child(2) {
+  order: 3;
+}
+html.mi-tema #home .card.background-color-gris .rounded-3 img {
+  display: block;
+  width: 24px !important;
+  height: 24px;
+}
+html.mi-tema #home .card.background-color-gris .rounded-3 > .row > :first-child img {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--mt-anillo);
+}
+html.mi-tema #home .card.background-color-gris .rounded-3 > .row > :nth-child(2) img {
+  width: 16px !important;
+  height: 16px;
+}
+html.mi-tema #home .card.background-color-gris .rounded-3 p {
+  margin: 0 !important;
+  color: var(--mt-panel-texto-2) !important;
+  font-size: 12px !important;
+  line-height: 1.25;
+}
+html.mi-tema #home .card.background-color-gris > .card-body > .row > :last-child {
+  display: flex;
+  align-self: center !important;
+  justify-content: center;
+}
+@media (max-width: 900px) {
+  html.mi-tema #home .card.background-color-gris > .card-body > .row {
+    grid-template-columns: none;
+    grid-auto-columns: 128px;
+    grid-auto-flow: column;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  html.mi-tema #home .card.background-color-gris > .card-body > .row > * {
+    scroll-snap-align: start;
+  }
+  html.mi-tema #home .card.background-color-gris > .card-body > .row > :last-child {
+    width: 44px !important;
+  }
+}
+
+/* ---------- Accesos destacados: solo el carrusel, bajo «Lo más buscado» ---------- */
+html.mi-tema:not(.mt-vista-original):has([data-mt-vista="{{v.lanzador}}"]) body > :has(#carouselBanners) > * > :not(:has(#carouselBanners)) {
+  display: none !important;
+}
+html.mi-tema body > :has(#carouselBanners) {
+  padding-top: var(--mt-hueco) !important;
+}
+html.mi-tema body > :has(#carouselBanners) .rounded-4.overflow-hidden {
+  border-radius: var(--mt-radio-3) !important;
+  box-shadow: inset 0 0 0 1px var(--mt-linea);
+}
+html.mi-tema body > :has(#carouselBanners) .ticker {
+  border-bottom: 1px solid var(--mt-linea);
+  background: var(--mt-superficie) !important;
+  color: var(--mt-tinta-2) !important;
+}
+
+/* ---------- Noticias, destacados, MetroConecta ---------- */
+html.mi-tema :is(#noticias, #destacados, #metroconecta) {
+  padding-top: var(--mt-respiro) !important;
+  padding-bottom: 0 !important;
+  background: transparent !important;
+  color: var(--mt-tinta);
+}
+html.mi-tema :is(#noticias, #destacados, #metroconecta) :is(p, span, h3, h4, h5, a, div) {
+  color: inherit;
+}
+html.mi-tema :is(#noticias, #destacados, #metroconecta) p.h1 {
+  color: var(--mt-tinta) !important;
+  font-family: var(--mt-familia-display) !important;
+  font-size: var(--mt-paso-titulo) !important;
+  font-weight: var(--mt-titulo-peso) !important;
+  font-stretch: var(--mt-display-ancho);
+  line-height: 1 !important;
+  letter-spacing: var(--mt-display-tracking);
+  text-transform: var(--mt-display-caja);
+  text-wrap: balance;
+}
+html.mi-tema :is(#noticias, #destacados, #metroconecta) p.h1 .font-color-rojo {
+  color: var(--mt-acento-legible) !important;
+}
+html.mi-tema #destacados p.h3 {
+  color: var(--mt-tinta-2) !important;
+  font-size: 13px !important;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+html.mi-tema :is(#noticias, #metroconecta) .card {
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: var(--mt-radio-2) !important;
+  background: var(--mt-superficie) !important;
+  box-shadow: inset 0 0 0 1px var(--mt-linea), var(--mt-sombra-1);
+  color: var(--mt-tinta) !important;
+  --bs-card-bg: transparent;
+  --bs-card-color: var(--mt-tinta);
+  transition: box-shadow var(--mt-duracion), transform var(--mt-duracion);
+}
+html.mi-tema :is(#noticias, #metroconecta) .card:hover {
+  box-shadow: inset 0 0 0 1px var(--mt-linea-fuerte), var(--mt-sombra-2);
+}
+html.mi-tema :is(#noticias, #metroconecta) .card-img-top {
+  aspect-ratio: 16 / 9;
+  border-radius: 0 !important;
+  object-fit: cover;
+}
+html.mi-tema #noticias .titulo-noticia,
+html.mi-tema #metroconecta :is(.card-title, h5) {
+  color: var(--mt-tinta) !important;
+  font-size: var(--mt-paso-1) !important;
+  font-weight: 620;
+  line-height: 1.3 !important;
+  letter-spacing: -0.01em;
+}
+html.mi-tema :is(#noticias, #metroconecta) :is(.card-body, .card-footer) {
+  border: 0 !important;
+  background: transparent !important;
+}
+html.mi-tema #metroconecta .card-footer a.font-color-blanco {
+  color: var(--mt-acento-legible) !important;
+}
+html.mi-tema :is(#carouselBanners, #carouselBazar, #noticias, #metroconecta) img:not([src*="ico-"]) {
+  filter: var(--mt-img-filtro);
+}
+html.mi-tema #destacados .carousel-item {
+  border-color: var(--mt-linea) !important;
+  border-radius: var(--mt-radio-3) !important;
+}
+
+/* ---------- Encuesta del sitio: deja de tapar la página ---------- */
+html.mi-tema #mensajeModal.show {
+  inset: auto 16px 16px auto !important;
+  width: min(380px, 100% - 32px) !important;
+  height: auto !important;
+}
+html.mi-tema #mensajeModal.show .modal-dialog {
+  margin: 0 !important;
+}
+html.mi-tema #mensajeModal .modal-content {
+  overflow: hidden;
+  border: 1px solid var(--mt-linea) !important;
+  border-radius: var(--mt-radio-3) !important;
+  background: var(--mt-superficie) !important;
+  box-shadow: var(--mt-sombra-2);
+  color: var(--mt-tinta);
+}
+html.mi-tema #mensajeModal .modal-header {
+  border-bottom: 1px solid var(--mt-linea) !important;
+  background: var(--mt-superficie-2) !important;
+}
+html.mi-tema body:has(#mensajeModal.show) > .modal-backdrop {
+  display: none !important;
+}
+html.mi-tema body.modal-open:has(#mensajeModal.show) {
+  overflow: auto !important;
+  padding-right: 0 !important;
+}
+
+/* ---------- Pie ---------- */
+html.mi-tema footer {
+  padding-top: var(--mt-respiro) !important;
+}
+html.mi-tema footer .caja-footer {
+  position: relative;
+  overflow: hidden;
+  border: 0 !important;
+  border-radius: var(--mt-radio-3) !important;
+  background: var(--mt-superficie) !important;
+  box-shadow: inset 0 0 0 1px var(--mt-linea);
+  color: var(--mt-tinta-2);
+}
+html.mi-tema footer :is(p, span, h5, h6, li, div) {
+  color: inherit;
+}
+html.mi-tema footer .caja-footer strong {
+  color: var(--mt-tinta);
+}
+html.mi-tema footer a.font-color-negro:hover {
+  color: var(--mt-tinta) !important;
+}
+html.mi-tema footer img[src*="ico-"],
+html.mi-tema footer .caja-footer p > img[width="16"] {
+  filter: var(--mt-iconos);
+}

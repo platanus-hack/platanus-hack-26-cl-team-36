@@ -1,0 +1,149 @@
+/* Receta «superficie de marca»: el atajo es una baldosa del color de la marca; los campos, píldoras claras con la etiqueta dentro. */
+html.mi-tema .mt-atajo {
+  --mt-a-alto: calc(var(--mt-d) * 62px);
+  padding: calc(var(--mt-d) * clamp(24px, 4vw, 40px));
+  padding-top: calc(var(--mt-d) * clamp(64px, 6.5vw, 76px));
+  border-radius: var(--mt-radio-3) var(--mt-radio-3) var(--mt-radio-3) var(--mt-radio-1);
+  background: var(--mt-marca);
+  box-shadow: 0 24px 48px -32px color-mix(in oklch, var(--mt-marca) 70%, black);
+  color: var(--mt-marca-texto);
+}
+/* Firma: un disco grande de la marca asomando y las categorías en puntos. */
+html.mi-tema .mt-atajo::before {
+  position: absolute;
+  top: -38%;
+  right: -22%;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--mt-marca-2);
+  content: "";
+  pointer-events: none;
+}
+html.mi-tema .mt-atajo::after {
+  position: absolute;
+  top: calc(var(--mt-d) * clamp(26px, 3vw, 34px));
+  left: calc(var(--mt-d) * clamp(24px, 4vw, 40px));
+  width: calc({{ncats}} * 16px);
+  height: 10px;
+  background: {{#cats}}radial-gradient(circle at 5px 5px, var(--mt-c{{i}}-punto) 4.5px, transparent 5px) calc(({{i}} - 1) * 16px) 0 / 16px 10px no-repeat{{sep}}{{/cats}};
+  content: "";
+  pointer-events: none;
+}
+html.mi-tema .mt-atajo > * {
+  position: relative;
+}
+html.mi-tema .mt-atajo__titulo,
+html.mi-tema .mt-atajo__bajada {
+  color: var(--mt-marca-texto);
+}
+html.mi-tema .mt-atajo__titulo {
+  max-width: 11ch;
+}
+html.mi-tema .mt-atajo__bajada {
+  margin-top: 12px;
+}
+html.mi-tema .mt-atajo__campos {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 10px;
+}
+html.mi-tema .mt-atajo [data-mt-campo="inicio"] {
+  grid-column: 1;
+}
+html.mi-tema .mt-atajo [data-mt-campo="fin"],
+html.mi-tema .mt-atajo .mt-atajo__ir {
+  grid-column: 3;
+}
+html.mi-tema .mt-atajo [data-mt-campo="horario"] {
+  grid-column: 1 / -1;
+}
+html.mi-tema .mt-atajo [data-mt-campo="dia"] {
+  grid-column: 1 / 3;
+}
+html.mi-tema .mt-atajo__campo {
+  position: relative;
+  gap: 0;
+  border-radius: var(--mt-radio-2);
+  background: var(--mt-marca-campo);
+}
+html.mi-tema .mt-atajo__etiqueta {
+  position: absolute;
+  z-index: 1;
+  top: 11px;
+  left: 18px;
+  color: var(--mt-marca-campo-texto-2);
+  font-size: 11px;
+  pointer-events: none;
+}
+html.mi-tema .mt-atajo__select {
+  padding: 20px 44px 0 18px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--mt-marca-campo-texto);
+  font-size: 17px;
+  font-weight: 600;
+}
+html.mi-tema .mt-atajo__select:focus-visible,
+html.mi-tema .mt-atajo__ir:focus-visible {
+  outline-color: var(--mt-marca-texto) !important;
+}
+html.mi-tema .mt-atajo__control {
+  border-radius: inherit;
+}
+html.mi-tema .mt-atajo__control::after {
+  right: 20px;
+  border-color: var(--mt-marca-campo-texto);
+}
+html.mi-tema .mt-atajo__invertir {
+  align-self: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 -2px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--mt-destello);
+  color: var(--mt-destello-tinta);
+  box-shadow: 0 0 0 4px var(--mt-marca);
+  position: static;
+  grid-column: 2;
+  justify-self: auto;
+  transform: none;
+}
+html.mi-tema .mt-atajo__ir {
+  height: var(--mt-a-alto);
+  border-radius: 999px;
+  background: var(--mt-marca-boton);
+  color: var(--mt-marca-boton-texto);
+  font-size: 17px;
+  font-weight: 700;
+}
+html.mi-tema .mt-atajo__ir:hover {
+  background: var(--mt-marca-boton);
+  color: var(--mt-marca-boton-texto);
+}
+html.mi-tema .mt-atajo__ir[aria-disabled="true"] {
+  background: var(--mt-marca-hondo);
+  color: var(--mt-marca-texto);
+}
+@container (max-width: 560px) {
+  html.mi-tema .mt-atajo__campos {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  html.mi-tema .mt-atajo :is([data-mt-campo], .mt-atajo__ir) {
+    grid-column: 1 / -1;
+  }
+  html.mi-tema .mt-atajo__invertir {
+    position: relative;
+    z-index: 2;
+    grid-column: 1 / -1;
+    justify-self: end;
+    margin: -28px 56px -28px 0;
+    transform: rotate(90deg);
+  }
+  html.mi-tema .mt-atajo__invertir:hover {
+    transform: rotate(270deg);
+  }
+}
