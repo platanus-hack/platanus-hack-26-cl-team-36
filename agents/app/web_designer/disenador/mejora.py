@@ -59,7 +59,7 @@ ANCLA_JS = """([selector, medidas]) => {
 }"""
 
 # El bloque donde empieza el contenido: desde el primer título visible fuera de la cabecera, el ancestro más alto que
-# no la contiene. Sale como selector único (por id, o por etiqueta y clases bajo el id más cercano); null si no hay.
+# no la contiene y, dentro de él, el bloque del título bajo los envoltorios de un solo hijo. Sale como selector único (por id, o por etiqueta y clases bajo el id más cercano); null si no hay.
 CONTENIDO_JS = """([medidas]) => {
   """ + _CABECERAS_JS + """
   const cabs = cabeceras(medidas);
@@ -72,6 +72,16 @@ CONTENIDO_JS = """([medidas]) => {
     el = el.parentElement;
   }
   if (cabs.some((c) => el.contains(c))) return null;
+  // Dentro de los envoltorios de un solo hijo (el `.container` del sitio), hasta el bloque que tiene el título: así
+  // el componente queda alineado con la grilla del sitio.
+  const util = (c) => visible(c) && !["SCRIPT", "STYLE", "LINK", "NOSCRIPT", "TEMPLATE"].includes(c.tagName);
+  for (;;) {
+    const hijos = [...el.children].filter(util);
+    const conInicio = hijos.find((c) => c.contains(inicio));
+    if (!conInicio) break;
+    el = conInicio;
+    if (hijos.length > 1 || conInicio === inicio) break;
+  }
   const valido = (t) => /^[A-Za-z][\\w-]*$/.test(t);
   const unico = (sel) => { try { const l = document.querySelectorAll(sel); return l.length === 1 && l[0] === el; }
                            catch { return false; } };

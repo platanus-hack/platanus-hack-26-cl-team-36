@@ -214,11 +214,14 @@ def test_el_ancla_no_deja_el_kit_sobre_la_cabecera():
     # de respaldo es el bloque donde empieza el contenido.
     form, contenido, cabecera_medida = asyncio.run(_evaluar(
         WEBFORMS, (ANCLA_JS, ["body > :has(h1)", []]), (CONTENIDO_JS, [[]]), (ANCLA_JS, ["#contenido", ["header"]])))
-    assert form is False and contenido == "#contenido" and cabecera_medida is True
-    # Sin ids: por etiqueta y clases bajo el id más cercano.
+    assert form is False and contenido == "#contenido > h1" and cabecera_medida is True
+    # Sin ids: dentro del `.container` (envoltorio de un solo hijo), la fila del título, por etiqueta y clases bajo
+    # el id más cercano.
     envoltorio = ('<!doctype html><body><div id="todo"><div class="cabecera"><nav><a href="/">Inicio</a></nav>'
-                  '<h1 class="logo"></h1></div><div class="cuerpo home"><h2>Accesos</h2></div></div></body>')
-    assert asyncio.run(_evaluar(envoltorio, (CONTENIDO_JS, [[".cabecera"]]))) == ["#todo > div.cuerpo.home"]
+                  '<h1 class="logo"></h1></div><div class="cuerpo home"><div class="container">'
+                  '<div class="fila primera"><h2>Accesos</h2></div><div class="fila"><p>Noticias</p></div>'
+                  '</div></div></div></body>')
+    assert asyncio.run(_evaluar(envoltorio, (CONTENIDO_JS, [[".cabecera"]]))) == ["#todo div.fila.primera"]
 
 
 def test_la_voz_lee_los_enlaces_del_sitio_y_lo_que_ya_esta_a_mano():
