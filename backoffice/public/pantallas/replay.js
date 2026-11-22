@@ -1,5 +1,6 @@
 // Replay: un intento paso a paso, solo con lo esencial. A la izquierda la lista de pasos, al centro la captura del
-// paso actual, a la derecha su análisis y abajo la línea de tiempo que se puede reproducir.
+// paso actual, a la derecha su análisis (dónde va en la ruta de la Guía: replay/analisis.js) y abajo la línea de
+// tiempo que se puede reproducir.
 //
 // Estado en la URL: ?intento= &paso=. Los cambios de paso se aplican primero en la pantalla (en el lugar, sin
 // reconstruir: el foco nunca se cae) y después se escriben en el hash; actualizar(ctx) compara la URL con el estado
@@ -14,7 +15,7 @@ import { el, reemplazar } from "../nucleo/dom.js";
 import { avisoEnLinea, vacio } from "../nucleo/estados.js";
 import { normalizarPaso } from "../nucleo/rutas.js";
 import { cambiarVelocidad, factorDeTiempo, planDelPaso, velocidadValida } from "../replay/animacion.js";
-import { contenidoDeAnalisis } from "../replay/analisis.js";
+import { cabeceraDeAnalisis, contenidoDeAnalisis } from "../replay/analisis.js";
 import { crearEscena } from "../replay/escena.js";
 import { crearLineaDeTiempo } from "../replay/linea-de-tiempo.js";
 import { crearListaDePasos } from "../replay/pasos.js";
@@ -121,6 +122,7 @@ function pintarPaso(modo = "corto") {
 
   partes.lista.marcar(indice);
   partes.linea.marcar(Math.max(0, indice));
+  reemplazar(partes.cabeceraAnalisis, cabeceraDeAnalisis({ intento, indice, t: ctx.t, fmt: ctx.fmt }));
   reemplazar(partes.analisis, contenidoDeAnalisis({ intento, indice, tanda: ctx.tanda, t: ctx.t }));
   partes.analisis.scrollTop = 0;
   return animacion;
@@ -252,6 +254,7 @@ function armar(contenedor) {
   imagen.addEventListener("load", () => captura.classList.remove("sin-captura"), { signal: senal });
 
   const analisis = el("div", { class: "replay-analisis-contenido" });
+  const cabeceraAnalisis = el("div", { class: "replay-columna-cabecera" }, el("h3", { class: "etiqueta-micro", texto: t("replay.analisis.titulo") }));
   const aviso = el("div", { class: "replay-aviso" });
   const raiz = el(
     "div",
@@ -270,14 +273,14 @@ function armar(contenedor) {
       el(
         "aside",
         { class: "replay-columna replay-analisis", "aria-label": t("replay.analisis.titulo") },
-        el("div", { class: "replay-columna-cabecera" }, el("h3", { class: "etiqueta-micro", texto: t("replay.analisis.titulo") })),
+        cabeceraAnalisis,
         analisis,
       ),
     ),
     linea.nodo,
   );
   contenedor.append(raiz);
-  partes = { raiz, aviso, selector, lista, linea, captura, imagen, analisis, escena };
+  partes = { raiz, aviso, selector, lista, linea, captura, imagen, analisis, cabeceraAnalisis, escena };
   globalThis.addEventListener("resize", ajustarAlto, { signal: senal });
   const observador = new ResizeObserver(() => escena.ajustar(captura));
   observador.observe(captura);
