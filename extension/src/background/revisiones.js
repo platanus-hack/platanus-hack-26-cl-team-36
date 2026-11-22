@@ -1,15 +1,17 @@
 // Lógica pura de las revisiones: el tema que los agentes generan para cada página.
 // Sin `browser.*`: se testea con Node (ver test/revisiones.test.js).
 //
-//   GET  /revisiones?url=<url> → 200 { success, revision, status, css? } (`css` si status "done");
+//   GET  /revisiones?url=<url> → 200 { success, revision, status, css?, tema? } (`css` si status "done"; `tema`, el
+//                                tema.json del improver con sus `features`, si lo dejó);
 //                                404 { success: false } si la página no tiene revisión. Es lo que usa la extensión.
 //   POST /revisiones { url }   → lo mismo, pero una página nueva dispara su revisión: 202 { …, status: "queued" }.
 //                                La extensión no lo usa (ver el TODO en index.js).
 //
-// Un resultado es { estado: "listo", revision, css } | { estado: "esperando", revision } | { estado: "fin" }.
+// Un resultado es { estado: "listo", revision, css, tema? } | { estado: "esperando", revision } | { estado: "fin" }.
 // "fin" cubre 404, `failed`, error de red y respuestas raras: no se aplica nada y no se insiste.
 
 import { sanearCss } from "./css-remoto.js";
+import { sanearTema } from "./tema-remoto.js";
 import { normalizarTema } from "./temas.js";
 
 // Cada cuánto el content script vuelve a preguntar mientras la revisión corre, y hasta cuándo.
@@ -25,20 +27,25 @@ export function urlDePagina(url) {
 }
 
 export function leerRevision(datos) {
-  const { success, revision, status, css } = datos ?? {};
+  const { success, revision, status, css, tema } = datos ?? {};
   if (success !== true || typeof revision !== "string" || revision.length > 40 || !FORMATO_REVISION.test(revision)) {
     return { estado: "fin" };
   }
   if (status === "queued" || status === "running") return { estado: "esperando", revision };
-  if (status === "done" && typeof css === "string") return { estado: "listo", revision, css };
+  if (status === "done" && typeof css === "string") {
+    return { estado: "listo", revision, css, ...(tema && typeof tema === "object" && !Array.isArray(tema) && { tema }) };
+  }
   return { estado: "fin" };
 }
 
 // El id es estable por revisión (`rev-<revision>`) para que los votos sobre ese tema se puedan agrupar.
-export function temaDeRevision(revision, css) {
+// Sin CSS aplicable no hay tema, aunque el tema.json traiga vistas.
+export function temaDeRevision(revision, css, tema, log = console) {
   const saneado = sanearCss(css);
   if (!saneado.css) return null;
-  return normalizarTema({ id: `rev-${revision}`, nombre: `Revisión ${revision}`, css: saneado.css });
+  const { features, rechazos } = sanearTema(tema);
+  if (rechazos.length) log.warn(`[mi-tema] La revisión ${revision} trae partes del tema que no se aplican:`, rechazos);
+  return normalizarTema({ id: `rev-${revision}`, nombre: `Revisión ${revision}`, css: saneado.css, features });
 }
 
 // `consultar`: consultarRevision (o pedirRevision) de api.js. Nunca lanza; "listo" trae `tema` en vez de `css`.
@@ -52,7 +59,7 @@ export async function resolverRevision(url, { consultar, log = console }) {
   }
   if (resultado?.estado === "esperando") return resultado;
   if (resultado?.estado !== "listo") return { estado: "fin" };
-  const tema = temaDeRevision(resultado.revision, resultado.css);
+  const tema = temaDeRevision(resultado.revision, resultado.css, resultado.tema, log);
   if (!tema) {
     log.warn(`[mi-tema] La revisión ${resultado.revision} no dejó CSS aplicable.`);
     return { estado: "fin" };

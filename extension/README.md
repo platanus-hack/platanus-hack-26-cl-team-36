@@ -121,7 +121,9 @@ TODO en `background/index.js`): se piden desde la raíz con `just aws revision <
 sin `www.`).
 
 Un tema (`normalizarTema` en `background/temas.js`) también puede traer `features` y
-`eventosNavegacion`, pero hoy la API solo manda CSS:
+`eventosNavegacion`. De la API llegan las `features` del `tema.json` que deja el improver, si lo
+deja (solo `vista` con los componentes `atajo`, `lanzador` y `cartelera`, y `modo-foco`; las sanea
+`background/tema-remoto.js`). `eventosNavegacion` todavía no llega de la API:
 
 ```json
 {
@@ -196,7 +198,8 @@ GET <URL de la API>/revisiones?url=https%3A%2F%2Fwww.metro.cl%2F      ← la URL
 | `404` (la página no tiene revisión), `failed`, error o más de 5 s sin responder | Nada |
 
 El backend busca la revisión de la página en la tabla DynamoDB `chameleon-revisiones` y lee el
-`tema.css` de S3 (`css_key` de la revisión). No se consulta en ventanas privadas ni con el
+`tema.css` de S3 (`css_key` de la revisión), y el `tema.json` si el improver lo dejó (`tema_key`).
+No se consulta en ventanas privadas ni con el
 interruptor apagado.
 
 **La extensión no dispara revisiones.** `POST /revisiones` sí lo hace (una página nueva corre los
@@ -222,8 +225,9 @@ Lo que hay que tener en cuenta:
 
 - **La API solo puede mandar datos (CSS + config), nunca JS.** MV3 y Mozilla prohíben
   ejecutar código remoto. Los comportamientos tienen que existir como features en la extensión.
-- **Cuando la API mande features** además del CSS, `temaDeRevision` en
-  `background/revisiones.js` es el lugar para pasarlas; `normalizarTema` es el contrato.
+- **Las features de la API** pasan por `sanearTema` (`background/tema-remoto.js`) en `temaDeRevision`
+  (`background/revisiones.js`); `normalizarTema` es el contrato. Una feature nueva para temas remotos
+  se agrega allí y en el validador del improver.
 - **Permisos y privacidad:** la extensión corre en todos los sitios http(s) y, con el interruptor
   encendido y fuera de ventanas privadas, le envía al backend la URL sin query ni hash de cada
   página que visitas (para consultar su revisión). Por eso pide acceso a todos los sitios y el
