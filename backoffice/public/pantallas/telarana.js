@@ -202,7 +202,7 @@ function crearPantalla(contenedor, ctx) {
     el("header", { class: "telarana-cabecera" }, titular, zonaDeAvisos, herramientas),
     distribucion.estaciones.length
       ? el("div", { class: "telarana-cuerpo" }, el("div", { class: "telarana-columna" }, mapa, leyenda), panel)
-      : vacio({ titulo: t("telarana.lienzo.vacio") }),
+      : vacio({ titulo: t(tanda.arbol === "danado" ? "telarana.lienzo.arbolDanado" : tanda.arbol === "falta" ? "telarana.lienzo.arbolFalta" : "telarana.lienzo.vacio") }),
   );
 
   function construirLeyenda() {

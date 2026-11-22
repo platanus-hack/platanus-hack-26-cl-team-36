@@ -17,7 +17,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @typedef {"logrado" | "fallido" | "abandonado" | "error"} Resultado
  *
  * @typedef {Object} ErrorDeHerramienta
- * @property {"internal_error" | "api_error" | "no_response" | "refusal" | "juez" | "sin_inicio"} tipo
+ * @property {"internal_error" | "api_error" | "no_response" | "refusal" | "juez" | "sin_inicio" | "archivo_danado"} tipo
  * @property {string} resumen      primera línea del mensaje, sin "Error: ", hasta 140 caracteres
  * @property {string} detalle      el mensaje completo, tal cual
  *
@@ -177,11 +177,14 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {Hallazgo[]} hallazgos
  * @property {{ tanda: Texto, telarana: Texto, perfiles: Texto }} titulares
  * @property {ReturnType<typeof porConocimiento>} porConocimiento
+ * @property {"ok" | "falta" | "danado"} arbol  estado del route_tree.json de la tanda
  */
 
 // Motivos de fin que son fallas de la herramienta, no del usuario: los _INTERRUPTED_REASONS de
 // agents/app/web_evaluator/batch.py. El orden es el de la tabla del diseño (§2.1).
 const MOTIVOS_DE_ERROR = ["internal_error", "api_error", "no_response", "refusal"];
+/** Motivo de fin del intento armado para un run.json que no se pudo leer (lib/tandas.js). */
+export const ARCHIVO_DANADO = "archivo_danado";
 const SIN_VEREDICTO = "No se pudo obtener el veredicto";
 const LARGO_DEL_RESUMEN = 140;
 const CAMBIO_QUE_CUENTA = 0.05;
@@ -231,7 +234,10 @@ export function errorDelIntento(run) {
   const justificacion = String(run.verdict?.justification ?? "");
   let tipo = null;
   let texto = "";
-  if (MOTIVOS_DE_ERROR.includes(run.end_reason)) {
+  if (run.end_reason === ARCHIVO_DANADO) {
+    tipo = ARCHIVO_DANADO;
+    texto = run.final_message;
+  } else if (MOTIVOS_DE_ERROR.includes(run.end_reason)) {
     tipo = run.end_reason;
     texto = run.final_message;
   } else if (justificacion.startsWith(SIN_VEREDICTO)) {
@@ -903,7 +909,7 @@ export function fechaIsoDe(fecha) {
  *           intentos: { perfil: string, run: object, video: boolean }[] }} entrada
  * @returns {Tanda}
  */
-export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
+export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArbol = arbol ? "ok" : "falta" }) {
   const nodosCrudos = arbol?.nodes ?? [];
   const idPorClave = new Map();
   const idPorUrl = new Map();
@@ -959,6 +965,8 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
     kpis: armarKpis(intentos, ruta),
     perfiles: armarPerfiles(intentos, ruta),
     porConocimiento: porConocimiento(intentos),
+    // route_tree.json: "ok"; "falta" (tanda incompleta: el evaluador lo escribe al final) o "danado" (no es JSON).
+    arbol: estadoDelArbol,
     hallazgos: [],
     titulares: null,
   };
@@ -1058,5 +1066,6 @@ export function resumirTanda(tanda) {
     titular,
     captura: capturaDeTanda(tanda),
     paginas: tanda.telarana.paginas.length,
+    arbol: tanda.arbol ?? "ok",
   };
 }

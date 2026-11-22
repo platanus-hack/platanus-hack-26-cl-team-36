@@ -102,6 +102,12 @@ function insigniaDeErrores(resumen, ctx, { corta = false } = {}) {
   );
 }
 
+/** route_tree.json dañado, o que todavía no existe (tanda incompleta). */
+function insigniaDelArbol(resumen, ctx) {
+  if (resumen.arbol !== "danado" && resumen.arbol !== "falta") return null;
+  return el("span", { class: "insignia insignia-neutro corridas-arbol", texto: ctx.t(resumen.arbol === "danado" ? "corridas.fila.arbolDanado" : "corridas.fila.arbolFalta") });
+}
+
 function tiempo(resumen, ctx) {
   const fecha = resumen.fechaIso ?? resumen.fecha;
   if (!fecha) return el("span", { class: "corridas-tiempo" });
@@ -156,6 +162,7 @@ function fila(resumen, ctx) {
           { class: "corridas-linea" },
           el("span", { class: "corridas-tarea truncar", title: resumen.instruccion ?? null, texto: resumen.tarea ?? resumen.host ?? resumen.id }),
           insigniaDeErrores(resumen, ctx),
+          insigniaDelArbol(resumen, ctx),
         ),
         titular(resumen, ctx),
         el(

@@ -25,6 +25,7 @@ export default {
     refusal: "El modelo se negó a seguir",
     juez: "El juez no pudo dar veredicto",
     sin_inicio: "No se pudo abrir la página",
+    archivo_danado: "El archivo del intento está dañado",
   },
 
   motivo: {

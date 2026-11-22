@@ -22,6 +22,7 @@ export default {
     refusal: "The model refused to continue",
     juez: "The judge could not give a verdict",
     sin_inicio: "The page could not be opened",
+    archivo_danado: "The attempt's file is damaged",
   },
 
   motivo: {

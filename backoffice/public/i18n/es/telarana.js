@@ -14,6 +14,8 @@ export default {
     etiqueta: "Mapa de la telaraña",
     instrucciones: "Arrastra para mover el mapa; ⌘ o Ctrl + rueda para acercar. Con el foco en el mapa, las flechas lo mueven.",
     vacio: "Esta tanda no tiene páginas para dibujar.",
+    arbolDanado: "route_tree.json dañado: no se puede dibujar la telaraña.",
+    arbolFalta: "Tanda incompleta: todavía no tiene route_tree.json, así que no se puede dibujar la telaraña.",
   },
   camara: {
     controles: "Zoom del mapa",

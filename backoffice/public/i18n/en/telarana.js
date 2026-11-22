@@ -13,6 +13,8 @@ export default {
   lienzo: {
     etiqueta: "Route map",
     instrucciones: "Drag to move the map; ⌘ or Ctrl + wheel to zoom. With focus on the map, the arrow keys move it.",
+    arbolDanado: "route_tree.json is damaged: the route map can't be drawn.",
+    arbolFalta: "Incomplete batch: it has no route_tree.json yet, so the route map can't be drawn.",
     vacio: "This batch has no pages to draw.",
   },
   camara: {

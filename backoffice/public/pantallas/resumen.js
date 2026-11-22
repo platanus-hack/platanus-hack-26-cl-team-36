@@ -4,6 +4,7 @@
 // separan de la ruta y el criterio del juez. Es la puerta de entrada a Telaraña, Replay y Perfiles.
 
 import { el, reemplazar } from "../nucleo/dom.js";
+import { avisoEnLinea } from "../nucleo/estados.js";
 import { icono, insignia } from "../nucleo/iconos.js";
 import { nombreDePagina, textoDeError, textoDeHallazgo, textoDeTitular } from "../datos/textos.js";
 
@@ -640,6 +641,9 @@ export default {
     const c = contexto(ctx);
     reemplazar(
       contenedor,
+      c.tanda.arbol === "danado" || c.tanda.arbol === "falta"
+        ? avisoEnLinea(ctx.t(c.tanda.arbol === "danado" ? "resumen.archivos.arbolDanado" : "resumen.archivos.arbolFalta"), "atencion")
+        : null,
       el("div", { class: "resumen-cabeza" }, titular(ctx, c), cifras(ctx, c)),
       hallazgos(ctx, c),
       ruta(ctx, c),

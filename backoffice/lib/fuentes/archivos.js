@@ -15,6 +15,9 @@ export const CARPETA_DE_ARCHIVO = "archivo";
 const RAIZ_DEL_REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const RAIZ_POR_DEFECTO = path.join(RAIZ_DEL_REPO, "agents", ".runs");
 
+// Archivos dañados ya avisados en la consola (una línea por archivo y versión, no una por pedido).
+const avisados = new Set();
+
 async function subcarpetas(carpeta) {
   try {
     const entradas = await readdir(carpeta, { withFileTypes: true });
@@ -44,17 +47,20 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
     descripcion: describirCarpeta(base),
 
     async listarIds() {
+      // Una tanda tiene route_tree.json; si aún no (el evaluador lo escribe al final, o se cortó), basta con que
+      // algún intento tenga su run.json: se lista como incompleta en vez de desaparecer.
+      const esTanda = async (carpeta) =>
+        existsSync(path.join(carpeta, "route_tree.json")) ||
+        (await subcarpetas(carpeta)).some((perfil) => existsSync(path.join(carpeta, perfil, "run.json")));
       const ids = [];
       for (const nombre of await subcarpetas(base)) {
         if (nombre === CARPETA_DE_ARCHIVO) continue;
         if (NOMBRE_DE_TANDA.test(nombre)) {
-          if (existsSync(path.join(base, nombre, "route_tree.json"))) ids.push(nombre);
+          if (await esTanda(path.join(base, nombre))) ids.push(nombre);
           continue;
         }
         for (const fecha of await subcarpetas(path.join(base, nombre))) {
-          if (NOMBRE_DE_TANDA.test(fecha) && existsSync(path.join(base, nombre, fecha, "route_tree.json"))) {
-            ids.push(`${nombre}/${fecha}`);
-          }
+          if (NOMBRE_DE_TANDA.test(fecha) && (await esTanda(path.join(base, nombre, fecha)))) ids.push(`${nombre}/${fecha}`);
         }
       }
       return ids;
@@ -63,10 +69,26 @@ export function crearFuenteDeArchivos({ raiz = RAIZ_POR_DEFECTO } = {}) {
     listarPerfiles: (id) => subcarpetas(rutaDe(id)),
 
     async leerJson(id, relativa) {
+      return (await this.leerJsonDetallado(id, relativa)).datos;
+    },
+
+    async leerJsonDetallado(id, relativa) {
+      const ruta = rutaDe(id, relativa);
+      let texto;
       try {
-        return JSON.parse(await readFile(rutaDe(id, relativa), "utf8"));
+        texto = await readFile(ruta, "utf8");
       } catch {
-        return null;
+        return { datos: null, estado: "falta" };
+      }
+      try {
+        return { datos: JSON.parse(texto), estado: "ok" };
+      } catch (error) {
+        const clave = `${ruta}:${texto.length}`;
+        if (!avisados.has(clave)) {
+          avisados.add(clave);
+          console.error(`corridas: «${describirCarpeta(ruta)}» está dañado (no es JSON válido: ${error.message}).`);
+        }
+        return { datos: null, estado: "danado" };
       }
     },
 

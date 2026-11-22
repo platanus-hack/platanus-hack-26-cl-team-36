@@ -4,6 +4,10 @@
 const pasos = (n, plural) => `${n} ${plural(n, { one: "paso", other: "pasos" })}`;
 
 export default {
+  archivos: {
+    arbolDanado: "route_tree.json está dañado: faltan la ruta, la telaraña y lo que sale de ellas.",
+    arbolFalta: "Tanda incompleta: todavía no tiene route_tree.json (el evaluador lo escribe al final, o se cortó).",
+  },
   cifra: {
     llegan: "Llegan",
     siguen: "Siguen la ruta",
