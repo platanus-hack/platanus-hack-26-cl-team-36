@@ -1,7 +1,7 @@
 // Cifras, pestañas y cola del Overview (lib/overview.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LIMITE_MAXIMO, MAXIMO_POR_PESTANA, PESTANAS, contarResumen, idsConTarjeta, listasDelOverview, parametrosDelOverview } from "../lib/overview.js";
+import { PAGINA_MAXIMA, PESTANAS, POR_PAGINA, contarResumen, idsConTarjeta, listasDelOverview, parametrosDelOverview } from "../lib/overview.js";
 
 test("resumen: una corrida por manifest y un visitante por intento, por dispositivo; en cola aparte", () => {
   const roles = contarResumen({
@@ -54,54 +54,57 @@ test("pestañas: por creada descendente (desempate por id), hasta 6 ids con el t
   assert.deepEqual(Object.keys(listas), ["cuentas", "pestanas"], "ya no hay cola");
   const { cuentas, pestanas } = listas;
   assert.deepEqual(cuentas, { total: 8, running: 2, stalled: 1, queued: 2, live: 4, delivered: 2, failed: 2 });
-  assert.deepEqual(pestanas.recent, { ids: ["q-dos", "q-uno", "b-running", "a-stalled", "c-delivered", "f-dos"], total: 8 });
-  assert.deepEqual(pestanas.live, { ids: ["q-dos", "q-uno", "b-running", "a-stalled"], total: 4 });
+  assert.deepEqual(pestanas.recent, { ids: ["q-dos", "q-uno", "b-running", "a-stalled", "c-delivered", "f-dos"], total: 8, pagina: 1, paginas: 2 });
+  assert.deepEqual(pestanas.live, { ids: ["q-dos", "q-uno", "b-running", "a-stalled"], total: 4, pagina: 1, paginas: 1 });
   assert.equal(cuentas.live, pestanas.live.total);
-  assert.deepEqual(pestanas.delivered, { ids: ["c-delivered", "sin-fecha"], total: 2 });
-  assert.deepEqual(pestanas.failed, { ids: ["f-dos", "f-uno"], total: 2 });
+  assert.deepEqual(pestanas.delivered, { ids: ["c-delivered", "sin-fecha"], total: 2, pagina: 1, paginas: 1 });
+  assert.deepEqual(pestanas.failed, { ids: ["f-dos", "f-uno"], total: 2, pagina: 1, paginas: 1 });
   assert.deepEqual(idsConTarjeta({ pestanas }), ["q-dos", "q-uno", "b-running", "a-stalled", "c-delivered", "f-dos", "sin-fecha", "f-uno"]);
 });
 
 const muchas = Array.from({ length: 30 }, (_, i) => revision(`r-${String(i).padStart(2, "0")}`, `2026-11-${String(i + 1).padStart(2, "0")}T00:00:00Z`, i % 3 ? "delivered" : "failed"));
 
-test("pestañas: con más de 6, el total dice cuántas hay", () => {
+test("pestañas: con más de 6, la página 1 y cuántas páginas y revisiones hay", () => {
   const { pestanas } = listasDelOverview(muchas);
-  assert.equal(MAXIMO_POR_PESTANA, 6);
-  assert.deepEqual(pestanas.delivered, { ids: ["r-29", "r-28", "r-26", "r-25", "r-23", "r-22"], total: 20 });
-  assert.deepEqual(listasDelOverview([]).pestanas.recent, { ids: [], total: 0 });
+  assert.equal(POR_PAGINA, 6);
+  assert.deepEqual(pestanas.delivered, { ids: ["r-29", "r-28", "r-26", "r-25", "r-23", "r-22"], total: 20, pagina: 1, paginas: 4 });
+  assert.deepEqual(listasDelOverview([]).pestanas.recent, { ids: [], total: 0, pagina: 1, paginas: 1 }, "sin revisiones hay una página, vacía");
 });
 
-test("parámetros de /api/overview: pestaña conocida y límite entero entre 6 y 500; si no, la página de siempre", () => {
-  assert.deepEqual([MAXIMO_POR_PESTANA, LIMITE_MAXIMO, PESTANAS], [6, 500, ["recent", "live", "delivered", "failed"]]);
-  const de = (pestana, limite) => parametrosDelOverview({ pestana, limite });
-  assert.deepEqual(de("delivered", "16"), { pestana: "delivered", limite: 16 });
-  assert.deepEqual(de("live", 7), { pestana: "live", limite: 7 });
-  assert.deepEqual(de("failed", "007"), { pestana: "failed", limite: 7 });
-  assert.deepEqual(de("recent", "500"), { pestana: "recent", limite: 500 });
-  assert.deepEqual(de("recent", "501"), { pestana: "recent", limite: 500 }, "tope");
-  assert.deepEqual(de("recent", "99999999999"), { pestana: "recent", limite: 500 }, "tope");
-  const siempre = { pestana: null, limite: 6 };
-  for (const limite of ["6", "5", "0", "-7", "10.5", "1e3", "abc", "", " 8", null, undefined]) {
-    assert.deepEqual(de("delivered", limite), siempre, `limite ${JSON.stringify(limite)}`);
+test("parámetros de /api/overview: pestaña conocida y página entera desde 2; si no, la página 1 de siempre", () => {
+  assert.deepEqual([POR_PAGINA, PAGINA_MAXIMA, PESTANAS], [6, 9999, ["recent", "live", "delivered", "failed"]]);
+  const de = (pestana, pagina) => parametrosDelOverview({ pestana, pagina });
+  assert.deepEqual(de("delivered", "3"), { pestana: "delivered", pagina: 3 });
+  assert.deepEqual(de("live", 2), { pestana: "live", pagina: 2 });
+  assert.deepEqual(de("failed", "007"), { pestana: "failed", pagina: 7 });
+  assert.deepEqual(de("recent", "9999"), { pestana: "recent", pagina: 9999 });
+  assert.deepEqual(de("recent", "10000"), { pestana: "recent", pagina: 9999 }, "tope");
+  assert.deepEqual(de("recent", "999999999"), { pestana: "recent", pagina: 9999 }, "tope");
+  const siempre = { pestana: null, pagina: 1 };
+  for (const pagina of ["1", "0", "-2", "2.5", "1e3", "abc", "", " 2", "9999999999", null, undefined]) {
+    assert.deepEqual(de("delivered", pagina), siempre, `pagina ${JSON.stringify(pagina)}`);
   }
   for (const pestana of ["queued", "Delivered", "", null, undefined, "__proto__"]) {
-    assert.deepEqual(de(pestana, "16"), siempre, `pestana ${JSON.stringify(pestana)}`);
+    assert.deepEqual(de(pestana, "3"), siempre, `pestana ${JSON.stringify(pestana)}`);
   }
   assert.deepEqual(parametrosDelOverview(), siempre);
 });
 
-test("paginado: la pestaña pedida trae hasta `limite` ids, las demás 6, y el total no cambia", () => {
-  const corta = listasDelOverview(muchas);
-  const larga = listasDelOverview(muchas, parametrosDelOverview({ pestana: "delivered", limite: "16" }));
-  assert.equal(larga.pestanas.delivered.ids.length, 16);
-  assert.deepEqual(larga.pestanas.delivered.ids.slice(0, 6), corta.pestanas.delivered.ids, "empieza por la página anterior, en el mismo orden");
-  for (const otra of ["recent", "live", "failed"]) assert.deepEqual(larga.pestanas[otra], corta.pestanas[otra], otra);
-  assert.deepEqual(Object.values(larga.pestanas).map((p) => p.total), Object.values(corta.pestanas).map((p) => p.total));
-  assert.deepEqual(larga.cuentas, corta.cuentas);
-  const todo = listasDelOverview(muchas, { pestana: "delivered", limite: 500 });
-  assert.equal(todo.pestanas.delivered.ids.length, 20, "no más de las que hay");
-  // Las tarjetas: las de todos los ids devueltos; las de la página corta siguen ahí y en el mismo orden.
-  const deLaCorta = idsConTarjeta(corta);
-  assert.deepEqual(idsConTarjeta(larga).filter((id) => deLaCorta.includes(id)), deLaCorta);
-  assert.equal(idsConTarjeta(larga).length, new Set(Object.values(larga.pestanas).flatMap((p) => p.ids)).size);
+test("paginado: la pestaña pedida trae su página de 6, las demás la 1, y los totales no cambian", () => {
+  const primera = listasDelOverview(muchas);
+  const tercera = listasDelOverview(muchas, parametrosDelOverview({ pestana: "delivered", pagina: "3" }));
+  assert.deepEqual(tercera.pestanas.delivered, { ids: ["r-11", "r-10", "r-08", "r-07", "r-05", "r-04"], total: 20, pagina: 3, paginas: 4 });
+  const cuarta = listasDelOverview(muchas, { pestana: "delivered", pagina: 4 });
+  assert.deepEqual(cuarta.pestanas.delivered, { ids: ["r-02", "r-01"], total: 20, pagina: 4, paginas: 4 }, "la última, con lo que queda");
+  // Las páginas, una tras otra, son la lista entera sin repetir ni saltar.
+  const enOrden = [1, 2, 3, 4].flatMap((pagina) => listasDelOverview(muchas, { pestana: "delivered", pagina }).pestanas.delivered.ids);
+  assert.equal(new Set(enOrden).size, 20);
+  assert.deepEqual(enOrden.slice(0, 6), primera.pestanas.delivered.ids);
+  for (const otra of ["recent", "live", "failed"]) assert.deepEqual(tercera.pestanas[otra], primera.pestanas[otra], otra);
+  assert.deepEqual(tercera.cuentas, primera.cuentas);
+  // Una página que ya no existe vale la última: la página dice cuál dio.
+  assert.deepEqual(listasDelOverview(muchas, { pestana: "delivered", pagina: 9 }).pestanas.delivered, cuarta.pestanas.delivered);
+  assert.deepEqual(listasDelOverview([], { pestana: "failed", pagina: 5 }).pestanas.failed, { ids: [], total: 0, pagina: 1, paginas: 1 });
+  // Las tarjetas: las de todos los ids devueltos, sin repetir.
+  assert.equal(idsConTarjeta(tercera).length, new Set(Object.values(tercera.pestanas).flatMap((p) => p.ids)).size);
 });

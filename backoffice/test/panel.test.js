@@ -159,8 +159,8 @@ test("vigentes: una fallida reemplazada queda fuera de las pestañas; una fallid
   const { panel } = armar({ items });
   const { pestanas, cuentas } = await panel.overview();
   assert.deepEqual(pestanas.recent.ids, ["nueva", "rota"]);
-  assert.deepEqual(pestanas.failed, { ids: ["rota"], total: 1 });
-  assert.deepEqual(pestanas.delivered, { ids: ["nueva"], total: 1 });
+  assert.deepEqual(pestanas.failed, { ids: ["rota"], total: 1, pagina: 1, paginas: 1 });
+  assert.deepEqual(pestanas.delivered, { ids: ["nueva"], total: 1, pagina: 1, paginas: 1 });
   assert.deepEqual([cuentas.total, cuentas.failed], [2, 1]);
   assert.equal((await panel.tarjeta("vieja")).estado, "failed", "una reemplazada sigue teniendo tarjeta a pedido");
 });
@@ -220,37 +220,36 @@ const VIEJAS = Array.from({ length: 20 }, (_, i) =>
   meta(`vieja-${String(i).padStart(2, "0")}`, "done", { created_at: `2026-11-21T${String(i).padStart(2, "0")}:00:00.000Z` }),
 );
 
-test("páginas: no se mezclan en la memoria; la larga trae las tarjetas de la corta, iguales y en orden; lo cerrado no se relee", async () => {
+test("páginas: cada una con sus 6 tarjetas, sin mezclarse en la memoria; lo cerrado no se relee", async () => {
   const { panel, cliente } = armar({ items: [...ITEMS, ...VIEJAS], memoriaMs: 60_000 });
   const consultadas = () => cliente.llamadas.filter((c) => c.constructor.name === "QueryCommand").map((c) => c.input.ExpressionAttributeValues[":pk"].replace(/^REV#/, ""));
-  const corta = await panel.overview();
+  const primera = await panel.overview();
   const antes = consultadas().length;
-  const larga = await panel.overview({ pestana: "delivered", limite: "16" });
+  const segunda = await panel.overview({ pestana: "delivered", pagina: "2" });
 
-  assert.equal(corta.pestanas.delivered.ids.length, 6);
-  assert.equal(larga.pestanas.delivered.ids.length, 16);
-  assert.equal(larga.pestanas.delivered.total, corta.pestanas.delivered.total);
-  assert.deepEqual(larga.pestanas.delivered.ids.slice(0, 6), corta.pestanas.delivered.ids);
-  for (const otra of ["recent", "live", "failed"]) assert.deepEqual(larga.pestanas[otra], corta.pestanas[otra], otra);
-  const deLaCorta = Object.keys(corta.tarjetas);
-  for (const id of deLaCorta) assert.deepEqual(larga.tarjetas[id], corta.tarjetas[id], id);
-  assert.deepEqual(Object.keys(larga.tarjetas).filter((id) => deLaCorta.includes(id)), deLaCorta, "en el mismo orden");
-  assert.ok(larga.pestanas.delivered.ids.every((id) => larga.tarjetas[id]), "una tarjeta por cada id devuelto");
+  assert.equal(primera.pestanas.delivered.ids.length, 6);
+  assert.equal(segunda.pestanas.delivered.ids.length, 6);
+  assert.deepEqual([primera.pestanas.delivered.pagina, segunda.pestanas.delivered.pagina], [1, 2]);
+  assert.equal(segunda.pestanas.delivered.total, primera.pestanas.delivered.total);
+  assert.equal(segunda.pestanas.delivered.paginas, Math.ceil(primera.pestanas.delivered.total / 6));
+  assert.ok(segunda.pestanas.delivered.ids.every((id) => !primera.pestanas.delivered.ids.includes(id)), "otra página, otras revisiones");
+  for (const otra of ["recent", "live", "failed"]) assert.deepEqual(segunda.pestanas[otra], primera.pestanas[otra], otra);
+  assert.ok(segunda.pestanas.delivered.ids.every((id) => segunda.tarjetas[id]), "una tarjeta por cada id devuelto");
+  for (const id of Object.keys(primera.tarjetas).filter((id) => segunda.tarjetas[id])) assert.deepEqual(segunda.tarjetas[id], primera.tarjetas[id], id);
 
-  // Solo se consultan las cerradas que se suman (y la que está en cola, que no se guarda).
-  const sumadas = Object.keys(larga.tarjetas).filter((id) => !deLaCorta.includes(id));
-  assert.equal(sumadas.length, 10);
-  assert.deepEqual(consultadas().slice(antes).sort(), [...sumadas, "espera"].sort());
+  // Solo se consultan las cerradas que la página suma (y la que está en cola, que no se guarda).
+  const nuevas = Object.keys(segunda.tarjetas).filter((id) => !primera.tarjetas[id]);
+  assert.equal(nuevas.length, 6);
+  assert.deepEqual(consultadas().slice(antes).sort(), [...nuevas, "espera"].sort());
 
-  // Cada página tiene su lugar en la memoria (un parámetro inválido es la página de siempre).
-  assert.equal(await panel.overview(), corta);
-  assert.equal(await panel.overview({ pestana: "delivered", limite: 16 }), larga);
-  assert.equal(await panel.overview({ pestana: "delivered", limite: "5" }), corta);
-  assert.equal(await panel.overview({ pestana: "otra", limite: "16" }), corta);
-  assert.notEqual(await panel.overview({ pestana: "delivered", limite: "26" }), larga);
+  // Cada página tiene su lugar en la memoria (un parámetro inválido o la página 1 es la página de siempre).
+  assert.equal(await panel.overview(), primera);
+  assert.equal(await panel.overview({ pestana: "delivered", pagina: 2 }), segunda);
+  assert.equal(await panel.overview({ pestana: "delivered", pagina: "1" }), primera);
+  assert.equal(await panel.overview({ pestana: "otra", pagina: "2" }), primera);
+  assert.notEqual(await panel.overview({ pestana: "delivered", pagina: "3" }), segunda);
 });
-
-test("servidor: ?pestana=&limite= pagina la pestaña pedida (6 por defecto, inválido o menor que 6 vale 6, tope 500)", async () => {
+test("servidor: ?pestana=&pagina= da esa página de 6 de la pestaña pedida (la 1 si es inválida; más allá, la última)", async () => {
   const { fuente } = armar();
   const conViejas = crearServidor({
     fuente,
@@ -260,19 +259,22 @@ test("servidor: ?pestana=&limite= pagina la pestaña pedida (6 por defecto, inv�
   await new Promise((listo) => conViejas.listen(0, "127.0.0.1", listo));
   try {
     const pestanas = async (consulta) => (await (await fetch(`${base(conViejas)}/api/overview${consulta}`)).json()).pestanas;
-    const largos = async (consulta) => Object.fromEntries(Object.entries(await pestanas(consulta)).map(([nombre, p]) => [nombre, [p.ids.length, p.total]]));
-    assert.deepEqual(await largos(""), { recent: [6, 25], live: [2, 2], delivered: [6, 23], failed: [0, 0] });
-    assert.deepEqual(await largos("?pestana=delivered&limite=16"), { recent: [6, 25], live: [2, 2], delivered: [16, 23], failed: [0, 0] });
-    assert.deepEqual(await largos("?pestana=recent&limite=500"), { recent: [25, 25], live: [2, 2], delivered: [6, 23], failed: [0, 0] });
-    assert.deepEqual(await largos("?pestana=delivered&limite=999"), { recent: [6, 25], live: [2, 2], delivered: [23, 23], failed: [0, 0] }, "tope");
-    for (const consulta of ["?pestana=delivered&limite=abc", "?pestana=delivered&limite=3", "?pestana=delivered&limite=10.5", "?limite=16", "?pestana=nada&limite=16"]) {
-      assert.deepEqual(await largos(consulta), await largos(""), consulta);
+    // [ids, total, página, páginas] de cada pestaña
+    const largos = async (consulta) =>
+      Object.fromEntries(Object.entries(await pestanas(consulta)).map(([nombre, p]) => [nombre, [p.ids.length, p.total, p.pagina, p.paginas]]));
+    const primera = { recent: [6, 25, 1, 5], live: [2, 2, 1, 1], delivered: [6, 23, 1, 4], failed: [0, 0, 1, 1] };
+    assert.deepEqual(await largos(""), primera);
+    assert.deepEqual(await largos("?pestana=delivered&pagina=2"), { ...primera, delivered: [6, 23, 2, 4] });
+    assert.deepEqual(await largos("?pestana=delivered&pagina=4"), { ...primera, delivered: [5, 23, 4, 4] }, "la última, con lo que queda");
+    assert.deepEqual(await largos("?pestana=recent&pagina=5"), { ...primera, recent: [1, 25, 5, 5] });
+    assert.deepEqual(await largos("?pestana=delivered&pagina=99"), { ...primera, delivered: [5, 23, 4, 4] }, "más allá, la última");
+    for (const consulta of ["?pestana=delivered&pagina=abc", "?pestana=delivered&pagina=0", "?pestana=delivered&pagina=2.5", "?pagina=2", "?pestana=nada&pagina=2", "?pestana=delivered&limite=16"]) {
+      assert.deepEqual(await largos(consulta), primera, consulta);
     }
   } finally {
     conViejas.close();
   }
 });
-
 let servidor;
 let sinTabla;
 const base = (s) => `http://127.0.0.1:${s.address().port}/backoffice`;

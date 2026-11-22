@@ -1,13 +1,14 @@
 // Sección Reviews del Overview (spec §3.5, contrato §7): "Reviews" con sus pestañas (Recent, Live, Delivered,
-// Failed), la grilla de tarjetas, el botón "Show N more" y la pista de arranque vacío. Las revisiones en cola son
-// tarjetas como las demás (píldora "Queued"). Se arma una vez; al refrescar, al cambiar de pestaña o dispositivo o al
-// sumar más, se reconcilia la grilla por tarjeta (key = revisión + dispositivo): las que siguen se actualizan por
-// partes y no se mueven, las que salen sueltan sus <img> y las nuevas se suman abajo.
+// Failed), la grilla de tarjetas (páginas de 6), el paginador y la pista de arranque vacío. Las revisiones en cola son
+// tarjetas como las demás (píldora "Queued"). Se arma una vez; al refrescar o al cambiar de pestaña, dispositivo o
+// página se reconcilia la grilla por tarjeta (key = revisión + dispositivo): las que siguen se actualizan por partes y
+// no se mueven, las que salen sueltan sus <img> y las nuevas entran en su lugar. Mientras llega otra página, la
+// grilla muestra tarjetas esqueleto.
 
 import { urlDeArchivo, urlDePropuesta } from "../nucleo/datos.js";
 import { conservarFoco, el, reemplazar } from "../nucleo/dom.js";
-import { avisoEnLinea } from "../nucleo/estados.js";
-import { icono24 } from "../nucleo/iconos.js";
+import { avisoEnLinea, tarjetaEsqueleto } from "../nucleo/estados.js";
+import { icono, icono24 } from "../nucleo/iconos.js";
 import { enlaceARevision } from "../nucleo/rutas.js";
 import { colorDeCaptura } from "./capturas.js";
 import { activarPestanas, marcarPestana } from "./dom-pestanas.js";
@@ -19,9 +20,11 @@ import {
   PESTANAS,
   columnasDePista,
   hayPista,
+  TARJETAS_POR_PAGINA,
   insigniaDePestana,
-  masDePestana,
   modeloDeTarjeta,
+  numerosDePaginas,
+  paginacionDePestana,
   tarjetasDePestana,
   tonoDeInsignia,
 } from "./tarjetas.js";
@@ -83,11 +86,54 @@ function pista(t) {
 }
 
 /**
- * Arma la sección. `imagenes`: el banco de <img> de capturas.js; `alElegirPestana(valor)` al elegir una pestaña;
- * `alPedirMas()` al presionar "Show N more". → { nodo, actualizar({ overview, dispositivo, pestana, error }),
- * cargando(boolean), enfocarTarjeta(indice), soltar() }
+ * El paginador: el rango que se ve ("7–12 of 52") y ‹ 1 … 4 5 6 … 9 ›. Cada número es un enlace a su página
+ * (`enlace(n)`, el hash del Overview con ?pagina=n): el enrutador lo atiende sin remontar y atrás vuelve a la anterior.
+ * La página actual queda enfocable (aria-current) y es el respaldo del foco cuando ‹ o › desaparecen.
  */
-export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, alPedirMas }) {
+function paginador({ pagina, paginas, total, desde, hasta }, enlace, { t, fmt }) {
+  const flecha = (direccion, destino) => {
+    const etiqueta = t(`overview.paginas.${direccion}`);
+    const forma = icono(direccion === "anterior" ? "anterior" : "siguiente");
+    return destino
+      ? el("a", { class: "ov-pagina ov-pagina-flecha", href: enlace(destino), "aria-label": etiqueta, title: etiqueta, "data-foco": `overview:pagina:${direccion}` }, forma)
+      : el("span", { class: "ov-pagina ov-pagina-flecha", "aria-hidden": "true", "data-apagada": "" }, forma);
+  };
+  return el(
+    "nav",
+    { class: "ov-paginas", "aria-label": t("overview.paginas.etiqueta") },
+    el("span", { class: "ov-paginas-rango", texto: t("overview.paginas.rango", { desde: cifra(desde, fmt), hasta: cifra(hasta, fmt), total: cifra(total, fmt) }) }),
+    el(
+      "ol",
+      { class: "ov-paginas-lista" },
+      el("li", {}, flecha("anterior", pagina > 1 ? pagina - 1 : null)),
+      numerosDePaginas(pagina, paginas).map((n) =>
+        el(
+          "li",
+          {},
+          n === "…"
+            ? el("span", { class: "ov-pagina-hueco", "aria-hidden": "true", texto: "…" })
+            : el("a", {
+                class: "ov-pagina",
+                href: enlace(n),
+                "aria-label": t("overview.paginas.pagina", { n: cifra(n, fmt) }),
+                "aria-current": n === pagina ? "page" : null,
+                "data-foco": `overview:pagina:${n}`,
+                "data-foco-respaldo": n === pagina ? "" : null,
+                texto: cifra(n, fmt),
+              }),
+        ),
+      ),
+      el("li", {}, flecha("siguiente", pagina < paginas ? pagina + 1 : null)),
+    ),
+  );
+}
+
+/**
+ * Arma la sección. `imagenes`: el banco de <img> de capturas.js; `alElegirPestana(valor)` al elegir una pestaña;
+ * `enlaceAPagina(n)`: el hash de la página n de la pestaña activa. → { nodo, actualizar({ overview, dispositivo,
+ * pestana, error, esperando }), esperarPagina({ pagina, paginas, total }), subirAlInicio(), soltar() }
+ */
+export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, enlaceAPagina }) {
   const { t, fmt } = ctx;
 
   const pestanas = PESTANAS.map((id) => {
@@ -116,16 +162,8 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, alPed
   const aviso = el("div", { class: "ov-aviso-refresco", hidden: true });
   const grilla = el("ul", { class: "ov-grilla" });
   const vacio = el("p", { class: "ov-vacio", hidden: true, texto: t("overview.vacio") });
-  // Mientras pide, el botón sigue enfocable (aria-disabled, no disabled: deshabilitarlo le quitaría el foco).
-  const mas = el("button", { type: "button", class: "boton boton-secundario ov-mas", "data-foco": "overview:mas", hidden: true });
-  mas.addEventListener(
-    "click",
-    () => {
-      if (mas.getAttribute("aria-disabled") !== "true") alPedirMas();
-    },
-    { signal: ctx.senal },
-  );
-  const panel = el("div", { id: "ov-panel", class: "ov-panel", role: "tabpanel" }, grilla, vacio, mas);
+  const paginas = el("div", { class: "ov-paginas-caja", hidden: true });
+  const panel = el("div", { id: "ov-panel", class: "ov-panel", role: "tabpanel" }, grilla, vacio, paginas);
   const noDisponible = el("div", { class: "ov-no-disponible", hidden: true }, avisoEnLinea(t("overview.noDisponible")));
 
   const nodo = el(
@@ -189,15 +227,19 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, alPed
       if (grilla.children[indice] !== nodoDeCelda) grilla.insertBefore(nodoDeCelda, grilla.children[indice] ?? null);
     });
     while (grilla.children.length > nodos.length) grilla.lastElementChild.remove();
+    grilla.removeAttribute("aria-busy");
     vacio.hidden = nodos.length > 0;
     grilla.hidden = nodos.length === 0;
-
-    const faltan = masDePestana(overview, pestana);
-    mas.hidden = !faltan;
-    if (faltan) ponerTexto(mas, t("overview.verMas", { n: faltan.siguiente, cifra: cifra(faltan.siguiente, fmt) }));
+    ponerPaginador(paginacionDePestana(overview, pestana));
   }
 
-  function actualizar({ overview, dispositivo, pestana, error }) {
+  /** El paginador de la pestaña, o nada si cabe en una página. */
+  function ponerPaginador(datos) {
+    reemplazar(paginas, datos ? paginador(datos, enlaceAPagina, { t, fmt }) : null);
+    paginas.hidden = !datos;
+  }
+
+  function actualizar({ overview, dispositivo, pestana, error, esperando = false }) {
     if (conError !== error) {
       conError = error;
       reemplazar(aviso, error ? avisoEnLinea(t("overview.errorAlRefrescar"), "atencion") : null);
@@ -213,20 +255,32 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, alPed
       return;
     }
     ponerPestanas(overview, pestana);
-    conservarFoco(panel, () => ponerGrilla(overview, dispositivo, pestana));
+    // Esperando otra página: la grilla y el paginador ya muestran la pedida (esperarPagina).
+    if (!esperando) conservarFoco(panel, () => ponerGrilla(overview, dispositivo, pestana));
   }
 
-  /** Mientras se piden más: el botón no responde y la grilla se marca ocupada. */
-  function cargando(si) {
-    if (si) mas.setAttribute("aria-disabled", "true");
-    else mas.removeAttribute("aria-disabled");
-    if (si) grilla.setAttribute("aria-busy", "true");
-    else grilla.removeAttribute("aria-busy");
+  /**
+   * Mientras llega otra página: las tarjetas que se ven vuelven al banco y en su lugar van tarjetas esqueleto (las de
+   * esa página: 6, o las que queden en la última); el paginador ya marca la página pedida.
+   */
+  function esperarPagina({ pagina, paginas: cuantas, total }) {
+    conservarFoco(panel, () => {
+      soltar();
+      const enEsta = Math.max(1, Math.min(TARJETAS_POR_PAGINA, total - (pagina - 1) * TARJETAS_POR_PAGINA));
+      reemplazar(grilla, Array.from({ length: enEsta }, tarjetaEsqueleto));
+      grilla.setAttribute("aria-busy", "true");
+      grilla.hidden = false;
+      vacio.hidden = true;
+      const desde = (pagina - 1) * TARJETAS_POR_PAGINA + 1;
+      ponerPaginador(cuantas > 1 ? { pagina, paginas: cuantas, total, desde, hasta: desde + enEsta - 1 } : null);
+    });
   }
 
-  /** Enfoca el enlace principal de la tarjeta `indice` de la grilla (la primera nueva, si el botón ya no está). */
-  function enfocarTarjeta(indice) {
-    grilla.children[indice]?.querySelector(".ov-tarjeta-enlace")?.focus();
+  /** Si la cabecera de Reviews quedó arriba de la ventana (se cambió de página desde abajo), vuelve hasta ella. */
+  function subirAlInicio() {
+    const arriba = nodo.getBoundingClientRect().top;
+    const barra = document.getElementById("barra-superior")?.getBoundingClientRect().height ?? 0;
+    if (arriba < barra) scrollTo({ top: Math.max(0, scrollY + arriba - barra - 16), behavior: "instant" });
   }
 
   /** Al desmontar (o sin tabla): devuelve todos los <img> al banco (ver capturas.js). */
@@ -235,5 +289,5 @@ export function crearSeccionDeRevisiones(ctx, { imagenes, alElegirPestana, alPed
     tarjetas.clear();
   }
 
-  return { nodo, actualizar, cargando, enfocarTarjeta, soltar };
+  return { nodo, actualizar, esperarPagina, subirAlInicio, soltar };
 }

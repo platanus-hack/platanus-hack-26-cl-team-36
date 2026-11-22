@@ -63,13 +63,13 @@ export const pedirRevision = (revision) => pedirJson(`api/revisiones/${encodeURI
 /** → { ahora, roles: { cataloger, guide, visitor: { all, desktop, mobile }, improver } } (contrato §1) | null (404) */
 export const pedirResumen = () => pedirJson("api/resumen");
 /**
- * → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, tarjetas } (contrato §2 y §7) | null (404). Con
- * `pestana` y `limite`, esa pestaña trae hasta `limite` ids (paginado, contrato §7.4); las demás, 6.
+ * → { ahora, disponible, umbralDetenidaMin, cuentas, pestanas, tarjetas } (contrato §2 y §7) | null (404). Cada
+ * pestaña trae una página de 6 ids: la 1, o `pagina` en `pestana` (paginado, contrato §7.4).
  */
-export function pedirOverview({ pestana = null, limite = null } = {}) {
+export function pedirOverview({ pestana = null, pagina = null } = {}) {
   const consulta = new URLSearchParams();
   if (pestana) consulta.set("pestana", pestana);
-  if (limite) consulta.set("limite", String(limite));
+  if (pagina > 1) consulta.set("pagina", String(pagina));
   const texto = consulta.toString();
   return pedirJson(`api/overview${texto ? `?${texto}` : ""}`);
 }

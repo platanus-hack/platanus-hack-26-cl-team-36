@@ -94,15 +94,18 @@ flujo (Cataloger → Guide → Visitors → Designer), con un cuadrito por corri
 revisiones en tarjetas con la página revisada (captura de escritorio y teléfono; si el Diseñador terminó y dejó
 capturas, la del después de su tema, y si no, la de inicio de un visitante), sus cuatro etapas (Catalog, Routes,
 Visits, Theme), un medidor por goal y un cuadrito por agente; pestañas Recent (todas, también las en cola), Live (en
-curso, detenidas y en cola), Delivered y Failed. Cada pestaña muestra 6 tarjetas y "Show 10 more" suma las siguientes
-abajo, paginadas en el servidor (`/api/overview?pestana=…&limite=…`). Una tarjeta lleva directo a Path map / Replay: la
-telaraña de su primer goal con tanda terminada (cada goal, a la suya); si la revisión todavía no tiene una, la de la
-tanda de su captura (la más nueva del mismo host y ruta); solo si no hay ninguna, al avance de la revisión.
+curso, detenidas y en cola), Delivered y Failed. Cada pestaña muestra páginas de 6 tarjetas, paginadas en el servidor
+(`/api/overview?pestana=…&pagina=…`), con un paginador abajo (el rango que se ve y `‹ 1 … 4 5 6 … 11 ›`). Mientras
+llega otra página, la grilla muestra tarjetas esqueleto. Si la página pedida ya no existe, el servidor da la última y la
+URL se corrige. Otra pestaña empieza en su página 1, que ya llegó con la primera respuesta. Una tarjeta lleva directo
+a Path map / Replay: la telaraña de su primer goal con tanda terminada (cada goal, a la suya); si la revisión todavía
+no tiene una, la de la tanda de su captura (la más nueva del mismo host y ruta); solo si no hay ninguna, al avance de
+la revisión.
 Hay una tarjeta por página: la revisión vigente (la que apunta el ítem `URL#<url>` de la tabla), aunque esté en curso;
 las que reemplazó un `force` no cuentan y la tarjeta enlaza a ellas ("2 previous reviews").
 El filtro de dispositivo (All · Desktop · Mobile) cambia los visitantes, las capturas, los medidores y los cuadritos
-de cada tarjeta. El dispositivo y la pestaña quedan en la URL (`#/?dispositivo=mobile&pestana=failed`); la página
-vuelve a pedir cada 5 s mientras la pestaña del navegador está visible.
+de cada tarjeta. El dispositivo, la pestaña y la página quedan en la URL (`#/?dispositivo=mobile&pestana=failed&pagina=2`;
+atrás vuelve a la página anterior); la página vuelve a pedir cada 5 s mientras la pestaña del navegador está visible.
 
 **Corridas** (`#/corridas`; los enlaces viejos `#/?q=…` llevan aquí) lista las tandas, más nuevas primero y agrupadas
 por día. Cada fila abre la tanda y dice solo qué tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el

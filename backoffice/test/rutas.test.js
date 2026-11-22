@@ -48,6 +48,18 @@ test("Overview: all y recent no se escriben; un valor o un parámetro desconocid
   assert.equal(hashDe({}), "#/");
 });
 
+test("Overview: la página va al final y la 1 no se escribe; una que no es entero positivo se descarta", () => {
+  const ruta = parsearHash("#/?pagina=3&pestana=failed&dispositivo=mobile");
+  assert.deepEqual(ruta.parametros, { dispositivo: "mobile", pestana: "failed", pagina: "3" });
+  assert.equal(hashDe(ruta), "#/?dispositivo=mobile&pestana=failed&pagina=3");
+  assert.equal(hashDe({ tipo: "overview", parametros: { pestana: "delivered", pagina: 12 } }), "#/?pestana=delivered&pagina=12");
+  assert.equal(hashDe({ tipo: "overview", parametros: { pestana: "delivered", pagina: 1 } }), "#/?pestana=delivered");
+  assert.equal(hashDe({ tipo: "overview", parametros: { pagina: null } }), "#/");
+  for (const pagina of ["0", "-1", "2.5", "02", "abc", "10000"]) {
+    assert.deepEqual(parsearHash(`#/?pagina=${pagina}`).parametros, {}, pagina);
+  }
+});
+
 test("Corridas: #/corridas y sus parámetros van y vuelven", () => {
   assert.deepEqual(parsearHash("#/corridas"), { tipo: "corridas", parametros: {} });
   const hash = "#/corridas?q=sii&sitio=sii.cl&filtro=problemas&orden=exito&vista=grilla";
