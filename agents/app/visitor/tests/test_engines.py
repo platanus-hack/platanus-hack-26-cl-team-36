@@ -109,3 +109,80 @@ def test_api_engine_sends_errors_as_text_and_the_screenshot_apart(tmp_path):
     result, screenshot = engine.messages[-1]["content"]
     assert result == {"type": "tool_result", "tool_use_id": "t1", "content": "falta la expectativa", "is_error": True}
     assert screenshot["type"] == "image"
+
+
+def _status_error(status: int):
+    import anthropic
+    import httpx2
+
+    response = httpx2.Response(status, request=httpx2.Request("POST", "https://bedrock-runtime.us-east-2.amazonaws.com"))
+    return anthropic.APIStatusError(f"Error code: {status}", response=response, body=None)
+
+
+class _FlakyMessages(_FakeMessages):
+    """Falla con los errores dados, uno por llamada, y después responde."""
+
+    def __init__(self, content, errors):
+        super().__init__(content)
+        self.errors = list(errors)
+
+    async def create(self, **kwargs):
+        if self.errors:
+            self.calls.append(kwargs)
+            raise self.errors.pop(0)
+        return await super().create(**kwargs)
+
+
+def _flaky_engine(tmp_path, errors):
+    import asyncio
+    from types import SimpleNamespace
+
+    from visitor.api_engine import ApiEngine
+
+    messages = _FlakyMessages([SimpleNamespace(type="text", text="TERMINADO: listo")], errors)
+    waits = []
+
+    async def sleep(seconds):
+        waits.append(seconds)
+
+    engine = ApiEngine(SimpleNamespace(messages=messages), "claude-sonnet-5-5", "medium", sleep=sleep)
+    asyncio.run(engine.start("sistema", "primer mensaje", b"png", tmp_path))
+    return engine, messages, waits
+
+
+def test_api_engine_retries_a_transient_bedrock_error(tmp_path):
+    import asyncio
+
+    engine, messages, waits = _flaky_engine(tmp_path, [_status_error(500)])
+    assert asyncio.run(engine.decide()).final == ("done", "listo")
+    assert len(messages.calls) == 2 and len(waits) == 1
+
+
+def test_api_engine_does_not_retry_a_bad_request(tmp_path):
+    import asyncio
+
+    import pytest
+
+    from visitor.turns import AttemptEnded
+
+    engine, messages, waits = _flaky_engine(tmp_path, [_status_error(400)])
+    with pytest.raises(AttemptEnded) as ended:
+        asyncio.run(engine.decide())
+    assert ended.value.reason == "api_error"
+    assert len(messages.calls) == 1 and waits == []
+
+
+def test_api_engine_gives_up_after_repeated_transient_errors(tmp_path):
+    import asyncio
+
+    import pytest
+
+    from visitor import api_engine
+    from visitor.turns import AttemptEnded
+
+    errors = [_status_error(503 if i % 2 else 429) for i in range(api_engine.MAX_ATTEMPTS)]
+    engine, messages, waits = _flaky_engine(tmp_path, errors)
+    with pytest.raises(AttemptEnded) as ended:
+        asyncio.run(engine.decide())
+    assert ended.value.reason == "api_error"
+    assert len(messages.calls) == api_engine.MAX_ATTEMPTS and len(waits) == api_engine.MAX_ATTEMPTS - 1

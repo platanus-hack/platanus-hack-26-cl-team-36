@@ -220,15 +220,12 @@ class SyntheticUser:
                 expectation = None
                 continue
             if not expectation:
-                self.run.incidents.append(f"intentó '{request.name}' sin declarar su expectativa")
-                results.append(ActionResult(
-                    request, "Antes de esta acción debes declarar tu expectativa en una frase. No se ejecutó.", is_error=True
-                ))
-                failed = True
-                continue
+                # Haiku 4.5 casi nunca la declara: rechazar la acción lo dejaba sin dar un paso. Se ejecuta igual y la
+                # falta queda como dato del modelo, no como incidencia del sitio.
+                self.run.acciones_sin_expectativa += 1
             try:
                 action_input = self._resolver_volver(request.input) if request.name == VOLVER_A_NODO else request.input
-                await self._execute_step(request.name, action_input, expectation)
+                await self._execute_step(request.name, action_input, expectation or "")
                 results.append(ActionResult(request, "OK"))
             except (InvalidActionError, UnavailableActionError) as error:
                 self.run.incidents.append(f"{request.name}: {error}")

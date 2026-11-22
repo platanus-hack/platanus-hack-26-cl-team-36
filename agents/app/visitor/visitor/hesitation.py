@@ -33,7 +33,8 @@ def hesitation_points(run: dict) -> list[str]:
         scroll_streak = [step] if step and step["action"] == "scroll" else []
 
     for step in steps:
-        prefix = f"Paso {step['number']} ({action_with_target(step)}; esperaba: \"{step['expectation']}\")"
+        esperaba = f"; esperaba: \"{step['expectation']}\"" if step.get("expectation") else ""
+        prefix = f"Paso {step['number']} ({action_with_target(step)}{esperaba})"
         signals = step["signals"]
         if "no_effect" in signals and step["action"] != "scroll":
             points.append(f"{prefix}: no tuvo efecto visible.")

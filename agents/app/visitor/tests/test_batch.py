@@ -31,3 +31,11 @@ def test_a_batch_whose_attempts_were_all_interrupted_fails_and_keeps_its_report(
     backend = store.LocalBackend(tmp_path)
     assert store.read_manifest(backend, raised.value.run).status == "failed"
     assert backend.exists(raised.value.run.file("report.md")) and store.latest_run(backend, PREFIX) is None
+
+
+def test_the_user_engine_retries_on_its_own_and_the_judge_keeps_the_sdk_retries():
+    import anthropic
+
+    client = anthropic.AsyncAnthropic(api_key="x")
+    engine = batch._engines("api", client, "claude-sonnet-5-5", "medium", None, None)("desktop")
+    assert engine.client.max_retries == 0 and client.max_retries == anthropic.DEFAULT_MAX_RETRIES
