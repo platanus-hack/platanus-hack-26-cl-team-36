@@ -19,8 +19,10 @@ export default {
   pestana: {
     telarana: "Path map",
     replay: "Replay",
+    propuesta: "Proposal",
   },
   marco: {
+    disenando: "The Designer is preparing the proposal",
     vistas: "Batch views",
     anterior: "Previous",
     siguiente: "Next",

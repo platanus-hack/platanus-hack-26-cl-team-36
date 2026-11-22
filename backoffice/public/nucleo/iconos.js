@@ -54,6 +54,18 @@ const FORMAS = {
   marca: [["circle", { cx: 8, cy: 8, r: 2.25 }], ["circle", { cx: 8, cy: 8, r: 6, "stroke-dasharray": "1.5 2.2" }], ["path", { d: "M10.25 8h4" }]],
   check: [["path", { d: "M3.5 8.5l3 3 6-7" }]],
   proximamente: [["circle", { cx: 8, cy: 8, r: 6 }], ["path", { d: "M8 4.75V8l2.25 1.5" }]],
+  // Análisis del Replay (seguimiento de la ruta) y pestaña Propuesta.
+  cursor: [["path", { d: "M3.5 2.5l9 3.9-3.9 1.4-1.4 3.9z" }], ["path", { d: "M8.9 8.9l3.6 3.6" }]],
+  esperaba: [["path", { d: "M13.5 9.75a1.5 1.5 0 0 1-1.5 1.5H6l-3.5 2.75V3.75A1.5 1.5 0 0 1 4 2.25h8a1.5 1.5 0 0 1 1.5 1.5z" }]],
+  ojo: [["path", { d: "M1.5 8s2.4-4.75 6.5-4.75S14.5 8 14.5 8s-2.4 4.75-6.5 4.75S1.5 8 1.5 8z" }], ["circle", { cx: 8, cy: 8, r: 2 }]],
+  meta: [["path", { d: "M3.5 14.25V2.25M3.5 2.75h8.75l-1.75 3 1.75 3H3.5" }]],
+  desvio: [["path", { d: "M4 2.5v3.75a3 3 0 0 0 3 3h5.5M10 6.75l2.5 2.5-2.5 2.5" }]],
+  escritorio: [["rect", { x: 1.75, y: 2.75, width: 12.5, height: 8.5, rx: 1.5 }], ["path", { d: "M5.5 13.75h5M8 11.25v2.5" }]],
+  movil: [["rect", { x: 4.5, y: 1.75, width: 7, height: 12.5, rx: 1.5 }], ["path", { d: "M7.25 11.75h1.5" }]],
+  visitantes: [["circle", { cx: 6, cy: 5.5, r: 2.25 }], ["path", { d: "M2 13.25c0-2.2 1.8-4 4-4s4 1.8 4 4" }], ["circle", { cx: 11.5, cy: 6.25, r: 1.75 }], ["path", { d: "M11 9.4c1.8.25 3 1.7 3 3.85" }]],
+  disenador: [["path", { d: "M13.5 2.5L7.25 8.75" }], ["path", { d: "M5.4 9.4c-1.5 0-2.4 1.1-2.4 2.4 0 .8-.4 1.3-1 1.7 2.7.9 5.3-.2 5.3-2.4 0-.9-.8-1.7-1.9-1.7z" }]],
+  documento: [["path", { d: "M4.25 1.75h5l2.5 2.5v10h-7.5z" }], ["path", { d: "M9.25 1.75v2.5h2.5M6.25 8.25h3.5M6.25 10.75h3.5" }]],
+  reintentar: [["path", { d: "M2.75 8a5.25 5.25 0 1 0 1.6-3.75" }], ["path", { d: "M2.75 2.5v3.25H6" }]],
 };
 
 export const NOMBRES_DE_ICONO = Object.freeze(Object.keys(FORMAS));

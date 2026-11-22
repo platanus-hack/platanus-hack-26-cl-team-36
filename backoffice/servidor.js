@@ -19,6 +19,8 @@
 //                                           las revisiones del Overview, cada tarjeta con todo lo que dibuja (§2);
 //                                           sin tabla, { ahora, disponible: false }
 //   GET /backoffice/resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
+//   GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>  → la propuesta del Diseñador para esa tanda
+//   GET /backoffice/propuestas/<host>/improver/<corrida>/vistas/<nombre>.png  → una captura antes/después del tema
 //   GET /backoffice/<ruta>.{html,js,css,svg,woff2}  → archivos de public/
 //   GET /salud                            → { ok: true }, con cualquier Host (el health check del balanceador)
 //
@@ -39,8 +41,10 @@ import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { crearFuente } from "./lib/fuente.js";
 import { crearPanel } from "./lib/panel.js";
+import { ARCHIVO_DE_VISTA, crearPropuestas } from "./lib/propuestas.js";
 import { crearRevisiones, partesDeResultado } from "./lib/revisiones.js";
 import { abrirArchivoDeIntento, leerTanda, listarTandas } from "./lib/tandas.js";
+import { partesDeCorrida, partesDeTanda } from "./public/nucleo/almacen.js";
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const PUBLICO = path.join(AQUI, "public");
@@ -165,6 +169,7 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
   const origen = fuente ?? crearFuente({ tipo: "archivos", raiz: raizCorridas });
   const panel = crearPanel({ fuente: origen, revisiones, reloj });
   const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
+  const propuestas = crearPropuestas(origen);
   return createServer(async (req, res) => {
     try {
       // El balanceador revisa la tarea con su IP privada como Host: esta ruta no pasa por el chequeo y no lee nada.
@@ -208,6 +213,20 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
 
       if (partes[0] === "api" && partes.length === 2 && partes[1] === "resumen") return responderJson(res, 200, await panel.resumen());
       if (partes[0] === "api" && partes.length === 2 && partes[1] === "overview") return responderJson(res, 200, await panel.overview());
+
+      if (partes[0] === "api" && partes[1] === "propuestas") {
+        const id = partes.slice(2).join("/");
+        if (!partesDeTanda(id) || !(await panel.esTandaListada(id))) return responderJson(res, 404, { error: "No existe esa tanda" });
+        return responderJson(res, 200, await propuestas.deTanda(id));
+      }
+
+      if (partes[0] === "propuestas") {
+        const runKey = partes.slice(1, 4).join("/");
+        const relativa = partes.slice(4).join("/");
+        const valida = partesDeCorrida(runKey)?.agente === "improver" && ARCHIVO_DE_VISTA.test(relativa);
+        const abierto = valida ? await origen.abrirArchivo(runKey, relativa, leerRango(req.headers.range) ?? undefined) : null;
+        return abierto ? enviar(req, res, relativa, abierto) : responderJson(res, 404, { error: "No existe esa captura" });
+      }
 
       if (partes[0] === "resultados") {
         const resultado = partesDeResultado(partes.slice(1).join("/"));

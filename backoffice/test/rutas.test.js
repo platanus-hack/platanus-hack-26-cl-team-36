@@ -129,7 +129,7 @@ test("cada pestaña, con y sin tarea, va y vuelve", () => {
       assert.deepEqual(parsearHash(hash), { tipo: "tanda", tandaId, pestana, parametros: {} });
     }
   }
-  assert.deepEqual(PESTANAS, ["telarana", "replay"]);
+  assert.deepEqual(PESTANAS, ["telarana", "replay", "propuesta"]);
   // Perfiles ya no existe: su pestaña y su enlace de la v0 son rutas desconocidas.
   assert.equal(parsearHash(`#/t/${CON_TAREA}/perfiles`).tipo, "desconocida");
   assert.equal(parsearHash(`#/perfiles?t=${CON_TAREA}`).tipo, "desconocida");
@@ -221,4 +221,12 @@ test("normalizarPaso: vacío, inválido, fuera de rango", () => {
   assert.deepEqual(normalizarPaso("abc", 12), { paso: 1, aviso: { clave: "comun.estado.pasoInvalido", vars: { paso: "abc" } } });
   assert.deepEqual(normalizarPaso("0", 12), { paso: 1, aviso: { clave: "comun.estado.pasoInvalido", vars: { paso: "0" } } });
   assert.deepEqual(normalizarPaso("40", 12), { paso: 12, aviso: { clave: "comun.estado.pasoFueraDeRango", vars: { total: 12 } } });
+});
+
+test("la pestaña Propuesta lleva la vista y el dispositivo en la URL, en ese orden", () => {
+  assert.equal(
+    hashDe({ tipo: "tanda", tandaId: CON_TAREA, pestana: "propuesta", parametros: { dispositivo: "mobile", vista: "n6" } }),
+    `#/t/${CON_TAREA}/propuesta?vista=n6&dispositivo=mobile`,
+  );
+  assert.deepEqual(parsearHash(`#/t/${CON_TAREA}/propuesta?vista=n6`), { tipo: "tanda", tandaId: CON_TAREA, pestana: "propuesta", parametros: { vista: "n6" } });
 });

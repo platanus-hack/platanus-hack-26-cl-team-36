@@ -3,7 +3,7 @@
 
 import { ARCHIVO_DANADO, armarTanda, perfilDelRun, resumirTanda } from "./derivar.js";
 import { crearFuenteDeArchivos } from "./fuentes/archivos.js";
-import { AGENTE, partesDeTanda } from "../public/nucleo/almacen.js";
+import { AGENTE, MANIFIESTO, partesDeCorrida, partesDeTanda } from "../public/nucleo/almacen.js";
 
 const NOMBRE_SEGURO = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
 // Solo estos archivos de un perfil se sirven al navegador.
@@ -62,8 +62,35 @@ async function leerDetallado(fuente, id, relativa) {
  */
 const runDanado = (perfil) => ({ profile: perfil, end_reason: ARCHIVO_DANADO, final_message: `${perfil}/run.json no es JSON válido`, steps: [] });
 
-/** La tanda sin vecinas, para un id ya validado (lib/revisiones.js lo usa con la run_key de la tabla). */
-export async function leerSinVecinas(fuente, id) {
+/**
+ * El route.json de la Guía contra el que se midió la tanda: el de la corrida de la Guía que el manifiesto de la tanda
+ * lista en `inputs`, del mismo objetivo (la de escritorio si hay varias). null si no hay o no se puede leer.
+ * @param {Fuente} fuente
+ * @param {string} id  id de tanda ya validado
+ */
+export async function leerRutaDeLaGuia(fuente, id) {
+  const { objetivo } = partesDeTanda(id);
+  try {
+    const entradas = (await fuente.leerJson(id, MANIFIESTO))?.inputs;
+    const guias = (Array.isArray(entradas) ? entradas : [])
+      .map((clave) => ({ clave: String(clave ?? ""), partes: partesDeCorrida(clave) }))
+      .filter(({ partes }) => partes?.agente === "guide" && partes.objetivo === objetivo)
+      .sort((a, b) => Number(b.clave.includes("/desktop/")) - Number(a.clave.includes("/desktop/")));
+    for (const { clave } of guias) {
+      const ruta = await fuente.leerJson(clave, "route.json");
+      if (ruta && typeof ruta === "object") return ruta;
+    }
+  } catch (error) {
+    console.error(`tandas: no se pudo leer la ruta de la Guía de «${id}».`, error);
+  }
+  return null;
+}
+
+/**
+ * La tanda sin vecinas, para un id ya validado (lib/revisiones.js lo usa con la run_key de la tabla).
+ * `guia`: el route.json de la Guía (leerRutaDeLaGuia), para `rutaGuia`; la lista no lo lee.
+ */
+export async function leerSinVecinas(fuente, id, { guia = null } = {}) {
   const [arbol, criterio] = await Promise.all([
     leerDetallado(fuente, id, "route_tree.json"),
     fuente.leerJson(id, "criteria.json"),
@@ -86,7 +113,7 @@ export async function leerSinVecinas(fuente, id) {
   const comparar = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
   intentos.sort((a, b) =>
     posicion(a) - posicion(b) || comparar(perfilDe(a), perfilDe(b)) || repeticion(a) - repeticion(b) || comparar(a.perfil, b.perfil));
-  return armarTanda({ id, arbol: arbol.datos, criterio, intentos, estadoDelArbol: arbol.estado });
+  return armarTanda({ id, arbol: arbol.datos, criterio, intentos, estadoDelArbol: arbol.estado, guia });
 }
 
 /**
@@ -98,7 +125,7 @@ export async function leerTanda(fuente, id) {
   const origen = comoFuente(fuente);
   const ids = await idsDeTandas(origen);
   if (!ids.includes(id)) return null;
-  const tanda = await leerSinVecinas(origen, id);
+  const tanda = await leerSinVecinas(origen, id, { guia: await leerRutaDeLaGuia(origen, id) });
   return { ...tanda, vecinas: vecinasDe(id, ids) };
 }
 
