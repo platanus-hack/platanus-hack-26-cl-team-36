@@ -9,7 +9,11 @@
 //                           comentario, con un aviso que explica por qué.
 //   modo "no-disponible"    la pestaña no tiene content script (about:, addons.mozilla.org,
 //                           una pestaña abierta antes de instalar la extensión): no se puede
-//                           capturar, así que no hay formulario, solo un aviso.
+//                           capturar, así que no hay formulario, solo un aviso. También en una
+//                           ventana privada: ahí no se guardan opiniones (el interruptor sí anda).
+//
+// `privacidad` es la clave del texto del pie que dice qué se guarda al enviar: con tema, una
+// copia de la página; sin tema, solo el comentario (el background no la captura).
 //
 // Para saber si está encendido se usa `activo` de storage (la fuente de verdad) y no la
 // clase `mi-tema` de la página: esa cambia recién a mitad de la transición.
@@ -27,16 +31,24 @@ const { t } = globalThis.MiTema.idioma;
 // Claves del diccionario de cada aviso.
 export const AVISOS = {
   noDisponible: "aviso.noDisponible",
+  privada: "aviso.privada",
   sinTema: "aviso.sinTema",
   apagado: "aviso.apagado",
 };
 
-// pagina: { alcanzable, temaId } (respuesta de `estado:pagina`, o alcanzable false si falló).
+export const PRIVACIDAD = {
+  conCopia: "opinion.privacidad",
+  sinCopia: "opinion.privacidadSinCopia",
+};
+
+// pagina: { alcanzable, privada, temaId } (respuesta de `estado:pagina` más si la pestaña es de
+// una ventana privada; alcanzable false si falló).
 export function decidirVista({ activo, pagina }) {
-  if (!pagina?.alcanzable) return { modo: "no-disponible", aviso: AVISOS.noDisponible };
-  if (!pagina.temaId) return { modo: "solo-comentario", aviso: AVISOS.sinTema };
-  if (!activo) return { modo: "solo-comentario", aviso: AVISOS.apagado };
-  return { modo: "completa", aviso: null };
+  if (pagina?.privada) return { modo: "no-disponible", aviso: AVISOS.privada, privacidad: null };
+  if (!pagina?.alcanzable) return { modo: "no-disponible", aviso: AVISOS.noDisponible, privacidad: null };
+  if (!pagina.temaId) return { modo: "solo-comentario", aviso: AVISOS.sinTema, privacidad: PRIVACIDAD.sinCopia };
+  if (!activo) return { modo: "solo-comentario", aviso: AVISOS.apagado, privacidad: PRIVACIDAD.conCopia };
+  return { modo: "completa", aviso: null, privacidad: PRIVACIDAD.conCopia };
 }
 
 // Decide si se puede enviar y qué voto sale. `opcion` es el botón elegido

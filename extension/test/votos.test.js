@@ -163,8 +163,12 @@ test("crearRegistroVoto: omite y marca los HTML que pasan el tope", async () => 
   assert.equal(comprimidoGrande.originalOmitido, true);
   assert.equal(comprimidoGrande.editadoOmitido, true);
 
-  const sinHtml = await crearRegistroVoto({ ...base, captura: { url: captura.url } });
-  assert.equal(sinHtml.originalOmitido, true);
+  // Página sin tema: el background no la captura. Sin HTML, y no es "omitido" (no se descartó por tamaño).
+  const sinHtml = await crearRegistroVoto({ ...base, voto: "comentario", comentario: "más contraste", captura: { url: captura.url } });
+  assert.equal(sinHtml.original, null);
+  assert.equal(sinHtml.editado, null);
+  assert.equal(sinHtml.originalOmitido, false);
+  assert.equal(sinHtml.editadoOmitido, false);
   assert.equal(sinHtml.temaId, null);
   assert.equal(sinHtml.temaActivo, false);
 });
@@ -201,6 +205,22 @@ test("almacén: sobre el tope borra los más antiguos y nunca el recién guardad
   await chico.guardar(registroFalso(6));
   await chico.guardar(registroFalso(1));
   assert.deepEqual(await chico.listarIds(), ["v1", "v6"]);
+});
+
+test("almacén: con el disco lleno, borra los antiguos antes de guardar y el voto nuevo entra", async () => {
+  // Un adaptador que, como IndexedDB sin cuota, rechaza guardar cuando ya tiene `capacidad` registros.
+  const memoria = crearAdaptadorMemoria();
+  const capacidad = 3;
+  const lleno = {
+    ...memoria,
+    async poner(registro) {
+      if ((await memoria.contar()) >= capacidad) throw new DOMException("cuota", "QuotaExceededError");
+      return memoria.poner(registro);
+    },
+  };
+  const almacen = crearAlmacenVotos(lleno, { maxPendientes: capacidad });
+  for (let n = 1; n <= 5; n++) await almacen.guardar(registroFalso(n));
+  assert.deepEqual(await almacen.listarIds(), ["v3", "v4", "v5"]);
 });
 
 test("sincronizarVotos: sube en orden y borra lo subido", async () => {
@@ -276,9 +296,20 @@ const contexto = {
   browser: { runtime: { onMessage: { addListener: (fn) => (listener = fn) } } },
 };
 vm.runInNewContext(leer("content/captura.js"), contexto);
-const { IDS_INSERTADOS, limpiarClases, quitarPropiedades, recortarDataUris, limpiar, serializarDoctype } = contexto.MiTema.captura;
+const {
+  IDS_INSERTADOS,
+  limpiarClases,
+  quitarPropiedades,
+  recortarDataUris,
+  quitarQuery,
+  quitarQuerySrcset,
+  quitarQueryEnCss,
+  limpiar,
+  serializarDoctype,
+} = contexto.MiTema.captura;
 
-// Elemento falso con lo justo que usa limpiar(): atributos, hijos, textContent y remove().
+// Elemento falso con lo justo que usa limpiar(): atributos, hijos, textContent, remove() y
+// replaceChildren(). Un <template> trae `content` (sus hijos no están en `children`, como en el DOM).
 function el(localName, atributos = {}, hijos = [], texto = "") {
   const nodo = {
     localName,
@@ -314,7 +345,16 @@ function el(localName, atributos = {}, hijos = [], texto = "") {
       if (this.padre) this.padre.hijos = this.padre.hijos.filter((h) => h !== this);
       this.padre = null;
     },
+    replaceChildren() {
+      this.hijos = [];
+      this.texto = "";
+    },
   };
+  if (localName === "template") {
+    nodo.texto = "";
+    nodo.content = el("#fragmento", {}, hijos, texto);
+    return nodo;
+  }
   for (const hijo of hijos) {
     hijo.padre = nodo;
     nodo.hijos.push(hijo);
@@ -322,10 +362,11 @@ function el(localName, atributos = {}, hijos = [], texto = "") {
   return nodo;
 }
 
-// Serializa el DOM falso para comparar fácil.
+// Serializa el DOM falso para comparar fácil (el contenido de un <template> va adentro, como outerHTML).
 function html(nodo) {
   const atributos = [...nodo.atributos].map(([k, v]) => ` ${k}="${v}"`).join("");
-  return `<${nodo.localName}${atributos}>${nodo.texto}${nodo.hijos.map(html).join("")}</${nodo.localName}>`;
+  const plantilla = nodo.content ? nodo.content.texto + nodo.content.hijos.map(html).join("") : "";
+  return `<${nodo.localName}${atributos}>${nodo.texto}${plantilla}${nodo.hijos.map(html).join("")}</${nodo.localName}>`;
 }
 
 const URI_LARGA = `data:image/png;base64,${"A".repeat(3000)}`;
@@ -402,6 +443,78 @@ for (const modo of ["original", "editado"]) {
     assert.match(texto, /<img src="data:image\/png;base64," alt="foto">/);
     assert.ok(texto.includes(`<img src="${URI_CORTA}">`));
     assert.ok(texto.includes(`url(data:image/png;base64,) } i { background: url(${URI_CORTA}) }`));
+  });
+}
+
+test("captura: quitarQuery, quitarQuerySrcset y quitarQueryEnCss quitan la query y dejan el resto", () => {
+  assert.equal(quitarQuery("https://s3.example/a.png?X-Amz-Security-Token=abc&X-Amz-Signature=x"), "https://s3.example/a.png");
+  assert.equal(quitarQuery("/watch?v=123#t=10"), "/watch#t=10");
+  assert.equal(quitarQuery("/sin-query#ancla"), "/sin-query#ancla");
+  assert.equal(quitarQuery("data:image/svg+xml,<svg>?</svg>"), "data:image/svg+xml,<svg>?</svg>");
+  // Una URL con comas (Cloudinary) se parte en el split pero vuelve a quedar entera.
+  assert.equal(
+    quitarQuerySrcset("a.jpg?s=1 1x, https://c.example/w_100,h_100/b.jpg?s=2 2x"),
+    "a.jpg 1x, https://c.example/w_100,h_100/b.jpg 2x",
+  );
+  assert.equal(
+    quitarQueryEnCss(`background: url("https://x.example/y.png?token=1"), url(z.png?a=b); color: red`),
+    `background: url("https://x.example/y.png"), url(z.png); color: red`,
+  );
+  assert.equal(quitarQueryEnCss("color: red"), "color: red");
+});
+
+// Lo que la primera versión dejaba pasar: editores, <template>, srcdoc, URLs con tokens, on*,
+// javascript:, <meta> con datos de la cuenta y estado de la app en JSON.
+function paginaConDatos() {
+  const estadoApp = JSON.stringify({ props: { auth: { user: { email: "persona@example.com" } } } });
+  return el("html", {}, [
+    el("head", {}, [
+      el("meta", { name: "user-login", content: "usuario-123" }),
+      el("meta", { name: "visitor-hmac", content: "hmac-secreto" }),
+      el("meta", { property: "og:url", content: "https://www.youtube.com/watch?v=video-privado" }),
+      el("link", { rel: "canonical", href: "https://www.youtube.com/watch?v=video-privado" }),
+      el("style", {}, [], "i { background: url('https://s3.example/i.png?X-Amz-Security-Token=sts-secreto') }"),
+    ]),
+    el("body", { onload: "iniciar('sesion-123')" }, [
+      el("div", { contenteditable: "true", role: "textbox" }, [el("p", {}, [], "te mando la clave del banco")], "borrador"),
+      el("div", { contenteditable: "false" }, [], "texto fijo del sitio"),
+      el("template", {}, [
+        el("form", {}, [el("input", { type: "hidden", name: "authenticity_token", value: "tok-template" })]),
+        el("script", {}, [], "window.x = 'script-template'"),
+      ]),
+      el("iframe", { srcdoc: "<p>srcdoc-privado</p>" }),
+      el("a", { href: "https://mail.example/reset?token=enlace-magico", onclick: "medir('clic-123')" }, [], "Restablecer"),
+      el("a", { href: "javascript:alert('url-js')" }, [], "Abrir"),
+      el("img", {
+        src: "https://s3.example/foto.jpg?X-Amz-Signature=firma-src",
+        srcset: "https://s3.example/f.jpg?sig=firma-srcset 2x",
+        style: "background: url(https://s3.example/b.png?sig=firma-estilo)",
+      }),
+      el("div", { id: "app", "data-page": estadoApp }),
+      el("div", { "data-state": "open", "data-react-props": "[]" }),
+    ]),
+  ]);
+}
+
+for (const modo of ["original", "editado"]) {
+  test(`captura (${modo}): vacía editores y <template>, quita srcdoc, on*, javascript:, queries, metas de la cuenta y JSON`, () => {
+    const texto = html(limpiar(paginaConDatos(), { modo }));
+    assert.doesNotMatch(
+      texto,
+      /usuario-123|hmac-secreto|video-privado|sts-secreto|sesion-123|clave del banco|borrador|tok-template|script-template|srcdoc|enlace-magico|clic-123|url-js|firma-|persona@example/,
+    );
+    assert.match(texto, /<div contenteditable="true" role="textbox"><\/div>/);
+    assert.match(texto, /<div contenteditable="false">texto fijo del sitio<\/div>/, "lo no editable no se toca");
+    assert.match(texto, /<template><\/template>/);
+    assert.match(texto, /<iframe><\/iframe>/);
+    assert.match(texto, /<a href="https:\/\/mail.example\/reset">Restablecer<\/a>/);
+    assert.match(texto, /<a>Abrir<\/a>/);
+    assert.match(texto, /<meta name="user-login">/);
+    assert.match(texto, /<meta property="og:url" content="https:\/\/www.youtube.com\/watch">/);
+    assert.match(texto, /<link rel="canonical" href="https:\/\/www.youtube.com\/watch">/);
+    assert.match(texto, /<img src="https:\/\/s3.example\/foto.jpg" srcset="https:\/\/s3.example\/f.jpg 2x" style="background: url\(https:\/\/s3.example\/b.png\)">/);
+    assert.match(texto, /<div id="app"><\/div>/);
+    assert.match(texto, /<div data-state="open" data-react-props="\[\]">/, "atributos cortos (que el CSS del sitio usa) quedan");
   });
 }
 

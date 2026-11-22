@@ -162,7 +162,8 @@ body[data-activo="si"] .mt-chip {
   font-size: 12.5px;
 }
 
-.mt-aviso:empty {
+.mt-aviso:empty,
+.mt-privacidad:empty {
   display: none;
 }
 
