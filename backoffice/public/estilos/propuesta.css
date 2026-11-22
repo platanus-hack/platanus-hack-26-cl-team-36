@@ -179,6 +179,7 @@
 
 /* ── En el teléfono: el riel en fila, el escenario y el relato debajo ── */
 @container contenido (width < 820px) {
-  .p-propuesta .propuesta-escenario { padding: var(--e-7) var(--e-3) var(--e-3); }
+  .p-propuesta .propuesta-escenario { flex-direction: column; align-items: stretch; gap: var(--e-2); padding: var(--e-3); }
+  .p-propuesta .propuesta-escenario > .propuesta-dispositivos { position: static; align-self: flex-end; }
   .p-propuesta .propuesta-centro { overflow: visible; }
 }

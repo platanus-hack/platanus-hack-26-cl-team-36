@@ -24,7 +24,8 @@
 }
 @container contenido (width < 820px) {
   .p-telarana .tanda-columnas { grid-template-columns: minmax(0, 1fr); }
-  .p-telarana .telarana-viva .tv-cuerpo { grid-template-columns: minmax(0, 1fr); }
+  .p-telarana .telarana-viva { height: auto; }
+  .p-telarana .telarana-viva .tv-cuerpo { grid-template-columns: minmax(0, 1fr); flex: none; }
   .p-telarana .telarana-viva .tv-lienzo { min-height: 0; height: clamp(320px, 58vh, 480px); flex: none; }
   .p-telarana .telarana-viva .tv-panel { border-inline-start: 0; border-top: 1px solid var(--borde-sutil); }
 }
@@ -115,6 +116,7 @@
 }
 @keyframes tv-leyenda-entrar { from { opacity: 0; transform: translateY(-4px); } }
 .telarana-viva .tv-leyenda[hidden] { display: none; }
+.telarana-viva .tv-pista { color: var(--texto-4); font-size: 12.5px; }
 .telarana-viva .tv-zoom .tv-activo { background: var(--superficie-3); color: var(--texto-1); }
 .telarana-viva .tv-leyenda li { display: inline-flex; align-items: center; gap: 6px; }
 .telarana-viva .tv-ley-muestra { width: 16px; height: 3px; border-radius: 2px; background: var(--tono); }

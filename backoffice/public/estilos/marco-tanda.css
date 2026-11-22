@@ -17,6 +17,8 @@ html.con-hoja #contenido { opacity: 0.4; transition-duration: 220ms; }
 }
 @media (max-width: 819px) {
   .hoja { inset: var(--alto-barra) 0 0 0; border-radius: 0; border-inline: 0; border-bottom: 0; overflow: auto; }
+  /* En el teléfono la hoja se desplaza entera: nada se estira al alto de la ventana. */
+  .marco-tanda, .panel-tanda, .panel-tanda > * { flex: none; min-height: auto; }
 }
 
 .marco-tanda { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
@@ -137,10 +139,18 @@ html.con-hoja #contenido { opacity: 0.4; transition-duration: 220ms; }
 .carril-punto-abandonado { background: var(--neutro); }
 .carril-punto-sin_medir { background: transparent; box-shadow: inset 0 0 0 1.5px var(--texto-4); }
 .carril-punto-error { background: var(--resultado-error); }
-.carril-nombre { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--texto-1); font-weight: 500; font-size: 13px; }
+.carril-linea { align-items: baseline; }
+.carril-punto { align-self: center; }
+.carril-nombre {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--texto-1); font-weight: 500; font-size: 13px; line-height: 18px;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
 .carril-cifra { flex: none; font: 11px var(--fuente-mono); color: var(--texto-4); }
 .carril-cifra-aviso { color: var(--aviso); }
-.carril-motivos { display: block; padding-inline-start: 16px; font-size: 12px; line-height: 1.4; color: var(--texto-3); }
+.carril-motivos {
+  padding-inline-start: 16px; font-size: 12px; line-height: 1.4; color: var(--texto-3); overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+}
 .carril-sin-punto .carril-motivos { padding-inline-start: 0; }
 .carril-pie { margin-top: auto; padding: 12px 8px 0; border-top: 1px solid var(--borde-sutil); display: flex; flex-direction: column; gap: 6px; }
 .carril-pie .tanda-etiqueta { color: var(--texto-4); }
@@ -154,7 +164,7 @@ html.con-hoja #contenido { opacity: 0.4; transition-duration: 220ms; }
   .carril-cabecera, .carril-pie { display: none; }
   .carril-lista { flex-direction: row; }
   .carril-fila { width: 220px; flex: none; scroll-snap-align: start; }
-  .carril-motivos { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .carril-nombre, .carril-motivos { -webkit-line-clamp: 1; }
 }
 
 /* ── Panel derecho: la traza elegida ──────────────────────────────────── */

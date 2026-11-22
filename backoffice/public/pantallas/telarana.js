@@ -78,6 +78,7 @@ function crearPantalla(contenedor, ctx) {
         ctx.actualizarParametros({ pagina: id, intento: null });
         if (id) ctx.anunciar(t("telarana.panel.elegida", { nombre: nombreDePagina(paginas.get(id), t) }));
       },
+      pista: trazas.grupos.length ? t("comun.traza.elegir") : null,
       alElegir: (run) => ctx.actualizarParametros({ intento: run ? (intentos.get(run)?.id ?? null) : null, pagina: null }),
       detalleDeAgente: () =>
         estado.intento

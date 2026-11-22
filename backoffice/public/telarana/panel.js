@@ -26,7 +26,7 @@ const ponerTexto = (nodo, valor) => {
  *           alFijar: (foco: { t: string, k: string }) => void, alSoltar: () => void,
  *           alApuntar: (foco: { t: string, k: string } | null) => void }} opciones
  */
-export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alFijar, alSoltar, alApuntar, detalleDeAgente = null }) {
+export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alFijar, alSoltar, alApuntar, detalleDeAgente = null, pista = null }) {
   let modo = null;
   let partes = null;
   let encima = false;
@@ -105,7 +105,7 @@ export function crearPanel(raiz, { t, nombre, nombreDeAgente, enlaceAReplay, alF
     const donde = seccion(t("telarana.panel.dondeSeVan"), el("div", { class: "tv-donde" }, el("ol", {}, huecos.map((h) => el("li", {}, h.fila))), nadie));
     const curso = el("b", { class: "num" });
     const linea = el("p", { class: "tv-linea" }, el("span", { texto: t("telarana.panel.enCurso") }), " ", curso);
-    reemplazar(raiz, ruta, donde, linea);
+    reemplazar(raiz, ruta, donde, pista ? el("p", { class: "tv-pista", texto: pista }) : null, linea);
     return { hitos, de, huecos, nadie, curso, orden: [], lista: huecos[0].fila.closest("ol") };
   }
 

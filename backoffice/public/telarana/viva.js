@@ -42,12 +42,13 @@ const nombrePorDefecto = (n) => {
  *   alFijar?: (clave: string | null) => void,
  *   alElegir?: (run: string | null) => void,
  *   detalleDeAgente?: (run: string) => Node | null,
+ *   pista?: string | null,
  * }} opciones
  *   alElegir: un clic eligió (o soltó) un agente en el lienzo. detalleDeAgente: el panel de un agente elegido, en vez
- *   del de siempre.
+ *   del de siempre. pista: una línea al pie del panel general (qué se puede hacer desde afuera).
  */
 export function montarTelaranaViva(contenedor, opciones) {
-  const { titulo = null, i18n = null, enlaceAReplay = () => null, repetir = null, alFijar = () => {}, alElegir = () => {}, detalleDeAgente = null } = opciones;
+  const { titulo = null, i18n = null, enlaceAReplay = () => null, repetir = null, alFijar = () => {}, alElegir = () => {}, detalleDeAgente = null, pista = null } = opciones;
   const t = i18n?.t ?? tDelBackoffice;
   const nombreDePagina = opciones.nombre ?? nombrePorDefecto;
   const nombreDeIntento = opciones.nombreDeIntento ?? ((run, perfil) => perfil || run.split("|").pop());
@@ -155,6 +156,7 @@ export function montarTelaranaViva(contenedor, opciones) {
   const vistaPanel = crearPanel(panel, {
     t,
     detalleDeAgente,
+    pista,
     nombre,
     nombreDeAgente,
     enlaceAReplay,
