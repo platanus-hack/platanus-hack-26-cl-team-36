@@ -4,7 +4,8 @@
   link, p. ej. `/el-viaje/planificador/?inicio=SP&fin=EL`). Cada clave de la consulta es un campo cuyas opciones se
   copian del `<select>` de la página que le corresponde; una clave sin `<select>` va fija en el enlace. Si la Guía
   envió el formulario sin elegir nada (con lo que traía), valen solo las claves que nombran un `<select>` de la página.
-- Lanzador: los objetivos del catálogo, cada uno con la URL a la que llegó la Guía o su `entry`. Primero los que
+- Lanzador: los objetivos del catálogo, cada uno con la URL a la que llegó la Guía o su `entry`; si llegó enviando un
+  formulario, sin la consulta (las elecciones de esa corrida, como un viaje SP→EL). Primero los que
   tienen ruta verificada (el enlace lleva de verdad a la tarea), después los que menos lograron los Visitantes (donde
   un atajo ayuda más) y, a igual medida, los más prominentes del catálogo.
 - Buscador: todos los objetivos del catálogo con enlace (hasta `MAX_BUSCADOR`, también el del atajo), con el mismo
@@ -31,6 +32,7 @@ _ID_CSS = re.compile(r"^#([A-Za-z][\w-]*)$")
 _TITULO_MAX = 48
 _ENLACES = {"a", "al", "con", "de", "del", "el", "en", "la", "las", "los", "o", "para", "por", "su", "tu", "un",
             "una", "y"}
+_DE_FORMULARIO = {"select", "check", "uncheck", "fill", "type", "press"}
 
 
 @dataclass
@@ -199,18 +201,26 @@ def llegada(route: dict | None) -> str | None:
     return pasos[-1].get("url_after") if pasos else None
 
 
-def _enlace(goal, rutas: dict[str, dict], inicio: str, sin_consulta: bool = False) -> tuple[str | None, bool]:
+def _de_formulario(route: dict) -> bool:
+    """Si la ruta llega enviando un formulario: elige o escribe algo, o termina en un clic que no es un enlace."""
+    pasos = [p for p in route.get("steps") or [] if isinstance(p, dict)]
+    ultimo = (pasos[-1].get("target") or {}) if pasos else {}
+    return any(p.get("action") in _DE_FORMULARIO or _es_eleccion(p) for p in pasos) or (
+        bool(pasos) and ultimo.get("tag") != "a" and not ultimo.get("href"))
+
+
+def _enlace(goal, rutas: dict[str, dict], inicio: str) -> tuple[str | None, bool]:
     """El enlace relativo de un objetivo (adonde llegó la Guía, o su `entry`) y si viene de una ruta verificada; None
-    si sale del sitio o es la misma página abierta sin consulta. Con `sin_consulta`, una llegada con consulta (las
-    elecciones de una corrida, como un viaje SP→EL) cede ante la `entry`, si la hay."""
-    final = llegada(rutas.get(goal.id))
-    llego, entrada = mismo_sitio(final, inicio), mismo_sitio(goal.entry, inicio)
-    if sin_consulta and llego and "?" in llego and entrada:
-        llego = None
-    enlace = llego or entrada
-    if not enlace or (misma_ruta(ruta_de(enlace), ruta_de(inicio)) and "?" not in enlace):
-        return None, False
-    return enlace, llego is not None
+    si sale del sitio o es la misma página abierta sin consulta. Si la Guía llegó enviando un formulario, su consulta
+    son las elecciones de esa corrida (un viaje SP→EL): el enlace es la página sin ella."""
+    route = rutas.get(goal.id)
+    llego, entrada = mismo_sitio(llegada(route), inicio), mismo_sitio(goal.entry, inicio)
+    if llego and "?" in llego and _de_formulario(route):
+        llego = urlsplit(llego).path
+    for enlace in (llego, entrada):
+        if enlace and not (misma_ruta(ruta_de(enlace), ruta_de(inicio)) and "?" not in enlace):
+            return enlace, enlace == llego
+    return None, False
 
 
 def _tarea(goal, enlace: str) -> dict:
@@ -222,7 +232,7 @@ def _tarea(goal, enlace: str) -> dict:
     return tarea
 
 
-def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str], sin_consulta: bool = False,
+def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str],
                tasas: dict[str, float | None] | None = None) -> list[tuple[str, object]]:
     """`(enlace, goal)` sin enlaces repetidos, en orden lexicográfico: ruta verificada, menor tasa de llegada (sin
     medir cuenta como 0.5), mayor prominencia y el orden del catálogo."""
@@ -230,7 +240,7 @@ def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[st
     for posicion, goal in enumerate(goals):
         if goal.id in excluir:
             continue
-        enlace, verificada = _enlace(goal, rutas, inicio, sin_consulta)
+        enlace, verificada = _enlace(goal, rutas, inicio)
         if enlace:
             tasa = (tasas or {}).get(goal.id)
             clave = (not verificada, 0.5 if tasa is None else tasa, _PROMINENCIA.get(goal.prominence, 3), posicion)
@@ -260,7 +270,7 @@ def buscador(goals: list, rutas: dict[str, dict], inicio: str, catalogo: list | 
     objetivos, también los de nivel resumen, para nombrar el grupo de cada uno por su `parent`."""
     grupos = {g.id: _titulo(g.description) for g in catalogo or goals}
     tareas = []
-    for enlace, goal in _ordenadas(goals, rutas, inicio, set(), sin_consulta=True)[:MAX_BUSCADOR]:
+    for enlace, goal in _ordenadas(goals, rutas, inicio, set())[:MAX_BUSCADOR]:
         tarea = _tarea(goal, enlace)
         if grupo := grupos.get(goal.parent or ""):
             tarea["grupo"] = {"es": grupo, "en": grupo}

@@ -122,6 +122,21 @@ def test_sin_select_solo_valen_las_claves_que_nombran_un_select():
     assert atajos.atajo("planificar-viaje", otro_sitio, SELECTS, INICIO)[0] is None
 
 
+def test_el_lanzador_no_enlaza_el_viaje_que_eligio_la_guia():
+    rutas = {"planificar-viaje": _real("route.json")}
+    lanzador = atajos.lanzador(_goals_reales(), rutas, INICIO, set())
+    buscador = atajos.buscador(_goals_reales(), rutas, INICIO)
+    for vista in (lanzador, buscador):
+        planificar = next(t for t in vista["datos"] if t["enlace"].startswith("/el-viaje/planificador"))
+        assert planificar["enlace"] == "/el-viaje/planificador/"
+    # Una consulta a la que se llega por un enlace es parte de la página: se queda.
+    route = copy.deepcopy(rutas["planificar-viaje"])
+    route["steps"][0]["target"] = {"tag": "a", "href": "/noticias/?pagina=2"}
+    route["steps"][0]["url_after"] = f"{METRO}/noticias/?pagina=2"
+    enlace = atajos.lanzador(_goals_reales(), {"planificar-viaje": route}, INICIO, set())["datos"][0]["enlace"]
+    assert enlace == "/noticias/?pagina=2"
+
+
 def test_lanzador_con_el_catalogo_de_metro():
     kit = atajos.derivar(_goals(), {"planificar-viaje": _route()}, SELECTS, INICIO)
     assert [a["objetivo"] for a in kit["atajos"]] == ["planificar-viaje"] and kit["descartes"] == []
@@ -155,7 +170,8 @@ def test_buscador_con_el_catalogo_de_metro():
     buscador = kit_derivado()[2]
     enlaces = [t["enlace"] for t in buscador["datos"]]
     # Todo el catálogo del mismo sitio, también el objetivo del atajo; sin metromuv, outlook ni mail.metro.cl.
-    assert "/el-viaje/planificador" in enlaces and len(enlaces) == len(set(enlaces)) == 8
+    # La Guía llegó enviando el formulario: el enlace es el planificador sin el viaje que eligió.
+    assert "/el-viaje/planificador/" in enlaces and len(enlaces) == len(set(enlaces)) == 8
     assert all(e.startswith("/") and not e.startswith("//") for e in enlaces)
     assert buscador["rutas"] == ["/"] and buscador["contenedor"] == kit_derivado()[1]["contenedor"]
     assert buscador["opciones"] == {"max": 8, "sugeridas": 6} and "teclas" not in buscador["opciones"]
