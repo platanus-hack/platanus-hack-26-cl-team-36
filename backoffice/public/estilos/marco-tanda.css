@@ -1,15 +1,11 @@
-/* Marco de la tanda (diseño §10.3): cabecera de contexto, pestañas fijas y el panel de la pestaña. */
+/* Marco de la tanda (diseño §10.3): cabecera de dos líneas, pestañas fijas y el panel de la pestaña. */
 
-.marco-cabecera { display: grid; gap: var(--e-2); padding-block-end: var(--e-3); min-width: 0; }
+.marco-cabecera { display: grid; gap: var(--e-1); padding-block-end: var(--e-3); min-width: 0; }
 .marco-barra { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2) var(--e-3); min-width: 0; }
-.marco-identidad { display: flex; align-items: baseline; gap: var(--e-1) var(--e-3); min-width: 0; flex: 1 1 auto; }
-.marco-volver { display: inline-flex; align-items: center; gap: 2px; align-self: center; flex: none; font-size: 13px; color: var(--texto-3); }
+.marco-identidad { display: flex; align-items: center; gap: var(--e-3); min-width: 0; flex: 1 1 auto; }
+.marco-volver { display: inline-flex; align-items: center; gap: 2px; flex: none; font-size: 13px; color: var(--texto-3); }
 .marco-volver:hover { color: var(--texto-1); text-decoration: none; }
 .marco-titulo { min-width: 0; flex: 0 1 auto; font-size: 20px; line-height: 28px; }
-.marco-sitio { display: inline-flex; align-items: center; gap: var(--e-1); flex: none; color: var(--texto-2); font-size: 13px; }
-.marco-sitio .icono { width: 12px; height: 12px; color: var(--texto-3); }
-.marco-sitio:hover { color: var(--texto-1); }
-.marco-fecha { flex: none; color: var(--texto-3); font-size: 13px; }
 .marco-acciones { display: flex; align-items: center; gap: var(--e-2); flex: none; }
 .marco-hueco { display: contents; }
 .marco-vecina[aria-disabled="true"] { opacity: 0.4; cursor: default; }
@@ -17,35 +13,18 @@
 .marco-pista { display: inline-flex; }
 .marco-pista kbd { margin: 0; }
 
-/* Titular (quién no llega) con «Ver instrucción» al lado. */
-.marco-resumen { display: flex; align-items: flex-start; gap: var(--e-3); min-width: 0; }
-.marco-titular { display: flex; align-items: flex-start; gap: var(--e-2); flex: 1 1 auto; min-width: 0; margin: 0; font-size: 15px; line-height: 22px; color: var(--texto-1); font-weight: 500; }
-.marco-titular .icono { flex: none; margin-block-start: 3px; }
-.marco-nivel-bien .icono { color: var(--exito); }
-.marco-nivel-dificultad .icono { color: var(--aviso); }
-.marco-nivel-atencion .icono { color: var(--peligro); }
-.marco-nivel-error .icono { color: var(--texto-3); }
-.marco-ver-instruccion { flex: none; min-height: 24px; padding: 0 var(--e-2); font-size: 12px; margin-inline-start: auto; }
-.marco-instruccion { color: var(--texto-2); max-width: 80ch; font-size: 13px; display: grid; gap: 2px; }
-.marco-instruccion[hidden] { display: none; }
-
-/* Cifras clave en una fila. El "·" va en el hueco: el que cae al inicio de una línea queda fuera y se recorta. */
-.marco-cifras {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) 20px; margin: 0;
-  color: var(--texto-2); font-size: 13px; line-height: 22px;
+/* Segunda línea, apagada: sitio · fecha · cuántos llegan. El "·" va en el hueco y se recorta al inicio de línea. */
+.marco-datos {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) 20px; margin: 0; min-width: 0;
+  color: var(--texto-3); font-size: 13px; line-height: 22px;
   overflow: clip; overflow-clip-margin: 4px;
 }
-.marco-cifras > * { position: relative; display: inline-flex; align-items: center; }
-.marco-cifras > * + *::before { content: "·"; position: absolute; inset-inline-start: -12px; color: var(--texto-4); }
-.marco-niveles { gap: 6px; white-space: nowrap; }
-
-/* Hallazgos: una línea cada uno, abren Replay en su paso. */
-.marco-hallazgos { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.marco-hallazgo { display: flex; align-items: center; gap: var(--e-2); min-width: 0; max-width: 100ch; font-size: 13px; line-height: 20px; color: var(--texto-2); }
-.marco-hallazgo:hover { color: var(--texto-1); text-decoration: none; }
-.marco-hallazgo-texto { min-width: 0; flex: 0 1 auto; }
-.marco-hallazgo-paso { flex: none; color: var(--acento); font-weight: 500; }
-.marco-hallazgo .icono { flex: none; width: 12px; height: 12px; color: var(--acento); }
+.marco-datos > * { position: relative; flex: none; }
+.marco-datos > * + *::before { content: "·"; position: absolute; inset-inline-start: -12px; color: var(--texto-4); }
+.marco-sitio { display: inline-flex; align-items: center; gap: var(--e-1); flex: 0 1 auto; min-width: 0; max-width: 100%; color: var(--texto-2); }
+.marco-sitio > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.marco-sitio .icono { flex: none; width: 12px; height: 12px; color: var(--texto-3); }
+.marco-sitio:hover { color: var(--texto-1); }
 
 /* Pestañas: enlaces, fijas arriba al desplazar. */
 .pestanas {
@@ -77,9 +56,9 @@
   .marco-pista { display: none; }
 }
 
-/* Angosto (375 px): "‹  Tarea   ‹ › ⧉"; sitio, fecha y hallazgos fuera. */
+/* Angosto (375 px): "‹  Tarea   ‹ › ⧉" y debajo sitio · fecha · llegan (se parte en dos si no cabe). */
 @container contenido (width < 640px) {
-  .marco-etiqueta-boton, .marco-pista, .marco-sitio, .marco-fecha, .marco-hallazgos { display: none; }
+  .marco-etiqueta-boton, .marco-pista { display: none; }
   .marco-vecina, .marco-copiar { min-width: 32px; padding: 0; }
   .pestana { padding: 0 var(--e-2); }
   .pestana[aria-current="page"]::after { inset-inline: var(--e-2); }

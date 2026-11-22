@@ -29,12 +29,9 @@ Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor), los errores de la herramienta si los hay y
 cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
 
-Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene una cabecera corta,
-común a sus pestañas: tarea, sitio y fecha (con tanda anterior/siguiente y copiar enlace); el titular de quién no
-llega; las cifras clave en una fila (cuántos llegan, pasos en mediana contra la ruta y, si la tanda los tiene, los dos
-niveles de conocimiento lado a lado); hasta 3 hallazgos en una línea cada uno, que abren Replay en su paso; y la
-instrucción (con su versión sin contexto) tras «Ver instrucción». Debajo, dos pestañas (la primera es la de por
-defecto; los enlaces viejos a `/resumen` llevan a ella):
+Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene una cabecera mínima, común a sus pestañas:
+la tarea (con tanda anterior/siguiente y copiar enlace) y, debajo, sitio, fecha y cuántos llegan. Debajo, dos
+pestañas (la primera es la de por defecto; los enlaces viejos a `/resumen` llevan a ella):
 
 | Pestaña | Qué pregunta responde | De dónde sale |
 |---|---|---|

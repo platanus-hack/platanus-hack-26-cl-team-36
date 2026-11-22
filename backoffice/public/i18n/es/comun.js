@@ -35,7 +35,6 @@ export default {
     replay: "Replay",
   },
   marco: {
-    migas: "Ubicación",
     vistas: "Vistas de la tanda",
     anterior: "Anterior",
     siguiente: "Siguiente",
@@ -45,19 +44,10 @@ export default {
     sinSiguiente: "No hay una tanda más nueva",
     copiarEnlace: "Copiar enlace",
     abrirSitio: "Abrir {host} en otra pestaña",
-    verInstruccion: "Ver instrucción",
-    ocultarInstruccion: "Ocultar instrucción",
-    versionSinContexto: "Versión sin contexto:",
     llegan: ({ n, de }, { plural }) => `${n}/${de} ${plural(n, { one: "llega", other: "llegan" })}`,
     ningunoValido: "Ningún intento válido",
     errores: ({ n }, { plural }) =>
       `${n} ${plural(n, { one: "error de la herramienta", other: "errores de la herramienta" })}`,
-    pasos: ({ mediana, ruta }) => (ruta == null ? `Pasos (mediana): ${mediana}` : `Pasos (mediana): ${mediana} · la ruta, ${ruta}`),
-    niveles: "Por nivel de conocimiento",
-    nivel: { sin_contexto: "Sin contexto", conoce_tema: "Conoce el tema" },
-    hallazgos: "Hallazgos principales",
-    verPaso: "Paso {paso}",
-    verPasoEtiqueta: "{texto} Abrir el paso {paso} en Replay",
   },
   // Nivel de conocimiento de un perfil, en minúscula (va entre paréntesis tras su nombre).
   nivel: { conoce_tema: "conoce el tema", sin_contexto: "sin contexto" },

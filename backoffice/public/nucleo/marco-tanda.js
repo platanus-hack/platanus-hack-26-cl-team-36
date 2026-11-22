@@ -1,12 +1,10 @@
-// Marco de una tanda (diseño §5.11, §10.3): una cabecera corta con lo que importa (tarea, sitio y fecha con
-// anterior/siguiente y copiar enlace; el titular de quién no llega; las cifras clave; hasta 3 hallazgos que abren
-// Replay en su paso; la instrucción tras «Ver instrucción»), las pestañas y el panel donde se montan. Las pestañas
-// son enlaces (cambian la URL), no pestañas ARIA. Registra los atajos [ ] 1–2 c y las opciones de la tanda en la
-// paleta.
+// Marco de una tanda (diseño §5.11, §10.3): una cabecera mínima de dos líneas (la tarea con anterior/siguiente y
+// copiar enlace; debajo, sitio, fecha y cuántos llegan), las pestañas y el panel donde se montan. Las pestañas son
+// enlaces (cambian la URL), no pestañas ARIA. Registra los atajos [ ] 1–2 c y las opciones de la tanda en la paleta.
 
 import { kbd, registrarAtajos } from "./atajos.js";
 import { copiarEnlace } from "./avisos.js";
-import { nombreDePagina as nombreDePaginaConT, textoDeHallazgo, textoDeTitular } from "../datos/textos.js";
+import { nombreDePagina as nombreDePaginaConT } from "../datos/textos.js";
 import { el, esUrlWeb } from "./dom.js";
 import { conGlobo } from "./globo.js";
 import { fmt, t } from "./i18n.js";
@@ -25,10 +23,9 @@ export function nombreDePagina(pagina) {
 function cifras(tanda) {
   const kpis = tanda.kpis ?? {};
   const intentos = kpis.intentos ?? tanda.intentos?.length ?? 0;
-  const errores = kpis.errores ?? 0;
-  const validos = kpis.validos ?? intentos - errores;
+  const validos = kpis.validos ?? intentos - (kpis.errores ?? 0);
   const logrados = kpis.logrados ?? kpis.exitos ?? 0;
-  return { errores, validos, logrados };
+  return { validos, logrados };
 }
 
 function insigniaDeLlegan({ logrados, validos }) {
@@ -39,105 +36,6 @@ function insigniaDeLlegan({ logrados, validos }) {
     { class: `insignia ${todos ? "insignia-logrado" : "insignia-fallido"}` },
     icono(todos ? "logrado" : "fallido"),
     el("span", { texto: t("comun.marco.llegan", { n: logrados, de: validos }) }),
-  );
-}
-
-const HALLAZGOS_VISIBLES = 3;
-// Qué hallazgo va primero: quien no llega, los errores, los pasos perdidos, quien deja la ruta y no vuelve, las
-// demoras; los desvíos de los que vuelven a la ruta, al final. El titular ya cuenta el resultado.
-const PRIORIDAD_DE_HALLAZGO = { detenido: 0, errores: 1, tropiezos: 2, desvio: 3, demora: 4 };
-
-/** El intento y el paso de Replay donde se ve un hallazgo, o null si no apunta a un paso. */
-function pasoDeHallazgo(hallazgo) {
-  const caso = hallazgo.id.startsWith("tropiezos") ? hallazgo.vars?.casos?.[0] : null;
-  if (caso?.intento && caso.paso != null) return { intento: caso.intento, paso: caso.paso };
-  if (hallazgo.intento && hallazgo.paso != null) return { intento: hallazgo.intento, paso: hallazgo.paso };
-  return null;
-}
-
-/**
- * Los hallazgos que más dicen y se pueden abrir en un paso de Replay (máximo HALLAZGOS_VISIBLES). Primero uno de
- * cada tipo (el titular ya nombra a quien no llega: tres «termina en…» seguidos dirían poco más), después el resto.
- */
-export function hallazgosPrincipales(lista) {
-  const tipoDe = (hallazgo) => hallazgo.id.split(":")[0];
-  const prioridad = (hallazgo) => (tipoDe(hallazgo) === "desvio" && hallazgo.nivel === "info" ? 5 : (PRIORIDAD_DE_HALLAZGO[tipoDe(hallazgo)] ?? 6));
-  const ordenados = (lista ?? [])
-    .filter((hallazgo) => hallazgo.id !== "resultado" && pasoDeHallazgo(hallazgo))
-    .map((hallazgo, indice) => ({ hallazgo, indice }))
-    .sort((a, b) => prioridad(a.hallazgo) - prioridad(b.hallazgo) || a.indice - b.indice)
-    .map(({ hallazgo }) => hallazgo);
-  const vistos = new Set();
-  const primeros = ordenados.filter((hallazgo) => !vistos.has(tipoDe(hallazgo)) && vistos.add(tipoDe(hallazgo)));
-  const resto = ordenados.filter((hallazgo) => !primeros.includes(hallazgo));
-  return [...primeros, ...resto]
-    .slice(0, HALLAZGOS_VISIBLES)
-    .sort((a, b) => ordenados.indexOf(a) - ordenados.indexOf(b));
-}
-
-/** La frase que abre la tanda (quién no llega), con el ícono de su nivel. */
-function titular(tanda, { validos }) {
-  const texto = tanda.titulares?.tanda ? textoDeTitular(tanda.titulares.tanda, tanda, t) : "";
-  if (!texto) return null;
-  // "dificultad": todos llegan, pero alguien tarda o tropieza; no es un check verde.
-  const nivel = !validos ? "error" : tanda.titulares.tanda.nivel ?? "atencion";
-  const nombreIcono = { error: "error-herramienta", bien: "logrado", dificultad: "dificultad" }[nivel] ?? "fallido";
-  return el("p", { class: `marco-titular marco-nivel-${nivel}` }, icono(nombreIcono), el("span", { texto }));
-}
-
-/** Llegan, pasos contra la ruta, los dos niveles de conocimiento y los errores de la herramienta, en una fila. */
-function cifrasClave(tanda, c) {
-  const kpis = tanda.kpis ?? {};
-  const niveles = tanda.porConocimiento;
-  return el(
-    "p",
-    { class: "marco-cifras" },
-    el("span", {}, insigniaDeLlegan(c)),
-    typeof kpis.pasosMediana === "number"
-      ? el("span", { texto: t("comun.marco.pasos", { mediana: fmt.numero(kpis.pasosMediana), ruta: typeof kpis.pasosIdeales === "number" ? kpis.pasosIdeales : null }) })
-      : null,
-    niveles?.length
-      ? el(
-          "span",
-          { class: "marco-niveles", title: t("comun.marco.niveles") },
-          niveles.map((fila, indice) => [
-            indice ? el("span", { class: "texto-4", "aria-hidden": "true", texto: "·" }) : null,
-            el("span", {}, t(`comun.marco.nivel.${fila.nivel}`), " ", el("span", { class: "num texto-1", texto: fmt.conteo({ n: fila.logrados, de: fila.intentos }) })),
-          ]),
-        )
-      : null,
-    c.errores ? el("span", {}, el("span", { class: "insignia insignia-error" }, icono("error-herramienta"), el("span", { texto: t("comun.marco.errores", { n: c.errores }) }))) : null,
-  );
-}
-
-/** Hasta 3 hallazgos, una línea cada uno, que abren Replay en su paso. */
-function hallazgos(tanda) {
-  const lista = hallazgosPrincipales(tanda.hallazgos);
-  if (!lista.length) return null;
-  return el(
-    "ul",
-    { class: "marco-hallazgos", "aria-label": t("comun.marco.hallazgos") },
-    lista.map((hallazgo) => {
-      const { intento, paso } = pasoDeHallazgo(hallazgo);
-      const texto = textoDeHallazgo(hallazgo, tanda, t);
-      return el(
-        "li",
-        {},
-        el(
-          "a",
-          {
-            class: "marco-hallazgo",
-            href: enlaceATanda(tanda.id, "replay", { intento, paso }),
-            title: texto,
-            "aria-label": t("comun.marco.verPasoEtiqueta", { texto, paso }),
-            "data-foco": `marco:hallazgo:${hallazgo.id}`,
-          },
-          el("span", { class: "marco-hallazgo-texto truncar", texto }),
-          el("span", { class: "marco-hallazgo-paso", texto: t("comun.marco.verPaso", { paso }) }),
-          icono("siguiente"),
-        ),
-      );
-    }),
   );
 }
 
@@ -182,7 +80,6 @@ function botonVecina({ id, pestana, tipo, senal }) {
 export function montarMarco({ tanda, ruta, navegar }) {
   const titulo = tanda.tarea ?? tanda.host ?? tanda.id;
   const fecha = tanda.fechaIso ?? tanda.fecha;
-  const c = cifras(tanda);
   const vecinas = tanda.vecinas ?? {};
   let pestanaActual = ruta.pestana;
   const controlador = new AbortController();
@@ -195,27 +92,6 @@ export function montarMarco({ tanda, ruta, navegar }) {
     siguiente.replaceChildren(botonVecina({ id: vecinas.siguiente, pestana: pestanaActual, tipo: "siguiente", senal }));
   };
   ponerVecinas();
-
-  // La instrucción (y la versión que leen los exploradores «sin contexto») queda cerrada tras «Ver instrucción».
-  const instruccion = tanda.instruccion
-    ? el(
-        "div",
-        { id: "marco-instruccion", class: "prosa marco-instruccion", hidden: "" },
-        el("p", { texto: tanda.instruccion }),
-        tanda.instruccionSinContexto
-          ? el("p", {}, el("span", { class: "texto-3", texto: `${t("comun.marco.versionSinContexto")} ` }), tanda.instruccionSinContexto)
-          : null,
-      )
-    : null;
-  const verInstruccion = instruccion
-    ? el("button", { type: "button", class: "boton boton-fantasma marco-ver-instruccion", "aria-expanded": "false", "aria-controls": "marco-instruccion", texto: t("comun.marco.verInstruccion") })
-    : null;
-  verInstruccion?.addEventListener("click", () => {
-    const abierta = instruccion.hidden;
-    instruccion.hidden = !abierta;
-    verInstruccion.setAttribute("aria-expanded", String(abierta));
-    verInstruccion.textContent = t(abierta ? "comun.marco.ocultarInstruccion" : "comun.marco.verInstruccion");
-  });
 
   const enlacesDePestana = new Map(
     PESTANAS.map((pestana, indice) => [
@@ -264,16 +140,17 @@ export function montarMarco({ tanda, ruta, navegar }) {
           "div",
           { class: "marco-identidad" },
           el("a", { class: "marco-volver", href: "#/", "data-foco": "marco:migas:corridas", "aria-label": t("comun.shell.corridas") }, icono("anterior"), el("span", { class: "marco-etiqueta-boton", texto: t("comun.shell.corridas") })),
-          el("h1", { class: "marco-titulo truncar", tabindex: "-1", title: tanda.instruccion || null, texto: titulo }),
-          sitio,
-          fecha ? el("time", { class: "marco-fecha", datetime: tanda.fechaIso ?? null, title: fmt.fechaLegible(fecha), texto: fmt.fechaCorta(fecha) }) : null,
+          el("h1", { class: "marco-titulo truncar", tabindex: "-1", title: tanda.instruccion || titulo, texto: titulo }),
         ),
         el("div", { class: "marco-acciones" }, anterior, siguiente, copiar),
       ),
-      el("div", { class: "marco-resumen" }, titular(tanda, c), verInstruccion),
-      instruccion,
-      cifrasClave(tanda, c),
-      hallazgos(tanda),
+      el(
+        "p",
+        { class: "marco-datos" },
+        sitio,
+        fecha ? el("time", { class: "marco-fecha", datetime: tanda.fechaIso ?? null, title: fmt.fechaLegible(fecha), texto: fmt.fechaCorta(fecha) }) : null,
+        insigniaDeLlegan(cifras(tanda)),
+      ),
     ),
     el("nav", { class: "pestanas", "aria-label": t("comun.marco.vistas") }, el("ul", {}, [...enlacesDePestana.values()].map((enlace) => el("li", {}, enlace)))),
     panel,
