@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { crearRevisiones, nuevaRevision } from "../revisiones.js";
+import { MAX_BYTES_TEMA, crearRevisiones, nuevaRevision } from "../revisiones.js";
 import { claveRevision, claveUrl } from "../estados.js";
 import { agentesFalsos, almacenFalso, tablaFalsa } from "./fakes.js";
 
@@ -62,6 +62,40 @@ test("POST y GET de una revisión done devuelven el css", async () => {
   };
   assert.deepEqual(await api.solicitar(URL_PAGINA), esperado);
   assert.deepEqual(await api.consultar("https://ejemplo.cl/precios/"), esperado);
+});
+
+const CSS_KEY = "ejemplo.cl/improver/r1/tema.css";
+const TEMA_KEY = "ejemplo.cl/improver/r1/tema.json";
+
+async function consultarConTema(contenido, { tema_key = TEMA_KEY } = {}) {
+  const { db, api } = escenario({ archivos: { [CSS_KEY]: "a{}", ...(contenido !== undefined && { [TEMA_KEY]: contenido }) } });
+  await api.solicitar(URL_PAGINA);
+  await db.actualizar(claveRevision("rev-1"), { status: "done", css_key: CSS_KEY, tema_key });
+  return (await api.consultar(URL_PAGINA)).datos;
+}
+
+test("revisión done con tema_key devuelve también el tema", async () => {
+  const tema = { features: { vista: [{ id: "tareas" }] } };
+  assert.deepEqual(await consultarConTema(JSON.stringify(tema)), {
+    success: true,
+    revision: "rev-1",
+    status: "done",
+    css: "a{}",
+    tema,
+  });
+});
+
+test("el tema se omite si no existe, es inválido, no es un objeto o pesa más de 64 KB", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const grande = JSON.stringify({ relleno: "x".repeat(MAX_BYTES_TEMA) });
+  for (const contenido of [undefined, "{ roto", "[1, 2]", "null", grande]) {
+    assert.deepEqual(await consultarConTema(contenido), { success: true, revision: "rev-1", status: "done", css: "a{}" });
+  }
+});
+
+test("tema solo de un tema.json del improver", async () => {
+  const datos = await consultarConTema("{}", { tema_key: "otro/secreto.json" });
+  assert.equal(Object.hasOwn(datos, "tema"), false);
 });
 
 test("css solo de un tema.css del improver", async () => {

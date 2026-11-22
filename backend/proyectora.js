@@ -113,6 +113,17 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
     }
   }
 
+  // Sin s3:ListBucket, S3 responde AccessDenied (no NoSuchKey) por un objeto que no existe.
+  async function existe(clave) {
+    try {
+      await almacen.leerTexto(clave);
+      return true;
+    } catch (error) {
+      if (error.name === "NoSuchKey" || error.name === "AccessDenied") return false;
+      throw error;
+    }
+  }
+
   // `resumen_version`: si otro escribió un resumen después de esta consulta, puede no ver este evento; se vuelve a consultar.
   async function guardarResumen(revision, intentos = 10) {
     const items = await db.listar(claveRevision(revision).PK);
@@ -167,7 +178,10 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
         await avanzarEtapa(revision, `STAGE#${agent}`, status, { run_key, updated_at });
         if (status !== "succeeded") break;
         if (agent === "cataloger") await crearGoals(revision, run_key, updated_at);
-        else await actualizarMeta(revision, { css_key: `${run_key}/tema.css`, updated_at });
+        else {
+          const tema_key = (await existe(`${run_key}/tema.json`)) ? `${run_key}/tema.json` : undefined;
+          await actualizarMeta(revision, { css_key: `${run_key}/tema.css`, tema_key, updated_at });
+        }
         break;
       case "guide":
       case "visitor":

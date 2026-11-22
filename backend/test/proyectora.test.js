@@ -162,6 +162,31 @@ test("improver terminado guarda css_key en META", async () => {
   assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
 });
 
+test("improver con tema.json guarda también tema_key; sin él, no", async () => {
+  const conTema = escenario();
+  conTema.almacen.archivos[`${MEJORA}/tema.json`] = { features: {} };
+  await conTema.evento(MEJORA, { agent: "improver", status: "succeeded" });
+  assert.equal(conTema.item("META").tema_key, `${MEJORA}/tema.json`);
+
+  const sinTema = escenario();
+  await sinTema.evento(MEJORA, { agent: "improver", status: "succeeded" });
+  assert.equal(sinTema.item("META").css_key, `${MEJORA}/tema.css`);
+  assert.equal(Object.hasOwn(sinTema.item("META"), "tema_key"), false);
+});
+
+test("improver: tema.json sin permiso de lectura (AccessDenied) cuenta como que no existe", async () => {
+  const { almacen, evento, item } = escenario();
+  const leerTexto = almacen.leerTexto;
+  almacen.leerTexto = async (clave) => {
+    if (clave.endsWith("/tema.json")) throw Object.assign(new Error("Access Denied"), { name: "AccessDenied" });
+    return leerTexto(clave);
+  };
+  almacen.leerJson = async (clave) => JSON.parse(await almacen.leerTexto(clave));
+  await evento(MEJORA, { agent: "improver", status: "succeeded" });
+  assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
+  assert.equal(item("META").tema_key, undefined);
+});
+
 test("improver fallido no guarda css_key", async () => {
   const { evento, item } = escenario();
   await evento(MEJORA, { agent: "improver", status: "failed" });
