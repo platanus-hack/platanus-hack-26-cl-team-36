@@ -585,7 +585,8 @@ test("exploradores: sin hallazgos de demora ni titular «da N pasos seguidos»; 
   assert.ok(exploradores.intentos.some((intento) => intento.demoras.length > 0), "las marcas de atasco de la telaraña siguen");
 });
 
-test("un explorador que vuelve a una página con volver_a_nodo no tropieza", async () => {
+test("un explorador que vuelve a una página con volver_a_nodo no tropieza (ni se traba ahí)", async () => {
+  const { atascosPorPagina } = await import("../public/telarana/atascos.js");
   const conSaltos = (accion) => {
     const cruda = tandaViejaCruda();
     const apurado = cruda.intentos.find((intento) => intento.perfil === "hurried").run;
@@ -600,6 +601,7 @@ test("un explorador que vuelve a una página con volver_a_nodo no tropieza", asy
   assert.ok(apurado.pasos.every((paso) => paso.estado === "sin_evaluar" && !paso.senales.includes("went_back")));
   const tropiezos = tanda.hallazgos.find((h) => h.id === "tropiezos");
   assert.ok(!tropiezos?.vars.casos.some((caso) => caso.intento === "hurried"), "sin tropiezos de hurried");
+  for (const [, atascos] of atascosPorPagina(tanda)) assert.ok(!atascos.some((a) => a.intento === "hurried" && a.tropiezos), "sin atascos de hurried");
   // Un «volvió atrás» de verdad (un clic que regresa) sí cuenta.
   const conClics = conSaltos("left_click");
   assert.ok(conClics.intentos.find((intento) => intento.id === "hurried").pasos.every((paso) => paso.estado === "no_cumplida"));
@@ -683,8 +685,7 @@ test("grosor de un tramo = intentos distintos que lo tomaron, no las pasadas (C4
   assert.equal(rama.intentos, 8);
   assert.equal(rama.pasadas, 43);
   assert.deepEqual(rama.acciones.map((a) => [a.accion, a.intentos, a.pasadas]), [["clic «Ayuda»", 4, 21], ["clic «Buscar»", 4, 22]].sort((p, q) => q[2] - p[2]));
-  assert.equal(anchoDeTramo({ tipo: "avance", intentos: 3 }, "ineficiente"), 2.2);
-  assert.equal(anchoDeTramo({ tipo: "avance", intentos: rama.intentos }, "ineficiente"), 4, "como un tramo que tomaron los 8 (con el tope)");
-  // El camino feliz siempre se ve al menos tan grueso como el más transitado de los ineficientes.
-  assert.ok(anchoDeTramo({ tipo: "tronco", intentos: 1 }, "feliz") >= anchoDeTramo({ tipo: "avance", intentos: 99 }, "ineficiente"));
+  assert.equal(anchoDeTramo({ tipo: "avance", intentos: rama.intentos }), 1.5 + 1.25 * 8, "como un tramo que tomaron los 8");
+  // Los secundarios siguen con su tope de 3 px.
+  assert.equal(anchoDeTramo({ tipo: "retroceso", intentos: rama.intentos }), 3);
 });

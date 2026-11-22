@@ -16,28 +16,30 @@ const LINEAS_DE_NOMBRE = { bajo: 2, medio: 3 };
 
 // Medidas de telarana.css que deciden cuánto alto pide una estación en pantalla (si cambian allá, cambian acá):
 // el botón sube 9 px (translate), el punto mide 18 px y se agranda a 0.8/k; la etiqueta va 6 px debajo del punto,
-// con 2 px de relleno arriba y abajo, líneas de 16 px y se agranda a 0.9/k.
+// con 2 px de relleno arriba y abajo, líneas de 16 px y se agranda a 0.9/k; la marca de atasco asoma 8 px sobre el
+// punto (y queda a su derecha, encima del nombre de la estación de arriba si no hay lugar).
 const ESTACION = {
   subida: 9,
   punto: 18,
   separacion: 6,
   relleno: 4,
   linea: 16,
+  atascoSobreElPunto: 8,
   puntoMinimo: 0.8,
   etiquetaMinima: 0.9,
 };
 
 /**
- * ¿Cabe, con el zoom k, el nombre de una estación (con las líneas de su nivel de detalle) entre su punto y el punto
- * de la estación de la fila de abajo? Todo en px de pantalla; filas de `altoFila` px de escena.
+ * ¿Cabe, con el zoom k, el nombre de una estación (con las líneas de su nivel de detalle) entre su punto y la marca
+ * de atasco o el punto de la estación de la fila de abajo? Todo en px de pantalla; filas de `altoFila` px de escena.
  */
 export function cabeLaEtiqueta(k, altoFila) {
   const detalle = detalleDeZoom(k);
   if (!(detalle in LINEAS_DE_NOMBRE)) return true; // de cerca, el detalle alto se lee estación por estación
-  const { subida, punto, separacion, relleno, linea, puntoMinimo, etiquetaMinima } = ESTACION;
+  const { subida, punto, separacion, relleno, linea, atascoSobreElPunto, puntoMinimo, etiquetaMinima } = ESTACION;
   const arribaDeLaEtiqueta = (punto - subida + separacion) * k;
   const etiqueta = (LINEAS_DE_NOMBRE[detalle] * linea + relleno) * Math.max(k, etiquetaMinima);
-  const deLaVecina = subida * Math.max(k, puntoMinimo);
+  const deLaVecina = (subida + atascoSobreElPunto) * Math.max(k, puntoMinimo);
   return arribaDeLaEtiqueta + etiqueta + 1 <= altoFila * k - deLaVecina;
 }
 
@@ -80,10 +82,19 @@ export function altoDeFilaPara(k, minimo) {
  */
 export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () => {}, puedeArrastrar = () => true, alTocarFondo = () => {} }) {
   const estado = { tx: 0, ty: 0, k: 1 };
+  // Vista 3D (§10.5.4): el plano se inclina (rotateX) y arrastrar lo gira (rotateZ, ±25°).
+  const plano = { inclinado: false, giro: 0, pivote: { x: 0, y: 0 } };
+  const INCLINACION = 52;
+  const GIRO_MAXIMO = 25;
   let vuelo = 0;
 
   function aplicar() {
-    escena.style.transform = `translate(${estado.tx}px, ${estado.ty}px) scale(${estado.k})`;
+    // El giro es alrededor del centro del mapa (pivote), no del origen de la escena.
+    const { x: px, y: py } = plano.pivote;
+    const inclinacion = plano.inclinado
+      ? ` rotateX(${INCLINACION}deg) translate(${px}px, ${py}px) rotateZ(${Math.round(plano.giro * 10) / 10}deg) translate(${-px}px, ${-py}px)`
+      : "";
+    escena.style.transform = `translate(${estado.tx}px, ${estado.ty}px) scale(${estado.k})${inclinacion}`;
     escena.style.setProperty("--k", String(Math.round(estado.k * 1000) / 1000));
     // La grilla de puntos del fondo acompaña al mapa.
     const paso = 16 * estado.k;
@@ -176,7 +187,7 @@ export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () =>
       if (evento.button !== 0 || !puedeArrastrar(evento)) return;
       punteros.set(evento.pointerId, local(evento));
       if (punteros.size === 1) {
-        arrastre = { id: evento.pointerId, ...local(evento), tx: estado.tx, ty: estado.ty, movio: false, sobreFondo: evento.target === lienzo || !evento.target.closest?.("button, a") };
+        arrastre = { id: evento.pointerId, ...local(evento), tx: estado.tx, ty: estado.ty, giro: plano.giro, movio: false, sobreFondo: evento.target === lienzo || !evento.target.closest?.("button, a, .terminal") };
       } else if (punteros.size === 2) {
         arrastre = null;
         const dos = [...punteros.values()];
@@ -210,7 +221,10 @@ export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () =>
         }
         lienzo.classList.add("arrastrando");
       }
-      poner({ tx: arrastre.tx + dx, ty: arrastre.ty + dy });
+      if (plano.inclinado) {
+        plano.giro = acotar(arrastre.giro + dx * 0.15, -GIRO_MAXIMO, GIRO_MAXIMO);
+        aplicar();
+      } else poner({ tx: arrastre.tx + dx, ty: arrastre.ty + dy });
     },
     { signal: senal },
   );
@@ -265,5 +279,32 @@ export function crearCamara(lienzo, escena, { senal, reducido, alCambiar = () =>
     encuadre,
     esVisible,
     volarA,
+    /** Inclina o aplana el plano (la transición la pone el CSS con .cambiando-vista). */
+    inclinar(activo, pivote = plano.pivote) {
+      plano.inclinado = !!activo;
+      plano.pivote = pivote;
+      if (!activo) plano.giro = 0;
+      aplicar();
+    },
+    get inclinado() {
+      return plano.inclinado;
+    },
   };
+}
+
+/**
+ * Cuando el mapa no cabe de alto: el desplazamiento vertical (ty, en px de escena, antes de multiplicar por el zoom)
+ * de la franja de `alto` px que deja dentro el mayor peso de puntos ({ y, peso }), con `margen` px libres arriba
+ * (para el punto) y abajo (para la etiqueta). A igual peso, la franja más cerca del tronco (y = 0). Sin puntos: null.
+ */
+export function franjaConMasEstaciones(puntos, alto, margen = 0) {
+  if (!puntos.length) return null;
+  const util = Math.max(0, alto - 2 * margen);
+  let mejor = null;
+  for (const { y: desde } of puntos) {
+    const peso = puntos.reduce((suma, p) => suma + (p.y >= desde && p.y <= desde + util ? p.peso : 0), 0);
+    const centro = Math.abs(desde + util / 2);
+    if (!mejor || peso > mejor.peso || (peso === mejor.peso && centro < mejor.centro)) mejor = { peso, centro, desde };
+  }
+  return -(mejor.desde - margen);
 }

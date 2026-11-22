@@ -24,7 +24,7 @@ export const NOMBRES_DE_PESTANA = Object.freeze({
 const ORDEN_DE_PARAMETROS = {
   corridas: ["q", "sitio", "filtro", "orden", "vista"],
   resumen: [],
-  telarana: ["pagina", "camino"],
+  telarana: ["perfil", "pagina", "historia", "paso", "vista"],
   replay: ["intento", "paso"],
 };
 

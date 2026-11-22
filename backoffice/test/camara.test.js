@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ALTO_MINIMO_DEL_LIENZO, ZOOM_MAXIMO, ZOOM_MINIMO, altoDeFilaPara, altoDelLienzo, cabeLaEtiqueta, detalleDeZoom, zoomLegible } from "../public/telarana/camara.js";
+import { ALTO_MINIMO_DEL_LIENZO, ZOOM_MAXIMO, ZOOM_MINIMO, altoDeFilaPara, altoDelLienzo, cabeLaEtiqueta, detalleDeZoom, franjaConMasEstaciones, zoomLegible } from "../public/telarana/camara.js";
 import { ALTO_FILA } from "../public/telarana/distribuir.js";
 
 const zooms = (desde, hasta) => {
@@ -54,6 +54,9 @@ test("las medidas de cabeLaEtiqueta son las de telarana.css", () => {
   assert.match(css, /\.estacion-nombre \{[^}]*line-height: 16px;[^}]*-webkit-line-clamp: 3;/);
   assert.match(css, /data-detalle="bajo"\] \.estacion-nombre \{ -webkit-line-clamp: 2;/);
   assert.match(css, /:is\(\[data-detalle="bajo"\], \[data-detalle="medio"\]\) \.estacion-detalle \{ display: none; \}/);
+  // La marca de atasco: ancho propio (en Firefox se encogía a una raya sin ícono) y el ícono no se encoge.
+  assert.match(css, /\.estacion-atasco \{ width: max-content; \}/);
+  assert.match(css, /\.estacion-atasco svg \{ flex: none;/);
 });
 
 test("altoDelLienzo: llena lo que queda de la ventana bajo el lienzo, con un mínimo", () => {
@@ -70,10 +73,20 @@ test("altoDelLienzo: llena lo que queda de la ventana bajo el lienzo, con un mí
   assert.match(css, /\.panel-telarana \{ max-height: var\(--alto-del-lienzo/);
 });
 
+test("franjaConMasEstaciones: el mapa alto se encuadra donde quedan más estaciones (y las importantes)", () => {
+  // Cinco páginas arriba del tronco y una abajo: la franja de 300 px se queda con las de arriba y el tronco.
+  const puntos = [-400, -300, -200, -100, 0, 500].map((y) => ({ y, peso: 1 }));
+  assert.equal(franjaConMasEstaciones(puntos, 300, 0), 300, "de y = −300 a y = 0");
+  // Si la de abajo es una terminal (vale por diez), la franja la incluye.
+  const conTerminal = puntos.map((p) => (p.y === 500 ? { ...p, peso: 10 } : p));
+  assert.ok(-franjaConMasEstaciones(conTerminal, 600, 0) <= 500 && -franjaConMasEstaciones(conTerminal, 600, 0) + 600 >= 500);
+  // Con margen: deja lugar arriba del primer punto.
+  assert.equal(franjaConMasEstaciones([{ y: 0, peso: 1 }], 200, 40), 40);
+  assert.equal(franjaConMasEstaciones([], 200), null);
+});
+
 test("el lienzo deja lugar para la leyenda debajo (se lee en la primera vista)", () => {
   const pantalla = readFileSync(new URL("../public/pantallas/telarana.js", import.meta.url), "utf8");
-  // Si el mapa no cabe de alto, el tronco (el inicio y la meta) queda a media altura del lienzo.
-  assert.match(pantalla, /if \(caja\.alto \* encuadre\.k > alto\) encuadre\.ty = alto \/ 2;/);
   assert.match(pantalla, /leyenda\.getBoundingClientRect\(\)\.bottom - caja\.bottom/);
   assert.match(pantalla, /altoDelLienzo\(window\.innerHeight, arriba, MARGEN_BAJO_EL_LIENZO \+ bajoElLienzo\)/);
 });
