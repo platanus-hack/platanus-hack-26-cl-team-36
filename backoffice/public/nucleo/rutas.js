@@ -3,8 +3,9 @@
 //   #/                          Overview   ?dispositivo=all|desktop|mobile &pestana=recent|live|failed &link=<texto> &pagina=<n>
 //   #/corridas                  Corridas   ?q= &sitio= &filtro= &orden= &vista=
 //   #/?q=…&sitio=…              (enlace viejo, de cuando Corridas era #/) → #/corridas?… con esos parámetros
-//   #/t/<tandaId>               → #/t/<tandaId>/telarana
-//   #/t/<tandaId>/<pestaña>     telarana · replay · propuesta   (#/t/<tandaId>/resumen, de cuando existía, → telarana)
+//   #/t/<tandaId>               → #/t/<tandaId>/path-map
+//   #/t/<tandaId>/<segmento>    path-map · replay · propuesta   (la pestaña interna telarana va en el hash como path-map;
+//                               #/t/<tandaId>/telarana, el nombre anterior, y /resumen, de cuando existía, → path-map)
 //   #/revisiones                Revisiones (DynamoDB)   ?estado=live|done|failed|historial   (live = running + queued)
 //   #/revisiones/<revision>     el avance de una revisión
 //   #/revisiones/<revision>/<goal>   la telaraña en vivo de un goal (SSE)
@@ -43,6 +44,12 @@ const PARAMETROS_DE_CORRIDAS = ["q", "sitio", "filtro", "orden", "vista"];
 
 // Pestañas que ya no existen y adónde llevan sus enlaces viejos (sin sus parámetros).
 const PESTANAS_RETIRADAS = { resumen: "telarana" };
+
+// Cómo se escribe cada pestaña en el hash cuando no es su id interno (el id sigue siendo `telarana` en el código).
+const SEGMENTO_DE_PESTANA = Object.freeze({ telarana: "path-map" });
+const PESTANA_DE_SEGMENTO = Object.freeze(Object.fromEntries(Object.entries(SEGMENTO_DE_PESTANA).map(([id, segmento]) => [segmento, id])));
+/** El segmento del hash de una pestaña: "telarana" → "path-map". */
+export const segmentoDePestana = (pestana) => SEGMENTO_DE_PESTANA[pestana] ?? pestana;
 
 // Claves del diccionario (no textos): t(NOMBRES_DE_PESTANA.replay) → "Replay".
 export const NOMBRES_DE_PESTANA = Object.freeze({
@@ -178,7 +185,9 @@ export function parsearHash(hash) {
     if (despues.length > 1) return { tipo: "desconocida", hash: original };
     const retirada = PESTANAS_RETIRADAS[despues[0]];
     if (retirada) return { tipo: "tanda", tandaId, pestana: retirada, parametros: {} };
-    const pestana = despues[0] ?? PESTANA_POR_DEFECTO;
+    const segmento = despues[0];
+    // El id interno también vale (#/t/…/telarana, el nombre anterior): el enrutador reescribe el hash a path-map.
+    const pestana = segmento === undefined ? PESTANA_POR_DEFECTO : (PESTANA_DE_SEGMENTO[segmento] ?? segmento);
     if (!PESTANAS.includes(pestana)) return { tipo: "desconocida", hash: original };
     return { tipo: "tanda", tandaId, pestana, parametros: aplicarAlias(pestana, parametros) };
   }
@@ -221,7 +230,7 @@ export function hashDe({ tipo, tandaId, revision = null, goal = null, pestana = 
   if (tipo === "tanda") {
     const id = String(tandaId).split("/").map(encodeURIComponent).join("/");
     const limpios = aplicarAlias(pestana, parametros);
-    return `#/t/${id}/${pestana}${consultaCanonica(pestana, limpios)}`;
+    return `#/t/${id}/${segmentoDePestana(pestana)}${consultaCanonica(pestana, limpios)}`;
   }
   if (tipo === "corridas") return `#/corridas${consultaCanonica("corridas", parametros)}`;
   return `#/${consultaCanonica("overview", soloValidos("overview", parametros))}`;
