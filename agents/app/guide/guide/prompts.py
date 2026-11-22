@@ -122,8 +122,7 @@ def _text_window(view: PageView) -> str:
 
 @dataclass
 class TurnPrompt:
-    """El mensaje de un turno en dos tramos: `page` no cambia mientras la página siga igual y va primero, antes de
-    la captura, para que el motor lo lea de la caché de prompts; `history` crece cada turno y va al final."""
+    """El mensaje de un turno: `page` se repite mientras la página no cambie; `history` crece cada turno."""
 
     page: str
     history: str
