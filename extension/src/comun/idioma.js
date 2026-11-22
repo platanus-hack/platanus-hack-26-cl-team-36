@@ -105,7 +105,7 @@
       "cartelera.original": "Ver original",
       "cartelera.volver": "Volver a la vista nueva",
 
-      // Content scripts: componentes lanzador y atajo (el tema puede reemplazarlos)
+      // Content scripts: componentes lanzador, atajo y buscador (el tema puede reemplazarlos)
       "lanzador.titulo": "Lo más buscado",
       "lanzador.subtitulo": "Ve directo a lo que viniste a hacer.",
       "atajo.titulo": "Ir directo",
@@ -113,6 +113,18 @@
       "atajo.boton": "Ver resultado",
       "atajo.invertir": "Intercambiar",
       "atajo.elegir": "Elige una opción",
+      "buscador.boton": "Buscar una tarea…",
+      "buscador.titulo": "Buscar una tarea",
+      "buscador.campo": "¿Qué quieres hacer?",
+      "buscador.sugerencias": "Sugerencias",
+      "buscador.sin-resultados": "Nada para «{consulta}»",
+      "buscador.sin-resultados-ayuda": "Prueba con otra palabra, como «horario» o «estación».",
+      "buscador.resultados": { cero: "Sin resultados.", uno: "{n} resultado.", otros: "{n} resultados." },
+      "buscador.cerrar": "Cerrar",
+      "buscador.mover": "moverte",
+      "buscador.abrir": "abrir",
+      "buscador.atajo": "Ctrl K",
+      "buscador.atajo-mac": "⌘K",
     },
 
     en: {
@@ -191,6 +203,18 @@
       "atajo.boton": "See result",
       "atajo.invertir": "Swap",
       "atajo.elegir": "Choose an option",
+      "buscador.boton": "Search for a task…",
+      "buscador.titulo": "Search for a task",
+      "buscador.campo": "What do you want to do?",
+      "buscador.sugerencias": "Suggestions",
+      "buscador.sin-resultados": "Nothing for “{consulta}”",
+      "buscador.sin-resultados-ayuda": "Try another word, like “hours” or “station”.",
+      "buscador.resultados": { cero: "No results.", uno: "{n} result.", otros: "{n} results." },
+      "buscador.cerrar": "Close",
+      "buscador.mover": "move",
+      "buscador.abrir": "open",
+      "buscador.atajo": "Ctrl K",
+      "buscador.atajo-mac": "⌘K",
     },
   };
 

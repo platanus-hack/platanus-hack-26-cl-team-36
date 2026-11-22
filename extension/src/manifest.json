@@ -31,7 +31,7 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "css": ["features/modo-foco.css", "features/vista.css", "componentes/cartelera.css", "componentes/lanzador.css", "componentes/atajo.css", "content/transicion.css"],
+      "css": ["features/modo-foco.css", "features/vista.css", "componentes/cartelera.css", "componentes/lanzador.css", "componentes/atajo.css", "componentes/buscador.css", "content/transicion.css"],
       "js": [
         "content/registro.js",
         "comun/idioma.js",
@@ -42,6 +42,7 @@
         "componentes/cartelera.js",
         "componentes/lanzador.js",
         "componentes/atajo.js",
+        "componentes/buscador.js",
         "features/modo-foco.js",
         "features/vista.js",
         "content/motor.js"
