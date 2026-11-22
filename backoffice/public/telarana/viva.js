@@ -10,7 +10,7 @@ import { el, reemplazar } from "../nucleo/dom.js";
 import { icono } from "../nucleo/iconos.js";
 import { t as tDelBackoffice } from "../nucleo/i18n.js";
 import { aplicar, crearModelo, enCurso, finDeTramos, resaltado, revisarAtascos } from "./modelo.js";
-import { avanzarAgentes, crearEscena, introducir, leerColores, sincronizar } from "./escena.js";
+import { PASO_COMPRIMIDO_S, PASO_S, avanzarAgentes, crearEscena, introducir, leerColores, sincronizar } from "./escena.js";
 import { crearEtiquetas } from "./etiquetas.js";
 import { crearPanel } from "./panel.js";
 import { conectarInteraccion } from "./interaccion.js";
@@ -39,16 +39,18 @@ const nombrePorDefecto = (n) => {
  *   nombreDeIntento?: (run: string, perfil: string) => string,
  *   enlaceAReplay?: (run: string, paso: number) => string | null,
  *   repetir?: () => object,
+ *   alFinal?: () => object,
  *   alFijar?: (clave: string | null) => void,
  *   alElegir?: (run: string | null) => void,
  *   detalleDeAgente?: (run: string) => Node | null,
  *   pista?: string | null,
  * }} opciones
+ *   repetir: la fuente del botón «Reproducir». alFinal: la del botón «Ir al final», visible mientras se reproduce.
  *   alElegir: un clic eligió (o soltó) un agente en el lienzo. detalleDeAgente: el panel de un agente elegido, en vez
  *   del de siempre. pista: una línea al pie del panel general (qué se puede hacer desde afuera).
  */
 export function montarTelaranaViva(contenedor, opciones) {
-  const { titulo = null, i18n = null, enlaceAReplay = () => null, repetir = null, alFijar = () => {}, alElegir = () => {}, detalleDeAgente = null, pista = null } = opciones;
+  const { titulo = null, i18n = null, enlaceAReplay = () => null, repetir = null, alFinal = null, alFijar = () => {}, alElegir = () => {}, detalleDeAgente = null, pista = null } = opciones;
   const t = i18n?.t ?? tDelBackoffice;
   const nombreDePagina = opciones.nombre ?? nombrePorDefecto;
   const nombreDeIntento = opciones.nombreDeIntento ?? ((run, perfil) => perfil || run.split("|").pop());
@@ -72,6 +74,7 @@ export function montarTelaranaViva(contenedor, opciones) {
 
   const reproducir = repetir ? el("button", { type: "button", class: "boton boton-secundario tv-reproducir" }, icono("reproducir"), el("span", { texto: t("telarana.barra.reproducir") })) : null;
   const pausa = el("button", { type: "button", class: "boton boton-secundario", "aria-pressed": "false", hidden: true }, icono("pausar"), el("span", { texto: t("telarana.barra.pausa") }));
+  const saltar = alFinal ? el("button", { type: "button", class: "boton boton-secundario", hidden: true }, icono("siguiente"), el("span", { texto: t("telarana.barra.alFinal") })) : null;
   const velocidad = el(
     "div",
     { class: "segmentado", role: "group", "aria-label": t("telarana.barra.velocidad"), hidden: true },
@@ -79,7 +82,7 @@ export function montarTelaranaViva(contenedor, opciones) {
   );
   const activos = el("b", { class: "num", texto: "0" });
   const cajaDeActivos = el("span", { class: "tv-activos", hidden: true }, el("span", { texto: t("telarana.barra.activos") }), " ", activos);
-  const barra = el("div", { class: "tv-barra" }, reproducir, pausa, velocidad, cajaDeActivos);
+  const barra = el("div", { class: "tv-barra" }, reproducir, pausa, velocidad, saltar, cajaDeActivos);
 
   const linea = (clase, texto) => el("li", { class: `tv-ley-linea ${clase}` }, el("span", { class: "tv-ley-muestra", "aria-hidden": "true" }), el("span", { texto }));
   // La leyenda va detrás del botón «?» de la barra del lienzo.
@@ -190,6 +193,7 @@ export function montarTelaranaViva(contenedor, opciones) {
     camara.encuadrar(null);
   }
   function fijar(foco, avisar) {
+    pendiente = null;
     const igual = E.fijado && E.fijado.t === foco.t && E.fijado.k === foco.k;
     const habiaAgente = !!E.elegido;
     soltarAgente();
@@ -199,6 +203,7 @@ export function montarTelaranaViva(contenedor, opciones) {
     else if (avisar && habiaAgente) alElegir(null);
   }
   function soltar(avisar) {
+    pendiente = null;
     const habia = E.fijado?.t === "n";
     const habiaAgente = !!E.elegido;
     soltarAgente();
@@ -217,6 +222,7 @@ export function montarTelaranaViva(contenedor, opciones) {
     nombre,
     nombreDeAgente,
     alElegir: (run) => {
+      pendiente = null;
       const habia = E.fijado?.t === "n";
       E.fijado = null;
       E.elegido = run;
@@ -228,6 +234,25 @@ export function montarTelaranaViva(contenedor, opciones) {
     alFijar: (foco) => fijar(foco, true),
     alSoltar: () => soltar(true),
   });
+
+  function elegirAgente(run, grupo) {
+    pendiente = null;
+    const a = run ? E.m.agentes.get(run) : null;
+    if ((a?.run ?? null) === E.elegido) return;
+    E.fijado = null;
+    E.elegido = a?.run ?? null;
+    E.grupo = a && grupo?.length > 1 ? grupo : null;
+    repintar();
+    camara.encuadrar(a ? [...a.visitados] : null);
+  }
+
+  // Lo elegido desde afuera antes de que exista (una reproducción a medias): se aplica cuando llega.
+  let pendiente = null;
+  function aplicarPendiente() {
+    const p = pendiente;
+    if (p?.run && E.m.agentes.has(p.run)) elegirAgente(p.run, p.grupo);
+    else if (p?.clave && E.m.nodos.has(p.clave)) fijar({ t: "n", k: p.clave }, false);
+  }
 
   // ── Fuente ──────────────────────────────────────────────────────────
   let suscripcion = null;
@@ -248,6 +273,9 @@ export function montarTelaranaViva(contenedor, opciones) {
       }
     }
     sincronizar(E, { instantaneo, agentes: tocados });
+    const elegido = E.elegido && E.m.agentes.get(E.elegido);
+    if (elegido && E.V.marco && tocados.has(elegido)) E.V.marco = new Set(elegido.visitados);
+    aplicarPendiente();
   }
 
   function conectar(fuente) {
@@ -257,14 +285,33 @@ export function montarTelaranaViva(contenedor, opciones) {
     let durante = true;
     suscripcion = fuente.suscribir((ev) => (durante ? lote : cola).push(ev));
     durante = false;
+    E.paso = suscripcion?.comprimida ? PASO_COMPRIMIDO_S : PASO_S;
     procesar(lote, true);
     E.finTramos = finDeTramos(E.m);
     introducir(E);
-    const conVelocidad = typeof suscripcion?.velocidad === "function";
-    pausa.hidden = !conVelocidad;
-    velocidad.hidden = !conVelocidad;
+    mostrarControles();
     ponerPausa(false);
-    if (conVelocidad) suscripcion.velocidad(E.vel);
+    if (reproduciendo()) suscripcion.velocidad(E.vel);
+  }
+
+  // Una fuente con velocidad reproduce una tanda; sin ella, es en vivo (o el estado final, ya sin nadie en curso).
+  const reproduciendo = () => typeof suscripcion?.velocidad === "function";
+  function mostrarControles() {
+    const enMarcha = reproduciendo() && !suscripcion.terminada?.();
+    pausa.hidden = !enMarcha;
+    velocidad.hidden = !enMarcha;
+    if (saltar) saltar.hidden = !enMarcha;
+  }
+
+  /** Cambia de fuente sin perder el agente o la página elegidos: se vuelven a elegir cuando existan. */
+  function reconectar(fuente) {
+    const seguir = E.elegido ? { run: E.elegido, grupo: E.grupo } : E.fijado?.t === "n" ? { clave: E.fijado.k } : pendiente;
+    reiniciar();
+    E.fijado = null;
+    E.grupo = null;
+    pendiente = seguir;
+    conectar(fuente);
+    aplicarPendiente();
   }
 
   function reiniciar() {
@@ -288,10 +335,8 @@ export function montarTelaranaViva(contenedor, opciones) {
     suscripcion?.velocidad?.(pausado ? 0 : E.vel);
   }
 
-  reproducir?.addEventListener("click", () => {
-    reiniciar();
-    conectar(repetir());
-  }, { signal: senal });
+  reproducir?.addEventListener("click", () => reconectar(repetir()), { signal: senal });
+  saltar?.addEventListener("click", () => reconectar(alFinal()), { signal: senal });
   pausa.addEventListener("click", () => ponerPausa(!E.pausado), { signal: senal });
   velocidad.addEventListener("click", (ev) => {
     const boton = ev.target.closest("button[data-v]");
@@ -308,9 +353,10 @@ export function montarTelaranaViva(contenedor, opciones) {
   let cuadroPedido = 0;
 
   function refrescar(ahora) {
-    if (!E.pausado && E.ultimoTs !== null && enCurso(E.m) > 0) revisarAtascos(E.m, E.ultimoTs + (E.sim - E.simDelUltimo) * 1000);
+    if (!E.pausado && !reproduciendo() && E.ultimoTs !== null && enCurso(E.m) > 0) revisarAtascos(E.m, E.ultimoTs + (E.sim - E.simDelUltimo) * 1000);
     E.finTramos = finDeTramos(E.m);
     vistaPanel.pintar(E, ahora);
+    mostrarControles();
     activos.textContent = String(enCurso(E.m));
     cajaDeActivos.hidden = enCurso(E.m) === 0;
     if (titular) {
@@ -361,9 +407,11 @@ export function montarTelaranaViva(contenedor, opciones) {
     },
     /** Fija una página por su clave (claveDePagina), o suelta con null. No avisa a alFijar. */
     fijar(clave) {
-      if (clave === (E.fijado?.t === "n" ? E.fijado.k : null)) return;
-      if (clave) fijar({ t: "n", k: clave }, false);
+      const existe = !clave || E.m.nodos.has(clave);
+      if (existe && clave === (E.fijado?.t === "n" ? E.fijado.k : null)) return;
+      if (existe && clave) fijar({ t: "n", k: clave }, false);
       else soltar(false);
+      if (!existe) pendiente = { clave };
     },
     soltar: () => soltar(true),
     /** Cambia la ruta recomendada: se rehace el estado con lo ya recibido. */
@@ -390,13 +438,8 @@ export function montarTelaranaViva(contenedor, opciones) {
      * suelta y vuelve a encuadrar todo. No avisa a alElegir.
      */
     elegirAgente(run, grupo = null) {
-      const a = run ? E.m.agentes.get(run) : null;
-      if ((a?.run ?? null) === E.elegido) return;
-      E.fijado = null;
-      E.elegido = a?.run ?? null;
-      E.grupo = a && grupo?.length > 1 ? grupo : null;
-      repintar();
-      camara.encuadrar(a ? [...a.visitados] : null);
+      elegirAgente(run, grupo);
+      if (run && !E.m.agentes.has(run)) pendiente = { run, grupo };
     },
     /** Cierra la leyenda si estaba abierta; true si lo hizo. */
     cerrarAyuda() {

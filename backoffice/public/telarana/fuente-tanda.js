@@ -1,8 +1,12 @@
 // Una tanda terminada como fuente de eventos v1 para la telaraña viva: cada intento es un agente que parte en su
 // página de inicio, da sus pasos y termina con su resultado. Sin reproducir, entrega todo de una vez (el estado
-// final); reproduciendo, cada evento a su hora real desde el inicio de la tanda. Puro salvo los temporizadores.
+// final); reproduciendo, cada evento a su hora real desde el inicio de la tanda o, comprimida, la tanda entera en
+// unos segundos (horarioComprimido). Puro salvo los temporizadores.
 
 const FINAL_DEL_RESULTADO = { logrado: "success", fallido: "failed", abandonado: "abandoned", sin_medir: "unmeasured", error: "error" };
+
+export const DURACION_COMPRIMIDA_MS = 8_000;
+export const HUECO_MAX_MS = 500;
 
 const pagina = (url, titulo) => ({ url: String(url ?? ""), title: String(titulo ?? "") });
 
@@ -51,11 +55,32 @@ export function eventosDeTanda(tanda) {
 }
 
 /**
- * @param {object} tanda   la tanda de GET /api/tandas/<id>
- * @param {{ reproducir?: boolean, ahora?: () => number }} opciones
- * @returns {{ suscribir(cb: (evento: object) => void): { cerrar(): void, velocidad?(v: number): void } }}
+ * A qué ms de pantalla llega cada evento para que la tanda dure ~duracion: mismo orden y ritmo relativo, nunca más
+ * lenta que la real y sin pausas de más de hueco (las esperas largas del modelo no detienen la construcción).
  */
-export function fuenteDeTanda(tanda, { reproducir = false, ahora = () => performance.now() } = {}) {
+export function horarioComprimido(eventos, { duracion = DURACION_COMPRIMIDA_MS, hueco = HUECO_MAX_MS } = {}) {
+  const huecos = eventos.map((ev, i) => (i ? Math.max(0, Date.parse(ev.ts) - Date.parse(eventos[i - 1].ts)) || 0 : 0));
+  const largo = (k) => huecos.reduce((total, h) => total + Math.min(h * k, hueco), 0);
+  let k = 1;
+  if (largo(1) > duracion) {
+    let alto = 1;
+    k = 0;
+    for (let i = 0; i < 40; i++) {
+      const medio = (k + alto) / 2;
+      if (largo(medio) > duracion) alto = medio;
+      else k = medio;
+    }
+  }
+  let ms = 0;
+  return huecos.map((h) => (ms += Math.min(h * k, hueco)));
+}
+
+/**
+ * @param {object} tanda   la tanda de GET /api/tandas/<id>
+ * @param {{ reproducir?: boolean, comprimida?: boolean, ahora?: () => number }} opciones
+ * @returns {{ suscribir(cb: (evento: object) => void): { cerrar(): void, velocidad?(v: number): void, terminada?(): boolean, comprimida?: boolean } }}
+ */
+export function fuenteDeTanda(tanda, { reproducir = false, comprimida = false, ahora = () => performance.now() } = {}) {
   const eventos = eventosDeTanda(tanda);
   return {
     suscribir(cb) {
@@ -64,6 +89,7 @@ export function fuenteDeTanda(tanda, { reproducir = false, ahora = () => perform
         return { cerrar() {} };
       }
       const cero = eventos.length ? Date.parse(eventos[0].ts) : 0;
+      const horas = comprimida ? horarioComprimido(eventos) : eventos.map((ev) => Date.parse(ev.ts) - cero);
       let i = 0;
       let reloj = 0;
       let vel = 1;
@@ -77,7 +103,7 @@ export function fuenteDeTanda(tanda, { reproducir = false, ahora = () => perform
       const tic = () => {
         temporizador = null;
         avanzar();
-        while (i < eventos.length && Date.parse(eventos[i].ts) - cero <= reloj) cb(eventos[i++]);
+        while (i < eventos.length && horas[i] <= reloj) cb(eventos[i++]);
         if (i < eventos.length) temporizador = setTimeout(tic, 50);
       };
       tic();
@@ -90,6 +116,8 @@ export function fuenteDeTanda(tanda, { reproducir = false, ahora = () => perform
           avanzar();
           vel = v;
         },
+        terminada: () => i >= eventos.length,
+        comprimida,
       };
     },
   };

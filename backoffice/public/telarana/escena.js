@@ -8,6 +8,8 @@ import { acotar, puntoDeTramo, radio, segmentosDeTramo } from "./layout.js";
 
 const TRAZO = 0.75; // s que tarda en dibujarse un tramo nuevo
 const VIAJE_MS = 400; // la cámara va al encuadre de un agente elegido
+export const PASO_S = 0.85; // s que tarda un agente en recorrer un tramo (a ×1)
+export const PASO_COMPRIMIDO_S = 0.45; // ídem cuando la tanda se arma en unos segundos
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const salida3 = (t) => 1 - Math.pow(1 - t, 3);
 const hash = (s) => {
@@ -408,7 +410,7 @@ export function sincronizar(E, { instantaneo = false, agentes = [] } = {}) {
     if (instantaneo) {
       v.mv = null;
       if (a.final) E.vis.agentes.delete(a.run);
-    } else v.mv = { tramo: a.mov, t0: E.anim, dur: 0.85 / Math.sqrt(E.vel), sx: v.x, sy: v.y };
+    } else v.mv = { tramo: a.mov, t0: E.anim, dur: (E.paso ?? PASO_S) / Math.sqrt(E.vel), sx: v.x, sy: v.y };
   }
 }
 
