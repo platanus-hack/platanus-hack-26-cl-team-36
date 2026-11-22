@@ -1,2 +1,2 @@
-# Process ids and logs from `just local up`, and the themes of `just aws revision`.
+# Process ids and logs from `just local up`, and the themes of `just local revision` and `just aws revision`.
 .state/
