@@ -73,6 +73,18 @@ def test_con_tema_solo_cuenta_las_tandas_de_ese_tema(tmp_path):
     assert con_tema["goals"][0]["runs"][0]["outcome"] == "success" and con_tema["tema"] == "abc123"
 
 
+def test_las_tandas_de_exploradores_no_son_la_vigente_del_resumen(tmp_path):
+    backend = store.LocalBackend(tmp_path)
+    item = goal("s-a")
+    write_catalog(backend, [item])
+    write_route(backend, item, 3)
+    write_batch(backend, "s-a", {"first_time": ("abandoned", 9, None, False)}, NOW - timedelta(days=1))
+    write_batch(backend, "s-a", {"explorador": ("success", 3, None, False)}, conjunto_exploradores="base")
+
+    resumen = backend.read_json(write_summary(backend, START).file("summary.json"))
+    assert [run["outcome"] for run in resumen["goals"][0]["runs"]] == ["abandoned"]
+
+
 def test_interrupted_attempts_do_not_count_as_failures(tmp_path):
     backend = store.LocalBackend(tmp_path)
     item = goal("s-a")

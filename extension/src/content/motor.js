@@ -3,7 +3,8 @@
 //
 //   1. Pide al background el tema para esta URL (el background le pregunta a la
 //      API e inyecta el CSS). Si no hay tema, no toca la página (salvo la animación
-//      del botón, que corre en todos los sitios).
+//      del botón, que corre en todos los sitios). Si el tema se está generando (una
+//      revisión), vuelve a preguntar cada tanto y lo activa cuando llega.
 //   2. Marca <html> con la clase `mi-tema` (según el botón de la extensión) y el
 //      atributo `data-mt-tema`, y los repone si el sitio los borra.
 //   3. Ejecuta las features que pide el tema en cada navegación y cambio del DOM.
@@ -30,6 +31,8 @@
   let htmlObservado = null;
   const observadorHtml = new MutationObserver(() => marcarHtml());
 
+  const paginaActual = () => location.origin + location.pathname;
+
   // Idempotente: solo escribe si algo cambió, así no entra en bucle con observadorHtml.
   function marcarHtml() {
     const html = document.documentElement;
@@ -40,8 +43,11 @@
       observadorHtml.observe(html, { attributes: true, attributeFilter: ["class"] });
       htmlObservado = html;
     }
-    if (html.dataset.mtTema !== tema.id) html.dataset.mtTema = tema.id; // lo usa el refresco en modo desarrollo
-    html.classList.toggle("mi-tema", activo); // toggle con segundo argumento no escribe si no cambia
+    // Un tema de revisión (`pagina`) es de esa página: en una SPA no se lleva a las demás.
+    const aplica = !tema.pagina || paginaActual() === tema.pagina;
+    if (!aplica) html.removeAttribute("data-mt-tema");
+    else if (html.dataset.mtTema !== tema.id) html.dataset.mtTema = tema.id; // lo usa el refresco en modo desarrollo
+    html.classList.toggle("mi-tema", activo && aplica); // toggle con segundo argumento no escribe si no cambia
   }
 
   function prepararFeatures() {
@@ -118,8 +124,12 @@
     if (!botonTocado) activo = estado.activo ?? true;
     if (!idiomaTocado) MiTema.idioma.fijar(estado[MiTema.idioma.CLAVE_IDIOMA]);
     if (!efectosTocados) efectos = MiTema.efectos.normalizarEfectos(estado[MiTema.efectos.CLAVE_EFECTOS]);
-    if (!respuesta) return; // sin tema para este sitio (o la API no respondió)
+    if (respuesta?.esperarRevision) esperarRevision(respuesta.esperarRevision);
+    else if (respuesta) activarTema(respuesta);
+    // sin respuesta: sin tema para este sitio (o la API no respondió)
+  }
 
+  function activarTema(respuesta) {
     tema = respuesta;
     console.info(`[mi-tema] Tema "${tema.id}" aplicado${activo ? "" : " (desactivado con el botón)"}.`);
 
@@ -135,6 +145,17 @@
       }
     };
     vigilarCambios(refrescar);
+  }
+
+  // Lo maneja el content script y no el background, que Firefox descarga tras un rato sin uso.
+  function esperarRevision({ intervaloMs, topeMs }, pagina = paginaActual(), inicio = Date.now()) {
+    setTimeout(async () => {
+      if (tema || paginaActual() !== pagina || Date.now() - inicio > topeMs) return;
+      const respuesta = await browser.runtime.sendMessage({ tipo: "tema:revision" }).catch(() => null);
+      if (tema || paginaActual() !== pagina) return;
+      if (respuesta?.esperarRevision) esperarRevision(respuesta.esperarRevision, pagina, inicio);
+      else if (respuesta) activarTema(respuesta);
+    }, intervaloMs);
   }
 
   iniciar().catch((error) => console.error("[mi-tema] No se pudo iniciar:", error));

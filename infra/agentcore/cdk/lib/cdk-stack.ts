@@ -1,5 +1,5 @@
 import { AgentCoreApplication, type AgentCoreApplicationProps } from '@aws/agentcore-cdk';
-import { Stack, type StackProps } from 'aws-cdk-lib';
+import { Stack, type StackProps, aws_s3 as s3 } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 export interface AgentCoreStackProps extends StackProps {
@@ -19,14 +19,15 @@ export class AgentCoreStack extends Stack {
     super(scope, id, props);
     this.application = new AgentCoreApplication(this, 'Application', props.application);
 
-    // Example: give a runtime a DynamoDB table.
-    //
-    // import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-    // const orders = new dynamodb.Table(this, 'Orders', {
-    //   partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
-    // });
-    // const checkout = this.application.runtime('checkout'); // or .harness('support')
-    // checkout.grantReadWrite(orders);
-    // checkout.addEnvironmentVariable('ORDERS_TABLE', orders.tableName);
+    // El bucket lo crea Terraform (infra/app/almacen.tf); acá solo se referencia por nombre.
+    const almacen = s3.Bucket.fromBucketName(this, 'Almacen', `chameleon-almacen-${this.account}`);
+    const runtime = this.application.runtime('web_evaluator_image');
+    runtime.addEnvironmentVariable('AGENTS_STORE', `s3://${almacen.bucketName}/`);
+    runtime.grantReadWrite(almacen);
+    // El conductor invoca a este mismo runtime: comodín para no referenciar su propio ARN.
+    runtime.grant(
+      ['bedrock-agentcore:InvokeAgentRuntime'],
+      [`arn:${this.partition}:bedrock-agentcore:${this.region}:${this.account}:runtime/*`],
+    );
   }
 }

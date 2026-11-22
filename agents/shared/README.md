@@ -52,6 +52,9 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
   `tema.css` y su `route_tree.json` lo registra en `tema` (`archivo`, `sha256` corto, `bytes`); sin tema, `tema` es
   `null`. Una de summary con `--css` registra el sha256 en `tema` de `summary.json`. La vigente se elige por tema como
   por instrucción: una corrida con tema nunca es la vigente sin tema, ni al revés.
+- Una corrida de visitor con `--exploradores` registra el conjunto en `conjunto_exploradores` de `route_tree.json`
+  (sin él, `null` o ausente). La vigente se elige también por conjunto: la de un conjunto nunca es la vigente sin
+  conjunto ni la de otro.
 - Una tarea de `agents/tasks/<host>/<goal>.json` es un objetivo de su host con su propio id. Un objetivo libre, que
   solo tiene instrucción, se llama `libre-<primeras palabras>-<8 hex del sha256 de la instrucción>`; el catálogo y las
   tareas no aceptan ese prefijo.

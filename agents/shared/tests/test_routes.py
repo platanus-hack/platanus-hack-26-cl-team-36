@@ -41,3 +41,16 @@ def test_a_visit_with_a_theme_is_never_the_current_one_without_it_nor_the_revers
     assert current_visit(backend, URL, "baja", "Mía.")[0] == plain
     assert current_visit(backend, URL, "baja", "Mía.", "abc123")[0] == themed
     assert current_visit(backend, URL, "baja", "Mía.", "otro") is None
+
+
+def test_a_visit_with_an_explorer_set_is_never_the_current_one_without_it_nor_of_another_set(tmp_path):
+    backend = store.LocalBackend(tmp_path)
+    prefix = store.visitor(URL, "baja")
+    plain = _publish(backend, prefix, "route_tree.json", {"url": URL, "instruction": "Mía."}, 0)
+    base = _publish(backend, prefix, "route_tree.json",
+                    {"url": URL, "instruction": "Mía.", "tema": None, "conjunto_exploradores": "base"}, 1)
+    _publish(backend, prefix, "route_tree.json",
+             {"url": URL, "instruction": "Mía.", "tema": None, "conjunto_exploradores": "conocimiento"}, 2)
+    assert current_visit(backend, URL, "baja", "Mía.")[0] == plain
+    assert current_visit(backend, URL, "baja", "Mía.", conjunto_exploradores="base")[0] == base
+    assert current_visit(backend, URL, "baja", "Mía.", "abc123", "conocimiento") is None
