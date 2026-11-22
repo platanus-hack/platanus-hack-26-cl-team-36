@@ -1,42 +1,64 @@
-/* Tokens del sistema visual (diseño §6.1). Tema oscuro únicamente. */
+/* Tokens del sistema visual (diseño §6.1): la paleta de marca Chameleon Mode (docs/marca/chameleonmode-v1). Tema
+   oscuro únicamente. Es el único archivo con colores escritos: el resto usa var(--…) y, para un alfa,
+   color-mix(in srgb, var(--token) N%, transparent). */
 :root {
   color-scheme: dark;
+  /* primitivos: solo para mezclar alfas (velos, sombras, brillos) */
+  --blanco: #FFFFFF;
+  --negro:  #000000;
   /* superficies: elevación por luminosidad */
-  --fondo:        oklch(0.145 0.004 275);   /* #0A0A0C */
-  --superficie-1: oklch(0.178 0.005 275);   /* #101113 tarjetas, cabecera de tabla */
-  --superficie-2: oklch(0.208 0.006 275);   /* #17181B hover, inputs */
-  --superficie-3: oklch(0.240 0.007 275);   /* #1E1F23 popover, diálogo, paleta */
-  --lienzo:       oklch(0.160 0.005 275);   /* fondo de la telaraña */
+  --fondo:        #0B0B10;   /* carbón */
+  --superficie-1: #111118;   /* tarjetas, cabecera de tabla, buscador */
+  --superficie-2: #15151D;   /* hover, inputs, fichas */
+  --superficie-3: #1C1C27;   /* popover, diálogo, paleta, baldosas */
+  --superficie-4: #2A2A36;   /* etapa hecha, sin medir */
+  --lienzo:       #0E0E14;   /* fondo de la telaraña (entre el fondo y la superficie 1) */
+  --linea:        #3A3A48;   /* puntos del navegador, flechas, conectores */
   /* bordes alfa */
-  --borde-sutil:  oklch(1 0 0 / 0.06);
-  --borde:        oklch(1 0 0 / 0.10);
-  --borde-fuerte: oklch(1 0 0 / 0.16);
-  /* texto (APCA sobre --fondo) */
-  --texto-1: oklch(0.965 0.003 275);        /* Lc 100: títulos, cifras */
-  --texto-2: oklch(0.80 0.006 275);         /* Lc 67: cuerpo, celdas */
-  --texto-3: oklch(0.70 0.008 275);         /* Lc 50: meta, etiquetas */
-  --texto-4: oklch(0.53 0.008 275);         /* Lc 25: deshabilitado, decorativo */
-  /* un solo acento: lo interactivo y lo elegido */
-  --acento:        oklch(0.77 0.13 245);     /* ≈ #66BCFF */
-  --acento-fuerte: color-mix(in oklch, var(--acento) 85%, white);
-  --acento-sutil:  color-mix(in oklch, var(--acento) 16%, transparent);
-  --anillo-foco:   oklch(0.77 0.13 245 / 0.9);
-  /* estados (separados por luminosidad además de tono: seguros para daltonismo) */
-  --exito:         oklch(0.80 0.14 172);     /* menta */
-  --peligro:       oklch(0.68 0.19 35);      /* bermellón: puntos, rellenos, íconos */
-  --peligro-texto: oklch(0.76 0.15 35);
-  --aviso:         oklch(0.79 0.16 60);      /* naranja ≈ #FF9F43: advertencias y 2.ª serie, nunca adorno */
-  --neutro:        oklch(0.66 0.01 275);
-  --exito-fondo:   color-mix(in oklch, var(--exito) 14%, transparent);
-  --peligro-fondo: color-mix(in oklch, var(--peligro) 16%, transparent);
-  --aviso-fondo:   color-mix(in oklch, var(--aviso) 14%, transparent);
-  --neutro-fondo:  color-mix(in oklch, var(--neutro) 14%, transparent);
-  --rayado: repeating-linear-gradient(135deg, var(--neutro-fondo) 0 4px, transparent 4px 8px);
+  --borde-sutil:  rgb(255 255 255 / 0.06);
+  --borde:        rgb(255 255 255 / 0.08);
+  --borde-medio:  rgb(255 255 255 / 0.10);   /* insignia "backoffice", teclas */
+  --borde-fuerte: rgb(255 255 255 / 0.16);
+  /* texto (sobre --fondo) */
+  --texto-1: #F5F5F7;        /* títulos, cifras */
+  --texto-2: #C4C4CE;        /* cuerpo, celdas */
+  --texto-3: #A7A7B5;        /* meta, etiquetas */
+  --texto-4: #7A7A88;        /* rutas, tiempos, decorativo */
+  /* un solo acento, turquesa: lo interactivo, lo seleccionado y lo que está en vivo. Nunca significa "logrado".
+     Encima va texto carbón (--sobre-acento), nunca blanco. */
+  --acento:        #2EE6C5;
+  --sobre-acento:  #0B0B10;
+  --acento-fuerte: color-mix(in srgb, var(--acento) 80%, var(--blanco));
+  --acento-sutil:  rgb(46 230 197 / 0.14);
+  --anillo-foco:   rgb(46 230 197 / 0.9);
+  /* resultados (un cuadrito, un tramo, una cifra) */
+  --resultado-logrado:       #4AC06C;
+  --resultado-fallido:       #F6623D;
+  --resultado-fallido-texto: #FF8B6D;
+  --resultado-aviso:         #FF9F3F;   /* detenido */
+  --resultado-abandonado:    #909298;
+  --resultado-sin-medir:     #2A2A36;
+  --resultado-error:         repeating-linear-gradient(135deg, rgb(144 146 152 / 0.7) 0 2px, #1C1C27 2px 4px);
+  --resultado-en-curso:      var(--acento);
+  /* estados (los nombres de siempre, alineados con los resultados; separados por luminosidad además de tono) */
+  --exito:         var(--resultado-logrado);
+  --peligro:       var(--resultado-fallido);          /* puntos, rellenos, íconos */
+  --peligro-texto: var(--resultado-fallido-texto);
+  --aviso:         var(--resultado-aviso);            /* advertencias y 2.ª serie, nunca adorno */
+  --neutro:        var(--resultado-abandonado);
+  --exito-fondo:   color-mix(in srgb, var(--exito) 14%, transparent);
+  --peligro-fondo: color-mix(in srgb, var(--peligro) 16%, transparent);
+  --aviso-fondo:   color-mix(in srgb, var(--aviso) 14%, transparent);
+  --neutro-fondo:  color-mix(in srgb, var(--neutro) 14%, transparent);
+  /* rayado del error de la herramienta detrás de un texto (insignias): el mismo ángulo y paso que
+     --resultado-error, pero tenue para que el texto se lea */
+  --rayado: repeating-linear-gradient(135deg, color-mix(in srgb, var(--neutro) 22%, transparent) 0 2px, transparent 2px 4px);
   --serie-1: var(--acento);
   --serie-2: var(--aviso);
-  /* sombras: solo capas flotantes */
-  --sombra-flotante: 0 0 0 1px var(--borde), 0 4px 8px -2px oklch(0 0 0 / 0.5), 0 16px 32px -8px oklch(0 0 0 / 0.6);
-  --brillo-superior: inset 0 1px 0 oklch(1 0 0 / 0.04);
+  /* velos y sombras: solo capas flotantes */
+  --velo: rgb(0 0 0 / 0.5);
+  --sombra-flotante: 0 0 0 1px var(--borde), 0 4px 8px -2px rgb(0 0 0 / 0.5), 0 16px 32px -8px rgb(0 0 0 / 0.6);
+  --brillo-superior: inset 0 1px 0 rgb(255 255 255 / 0.04);
   /* radios concéntricos */
   --radio-1: 4px; --radio-2: 6px; --radio-3: 10px; --radio-4: 14px; --radio-pildora: 999px;
   /* espacio */
@@ -48,6 +70,6 @@
   /* tipografía */
   --fuente: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --fuente-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  /* armazón */
-  --ancho-lateral: 232px; --alto-barra: 48px; --ancho-max: 1440px;
+  /* armazón: barra superior fija y el contenido centrado */
+  --alto-barra: 56px; --ancho-max: 1360px;
 }

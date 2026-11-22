@@ -4,7 +4,7 @@
 
 html {
   background: var(--fondo);
-  scrollbar-color: oklch(1 0 0 / 0.15) transparent;
+  scrollbar-color: var(--borde-fuerte) transparent;
   scrollbar-width: thin;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -93,7 +93,7 @@ code { color: var(--texto-1); }
 /* El panel se captura aparte solo al cambiar de pestaña; en una navegación completa va dentro de `contenido`. */
 html[data-nav="pestana"] .panel-tanda { view-transition-name: panel; }
 
-/* El armazón (lateral, barra) cambia sin animación; sus grupos no se mueven ni se estiran. */
+/* El armazón (la barra superior) cambia sin animación; sus grupos no se mueven ni se estiran. */
 ::view-transition-old(root) { animation: none; opacity: 0; }
 ::view-transition-new(root) { animation: none; }
 ::view-transition-group(root), ::view-transition-group(contenido), ::view-transition-group(panel) { animation: none; }
