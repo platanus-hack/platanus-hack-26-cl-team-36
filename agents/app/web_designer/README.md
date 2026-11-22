@@ -43,7 +43,7 @@ uv run main.py --url https://www.wom.cl/ --revision <rev>   # etapa de mejora de
 | `--output` | La carpeta de la corrida (por defecto `agents/.runs/diseno/<id o host>/<fecha-hora>/`; con `--casos`, el nombre del archivo en vez del host). |
 | `--concurrencia` | Generaciones simultáneas (por defecto 3). |
 | `--cdp-url` | Un navegador remoto vía CDP. |
-| `--revision <rev>` | Etapa de mejora (con `--url`, sin `--gustos`): resume lo que midieron en esa revisión el Catalogador, la Guía y el Visitante (por objetivo: si hay ruta, si llegaron, dónde se desviaron o se detuvieron), genera un tema una vez con la tarea del objetivo que peor resultó y los gustos de `GUSTOS_MEJORA`, sin juez, y escribe `<host>/improver/<run>/` en el almacén (`AGENTS_STORE`): `tema.css` saneado y `mejora.json`. Sale con 0 solo si la corrida queda `succeeded`; un CSS vacío tras sanear la deja `failed`. |
+| `--revision <rev>` | Etapa de mejora (con `--url`, sin `--gustos`): resume lo que midieron en esa revisión el Catalogador, la Guía y el Visitante, genera un tema (tarea: el objetivo que peor resultó; gustos: `GUSTOS_MEJORA`) y escribe `tema.css` saneado y `mejora.json` en `<host>/improver/<run>/` (`AGENTS_STORE`). Sale con 0 solo si la corrida queda `succeeded`. |
 
 Para probar un tema con usuarios sintéticos, pásale su `tema.css` al [Visitante](../visitor/README.md):
 `uv run main.py --task wom.cl/baja-fibra --css <ruta>/tema.css` desde `../visitor`.
