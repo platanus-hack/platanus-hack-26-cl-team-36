@@ -1,9 +1,10 @@
-// Lógica pura de las revisiones: el tema que la API genera para una página sin tema empaquetado.
+// Lógica pura de las revisiones: el tema que los agentes generan para cada página.
 // Sin `browser.*`: se testea con Node (ver test/revisiones.test.js).
 //
-//   POST /revisiones { url }   → 202 { success, revision, status: "queued" } (página nueva, dispara la revisión)
-//                               → 200 { success, revision, status, css? }    (ya vista; `css` si status "done")
-//   GET  /revisiones?url=<url> → lo mismo que "ya vista", sin disparar; 404 { success: false } si no existe.
+//   GET  /revisiones?url=<url> → 200 { success, revision, status, css? } (`css` si status "done");
+//                                404 { success: false } si la página no tiene revisión. Es lo que usa la extensión.
+//   POST /revisiones { url }   → lo mismo, pero una página nueva dispara su revisión: 202 { …, status: "queued" }.
+//                                La extensión no lo usa (ver el TODO en index.js).
 //
 // Un resultado es { estado: "listo", revision, css } | { estado: "esperando", revision } | { estado: "fin" }.
 // "fin" cubre 404, `failed`, error de red y respuestas raras: no se aplica nada y no se insiste.
@@ -40,7 +41,7 @@ export function temaDeRevision(revision, css) {
   return normalizarTema({ id: `rev-${revision}`, nombre: `Revisión ${revision}`, css: saneado.css });
 }
 
-// `consultar`: pedirRevision o consultarRevision de api.js. Nunca lanza; "listo" trae `tema` en vez de `css`.
+// `consultar`: consultarRevision (o pedirRevision) de api.js. Nunca lanza; "listo" trae `tema` en vez de `css`.
 export async function resolverRevision(url, { consultar, log = console }) {
   let resultado;
   try {

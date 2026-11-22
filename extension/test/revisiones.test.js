@@ -30,13 +30,13 @@ test("urlDePagina quita query y hash", () => {
   assert.equal(urlDePagina(PAGINA), "https://example.com/tienda/carro");
 });
 
-test("página nueva: 202 queued, luego running y luego done con css", async () => {
+test("revisión en curso (pedida desde afuera): queued, luego running y luego done con css, solo con GET", async () => {
   const llamadas = simularFetch(
-    Response.json({ success: true, revision: "r1a2", status: "queued" }, { status: 202 }),
+    Response.json({ success: true, revision: "r1a2", status: "queued" }),
     Response.json({ success: true, revision: "r1a2", status: "running" }),
     Response.json({ success: true, revision: "r1a2", status: "done", css: CSS }),
   );
-  assert.deepEqual(await resolverRevision(PAGINA, { consultar: pedirRevision, log: silencioso }), {
+  assert.deepEqual(await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso }), {
     estado: "esperando",
     revision: "r1a2",
   });
@@ -51,22 +51,29 @@ test("página nueva: 202 queued, luego running y luego done con css", async () =
     features: {},
     eventosNavegacion: [],
   });
+  for (const llamada of llamadas) {
+    assert.equal(llamada.url, `${API_URL_AWS}/revisiones?url=${encodeURIComponent("https://example.com/tienda/carro")}`);
+    assert.equal(llamada.metodo, "GET");
+  }
+});
+
+test("pedirRevision (sin uso en la extensión por ahora) envía POST con la URL sin query ni hash", async () => {
+  const llamadas = simularFetch(Response.json({ success: true, revision: "r1a2", status: "queued" }, { status: 202 }));
+  assert.equal((await resolverRevision(PAGINA, { consultar: pedirRevision, log: silencioso })).estado, "esperando");
   assert.equal(llamadas[0].url, `${API_URL_AWS}/revisiones`);
   assert.equal(llamadas[0].metodo, "POST");
   assert.deepEqual(llamadas[0].cuerpo, { url: "https://example.com/tienda/carro" });
-  assert.equal(llamadas[1].url, `${API_URL_AWS}/revisiones?url=${encodeURIComponent("https://example.com/tienda/carro")}`);
-  assert.equal(llamadas[1].metodo, "GET");
 });
 
 test("página ya vista: 200 done con css se aplica de una vez, saneado", async () => {
   simularFetch(Response.json({ success: true, revision: "abc", status: "done", css: `${CSS} @import url(x);` }));
-  const { estado, tema } = await resolverRevision(PAGINA, { consultar: pedirRevision, log: silencioso });
+  const { estado, tema } = await resolverRevision(PAGINA, { consultar: consultarRevision, log: silencioso });
   assert.equal(estado, "listo");
   assert.equal(tema.id, "rev-abc");
   assert.doesNotMatch(tema.css, /import|url\(/);
 });
 
-test("404, failed, error de red, sin JSON o css vacío: fin, sin lanzar", async () => {
+test("página sin revisión (404), failed, error de red, sin JSON o css vacío: fin, sin lanzar", async () => {
   const casos = [
     Response.json({ success: false }, { status: 404 }),
     Response.json({ success: true, revision: "abc", status: "failed" }),

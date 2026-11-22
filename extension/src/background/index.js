@@ -3,15 +3,13 @@
 //
 // Responsabilidades:
 //   1. Ícono y badge sincronizados con `activo` en storage (el interruptor está en el popup).
-//   2. Preguntarle a la API qué tema corresponde a cada página e inyectar su CSS. Si no hay tema
-//      empaquetado, pedir una revisión (un tema generado para esa página, ver revisiones.js).
+//   2. Consultarle a la API la revisión de cada página (el tema que generaron los agentes, ver revisiones.js)
+//      e inyectar su CSS cuando esté lista. No dispara revisiones (ver el TODO en revisarPagina).
 //   3. Guardar en el equipo los votos del usuario sobre la página con tema (ver votos.js).
 
 import { crearAdaptadorIndexedDB } from "./almacen-votos-idb.js";
-import { consultarRevision, consultarTema, pedirRevision } from "./api.js";
+import { consultarRevision } from "./api.js";
 import { INTERVALO_REVISION_MS, TOPE_REVISION_MS, resolverRevision, urlDePagina } from "./revisiones.js";
-import { cargarTemaLocal } from "./temas-locales.js";
-import { resolverTema } from "./temas.js";
 import { crearAlmacenVotos, crearRegistroVoto, falloVoto, obtenerIdUsuario, validarVoto } from "./votos.js";
 
 // ---------- 1. Estado ON/OFF y badge ----------
@@ -83,32 +81,34 @@ async function refrescarPestanasConTema() {
 //
 // `tema:aplicar` y `tema:revision` → tema (sin css) | null | { esperarRevision: { intervaloMs, topeMs } }.
 async function aplicarTema(sender) {
-  const tema = await resolverTema(sender.url, { consultarApi: consultarTema, cargarTema: cargarTemaLocal });
-  if (tema) return inyectarTema(tema, sender);
   if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen: new URL(sender.url).origin, temaId: null, css: "" });
-  return revisarPagina(sender, pedirRevision);
+  return revisarPagina(sender);
 }
 
-async function revisarPagina(sender, consultar) {
-  if (!(await puedePedirRevision(sender))) return null;
-  const resultado = await resolverRevision(sender.url, { consultar });
+// TODO: la extensión no dispara revisiones: solo consulta (GET) la de la página, y una página sin revisión queda tal
+// cual. Cada revisión corre agentes en AWS y cuesta; por ahora se piden con `just aws revision <url>` o
+// `just aws seed`. Para volver a dispararlas al entrar a una página nueva, usar pedirRevision (POST, api.js) en vez de
+// consultarRevision cuando el GET responda que no existe, idealmente con un límite por usuario o a pedido desde el popup.
+async function revisarPagina(sender) {
+  if (!(await puedeConsultarRevision(sender))) return null;
+  const resultado = await resolverRevision(sender.url, { consultar: consultarRevision });
   if (resultado.estado === "esperando") {
     return { esperarRevision: { intervaloMs: INTERVALO_REVISION_MS, topeMs: TOPE_REVISION_MS } };
   }
   return resultado.estado === "listo" ? inyectarTema(resultado.tema, sender, urlDePagina(sender.url)) : null;
 }
 
-// Una revisión cuesta (corre agentes), y en ventanas privadas no se envía la URL a nadie. Con el
-// interruptor apagado tampoco: se pedirá en la próxima visita con Chameleon encendido.
-async function puedePedirRevision(sender) {
+// En ventanas privadas no se envía la URL a nadie, y con el interruptor apagado tampoco: se consultará en la próxima
+// visita con Chameleon encendido.
+async function puedeConsultarRevision(sender) {
   return sender.frameId === 0 && !sender.tab?.incognito && /^https?:/.test(sender.url ?? "") && (await leerActivo());
 }
 
-// `pagina`: solo para temas de revisión, que valen para esa página y no para todo el origen.
-async function inyectarTema(tema, sender, pagina = null) {
+// `pagina`: un tema de revisión vale para esa página y no para todo el origen.
+async function inyectarTema(tema, sender, pagina) {
   const origen = new URL(sender.url).origin;
   if (sender.frameId === 0) temaPorPestana.set(sender.tab.id, { origen, pagina, temaId: tema.id, css: tema.css });
-  console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${pagina ?? origen}`);
+  console.info(`[mi-tema] Tema "${tema.id}" aplicado en ${pagina}`);
 
   await browser.scripting.insertCSS({
     target: { tabId: sender.tab.id, frameIds: [sender.frameId] },
@@ -116,7 +116,7 @@ async function inyectarTema(tema, sender, pagina = null) {
   });
 
   const { css, ...resto } = tema;
-  return pagina ? { ...resto, pagina } : resto;
+  return { ...resto, pagina };
 }
 
 // ---------- 3. Votos ----------
@@ -128,8 +128,8 @@ const almacenVotos = crearAlmacenVotos(crearAdaptadorIndexedDB());
 // Tema que aplicarTema resolvió para la página de cada pestaña (frame principal), con su
 // origen y su CSS (para incrustarlo en el HTML "editado"). El voto toma el tema de acá y
 // no del DOM, que la página controla: un sitio cualquiera podría poner
-// `data-mt-tema="youtube"` en su <html>. Firefox descarga el background tras un rato sin
-// uso y esto se pierde: por eso, si no está o es de otro origen, se vuelve a resolver.
+// `data-mt-tema="rev-…"` en su <html>. Firefox descarga el background tras un rato sin
+// uso y esto se pierde: por eso, si no está o es de otro origen o página, se vuelve a consultar.
 const temaPorPestana = new Map(); // tabId → { origen, pagina?, temaId | null, css }
 browser.tabs.onRemoved.addListener((tabId) => temaPorPestana.delete(tabId));
 
@@ -137,16 +137,10 @@ async function temaDePestana(tabId, url) {
   const origen = new URL(url).origin;
   const conocido = temaPorPestana.get(tabId);
   if (conocido?.origen === origen && (!conocido.pagina || conocido.pagina === urlDePagina(url))) return conocido;
-  let tema = await resolverTema(url, { consultarApi: consultarTema, cargarTema: cargarTemaLocal }).catch((error) => {
-    console.warn("[mi-tema] No se pudo resolver el tema para el voto:", error);
-    return null;
-  });
-  let pagina = null;
-  if (!tema) {
-    // Solo consulta (GET): votar no debe disparar una revisión.
-    const resultado = await resolverRevision(url, { consultar: consultarRevision });
-    if (resultado.estado === "listo") [tema, pagina] = [resultado.tema, urlDePagina(url)];
-  }
+  // Solo consulta (GET): votar no debe disparar una revisión.
+  const resultado = await resolverRevision(url, { consultar: consultarRevision });
+  const tema = resultado.estado === "listo" ? resultado.tema : null;
+  const pagina = tema ? urlDePagina(url) : null;
   const resuelto = { origen, pagina, temaId: tema?.id ?? null, css: tema?.css ?? "" };
   temaPorPestana.set(tabId, resuelto);
   return resuelto;
@@ -181,20 +175,11 @@ function leerCssFeatures() {
 
 async function cssParaEditado({ temaId, css }) {
   if (!temaId) return "";
-  let cssTema = css || null;
-  if (cssTema === null) {
-    try {
-      cssTema = (await cargarTemaLocal(temaId)).css;
-    } catch (error) {
-      console.warn(`[mi-tema] No se pudo cargar el CSS del tema "${temaId}" para el voto:`, error);
-      cssTema = "";
-    }
-  }
   const features = await leerCssFeatures().catch((error) => {
     console.warn("[mi-tema] No se pudo leer el CSS de las features para el voto:", error);
     return "";
   });
-  return `${features}\n/* tema ${temaId} */\n${cssTema}`;
+  return `${features}\n/* tema ${temaId} */\n${css}`;
 }
 
 // Pide la captura a la pestaña. → captura | null. Si la pestaña ya navegó a otro origen
@@ -273,7 +258,7 @@ browser.runtime.onMessage.addListener((mensaje, sender) => {
     case "tema:aplicar":
       return aplicarTema(sender);
     case "tema:revision":
-      return revisarPagina(sender, consultarRevision);
+      return revisarPagina(sender);
     case "voto:guardar":
       return guardarVoto(mensaje, sender);
     case "votos:estado":

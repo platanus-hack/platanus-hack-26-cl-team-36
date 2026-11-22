@@ -2,7 +2,7 @@
 // texto intermedio de la animación del popup (src/popup/idioma.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import "../src/comun/idioma.js";
 import { textoIntermedio } from "../src/popup/idioma.js";
@@ -96,23 +96,6 @@ test("en un content script, idioma.js se suma a MiTema sin pisar el registro", (
   const MiTema = vm.runInContext("globalThis.MiTema", contexto);
   assert.equal(typeof MiTema.registrarFeature, "function");
   assert.equal(MiTema.idioma.t("en", "cartelera.boton"), "Play");
-});
-
-test("los textos propios de los temas vienen por idioma y con claves que la cartelera conoce", () => {
-  const claves = Object.keys(TEXTOS.es)
-    .filter((clave) => clave.startsWith("cartelera."))
-    .map((clave) => clave.slice("cartelera.".length));
-  for (const id of readdirSync(new URL("temas/", src))) {
-    const tema = JSON.parse(leer(`temas/${id}/tema.json`));
-    for (const vista of [].concat(tema.features?.vista ?? [])) {
-      const textos = vista.opciones?.textos;
-      if (!textos) continue;
-      assert.deepEqual(Object.keys(textos).sort(), Object.keys(TEXTOS).sort(), `la vista "${vista.id}" debe traer textos en cada idioma`);
-      for (const [idioma, porIdioma] of Object.entries(textos)) {
-        for (const clave of Object.keys(porIdioma)) assert.ok(claves.includes(clave), `"${clave}" (${idioma}) no lo usa la cartelera`);
-      }
-    }
-  }
 });
 
 test("los content scripts que muestran texto lo sacan del diccionario", () => {

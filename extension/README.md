@@ -3,10 +3,11 @@
 Extensión de Firefox que cambia el diseño de sitios web aplicando **temas**.
 Un tema es CSS + la lista de features (comportamientos JS) que se activan en ese sitio.
 
-En cada página, la extensión le pregunta al backend (`backend/`) qué tema corresponde.
-Si el backend dice que no hay tema, o no responde, la página queda tal cual. Por ahora el
-backend solo dice el id del tema; el CSS vive en la extensión (`src/temas/<id>/`).
-Hoy hay dos temas: YouTube y Gmail. Ver [La API](#la-api).
+En cada página, la extensión le consulta al backend (`backend/`) la **revisión** de esa página: el
+tema que generaron los agentes para ella. El backend busca la revisión en DynamoDB y, si
+terminó, devuelve el `tema.css` que quedó en S3. Si no hay revisión lista, o el backend no
+responde, la página queda tal cual. La extensión no trae temas empaquetados ni dispara
+revisiones. Ver [La API](#la-api).
 
 ## Estructura
 
@@ -15,11 +16,12 @@ extension/
 ├── src/                      ← todo lo que va dentro de la extensión (.xpi)
 │   ├── manifest.json
 │   ├── background/
-│   │   ├── index.js          ← badge ON/OFF + resuelve el tema de cada página e inyecta su CSS + votos
+│   │   ├── index.js          ← badge ON/OFF + consulta la revisión de cada página e inyecta su CSS + votos
 │   │   ├── config.js         ← URL del backend
-│   │   ├── api.js            ← pregunta al backend: POST /temas/buscar
-│   │   ├── temas-locales.js  ← carga src/temas/<id>/
-│   │   └── temas.js          ← lógica pura (validar temas, decidir el tema); testeable con Node
+│   │   ├── api.js            ← pregunta al backend: GET /revisiones
+│   │   ├── revisiones.js     ← lógica pura de las revisiones; testeable con Node
+│   │   ├── css-remoto.js     ← sanea el CSS que llega de la API
+│   │   └── temas.js          ← lógica pura (validar temas); testeable con Node
 │   ├── popup/                ← lo que abre el ícono de la barra
 │   │   ├── popup.html/.css/.js ← interruptor ON/OFF + opinión sobre la página
 │   │   └── estado.js         ← lógica pura del popup; testeable con Node
@@ -32,11 +34,6 @@ extension/
 │   │   └── vista.js/.css     ← reemplaza una sección por una vista hecha con un componente
 │   ├── componentes/          ← catálogo de piezas de interfaz que usan las vistas
 │   │   └── cartelera.js/.css
-│   ├── temas/                ← CSS y config de cada tema; la API dice cuál usar
-│   │   ├── youtube/
-│   │   │   ├── tema.json     ← nombre, features y sus opciones
-│   │   │   └── tema.css
-│   │   └── gmail/
 │   └── icons/
 ├── scripts/                  ← herramientas de desarrollo (no se empaquetan)
 │   └── clonar-perfil.js      ← `npm run perfil:clonar`
@@ -48,10 +45,10 @@ extension/
 ## Cómo funciona
 
 1. En cada página http(s), `content/motor.js` le pide al background el tema para esa URL.
-2. El background le pregunta a la API (`api.js`). Si la API responde `success: true` con un
-   id de tema, carga ese tema desde `src/temas/<id>/` (`temas-locales.js`), inyecta su CSS con
-   `scripting.insertCSS` y le devuelve al motor las features y opciones.
-   Si la API responde `success: false` o no responde, no hay tema y el motor no toca la página.
+2. El background le consulta a la API la revisión de la página (`api.js`, `revisiones.js`). Si
+   está lista, sanea su CSS (`css-remoto.js`), lo inyecta con `scripting.insertCSS` y le devuelve
+   al motor el tema. Si está en curso, el motor vuelve a preguntar cada 15 s mientras siga en la
+   página. Si no hay revisión, falló o la API no responde, el motor no toca la página.
 3. El motor pone la clase `mi-tema` en `<html>` (todo el CSS del tema cuelga de ella) y
    ejecuta las features en cada navegación y cambio del DOM.
 4. El ícono de la barra abre un popup con un interruptor ON/OFF grande, que guarda `activo` en
@@ -70,16 +67,17 @@ Desde la raíz del repo (o desde `extension/`, da lo mismo):
 
 ```bash
 npm install           # la primera vez
-npm run dev:backend   # terminal 1: la API (sin ella no se aplica ningún tema)
-npm run dev           # terminal 2: Firefox con la extensión
+npm run dev           # Firefox con la extensión
 ```
 
-Se abre un Firefox aparte con la extensión cargada en youtube.com. Cada vez que
-guardas un archivo de `src/`, la extensión se recarga sola y las pestañas que
-tenían un tema se refrescan para mostrar el cambio. Ese refresco solo ocurre con la
-extensión cargada en modo desarrollo (web-ext o about:debugging), nunca instalada.
+Se abre un Firefox aparte con la extensión cargada en metro.cl, que ya tiene una revisión
+terminada. También en modo desarrollo la extensión usa la API de AWS (ver [La API](#la-api)),
+así que no hace falta levantar el backend. Cada vez que guardas un archivo de `src/`, la
+extensión se recarga sola y las pestañas que tenían un tema se refrescan para mostrar el
+cambio. Ese refresco solo ocurre con la extensión cargada en modo desarrollo (web-ext o
+about:debugging), nunca instalada.
 
-Ese Firefox usa un perfil temporal (sin tu sesión de YouTube). Para quedar logueado
+Ese Firefox usa un perfil temporal (sin tus sesiones). Para quedar logueado
 entre pruebas usa `npm run dev:sesion`, que guarda el perfil en `.perfil-dev/`.
 
 **Con tus datos de siempre:** `npm run perfil:clonar` copia uno de tus perfiles de Firefox
@@ -95,16 +93,17 @@ pregunte: `npm run perfil:clonar -- --perfil "<nombre>"`.
 **Sin Node:** en Firefox abre `about:debugging` → "Este Firefox" →
 "Cargar complemento temporal…" y elige `src/manifest.json`.
 
-Si el diseño no se aplica: revisa que el backend esté corriendo, y en `about:addons` →
-la extensión → "Permisos" que tenga acceso a los sitios.
+Si el diseño no se aplica: revisa que la página tenga una revisión terminada
+(`curl "https://api.chameleonmode.app/revisiones?url=<url>"`), que el interruptor esté
+encendido, y en `about:addons` → la extensión → "Permisos" que tenga acceso a los sitios.
 
 | Comando | Qué hace |
 | --- | --- |
 | `npm run dev` | Firefox con la extensión, recarga al guardar |
 | `npm run dev:sesion` | Igual, con perfil persistente |
 | `npm run perfil:clonar` | Copia tu perfil de Firefox a `.perfil-dev/` |
-| `npm run dev:backend` | La API en `localhost:4747` (desde la raíz) |
-| `npm test` | Tests de la lógica de temas y validación de `src/temas/` |
+| `npm run dev:backend` | La API en `localhost:4747` (desde la raíz; ver [La API](#la-api) para usarla) |
+| `npm test` | Tests de la lógica (revisiones, saneamiento del CSS, votos, popup…) |
 | `npm run lint` | Valida la extensión con `web-ext lint` |
 | `npm run check` | `test` + `lint` |
 | `npm run build` | Genera el .zip en `web-ext-artifacts/` |
@@ -112,25 +111,25 @@ la extensión → "Permisos" que tenga acceso a los sitios.
 Para depurar: el motor y las features se ven en la consola de la pestaña; el
 background en `about:debugging` → la extensión → "Inspeccionar".
 
-## Agregar un tema (sitio nuevo)
+## De dónde sale el tema de una página
 
-1. En el backend, agrega el sitio a `SITIOS` en `backend/temas.js`: `{ dominio: "ejemplo.com", tema: "<id>" }`.
-   El dominio incluye sus subdominios.
-2. En la extensión, crea `src/temas/<id>/tema.json` y `src/temas/<id>/tema.css`.
-   Todo el CSS va bajo `html.mi-tema`.
-3. `npm run check` desde la raíz (revisa que cada tema del backend exista en la extensión).
+De su revisión: los agentes en AWS catalogan la página, la recorren y el diseñador escribe un
+`tema.css` (todo bajo `html.mi-tema`). No hay que tocar la extensión ni el manifest para que un
+sitio tenga tema. La extensión **no** pide revisiones (cada una corre agentes y cuesta; ver el
+TODO en `background/index.js`): se piden desde la raíz con `just aws revision <url>` o
+`just aws seed <url>...`. Una revisión vale solo para esa página (la URL sin query ni hash, y
+sin `www.`).
 
-No hace falta tocar el manifest: la extensión corre en todos los sitios http(s).
+Un tema (`normalizarTema` en `background/temas.js`) también puede traer `features` y
+`eventosNavegacion`, pero hoy la API solo manda CSS:
 
 ```json
 {
-  "nombre": "YouTube morado",
   "features": { "modo-foco": { "rutas": ["/watch"], "ancla": "ytd-watch-metadata #title" } },
   "eventosNavegacion": ["yt-navigate-finish"]
 }
 ```
 
-Solo `nombre` es obligatorio en la práctica (el tema de Gmail no tiene más).
 `eventosNavegacion` son eventos propios del sitio cuando navega sin recargar (SPA);
 además el motor siempre reacciona a cambios del DOM.
 
@@ -138,10 +137,10 @@ además el motor siempre reacciona a cambios del DOM.
 
 Además de CSS, un tema puede reemplazar una sección entera de la página por una interfaz
 nueva. Ejemplo: en YouTube, la grilla de la portada pasa a ser una "cartelera" (un video
-destacado, una fila deslizable y una lista compacta).
+destacado, una fila deslizable y una lista compacta). Hoy ningún tema lo usa: la API solo manda CSS.
 
 - **El código** es un componente del catálogo (`src/componentes/cartelera.js`), dentro de la extensión.
-- **Lo específico del sitio es una plantilla** (datos), en la feature `vista` del `tema.json`:
+- **Lo específico del sitio es una plantilla** (datos), en la feature `vista` del tema:
   qué sección reemplazar, cómo leer cada item, qué componente usar y qué elemento original
   clickear. Si el sitio cambia su HTML, se arregla la plantilla, no la extensión.
 - **La sección original sigue debajo, oculta.** Al hacer clic en un item se acciona el
@@ -184,41 +183,36 @@ un elemento armado con `MiTema.dom.crear` (nunca `innerHTML`), más su CSS en
 
 ## La API
 
-Para probar la conexión, levanta el backend en otra terminal (desde la raíz del repo):
-
-```bash
-npm run dev:backend   # http://localhost:4747
-```
-
-En cada página, la extensión hace:
+En cada página, la extensión consulta su **revisión** (`background/revisiones.js`):
 
 ```
-POST <URL de la API>/temas/buscar
-{ "url": "https://www.youtube.com" }      ← solo el origen, nunca la ruta ni parámetros
+GET <URL de la API>/revisiones?url=https%3A%2F%2Fwww.metro.cl%2F      ← la URL sin query ni hash
 ```
 
 | Respuesta | Qué hace la extensión |
 | --- | --- |
-| `200 { "success": true, "tema": "youtube" }` | Aplica el tema `src/temas/youtube/` |
-| `404 { "success": false, "error": "…" }` | Nada: el sitio no tiene tema |
-| Backend caído, error o más de 2 s sin responder | Nada; avisa en la consola del background |
+| `200 { "success": true, "revision", "status": "done", "css" }` | Sanea el CSS (`background/css-remoto.js`, mismas reglas que el diseñador) y lo aplica como tema `rev-<revision>` |
+| `200` con `status: "queued"` o `"running"` | Vuelve a preguntar cada 15 s (hasta 10 min) mientras siga en la página |
+| `404` (la página no tiene revisión), `failed`, error o más de 5 s sin responder | Nada |
 
-Si no hay tema empaquetado, pide una **revisión** (un tema generado por los agentes para esa página,
-`background/revisiones.js`): `POST /revisiones { "url" }` con la URL sin query ni hash. Si responde
-`status: "done"` con `css`, lo sanea (`background/css-remoto.js`, mismas reglas que el diseñador) y lo
-aplica como tema `rev-<revision>`; con `queued`/`running`, el motor vuelve a preguntar con
-`GET /revisiones?url=` cada 15 s (hasta 10 min) mientras siga en la página. 404, `failed` o error: nada.
-No se piden revisiones en ventanas privadas ni con el interruptor apagado.
+El backend busca la revisión de la página en la tabla DynamoDB `chameleon-revisiones` y lee el
+`tema.css` de S3 (`css_key` de la revisión). No se consulta en ventanas privadas ni con el
+interruptor apagado.
 
-Hoy el backend responde `success: true` para YouTube (`youtube.com` y subdominios) y Gmail
-(`mail.google.com`), y `success: false` para el resto.
+**La extensión no dispara revisiones.** `POST /revisiones` sí lo hace (una página nueva corre los
+agentes en AgentCore, que cuesta), pero por ahora solo lo usan `just aws revision` y
+`just aws seed`. Volver a dispararlas desde la extensión es un TODO en `background/index.js`
+(`pedirRevision` en `api.js` sigue lista para eso).
 
-La URL de la API depende de cómo está cargada la extensión (`src/background/config.js`):
+La URL de la API sale de `src/background/config.js`:
 
-- **Modo desarrollo** (`npm run dev`, `just local up`): la API local, `http://localhost:4747`.
-  Sin el backend local corriendo no se aplica ningún tema.
-- **Instalada** (`.xpi` firmado): la API desplegada en AWS (ver [infra/README.md](../infra/README.md)).
-  Los cambios de `backend/` llegan ahí solos después de mergearse.
+- **Por defecto, la API desplegada en AWS** (`https://api.chameleonmode.app`, ver
+  [infra/README.md](../infra/README.md)), instalada o en modo desarrollo (`npm run dev`,
+  `just local up`). Los cambios de `backend/` llegan ahí solos después de mergearse.
+- **La API local** (`npm run dev:backend`, `http://localhost:4747`), solo en modo desarrollo y si se
+  pide, para probar cambios del backend: en `about:debugging` → la extensión → "Inspeccionar", en la
+  consola, `browser.storage.local.set({ apiLocal: true })` (`false` vuelve a AWS). Sin
+  `REVISIONES_TABLA`, `ALMACEN_BUCKET` y credenciales de AWS, el backend local no tiene revisiones.
 
 `host_permissions` del manifest debe cubrir los dos dominios **sin puerto**: Firefox no
 acepta puertos en esos patrones, y con puerto la request sale como CORS y falla. Hoy los
@@ -228,11 +222,11 @@ Lo que hay que tener en cuenta:
 
 - **La API solo puede mandar datos (CSS + config), nunca JS.** MV3 y Mozilla prohíben
   ejecutar código remoto. Los comportamientos tienen que existir como features en la extensión.
-- **Cuando la API devuelva el tema completo** (CSS + config) en vez del id, `resolverTema` en
-  `background/temas.js` es el lugar para usarlo directo; `normalizarTema` es el contrato.
-- **Permisos y privacidad:** la extensión corre en todos los sitios http(s) y le envía al
-  backend el origen de cada página que visitas, y la URL sin query ni hash de las que no tienen
-  tema (para pedir su revisión). Por eso pide acceso a todos los sitios y el
+- **Cuando la API mande features** además del CSS, `temaDeRevision` en
+  `background/revisiones.js` es el lugar para pasarlas; `normalizarTema` es el contrato.
+- **Permisos y privacidad:** la extensión corre en todos los sitios http(s) y, con el interruptor
+  encendido y fuera de ventanas privadas, le envía al backend la URL sin query ni hash de cada
+  página que visitas (para consultar su revisión). Por eso pide acceso a todos los sitios y el
   manifest declara `browsingActivity` en `data_collection_permissions`; Firefox lo muestra
   al instalar.
 - **Latencia:** el tema se aplica cuando la API responde. Con la API desplegada, una
