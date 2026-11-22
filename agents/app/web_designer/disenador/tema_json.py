@@ -242,8 +242,9 @@ def sin_traduccion(vistas: list[dict]) -> list[dict]:
     """Los textos que quedaron sin inglés o con el español copiado (el modelo no los tradujo)."""
     faltan = []
     for vista in vistas:
-        textos = (vista.get("opciones") or {}).get("textos") or {}
-        if copiados := sorted(c for c, t in (textos.get("es") or {}).items() if (textos.get("en") or {}).get(c, t) == t):
+        propios = (vista.get("opciones") or {}).get("textos") or {}
+        ingles = propios.get("en") or {}
+        if copiados := sorted(c for c, t in (propios.get("es") or {}).items() if ingles.get(c, t) == t):
             faltan.append({"vista": vista.get("id"), "item": "textos", "textos": copiados})
         for item in vista.get("datos") or []:
             claves = ("etiqueta",) if vista.get("componente") == "atajo" else ("titulo", "detalle")
