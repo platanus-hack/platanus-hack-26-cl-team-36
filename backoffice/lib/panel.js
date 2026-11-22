@@ -7,7 +7,7 @@
 // Lecturas por pasada (la página pide /api/resumen y /api/overview juntos cada 5 s):
 // - Cada lectura compartida (índice del almacén, ids de tandas, tabla) y cada respuesta se guardan MEMORIA_MS desde
 //   que terminan: dos pedidos que llegan juntos comparten la misma lectura. /api/overview se guarda aparte por cada
-//   página pedida (?pestana=<p>&pagina=<n>, ya normalizada): una no responde por otra.
+//   página pedida (?pestana=<p>&pagina=<n>&link=<texto>, ya normalizada): una no responde por otra.
 // - Tabla: un Scan de los META y los URL#<url> (solo cuentan las vigentes: revisionesVigentes en lib/revisiones.js) y
 //   una Query por cada revisión que corre (para en_cola y "detenida"). En /api/overview, además, una Query por cada
 //   revisión con tarjeta (una página de 6 por pestaña); los ítems de las cerradas (done, failed) se guardan, así volver
@@ -223,7 +223,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     return tabla.metas.map((meta) => {
       const items = tabla.items.get(idDe(meta)) ?? [];
       const detenida = estaDetenida(meta.status, actualizadaDe(meta, items), ahora);
-      return { revision: idDe(meta), creada: meta.created_at ?? null, estado: estadoDeTarjeta(meta.status, detenida), meta, items };
+      return { revision: idDe(meta), creada: meta.created_at ?? null, url: meta.url ?? null, estado: estadoDeTarjeta(meta.status, detenida), meta, items };
     });
   }
 
@@ -297,6 +297,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
       ahora: ahora.toISOString(),
       disponible: true,
       umbralDetenidaMin: UMBRAL_DETENIDA_MS / 60_000,
+      busqueda: pagina.link,
       cuentas,
       pestanas,
       tarjetas: Object.fromEntries(ids.map((id, i) => [id, tarjetas[i]])),
@@ -308,12 +309,12 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     /** GET /api/resumen (contrato §1). */
     resumen: memorizar(resumen, memoriaMs),
     /**
-     * GET /api/overview (contrato §2 y §7.4): `parametros` tal como llegan en la URL ({ pestana, pagina }); cada
-     * página normalizada se guarda aparte.
+     * GET /api/overview (contrato §2 y §7.4): `parametros` tal como llegan en la URL ({ pestana, pagina, link });
+     * cada página normalizada (con su búsqueda) se guarda aparte.
      */
     overview(parametros = {}) {
       const pagina = parametrosDelOverview(parametros);
-      const clave = `${pagina.pestana ?? ""}:${pagina.pagina}`;
+      const clave = JSON.stringify([pagina.pestana, pagina.pagina, pagina.link]);
       const guardada = paginas.get(clave) ?? memorizar(() => armarOverview(pagina), memoriaMs);
       recordar(paginas, clave, guardada, PAGINAS_EN_MEMORIA);
       return guardada();

@@ -74,13 +74,13 @@ test("pestañas: con más de 6, la página 1 y cuántas páginas y revisiones ha
 test("parámetros de /api/overview: pestaña conocida y página entera desde 2; si no, la página 1 de siempre", () => {
   assert.deepEqual([POR_PAGINA, PAGINA_MAXIMA, PESTANAS], [6, 9999, ["recent", "live", "delivered", "failed"]]);
   const de = (pestana, pagina) => parametrosDelOverview({ pestana, pagina });
-  assert.deepEqual(de("delivered", "3"), { pestana: "delivered", pagina: 3 });
-  assert.deepEqual(de("live", 2), { pestana: "live", pagina: 2 });
-  assert.deepEqual(de("failed", "007"), { pestana: "failed", pagina: 7 });
-  assert.deepEqual(de("recent", "9999"), { pestana: "recent", pagina: 9999 });
-  assert.deepEqual(de("recent", "10000"), { pestana: "recent", pagina: 9999 }, "tope");
-  assert.deepEqual(de("recent", "999999999"), { pestana: "recent", pagina: 9999 }, "tope");
-  const siempre = { pestana: null, pagina: 1 };
+  assert.deepEqual(de("delivered", "3"), { pestana: "delivered", pagina: 3, link: null });
+  assert.deepEqual(de("live", 2), { pestana: "live", pagina: 2, link: null });
+  assert.deepEqual(de("failed", "007"), { pestana: "failed", pagina: 7, link: null });
+  assert.deepEqual(de("recent", "9999"), { pestana: "recent", pagina: 9999, link: null });
+  assert.deepEqual(de("recent", "10000"), { pestana: "recent", pagina: 9999, link: null }, "tope");
+  assert.deepEqual(de("recent", "999999999"), { pestana: "recent", pagina: 9999, link: null }, "tope");
+  const siempre = { pestana: null, pagina: 1, link: null };
   for (const pagina of ["1", "0", "-2", "2.5", "1e3", "abc", "", " 2", "9999999999", null, undefined]) {
     assert.deepEqual(de("delivered", pagina), siempre, `pagina ${JSON.stringify(pagina)}`);
   }
@@ -107,4 +107,23 @@ test("paginado: la pestaña pedida trae su página de 6, las demás la 1, y los 
   assert.deepEqual(listasDelOverview([], { pestana: "failed", pagina: 5 }).pestanas.failed, { ids: [], total: 0, pagina: 1, paginas: 1 });
   // Las tarjetas: las de todos los ids devueltos, sin repetir.
   assert.equal(idsConTarjeta(tercera).length, new Set(Object.values(tercera.pestanas).flatMap((p) => p.ids)).size);
+});
+
+test("búsqueda por link: normalizada en los parámetros y, en las listas, solo lo que calza (cifras incluidas)", () => {
+  assert.deepEqual(parametrosDelOverview({ link: "  Metro.CL/  " }), { pestana: null, pagina: 1, link: "metro.cl/" });
+  assert.deepEqual(parametrosDelOverview({ link: "   " }), { pestana: null, pagina: 1, link: null });
+  assert.deepEqual(parametrosDelOverview({ pestana: "failed", pagina: "2", link: "dt" }), { pestana: "failed", pagina: 2, link: "dt" });
+  const conLink = (id, url, estado, creada) => ({ ...revision(id, creada, estado), url });
+  const revisiones = [
+    conLink("metro", "https://www.metro.cl/", "delivered", "2026-11-22T03:00:00Z"),
+    conLink("metro-mapa", "https://metro.cl/mapa", "failed", "2026-11-22T02:00:00Z"),
+    conLink("dt", "https://www.dt.gob.cl/portal/1626", "running", "2026-11-22T01:00:00Z"),
+    conLink("sin-url", null, "queued", "2026-11-22T00:00:00Z"),
+  ];
+  const metro = listasDelOverview(revisiones, parametrosDelOverview({ link: "https://www.metro.cl/" }));
+  assert.deepEqual(metro.pestanas.recent.ids, ["metro", "metro-mapa"]);
+  assert.deepEqual(metro.cuentas, { total: 2, running: 0, stalled: 0, queued: 0, live: 0, delivered: 1, failed: 1 });
+  assert.deepEqual(listasDelOverview(revisiones, { link: "mapa metro" }).pestanas.recent.ids, ["metro-mapa"], "cada palabra debe estar");
+  assert.deepEqual(listasDelOverview(revisiones, { link: "zzz" }).pestanas.recent, { ids: [], total: 0, pagina: 1, paginas: 1 });
+  assert.equal(listasDelOverview(revisiones, { link: null }).cuentas.total, 4, "sin búsqueda, todas");
 });

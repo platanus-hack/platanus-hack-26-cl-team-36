@@ -2,8 +2,9 @@
 // número, dividido por rol, con un cuadrito por corrida) y abajo las revisiones, con la página revisada como
 // protagonista. El título "Overview" encabeza la página (h1) con el mismo formato que "Reviews".
 //
-// Estado en el hash: #/?dispositivo=mobile&pestana=failed&pagina=3 (sin escribir all, recent ni la página 1). Cambiar
-// el filtro, la pestaña o la página escribe el hash y redibuja en actualizar(ctx), sin remontar ni mover el foco.
+// Estado en el hash: #/?dispositivo=mobile&pestana=failed&link=metro&pagina=3 (sin escribir all, recent, la búsqueda
+// vacía ni la página 1). Cambiar el filtro, la pestaña, la búsqueda o la página escribe el hash y redibuja en
+// actualizar(ctx), sin remontar ni mover el foco.
 // En vivo: vuelve a pedir /api/resumen y /api/overview cada 5 s mientras la pestaña del navegador está visible; si
 // la respuesta no cambió no toca nada, y si cambió reconcilia por tarjeta. Todo el tiempo sale de `ahora` de la API.
 //
@@ -11,15 +12,19 @@
 // activa; elegir otra pestaña vuelve a su página 1, que ya llegó. Ir a una página que no llegó pone tarjetas
 // esqueleto hasta que llega, y la pide también al refrescar. Si la página pedida ya no existe, el servidor da la
 // última y el hash se corrige. Si dos pedidos se cruzan, manda el último: la respuesta de uno anterior se descarta.
+//
+// Buscador (overview/dom-revisiones.js): filtra las revisiones por su link en el servidor (cifras de las pestañas
+// incluidas) y vuelve a la página 1; mientras llega, la grilla también muestra tarjetas esqueleto. "/" lo enfoca.
 
 import { pedirOverview, pedirResumen } from "../nucleo/datos.js";
 import { el, reemplazar } from "../nucleo/dom.js";
 import { esqueleto } from "../nucleo/estados.js";
+import { normalizarBusqueda } from "../nucleo/links.js";
 import { leerDispositivo, modeloDeAgentes } from "../overview/agentes.js";
 import { escucharColores, imagenes } from "../overview/capturas.js";
 import { crearBloqueDeAgentes } from "../overview/dom-agentes.js";
 import { crearSeccionDeRevisiones } from "../overview/dom-revisiones.js";
-import { TARJETAS_POR_PAGINA, leerPagina, leerPestana, paginaDePestana, paginacionDePestana } from "../overview/tarjetas.js";
+import { TARJETAS_POR_PAGINA, busquedaDe, leerPagina, leerPestana, paginaDePestana, paginacionDePestana } from "../overview/tarjetas.js";
 
 const INTERVALO = 5000;
 
@@ -31,18 +36,24 @@ let estado = null;
 
 const pestanaDe = (actual) => leerPestana(actual.ctx.parametros?.pestana);
 const paginaDe = (actual) => leerPagina(actual.ctx.parametros?.pagina);
+const linkDe = (actual) => normalizarBusqueda(actual.ctx.parametros?.link);
 const firmaDe = (resumen, overview) => JSON.stringify([resumen, overview]);
 
-/** Pide los dos endpoints; el Overview con la página pedida de la pestaña activa (la 1 de cada una, si no). */
+/**
+ * Pide los dos endpoints; el Overview con la búsqueda y la página pedida de la pestaña activa (la 1 de cada una, si
+ * no).
+ */
 function pedirTodo(actual) {
   const pagina = paginaDe(actual);
-  return Promise.all([pedirResumen(), pedirOverview(pagina > 1 ? { pestana: pestanaDe(actual), pagina } : {})]);
+  const link = linkDe(actual) || null;
+  return Promise.all([pedirResumen(), pedirOverview(pagina > 1 ? { pestana: pestanaDe(actual), pagina, link } : { link })]);
 }
 
-/** ¿Lo que llegó trae la página pedida de la pestaña activa? (sin tabla no hay páginas: siempre sí) */
+/** ¿Lo que llegó es de la búsqueda y la página pedidas en la pestaña activa? (sin tabla no hay páginas: siempre sí) */
 function tieneLaPagina(actual) {
   const { overview } = actual.datos;
-  return overview?.disponible !== true || paginaDePestana(overview, pestanaDe(actual)) === paginaDe(actual);
+  if (overview?.disponible !== true) return true;
+  return busquedaDe(overview) === linkDe(actual) && paginaDePestana(overview, pestanaDe(actual)) === paginaDe(actual);
 }
 
 function dibujar(actual) {
@@ -52,7 +63,14 @@ function dibujar(actual) {
   actual.agentes.actualizar(modeloDeAgentes(datos.resumen, dispositivo));
   // Sin /api/overview (un servidor viejo responde 404): como sin tabla, los agentes siguen. Mientras se espera otra
   // página, la grilla se queda con sus tarjetas esqueleto (un redibujo no devuelve las de la página anterior).
-  actual.revisiones.actualizar({ overview: datos.overview ?? { disponible: false }, dispositivo, pestana, error: actual.error, esperando: !tieneLaPagina(actual) });
+  actual.revisiones.actualizar({
+    overview: datos.overview ?? { disponible: false },
+    dispositivo,
+    pestana,
+    error: actual.error,
+    esperando: !tieneLaPagina(actual),
+    busqueda: linkDe(actual),
+  });
 }
 
 /**
@@ -106,21 +124,28 @@ async function pedir(actual) {
 }
 
 /**
- * Otra página de la pestaña activa: tarjetas esqueleto en la grilla hasta que llega. Si el servidor dio otra (la
- * pedida ya no existe: dio la última), corrige el hash; si no, anuncia la página.
+ * Otra página o búsqueda de la pestaña activa: tarjetas esqueleto en la grilla hasta que llega. Si el servidor dio
+ * otra página (la pedida ya no existe: dio la última), corrige el hash; si no, anuncia la página o cuántas calzan.
  */
 async function irAPagina(actual) {
   const pestana = pestanaDe(actual);
   const pagina = paginaDe(actual);
-  const conocida = actual.datos.overview?.pestanas?.[pestana];
+  const link = linkDe(actual);
+  const otraBusqueda = busquedaDe(actual.datos.overview) !== link;
+  const conocida = otraBusqueda ? null : actual.datos.overview?.pestanas?.[pestana];
   const total = Math.max(Number(conocida?.total) || 0, pagina * TARJETAS_POR_PAGINA);
   actual.revisiones.esperarPagina({ pagina, paginas: Math.max(pagina, Number(conocida?.paginas) || 1), total });
   dibujar(actual);
   const quedo = await pedir(actual);
-  if (!quedo || estado !== actual || pestanaDe(actual) !== pestana || paginaDe(actual) !== pagina) return;
+  if (!quedo || estado !== actual || pestanaDe(actual) !== pestana || paginaDe(actual) !== pagina || linkDe(actual) !== link) return;
   const real = paginaDePestana(actual.datos.overview, pestana);
   if (actual.datos.overview?.disponible === true && real !== pagina) {
     actual.ctx.actualizarParametros({ pagina: real > 1 ? real : null });
+    return;
+  }
+  if (otraBusqueda && link) {
+    const n = Number(actual.datos.overview?.pestanas?.[pestana]?.total) || 0;
+    actual.ctx.anunciar(actual.ctx.t("overview.buscar.resultados", { n }));
     return;
   }
   const paginacion = paginacionDePestana(actual.datos.overview, pestana);
@@ -173,11 +198,20 @@ export default {
       // Otra pestaña empieza en su página 1.
       alElegirPestana: (valor) => actual.ctx.actualizarParametros({ pestana: valor === "recent" ? null : valor, pagina: null }),
       enlaceAPagina: (n) => actual.ctx.enlace(null, { ...actual.ctx.parametros, pagina: n > 1 ? n : null }),
+      // Otra búsqueda empieza en la página 1.
+      alBuscar: (texto) => {
+        const link = normalizarBusqueda(texto);
+        if (link !== linkDe(actual)) actual.ctx.actualizarParametros({ link: link || null, pagina: null });
+      },
     });
     const titulo = el("h1", { class: "ov-titulo", tabindex: "-1", "data-foco-inicial": "", texto: ctx.t("comun.shell.overview") });
     reemplazar(contenedor, el("div", { class: "ov-arriba" }, el("div", { class: "ov-cabecera" }, titulo), actual.agentes.nodo), actual.revisiones.nodo);
     estado = actual;
     dibujar(actual);
+
+    ctx.atajos.registrar({
+      "/": { descripcion: () => ctx.t("overview.buscar.atajo"), accion: () => actual.revisiones.enfocarBusqueda() },
+    });
 
     // Con la pestaña del navegador oculta no se pide nada; al volver, se refresca de inmediato.
     document.addEventListener(

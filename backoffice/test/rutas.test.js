@@ -48,6 +48,14 @@ test("Overview: all y recent no se escriben; un valor o un parámetro desconocid
   assert.equal(hashDe({}), "#/");
 });
 
+test("Overview: la búsqueda por link va antes de la página; vacía o demasiado larga se descarta", () => {
+  const ruta = parsearHash("#/?pagina=2&link=metro.cl%2Fhorarios&pestana=failed");
+  assert.deepEqual(ruta.parametros, { pestana: "failed", link: "metro.cl/horarios", pagina: "2" });
+  assert.equal(hashDe(ruta), "#/?pestana=failed&link=metro.cl%2Fhorarios&pagina=2");
+  assert.equal(hashDe({ tipo: "overview", parametros: { link: "metro horarios" } }), "#/?link=metro+horarios");
+  for (const link of ["", "%20%20", "x".repeat(201)]) assert.deepEqual(parsearHash(`#/?link=${link}`).parametros, {}, link.slice(0, 10));
+});
+
 test("Overview: la página va al final y la 1 no se escribe; una que no es entero positivo se descarta", () => {
   const ruta = parsearHash("#/?pagina=3&pestana=failed&dispositivo=mobile");
   assert.deepEqual(ruta.parametros, { dispositivo: "mobile", pestana: "failed", pagina: "3" });

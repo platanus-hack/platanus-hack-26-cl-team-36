@@ -1,4 +1,4 @@
-// Sección "comun" (dueño: núcleo). Armazón, marco de la tanda, pestañas, paleta, atajos, estados y palabras de
+// Sección "comun" (dueño: núcleo). Armazón, marco de la tanda, pestañas, atajos, estados y palabras de
 // estado que comparten las pantallas. Las claves son relativas a la sección: t("comun.pestana.replay").
 
 export default {
@@ -13,7 +13,6 @@ export default {
     revisiones: "Revisiones",
     corridas: "Corridas",
     enCurso: ({ n }) => `${n} en curso`,
-    buscar: "Buscar",
     cuentaTandas: ({ n }, { plural }) => `${n} ${plural(n, { one: "tanda", other: "tandas" })}`,
   },
   pestana: {
@@ -106,32 +105,9 @@ export default {
     noSePudoCopiar: "No se pudo copiar",
     enlaceSinTanda: "Ese enlace no decía qué tanda mostrar: elige una.",
   },
-  paleta: {
-    etiqueta: "Paleta de comandos",
-    marcador: "Buscar tandas, páginas o acciones…",
-    grupo: {
-      tandas: "Tandas",
-      tanda: "En esta tanda",
-      acciones: "Acciones",
-    },
-    sinResultados: "Nada coincide con «{consulta}».",
-    resultados: ({ n }, { plural }) => `${n} ${plural(n, { one: "resultado", other: "resultados" })}`,
-    navegar: "moverse",
-    abrir: "abrir",
-    nuevaPestana: "en otra pestaña",
-    cerrar: "cerrar",
-    copiarEnlace: "Copiar enlace",
-    verAtajos: "Atajos de teclado",
-    irAOverview: "Ir al Resumen",
-    irARevisiones: "Ir a Revisiones",
-    irACorridas: "Ir a Corridas",
-    cambiarIdioma: "Idioma: English",
-    intento: "Replay · {resultado}",
-    pagina: "Mapa de caminos · {url}",
-  },
   atajos: {
     titulo: "Atajos de teclado",
-    nota: "No funcionan mientras escribes en un campo, salvo {paleta} y Esc.",
+    nota: "No funcionan mientras escribes en un campo, salvo Esc.",
     luego: "luego",
     mantener: "mantén",
     o: "o",
@@ -152,12 +128,10 @@ export default {
       fin: "Fin",
     },
     desc: {
-      paleta: "Abrir la paleta de comandos",
       hoja: "Ver los atajos",
       cerrar: "Cerrar el diálogo o el globo; después, quitar la selección",
       irAOverview: "Ir al Resumen",
       irACorridas: "Ir a Corridas",
-      buscar: "En Corridas, buscar; en otras vistas, abrir la paleta",
       vecinas: "Tanda anterior (más antigua) / siguiente (más nueva)",
       copiarEnlace: "Copiar el enlace a esta vista",
       filas: "Fila siguiente / anterior",

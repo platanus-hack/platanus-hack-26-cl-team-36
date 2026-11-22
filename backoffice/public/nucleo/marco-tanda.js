@@ -1,24 +1,15 @@
 // Marco de una tanda (diseño §5.11, §10.3): una cabecera mínima de dos líneas (la tarea con anterior/siguiente y
 // copiar enlace; debajo, sitio, fecha y cuántos llegan), las pestañas y el panel donde se montan. Las pestañas son
-// enlaces (cambian la URL), no pestañas ARIA. Registra los atajos [ ] 1–2 c y las opciones de la tanda en la paleta.
+// enlaces (cambian la URL), no pestañas ARIA. Registra los atajos [ ] 1–2 c.
 
 import { kbd, registrarAtajos } from "./atajos.js";
 import { copiarEnlace } from "./avisos.js";
 import { EVENTO_PROPUESTA, pedirPropuesta } from "./datos.js";
-import { nombreDePagina as nombreDePaginaConT } from "../datos/textos.js";
 import { el, esUrlWeb } from "./dom.js";
 import { conGlobo } from "./globo.js";
 import { fmt, t } from "./i18n.js";
 import { icono } from "./iconos.js";
-import { registrarFuenteDePaleta } from "./paleta.js";
 import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda } from "./rutas.js";
-
-const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", sin_medir: "sin-medir", error: "error-herramienta" };
-
-/** Nombre visible de una página: nombreDePagina de datos/textos.js con el idioma actual (§2.3). */
-export function nombreDePagina(pagina) {
-  return nombreDePaginaConT(pagina, t);
-}
 
 /** Cifras de la tanda con respaldo para la forma anterior de la API. */
 function cifras(tanda) {
@@ -205,34 +196,6 @@ export function montarMarco({ tanda, ruta, navegar }) {
   });
   const quitarAtajos = registrarAtajos(atajos, { ambito: "pantalla", grupo: "tanda" });
 
-  const quitarFuente = registrarFuenteDePaleta(() => [
-    ...PESTANAS.map((pestana) => ({
-      id: `tanda:pestana:${pestana}`,
-      grupo: "tanda",
-      titulo: t(NOMBRES_DE_PESTANA[pestana]),
-      subtitulo: titulo,
-      href: enlaceATanda(tanda.id, pestana),
-      icono: "siguiente",
-    })),
-    ...(tanda.intentos ?? []).map((intento) => ({
-      id: `tanda:intento:${intento.id}`,
-      grupo: "tanda",
-      titulo: intento.nombrePerfil ?? intento.perfil ?? intento.id,
-      subtitulo: t("comun.paleta.intento", { resultado: t(`comun.resultado.${intento.resultado}`) }),
-      palabras: `${intento.id} ${intento.perfil ?? ""}`,
-      href: enlaceATanda(tanda.id, "replay", { intento: intento.id }),
-      icono: ICONO_DE_RESULTADO[intento.resultado] ?? "info",
-    })),
-    ...(tanda.telarana?.paginas ?? []).map((pagina) => ({
-      id: `tanda:pagina:${pagina.id}`,
-      grupo: "tanda",
-      titulo: nombreDePagina(pagina),
-      subtitulo: t("comun.paleta.pagina", { url: pagina.url ?? "" }),
-      palabras: `${pagina.titulo ?? ""} ${pagina.url ?? ""}`,
-      href: enlaceATanda(tanda.id, "telarana", { pagina: pagina.id }),
-      icono: pagina.enRuta ? "en-ruta" : "fuera-de-ruta",
-    })),
-  ]);
 
   return {
     raiz,
@@ -241,7 +204,6 @@ export function montarMarco({ tanda, ruta, navegar }) {
     desmontar() {
       controlador.abort();
       quitarAtajos();
-      quitarFuente();
     },
   };
 }

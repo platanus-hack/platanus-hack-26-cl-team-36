@@ -227,7 +227,7 @@ function enfocarDespues({ clave, completa, panel, quedarseEnArmazon = false }) {
     }
   }
   const perdido = !activo || activo === document.body || !activo.isConnected;
-  const enArmazon = !!activo?.closest?.(".barra-superior, .paleta");
+  const enArmazon = !!activo?.closest?.(".barra-superior");
   if (!perdido && !(completa && enArmazon && !quedarseEnArmazon)) return;
   const objetivo = completa
     ? (raiz.querySelector("h1") ?? raiz.querySelector("[data-foco-inicial]") ?? raiz)
