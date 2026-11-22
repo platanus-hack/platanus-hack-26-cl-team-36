@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ENLACE_EN_CURSO, MARCA, revisionesEnCurso } from "../public/nucleo/shell.js";
+import { ENLACE_EN_CURSO, ENLACE_MARCA, MARCA, revisionesEnCurso } from "../public/nucleo/shell.js";
+import comunEn from "../public/i18n/en/comun.js";
+import comunEs from "../public/i18n/es/comun.js";
 
 const leer = (ruta) => readFileSync(new URL(ruta, import.meta.url), "utf8");
 
@@ -20,6 +22,15 @@ test("barra superior: marca y revisiones en curso; sin buscador, navegación, id
   assert.doesNotMatch(shell, /marca-insignia|marca\.producto/);
   assert.match(html, /<header class="barra-superior" id="barra-superior"><\/header>/);
   assert.doesNotMatch(html, /id="cajon"|id="lateral"/);
+});
+
+test("la marca de la barra lleva a la portada pública, con su etiqueta en inglés y en español", () => {
+  // La portada es la raíz del sitio (servidor.js); el backoffice cuelga de /backoffice/.
+  assert.equal(ENLACE_MARCA, "/");
+  const shell = leer("../public/nucleo/shell.js");
+  assert.match(shell, /class: "marca", href: ENLACE_MARCA, "aria-label": t\("comun\.marca\.inicio"\)/);
+  assert.equal(comunEn.marca.inicio, "Chameleon Mode, home");
+  assert.equal(comunEs.marca.inicio, "Chameleon Mode, inicio");
 });
 
 test("la píldora cuenta las revisiones running (las detenidas incluidas), lleva a Live y se oculta sin tabla", () => {
