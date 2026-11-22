@@ -5,7 +5,8 @@
   copian del `<select>` de la página que le corresponde; una clave sin `<select>` va fija en el enlace. Si la Guía
   envió el formulario sin elegir nada (con lo que traía), valen solo las claves que nombran un `<select>` de la página.
 - Lanzador: los objetivos del catálogo, cada uno con la URL a la que llegó la Guía o su `entry`; si llegó enviando un
-  formulario, sin la consulta (las elecciones de esa corrida, como un viaje SP→EL). Primero los que
+  formulario, sin la consulta (las elecciones de esa corrida, como un viaje SP→EL), y sin lo que la página ya enlaza
+  en su primer pantallazo. Primero los que
   tienen ruta verificada (el enlace lleva de verdad a la tarea), después los que menos lograron los Visitantes (donde
   un atajo ayuda más) y, a igual medida, los más prominentes del catálogo.
 - Buscador: todos los objetivos del catálogo con enlace (hasta `MAX_BUSCADOR`, también el del atajo), con el mismo
@@ -353,8 +354,12 @@ def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[st
 def lanzador(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str],
              tasas: dict[str, float | None] | None = None, a_mano: set[str] | None = None) -> dict | None:
     """La vista `lanzador` con los objetivos del catálogo (sin los de `excluir`), o None si ninguno tiene enlace.
-    `tasas`: la tasa de llegada del Visitante por objetivo, si se midió."""
-    ordenadas = _ordenadas(goals, rutas, inicio, excluir, tasas=tasas, a_mano=a_mano)
+    `tasas`: la tasa de llegada del Visitante por objetivo, si se midió. Lo que la página ya enlaza en su primer
+    pantallazo (`a_mano`, como unos «Accesos rápidos») no entra: el lanzador no repite un bloque del sitio, y ocultar
+    ese bloque se llevaría lo que el kit no puede enlazar (otros subdominios, «Más opciones»). Sigue en el buscador."""
+    a_la_vista = {r.rstrip("/") for r in a_mano or ()}
+    ordenadas = [(enlace, goal) for enlace, goal in _ordenadas(goals, rutas, inicio, excluir, tasas=tasas)
+                 if ruta_de(enlace).rstrip("/") not in a_la_vista]
     tareas = [_tarea(goal, enlace) for enlace, goal in ordenadas[:MAX_TAREAS]]
     if not tareas:
         return None
@@ -386,7 +391,8 @@ def derivar(goals: list, rutas: dict[str, dict], selects: list[SelectDePagina], 
             tasas: dict[str, float | None] | None = None, catalogo: list | None = None,
             a_mano: set[str] | None = None) -> dict:
     """`{atajos: [{objetivo, vista}], lanzador: vista | None, buscador: vista | None, descartes: [{objetivo, razon}]}`.
-    `a_mano`: las rutas que la página ya enlaza en su primer pantallazo; esas tareas van al final."""
+    `a_mano`: las rutas que la página ya enlaza en su primer pantallazo: no van al lanzador y en el buscador van al
+    final."""
     atajos, descartes = [], []
     for goal in goals:
         if goal.id not in rutas:

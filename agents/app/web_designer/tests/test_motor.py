@@ -288,10 +288,14 @@ def test_orden_del_lanzador_verificada_tasa_y_prominencia():
     assert [t["enlace"] for t in vista["datos"]] == ["/b", "/a"]
 
 
-def test_el_lanzador_deja_al_final_lo_que_la_pagina_ya_muestra_y_no_enlaza_noticias_fechadas():
+def test_el_lanzador_no_repite_lo_que_la_pagina_ya_muestra_ni_enlaza_noticias_fechadas():
     goals = [_goal("indicador", "primary", "/ipc"), _goal("otra", "buried", "/otra")]
     vista = atajos.lanzador(goals, {}, "https://ejemplo.cl/", set(), a_mano={"/ipc/"})
-    assert [t["enlace"] for t in vista["datos"]] == ["/otra", "/ipc"]
+    assert [t["enlace"] for t in vista["datos"]] == ["/otra"]
+    assert atajos.lanzador(goals[:1], {}, "https://ejemplo.cl/", set(), a_mano={"/ipc"}) is None
+    # En el buscador sigue, al final.
+    buscador = atajos.buscador(goals, {}, "https://ejemplo.cl/", a_mano={"/ipc/"})
+    assert [t["enlace"] for t in buscador["datos"]] == ["/otra", "/ipc"]
     # Si la Guía llegó a una noticia del día, la tarea enlaza la página estable del tema.
     vista = atajos.lanzador(goals[:1], {"indicador": _ruta_verificada("/prensa/2026/11/06/ipc-octubre")},
                             "https://ejemplo.cl/", set())

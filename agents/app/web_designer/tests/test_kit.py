@@ -575,3 +575,19 @@ def test_lo_que_el_modelo_no_tradujo_queda_en_espanol_y_anotado():
     faltan = {f["item"]: f["textos"] for f in tema_json.sin_traduccion([propuesta])}
     assert "titulo" in faltan[enlace] and set(faltan) == {t["enlace"] for t in lanzador["datos"]}
 
+
+# Lo que `voz.VOZ_JS` leyó como `a_mano` en www.sii.cl (2026-11-22): sobre todo el bloque «Accesos rápidos».
+A_MANO_SII = {"/", "/servicios_online/", "/servicios_online/1031-1034.html", "/servicios_online/1042-3264.html",
+              "/servicios_online/1040-1287.html", "/servicios_online/1039-1183.html", "/servicios_online/1039-3256.html",
+              "/vat/index.html", "/destacados/prestamo_solidario/pago/", "/destacados/", "/noticias/2026/index.html"}
+
+
+def test_el_lanzador_no_repite_los_accesos_rapidos_del_sitio():
+    goals = [Goal(**g) for g in json.loads((Path(__file__).with_name("datos") / "sii-real" / "goals.json")
+                                           .read_text(encoding="utf-8"))["goals"] if g["exclusion"] is None]
+    kit = atajos.derivar(goals, {}, [], "https://www.sii.cl/", a_mano=A_MANO_SII)
+    lanzador = [atajos.ruta_de(t["enlace"]) for t in kit["lanzador"]["datos"]]
+    buscador = [atajos.ruta_de(t["enlace"]) for t in kit["buscador"]["datos"]]
+    assert lanzador and not set(lanzador) & A_MANO_SII
+    repetidas = [e for e in buscador if e in A_MANO_SII]
+    assert repetidas and buscador[-len(repetidas):] == repetidas
