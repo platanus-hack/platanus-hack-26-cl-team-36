@@ -9,7 +9,9 @@
 //   id          nombre único de la vista
 //   rutas       pathnames donde aplica (sin `rutas`, en todas)
 //   contenedor  selector de la sección original: se oculta y la vista va justo antes
+//   reemplazar  false para sumar la vista sin ocultar el contenedor (que queda como ancla)
 //   items       selector de cada elemento de la sección (relativo al contenedor)
+//   datos       o los items ya hechos, en el tema (p. ej. las tareas que midieron los agentes)
 //   campos      { campo: regla } para leer cada elemento (ver content/plantillas.js)
 //   accion      { selector } del elemento original a clickear al abrir un item
 //   componente  id del componente del catálogo
@@ -45,7 +47,9 @@
     alternarOriginal: () => html().classList.toggle(CLASE_ORIGINAL),
   };
 
-  function leerItems(contenedor, { items, campos, accion }) {
+  function leerItems(contenedor, { datos, items, campos, accion }) {
+    // Copias: abajo se les pone `original`, y no hay que tocar las opciones del tema.
+    if (datos) return [].concat(datos).map((item) => ({ ...item }));
     return [...contenedor.querySelectorAll(items)]
       .map((el) => ({
         ...MiTema.plantillas.leerCampos(el, campos),
@@ -55,7 +59,7 @@
   }
 
   function actualizarVista(vista) {
-    const { id, rutas, contenedor: selector, componente, opciones = {} } = vista;
+    const { id, rutas, contenedor: selector, componente, opciones = {}, reemplazar = true } = vista;
     const enRuta = !rutas || rutas.includes(location.pathname);
     const contenedor = enRuta ? document.querySelector(selector) : null;
     const dibujante = MiTema.componentes.get(componente);
@@ -66,8 +70,13 @@
     // Sin datos (p. ej. la portada de YouTube sin sesión), se deja la sección original.
     if (items.length === 0) return quitar(id);
 
-    // El idioma entra en la firma: si cambia, la vista se redibuja con los textos nuevos.
-    const firma = JSON.stringify([MiTema.idioma.actual(), items.map(({ original, ...datos }) => datos)]);
+    // El idioma entra en la firma: si cambia, la vista se redibuja con los textos nuevos. El
+    // componente puede sumar lo que lee de la página por su cuenta (p. ej. las opciones de un <select>).
+    const firma = JSON.stringify([
+      MiTema.idioma.actual(),
+      items.map(({ original, ...datos }) => datos),
+      dibujante.firma?.(items, opciones) ?? null,
+    ]);
     const previo = estado.get(id);
     if (previo && previo.firma === firma && previo.nodo.isConnected && previo.contenedor === contenedor) {
       // Mismos datos: no se redibuja, pero el sitio pudo recrear sus elementos.
@@ -76,16 +85,33 @@
     }
 
     const nodo = dibujante.dibujar(items, opciones, contexto);
+    // El componente puede negarse (p. ej. no encontró en la página los datos que necesita).
+    if (!nodo) return quitar(id);
     nodo.classList.add("mt-vista");
     nodo.dataset.mtVista = id;
     if (previo?.nodo.isConnected) previo.nodo.replaceWith(nodo);
     else contenedor.before(nodo);
     if (previo && previo.contenedor !== contenedor) previo.contenedor.removeAttribute("data-mt-oculto");
-    contenedor.setAttribute("data-mt-oculto", "");
+    if (reemplazar) contenedor.setAttribute("data-mt-oculto", "");
     estado.set(id, { firma, nodo, contenedor, items });
   }
 
+  let esperandoCarga = false;
+  let ultimas = [];
+
   function actualizar(vistas = []) {
+    // A mitad del parseo una sección puede estar incompleta (un <select> con la mitad de sus opciones).
+    if (document.readyState === "loading") {
+      ultimas = vistas;
+      if (!esperandoCarga) {
+        esperandoCarga = true;
+        document.addEventListener("DOMContentLoaded", () => {
+          esperandoCarga = false;
+          actualizar(ultimas);
+        }, { once: true });
+      }
+      return;
+    }
     for (const vista of [].concat(vistas)) {
       try {
         actualizarVista(vista);

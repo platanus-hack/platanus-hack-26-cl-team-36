@@ -1,0 +1,84 @@
+{
+  "nombre": "Metro de Santiago — kit de viaje",
+  "features": {
+    "vista": [
+      {
+        "id": "planificar",
+        "rutas": ["/"],
+        "contenedor": "body > div:has(> #home)",
+        "reemplazar": false,
+        "componente": "atajo",
+        "datos": [
+          { "nombre": "inicio", "etiqueta": { "es": "Desde", "en": "From" }, "opciones": "#binicio", "requerido": true },
+          { "nombre": "fin", "etiqueta": { "es": "Hasta", "en": "To" }, "opciones": "#fin", "requerido": true },
+          { "nombre": "horario", "etiqueta": { "es": "Horario", "en": "Time band" }, "opciones": "#horario" },
+          { "nombre": "dia", "etiqueta": { "es": "Día", "en": "Day" }, "opciones": "#dia" }
+        ],
+        "opciones": {
+          "destino": "/el-viaje/planificador/",
+          "invertir": ["inicio", "fin"],
+          "textos": {
+            "es": {
+              "titulo": "¿A dónde vas?",
+              "subtitulo": "Elige tus estaciones y te mostramos la ruta y el tiempo de viaje.",
+              "boton": "Ver ruta",
+              "invertir": "Intercambiar origen y destino"
+            },
+            "en": {
+              "titulo": "Where are you going?",
+              "subtitulo": "Pick your stations and we'll show you the route and travel time.",
+              "boton": "See route",
+              "invertir": "Swap origin and destination"
+            }
+          }
+        }
+      },
+      {
+        "id": "tareas",
+        "rutas": ["/"],
+        "contenedor": "body > div:has(#carouselBanners)",
+        "reemplazar": false,
+        "componente": "lanzador",
+        "datos": [
+          {
+            "titulo": { "es": "Horarios y tarifas", "en": "Hours and fares" },
+            "detalle": { "es": "A qué hora funciona y cuánto cuesta cada día", "en": "Opening hours and fares for each day" },
+            "enlace": "https://www.metro.cl/el-viaje/horarios-y-tarifas"
+          },
+          {
+            "titulo": { "es": "Carga tu bip!", "en": "Top up your bip!" },
+            "detalle": { "es": "Recarga saldo para viajar", "en": "Add credit to travel" },
+            "enlace": "https://www.metro.cl/el-viaje/carga-bip"
+          },
+          {
+            "titulo": { "es": "Estaciones", "en": "Stations" },
+            "detalle": { "es": "Información de cada estación", "en": "Details for every station" },
+            "enlace": "https://www.metro.cl/el-viaje/estaciones"
+          },
+          {
+            "titulo": { "es": "Plano de red", "en": "Network map" },
+            "detalle": { "es": "El mapa completo de las líneas", "en": "The full map of every line" },
+            "enlace": "https://www.metro.cl/el-viaje/plano-de-red"
+          },
+          {
+            "titulo": { "es": "Metro accesible", "en": "Accessible Metro" },
+            "detalle": { "es": "Viajar con discapacidad o movilidad reducida", "en": "Travelling with a disability or reduced mobility" },
+            "enlace": "https://www.metro.cl/guia-del-usuario/metro-accesible"
+          },
+          {
+            "titulo": { "es": "Canales de atención", "en": "Customer service" },
+            "detalle": { "es": "Cómo comunicarte con Metro", "en": "How to get in touch with Metro" },
+            "enlace": "https://www.metro.cl/atencion-cliente/canales-de-contacto"
+          }
+        ],
+        "opciones": {
+          "max": 6,
+          "textos": {
+            "es": { "titulo": "Lo más buscado", "subtitulo": "Atajos a lo que más se hace en metro.cl." },
+            "en": { "titulo": "Most wanted", "subtitulo": "Shortcuts to what people do most on metro.cl." }
+          }
+        }
+      }
+    ]
+  }
+}

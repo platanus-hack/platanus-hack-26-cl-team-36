@@ -1,6 +1,7 @@
 // Utilidades para las plantillas (que son datos, no código) y para dibujar componentes.
 //
 //   MiTema.plantillas.leerCampos(elemento, campos) → { campo: "valor" }
+//   MiTema.plantillas.textosDe(prefijo, claves, propios) → textos de un componente en el idioma actual
 //   MiTema.dom.crear(tag, props, hijos)            → Element, sin innerHTML
 //
 // Una regla de campo dice de dónde sacar un valor dentro de un elemento de la página:
@@ -25,8 +26,42 @@
     }
   }
 
+  const sinWww = (host) => host.replace(/^www\./, "");
+
+  // Para los enlaces que trae un tema remoto: solo a la misma página (mismo protocolo, puerto y
+  // host, con o sin `www.`). Así un tema no puede mandar al usuario a otro sitio ni colar un
+  // `//evil.com` o `/\evil.com`, que el navegador lee como otro host.
+  function urlMismoSitio(valor) {
+    if (!valor) return null;
+    try {
+      const url = new URL(valor, location.href);
+      const pagina = new URL(location.href);
+      const mismo = url.protocol === pagina.protocol && url.port === pagina.port && sinWww(url.hostname) === sinWww(pagina.hostname);
+      return mismo && (url.protocol === "https:" || url.protocol === "http:") ? url.href : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // El patrón llega de un tema remoto y corre en cada página: con topes de largo y sin grupos
+  // cuantificados que repiten un cuantificador (`(a+)+`, `(a*)*`), que se cuelgan con texto hostil.
+  const MAX_PATRON = 200;
+  const MAX_TEXTO = 2000;
+  const CUANTIFICADOR_ANIDADO = /[+*}]\)+[+*{]/;
+
+  function expresion(patron) {
+    if (typeof patron !== "string" || patron.length > MAX_PATRON || CUANTIFICADOR_ANIDADO.test(patron)) return null;
+    try {
+      return new RegExp(patron);
+    } catch {
+      return null;
+    }
+  }
+
   function transformar(valor, { patron, formato = "$1" }) {
-    const coincidencia = valor.match(new RegExp(patron));
+    const regex = expresion(patron);
+    if (!regex) return "";
+    const coincidencia = valor.slice(0, MAX_TEXTO).match(regex);
     if (!coincidencia) return "";
     return formato.replace(/\$(\d)/g, (_, i) => coincidencia[Number(i)] ?? "");
   }
@@ -80,6 +115,22 @@
     return el;
   }
 
-  MiTema.plantillas = { leer, leerCampos, transformar, urlSegura };
+  // Un dato del tema que puede venir por idioma: "texto" o { es: "…", en: "…" }.
+  function enIdioma(valor, idioma) {
+    if (valor == null) return "";
+    if (typeof valor !== "object") return String(valor);
+    return valor[idioma] ?? valor.es ?? Object.values(valor)[0] ?? "";
+  }
+
+  // Textos de un componente: los genéricos del diccionario (`<prefijo>.<clave>`), reemplazados
+  // por los del tema, que vienen por idioma ({ es: {…}, en: {…} }) o planos para todos.
+  function textosDe(prefijo, claves, propios = {}, idioma = MiTema.idioma.actual()) {
+    const genericos = Object.fromEntries(claves.map((clave) => [clave, MiTema.idioma.t(idioma, `${prefijo}.${clave}`)]));
+    const porIdioma = propios[idioma];
+    const planos = Object.values(propios).every((valor) => typeof valor === "string") ? propios : {};
+    return { ...genericos, ...planos, ...(porIdioma && typeof porIdioma === "object" ? porIdioma : {}) };
+  }
+
+  MiTema.plantillas = { leer, leerCampos, transformar, urlSegura, urlMismoSitio, enIdioma, textosDe };
   MiTema.dom = { crear };
 })();
