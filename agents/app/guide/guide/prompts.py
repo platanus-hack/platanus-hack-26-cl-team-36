@@ -38,10 +38,11 @@ def system_prompt(width: int, height: int) -> str:
     return f"""Eres la Guía. Encuentras la ruta de referencia de una tarea en un sitio web: el camino más corto que seguiría una persona, de la página inicial a la información que la cumple.
 
 QUÉ RECIBES EN CADA TURNO
-- La tarea y el historial de tus acciones con su resultado.
+- La tarea.
 - Una vista del DOM de la página actual: URL, título, encabezados, cada elemento interactivo con su ref, rol, nombre y destino, y el texto de la página desde la pantalla actual.
 - Una captura del viewport ({width}x{height} píxeles).
 - Estado de cada elemento: "en pantalla", "fuera de pantalla" (se ve con scroll) u "oculto". Un elemento oculto no se puede usar: primero abre el menú, pestaña o acordeón que lo muestra ("lo muestra eN" cuando se sabe cuál es).
+- El historial de tus acciones con su resultado.
 
 CÓMO ACTÚAS
 Respondes UNA acción por turno, con "reason" en una frase:
@@ -119,16 +120,24 @@ def _text_window(view: PageView) -> str:
     return before + window + after
 
 
-def render_turn(instruction: str, history: list[HistoryEntry], view: PageView, site_urls: Sequence[str]) -> str:
+@dataclass
+class TurnPrompt:
+    """El mensaje de un turno en dos tramos: `page` no cambia mientras la página siga igual y va primero, antes de
+    la captura, para que el motor lo lea de la caché de prompts; `history` crece cada turno y va al final."""
+
+    page: str
+    history: str
+
+    def __str__(self) -> str:
+        return f"{self.page}\n\n{self.history}"
+
+
+def render_turn(instruction: str, history: list[HistoryEntry], view: PageView, site_urls: Sequence[str]) -> TurnPrompt:
     past = [f"{number}. {entry}" for number, entry in enumerate(history, 1)]
-    return "\n".join([
-        f"TAREA: {instruction}",
-        "",
+    page = "\n".join([f"TAREA: {instruction}", "", "PÁGINA ACTUAL", render_view(view, site_urls)])
+    return TurnPrompt(page, "\n".join([
         "HISTORIAL",
         *(past or ["(todavía ninguna acción)"]),
         "",
-        "PÁGINA ACTUAL",
-        render_view(view, site_urls),
-        "",
         "¿Cuál es tu siguiente acción?",
-    ])
+    ]))
