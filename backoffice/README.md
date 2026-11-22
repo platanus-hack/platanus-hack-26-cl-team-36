@@ -70,6 +70,11 @@ sola al mergear a `main` un cambio de `backoffice/` (menos `test/`); los detalle
 se sube al almacén se puede ver ahí. El balanceador revisa la tarea con `GET /salud`, que responde `{ ok: true }`
 con cualquier `Host` y no lee nada.
 
+Las capturas y los videos (`archivos/`) pasan por el servidor, que los lee de S3. Como son de tandas que ya
+terminaron, salen con `Cache-Control: private, max-age=31536000, immutable`: el navegador no los vuelve a pedir al
+cambiar de paso o de intento. Lo demás (la API, la página) sale con `no-store`. Una tanda que ya apareció en la lista
+no se vuelve a listar para servir sus archivos, y una captura entera es un solo `GetObject`.
+
 ### La raíz es una portada
 
 El backoffice entero (la página, `api/`, `archivos/`, `resultados/` y `propuestas/`) vive bajo `/backoffice/`; `/backoffice` sin la barra

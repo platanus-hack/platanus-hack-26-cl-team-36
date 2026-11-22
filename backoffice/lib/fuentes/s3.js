@@ -153,6 +153,17 @@ export function crearFuenteS3({ bucket, prefijo = "", cliente, comandos }) {
 
     async abrirArchivo(id, relativa, rango) {
       const clave = claveDe(id, relativa);
+      // El archivo entero (las capturas): un solo GET, que ya trae el tamaño. Con rango (el video), primero el tamaño,
+      // para resolverlo igual que la fuente de archivos (rango.js) y responder 416 si no se puede servir.
+      if (!rango) {
+        try {
+          const { Body, ContentLength } = await enviar(GetObjectCommand, { Key: clave });
+          return { cuerpo: Body, tamano: Number(ContentLength ?? 0), rango: null };
+        } catch (error) {
+          if (noExiste(error)) return null;
+          throw error;
+        }
+      }
       let tamano;
       try {
         tamano = Number((await enviar(HeadObjectCommand, { Key: clave })).ContentLength ?? 0);

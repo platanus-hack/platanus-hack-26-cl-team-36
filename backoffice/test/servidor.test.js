@@ -164,6 +164,16 @@ test("sirve three.js de public/vendor como módulo, y nada fuera de una versión
   assert.equal((await pedir("/telarana/x@1.0.0/modelo.js")).status, 404, "las versiones solo bajo vendor/");
 });
 
+test("una captura se guarda en el navegador; un 404 y la API, no", async () => {
+  const captura = await pedir(`/archivos/${TANDA}/first_time/step_01.png`);
+  assert.equal(captura.headers.get("cache-control"), "private, max-age=31536000, immutable");
+  const parte = await pedir(`/archivos/${TANDA}/first_time/step_01.png`, { headers: { Range: "bytes=0-3" } });
+  assert.equal(parte.headers.get("cache-control"), "private, max-age=31536000, immutable");
+  for (const ruta of [`/archivos/${TANDA}/first_time/step_99.png`, "/api/tandas", `/api/tandas/${TANDA}`, "/app.js"]) {
+    assert.equal((await pedir(ruta)).headers.get("cache-control"), "no-store", ruta);
+  }
+});
+
 test("HEAD de una captura no manda el cuerpo", async () => {
   const respuesta = await pedir(`/archivos/${TANDA}/first_time/step_01.png`, { method: "HEAD" });
   assert.equal(respuesta.status, 200);

@@ -58,7 +58,7 @@ for (const prefijo of ["", "corridas/"]) {
 }
 
 test("fuente S3: perfiles, JSON, existe, archivos y rangos", async (t) => {
-  const { fuente, objetos } = almacen();
+  const { fuente, objetos, cliente } = almacen();
   await fuente.listarIds();
   assert.deepEqual((await fuente.listarPerfiles(ID)).sort(), ["first_time", "hurried", "mobile"]);
   assert.equal((await fuente.leerJson(ID, "route_tree.json")).task_id, "tarea-demo");
@@ -68,8 +68,10 @@ test("fuente S3: perfiles, JSON, existe, archivos y rangos", async (t) => {
   assert.equal(await fuente.abrirArchivo(ID, "first_time/step_99.png"), null);
 
   const bytes = objetos[`${ID}/first_time/step_01.png`];
+  const pedidos = cliente.llamadas.length;
   const entero = await fuente.abrirArchivo(ID, "first_time/step_01.png");
   assert.deepEqual([entero.tamano, entero.rango], [bytes.length, null]);
+  assert.deepEqual(cliente.llamadas.slice(pedidos).map((comando) => comando.constructor.name), ["GetObjectCommand"], "entero: un solo GET");
   assert.equal(await texto(entero.cuerpo), bytes.toString("latin1"));
   const parte = await fuente.abrirArchivo(ID, "first_time/step_01.png", { inicio: 1, fin: 3 });
   assert.deepEqual(parte.rango, { inicio: 1, fin: 3 });
