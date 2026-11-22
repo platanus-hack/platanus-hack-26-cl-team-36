@@ -30,10 +30,10 @@ resource "aws_iam_role_policy_attachment" "backend_logs" {
 }
 
 # /revisiones: marca páginas y crea revisiones (TransactWriteItems pide los permisos de
-# cada Put), lee el tema.css del almacén y dispara el conductor, que busca por nombre.
+# cada Put; Scan cuenta las en curso para el tope), lee el tema.css del almacén y dispara el conductor, que busca por nombre.
 data "aws_iam_policy_document" "backend" {
   statement {
-    actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem"]
+    actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Scan"]
     resources = [aws_dynamodb_table.revisiones.arn]
   }
 
@@ -87,6 +87,8 @@ resource "aws_lambda_function" "backend" {
       REVISIONES_TABLA = aws_dynamodb_table.revisiones.name
       ALMACEN_BUCKET   = aws_s3_bucket.almacen.bucket
       AGENTE_RUNTIME   = var.runtime_agentes
+      # POST /revisiones responde 429 al llegar a este número de revisiones en curso.
+      REVISIONES_EN_CURSO_MAX = var.revisiones_en_curso_max
     }
   }
 
