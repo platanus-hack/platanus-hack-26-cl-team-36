@@ -107,6 +107,20 @@ def test_ajustes_malformados_se_ignoran_con_aviso():
         assert direccion["tipo"]["escala"] == rango and "no es un rango numérico" in avisos[0], rango
 
 
+def test_con_varios_atajos_las_recetas_valen_para_todos():
+    tema = motor.componer(METRO, "A", 1, vistas={"atajo": ["viaje", "tarifas"], "lanzador": "tareas"})
+    assert tema.ok and ':is([data-mt-vista="viaje"], [data-mt-vista="tarifas"])' in tema.css
+    assert 'data-mt-vista="planificar"' not in tema.css
+
+
+def test_la_semilla_del_modelo_queda_entera():
+    from disenador.mejora import _pedido
+
+    for semilla, esperada in [("3.7", 3), (3.7, 3), ("12", 12), (0, 1), (-4, 1), ("x", 1), (None, 1), ("inf", 1),
+                              ("nan", 1), ([2], 1)]:
+        assert _pedido({"semilla": semilla})["semilla"] == esperada, semilla
+
+
 def test_un_sitio_sin_carpeta_no_hereda_los_ids_de_metro():
     tema = motor.componer(motor.rasgos_del_sitio("ejemplo.cl"), "A", 1)
     assert tema.ok and "planificar" not in tema.css and 'data-mt-vista="mt-sin-atajo"' in tema.css

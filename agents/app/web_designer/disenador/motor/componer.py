@@ -403,7 +403,7 @@ def _bucle(texto: str, nombre: str, items: list[dict]) -> str:
     return re.sub(rf"\{{\{{#{nombre}\}}\}}([\s\S]*?)\{{\{{/{nombre}\}}\}}", expandir_cuerpo, texto)
 
 
-def expandir(texto: str, sitio: Sitio, vistas: dict[str, str]) -> str:
+def expandir(texto: str, sitio: Sitio, vistas: dict[str, list[str]]) -> str:
     """Resuelve los marcadores de una receta o una hoja del sitio: categorías, zonas y ids de las vistas."""
     cats = [{"i": i + 1, "nombre": c["nombre"], "num": c["num"]} for i, c in enumerate(sitio.categorias)]
     indices = sitio.lanzador_categorias if sitio.lanzador_categorias is not None else list(range(len(cats)))
@@ -416,13 +416,19 @@ def expandir(texto: str, sitio: Sitio, vistas: dict[str, str]) -> str:
             raise ErrorDeComposicion(f"se usa la zona {m.group(1)}, que el sitio no define")
         return sitio.zonas[m.group(1)]
 
-    def vista(m):
-        if m.group(1) not in vistas:
-            raise ErrorDeComposicion(f"se usa la vista {m.group(1)}, que no existe")
-        return vistas[m.group(1)]
+    def ids(componente: str) -> list[str]:
+        if componente not in vistas:
+            raise ErrorDeComposicion(f"se usa la vista {componente}, que no existe")
+        return vistas[componente]
+
+    def atributo(m):
+        # Con varios atajos, la regla vale para cualquiera de ellos.
+        atributos = [f'[data-mt-vista="{i}"]' for i in ids(m.group(1))]
+        return atributos[0] if len(atributos) == 1 else f":is({', '.join(atributos)})"
 
     t = re.sub(r"\{\{z\.(\w+)\}\}", zona, t)
-    t = re.sub(r"\{\{v\.(\w+)\}\}", vista, t)
+    t = re.sub(r'\[data-mt-vista="\{\{v\.(\w+)\}\}"\]', atributo, t)
+    t = re.sub(r"\{\{v\.(\w+)\}\}", lambda m: ids(m.group(1))[0], t)
     if pendiente := re.search(r"\{\{[^}]*\}\}", t):
         raise ErrorDeComposicion(f"marcador sin resolver: {pendiente.group(0)}")
     # Un bucle vacío (un sitio sin categorías) deja declaraciones sin valor.
@@ -437,11 +443,14 @@ def regla_de_ocultar(vista: str, selector: str) -> str:
 
 
 def componer(sitio: Sitio, direccion: str = "auto", semilla: int = 1, ajustes: dict | None = None,
-             vistas: dict[str, str] | None = None, ocultar: list[tuple[str, str]] = ()) -> Tema:
+             vistas: dict[str, str | list[str]] | None = None, ocultar: list[tuple[str, str]] = ()) -> Tema:
     """`ajustes`: los del modelo (`{"tipo.escala": 1.3, "hero": "ocultar", "recetas": {"agregar": [...],
-    "quitar": [...]}}`); `vistas`: los ids de los componentes del kit; `ocultar`: `(vista, selector)` de los bloques
-    que reemplazan."""
-    vistas = {**{c: f"mt-sin-{c}" for c in COMPONENTES_KIT}, **sitio.vistas, **(vistas or {})}
+    "quitar": [...]}}`); `vistas`: el id (o los ids, si hay varios atajos) de cada componente del kit; `ocultar`:
+    `(vista, selector)` de los bloques que reemplazan."""
+    elegidas: dict = {c: f"mt-sin-{c}" for c in COMPONENTES_KIT}
+    for fuente in (sitio.vistas, vistas or {}):
+        elegidas.update({c: i for c, i in fuente.items() if i})
+    vistas = {c: [i] if isinstance(i, str) else list(i) for c, i in elegidas.items()}
     dirs, meta = direcciones(), recetas_meta()
     if direccion != "auto" and direccion not in dirs:
         raise ErrorDeComposicion(f"dirección desconocida: {direccion}")

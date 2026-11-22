@@ -323,10 +323,11 @@ async def _ocultar(page, url: str, vistas: list[dict]) -> list[tuple[str, str]]:
 
 
 def _pedido(datos: dict) -> dict:
-    """La elección del modelo, con una semilla entera aunque llegue como texto o decimal."""
+    """La elección del modelo. La semilla queda entera y ≥ 1 aunque llegue como texto o decimal ("3.7" o 3.7 → 3);
+    lo que no es un número finito, 1."""
     try:
-        semilla = max(1, int(datos.get("semilla") or 1))
-    except (TypeError, ValueError):
+        semilla = max(1, int(float(datos.get("semilla") or 1)))
+    except (TypeError, ValueError, OverflowError):
         semilla = 1
     ajustes = datos.get("ajustes") if isinstance(datos.get("ajustes"), dict) else {}
     return {"direccion": str(datos.get("direccion") or "auto"), "semilla": semilla, "ajustes": ajustes,
@@ -334,7 +335,7 @@ def _pedido(datos: dict) -> dict:
 
 
 def _componer(sitio: motor.Sitio, pedido: dict, vistas: list[dict], ocultar: list[tuple[str, str]]) -> motor.Tema:
-    ids = {v["componente"]: v["id"] for v in reversed(vistas) if v["componente"] in ("atajo", "lanzador")}
+    ids = {c: [v["id"] for v in vistas if v["componente"] == c] for c in motor.COMPONENTES_KIT}
     tema = motor.componer(sitio, pedido["direccion"], pedido["semilla"], pedido["ajustes"], ids, ocultar)
     if not tema.ok:
         problema = (tema.informe["saneador"]["rechazos"] or tema.informe["contraste"]["fallas"])[0]
