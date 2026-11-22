@@ -28,7 +28,7 @@ _OBSTACULO = re.compile(r"\b(modal|popup|pop-up|encuesta|cookies?)\b|«(close|ce
 ANCLAS_DE_RESPALDO = ("main", "[role='main']", "body > :has(h1)")
 
 _SELECTS = """() => [...document.querySelectorAll("select")].map((s) => ({
-  selector: s.id ? "#" + CSS.escape(s.id) : s.name ? `select[name="${s.name.replace(/["\\\\]/g, "")}"]` : "",
+  selector: s.id ? "#" + CSS.escape(s.id) : s.name ? `select[name="${CSS.escape(s.name)}"]` : "",
   id: s.id, name: s.name,
   etiqueta: ((s.labels && s.labels[0] && s.labels[0].textContent) || s.getAttribute("aria-label") || "")
     .replace(/\\s+/g, " ").trim().slice(0, 40),
