@@ -87,7 +87,9 @@ async def conduct(backend: store.Backend, invoker: Invoker, url: str, revision: 
             entry["visitor"] = visitor.to_dict()
             return entry
 
-    report["goals"] = list(await asyncio.gather(*(evaluate(goal) for goal in goals)))
+    async with asyncio.TaskGroup() as group:
+        tasks = [group.create_task(evaluate(goal)) for goal in goals]
+    report["goals"] = [task.result() for task in tasks]
 
     improver = await stage("improver")
     report["stages"]["improver"] = improver.to_dict()
