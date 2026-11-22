@@ -1,7 +1,8 @@
 # Infraestructura en AWS
 
-La API (`backend/`) corre en AWS como una Lambda con URL pública. Terraform la crea y la actualiza desde GitHub
-Actions, en el repo personal [brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36).
+La API (`backend/`) corre en AWS como una Lambda, en https://api.chameleonmode.app (API Gateway) y en su URL pública
+de Lambda. Terraform la crea y la actualiza desde GitHub Actions, en el repo personal
+[brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36).
 El backoffice (`backoffice/`) corre en ECS Fargate, en https://chameleonmode.app, y también lo crea Terraform
 (ver [El backoffice en chameleonmode.app](#el-backoffice-en-chameleonmodeapp)).
 El Visitante (`agents/app/visitor/`) corre en AgentCore Runtime; lo despliega la CLI de AgentCore desde
@@ -31,7 +32,7 @@ Antes, el proyecto corría en una subcuenta de desarrollo de la organización de
    suele atrasarlo.
 3. Si el cambio toca `backend/`, `backoffice/` (menos sus pruebas) o `infra/app/`, el workflow `Terraform` del repo
    personal hace `plan` y `apply`.
-4. La URL de la API queda en el resumen de esa ejecución.
+4. Las URLs de la API y del backoffice quedan en el resumen de esa ejecución.
 5. Si el cambio toca `infra/agentcore/`, `agents/app/visitor/` o `agents/shared/`, el workflow `AgentCore` despliega
    el Visitante con la [CLI de AgentCore](https://github.com/aws/agentcore-cli) (`agentcore deploy`), con el mismo rol.
    La CLI construye la imagen del Visitante (`agents/app/visitor/Dockerfile`, con `agents/` como contexto) en CodeBuild,
@@ -46,7 +47,7 @@ abajo).
 - `bootstrap/`: lo que debe existir antes de que Actions pueda correr Terraform: el bucket del estado, la entrada de
   GitHub a AWS por OIDC (sin llaves guardadas), el rol que asume el workflow y una alerta de presupuesto. Se aplica
   una vez, a mano, y su estado queda en el computador de quien lo aplicó.
-- `app/`: la Lambda, su URL, su rol y su log; el almacén de los agentes (bucket `chameleon-almacen-<cuenta>`,
+- `app/`: la Lambda, su URL, su rol y su log; la API en `api.<dominio>` (`api.tf`); el almacén de los agentes (bucket `chameleon-almacen-<cuenta>`,
   privado) y la tabla `chameleon-revisiones` (DynamoDB, `PK`/`SK`); el backoffice en ECS (`backoffice.tf`). Su estado
   vive en el bucket del estado.
   `/revisiones` de la API marca cada página en la tabla y dispara el conductor en el runtime cuyo nombre termina en
@@ -129,8 +130,8 @@ git switch main && git pull
 git push git@github.com:brayanmoreno/hackathon-grupo36.git main
 ```
 
-Eso dispara `Terraform` por primera vez. Cuando termine, copia la URL del resumen en `API_URL_AWS` de
-`extension/src/background/config.js`, sin el `/` final.
+Eso dispara `Terraform` por primera vez. La extensión llama a `api.chameleonmode.app` (`API_URL_AWS` de
+`extension/src/background/config.js`); ver [La API en api.chameleonmode.app](#la-api-en-apichameleonmodeapp).
 
 ## El backoffice en chameleonmode.app
 
@@ -168,6 +169,25 @@ tarea nueva no queda sana, ECS vuelve a la anterior y el apply falla. Los logs: 
 /ecs/chameleon-backoffice --follow`. El backoffice muestra lo que hay en el almacén: lo que escribe el Visitante en
 AgentCore o lo que se sube a mano con `aws s3 sync agents/.runs/ s3://chameleon-almacen-<cuenta>/` (queda público).
 
+## La API en api.chameleonmode.app
+
+[`app/api.tf`](app/api.tf) pone la Lambda detrás de API Gateway (HTTP API) en https://api.chameleonmode.app, con
+certificado de ACM. API Gateway le entrega a la Lambda el mismo evento que la function URL (formato 2.0), así que
+`backend/lambda.js` no cambia. Cobra por pedido (alrededor de 1 USD por millón), sin costo fijo. Corta los pedidos a
+los 30 s, lo mismo que el timeout de la Lambda.
+
+La function URL sigue publicada (`terraform output -raw function_url`): la usan las versiones de la extensión
+anteriores al dominio. Se puede quitar cuando nadie las tenga.
+
+**La primera vez**, al mergear, los mismos pasos que el backoffice, con dos `CNAME` en Cloudflare, los dos *DNS only*:
+
+1. Mientras Terraform espera el certificado, saca el registro de validación con los comandos del backoffice, cambiando
+   `chameleonmode.app` por `api.chameleonmode.app`, y créalo en Cloudflare. No se borra.
+2. Cuando termine, `Name` `api` y `Value` el destino que muestra el resumen del workflow
+   (`terraform output -raw api_destino`, un `d-….execute-api.us-east-2.amazonaws.com`).
+3. Recién entonces publica una versión de la extensión (`just publish vX.Y.Z`): desde esta versión llama a
+   `api.chameleonmode.app`.
+
 ## Día a día
 
 - Para no esperar la copia automática, o si GitHub no la está lanzando: `just sync`. Copia `main` al repo personal
@@ -202,7 +222,7 @@ revisiones en curso (429) se vuelven a pedir solas.
 
 1. Actions → `Terraform` → *Run workflow* → `destroy`, en el repo personal. El Visitante no es parte de
    Terraform: en CloudFormation (us-east-2), borra el stack `AgentCore-ChameleonAgents-…` y después `CDKToolkit`.
-   El dominio sigue en Cloudflare: borra los dos `CNAME` y decide si se renueva (la renovación automática está activa).
+   El dominio sigue en Cloudflare: borra los cuatro `CNAME` y decide si se renueva (la renovación automática está activa).
 2. Desactiva `Sincroniza desde la organización`. Corre unas 290 veces al día y cada vez cuenta como un minuto de los
    2.000 gratis al mes de un repo privado.
 3. Para borrar también lo de `bootstrap/`, quita `prevent_destroy` del bucket, vacíalo (incluidas las versiones

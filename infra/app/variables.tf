@@ -27,3 +27,9 @@ variable "revisiones_en_curso_max" {
   type        = number
   default     = 5
 }
+
+variable "dominio" {
+  description = "Dominio del proyecto, con su DNS en Cloudflare: el backoffice en la raíz y la API en api.<dominio>."
+  type        = string
+  default     = "chameleonmode.app"
+}

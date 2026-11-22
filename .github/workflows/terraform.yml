@@ -81,7 +81,7 @@ jobs:
         if: env.ACCION == 'apply'
         run: |
           {
-            echo "API desplegada en $(terraform output -raw function_url)"
+            echo "API desplegada en $(terraform output -raw api_url) (destino: $(terraform output -raw api_destino); function URL: $(terraform output -raw function_url))"
             echo ""
             echo "Backoffice en $(terraform output -raw backoffice_url) (balanceador: $(terraform output -raw backoffice_alb))"
           } >> "$GITHUB_STEP_SUMMARY"
