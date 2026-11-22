@@ -89,18 +89,30 @@ que importa `app.js` y, según la ruta, la pantalla que va a abrir y los datos d
 El backoffice entero (la página, `api/`, `archivos/`, `resultados/` y `propuestas/`) vive bajo `/backoffice/`; `/backoffice` sin la barra
 final redirige ahí, porque la página pide todo con rutas relativas. La raíz (`/`) sirve la portada de
 [`portada/`](portada/): qué es Chameleon y cómo trabajan los agentes, con capturas reales (`portada/img/`), la descarga
-de la extensión para Firefox (`.xpi`) y Chrome (`.zip`) y el botón **Ir a la app**, que lleva a `/backoffice/`. Es lo
+de la extensión para Firefox (`.xpi`) y Chrome (`.zip`) y el botón **Go to the app** (en español, **Ir a la app**), que lleva a `/backoffice/`. Es lo
 que ve quien abre https://chameleonmode.app, la URL de la entrega en `platanus-hack-project.jsonc`. Sin build ni
-dependencias, como el backoffice: `index.html`, `estilos.css` y `portada.js` (el comparador antes/después, las
-versiones publicadas, el botón principal según el navegador de quien visita, el video de la telaraña, que corre solo
-mientras se ve, y la aparición al bajar; sin él la página se ve completa y quieta). Las animaciones respetan
+dependencias, como el backoffice: `index.html`, `estilos.css` y `portada.js` (el español, el comparador antes/después,
+las versiones publicadas, el botón principal según el navegador de quien visita, los videos de la telaraña y del Replay, que corren solos
+mientras se ven, y la aparición al bajar; sin él la página se ve completa y quieta). Las animaciones respetan
 `prefers-reduced-motion`; las que siguen al scroll usan `animation-timeline` y donde no existe (Firefox) la página
 queda quieta. De `portada/` solo se sirven sus archivos sueltos y las imágenes y el video de `img/`, con
 `Cache-Control: public, max-age=3600` y por rangos (Safari no reproduce un video sin respuestas 206).
 
-`img/telarana.webm` es el Replay de una tanda real de metro.cl (`consultar-transparencia-activa`) en la telaraña viva
-de producción, a 4×, grabado cuadro a cuadro con el reloj falso de Playwright (`page.clock`) y codificado en VP9;
-`img/telarana.jpg` es su último cuadro, el póster.
+**En inglés por defecto.** El HTML está en inglés (así se ve sin JavaScript) y el selector EN | ES de la barra la pasa a
+español con el diccionario `ES` de `portada.js`, por las claves `data-i18n` (texto), `data-i18n-html` (con marcas),
+`data-i18n-alt` y `data-i18n-aria-label`; lo que escribe el script (versiones, botones de descarga) está en `DINAMICOS`,
+en los dos idiomas. La elección queda en `localStorage` y `?lang=es` o `?lang=en` manda sobre ella.
+[`test/portada.test.js`](test/portada.test.js) exige que cada clave del HTML tenga su español y que el diccionario no
+guarde claves sin uso: un texto nuevo va en inglés en el HTML, con su clave, y en español en `ES`.
+
+`img/telarana.webm` es un ejemplo ilustrativo, no una corrida real: el Replay de la tanda más enredada de los datos de
+prueba (`bancoandino.test`, `horario-sucursales`: 8 visitantes, 37 páginas; 2 llegan, 2 fallan y 4 abandonan), en la
+telaraña viva del backoffice local, a 9× (la velocidad de la barra se cambia en el `data-v` del botón ×4). Se grabó
+cuadro a cuadro con el reloj falso de Playwright (`page.clock`), para que salga fluido, y se codificó en VP9;
+`img/telarana.jpg` es su último cuadro, el póster. `img/replay.webm` sí es real: el Replay de una tanda de metro.cl
+(`consultar-transparencia-activa`) en producción, a 2×, grabado en tiempo real con el screencast de Chromium (sus
+animaciones usan la Web Animations API, que el reloj falso no controla) y llevado a 25 fps constantes; su póster es
+`img/replay.jpg`. Los dos videos corren solos mientras se ven (`.video-auto` en `portada.js`).
 
 ### La descarga de la extensión
 

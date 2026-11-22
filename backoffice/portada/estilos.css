@@ -112,9 +112,28 @@ p { text-wrap: pretty; }
 .barra-nav { display: flex; gap: 28px; margin-left: auto; font-size: 15px; }
 .barra-nav a { color: var(--texto-3); text-decoration: none; transition: color 160ms ease; }
 .barra-nav a:hover { color: var(--texto-1); }
+/* EN | ES: el inglés es el de la página; sin JavaScript no hay cambio, así que no se muestra. */
+.idiomas {
+  display: inline-flex; gap: 2px; padding: 3px;
+  border: 1px solid var(--borde); border-radius: var(--radio-pildora);
+  background: rgb(255 255 255 / 0.02);
+}
+.idiomas button {
+  min-width: 34px; height: 28px; padding: 0 8px;
+  border: 0; border-radius: var(--radio-pildora);
+  background: transparent; color: var(--texto-3);
+  font: 500 12px/1 var(--fuente-mono); letter-spacing: 0.06em;
+  cursor: pointer; transition: background-color 160ms ease, color 160ms ease;
+}
+.idiomas button:hover { color: var(--texto-1); }
+.idiomas button[aria-pressed="true"] { background: var(--superficie-3); color: var(--texto-1); }
+.sin-js .idiomas { display: none; }
 @media (max-width: 640px) {
+  .barra-interior { gap: 10px; }
   .barra-nav { display: none; }
-  .barra-interior > .boton { margin-left: auto; }
+  .idiomas { margin-left: auto; }
+  .idiomas button { min-width: 30px; padding: 0 6px; }
+  .sin-js .barra-interior > .boton { margin-left: auto; }
   .marca img { height: 34px; }
 }
 
@@ -130,9 +149,10 @@ p { text-wrap: pretty; }
   pointer-events: none;
 }
 .portada-texto { text-align: center; display: grid; justify-items: center; }
+/* Un título corto y no tan grande: la atención va a la bajada, los botones y el antes/después. */
 .portada h1 {
-  margin-top: 20px; max-width: 15em;
-  font-size: clamp(38px, 6.2vw, 72px); line-height: 1.04; letter-spacing: -0.035em;
+  margin-top: 18px;
+  font-size: clamp(34px, 4.6vw, 56px); line-height: 1.06; letter-spacing: -0.032em;
 }
 .portada h1 span { color: var(--texto-3); }
 .bajada { margin-top: 24px; max-width: 38em; font-size: clamp(17px, 1.6vw, 19px); color: var(--texto-2); }
@@ -253,7 +273,7 @@ p { text-wrap: pretty; }
 
 .seccion { padding-block: clamp(64px, 9vw, 120px); }
 .seccion-cabecera { max-width: 40em; margin-bottom: clamp(40px, 5vw, 64px); }
-.seccion-cabecera h2, .multijugador h2, .cierre h2 { margin-top: 14px; font-size: clamp(30px, 4vw, 46px); line-height: 1.1; letter-spacing: -0.03em; }
+.seccion-cabecera h2, .cierre h2 { margin-top: 14px; font-size: clamp(30px, 4vw, 46px); line-height: 1.1; letter-spacing: -0.03em; }
 .seccion-cabecera > p:not(.etiqueta) { margin-top: 18px; font-size: 18px; color: var(--texto-3); }
 .seccion-cabecera-centrada { margin-inline: auto; text-align: center; }
 
@@ -294,7 +314,8 @@ p { text-wrap: pretty; }
   pointer-events: none;
 }
 .ventana-telarana { box-shadow: var(--sombra-imagen), 0 0 160px -40px rgb(46 230 197 / 0.4); }
-.telarana-video { display: block; width: 100%; height: auto; aspect-ratio: 1920 / 1200; background: var(--fondo); }
+/* Los videos (telaraña y Replay): la proporción sale de su width/height. */
+.video-auto { display: block; width: 100%; height: auto; background: var(--fondo); }
 .telarana-figura figcaption { margin-top: 16px; text-align: center; font-size: 14px; color: var(--texto-4); }
 .claves {
   list-style: none; padding: 0; margin-top: clamp(40px, 5vw, 64px);
@@ -314,48 +335,17 @@ p { text-wrap: pretty; }
   border: 1px solid rgb(255 159 63 / 0.6); background: rgb(255 159 63 / 0.14); color: #FF9F3F;
   font-size: 12px; line-height: 20px;
 }
-.telarana-enlace { margin-top: clamp(32px, 4vw, 48px); text-align: center; }
 @media (max-width: 760px) { .claves { grid-template-columns: minmax(0, 1fr); } }
 
-/* Filas con imagen */
+/* El Replay: el texto a la izquierda y el video a la derecha */
 .evidencia { padding-top: 0; }
-.evidencia .contenedor { display: grid; gap: clamp(72px, 10vw, 128px); max-width: calc(var(--ancho-amplio) + 2 * var(--margen)); }
+.evidencia .contenedor { max-width: calc(var(--ancho-amplio) + 2 * var(--margen)); }
 .fila { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); align-items: center; gap: clamp(32px, 5vw, 72px); }
-.fila-invertida { grid-template-columns: minmax(0, 8fr) minmax(0, 5fr); }
-.fila-invertida .fila-texto { order: 2; }
 .fila-texto h3 { margin-top: 14px; font-size: clamp(26px, 2.8vw, 34px); line-height: 1.15; letter-spacing: -0.025em; }
 .fila-texto p:not(.etiqueta) { margin-top: 16px; color: var(--texto-3); }
-.fila-imagen img { border-radius: var(--radio-3); box-shadow: var(--sombra-imagen); background: var(--superficie-1); }
-@media (max-width: 860px) {
-  .fila, .fila-invertida { grid-template-columns: minmax(0, 1fr); }
-  .fila-invertida .fila-texto { order: 0; }
-}
-
-/* Multiplayer */
-.multijugador-interior {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: clamp(40px, 6vw, 96px);
-  padding: clamp(32px, 5vw, 64px);
-  max-width: calc(var(--ancho) + 2 * var(--margen));
-  border: 1px solid var(--borde); border-radius: var(--radio-5);
-  background:
-    radial-gradient(80% 120% at 100% 0%, rgb(46 230 197 / 0.08), transparent 60%),
-    var(--superficie-1);
-}
-.multijugador-interior > div > p:not(.etiqueta) { margin-top: 18px; color: var(--texto-3); max-width: 34em; }
-.puntos-clave { list-style: none; padding: 0; margin-top: 28px; display: grid; gap: 14px; }
-.puntos-clave li { position: relative; padding-left: 26px; font-size: 15px; color: var(--texto-3); }
-.puntos-clave li::before {
-  content: ""; position: absolute; left: 2px; top: 0.55em;
-  width: 10px; height: 10px; border-radius: 50%;
-  border: 2px solid var(--acento);
-}
-.puntos-clave strong { color: var(--texto-1); font-weight: 600; }
-.popup img { width: 300px; border-radius: var(--radio-4); box-shadow: var(--sombra-imagen); }
-@media (max-width: 860px) {
-  .multijugador-interior { grid-template-columns: minmax(0, 1fr); }
-  .popup { justify-self: center; }
-  .popup img { width: min(300px, 100%); }
-}
+.fila-imagen .ventana { border-radius: var(--radio-3); }
+.fila-imagen figcaption { margin-top: 12px; text-align: center; font-size: 14px; color: var(--texto-4); }
+@media (max-width: 860px) { .fila { grid-template-columns: minmax(0, 1fr); } }
 
 /* Descargas */
 .descargas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
@@ -460,8 +450,8 @@ p { text-wrap: pretty; }
     @keyframes flotar-abajo { from { transform: translateY(-16px); } to { transform: translateY(16px); } }
     .telefono-despues { animation: flotar-arriba linear both; animation-timeline: view(); }
     .telefono:not(.telefono-despues) { animation: flotar-abajo linear both; animation-timeline: view(); }
-    /* Las capturas crecen un poco al entrar. */
+    /* El Replay crece un poco al entrar. */
     @keyframes acercar { from { transform: scale(0.94); opacity: 0.5; } }
-    .fila-imagen img { animation: acercar linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
+    .fila-imagen .ventana { animation: acercar linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
   }
 }
