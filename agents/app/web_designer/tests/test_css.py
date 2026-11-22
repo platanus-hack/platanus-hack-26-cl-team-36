@@ -122,6 +122,20 @@ def test_cadena_con_salto_de_linea_se_rechaza():
     assert quitar_comentarios('a{content:"x\n/* c */"}') == 'a{content:"x' + CADENA_ROTA + '\n"}' + CADENA_ROTA
 
 
+def test_anidamiento_hostil_no_revienta():
+    for css in ("a{" * 3000, "@media x{" * 3000, "html.mi-tema a{" + "& b{" * 40 + "color:red" + "}" * 41):
+        saneado = sanear(css)
+        assert saneado.css == "" and saneado.rechazos[0]["motivo"] == "anidamiento demasiado profundo"
+    # Hasta el tope se lee normal.
+    assert "color:red" in sanear("html.mi-tema a{" + "& b{" * 10 + "color:red" + "}" * 11).css
+
+
+def test_at_regla_sin_bloque_anidada_se_rechaza():
+    saneado = sanear("html.mi-tema a { @layer a, b; color: red; @media print { color: blue } }")
+    assert "@layer" not in saneado.css and "color: red" in saneado.css and "@media print" in saneado.css
+    assert [r["motivo"] for r in saneado.rechazos] == ["at-regla sin bloque"]
+
+
 def test_solo_at_reglas_permitidas():
     css = """@font-face { font-family: a; }
     @page { margin: 0 }

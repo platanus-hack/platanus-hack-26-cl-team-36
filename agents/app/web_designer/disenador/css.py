@@ -19,6 +19,8 @@ Saneamiento (se revisa cada texto que se vuelve a escribir: selectores, declarac
   `@layer` y el nombre de un `@keyframes` son globales: no dependen de `html.mi-tema` y seguirían actuando con el tema
   apagado (un `@layer a, b;` reordena las capas del sitio; un `@keyframes fadeIn` pisa la animación del sitio con ese
   nombre). Por eso `@layer` no se acepta y un `@keyframes` solo con nombre propio, `mt-*`.
+- Una at-regla sin bloque dentro de una regla (`@layer a, b;` anidado) se descarta. Más de `MAX_PROFUNDIDAD` bloques
+  anidados descartan todo el CSS.
 - Cada selector de primer nivel debe empezar por `html.mi-tema`. Si no, se antepone (`body` pasa a
   `html.mi-tema body`, `html`/`:root` a `html.mi-tema`) y se informa como violación. Una regla anidada debe empezar
   por `&` o no usarlo (`:not(&) b` saldría del ámbito y se descarta). No se reescribe nada más: `!important` se
@@ -35,6 +37,12 @@ PERMITIDAS = {"media", "supports", "container"}          # además de @keyframes
 KEYFRAMES = {"keyframes", "-webkit-keyframes"}
 _NOMBRE_KEYFRAMES = re.compile(r"^mt-[\w-]+$")
 MAX_CADENA = 200    # caracteres de una cadena (el texto de `content:`, o de una variable que lo lleve)
+# La lectura es recursiva: sin tope, `a{a{a{…` agota la pila o multiplica la sangría de la salida.
+MAX_PROFUNDIDAD = 16
+
+
+class DemasiadoProfundo(Exception):
+    pass
 
 # Marca que deja la lectura donde una cadena terminó en un salto de línea o en el final del texto. Nunca se escribe:
 # el fragmento que la contiene se descarta.
@@ -187,8 +195,10 @@ def _saltar_espacios(texto: str, i: int) -> int:
     return i
 
 
-def _leer_cuerpo(texto: str, i: int) -> tuple[list[str], list[Regla], int]:
+def _leer_cuerpo(texto: str, i: int, nivel: int) -> tuple[list[str], list[Regla], int]:
     """Declaraciones y reglas anidadas hasta la `}` que cierra el bloque."""
+    if nivel > MAX_PROFUNDIDAD:
+        raise DemasiadoProfundo
     declaraciones, anidadas = [], []
     while True:
         i = _saltar_espacios(texto, i)
@@ -198,7 +208,7 @@ def _leer_cuerpo(texto: str, i: int) -> tuple[list[str], list[Regla], int]:
             return declaraciones, anidadas, i + 1
         fragmento, j, c = _escanear(texto, i, "{;}")
         if c == "{":
-            sub_declaraciones, sub_anidadas, i = _leer_cuerpo(texto, j + 1)
+            sub_declaraciones, sub_anidadas, i = _leer_cuerpo(texto, j + 1, nivel + 1)
             preludio = " ".join(fragmento.split())
             selectores = [preludio] if preludio.startswith("@") else dividir_selectores(fragmento)
             anidadas.append(Regla(selectores, sub_declaraciones, sub_anidadas))
@@ -208,8 +218,10 @@ def _leer_cuerpo(texto: str, i: int) -> tuple[list[str], list[Regla], int]:
         i = j + 1 if c == ";" else j
 
 
-def _leer_lista(texto: str, i: int) -> tuple[list, int]:
+def _leer_lista(texto: str, i: int, nivel: int) -> tuple[list, int]:
     """Reglas y at-reglas hasta el final o la `}` que cierra el bloque agrupador."""
+    if nivel > MAX_PROFUNDIDAD:
+        raise DemasiadoProfundo
     items: list = []
     while True:
         i = _saltar_espacios(texto, i)
@@ -226,10 +238,10 @@ def _leer_lista(texto: str, i: int) -> tuple[list, int]:
                 items.append(AtSentencia(nombre, preludio.strip()))
                 i = j + 1 if c == ";" else j
             elif nombre in AGRUPADORAS or nombre.endswith("keyframes"):
-                hijos, i = _leer_lista(texto, j + 1)
+                hijos, i = _leer_lista(texto, j + 1, nivel + 1)
                 items.append(AtBloque(nombre, resto, hijos))
             else:
-                declaraciones, _, i = _leer_cuerpo(texto, j + 1)
+                declaraciones, _, i = _leer_cuerpo(texto, j + 1, nivel + 1)
                 items.append(AtDeclaraciones(nombre, resto, declaraciones))
             continue
         preludio, j, c = _escanear(texto, i, "{;}")
@@ -240,15 +252,15 @@ def _leer_lista(texto: str, i: int) -> tuple[list, int]:
                 return items, j + 1  # cierra el bloque que contenía el texto suelto
             i = j + 1 if c == ";" else j
             continue
-        declaraciones, anidadas, i = _leer_cuerpo(texto, j + 1)
+        declaraciones, anidadas, i = _leer_cuerpo(texto, j + 1, nivel + 1)
         items.append(Regla(dividir_selectores(preludio), declaraciones, anidadas))
 
 
 def leer(css: str) -> list:
-    """El árbol del CSS. Una `}` sobrante en el primer nivel se ignora."""
+    """El árbol del CSS. Una `}` sobrante en el primer nivel se ignora. Lanza `DemasiadoProfundo` pasado el tope."""
     texto, items, i = quitar_comentarios(css), [], 0
     while i < len(texto):
-        parte, i = _leer_lista(texto, i)
+        parte, i = _leer_lista(texto, i, 0)
         items.extend(parte)
     return items
 
@@ -357,7 +369,8 @@ def _recortar(texto: str) -> str:
 def _sanear_declaraciones(declaraciones: list[str], rechazos: list[dict]) -> list[str]:
     limpias = []
     for declaracion in declaraciones:
-        motivo = prohibido_en(declaracion)
+        # `@layer a, b;` anidado también fija el orden global de las capas, con el tema apagado o no.
+        motivo = "at-regla sin bloque" if declaracion.startswith("@") else prohibido_en(declaracion)
         if motivo:
             rechazos.append({"motivo": motivo, "texto": _recortar(declaracion)})
         else:
@@ -434,8 +447,12 @@ def sanear(css: str) -> Saneado:
     css = re.sub(r"^\s*```[a-z]*\s*\n|\n\s*```\s*$", "", css)  # por si el modelo lo envolvió en un bloque
     rechazos: list[dict] = []
     fuera: list[dict] = []
-    arbol = _sanear_lista(leer(css), rechazos, fuera)
-    return Saneado(escribir(arbol) + "\n", arbol, rechazos, fuera)
+    try:
+        items = leer(css)
+    except DemasiadoProfundo:
+        return Saneado("", [], [{"motivo": "anidamiento demasiado profundo", "texto": ""}], fuera)
+    arbol = _sanear_lista(items, rechazos, fuera)
+    return Saneado(escribir(arbol) + "\n" if arbol else "", arbol, rechazos, fuera)
 
 
 # ---------------------------------------------------------------------------
