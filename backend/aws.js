@@ -138,11 +138,13 @@ export async function tablaDynamo(tabla) {
 }
 
 export async function almacenS3(bucket) {
-  const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+  const { S3Client, GetObjectCommand, HeadObjectCommand } = await import("@aws-sdk/client-s3");
   const cliente = new S3Client({});
   const leerTexto = async (Key) =>
     (await cliente.send(new GetObjectCommand({ Bucket: bucket, Key }))).Body.transformToString();
-  return { leerTexto, leerJson: async (Key) => JSON.parse(await leerTexto(Key)) };
+  // HeadObject pide el mismo permiso que GetObject (s3:GetObject) y no baja el cuerpo.
+  const cabecera = async (Key) => ({ bytes: (await cliente.send(new HeadObjectCommand({ Bucket: bucket, Key }))).ContentLength });
+  return { leerTexto, cabecera, leerJson: async (Key) => JSON.parse(await leerTexto(Key)) };
 }
 
 // La CLI de AgentCore nombra el runtime `<proyecto>_<destino>_<nombre>`.

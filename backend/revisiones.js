@@ -50,6 +50,8 @@ export function crearRevisiones({
   // El tema.json es opcional: si no se puede usar, la revisión se entrega solo con su CSS.
   async function leerTema(clave) {
     try {
+      const { bytes } = await almacen.cabecera(clave);
+      if (bytes > MAX_BYTES_TEMA) throw new Error(`pesa ${bytes} bytes, más de ${MAX_BYTES_TEMA}`);
       const texto = await almacen.leerTexto(clave);
       if (Buffer.byteLength(texto) > MAX_BYTES_TEMA) throw new Error(`pesa más de ${MAX_BYTES_TEMA} bytes`);
       const tema = JSON.parse(texto);

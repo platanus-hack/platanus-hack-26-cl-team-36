@@ -113,14 +113,17 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
     }
   }
 
-  // Sin s3:ListBucket, S3 responde AccessDenied (no NoSuchKey) por un objeto que no existe.
-  async function existe(clave) {
+  // El tema.json es opcional: cualquier error al buscarlo cuenta como que no está y no frena el registro de css_key.
+  // Sin s3:ListBucket, S3 responde 403 (no 404) por un objeto que no existe: eso tampoco se avisa.
+  async function existeTema(clave) {
     try {
-      await almacen.leerTexto(clave);
+      await almacen.cabecera(clave);
       return true;
     } catch (error) {
-      if (error.name === "NoSuchKey" || error.name === "AccessDenied") return false;
-      throw error;
+      if (!["NotFound", "NoSuchKey", "Forbidden", "AccessDenied"].includes(error.name)) {
+        console.warn(`✖ ${clave}: no se pudo ver si existe, se registra sin tema (${error.name}: ${error.message})`);
+      }
+      return false;
     }
   }
 
@@ -179,7 +182,7 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
         if (status !== "succeeded") break;
         if (agent === "cataloger") await crearGoals(revision, run_key, updated_at);
         else {
-          const tema_key = (await existe(`${run_key}/tema.json`)) ? `${run_key}/tema.json` : undefined;
+          const tema_key = (await existeTema(`${run_key}/tema.json`)) ? `${run_key}/tema.json` : undefined;
           await actualizarMeta(revision, { css_key: `${run_key}/tema.css`, tema_key, updated_at });
         }
         break;

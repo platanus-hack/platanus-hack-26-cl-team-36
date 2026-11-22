@@ -15,7 +15,7 @@ function escenario({ falla, archivos, maxEnCurso } = {}) {
   const agentes = agentesFalsos({ falla });
   let n = 0;
   const api = crearRevisiones({ db, almacen, agentes, ahora: () => new Date(AHORA), idRevision: () => `rev-${++n}`, maxEnCurso });
-  return { db, agentes, api };
+  return { db, agentes, api, almacen };
 }
 
 test("nuevaRevision cumple el formato del contrato", () => {
@@ -91,6 +91,18 @@ test("el tema se omite si no existe, es inválido, no es un objeto o pesa más d
   for (const contenido of [undefined, "{ roto", "[1, 2]", "null", grande]) {
     assert.deepEqual(await consultarConTema(contenido), { success: true, revision: "rev-1", status: "done", css: "a{}" });
   }
+});
+
+test("un tema.json que pesa de más no se baja: lo frena el tamaño de HEAD", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const { db, api, almacen } = escenario({
+    archivos: { [CSS_KEY]: "a{}", [TEMA_KEY]: JSON.stringify({ relleno: "x".repeat(MAX_BYTES_TEMA) }) },
+  });
+  await api.solicitar(URL_PAGINA);
+  await db.actualizar(claveRevision("rev-1"), { status: "done", css_key: CSS_KEY, tema_key: TEMA_KEY });
+  const { datos } = await api.consultar(URL_PAGINA);
+  assert.equal(Object.hasOwn(datos, "tema"), false);
+  assert.equal(almacen.leidos.includes(TEMA_KEY), false);
 });
 
 test("tema solo de un tema.json del improver", async () => {

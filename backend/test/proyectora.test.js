@@ -174,17 +174,28 @@ test("improver con tema.json guarda también tema_key; sin él, no", async () =>
   assert.equal(Object.hasOwn(sinTema.item("META"), "tema_key"), false);
 });
 
-test("improver: tema.json sin permiso de lectura (AccessDenied) cuenta como que no existe", async () => {
+test("improver: cualquier error al buscar el tema.json cuenta como sin tema, sin frenar css_key", async (t) => {
+  const avisos = t.mock.method(console, "warn", () => {});
+  for (const [name, avisa] of [["AccessDenied", false], ["Forbidden", false], ["TimeoutError", true], ["Error", true]]) {
+    const { almacen, evento, item } = escenario();
+    almacen.archivos[`${MEJORA}/tema.json`] = { features: {} };
+    almacen.cabecera = async () => {
+      throw Object.assign(new Error("falla"), { name });
+    };
+    const antes = avisos.mock.callCount();
+    await evento(MEJORA, { agent: "improver", status: "succeeded" });
+    assert.equal(item("META").css_key, `${MEJORA}/tema.css`, name);
+    assert.equal(item("META").tema_key, undefined, name);
+    assert.equal(avisos.mock.callCount() > antes, avisa, name);
+  }
+});
+
+test("improver: el tema.json se busca con HEAD, sin bajarlo", async () => {
   const { almacen, evento, item } = escenario();
-  const leerTexto = almacen.leerTexto;
-  almacen.leerTexto = async (clave) => {
-    if (clave.endsWith("/tema.json")) throw Object.assign(new Error("Access Denied"), { name: "AccessDenied" });
-    return leerTexto(clave);
-  };
-  almacen.leerJson = async (clave) => JSON.parse(await almacen.leerTexto(clave));
+  almacen.archivos[`${MEJORA}/tema.json`] = { features: {} };
   await evento(MEJORA, { agent: "improver", status: "succeeded" });
-  assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
-  assert.equal(item("META").tema_key, undefined);
+  assert.equal(item("META").tema_key, `${MEJORA}/tema.json`);
+  assert.equal(almacen.leidos.includes(`${MEJORA}/tema.json`), false);
 });
 
 test("improver fallido no guarda css_key", async () => {
