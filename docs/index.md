@@ -3,7 +3,7 @@
 > Evaluador = Visitante ([`agents/app/visitor/`](../agents/app/visitor/README.md)).
 
 **Qué es este documento.** El punto de entrada del proyecto, para cualquiera del equipo o del jurado. No hace falta
-haber leído nada antes. Es una **propuesta en revisión**: cambia el rumbo respecto de [.specs/MVP.md](../.specs/MVP.md),
+haber leído nada antes. Es una **propuesta en revisión**: cambia el rumbo respecto de `.specs/MVP.md` (el plan original; `.specs/` y `.spikes/` se retiraron del repo y quedan en el historial de git),
 y la sección 1 dice en qué.
 
 **En un párrafo.** Una extensión de navegador mejora cualquier página web sin tocar el sitio original. Hace dos

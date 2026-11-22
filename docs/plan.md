@@ -14,7 +14,7 @@ lo que hizo, que agentes prueben una página, y que un parche se acepte con una 
 El trabajo tiene dos partes:
 
 1. **Tres spikes**, que contestan lo que no sabemos. Van primero. Cómo se escriben está en
-   [.spikes/README.md](../.spikes/README.md).
+   .spikes/README.md.
 2. **Nueve PRs**, que construyen lo que los spikes confirmen. No caben todos en la hackatón: la sección 7 propone qué
    hacer primero.
 

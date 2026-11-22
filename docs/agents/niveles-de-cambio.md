@@ -324,7 +324,7 @@ Un cambio nuevo, `add_component`, que sigue siendo datos y no código:
 
 ## 8. Lo que no sabemos y cómo averiguarlo
 
-Tres spikes posibles, en el formato de [.spikes/README.md](../../.spikes/README.md):
+Tres spikes posibles, en el formato de .spikes/README.md:
 
 1. **Reenvío de acciones en sitios reales.** ¿Un componente puede rellenar y enviar los formularios de las tareas
    de la PR #6, incluido alguno hecho con React? Se decide de antemano: sirve si en las tres tareas el sitio acepta
@@ -343,7 +343,7 @@ Preguntas que ningún spike contesta:
 
 ## 9. Lo que mostró el spike de alcance en wom.cl (2026-11-21)
 
-Un [spike](../../.spikes/2026-11-21-alcance-cambios-wom.md) aplicó parches de los niveles 1 a 5 sobre wom.cl para la
+Un spike aplicó parches de los niveles 1 a 5 sobre wom.cl para la
 tarea de dar de baja Internet Fibra. Los escribió Claude a mano, haciendo de optimizador. Las rutas son guiones fijos,
 una ejecución por nivel; no hay intentos de agentes.
 

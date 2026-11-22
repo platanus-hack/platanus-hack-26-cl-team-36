@@ -24,7 +24,7 @@ el **optimizador** para proponer parches.
    del spike 2 trabajan solo con texto. Este documento propone solo capturas, por las razones de la sección 1, y
    reemplaza esa regla por la del avance 1: si con capturas el agente no logra la tarea en la página sin el defecto,
    se vuelve al texto.
-2. **El código del avance 1 se conserva.** Un spike no deja código que se conserve ([spikes](../../.spikes/README.md)). El
+2. **El código del avance 1 se conserva.** Un spike no deja código que se conserve (spikes). El
    spike 2 se haría con el código del avance 1, y su informe va igual en `.spikes/`.
 3. **El avance 5 corre en AWS.** El plan dice que todo corre en el computador de la persona, sin servidor, y gasta de
    su propio plan de Claude. El avance 5 rompe eso: es opcional y sirve para escalar, no para medir.
@@ -323,7 +323,7 @@ parte de la tanda por defecto.
   su objetivo con palabras de todos los días y no puede escribir términos oficiales que no haya visto en el sitio;
   `conoce_tema` conoce los nombres oficiales y cómo funciona el trámite. Ninguno sabe dónde está la respuesta en el
   sitio. Desde 2026-11-21 son el conjunto estándar (`config.CONJUNTO_EXPLORADORES`); por qué, en el
-  [spike de exploradores con conocimiento (2026-11-21)](../../.spikes/2026-11-21-exploradores-conocimiento.md): 8 ven
+  spike de exploradores con conocimiento (2026-11-21): 8 ven
   ~39 % más páginas que 4, casi todo por ser el doble, y `sin_contexto` muestra dónde se pierde alguien sin
   vocabulario (71 % de éxito contra 93 % de `conoce_tema`).
 
