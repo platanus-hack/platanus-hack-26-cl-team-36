@@ -364,7 +364,12 @@ p { text-wrap: pretty; }
 .descarga-pasos { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--texto-3); }
 .descarga-pasos li::marker { color: var(--texto-4); font-family: var(--fuente-mono); font-size: 12px; }
 .descarga-pasos em, .descarga-pasos code { font-style: normal; color: var(--texto-1); }
-.descarga-pasos code { font-family: var(--fuente-mono); font-size: 13px; padding: 1px 5px; border-radius: 4px; background: var(--superficie-3); }
+.descarga-pasos code, .descarga-nota code, .descarga-ayuda code { font-family: var(--fuente-mono); font-size: 13px; padding: 1px 5px; border-radius: 4px; background: var(--superficie-3); color: var(--texto-1); }
+/* Debajo de las tarjetas: por qué pide permisos y cómo actualizar (no está en las tiendas, así que nadie lo explica). */
+.descarga-notas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 20px; }
+.descarga-nota { padding: 24px 32px; border: 1px solid var(--borde-sutil); border-radius: var(--radio-4); background: rgb(255 255 255 / 0.015); }
+.descarga-nota h3 { font-size: 16px; letter-spacing: -0.01em; }
+.descarga-nota p { margin-top: 8px; font-size: 14px; color: var(--texto-3); }
 .descarga-pronto { background: transparent; border-style: dashed; }
 .descarga-pronto h3 { color: var(--texto-3); }
 .insignia {
@@ -374,7 +379,10 @@ p { text-wrap: pretty; }
   white-space: nowrap;
 }
 .insignia-lista { border-color: rgb(46 230 197 / 0.35); background: var(--acento-sutil); color: var(--acento); letter-spacing: 0.02em; text-transform: none; }
-@media (max-width: 760px) { .descargas { grid-template-columns: minmax(0, 1fr); } .descarga { padding: 24px; } }
+@media (max-width: 760px) {
+  .descargas, .descarga-notas { grid-template-columns: minmax(0, 1fr); }
+  .descarga, .descarga-nota { padding: 24px; }
+}
 
 /* Cierre */
 .cierre { padding-block: clamp(48px, 7vw, 96px) clamp(96px, 12vw, 160px); }
