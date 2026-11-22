@@ -148,8 +148,22 @@
 .p-resumen .resumen-evidencias { display: grid; gap: var(--e-1); padding-inline-start: var(--e-4); list-style: disc; }
 .p-resumen .resumen-pie { font-size: 12px; }
 
+/* Por nivel de conocimiento: una tabla chica, dos filas. */
+.p-resumen .resumen-niveles { width: 100%; max-width: 820px; }
+.p-resumen .resumen-niveles :is(th, td) { white-space: normal; }
+.p-resumen .resumen-niveles th[scope="row"] { font-weight: 500; color: var(--texto-1); }
+
 /* ── Angosto (375 px): cifras 2×2, ruta vertical, intentos como tarjetas ── */
 @container contenido (width < 640px) {
+  .p-resumen .resumen-niveles thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .p-resumen .resumen-niveles, .p-resumen .resumen-niveles tbody { display: block; min-width: 0; }
+  .p-resumen .resumen-niveles tr {
+    display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-1) var(--e-3); padding: var(--e-3) 0; border-bottom: 1px solid var(--borde-sutil);
+  }
+  .p-resumen .resumen-niveles :is(th[scope="row"], td) { padding: 0; border: 0; text-align: start; }
+  .p-resumen .resumen-niveles th[scope="row"] { grid-column: 1 / -1; }
+  .p-resumen .resumen-niveles td.num { font-size: 12px; color: var(--texto-3); }
+  .p-resumen .resumen-niveles td.num::before { content: attr(data-etiqueta) " "; color: var(--texto-4); }
   .p-resumen { gap: var(--e-5); }
   .p-resumen .resumen-titular h2 { font-size: 18px; line-height: 26px; }
   .p-resumen .resumen-cifras { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-4) var(--e-3); }

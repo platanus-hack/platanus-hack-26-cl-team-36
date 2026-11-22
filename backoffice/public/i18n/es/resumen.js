@@ -67,6 +67,18 @@ export default {
     replayEtiqueta: "Abrir el intento de {nombre} en Replay",
     historiaEtiqueta: "Ver la historia de {nombre} en la telaraña",
   },
+  niveles: {
+    titulo: "Por nivel de conocimiento",
+    columna: {
+      nivel: "Nivel",
+      intentos: "Intentos",
+      logrados: "Llegan",
+      pasos: "Pasos (mediana)",
+      tiempo: "Tiempo (mediana)",
+      rechazos: "Escrituras rechazadas",
+    },
+    nivel: { sin_contexto: "Sin contexto", conoce_tema: "Conoce el tema" },
+  },
   errores: {
     titulo: "Errores de la herramienta",
     encabezado: "{nombre} · {error}",

@@ -176,6 +176,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {Perfil[]} perfiles
  * @property {Hallazgo[]} hallazgos
  * @property {{ tanda: Texto, telarana: Texto, perfiles: Texto }} titulares
+ * @property {ReturnType<typeof porConocimiento>} porConocimiento
  */
 
 // Motivos de fin que son fallas de la herramienta, no del usuario: los _INTERRUPTED_REASONS de
@@ -957,6 +958,7 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
     telarana: { paginas, ramas, ruta, alias },
     kpis: armarKpis(intentos, ruta),
     perfiles: armarPerfiles(intentos, ruta),
+    porConocimiento: porConocimiento(intentos),
     hallazgos: [],
     titulares: null,
   };
@@ -965,6 +967,28 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
   tanda.hallazgos = recortarHallazgos(todos);
   tanda.titulares = calcularTitulares(tanda, todos);
   return tanda;
+}
+
+/** Niveles de conocimiento de los exploradores, en el orden en que se comparan. */
+export const NIVELES_DE_CONOCIMIENTO = ["sin_contexto", "conoce_tema"];
+
+/**
+ * Resultado por nivel de conocimiento (como la tabla del report.md del evaluador): por nivel, intentos, cuántos lo
+ * lograron, mediana de pasos y de segundos, y escrituras rechazadas. null si la tanda no tiene los dos niveles.
+ * @param {{ conocimiento: string | null, resultado: string, pasos: unknown[], duracion: number | null, terminosRechazados?: string[] }[]} intentos
+ * @returns {{ nivel: string, intentos: number, logrados: number, pasosMediana: number | null, segundosMediana: number | null, rechazos: number }[] | null}
+ */
+export function porConocimiento(intentos) {
+  const niveles = NIVELES_DE_CONOCIMIENTO.map((nivel) => [nivel, intentos.filter((intento) => intento.conocimiento === nivel)]);
+  if (niveles.some(([, suyos]) => !suyos.length)) return null;
+  return niveles.map(([nivel, suyos]) => ({
+    nivel,
+    intentos: suyos.length,
+    logrados: suyos.filter((intento) => intento.resultado === "logrado").length,
+    pasosMediana: mediana(suyos.map((intento) => intento.pasos.length)),
+    segundosMediana: mediana(suyos.map((intento) => intento.duracion)),
+    rechazos: suyos.reduce((suma, intento) => suma + (intento.terminosRechazados?.length ?? 0), 0),
+  }));
 }
 
 /**

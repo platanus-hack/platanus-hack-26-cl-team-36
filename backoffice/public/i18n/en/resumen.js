@@ -67,6 +67,18 @@ export default {
     replayEtiqueta: "Open {nombre}'s attempt in Replay",
     historiaEtiqueta: "See {nombre}'s story on the route map",
   },
+  niveles: {
+    titulo: "By knowledge level",
+    columna: {
+      nivel: "Level",
+      intentos: "Attempts",
+      logrados: "Reach it",
+      pasos: "Steps (median)",
+      tiempo: "Time (median)",
+      rechazos: "Rejected writes",
+    },
+    nivel: { sin_contexto: "No context", conoce_tema: "Knows the topic" },
+  },
   errores: {
     titulo: "Tool errors",
     encabezado: "{nombre} · {error}",

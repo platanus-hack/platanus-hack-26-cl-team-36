@@ -17,6 +17,7 @@ import {
   resultadoDeRama,
   resumenDeError,
   textoDeElemento,
+  porConocimiento,
 } from "../lib/derivar.js";
 import { idsDeTandas, leerTanda, listarTandas } from "../lib/tandas.js";
 import { consultaDe, normalizarUrl, rutaSinConsulta } from "../lib/url.js";
@@ -651,4 +652,19 @@ test("tarjeta de la ruta: las acciones humanas primero; un «volver a …» nunc
     },
   };
   assert.equal(accionesDelTramo(ctx, c, { origen: "n1", destino: "n2", accion: "" }).texto, "clic «Horarios» (2) · volver a «Agenda» (3)");
+});
+
+test("resultado por nivel de conocimiento: intentos, logrados, medianas y escrituras rechazadas", () => {
+  const intento = (conocimiento, resultado, pasos, duracion, rechazados = []) => ({ conocimiento, resultado, pasos: Array(pasos).fill({}), duracion, terminosRechazados: rechazados });
+  const intentos = [
+    intento("sin_contexto", "logrado", 20, 78), intento("sin_contexto", "logrado", 18, 70),
+    intento("conoce_tema", "logrado", 24, 91, ["ipc"]), intento("conoce_tema", "fallido", 30, 120), intento("conoce_tema", "error", 2, 5),
+  ];
+  assert.deepEqual(porConocimiento(intentos), [
+    { nivel: "sin_contexto", intentos: 2, logrados: 2, pasosMediana: 19, segundosMediana: 74, rechazos: 0 },
+    { nivel: "conoce_tema", intentos: 3, logrados: 1, pasosMediana: 24, segundosMediana: 91, rechazos: 1 },
+  ]);
+  // Sin los dos niveles (perfiles comunes, o un solo nivel), no hay comparación.
+  assert.equal(porConocimiento(intentos.map((i) => ({ ...i, conocimiento: null }))), null);
+  assert.equal(porConocimiento(intentos.filter((i) => i.conocimiento === "conoce_tema")), null);
 });

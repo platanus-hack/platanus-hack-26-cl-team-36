@@ -434,6 +434,42 @@ function intentos(ctx, c) {
   );
 }
 
+// ── Por nivel de conocimiento ───────────────────────────────────────────────
+
+/** Los dos niveles de conocimiento lado a lado (solo si la tanda tiene los dos). */
+function niveles(ctx, c) {
+  const filas = c.tanda.porConocimiento;
+  if (!filas?.length) return null;
+  const claves = ["nivel", "intentos", "logrados", "pasos", "tiempo", "rechazos"];
+  const columnas = claves.map((clave) => ctx.t(`resumen.niveles.columna.${clave}`));
+  const celda = (indice, texto) => el("td", { class: "num", "data-etiqueta": columnas[indice], texto });
+  return seccion(
+    { id: "resumen-titulo-niveles", titulo: ctx.t("resumen.niveles.titulo"), clase: "resumen-seccion-niveles" },
+    el(
+      "table",
+      { class: "tabla resumen-niveles" },
+      el("caption", { class: "visualmente-oculto", texto: ctx.t("resumen.niveles.titulo") }),
+      el("thead", {}, el("tr", {}, columnas.map((texto, indice) => el("th", { scope: "col", class: indice ? "num" : null, texto })))),
+      el(
+        "tbody",
+        {},
+        filas.map((fila) =>
+          el(
+            "tr",
+            {},
+            el("th", { scope: "row", texto: ctx.t(`resumen.niveles.nivel.${fila.nivel}`) }),
+            celda(1, ctx.fmt.numero(fila.intentos)),
+            celda(2, ctx.fmt.conteo({ n: fila.logrados, de: fila.intentos })),
+            celda(3, fila.pasosMediana === null ? "—" : ctx.fmt.numero(fila.pasosMediana)),
+            celda(4, ctx.fmt.duracion(fila.segundosMediana) || "—"),
+            celda(5, ctx.fmt.numero(fila.rechazos)),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 // ── Errores de la herramienta ───────────────────────────────────────────────
 
 function errores(ctx, c) {
@@ -608,6 +644,7 @@ export default {
       hallazgos(ctx, c),
       ruta(ctx, c),
       intentos(ctx, c),
+      niveles(ctx, c),
       errores(ctx, c),
       quiebres(ctx, c),
       criterio(ctx, c),
