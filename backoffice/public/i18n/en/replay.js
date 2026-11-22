@@ -28,6 +28,8 @@ export default {
   veredicto: {
     mostrar: "Verdict and criterion",
     justificacion: "What the judge said",
+    justificacionRuta: "Measured against the Guide's route",
+    justificacionSinMedir: "Why it was not measured",
     respuesta: "The user’s answer",
     sinRespuesta: "It left no answer.",
     motivo: "How it ended",
@@ -35,6 +37,8 @@ export default {
     evidencias: "Evidence the judge looks for",
     notaEvidencias: "The judge gives one verdict per attempt; it does not mark each piece of evidence.",
     sinCriterio: "This batch did not save the judge’s criterion.",
+    sinJuez: "No judge: the result is whether it reached the final page of the Guide’s route.",
+    sinMedir: "No Guide route nor judge: the result is not measured.",
   },
 
   error: {

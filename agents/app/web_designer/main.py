@@ -7,6 +7,7 @@ Uso, desde agents/app/web_designer/:
     uv run main.py --casos casos.json --repeticiones 2
     uv run main.py --url https://ejemplo.cl --gustos "..." --solo-evaluar tema.css
     uv run main.py --comparar <resumen_a.json> <resumen_b.json>
+    uv run main.py --url https://ejemplo.cl --revision <rev>      # etapa de mejora de una revisión, en el almacén
 """
 
 import argparse
@@ -18,9 +19,10 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+from shared import store
 from shared.claude import engines
 
-from disenador import config, resumen
+from disenador import config, mejora, resumen
 from disenador.corrida import Caso, Opciones, correr, id_de_url, leer_casos
 from disenador.modelo import ClaudeCode, leer_skill
 
@@ -45,6 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
     que.add_argument("--gustos", help="gustos del usuario, en texto libre")
     que.add_argument("--tarea", default=None, help="tarea del usuario en el sitio (opcional)")
     que.add_argument("--casos", type=Path, help="casos.json: lista de {id, url, gustos, tarea?}")
+    que.add_argument("--revision", help="etapa de mejora: con --url y sin --gustos, genera el tema de esa revisión"
+                     " a partir de lo que midieron los agentes y lo escribe en el almacén (AGENTS_STORE)")
     parser.add_argument(
         "--skill",
         default=str(config.SKILL_POR_DEFECTO),
@@ -81,6 +85,47 @@ def _casos(parser: argparse.ArgumentParser, args) -> tuple[list[Caso], str]:
     return [Caso(identificador, args.url, args.gustos, args.tarea)], identificador
 
 
+def _exigir_claude(parser: argparse.ArgumentParser) -> None:
+    if engines.needs_claude_cli() and not shutil.which("claude"):
+        parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión")
+
+
+def _skill(parser: argparse.ArgumentParser, args):
+    if args.skill.lower() == "none":
+        return None
+    ruta_skill = Path(args.skill)
+    if not ruta_skill.is_file():
+        parser.error(f"no existe el skill {ruta_skill}; usa --skill none para la línea base"
+                     f" (o define {config.SKILL_VAR})")
+    return leer_skill(ruta_skill)
+
+
+def _mejorar(parser: argparse.ArgumentParser, args) -> None:
+    """Etapa de mejora: código de salida 0 solo si la corrida quedó `succeeded`."""
+    if not args.url or args.gustos or args.casos or args.solo_evaluar:
+        parser.error("--revision va con --url y sin --gustos, --casos ni --solo-evaluar")
+    try:
+        store.validate_revision(args.revision)
+        store.normalize_host(args.url)
+    except ValueError as error:
+        parser.error(str(error))
+    _exigir_claude(parser)
+    skill = _skill(parser, args)
+    modelo = engines.model_for(args.model)
+    claude_cwd = Path(tempfile.mkdtemp(prefix="web_designer-claude-"))
+    try:
+        manifest = asyncio.run(mejora.mejorar(
+            store.open_backend(), args.url, args.revision, skill,
+            ClaudeCode(modelo, args.effort, claude_cwd), modelo, cdp_url=args.cdp_url,
+        ))
+    except Exception as error:
+        print(f"La mejora falló: {type(error).__name__}: {error}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        shutil.rmtree(claude_cwd, ignore_errors=True)
+    print(f"Listo: {manifest.key.file('tema.css')}")
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -90,18 +135,16 @@ def main() -> None:
         print(resumen.comparar(a, b))
         return
 
+    if args.revision:
+        _mejorar(parser, args)
+        return
+
     casos, nombre = _casos(parser, args)
     if args.repeticiones < 1:
         parser.error("--repeticiones debe ser al menos 1")
-    if engines.needs_claude_cli() and not shutil.which("claude"):
-        parser.error("no se encontró el comando `claude`; instala Claude Code e inicia sesión")
+    _exigir_claude(parser)
     args.model, args.juez_model = engines.model_for(args.model), engines.model_for(args.juez_model)
-    skill = None
-    if args.skill.lower() != "none":
-        ruta_skill = Path(args.skill)
-        if not ruta_skill.is_file():
-            parser.error(f"no existe el skill {ruta_skill}; usa --skill none para la línea base")
-        skill = leer_skill(ruta_skill)
+    skill = _skill(parser, args)
     if args.solo_evaluar and not args.solo_evaluar.is_file():
         parser.error(f"no existe el archivo {args.solo_evaluar}")
 

@@ -162,7 +162,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "playwright" },
-    { name = "shared", extra = ["agentcore", "bedrock", "browser"] },
+    { name = "shared", extra = ["agentcore", "bedrock", "browser", "s3"] },
 ]
 
 [package.dev-dependencies]
@@ -173,7 +173,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "playwright", specifier = ">=1.48" },
-    { name = "shared", extras = ["browser", "bedrock", "agentcore"], editable = "../../shared" },
+    { name = "shared", extras = ["browser", "bedrock", "agentcore", "s3"], editable = "../../shared" },
 ]
 
 [package.metadata.requires-dev]
@@ -439,6 +439,9 @@ bedrock = [
 ]
 browser = [
     { name = "playwright" },
+]
+s3 = [
+    { name = "boto3" },
 ]
 
 [package.metadata]

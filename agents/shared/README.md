@@ -11,6 +11,7 @@ otro.
 | `shared.nodes` | `urls`: URL normalizada, nodo de una página (URL más título) y sitio de una URL. | todos |
 | `shared.dom` | `visibility`: el JavaScript que decide qué se puede mostrar. | cataloger, guide |
 | `shared.catalog` | `goal`: el objetivo, qué se intenta y su id. `outline`: el esquema del sitio. `tasks`: las tareas escritas a mano. `files`: lectura de un catálogo del almacén. `routes`: la ruta vigente de un objetivo y su última corrida del Visitante con o sin tema. `prominence`: prominencia y complejidad. | cataloger, guide, visitor, summary |
+| `shared.stages` | Única definición de cada etapa de una revisión: `command(stage, payload)` da su app, los argumentos de su CLI (`argv`) y el prefijo de su corrida. | conductor |
 
 ## shared.store
 
@@ -28,7 +29,7 @@ Define las claves, los ids de corrida y el manifiesto, y escribe en disco (`agen
       <profile>/                         run.json step_00.png … video.webm claude_code.log
   summary/<run>/                         manifest.json summary.json summary.md
   improver/<run>/                        manifest.json tema.css
-  conductor/<run>/                       manifest.json
+  conductor/<run>/                       manifest.json conductor.json <etapa>[-<goal>].log
 ```
 
 ### Reglas
@@ -82,7 +83,7 @@ run = start_run(store, visitor("wom.cl", "baja-fibra"), model="claude-haiku-5-5"
 # Playwright y el agente escriben en run.workdir: report.md, first_time/step_00.png, first_time/video.webm …
 (run.workdir / "report.md").write_text(report)
 finish_run(store, run, "succeeded")                      # publica la carpeta y cierra el manifiesto
-store.list_profiles(run.key)                             # ["first_time"]: las carpetas de perfil de la corrida
+store.list_profiles(run.key)                             # ["desktop"]: las carpetas de perfil de la corrida
 ```
 
 `with running(store, prefix, model=..., inputs=[...]) as run:` hace lo mismo y cierra la corrida como `failed` si el

@@ -17,13 +17,14 @@ Abre <http://localhost:4848>. Para tener algo que ver, primero hay que correr el
 
 | Variable | Por defecto | Qué cambia |
 |---|---|---|
-| `PORT` | `4848` | Puerto del servidor. Escucha solo en `127.0.0.1`. |
+| `PORT` | `4848` | Puerto del servidor. |
+| `BACKOFFICE_ESCUCHA` | `127.0.0.1` | Dirección en la que escucha. `0.0.0.0` lo abre a la red: solo en el contenedor de AWS. |
 | `BACKOFFICE_CORRIDAS` | `agents/.runs` | Carpeta de las corridas (relativa a donde se lanza el proceso). |
 | `BACKOFFICE_FUENTE` | `archivos` | De dónde se leen las corridas: `archivos` o `s3` (ver "Contra AWS"); otro valor hace fallar el arranque. |
 | `BACKOFFICE_ALMACEN` | (vacío) | Con `s3`: el almacén, `s3://<bucket>/<prefijo>` (el bucket es `chameleon-almacen-<account_id>`). |
 | `BACKOFFICE_TABLA` | `chameleon-revisiones` | Con `s3`: la tabla DynamoDB de las revisiones. |
 | `AWS_PROFILE`, `AWS_REGION` | región `us-east-2` | Con `s3`: credenciales por la cadena estándar de AWS. |
-| `BACKOFFICE_HOSTS` | (vacío) | Valores extra aceptados en la cabecera `Host` (con puerto, p. ej. `otro.host:8080`), separados por coma. Por defecto solo `localhost`, `127.0.0.1` y `[::1]`. |
+| `BACKOFFICE_HOSTS` | (vacío) | Valores extra aceptados en la cabecera `Host` (con puerto, p. ej. `otro.host:8080`), separados por coma. Por defecto solo `localhost`, `127.0.0.1` y `[::1]`. En AWS, el dominio (`chameleonmode.app`). |
 
 Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 
@@ -38,6 +39,15 @@ Lee las corridas del bucket (mismo árbol que `agents/.runs/`) y suma la pantall
 revisiones de la tabla y, por revisión, el avance por etapa y por goal, con enlaces a lo que dejó cada corrida
 terminada. La página vuelve a pedir cada 2,5 s. Solo lee: el perfil necesita `s3:ListBucket`, `s3:GetObject`,
 `dynamodb:Query` y `dynamodb:Scan`.
+
+### En AWS: https://chameleonmode.app
+
+Corre en ECS Fargate detrás de un balanceador, con la fuente `s3` sobre el almacén de los agentes y la tabla de
+revisiones ([`infra/app/backoffice.tf`](../infra/app/backoffice.tf)). La imagen sale de `Dockerfile` y se despliega
+sola al mergear a `main` un cambio de `backoffice/` (menos `test/`); los detalles están en
+[la infraestructura](../infra/README.md#el-backoffice-en-chameleonmodeapp). **Es público, sin login:** todo lo que
+se sube al almacén se puede ver ahí. El balanceador revisa la tarea con `GET /salud`, que responde `{ ok: true }`
+con cualquier `Host` y no lee nada.
 
 ## Pantallas
 
@@ -153,7 +163,8 @@ vive en el hash, así que cualquier vista se puede compartir copiando el enlace.
 
 Las corridas muestran páginas de terceros y a veces datos de quien corrió la prueba. Por eso:
 
-- El servidor escucha solo en `127.0.0.1` y solo acepta `GET` y `HEAD`.
+- El servidor escucha solo en `127.0.0.1` (salvo con `BACKOFFICE_ESCUCHA`, en AWS) y solo acepta `GET` y `HEAD`.
+- La copia de AWS es pública por decisión del equipo (2026-11-21): lo que está en el almacén lo ve cualquiera.
 - Rechaza (403) toda petición cuya cabecera `Host` no sea `localhost`, `127.0.0.1` o `[::1]` en su puerto, para que
   una página maliciosa no pueda leer las corridas con DNS rebinding (`BACKOFFICE_HOSTS` agrega excepciones).
 - De un perfil sirve únicamente `step_NN.png` y `video.webm` (con rangos de bytes, para el video), y solo de tandas

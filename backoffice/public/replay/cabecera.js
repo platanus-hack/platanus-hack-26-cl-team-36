@@ -11,6 +11,14 @@ import { mostrarEnFila, seguirBordes } from "../nucleo/fila.js";
 import { conGlobo } from "../nucleo/globo.js";
 import { icono, insignia, textoDeResultado } from "../nucleo/iconos.js";
 
+// El resultado sale de la ruta de la Guía, del juez (corridas viejas o --judge) o de ninguno (sin medir).
+const TITULO_DE_JUSTIFICACION = { ruta: "replay.veredicto.justificacionRuta", juez: "replay.veredicto.justificacion" };
+
+function textoSinCriterio(intento) {
+  if (intento.fuente === "ruta") return "replay.veredicto.sinJuez";
+  return intento.resultado === "sin_medir" ? "replay.veredicto.sinMedir" : "replay.veredicto.sinCriterio";
+}
+
 /**
  * @param {{ t: Function, fmt: object, tanda: object, senal: AbortSignal }} opciones
  */
@@ -145,7 +153,7 @@ export function crearCabecera({ t, fmt, tanda, senal }) {
       error
         ? null
         : [
-            seccion(t("replay.veredicto.justificacion"), el("p", { class: "prosa", texto: intento.justificacion ?? "" })),
+            seccion(t(TITULO_DE_JUSTIFICACION[intento.fuente] ?? "replay.veredicto.justificacionSinMedir"), el("p", { class: "prosa", texto: intento.justificacion ?? "" })),
             seccion(
               t("replay.veredicto.respuesta"),
               intento.respuesta ? el("blockquote", { class: "prosa replay-respuesta", texto: intento.respuesta }) : el("p", { class: "texto-3", texto: t("replay.veredicto.sinRespuesta") }),
@@ -164,7 +172,7 @@ export function crearCabecera({ t, fmt, tanda, senal }) {
                 ]
               : null,
           )
-        : el("p", { class: "texto-3", texto: t("replay.veredicto.sinCriterio") }),
+        : el("p", { class: "texto-3", texto: t(textoSinCriterio(intento)) }),
     );
   }
 

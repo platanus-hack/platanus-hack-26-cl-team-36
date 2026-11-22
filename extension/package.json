@@ -10,9 +10,11 @@
     "perfil:clonar": "node scripts/clonar-perfil.js",
     "test": "node --test test/*.test.js",
     "lint": "web-ext lint",
-    "check": "npm test && npm run lint",
+    "check": "npm run brand:check && npm test && npm run lint",
     "build": "web-ext build --overwrite-dest",
-    "sign": "node --env-file-if-exists=.env node_modules/web-ext/bin/web-ext.js sign --channel=unlisted"
+    "sign": "node --env-file-if-exists=.env node_modules/web-ext/bin/web-ext.js sign --channel=unlisted",
+    "brand:sync": "node scripts/sincronizar-marca.js",
+    "brand:check": "node scripts/sincronizar-marca.js --check"
   },
   "webExt": {
     "sourceDir": "src"

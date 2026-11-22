@@ -1,0 +1,21 @@
+{
+  "InterVariable.ttf": {
+    "source": "https://raw.githubusercontent.com/rsms/inter/master/docs/font-files/InterVariable.ttf",
+    "upstream": "https://rsms.me/inter/",
+    "license_file": "Inter-OFL.txt",
+    "usage": "Maestro local para delinear el wordmark; ejes wght 600/400, opsz 32"
+  },
+  "InterVariable.woff2": {
+    "source": "https://raw.githubusercontent.com/rsms/inter/master/docs/font-files/InterVariable.woff2",
+    "upstream": "https://rsms.me/inter/",
+    "license_file": "Inter-OFL.txt",
+    "usage": "Tipografía local para interfaz y presentaciones de marca"
+  },
+  "JetBrainsMono-Regular.woff2": {
+    "source": "https://raw.githubusercontent.com/JetBrains/JetBrainsMono/master/fonts/webfonts/JetBrainsMono-Regular.woff2",
+    "upstream": "https://github.com/JetBrains/JetBrainsMono",
+    "license_file": "JetBrainsMono-OFL.txt",
+    "usage": "Datos, coordenadas, tiempos y metadatos técnicos"
+  },
+  "license_notes": "Las fuentes se distribuyen acompañadas de su licencia OFL. Los logos exportados contienen paths y no necesitan cargar las fuentes. La licencia de fuentes no impone OFL a los gráficos producidos con ellas."
+}

@@ -43,6 +43,7 @@ export default {
     arbolFalta: "Incompleta",
     intentoResultado: "{nombre}: {resultado}",
     sinValidos: "sin válidos",
+    sinMedir: "sin medir",
     sinPasos: "Sin intentos válidos: no hay pasos que contar",
     pasos: ({ n }, { plural }) => `${n} ${plural(n, { one: "paso", other: "pasos" })}`,
     pasosRuta: ({ n, ruta }, { plural }) => `${n} ${plural(n, { one: "paso", other: "pasos" })} · ruta ${ruta}`,

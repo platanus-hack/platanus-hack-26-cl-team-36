@@ -20,9 +20,11 @@ agents/
     guide/                    ← GUÍA: encuentra y verifica la ruta de referencia de un objetivo, con DOM y capturas
       main.py  guide/  tests/
     visitor/                  ← VISITA: usuarios sintéticos que intentan un objetivo viendo solo capturas
-      main.py  agentcore_app.py  visitor/  tests/
+      main.py  visitor/  tests/
     summary/                  ← RESUME: compara, por objetivo, la ruta de la Guía con los intentos del Visitante
       main.py  summary/  tests/
+    runtime/                  ← la entrada del runtime chameleon en AgentCore: corre la etapa que pide el payload
+      agentcore_app.py  dispatcher.py  Dockerfile  tests/
   shared/                     ← lo que usan dos o más: almacén, navegador, Claude Code, nodos, DOM y catálogo
   tasks/<host>/<goal>.json    ← tareas escritas a mano: cada una es un objetivo de su host
   .runs/                      ← el almacén en disco (fuera de git); ver Almacén
@@ -35,11 +37,11 @@ dependencia de ruta editable. Ningún agente importa la carpeta de otro: se comu
 
 | | `cataloger` (Catalogador) | `guide` (Guía) | `visitor` (Visitante) |
 |---|---|---|---|
-| **Qué hace** | Cataloga los objetivos de un sitio y los clasifica. | Encuentra la ruta de referencia de un objetivo, con sus pasos mínimos. | Intenta un objetivo con varios perfiles y mide cuántos lo logran. |
+| **Qué hace** | Cataloga los objetivos de un sitio y los clasifica. | Encuentra la ruta de referencia de un objetivo, con sus pasos mínimos. | Intenta un objetivo en escritorio (y en móvil si se pide), `--runs` veces, y mide cuántos lo logran. |
 | **Qué ve** | El DOM de cada página. | El DOM de la página y capturas. | Solo capturas de lo visible. |
 | **Qué puede hacer** | Recorrer enlaces del mismo sitio, sin enviar formularios. | Clic, escribir, elegir, teclas, atrás y scroll sobre elementos a la vista; no puede ir a una URL ni seguir un enlace a otro host. | Las nueve acciones de la sección 3 del [diseño](evaluador.md). |
 | **Qué entrega** | `goals.json`: los objetivos clasificados. | `route.json`: la ruta verificada y la cita que la respalda. | Recorridos, árbol de rutas, comparación con la referencia y reporte. |
-| **Quién decide** | Reglas sin modelo sobre lo que propone el modelo. | La repetición: la ruta vale si llega a la misma página y la cita está en ella. | El juez, no el agente. |
+| **Quién decide** | Reglas sin modelo sobre lo que propone el modelo. | La repetición: la ruta vale si llega a la misma página y la cita está en ella. | El programa, no el agente: llegó si pasó por la página final de la ruta de la Guía (sin ruta, un juez si se pide con `--judge`). |
 
 **La expectativa que ordena el producto:** cada objetivo pasa por separado por la Guía y por el Visitante, y la Guía,
 que tiene herramientas web, debe lograrlo al menos igual de bien.
@@ -48,8 +50,12 @@ que tiene herramientas web, debe lograrlo al menos igual de bien.
 
 - **Nombres con guion bajo o una palabra.** Python no puede importar una carpeta con guion, y el nombre de un runtime
   de AgentCore tampoco lo acepta (patrón `[a-zA-Z][a-zA-Z0-9_]{0,47}`).
-- **El runtime desplegado se llama `web_evaluator_image`.** Es una imagen: `infra/agentcore/agentcore.json` la
-  construye con `agents/app/visitor/Dockerfile` y `agents/` como contexto, para que entre `agents/shared/`.
+- **Un solo runtime, `chameleon`, para todas las etapas.** Es una imagen con cada app y su entorno
+  (`agents/app/runtime/Dockerfile`, con la raíz del repo como contexto para que entre `.claude/skills/`). La API
+  lo invoca con `{"stage": "revision", ...}`: el conductor lanza cada etapa (`catalog`, `guide`, `visitor`,
+  `improver`) como otra invocación del mismo runtime, en una sesión nueva, y espera su `manifest.json` en S3. Cada
+  invocación responde al instante y corre el CLI de su etapa (`shared.stages`) en segundo plano; si el CLI falla sin
+  dejar corrida, el runtime escribe una `failed`.
 - **El Optimizador** se propone como `web_optimizer`.
 
 ## Flujo por sitio

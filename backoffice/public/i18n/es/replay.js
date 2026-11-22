@@ -28,6 +28,8 @@ export default {
   veredicto: {
     mostrar: "Veredicto y criterio",
     justificacion: "Lo que dijo el juez",
+    justificacionRuta: "Medido contra la ruta de la Guía",
+    justificacionSinMedir: "Por qué no se midió",
     respuesta: "Respuesta del usuario",
     sinRespuesta: "No dejó una respuesta.",
     motivo: "Cómo terminó",
@@ -35,6 +37,8 @@ export default {
     evidencias: "Evidencias que busca el juez",
     notaEvidencias: "El juez da un veredicto por intento; no marca cada evidencia.",
     sinCriterio: "Esta tanda no guardó el criterio del juez.",
+    sinJuez: "Sin juez: el resultado sale de si llegó a la página final de la ruta de la Guía.",
+    sinMedir: "Sin ruta de la Guía ni juez: el resultado no se mide.",
   },
 
   error: {

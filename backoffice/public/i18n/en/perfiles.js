@@ -38,6 +38,7 @@ export default {
     indirecto: "by another path",
     fallido: "failed",
     abandonado: "abandoned",
+    sin_medir: "not measured",
     error: "error (doesn't count)",
   },
   calor: {
@@ -94,7 +95,7 @@ export default {
     },
     definicion: {
       perfil: "The simulated user's profile",
-      resultado: "The judge's verdict and whether it went by the recommended route",
+      resultado: "The result (by the Guide's route or the judge) and whether it went by the recommended route",
       pasos: "Actions the agent took",
       delta: "Steps more (+) or fewer (−) than the recommended route",
       hitos: "Pages of the recommended route it reached",

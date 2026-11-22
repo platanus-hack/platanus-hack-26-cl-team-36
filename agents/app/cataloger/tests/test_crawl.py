@@ -9,9 +9,13 @@ from playwright.async_api import async_playwright
 
 from shared.browser.session import connect_browser
 from shared.browser.viewports import SCREENS
+from shared.catalog.files import read_catalog
+from shared.claude import engines
+from shared import store
 
-from cataloger import config
+from cataloger import command, config
 from cataloger.crawl import crawl
+from main import build_parser
 
 DESKTOP = SCREENS["desktop"]
 
@@ -125,3 +129,32 @@ def test_redirects_to_a_seen_page_or_another_host_are_dropped(serve):
     outline = _crawl(serve(REDIRECT_SITE, REDIRECTS), 20, 2)
     assert [page.title for page in outline.pages] == ["Inicio", "A", "B"]
     assert len(outline.failures) == 1 and "otro sitio" in outline.failures[0]
+
+
+def _catalog_revision(monkeypatch, store_dir, url: str, revision: str):
+    monkeypatch.setenv(store.ENV_VAR, store_dir.as_uri())
+    monkeypatch.setenv(engines.ENGINE_VAR, "fake")
+    parser = build_parser()
+    command.run(parser, parser.parse_args(["--url", url, "--revision", revision]))
+
+
+def test_revision_catalogs_only_that_page_in_a_new_run(server, tmp_path, monkeypatch):
+    url = f"{server}/index.html"
+    backend = store.LocalBackend(tmp_path / "almacen")
+    prefix = store.cataloger(url)
+    store.finish_run(backend, store.start_run(backend, prefix, model="m"), "succeeded")
+    _catalog_revision(monkeypatch, tmp_path / "almacen", url, "rev-1")
+    run = store.revision_run(backend, prefix, "rev-1")
+    assert run and len(backend.list_runs(prefix)) == 2
+    assert store.read_manifest(backend, run).status == "succeeded"
+    meta, goals, _ = read_catalog(backend, run)
+    assert meta["pages"] == 1 and [(goal.id, goal.exclusion) for goal in goals] == [("pagina-inicial", None)]
+
+
+def test_revision_without_evaluable_goals_still_succeeds(server, tmp_path, monkeypatch):
+    url = f"{server}/index.html"
+    monkeypatch.setattr(command, "scripted_catalog", lambda *args: {"goals": []})
+    _catalog_revision(monkeypatch, tmp_path / "almacen", url, "rev-2")
+    backend = store.LocalBackend(tmp_path / "almacen")
+    run = store.revision_run(backend, store.cataloger(url), "rev-2")
+    assert store.read_manifest(backend, run).status == "succeeded" and read_catalog(backend, run)[1] == []

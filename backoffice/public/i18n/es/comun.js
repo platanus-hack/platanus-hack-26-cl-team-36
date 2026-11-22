@@ -21,8 +21,9 @@ export default {
     idioma: "Idioma",
     abrirMenu: "Abrir el menú",
     cerrarMenu: "Cerrar el menú",
-    estadoTanda: ({ logrados, validos, errores }, { plural }) => {
-      const base = validos ? `${logrados} de ${validos} ${plural(logrados, { one: "llega", other: "llegan" })}` : "ningún intento válido";
+    estadoTanda: ({ logrados, validos, medidos = validos, errores }, { plural }) => {
+      let base = validos ? `${logrados} de ${medidos} ${plural(logrados, { one: "llega", other: "llegan" })}` : "ningún intento válido";
+      if (validos && !medidos) base = "sin medir";
       return errores ? `${base}, ${errores} con error de la herramienta` : base;
     },
   },
@@ -61,6 +62,7 @@ export default {
     intentos: ({ n }, { plural }) => `${n} ${plural(n, { one: "intento", other: "intentos" })}`,
     llegan: ({ n, de }, { plural }) => `${n}/${de} ${plural(n, { one: "llega", other: "llegan" })}`,
     ningunoValido: "Ningún intento válido",
+    sinMedir: "Sin medir: no hay ruta de la Guía ni juez",
     errores: ({ n }, { plural }) =>
       `${n} ${plural(n, { one: "error de la herramienta", other: "errores de la herramienta" })}`,
     usuarios: "usuarios {modelo}",
@@ -70,11 +72,13 @@ export default {
     logrado: "Logrado",
     fallido: "Fallido",
     abandonado: "Abandonado",
+    sin_medir: "Sin medir",
     error: "Error de la herramienta",
   },
   logro: {
     directo: "por la ruta",
     indirecto: "por otro camino",
+    declaro_sin_llegar: "declaró que terminó sin llegar",
   },
   senal: {
     no_effect: "Sin efecto",

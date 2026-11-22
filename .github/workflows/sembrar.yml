@@ -1,0 +1,43 @@
+# Siembra revisiones en la API desplegada (`just aws seed`) y las sigue hasta que terminan. Solo usa la API
+# pública: no necesita credenciales de AWS. Corre solo en el repo personal (ver infra/README.md).
+name: Sembrar revisiones
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "URLs separadas por espacios; vacío: las páginas de agents/tasks/demo.json"
+        type: string
+        default: ""
+      forzar:
+        description: "Revisión nueva aunque la página ya tenga una terminada"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  sembrar:
+    if: github.repository == 'brayanmoreno/hackathon-grupo36'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Siembra
+        env:
+          URLS: ${{ inputs.urls }}
+          FORZAR: ${{ inputs.forzar }}
+        run: |
+          args=()
+          [ "$FORZAR" = true ] && args+=(--force)
+          read -ra urls <<< "$URLS"
+          node infra/siembra/sembrar.js "${args[@]}" -- "${urls[@]}" | tee siembra.txt
+          status=${PIPESTATUS[0]}
+          { echo '```'; cat siembra.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"

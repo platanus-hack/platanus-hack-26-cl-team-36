@@ -50,10 +50,10 @@ just publish v0.3.0                   # signs that version of the extension and 
 Corre `just local` para ver esta lista. Funciona desde cualquier carpeta del repo; los comandos están en
 [`local/justfile`](local/justfile).
 
-El Visitante también corre en AWS, en AgentCore Runtime, con Claude en Bedrock y la cuenta de la hackatón
-(`export AWS_PROFILE=<perfil>`): `just aws visit wom.cl/baja-fibra` o `just aws visit <url> "<task>"`. Se despliega
-solo al mergear a `main`; los detalles están en [el Visitante](agents/app/visitor/README.md#en-aws-agentcore) y
-en [la infraestructura](infra/README.md).
+Los agentes también corren en AWS, en el runtime `chameleon` de AgentCore, con Claude en Bedrock y la cuenta de la
+hackatón (`export AWS_PROFILE=<perfil>`): `just aws revision <url>` revisa una página completa (catálogo, Guía,
+Visitante y tema) y muestra su avance. Se despliega solo al mergear a `main`; los detalles están en
+[el runtime](agents/app/runtime/README.md) y en [la infraestructura](infra/README.md).
 
 | Pieza | Qué es |
 |---|---|

@@ -80,12 +80,20 @@ def prompt_de_sistema(skill: Skill | None) -> str:
     return f"{skill.cuerpo}\n\n{CONTRATO}"
 
 
-def mensaje_de_diseno(url: str, gustos: str, tarea: str | None, mapa_texto: str, viewport: dict) -> str:
+def mensaje_de_diseno(url: str, gustos: str, tarea: str | None, mapa_texto: str, viewport: dict,
+                      medido: str | None = None) -> str:
+    """`medido`: el resumen de lo que midieron los agentes en la página (JSON), si lo hay."""
+    contexto = (
+        "Lo que midieron usuarios sintéticos al intentar tareas en esta página (JSON): si la ruta existe, si llegaron"
+        f" y dónde se desviaron o se detuvieron. Úsalo para que lo que lleva a la tarea se vea primero:\n{medido}\n\n"
+        if medido else ""
+    )
     return (
         "Diseña un tema para esta página.\n\n"
         f"Gustos del usuario: {gustos}\n"
         f"Tarea del usuario en el sitio: {tarea or '(no la indicó)'}\n"
         f"URL: {url}\n\n"
+        f"{contexto}"
         f"Mapa de la página (JSON; cajas [x, y, ancho, alto] en px del documento; viewport "
         f"{viewport['width']}x{viewport['height']}):\n{mapa_texto}\n\n"
         "La imagen adjunta es la parte visible de la página, sin tema."
