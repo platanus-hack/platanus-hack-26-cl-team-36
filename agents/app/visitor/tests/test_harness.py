@@ -9,6 +9,7 @@ from shared.browser.session import BrowserSession, connect_browser
 from shared.browser.viewports import SCREENS
 
 from visitor import report
+from visitor.hesitation import hesitation_points
 from visitor.harness import EXPECTATION_ONLY_MESSAGE, SyntheticUser
 from visitor.profiles import Profile
 from visitor.turns import ActionRequest, AttemptEnded, Turn
@@ -150,3 +151,4 @@ def test_expectation_alone_is_reminded_and_counted_as_turn_without_action(tmp_pa
     assert engine.responses[0][0].text == EXPECTATION_ONLY_MESSAGE
     assert [step.expectation for step in run.steps] == ["Ir a la página dos."]
     assert run.acciones_sin_expectativa == 0 and run.turnos_sin_accion == 2
+    assert not any("turno" in point for point in hesitation_points(run.to_dict()))  # es del modelo, no del sitio
