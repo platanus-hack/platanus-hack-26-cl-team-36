@@ -21,3 +21,9 @@ variable "goals_max" {
   type        = number
   default     = 3
 }
+
+variable "revisiones_en_curso_max" {
+  description = "Tope de revisiones queued/running a la vez: más allá, POST /revisiones responde 429."
+  type        = number
+  default     = 5
+}
