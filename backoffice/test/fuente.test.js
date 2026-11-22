@@ -57,7 +57,7 @@ test("fuente de archivos: ids, perfiles, JSON, archivos y rangos", async () => {
 
 test("crearFuente elige la fuente por tipo", () => {
   assert.equal(crearFuente({ tipo: "archivos", raiz: RAIZ }).descripcion, "backoffice/test/fixtures/corridas");
-  assert.throws(() => crearFuente({ tipo: "s3" }), /Fuente desconocida: s3/);
+  assert.throws(() => crearFuente({ tipo: "gcs" }), /Fuente desconocida: gcs/);
 });
 
 // Una fuente en memoria: prueba que tandas.js y el servidor funcionan con cualquier implementación.

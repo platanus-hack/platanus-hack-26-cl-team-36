@@ -3,7 +3,8 @@
 Visor de solo lectura de las corridas del Visitante en el almacén (`agents/.runs/`). Parte de
 [la especificación del backoffice](../.specs/backoffice-v0.md): muestra cada tanda (los intentos de los perfiles
 sobre una misma tarea) y responde qué pasó, por dónde fueron y dónde se separaron de la ruta. No gatilla nada ni
-llama a Claude. Sin build ni dependencias: Node 22 o superior, `node:http` y módulos ES en el navegador.
+llama a Claude. Sin build: Node 22 o superior, `node:http` y módulos ES en el navegador; el SDK de AWS solo para leer
+de AWS.
 
 ## Cómo se usa
 
@@ -18,10 +19,25 @@ Abre <http://localhost:4848>. Para tener algo que ver, primero hay que correr el
 |---|---|---|
 | `PORT` | `4848` | Puerto del servidor. Escucha solo en `127.0.0.1`. |
 | `BACKOFFICE_CORRIDAS` | `agents/.runs` | Carpeta de las corridas (relativa a donde se lanza el proceso). |
-| `BACKOFFICE_FUENTE` | `archivos` | De dónde se leen las corridas. Hoy solo existe `archivos`; otro valor hace fallar el arranque. |
+| `BACKOFFICE_FUENTE` | `archivos` | De dónde se leen las corridas: `archivos` o `s3` (ver "Contra AWS"); otro valor hace fallar el arranque. |
+| `BACKOFFICE_ALMACEN` | (vacío) | Con `s3`: el almacén, `s3://<bucket>/<prefijo>` (el bucket es `chameleon-almacen-<account_id>`). |
+| `BACKOFFICE_TABLA` | `chameleon-revisiones` | Con `s3`: la tabla DynamoDB de las revisiones. |
+| `AWS_PROFILE`, `AWS_REGION` | región `us-east-2` | Con `s3`: credenciales por la cadena estándar de AWS. |
 | `BACKOFFICE_HOSTS` | (vacío) | Valores extra aceptados en la cabecera `Host` (con puerto, p. ej. `otro.host:8080`), separados por coma. Por defecto solo `localhost`, `127.0.0.1` y `[::1]`. |
 
 Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
+
+### Contra AWS
+
+```bash
+npm --prefix backoffice install    # el SDK de AWS; la fuente local no lo necesita
+BACKOFFICE_FUENTE=s3 BACKOFFICE_ALMACEN=s3://chameleon-almacen-<account_id> AWS_PROFILE=<perfil> npm run backoffice
+```
+
+Lee las corridas del bucket (mismo árbol que `agents/.runs/`) y suma la pantalla **Revisiones** (`#/revisiones`): las
+revisiones de la tabla y, por revisión, el avance por etapa y por goal, con enlaces a lo que dejó cada corrida
+terminada. La página vuelve a pedir cada 2,5 s. Solo lee: el perfil necesita `s3:ListBucket`, `s3:GetObject`,
+`dynamodb:Query` y `dynamodb:Scan`.
 
 ## Pantallas
 
@@ -94,20 +110,14 @@ nunca se traducen.
 
 Todo lo que se lee de las corridas pasa por una interfaz chica, `Fuente`, documentada en `lib/fuente.js`:
 `descripcion`, `listarIds()`, `listarPerfiles(id)`, `leerJson(id, relativa)`, `existe(id, relativa)` y
-`abrirArchivo(id, relativa, rango)`. La única implementación es `lib/fuentes/archivos.js`. La validación (nombres
-seguros, ids que la fuente listó, solo capturas y video) vive en `lib/tandas.js`, así que una fuente nunca recibe una
-ruta sin validar. `derivar.js` y las pantallas no saben de dónde vienen los datos.
+`abrirArchivo(id, relativa, rango)`. La implementan `lib/fuentes/archivos.js` y `lib/fuentes/s3.js`. La validación
+(nombres seguros, ids que la fuente listó, solo capturas y video) vive en `lib/tandas.js`, así que una fuente nunca
+recibe una ruta sin validar. `derivar.js` y las pantallas no saben de dónde vienen los datos.
 
-Una fuente S3 (no construida) necesitaría:
-
-- Listar con `ListObjectsV2` y `Delimiter: "/"` (tareas, tandas con `route_tree.json`, perfiles) y leer con
-  `GetObject`; `abrirArchivo` con `Range: bytes=a-b` (S3 responde 206 y `ContentRange`, que calza con `rango`).
-- Pasar imágenes y video por el servidor, no con URLs prefirmadas: así se mantienen la CSP y la lista de archivos
-  permitidos, y el bucket sigue privado.
-- Caché en memoria de la tanda derivada (las tandas no cambian una vez escritas), porque `/api/tandas` deriva todas.
-- Credenciales por la cadena estándar de AWS, `BACKOFFICE_FUENTE=s3` más bucket, prefijo y región, y registrarla en
-  `crearFuente`. Usar el SDK de AWS rompe "sin dependencias": es decisión del equipo.
-- Antes de desplegarlo fuera de `127.0.0.1`, autenticación delante.
+La de S3 lista con `ListObjectsV2` y `Delimiter: "/"`, pasa capturas y video por el servidor (el bucket sigue
+privado y vale la CSP) y guarda en memoria lo leído de corridas cerradas. Recibe el cliente del SDK (`lib/aws.js`),
+así las pruebas usan clientes falsos (`test/aws-falso.js`). Antes de desplegarlo fuera de `127.0.0.1`, autenticación
+delante.
 
 ## Estructura
 
@@ -116,7 +126,8 @@ backoffice/
 ├── servidor.js          ← node:http: la página, /api/tandas, /api/tandas/<host>/visitor/<objetivo>/<corrida> y /archivos/…
 ├── lib/                 ← lado del servidor, lógica pura salvo la fuente
 │   ├── tandas.js        ← lista y lee tandas a través de la fuente; valida todo lo que llega de afuera
-│   ├── fuente.js        ← la interfaz Fuente y crearFuente(); fuentes/archivos.js la implementa con node:fs
+│   ├── fuente.js        ← la interfaz Fuente y crearFuente(); fuentes/archivos.js (node:fs) y fuentes/s3.js
+│   ├── revisiones.js    ← lee la tabla de revisiones y deriva el avance por etapa y goal; aws.js carga el SDK
 │   ├── derivar.js       ← de route_tree.json + run.json + criteria.json a la tanda que dibujan las pantallas
 │   ├── paginas.js       ← une nodos en páginas y les da un título corto
 │   ├── hallazgos.js     ← hallazgos y titulares (clave + vars)
