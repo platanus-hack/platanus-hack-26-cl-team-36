@@ -1,0 +1,244 @@
+{
+ "host": "metro.cl",
+ "start_url": "https://www.metro.cl/",
+ "viewport": "1024x768",
+ "issues": [],
+ "goals": [
+  {
+   "id": "planificar-viaje",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Planifica tu viaje indicando origen, destino, hora y día de salida.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "find_info",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://www.metro.cl/el-viaje/planificador",
+   "submits_form": true,
+   "prominence": "secondary",
+   "gates": [],
+   "instruction": "Planifica tu viaje indicando origen, destino, hora y día de salida.",
+   "exclusion": null
+  },
+  {
+   "id": "consultar-estado-red",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Consulta si hay problemas de servicio o retrasos en las líneas del Metro en este momento.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "find_info",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://www.metro.cl/el-viaje/estado-red",
+   "submits_form": false,
+   "prominence": "secondary",
+   "gates": [],
+   "instruction": "Consulta si hay problemas de servicio o retrasos en las líneas del Metro en este momento.",
+   "exclusion": null
+  },
+  {
+   "id": "buscar-estacion",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Encuentra información sobre una estación específica del Metro.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "find_info",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://www.metro.cl/el-viaje/estaciones",
+   "submits_form": false,
+   "prominence": "secondary",
+   "gates": [],
+   "instruction": "Encuentra información sobre una estación específica del Metro.",
+   "exclusion": null
+  },
+  {
+   "id": "consultar-horarios-tarifas",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Consulta los horarios de funcionamiento y tarifas del Metro.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "find_info",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://www.metro.cl/el-viaje/horarios-y-tarifas",
+   "submits_form": false,
+   "prominence": "secondary",
+   "gates": [],
+   "instruction": "Consulta los horarios de funcionamiento y tarifas del Metro.",
+   "exclusion": null
+  },
+  {
+   "id": "cargar-bip",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Recarga saldo en tu tarjeta bip! para viajar en Metro.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "transact",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://www.metro.cl/el-viaje/carga-bip",
+   "submits_form": true,
+   "prominence": "secondary",
+   "gates": [
+    "side_effect"
+   ],
+   "instruction": "Recarga saldo en tu tarjeta bip! para viajar en Metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+   "exclusion": null
+  },
+  {
+   "id": "usar-metromuv",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Accede al servicio MetroMuv para comprar pasajes digitales.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "transact",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://www.metromuv.cl/",
+   "submits_form": false,
+   "prominence": "secondary",
+   "gates": [
+    "side_effect"
+   ],
+   "instruction": "Accede al servicio MetroMuv para comprar pasajes digitales. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+   "exclusion": null
+  },
+  {
+   "id": "conocer-canales-contacto",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Obtén los canales de contacto disponibles para comunicarte con Metro.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "find_info",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://www.metro.cl/atencion-cliente/canales-de-contacto",
+   "submits_form": false,
+   "prominence": "secondary",
+   "gates": [],
+   "instruction": "Obtén los canales de contacto disponibles para comunicarte con Metro.",
+   "exclusion": null
+  },
+  {
+   "id": "reservar-metro-tour",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Reserva un tour guiado por las instalaciones del Metro.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "transact",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://outlook.office.com/book/metrotour3@metro.cl/?ismsaljsauthenabled=true",
+   "submits_form": false,
+   "prominence": "secondary",
+   "gates": [
+    "side_effect"
+   ],
+   "instruction": "Reserva un tour guiado por las instalaciones del Metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+   "exclusion": null
+  },
+  {
+   "id": "consultar-noticias",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Consulta las últimas noticias del Metro.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "find_info",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://www.metro.cl/noticias/",
+   "submits_form": false,
+   "prominence": "secondary",
+   "gates": [],
+   "instruction": "Consulta las últimas noticias del Metro.",
+   "exclusion": null
+  },
+  {
+   "id": "presentar-denuncia",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Presenta una denuncia sobre actividades ilegales o violaciones normativas en Metro.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "transact",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://denunciasmetro.ines.cl/denunciasmetro/formulario/#",
+   "submits_form": true,
+   "prominence": "primary",
+   "gates": [
+    "side_effect"
+   ],
+   "instruction": "Presenta una denuncia sobre actividades ilegales o violaciones normativas en Metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+   "exclusion": null
+  },
+  {
+   "id": "acceder-correo-preferencial",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Accede a tu correo preferencial de Metro.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "reach_page",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://mail.metro.cl/",
+   "submits_form": false,
+   "prominence": "buried",
+   "gates": [],
+   "instruction": "Accede a tu correo preferencial de Metro. Termina en esa página y cita su título o encabezado principal.",
+   "exclusion": null
+  },
+  {
+   "id": "acceder-transparencia-activa",
+   "host": "metro.cl",
+   "start_url": "https://www.metro.cl/",
+   "description": "Accede a la información de transparencia activa del Metro.",
+   "expected_answer": null,
+   "level": "user_goal",
+   "parent": null,
+   "intent": "find_info",
+   "evidence": [
+    "https://www.metro.cl/"
+   ],
+   "entry": "https://www.metro.cl/transparencia-activa/",
+   "submits_form": false,
+   "prominence": "primary",
+   "gates": [],
+   "instruction": "Accede a la información de transparencia activa del Metro.",
+   "exclusion": null
+  }
+ ]
+}
