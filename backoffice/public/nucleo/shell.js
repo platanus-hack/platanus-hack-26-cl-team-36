@@ -1,6 +1,7 @@
 // Armazón (diseño §5.11, §10.1, contrato §6): una barra superior fija de 56 px, sin navegación, sin selector de idioma,
-// sin buscador y sin barra lateral. En orden: la marca (logo horizontal a 180 px, o el símbolo solo donde no cabe),
-// el título de la vista ("/ Overview": lo pone el enrutador con ponerTituloDeVista) y las revisiones en curso (lleva a la pestaña Live del Overview). Se busca en cada vista: el Overview busca sus
+// sin buscador y sin barra lateral. En orden: la marca (logo horizontal a 180 px, o el símbolo solo donde no cabe;
+// lleva a la portada), el título de la vista ("/ Overview": lo pone el enrutador con ponerTituloDeVista) y las
+// revisiones en curso (lleva a la pestaña Live del Overview). Se busca en cada vista: el Overview busca sus
 // revisiones por link y Corridas, sus tandas. A Reviews y Batches se llega por los atajos g o / g c y los enlaces de
 // las pantallas; al español, con `?idioma=es`. Se redibuja al cambiar de idioma.
 
@@ -17,6 +18,8 @@ export const MARCA = Object.freeze({
   simbolo: { src: "marca/simbolo.svg", ancho: 128, alto: 128 },
   soloSimbolo: "(max-width: 369px)",
 });
+/** La marca lleva a la portada pública (la raíz del sitio, servidor.js); al Overview se llega con g o. */
+export const ENLACE_MARCA = "/";
 /** La píldora de revisiones en curso lleva a la pestaña Live del Overview. */
 export const ENLACE_EN_CURSO = hashDe({ tipo: "overview", parametros: { pestana: "live" } });
 // Las revisiones en curso se vuelven a contar cada 10 s, solo con la pestaña visible.
@@ -38,7 +41,7 @@ let tituloDeVista = "";
 function marca() {
   return el(
     "a",
-    { class: "marca", href: hashDe({ tipo: "overview" }), "data-foco": "shell:marca" },
+    { class: "marca", href: ENLACE_MARCA, "aria-label": t("comun.marca.inicio"), "data-foco": "shell:marca" },
     el(
       "picture",
       {},

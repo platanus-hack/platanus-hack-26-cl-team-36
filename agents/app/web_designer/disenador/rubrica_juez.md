@@ -20,5 +20,10 @@ Luego:
 - `veredicto`: `mejor`, `igual` o `peor` que la original, para este usuario.
 - `principal_problema`: el problema más importante del tema en una frase (o "ninguno").
 
+Al puntuar estética y jerarquía, cuenta también:
+- Conserva la identidad visual del sitio: su marca, colores y carácter se reconocen; un tema que la borra no pasa de 3.
+- Usa la voz del sitio: los títulos y botones nuevos dicen lo que el sitio ya dice, sin frases genéricas («¿A dónde
+  vas?», «Lo más buscado»); si las hay, no pasa de 3.
+
 Sé exigente y calibrado: un tema que apenas cambia colores no merece 5 en estética; uno que se ve bien pero ignora
 un gusto pedido no merece más de 3 en ajuste. No premies el cambio por sí mismo.

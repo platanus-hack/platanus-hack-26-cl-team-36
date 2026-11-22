@@ -8,6 +8,7 @@ html.mi-tema .mt-atajo::before {
   animation: mt-trazo 0.9s var(--mt-curva) both;
   content: "";
 }
+{{#z.pie}}
 html.mi-tema {{z.pie}}::before {
   position: absolute;
   inset: 0 0 auto;
@@ -15,6 +16,7 @@ html.mi-tema {{z.pie}}::before {
   background: var(--mt-franja);
   content: "";
 }
+{{/z.pie}}
 @keyframes mt-trazo {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }

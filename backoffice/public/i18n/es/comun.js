@@ -5,6 +5,8 @@ export default {
   marca: {
     nombre: "chameleon mode",
     titulo: "Backoffice",
+    // La etiqueta del enlace de la marca, que lleva a la portada.
+    inicio: "Chameleon Mode, inicio",
   },
   // Barra superior (marca, revisiones en curso, buscador) y los nombres de las vistas.
   shell: {
