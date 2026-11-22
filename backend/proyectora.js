@@ -65,6 +65,7 @@ const GOAL = /^GOAL#(.+)#(guide|visitor)$/;
 // Con varios intentos, el GOAL del Visitante guarda los pasos de cada uno en `step#<carpeta>`; `step` es el del último
 // que avanzó.
 const PASOS_DEL_INTENTO = "step#";
+const INTENTOS_DEL_RESUMEN_POR_TRAZA = 3;
 
 export function pasosDelGoal(item) {
   const porIntento = Object.entries(item).filter(([nombre, valor]) => nombre.startsWith(PASOS_DEL_INTENTO) && Number.isFinite(valor));
@@ -202,7 +203,13 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
     await db.actualizar(claveRevision(revision, SK), avance, { hasta: { trace_at } });
     const status = items.find((item) => item.SK === SK)?.status;
     if (status === undefined || status === "pending") await avanzarEtapa(revision, SK, "running", { updated_at });
-    await guardarResumen(revision);
+    // Con 30 intentos por goal llegan decenas de trazas por segundo y todas reescriben el resumen de META: si choca
+    // unas veces, se deja a la próxima traza o manifiesto en vez de reintentar el evento entero.
+    try {
+      await guardarResumen(revision, INTENTOS_DEL_RESUMEN_POR_TRAZA);
+    } catch (error) {
+      console.warn(`⚠ ${clave}: resumen sin guardar, lo hará el próximo evento (${error.message})`);
+    }
   }
 
   return async function proyectar(clave) {

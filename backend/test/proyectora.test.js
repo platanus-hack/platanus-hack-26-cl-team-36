@@ -398,6 +398,17 @@ test("Visitante con varios intentos: un aviso viejo de un intento no le baja los
   assert.equal(resumen().pasos, 5);
 });
 
+test("una traza cuyo resumen choca siempre no lanza: lo guarda el próximo evento", async () => {
+  const { db, publicar, item } = conTrazas();
+  const actualizar = db.actualizar;
+  db.actualizar = async (clave, atributos, opciones) => (atributos.resumen ? false : actualizar(clave, atributos, opciones));
+  await publicar(VISITA_TRAZA, traza("visitor", [pasoVisita(1)]));
+  assert.equal(item("GOAL#buscar-precio#visitor").step, 1);
+  db.actualizar = actualizar;
+  await publicar(VISITA_TRAZA_2, traza("visitor", [pasoVisita(1)]));
+  assert.equal(item("META").resumen.pasos, 2);
+});
+
 test("pasosDelGoal: los de cada intento si los hay; si no, step", () => {
   assert.equal(pasosDelGoal({ step: 3 }), 3);
   assert.equal(pasosDelGoal({ step: 1, "step#desktop": 4, "step#mobile": 1, "trace_at#desktop": "x" }), 5);
