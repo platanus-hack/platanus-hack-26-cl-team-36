@@ -27,6 +27,7 @@ _STEP_LIMIT_OUTCOME = "rechazada: se alcanzó el máximo de acciones; solo puede
 @dataclass
 class Exploration:
     start_url: str = ""
+    site_urls: tuple[str, ...] = ()  # la URL pedida y la de llegada: un enlace del sitio de cualquiera es del sitio
     start_title: str = ""
     start_screenshot: bytes = field(default=b"", repr=False)
     steps: list[Step] = field(default_factory=list)
@@ -97,7 +98,7 @@ async def _apply(session: BrowserSession, decision: Decision, view: PageView, ex
         exploration.step_limit_warned = True
         return _STEP_LIMIT_OUTCOME
     element = view.element(decision.ref or "")
-    if decision.action == "click" and element and element.leaves_site(exploration.start_url):
+    if decision.action == "click" and element and element.leaves_site(exploration.site_urls):
         return "rechazada: ese enlace lleva a otro sitio; usa solo lo que ofrece este"
     try:
         step = await _act(session, decision, view)
@@ -123,7 +124,7 @@ async def _turn(session: BrowserSession, decider: Decider, instruction: str, exp
                 remaining_s: float, log: Log, progress: Progress) -> None:
     view = await _read_view(session)
     exploration.turns += 1
-    prompt = render_turn(instruction, exploration.history, view)
+    prompt = render_turn(instruction, exploration.history, view, exploration.site_urls)
     try:
         decision = await asyncio.wait_for(decider.decide(prompt, await session.screenshot()), timeout=remaining_s)
     except TimeoutError:
@@ -146,6 +147,7 @@ async def explore(session: BrowserSession, url: str, decider: Decider, instructi
     try:
         await session.open(url)
         exploration.start_url, exploration.start_title = await session.url_and_title()
+        exploration.site_urls = (url, exploration.start_url)
         exploration.start_screenshot = await session.screenshot()
         await progress(exploration)
         while not exploration.end_reason:
