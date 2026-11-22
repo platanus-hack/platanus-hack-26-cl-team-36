@@ -24,8 +24,8 @@ agents/
     summary/                  ← RESUME: compara, por objetivo, la ruta de la Guía con los intentos del Visitante
       main.py  summary/  tests/
   shared/                     ← lo que usan dos o más: almacén, navegador, Claude Code, nodos, DOM y catálogo
-  tasks/                      ← tareas escritas a mano
-  .runs/                      ← salidas de los agentes (fuera de git)
+  tasks/<host>/<goal>.json    ← tareas escritas a mano: cada una es un objetivo de su host
+  .runs/                      ← el almacén en disco (fuera de git); ver Almacén
 ```
 
 Cada carpeta de `app/` es un proyecto de uv que se corre con `uv run main.py` y depende de `agents/shared/` como
@@ -55,18 +55,20 @@ que tiene herramientas web, debe lograrlo al menos igual de bien.
 ## Flujo por sitio
 
 **Cada objetivo evaluable de un sitio pasa por la Guía y por el Visitante, y un resumen los compara.** Se comunican
-por archivos en `agents/.runs/`. El Catalogador decide en el catálogo qué objetivos se evalúan (`exclusion`) y con qué
-tarea (`instruction`); la Guía y el Visitante solo lo leen. `just local site <url> <N>` corre todo.
+solo por corridas del [almacén](#almacén): cada uno lee la corrida más nueva que terminó bien y es de la instrucción
+que necesita. El
+Catalogador decide en el catálogo qué objetivos se evalúan (`exclusion`) y con qué tarea (`instruction`); la Guía y
+el Visitante solo lo leen. `just local site <url> <N>` corre todo y, al repetirlo, salta lo que ya tiene corrida.
 
 ```mermaid
 flowchart LR
-  C["cataloger<br/>catálogo"] -->|"goals.json"| G["guide route --goals<br/>ruta por objetivo"]
-  C -->|"goals.json"| V["visitor --goals<br/>una tanda por objetivo"]
-  G -->|"reference/desktop/route.json"| V
-  V -->|"report.md, reference_comparison.json"| S["summary<br/>Guía contra Visitante"]
+  C["cataloger --url<br/>catálogo"] -->|"cataloger/run/goals.json"| G["guide route --site<br/>ruta por objetivo"]
+  C -->|"cataloger/run/goals.json"| V["visitor --site<br/>una tanda por objetivo"]
+  G -->|"guide/goal/desktop/run/route.json"| V
+  V -->|"visitor/goal/run/report.md, comparison.json"| S["summary --site<br/>Guía contra Visitante"]
   G --> S
-  V -.->|"proposed.json, si usó menos pasos"| A["guide adopt<br/>verifica y adopta"]
-  A -.-> G
+  V -.->|"proposals.json, si usó menos pasos"| A["guide adopt<br/>verifica y adopta"]
+  A -.->|"corrida nueva de guide"| G
 ```
 
 La ruta de referencia es la más corta verificada entre las exploradas. Por eso la Guía busca una más corta después
@@ -124,16 +126,20 @@ llama Optimizador a esta pieza. Se propone `web_optimizer` para no tener dos nom
 
 **Las salidas de los agentes tienen un solo árbol por sitio, igual en `agents/.runs/` y en S3.** Lo define el paquete
 [`agents/shared/`](../../agents/shared/README.md) (`shared.store`): las claves, los ids de corrida, el manifiesto y
-los backends local y S3.
+los backends local y S3. Ningún agente arma una ruta a mano; `AGENTS_STORE` elige el backend (`agents/.runs/` si no
+está definido, `file:///ruta` o `s3://bucket/prefijo`).
 
 ```
 <host>/
-  cataloger/<run>/                       manifest.json outline.json goals.json goals.md
-  guide/<goal>/<viewport>/<run>/         manifest.json route.json route.md step_00.png …
-  visitor/<goal>/<run>/                  manifest.json criteria.json route_tree.json comparison.json report.md
-      <profile>/                         run.json step_00.png … video.webm
+  cataloger/<run>/                       manifest.json outline.json goals.json goals.md claude_code.log
+  guide/<goal>/<viewport>/<run>/         manifest.json route.json route.md step_00.png … claude_code.log
+  visitor/<goal>/<run>/                  manifest.json criteria.json route_tree.json comparison.json proposals.json report.md
+      <profile>/                         run.json step_00.png … video.webm claude_code.log
   summary/<run>/                         manifest.json summary.json summary.md
 ```
 
-`<run>` es el instante UTC de inicio y la última corrida es la última clave. Cada `manifest.json` dice qué es la
-carpeta y de qué corridas viene.
+`<run>` es el instante UTC de inicio y la última corrida es la última clave. Una corrida empieza con `start_run`,
+trabaja en su carpeta y termina con `finish_run` como `succeeded` o `failed`; nunca se sobrescribe. Cada
+`manifest.json` dice qué es la carpeta y, en `inputs`, de qué corridas viene: una ruta nombra el catálogo de donde
+vino su objetivo; una tanda, las rutas con que se comparó; un resumen, todo lo que leyó. `<goal>` no lleva el host: un
+objetivo del catálogo usa su id y una tarea de `agents/tasks/<host>/<goal>.json`, el suyo.

@@ -23,20 +23,20 @@ uv run main.py --url https://www.sii.cl/ --pages 10 --rerun
 
 | Opción | Qué hace |
 |---|---|
-| `--url` | Página inicial del sitio. El catálogo queda en `agents/.runs/<host>/goals/`. |
+| `--url` | Página inicial del sitio. El catálogo es una corrida de `<host>/cataloger/`. |
 | `--pages`, `--depth` | Topes del esquema (por defecto 30 páginas y profundidad 2). |
-| `--rerun` | Rehace el catálogo. Sin esta opción, un `goals.json` existente se deja como está. |
-| `--output` | Otra carpeta en vez de `agents/.runs/<host>/goals/`. |
+| `--rerun` | Hace un catálogo nuevo. Sin esta opción, si el sitio ya tiene uno que terminó bien, no corre. |
 | `--model`, `--effort` | Por defecto `claude-opus-5-5`, `high`. |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 
-Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume los límites de tu plan.
+Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume los límites de tu plan. Escribe en el
+almacén de [`shared.store`](../../shared/README.md): `AGENTS_STORE` o, sin él, `agents/.runs/`.
 
 ## Cómo funciona
 
 | Módulo | Qué hace |
 |---|---|
-| `main.py`, `cataloger/command.py` | Punto de entrada y la corrida: esquema, catálogo y escritura. |
+| `main.py`, `cataloger/command.py` | Punto de entrada y la corrida en el almacén: esquema, catálogo y escritura. |
 | `cataloger/crawl.py`, `cataloger/outline.py` | Recorrido del sitio y esquema de cada página. |
 | `cataloger/propose.py` | Objetivos propuestos por el modelo a partir del esquema. |
 | `cataloger/rules.py` | Barreras de cada página, validación de lo que propuso el modelo y campos sin modelo. |
@@ -61,12 +61,16 @@ El objetivo, el esquema, la prominencia y la lectura de los archivos están en
 ## Salida
 
 ```
-agents/.runs/<host>/goals/
+<host>/cataloger/<run>/
+├── manifest.json
 ├── outline.json      el esquema del sitio
-├── goals.json        los objetivos: cada uno tiene la forma de una tarea de agents/tasks/ y se promueve copiándolo
+├── goals.json        los objetivos: cada uno tiene la forma de una tarea y se promueve copiándolo a agents/tasks/<host>/<id>.json
 ├── goals.md          tabla agrupada por summary
 └── claude_code.log
 ```
+
+Los ids no llevan el host (`baja-fibra`); uno que ya es una tarea del mismo host recibe un sufijo numérico. Si la
+página inicial no carga, la corrida termina como `failed` con `outline.json`.
 
 ## Pruebas
 

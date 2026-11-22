@@ -85,12 +85,13 @@ def test_desde_el_repo_las_skills_son_las_de_la_raiz():
 
 
 def test_config_se_importa_fuera_del_repo_como_en_agentcore(monkeypatch):
-    """En la imagen de AgentCore el código queda en /agents/app/visitor, sin .claude/skills por encima."""
+    """En la imagen de AgentCore el código queda en /agents/app/visitor, sin .claude/skills por encima; con menos
+    carpetas por encima tampoco hay skills. No se usa /var porque en macOS es un enlace a /private/var."""
     fuente = Path(config.__file__).read_text(encoding="utf-8")
-    ruta = "/agents/app/visitor/visitor/config.py"
-    espacio = {"__file__": ruta, "__name__": "config_en_agentcore"}
-    exec(compile(fuente, ruta, "exec"), espacio)
-    assert espacio["DIR_SKILLS"] is None
+    for ruta in ("/agents/app/visitor/visitor/config.py", "/task/config.py"):
+        espacio = {"__file__": ruta, "__name__": "config_en_agentcore"}
+        exec(compile(fuente, ruta, "exec"), espacio)
+        assert espacio["DIR_SKILLS"] is None
 
     monkeypatch.setattr(config, "DIR_SKILLS", None)
     profiles.cuerpo_de_skill.cache_clear()

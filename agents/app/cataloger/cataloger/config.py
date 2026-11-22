@@ -1,11 +1,5 @@
 """Configuración del Catalogador: modelo y topes del recorrido del sitio."""
 
-from pathlib import Path
-
-AGENTS_DIR = Path(__file__).resolve().parents[3]
-RUNS_DIR = AGENTS_DIR / ".runs"
-TASKS_DIR = AGENTS_DIR / "tasks"
-
 MODEL = "claude-opus-5-5"
 EFFORT = "high"
 

@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 import { crearServidor, hostPermitido, leerRango } from "../servidor.js";
 
 const RAIZ = fileURLToPath(new URL("./fixtures/corridas", import.meta.url));
-const TANDA = "tarea-demo/2026-11-21_10-00-00";
-const NUEVA = "tarea-demo/2026-11-21_11-00-00";
+const TANDA = "demo.cl/visitor/tarea-demo/2026-11-21T10-00-00Z";
+const NUEVA = "demo.cl/visitor/tarea-demo/2026-11-21T11-00-00Z";
 let servidor;
 let base;
 
@@ -34,7 +34,7 @@ test("GET /api/tandas/<id> devuelve la tanda derivada", async () => {
   assert.equal(tanda.intentos.length, 3);
   assert.ok(tanda.telarana.ruta);
   assert.deepEqual(tanda.vecinas.siguiente, NUEVA);
-  const noExiste = await pedir("/api/tandas/tarea-demo/2099-01-01_00-00-00");
+  const noExiste = await pedir("/api/tandas/demo.cl/visitor/tarea-demo/2099-01-01T00-00-00Z");
   assert.equal(noExiste.status, 404);
   assert.deepEqual(await noExiste.json(), { error: "No existe esa tanda" });
 });

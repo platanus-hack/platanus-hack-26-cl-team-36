@@ -4,22 +4,26 @@ Recibe una tarea y responde en stream (SSE): un aviso cada 20 s mientras corre l
 resultado de cada perfil y el reporte. Así `agentcore invoke` muestra el avance y la conexión no queda
 callada durante los minutos que dura una tanda.
 
-    {"url": "https://...", "instruction": "...", "task_id": "wom-baja-fibra",
+    {"url": "https://...", "instruction": "...", "task_id": "baja-fibra",
      "profiles": ["first_time", "mobile"], "effort": "medium"}
 
-Solo `url` e `instruction` son obligatorios. En AWS usa Claude en Bedrock, solo Sonnet 4.6 (usuarios y juez, ver
-config.BEDROCK_*_MODEL), y AgentCore Browser;
-VISITOR_ENGINE y VISITOR_BROWSER los cambian (por ejemplo, para `agentcore dev` sin AWS).
+Solo `url` e `instruction` son obligatorios; `task_id` es el objetivo y, sin él, es el objetivo libre de la
+instrucción. En AWS usa Claude en Bedrock, solo Sonnet 4.6 (usuarios y juez, ver config.BEDROCK_*_MODEL), y AgentCore
+Browser; VISITOR_ENGINE y VISITOR_BROWSER los cambian (por ejemplo, para `agentcore dev` sin AWS). La corrida queda
+en AGENTS_STORE o, sin él, en una carpeta temporal que se borra al responder.
 """
 
 import asyncio
-import json
 import os
+import shutil
 import tempfile
 import time
 from pathlib import Path
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
+
+from shared import store
+from shared.catalog.goal import instruction_goal_id
 
 from visitor import config
 from visitor.batch import run_batch
@@ -60,22 +64,59 @@ def parse_request(payload) -> dict:
     if effort not in EFFORTS:
         raise InvalidRequest(f"`effort` debe ser uno de: {', '.join(EFFORTS)}")
     task_id = payload.get("task_id")
+    goal = task_id if isinstance(task_id, str) and task_id else instruction_goal_id(instruction)
+    try:
+        store.visitor(url, goal)
+    except store.InvalidKey as error:
+        raise InvalidRequest(f"`url` o `task_id` inválidos: {error}")
     return {
         "url": url,
         "instruction": instruction.strip(),
-        "task_id": task_id if isinstance(task_id, str) else None,
+        "goal": goal,
         "profiles": profiles,
         "effort": effort,
     }
 
 
-def outcomes(batch_dir: Path) -> dict:
+def outcomes(backend: store.Backend, run: store.RunKey) -> dict:
     """El resultado de cada perfil, leído de sus run.json."""
     result = {}
-    for run_file in sorted(batch_dir.glob("*/run.json")):
-        run = json.loads(run_file.read_text(encoding="utf-8"))
-        result[run.get("profile", run_file.parent.name)] = (run.get("verdict") or {}).get("outcome", run.get("end_reason"))
+    for profile in backend.list_profiles(run):
+        data = backend.read_json(run.file("run.json", profile))
+        result[data.get("profile", profile)] = (data.get("verdict") or {}).get("outcome", data.get("end_reason"))
     return result
+
+
+async def _stream(backend: store.Backend, request: dict):
+    """Los avisos de la tanda y, al final, su resultado o el error."""
+    started = time.monotonic()
+    batch = asyncio.create_task(run_batch(
+        backend,
+        store.visitor(request["url"], request["goal"]),
+        request["url"],
+        request["instruction"],
+        request["profiles"],
+        references={},
+        engine=ENGINE,
+        effort=request["effort"],
+        browser=BROWSER,
+    ))
+    yield {"status": "running", "engine": ENGINE, "browser": BROWSER, "profiles": request["profiles"]}
+    while not batch.done():
+        await asyncio.wait({batch}, timeout=PROGRESS_SECONDS)
+        if not batch.done():
+            yield {"status": "running", "seconds": int(time.monotonic() - started)}
+    try:
+        run = batch.result()
+    except Exception as error:
+        yield {"status": "error", "error": f"{type(error).__name__}: {error}"[:2000]}
+        return
+    yield {
+        "status": "done",
+        "seconds": int(time.monotonic() - started),
+        "outcomes": outcomes(backend, run),
+        "report": backend.read_text(run.file("report.md")),
+    }
 
 
 @app.entrypoint
@@ -85,33 +126,14 @@ async def invoke(payload, context):
     except InvalidRequest as error:
         yield {"error": str(error)}
         return
-    started = time.monotonic()
-    batch = asyncio.create_task(run_batch(
-        url=request["url"],
-        instruction=request["instruction"],
-        profile_keys=request["profiles"],
-        output_dir=Path(tempfile.mkdtemp(prefix="visitor-")),
-        engine=ENGINE,
-        effort=request["effort"],
-        task_id=request["task_id"],
-        browser=BROWSER,
-    ))
-    yield {"status": "running", "engine": ENGINE, "browser": BROWSER, "profiles": request["profiles"]}
-    while not batch.done():
-        await asyncio.wait({batch}, timeout=PROGRESS_SECONDS)
-        if not batch.done():
-            yield {"status": "running", "seconds": int(time.monotonic() - started)}
+    configured = os.environ.get(store.ENV_VAR)
+    temporary = None if configured else Path(tempfile.mkdtemp(prefix="visitor-"))
     try:
-        batch_dir = batch.result()
-    except Exception as error:
-        yield {"status": "error", "error": f"{type(error).__name__}: {error}"[:2000]}
-        return
-    yield {
-        "status": "done",
-        "seconds": int(time.monotonic() - started),
-        "outcomes": outcomes(batch_dir),
-        "report": (batch_dir / "report.md").read_text(encoding="utf-8"),
-    }
+        async for event in _stream(store.open_backend(configured or temporary.as_uri()), request):
+            yield event
+    finally:
+        if temporary:
+            shutil.rmtree(temporary, ignore_errors=True)
 
 
 if __name__ == "__main__":

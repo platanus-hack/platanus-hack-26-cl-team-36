@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from pathlib import Path
 
 from playwright.async_api import async_playwright
 
@@ -23,17 +22,19 @@ QUOTE = "Para dar de baja llama al 103."
 def _map(site, tmp_path, script, on_done=None, start_url=None, extra_routes=0):
     decider = ScriptedDecider(script, on_done)
     mapping = Mapping("prueba", start_url or (site / "index.html").as_uri(), "Encuentra cómo dar de baja", DESKTOP,
-                      "guion", "low", tmp_path / "out", extra_routes)
+                      "guion", "low", extra_routes=extra_routes)
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
 
     async def main():
         async with async_playwright() as playwright:
             browser = await connect_browser(playwright)
             try:
-                return await map_reference(browser, mapping, decider)
+                return await map_reference(browser, mapping, decider, out_dir)
             finally:
                 await browser.close()
 
-    return asyncio.run(main()), decider, mapping.out_dir
+    return asyncio.run(main()), decider, out_dir
 
 
 def test_detour_and_useless_step_are_removed_and_route_verifies(site, tmp_path):
@@ -127,7 +128,7 @@ def test_verify_falls_back_to_the_cut_where_the_page_was_left(monkeypatch):
         return Verification(verified, candidate, Replay(), 1, 0, None if verified else "terminó en otra página")
 
     monkeypatch.setattr(reference, "verify_and_minimise", fake_verify)
-    mapping = Mapping("prueba", "https://s.cl/a", "x", DESKTOP, "m", "low", Path("."))
+    mapping = Mapping("prueba", "https://s.cl/a", "x", DESKTOP, "m", "low")
     exploration = Exploration(steps=steps, final_node=steps[-1].node_after, quote="q")
     verification = asyncio.run(reference._verify(None, mapping, exploration, lambda text: None))
     assert tried == [["ayuda"], ["menú", "ayuda"]] and verification.verified

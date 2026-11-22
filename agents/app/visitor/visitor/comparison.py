@@ -3,40 +3,32 @@
 Las métricas y sus fuentes están en docs/agents/niveles-de-tarea.md, sección 5.
 """
 
-import json
 import math
 import statistics
-from pathlib import Path
 
+from shared import store
+from shared.catalog.routes import verified_route
 from shared.nodes.urls import node_key
 
 from visitor.profiles import PROFILES
 
 
-def find_reference(output_dir: Path, url: str, instruction: str, profile: str) -> tuple[Path, dict] | None:
-    """El route.json verificado de esta tarea para el viewport del perfil, si la Guía lo dejó en `output_dir`.
+References = dict[str, tuple[store.RunKey, dict]]
+"""Por viewport, la corrida de guide y su route.json."""
+
+
+def find_references(backend: store.Backend, url: str, goal: str, instruction: str, profile_keys: list[str]) -> References:
+    """Las rutas verificadas de la Guía para los viewports de los perfiles.
 
     Los exploradores recorren el sitio a propósito y no siguen la ruta: no tienen referencia.
     """
-    if PROFILES[profile].explora:
-        return None
-    for path in sorted(output_dir.glob("reference/*/route.json")):
-        try:
-            route = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        if (
-            route.get("status") == "verified"
-            and route.get("viewport") == PROFILES[profile].screen.viewport
-            and (route.get("start_url"), route.get("instruction")) == (url, instruction)
-        ):
-            return path, route
-    return None
+    viewports = dict.fromkeys(PROFILES[key].screen.viewport for key in profile_keys if not PROFILES[key].explora)
+    found = {viewport: verified_route(backend, url, goal, viewport, instruction) for viewport in viewports}
+    return {viewport: route for viewport, route in found.items() if route}
 
 
-def load_reference(output_dir: Path, url: str, instruction: str, profile: str) -> dict | None:
-    found = find_reference(output_dir, url, instruction, profile)
-    return found[1] if found else None
+def reference_for(references: References, profile: str) -> tuple[store.RunKey, dict] | None:
+    return None if PROFILES[profile].explora else references.get(PROFILES[profile].screen.viewport)
 
 
 def visited_nodes(run: dict) -> list[str]:
@@ -84,13 +76,13 @@ def compare(run: dict, route: dict) -> dict:
     }
 
 
-def compare_batch(output_dir: Path, url: str, instruction: str, runs: list[dict]) -> dict | None:
-    """Compara cada intento con la ruta de su viewport. None si ninguno tiene ruta de referencia."""
+def compare_batch(references: References, runs: list[dict]) -> dict | None:
+    """Compara cada intento con la ruta de su viewport, sin los interrumpidos. None si ninguno se compara."""
     rows = []
     for run in runs:
-        route = load_reference(output_dir, url, instruction, run["profile"])
-        if route:
-            rows.append(compare(run, route))
+        found = reference_for(references, run["profile"])
+        if found and run["verdict"].get("outcome") != "interrupted":
+            rows.append(compare(run, found[1]))
     if not rows:
         return None
     return {"spl": round(statistics.mean(row["efficiency"] for row in rows), 2), "runs": rows}
@@ -114,6 +106,6 @@ def report_section(comparison: dict, profile_names: dict[str, str]) -> list[str]
             f"{row['efficiency']:.2f} | {row['lostness']:.2f} | {'sí' if row['reached_final_node'] else 'no'} | "
             f"{row['similarity']:.2f} |"
         )
-    for path in comparison.get("proposals", []):
-        lines += ["", f"Un intento logró la tarea con menos pasos que la referencia: queda propuesto en `{path}`."]
+    for route in comparison.get("proposals", []):
+        lines += ["", f"Un intento logró la tarea con menos pasos que la ruta `{route}`: queda propuesto en proposals.json."]
     return lines

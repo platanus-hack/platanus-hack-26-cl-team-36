@@ -1,6 +1,6 @@
 {
-  "id": "wom-baja-fibra",
-  "host": "www.wom.cl",
+  "id": "baja-fibra",
+  "host": "wom.cl",
   "start_url": "https://www.wom.cl/",
   "description": "Encuentra cómo dar de baja tu servicio de Internet Fibra.",
   "expected_answer": "Llamar al 103 desde una línea WOM, o al 22 337 7600."

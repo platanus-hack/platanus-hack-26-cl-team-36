@@ -1,6 +1,6 @@
 # Backoffice
 
-Visor de solo lectura de las corridas del evaluador (`agents/.runs/`). Parte de
+Visor de solo lectura de las corridas del Visitante en el almacén (`agents/.runs/`). Parte de
 [la especificación del backoffice](../.specs/backoffice-v0.md): muestra cada tanda (los intentos de los perfiles
 sobre una misma tarea) y responde qué pasó, por dónde fueron y dónde se separaron de la ruta. No gatilla nada ni
 llama a Claude. Sin build ni dependencias: Node 22 o superior, `node:http` y módulos ES en el navegador.
@@ -28,7 +28,7 @@ Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 **Corridas** (`#/`) lista las tandas, más nuevas primero y agrupadas por día. Cada fila abre la tanda y ya dice su
 hallazgo. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
 
-Una tanda (`#/t/<tarea>/<fecha-hora>/<pestaña>`) tiene un marco común (migas, tanda anterior/siguiente, instrucción,
+Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene un marco común (migas, tanda anterior/siguiente, instrucción,
 veredicto) y cuatro pestañas:
 
 | Pestaña | Qué pregunta responde | De dónde sale |
@@ -113,7 +113,7 @@ Una fuente S3 (no construida) necesitaría:
 
 ```
 backoffice/
-├── servidor.js          ← node:http: la página, /api/tandas, /api/tandas/<tarea>/<fecha-hora> y /archivos/…
+├── servidor.js          ← node:http: la página, /api/tandas, /api/tandas/<host>/visitor/<objetivo>/<corrida> y /archivos/…
 ├── lib/                 ← lado del servidor, lógica pura salvo la fuente
 │   ├── tandas.js        ← lista y lee tandas a través de la fuente; valida todo lo que llega de afuera
 │   ├── fuente.js        ← la interfaz Fuente y crearFuente(); fuentes/archivos.js la implementa con node:fs
@@ -158,6 +158,8 @@ Las corridas muestran páginas de terceros y a veces datos de quien corrió la p
 fusionadas, los hallazgos, la fuente (incluida una fuente falsa en memoria), el servidor, los módulos puros de las
 pantallas y los diccionarios.
 
-Las tandas de `test/fixtures/corridas/tarea-demo/` son sintéticas, con la forma de `agents/.runs/`. Sus
+Las tandas de `test/fixtures/corridas/demo.cl/visitor/tarea-demo/` son sintéticas, con la forma de `agents/.runs/`; la
+fuente solo lista las corridas cuyo `manifest.json` dice `succeeded`, y el fixture trae una fallida y una en curso. El
+layout que lee el backoffice está en `public/nucleo/almacen.js`. Sus
 `route_tree.json` los generó `build_route_tree` del Visitante (`agents/app/visitor/visitor/route_tree.py`) a partir de
 los `run.json`; si cambia el formato del evaluador, hay que regenerarlos igual.

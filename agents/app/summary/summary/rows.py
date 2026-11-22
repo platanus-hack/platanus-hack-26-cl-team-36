@@ -1,47 +1,45 @@
 """Filas del resumen: cada objetivo del catálogo con su ruta de la Guía y su última tanda del Visitante."""
 
-import json
-import os
 import statistics
-from pathlib import Path
 
+from shared import store
 from shared.browser.viewports import SCREENS
 from shared.catalog.goal import Goal
 from shared.catalog.outline import SiteOutline
 from shared.catalog.prominence import complexity, route_prominence
-from shared.catalog.visits import tandas_con_tema
+from shared.catalog.routes import current_route, current_visit
+from shared.store import parse_key
 
 
-def _read(path: Path) -> dict | None:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
+Found = tuple[store.RunKey, dict]
 
 
-def _route(goal_dir: Path, goal: Goal) -> dict | None:
-    """La ruta de esta instrucción: una verificada si hay, si no la primera."""
-    routes = [route for path in sorted(goal_dir.glob("reference/*/route.json")) if (route := _read(path))
-              and (route.get("start_url"), route.get("instruction")) == (goal.start_url, goal.instruction)]
-    return next((route for route in routes if route.get("status") == "verified"), routes[0] if routes else None)
+def _routes(backend: store.Backend, goal: Goal) -> list[Found]:
+    """Las rutas vigentes de esta instrucción, una por viewport que tenga."""
+    return [route for viewport in SCREENS
+            if (route := current_route(backend, goal.start_url, goal.id, viewport, goal.instruction))]
 
 
-def _latest_batch(goal_dir: Path, tema: str | None) -> Path | None:
-    batches = tandas_con_tema(goal_dir, tema)
-    return batches[-1] if batches else None
-
-
-def _runs(batch: Path) -> list[dict]:
-    comparison = _read(batch / "reference_comparison.json") or {"runs": []}
+def _runs(backend: store.Backend, batch: store.RunKey) -> list[dict]:
+    comparison_key = batch.file("comparison.json")
+    comparison = backend.read_json(comparison_key) if backend.exists(comparison_key) else {"runs": []}
     compared = {row["profile"]: row for row in comparison["runs"]}
     runs = []
-    for path in sorted(batch.glob("*/run.json")):
-        run = _read(path)
-        if run and run.get("verdict"):
+    for profile in backend.list_profiles(batch):
+        run = backend.read_json(batch.file("run.json", profile))
+        if run.get("verdict"):
             row = compared.get(run["profile"], {})
             runs.append({"profile": run["profile"], "outcome": run["verdict"].get("outcome"), "steps": len(run["steps"]),
                          "efficiency": row.get("efficiency"), "beat_reference": row.get("beat_reference", False)})
     return runs
+
+
+def _proposal(backend: store.Backend, route: Found | None, batch: store.RunKey | None) -> str | None:
+    """`promoted` si la ruta vigente se adoptó de un intento; `proposed` si la última tanda dejó una propuesta."""
+    if route and any(parse_key(key).run.prefix.agent == "visitor"
+                     for key in store.read_manifest(backend, route[0]).inputs):
+        return "promoted"
+    return "proposed" if batch and backend.exists(batch.file("proposals.json")) else None
 
 
 def _fewer(route: dict | None, runs: list[dict]) -> str | None:
@@ -71,13 +69,19 @@ def _classification(goal: Goal, route: dict | None, outline: SiteOutline) -> dic
     return {"prominence": from_route or goal.prominence, "complexity": complexity(route["totals"]["actions"])}
 
 
-def goal_row(goal: Goal, outline: SiteOutline, runs_dir: Path, summary_dir: Path, tema: str | None = None) -> dict:
-    goal_dir = runs_dir / goal.id
-    route = _route(goal_dir, goal)
-    batch = _latest_batch(goal_dir, tema)
-    runs = _runs(batch) if batch else []
-    proposals = [proposal["status"] for path in goal_dir.glob("reference/*/proposed.json") if (proposal := _read(path))]
-    return {
+def goal_row(backend: store.Backend, goal: Goal, outline: SiteOutline,
+             tema: str | None = None) -> tuple[dict, list[store.RunKey]]:
+    """La fila del objetivo, con `report` como clave del almacén, y las corridas que leyó.
+
+    La tanda es la vigente con ese tema (sha256 corto; None = el sitio tal cual).
+    """
+    routes = _routes(backend, goal)
+    found = next((item for item in routes if item[1].get("status") == "verified"), routes[0] if routes else None)
+    route = found[1] if found else None
+    visit = current_visit(backend, goal.start_url, goal.id, goal.instruction, tema)
+    batch = visit[0] if visit else None
+    runs = _runs(backend, batch) if batch else []
+    row = {
         "id": goal.id, "description": goal.description, "level": goal.level, "intent": goal.intent,
         **_classification(goal, route, outline),
         "route_status": route.get("status") if route else None,
@@ -85,22 +89,30 @@ def goal_row(goal: Goal, outline: SiteOutline, runs_dir: Path, summary_dir: Path
         "routes_tried": (route.get("search") or {}).get("tried", 1) if route else None,
         "runs": runs,
         "fewer": _fewer(route, runs),
-        "proposal": proposals[0] if proposals else None,
-        "report": os.path.relpath(batch / "report.md", summary_dir) if batch else None,
+        "proposal": _proposal(backend, found, batch),
+        "report": batch.file("report.md") if batch else None,
         "not_run": None if runs else _not_run(goal, route),
     }
+    return row, [key for key, _ in routes] + ([batch] if batch else [])
+
+
+def _attempts(runs: list[dict]) -> list[dict]:
+    """Los intentos reales: uno interrumpido por un error técnico no cuenta como éxito ni como fallo."""
+    return [run for run in runs if run["outcome"] != "interrupted"]
 
 
 def totals(rows: list[dict]) -> dict:
-    runs = [run for row in rows for run in row["runs"]]
+    every = [run for row in rows for run in row["runs"]]
+    runs = _attempts(every)
     compared = [run["efficiency"] for run in runs if run["efficiency"] is not None]
     successes = sum(run["outcome"] == "success" for run in runs)
     return {
         "goals": len(rows),
         "mapped": sum(row["route_status"] is not None for row in rows),
         "verified": sum(row["route_status"] == "verified" for row in rows),
-        "evaluated": sum(bool(row["runs"]) for row in rows),
+        "evaluated": sum(bool(_attempts(row["runs"])) for row in rows),
         "runs": len(runs),
+        "interrupted": len(every) - len(runs),
         "successes": successes,
         "success_rate": round(successes / len(runs), 2) if runs else None,
         "spl": round(statistics.mean(compared), 2) if compared else None,

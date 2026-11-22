@@ -814,10 +814,10 @@ function armarKpis(intentos, ruta) {
   };
 }
 
-/** "2026-11-21_07-28-42" → "2026-11-21T07:28:42" (hora local, sin zona), o null. */
+/** "2026-11-21_07-28-42" → "2026-11-21T07:28:42" (hora local); un id de corrida "2026-11-21T10-28-42Z" queda en UTC. */
 export function fechaIsoDe(fecha) {
-  const partes = /^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})$/.exec(String(fecha ?? ""));
-  return partes ? `${partes[1]}T${partes[2]}:${partes[3]}:${partes[4]}` : null;
+  const partes = /^(\d{4}-\d{2}-\d{2})[_T](\d{2})-(\d{2})-(\d{2})(Z?)/.exec(String(fecha ?? ""));
+  return partes ? `${partes[1]}T${partes[2]}:${partes[3]}:${partes[4]}${partes[5]}` : null;
 }
 
 /**
@@ -862,7 +862,7 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
   const textoDelCriterio = criterio?.criterion ?? arbol?.criteria?.criterion ?? null;
   const tanda = {
     id,
-    tarea: arbol?.task_id ?? (id.includes("/") ? id.split("/")[0] : null),
+    tarea: arbol?.task_id ?? id.split("/")[2] ?? null,
     instruccion: arbol?.instruction ?? "",
     url,
     host: hostDe(url),

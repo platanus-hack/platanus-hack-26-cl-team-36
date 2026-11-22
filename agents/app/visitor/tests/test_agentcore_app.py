@@ -4,6 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from shared import store
+
 import agentcore_app
 from agentcore_app import InvalidRequest, parse_request
 from visitor.batch import models_for
@@ -15,7 +17,7 @@ def test_parse_request_fills_defaults():
     request = parse_request({"url": "https://ejemplo.cl", "instruction": "  Encontrar el horario  "})
     assert request["instruction"] == "Encontrar el horario"
     assert request["profiles"] == list(PERFILES_POR_DEFECTO)
-    assert request["task_id"] is None
+    assert request["goal"].startswith("libre-encontrar-el-horario-")
     assert request["effort"] == "medium"
     assert "model" not in request  # en AWS el modelo no se elige por pedido: siempre Sonnet 4.6
 
@@ -29,6 +31,7 @@ def test_parse_request_fills_defaults():
     {"url": "https://ejemplo.cl", "instruction": "x", "profiles": ["explorador"]},  # su skill no se despliega
     {"url": "https://ejemplo.cl", "instruction": "x", "effort": "turbo"},
     {"url": "https://ejemplo.cl", "instruction": "x", "effort": "xhigh"},  # Sonnet 4.6 no lo acepta
+    {"url": "https://ejemplo.cl", "instruction": "x", "task_id": "wom.cl/baja-fibra"},
 ])
 def test_parse_request_rejects_bad_payloads(payload):
     with pytest.raises(InvalidRequest):
@@ -52,14 +55,16 @@ def test_invoke_streams_an_error_for_a_bad_request():
 
 
 def test_invoke_streams_progress_and_report(tmp_path, monkeypatch):
-    async def fake_batch(**kwargs):
+    async def fake_batch(backend, prefix, url, instruction, profile_keys, **kwargs):
         assert kwargs.get("user_model") is None  # run_batch elige Sonnet 4.6 con el motor bedrock
-        batch_dir = tmp_path / "tanda"
-        (batch_dir / "mobile").mkdir(parents=True)
-        (batch_dir / "mobile" / "run.json").write_text(json.dumps({"profile": "mobile", "verdict": {"outcome": "success"}}))
-        (batch_dir / "report.md").write_text("# Reporte")
-        return batch_dir
+        run = store.start_run(backend, prefix, model=None)
+        (run.workdir / "mobile").mkdir()
+        (run.workdir / "mobile" / "run.json").write_text(json.dumps({"profile": "mobile", "verdict": {"outcome": "success"}}))
+        (run.workdir / "report.md").write_text("# Reporte")
+        store.finish_run(backend, run, "succeeded")
+        return run.key
 
+    monkeypatch.setenv(store.ENV_VAR, tmp_path.as_uri())
     monkeypatch.setattr(agentcore_app, "run_batch", fake_batch)
     events = _collect({"url": "https://ejemplo.cl", "instruction": "x", "profiles": ["mobile"], "model": "claude-opus-5-5"})
     assert events[0]["status"] == "running"
@@ -68,8 +73,26 @@ def test_invoke_streams_progress_and_report(tmp_path, monkeypatch):
     assert events[-1]["report"] == "# Reporte"
 
 
+def test_invoke_removes_its_temporary_store(tmp_path, monkeypatch):
+    folder = tmp_path / "almacen"
+    folder.mkdir()
+    seen = []
+
+    async def fake_batch(backend, prefix, url, instruction, profile_keys, **kwargs):
+        seen.append(backend.root)
+        with store.running(backend, prefix, model=None) as run:
+            (run.workdir / "report.md").write_text("# Reporte")
+        return run.key
+
+    monkeypatch.delenv(store.ENV_VAR, raising=False)
+    monkeypatch.setattr(agentcore_app.tempfile, "mkdtemp", lambda prefix: str(folder))
+    monkeypatch.setattr(agentcore_app, "run_batch", fake_batch)
+    events = _collect({"url": "https://ejemplo.cl", "instruction": "x"})
+    assert events[-1]["report"] == "# Reporte" and seen == [folder] and not folder.exists()
+
+
 def test_invoke_streams_batch_errors(monkeypatch):
-    async def failing_batch(**kwargs):
+    async def failing_batch(*args, **kwargs):
         raise RuntimeError("sin credenciales")
 
     monkeypatch.setattr(agentcore_app, "run_batch", failing_batch)

@@ -18,35 +18,35 @@ uv run playwright install chromium
 ## Uso
 
 ```bash
-uv run main.py route --task wom-baja-fibra
-uv run main.py route --task sii-exencion-contribuciones --viewports desktop,mobile
+uv run main.py route --task wom.cl/baja-fibra
+uv run main.py route --task sii.cl/exencion-contribuciones --viewports desktop,mobile
 uv run main.py route --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
-uv run main.py route --goals ../../.runs/www.wom.cl/goals/goals.json --routes all
-uv run main.py adopt --id wom-baja-fibra
+uv run main.py route --site https://www.wom.cl/ --routes all
+uv run main.py adopt --goal wom.cl/baja-fibra
 ```
 
 `route`:
 
 | Opción | Qué hace |
 |---|---|
-| `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). La ruta queda en `agents/.runs/<id>/reference/<viewport>/`. |
-| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. La ruta queda en `agents/.runs/reference/<viewport>/`. |
-| `--goals <goals.json>` | Un catálogo del [Catalogador](../cataloger/README.md): la ruta de sus objetivos sin `exclusion`, primero los menos prominentes, en desktop. Cada ruta queda en `agents/.runs/<id>/reference/desktop/`. |
-| `--routes N` | Con `--goals`: deja hasta N objetivos con ruta verificada, o todos con `all` (por defecto 0); las ya verificadas para la misma instrucción cuentan y no se rehacen. |
-| `--rerun` | Con `--goals`: rehace también las rutas ya verificadas. |
+| `--task <host>/<id>` | Una tarea de [`agents/tasks/`](../../tasks/). |
+| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el objetivo es `libre-<palabras>-<hash>` de la instrucción. |
+| `--site <url>` | El último catálogo del sitio, del [Catalogador](../cataloger/README.md): la ruta de sus objetivos sin `exclusion`, primero los menos prominentes, en desktop. |
+| `--routes N` | Con `--site`: deja hasta N objetivos con ruta verificada, o todos con `all` (por defecto 0); los que ya tienen una corrida verificada para la misma instrucción cuentan y no se rehacen. |
+| `--rerun` | Con `--site`: rehace también las rutas ya verificadas. |
 | `--viewports` | Viewports separados por coma: `desktop` (1024x768, el de `first_time` y `hurried`) y `mobile` (390x844). Por defecto, `desktop`. |
 | `--shorter N` | Exploraciones más que buscan una ruta más corta que la primera verificada (por defecto 1). |
-| `--output` | Otra carpeta base en vez de `agents/.runs/<id>/`. |
 
 `adopt`:
 
 | Opción | Qué hace |
 |---|---|
-| `--id` | Tarea u objetivo cuyas propuestas del Visitante (`reference/<viewport>/proposed.json`) se verifican. |
+| `--goal <host>/<id>` | Objetivo cuyas propuestas del Visitante (`proposals.json` de sus corridas) se verifican contra su ruta vigente. |
 
 En los dos: `--model` y `--effort` (por defecto `claude-opus-5-5`, `high`) y `--cdp-url` para un navegador remoto.
 
-Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume los límites de tu plan.
+Usa tu Claude Code local (`claude` instalado y con sesión iniciada) y consume los límites de tu plan. Cada ruta es
+una corrida de guide en el almacén de [`shared.store`](../../shared/README.md) (`AGENTS_STORE` o `agents/.runs/`).
 
 ## Cómo funciona
 
@@ -97,18 +97,21 @@ El navegador, Claude Code, los nodos, los viewports y el objetivo del catálogo 
 
 ### Adopción (`adopt`)
 
-Cuando un intento del Visitante logra la tarea con menos pasos que la referencia, deja `proposed.json` junto a ella.
-`adopt` la repite con localizadores sacados del texto y el href que el Visitante registró de cada elemento clicado.
-Si llega a la página final del intento, la cita de la referencia está en ella y tiene menos `min_steps`, reemplaza a
-route.json. `status` de la propuesta queda `promoted`, `not_shorter`, `unverified` o `stale`.
+Cuando un intento del Visitante logra la tarea con menos pasos que la referencia, su corrida deja `proposals.json` con
+la clave de esa ruta. `adopt` toma, por ruta vigente, la propuesta más corta sin revisar y la repite con
+localizadores sacados del texto y el href que el Visitante registró de cada elemento clicado. Si llega a la página
+final del intento, la cita de la referencia está en ella y tiene menos `min_steps`, la ruta adoptada es una corrida
+nueva de guide cuyos `inputs` son la ruta anterior y la corrida del Visitante. Cada propuesta termina `promoted`,
+`not_shorter`, `unverified` o `stale`, y el resultado queda en `adoption.json` de una corrida nueva con esos mismos
+`inputs`: `succeeded` con la ruta adoptada, o `failed` con solo `adoption.json`. Una propuesta revisada no se repite.
 
 ## Salida
 
 ```
-agents/.runs/<tarea>/reference/<viewport>/
+<host>/guide/<id>/<viewport>/<run>/
+├── manifest.json     inputs: la corrida del catálogo, si el objetivo vino de uno
 ├── route.json        estado, respuesta, cita, totales, pasos, exploración, verificación y búsqueda
 ├── route.md
-├── proposed.json     ruta propuesta por el Visitante, si alguna vez usó menos pasos
 ├── step_NN.png       la pantalla después de cada paso (step_00 es el inicio)
 └── claude_code.log
 ```
@@ -116,8 +119,9 @@ agents/.runs/<tarea>/reference/<viewport>/
 La respuesta que encontró la ruta queda en `answer` de route.json: es la que va en `expected_answer` al promover un
 objetivo a tarea.
 
-`status` es `verified`, `unverified` (la repetición no llegó o no encontró la cita) o `not_found` (la exploración
-terminó sin respuesta).
+`status` de route.json es `verified`, `unverified` (la repetición no llegó o no encontró la cita) o `not_found` (la
+exploración terminó sin respuesta); la corrida termina `succeeded` en los tres casos y `failed` si falló el programa.
+La ruta vigente de un objetivo para una instrucción es la de su corrida `succeeded` más nueva de esa instrucción.
 
 ## Pruebas
 

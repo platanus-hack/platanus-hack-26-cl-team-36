@@ -17,26 +17,25 @@ uv run playwright install chromium
 ## Uso
 
 ```bash
-uv run main.py --task wom-baja-fibra
-uv run main.py --task sii-exencion-contribuciones --profiles mobile --effort low
+uv run main.py --task wom.cl/baja-fibra
+uv run main.py --task sii.cl/exencion-contribuciones --profiles mobile --effort low
 uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
-uv run main.py --goals ../../.runs/www.wom.cl/goals/goals.json --limit 3
-uv run main.py --task wom-baja-fibra --css ../../.runs/diseno/www.wom.cl/<fecha-hora>/rep-01/tema.css
+uv run main.py --site https://www.wom.cl/ --limit 3
+uv run main.py --task wom.cl/baja-fibra --css ../../.runs/diseno/www.wom.cl/<fecha-hora>/rep-01/tema.css
 ```
 
 | Opción | Qué hace |
 |---|---|
-| `--task <id>` | Una tarea de [`agents/tasks/`](../../tasks/). Las corridas quedan en `agents/.runs/<id>/`. |
-| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`. Las corridas quedan en `agents/.runs/`. |
-| `--goals <goals.json>` | Un catálogo del [Catalogador](../cataloger/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
-| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--goals`, `first_time`) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido`, que solo corren si se piden. |
+| `--task <host>/<id>` | Una tarea de [`agents/tasks/`](../../tasks/). |
+| `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el objetivo es `libre-<palabras>-<hash>` de la instrucción. |
+| `--site <url>` | El último catálogo del sitio, del [Catalogador](../cataloger/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
+| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--site`, `first_time`) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido`, que solo corren si se piden. |
 | `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
 | `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-sonnet-4-6`). |
-| `--output` | Otra carpeta para las corridas. |
 | `--browser` | `local` (Chromium, por defecto) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 | `--record-video` | Graba un video `.webm` de cada intento (al tamaño del viewport), además de las capturas de cada paso. El reporte enlaza el video y marca en qué minuto ocurre cada paso. |
-| `--css <archivo>` | Aplica un tema en cada página de cada usuario y en la del criterio, como la extensión: clase `mi-tema` en `<html>` y el CSS en `<style id="mt-tema-css">`, desde que se crea cada documento y repuestos si el sitio los quita. La tanda guarda una copia en `tema.css` y registra archivo y sha256 corto en `route_tree.json` (`tema`) y en el reporte, para comparar tandas con y sin tema. Un tema con `url(`, `image-set(`, `@import`, `expression(`, `javascript:` o barra invertida se rechaza: el filtro de la extensión lo borraría. Todas las tandas, con y sin tema, ignoran la CSP del sitio (`bypass_csp`, como `insertCSS` en la extensión), para que lo único distinto sea el tema. Con `--goals`, las tandas con un tema se planean aparte, y [summary](../summary/README.md) con `--css` las resume aparte (`summary-tema-<sha>.md`). Los temas salen del [diseñador](../web_designer/README.md). |
+| `--css <archivo>` | Aplica un tema en cada página de cada usuario y en la del criterio, como la extensión: clase `mi-tema` en `<html>` y el CSS en `<style id="mt-tema-css">`, desde que se crea cada documento y repuestos si el sitio los quita. La tanda guarda una copia en `tema.css` y registra archivo y sha256 corto en `route_tree.json` (`tema`) y en el reporte, para comparar tandas con y sin tema. Un tema con `url(`, `image-set(`, `@import`, `expression(`, `javascript:` o barra invertida se rechaza: el filtro de la extensión lo borraría. Todas las tandas, con y sin tema, ignoran la CSP del sitio (`bypass_csp`, como `insertCSS` en la extensión), para que lo único distinto sea el tema. Con `--site`, una corrida con tema no cuenta como hecha para el sitio sin tema ni al revés, y [summary](../summary/README.md) con `--css` resume solo las de ese tema. Los temas salen del [diseñador](../web_designer/README.md). |
 
 Por defecto usa tu **Claude Code local** (`--engine claude-code`): no necesita clave de API, solo tener `claude`
 instalado y con sesión iniciada, y consume los límites de tu plan. Con una clave de API puedes usar la herramienta
@@ -44,7 +43,7 @@ oficial de computer use:
 
 ```bash
 export ANTHROPIC_API_KEY=...
-uv run main.py --engine api --task wom-baja-fibra
+uv run main.py --engine api --task wom.cl/baja-fibra
 ```
 
 ## Exploradores
@@ -55,7 +54,7 @@ encuentran. Sirven para dibujar el grafo de caminos de una tarea (la pestaña «
 [backoffice](../../../backoffice/)), no para medir cuánto le cuesta a una persona.
 
 ```bash
-uv run main.py --task metro-tarifa-sabado \
+uv run main.py --task metro.cl/tarifa-sabado \
     --profiles explorador,explorador_buscador,explorador_pie,explorador_contenido \
     --model claude-haiku-5-5 --effort medium --record-video
 ```
@@ -124,34 +123,36 @@ Con `export AWS_PROFILE=<perfil de la cuenta del proyecto>`, una prueba de conce
 just local visit https://example.com "Encontrar el enlace More information" --profiles first_time \
     --engine bedrock --browser agentcore   # 1. desde tu computador: ¿la cuenta deja usar Claude y el navegador?
 just aws deploy                            # 2. despliega (al mergear a main lo hace el workflow AgentCore)
-just aws visit wom-baja-fibra              # 3. la tanda corre en AgentCore; el reporte queda en agents/.runs/aws/
+just aws visit wom.cl/baja-fibra           # 3. la tanda corre en AgentCore; el reporte queda en local/.state/aws/
 ```
 
 `just aws status` muestra lo desplegado y `just aws logs` los logs del runtime (`--follow` para seguirlos). Los tres
 buscan el runtime en la cuenta, así que funcionan aunque lo haya desplegado el CI. La respuesta llega en stream: un
-aviso cada 20 s y, al final, el resultado de cada perfil y `report.md`. Las capturas de cada paso quedan en AWS y
-se pierden al cerrar la sesión.
+aviso cada 20 s y, al final, el resultado de cada perfil y `report.md`. La corrida queda en `AGENTS_STORE` si el
+runtime lo define; si no, en una carpeta temporal de la sesión, y se pierde al cerrarla.
 
 ## Catálogo
 
-Con `--goals` corre, uno tras otro, los objetivos sin `exclusion` que tienen una ruta verificada de la Guía para
-algún perfil, con la `instruction` del catálogo. Cada tanda queda en `agents/.runs/<id del objetivo>/`. Si una falla,
-siguen las demás. El resumen del sitio lo escribe [summary](../summary/README.md).
+Con `--site` corre, uno tras otro, los objetivos sin `exclusion` que tienen una ruta verificada de la Guía para
+algún perfil, con la `instruction` del catálogo. Cada tanda es una corrida de visitor que nombra en `inputs` el catálogo
+y las rutas con que se comparó. Si una falla, termina como `failed` y siguen las demás. Un objetivo cuya última tanda
+de esa instrucción terminó bien se omite. El resumen del sitio lo escribe [summary](../summary/README.md).
 
 | Opción | Qué hace |
 |---|---|
 | `--goal <id>` | Solo ese objetivo; se puede repetir. |
 | `--limit N` | Como máximo N tandas nuevas. |
-| `--rerun` | Repite los objetivos que ya tienen tanda (por defecto se omiten). |
+| `--rerun` | Repite los objetivos que ya tienen una corrida que terminó bien (por defecto se omiten). |
 
 ## Tareas
 
-Cada archivo de [`agents/tasks/`](../../tasks/) es una tarea con la forma de
+Cada archivo `agents/tasks/<host>/<id>.json` es una tarea: un objetivo de su host con su propio id, con la forma de
 [formas de datos](../../../docs/formas-de-datos.md), sección 5: `id`, `host`, `start_url` y `description`.
-`wom-baja-fibra`, `sii-exencion-contribuciones` y `dt-reclamo-despido` salen de
-[tareas en sitios chilenos](../../../docs/tareas-sitios-chilenos.md). Otras cinco (`bn-socio-prestamo-domicilio`,
-`metro-tarifa-sabado`, `sernac-retracto-compra-online`, `uchile-arancel-medicina` e `ine-fecha-ipc-noviembre`) tienen
-varias rutas comprobadas y señuelos, para probar a los [exploradores](#exploradores). `expected_answer` sirve para
+`wom.cl/baja-fibra`, `sii.cl/exencion-contribuciones` y `dt.gob.cl/reclamo-despido` salen de
+[tareas en sitios chilenos](../../../docs/tareas-sitios-chilenos.md). Otras cinco
+(`bibliotecanacional.gob.cl/socio-prestamo-domicilio`, `metro.cl/tarifa-sabado`, `sernac.cl/retracto-compra-online`,
+`uchile.cl/arancel-medicina` e `ine.gob.cl/fecha-ipc-noviembre`) tienen varias rutas comprobadas y señuelos, para
+probar a los [exploradores](#exploradores). `expected_answer` sirve para
 revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio que propone a partir de la tarea.
 
 ## Cómo funciona
@@ -201,22 +202,28 @@ La sesión del navegador, la red de seguridad de formularios, el proceso de Clau
 
 ## Salida
 
+Cada tanda es una corrida en el almacén de [`shared.store`](../../shared/README.md) (`AGENTS_STORE` o
+`agents/.runs/`, fuera de git):
+
 ```
-agents/.runs/<tarea>/<fecha-hora>/
+<host>/visitor/<id>/<run>/
+├── manifest.json     inputs: las corridas de guide con que se comparó y, con --site, la del catálogo
 ├── criteria.json
-├── <perfil>/           step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
-├── route_tree.json     nodos, ramas y ruta recomendada
-├── tema.css            solo con --css: el tema aplicado (route_tree.json lo registra en `tema`)
-├── reference_comparison.json   solo si hay ruta de referencia
+├── <perfil>/         step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
+├── route_tree.json   nodos, ramas y ruta recomendada
+├── tema.css          solo con --css: el tema aplicado (route_tree.json lo registra en `tema`)
+├── comparison.json   solo si hay ruta de referencia
+├── proposals.json    solo si un intento usó menos pasos que una ruta
 └── report.md
 ```
 
-`agents/.runs/` queda fuera de git.
+Un intento interrumpido por un error técnico no cuenta como éxito ni como fallo: no entra en la comparación, el
+árbol ni el resumen. Si todos se interrumpen, la corrida termina `failed`, con su reporte, y el comando sale con error.
 
-Si `agents/.runs/<tarea>/reference/` tiene una ruta verificada para el viewport del perfil, el reporte la compara con
+Si el objetivo tiene una ruta vigente de la Guía, verificada para el viewport del perfil, el reporte la compara con
 cada intento ([fórmulas](../../../docs/agents/niveles-de-tarea.md), sección 5). El avance se informa como llegada a la
-página final de la ruta. Si un intento logra la tarea con menos pasos, deja `reference/<viewport>/proposed.json` (sus
-pasos con el elemento clicado, sus nodos y la tanda) y el reporte lo dice; `adopt` de la Guía la verifica.
+página final de la ruta. Si un intento logra la tarea con menos pasos, `proposals.json` lo guarda (la clave de la
+ruta, sus pasos con el elemento clicado y sus nodos) y el reporte lo dice; `adopt` de la Guía la verifica.
 
 ## Pruebas
 
