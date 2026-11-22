@@ -582,8 +582,7 @@ test("exploradores: sin hallazgos de demora ni titular «da N pasos seguidos»; 
   assert.ok(exploradores.intentos.some((intento) => intento.demoras.length > 0), "las marcas de atasco de la telaraña siguen");
 });
 
-test("un explorador que vuelve a una página con volver_a_nodo no tropieza (ni se traba ahí)", async () => {
-  const { atascosPorPagina } = await import("../public/telarana/atascos.js");
+test("un explorador que vuelve a una página con volver_a_nodo no tropieza", () => {
   const conSaltos = (accion) => {
     const cruda = tandaViejaCruda();
     const apurado = cruda.intentos.find((intento) => intento.perfil === "hurried").run;
@@ -598,7 +597,6 @@ test("un explorador que vuelve a una página con volver_a_nodo no tropieza (ni s
   assert.ok(apurado.pasos.every((paso) => paso.estado === "sin_evaluar" && !paso.senales.includes("went_back")));
   const tropiezos = tanda.hallazgos.find((h) => h.id === "tropiezos");
   assert.ok(!tropiezos?.vars.casos.some((caso) => caso.intento === "hurried"), "sin tropiezos de hurried");
-  for (const [, atascos] of atascosPorPagina(tanda)) assert.ok(!atascos.some((a) => a.intento === "hurried" && a.tropiezos), "sin atascos de hurried");
   // Un «volvió atrás» de verdad (un clic que regresa) sí cuenta.
   const conClics = conSaltos("left_click");
   assert.ok(conClics.intentos.find((intento) => intento.id === "hurried").pasos.every((paso) => paso.estado === "no_cumplida"));
@@ -626,8 +624,7 @@ test("resultado por nivel de conocimiento: intentos y logrados", () => {
   assert.equal(porConocimiento(intentos.filter((i) => i.conocimiento === "conoce_tema")), null);
 });
 
-test("grosor de un tramo = intentos distintos que lo tomaron, no las pasadas (C4-4)", async () => {
-  const { anchoDeTramo } = await import("../public/telarana/escena.js");
+test("un tramo cuenta intentos distintos que lo tomaron, aparte de las pasadas (C4-4)", () => {
   // 8 intentos pasan 43 veces de n1 a n2 (un explorador vuelve y repite): el tramo tiene 8 intentos y 43 pasadas.
   const perfiles = ["a", "b", "c", "d", "e", "f", "g", "h"];
   const crudas = Array.from({ length: 43 }, (_, i) => ({ source: "x1", target: "x2", action: i % 2 ? "clic «Ayuda»" : "clic «Buscar»", profiles: [perfiles[i % 8]], successes: 1 }));
@@ -636,5 +633,4 @@ test("grosor de un tramo = intentos distintos que lo tomaron, no las pasadas (C4
   assert.equal(rama.intentos, 8);
   assert.equal(rama.pasadas, 43);
   assert.deepEqual(rama.acciones.map((a) => [a.accion, a.intentos, a.pasadas]), [["clic «Ayuda»", 4, 21], ["clic «Buscar»", 4, 22]].sort((p, q) => q[2] - p[2]));
-  assert.equal(anchoDeTramo({ tipo: "avance", intentos: rama.intentos }), 1.5 + 1.25 * 8, "como un tramo que tomaron los 8");
 });

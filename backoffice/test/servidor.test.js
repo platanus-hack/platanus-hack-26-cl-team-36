@@ -155,6 +155,15 @@ test("sirve cualquier archivo de public/, también en subcarpetas", async () => 
   assert.equal((await pedir("/i18n")).status, 404, "una carpeta no se sirve");
 });
 
+test("sirve three.js de public/vendor como módulo, y nada fuera de una versión exacta", async () => {
+  const three = await pedir("/vendor/three@0.160.0/three.module.js", { method: "HEAD" });
+  assert.equal(three.status, 200);
+  assert.equal(three.headers.get("content-type"), "text/javascript; charset=utf-8");
+  assert.equal((await pedir("/vendor/three@0.160.0/LICENSE")).status, 404);
+  assert.equal((await pedir("/vendor/three@latest/three.module.js")).status, 404);
+  assert.equal((await pedir("/telarana/x@1.0.0/modelo.js")).status, 404, "las versiones solo bajo vendor/");
+});
+
 test("HEAD de una captura no manda el cuerpo", async () => {
   const respuesta = await pedir(`/archivos/${TANDA}/first_time/step_01.png`, { method: "HEAD" });
   assert.equal(respuesta.status, 200);
