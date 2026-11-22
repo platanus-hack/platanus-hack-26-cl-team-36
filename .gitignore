@@ -13,3 +13,5 @@ infra/app/.build/
 /node_modules/
 # El SDK de AWS del backoffice (solo con BACKOFFICE_FUENTE=s3)
 /backoffice/node_modules/
+# Datos de prueba del backoffice (backoffice/mock/generar.py)
+/backoffice/.mock/

@@ -28,6 +28,24 @@ Abre <http://localhost:4848/backoffice/>. Para tener algo que ver, primero hay q
 
 Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 
+### Con datos de prueba (mucho volumen, solo local)
+
+```bash
+npm --prefix backoffice run mock:generar    # backoffice/.mock/: ~270 tandas y ~90 revisiones en ~10 s (-- --escala 3 para más)
+npm --prefix backoffice run mock            # http://localhost:4849/backoffice/, se reinicia al cambiar el servidor
+```
+
+Para trabajar el diseño con muchas tandas y con todas las pantallas, incluida **Revisiones**, sin AWS ni Claude.
+`mock/generar.py` inventa 12 sitios `.test` con sus páginas y simula intentos de los perfiles reales del Visitante
+(recorrido único de escritorio y móvil, los 4 u 8 exploradores, y los perfiles antiguos), con éxitos, fracasos,
+abandonos, errores de la herramienta, desvíos, vueltas atrás y búsquedas. `route_tree.json` sale del mismo
+`build_route_tree` del Visitante y las capturas son wireframes donde cada clic cae sobre lo que se cliqueó. Las
+revisiones (en cola, en curso, una atascada, terminadas y fallidas) quedan en `.mock/revisiones.json`; el Diseñador
+de cada una deja `tema.css`, `mejora.json` y capturas antes/después de las páginas de la ruta (pestaña Propuesta), y
+`mock/servir.js` las sirve en memoria al mismo servidor, en vez de leer la tabla. No hay video. Con `--semilla` se
+repiten los mismos datos, y `BACKOFFICE_MOCK_LATENCIA_MS=400` demora la lectura de las revisiones para ver los
+estados de carga.
+
 ### Contra AWS
 
 ```bash
@@ -51,7 +69,7 @@ con cualquier `Host` y no lee nada.
 
 ### La raíz es una portada
 
-El backoffice entero (la página, `api/`, `archivos/` y `resultados/`) vive bajo `/backoffice/`; `/backoffice` sin la barra
+El backoffice entero (la página, `api/`, `archivos/`, `resultados/` y `propuestas/`) vive bajo `/backoffice/`; `/backoffice` sin la barra
 final redirige ahí, porque la página pide todo con rutas relativas. La raíz (`/`) sirve la portada de
 [`portada/`](portada/): la marca y "Work in progress", sin enlaces al backoffice. Es lo que ve quien abre
 https://chameleonmode.app, la URL de la entrega en `platanus-hack-project.jsonc`. No es un control de acceso: quien
@@ -64,13 +82,39 @@ tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor), los er
 cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
 
 Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene una cabecera mínima, común a sus pestañas:
-la tarea (con tanda anterior/siguiente y copiar enlace) y, debajo, sitio, fecha y cuántos llegan. Debajo, dos
+la tarea (con tanda anterior/siguiente y copiar enlace) y, debajo, sitio, fecha y cuántos llegan. Debajo, tres
 pestañas (la primera es la de por defecto; los enlaces viejos a `/resumen` llevan a ella):
 
 | Pestaña | Qué pregunta responde | De dónde sale |
 |---|---|---|
 | **Mapa de caminos** | ¿Por dónde fueron? Una telaraña: el inicio al centro, un anillo por paso y la ruta recomendada como eje recto; las demás rutas salen como ramas curvas (arriba las que vuelven o llegan, abajo las que fallan). Grosor = intentos, color = cómo terminaron (leyenda abajo); cada camino termina en su resultado (logrado, fallido, abandonado, error) y unas partículas lo recorren. Panel por página (quién pasó, adónde fue, cómo terminó, con enlace al paso en Replay) y marcas donde alguien se trabó. En pantallas más altas que anchas el eje apunta hacia abajo. | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
-| **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que parte reproduciendo (salvo con movimiento reducido), con velocidad de 0,25× a 4× (1× es un 15 % más rápido que el ritmo original; queda guardada en el navegador). | `<perfil>/run.json` y `step_NN.png` |
+| **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis: el seguimiento de la ruta (la ruta de la Guía como lista vertical de páginas, con dónde está el usuario en ese paso y los desvíos agrupados bajo la página de la que salió), qué esperaba, dónde quedó y, al pie, el resultado del intento. Abajo una línea de tiempo que parte reproduciendo (salvo con movimiento reducido), con velocidad de 0,25× a 4× (1× es un 15 % más rápido que el ritmo original; queda guardada en el navegador). | `<perfil>/run.json`, `step_NN.png` y el `route.json` de la Guía que la tanda lista en los `inputs` de su `manifest.json` |
+| **Propuesta** | ¿Qué propone el Diseñador y por qué? A la izquierda las páginas de la ruta (vistas) con dónde se quedaron los visitantes; al centro la página antes y después del tema con un divisor que se arrastra, escritorio o móvil, y las notas numeradas sobre la página; a la derecha la frase del Diseñador, la evidencia de los visitantes, cada cambio del tema con una muestra, la paleta y `tema.css`. Mientras el Diseñador diseña, la pestaña late y el después es un esqueleto. | la corrida del Diseñador (`<host>/improver/<corrida>/`) que lista la tanda en sus `inputs`: `tema.css`, `mejora.json` y sus capturas `vistas/*.png` |
+
+### Qué lee la pestaña Propuesta del Diseñador
+
+`GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>` busca la corrida del Diseñador más nueva cuyo
+`manifest.json` lista la tanda en `inputs` y devuelve su estado (`ninguna`, `running`, `succeeded` o `failed`). De
+`tema.css` saca lo que cambia (letra en % sobre el cuerpo, interlineado sin unidad, enlaces subrayados, alto mínimo
+de botones y enlaces) y la paleta (fondo, texto y acento, con las variables resueltas). De `mejora.json` usa
+`resumen_tema`, `decisiones`, `tarea` y `error`, como los escribe `agents/app/web_designer/disenador/mejora.py`, y,
+si están, las capturas antes/después:
+
+```json
+"vistas": [{
+  "url": "https://www.sitio.cl/soporte/dar-de-baja",
+  "titulo": "Dar de baja - Sitio",
+  "capturas": { "desktop": { "antes": "vistas/03-desktop-antes.png", "despues": "vistas/03-desktop-despues.png" },
+                "mobile":  { "antes": "vistas/03-mobile-antes.png",  "despues": "vistas/03-mobile-despues.png" } },
+  "marcas": [{ "tipo": "siguiente", "dispositivo": "desktop", "caja": [0.03, 0.37, 0.33, 0.59] }]
+}]
+```
+
+Las rutas son relativas a la corrida y solo se sirven `vistas/*.png` (`GET /backoffice/propuestas/<corrida>/vistas/…`).
+`marcas` ubica cada nota sobre la captura del después, en fracciones de la imagen: `siguiente` (el enlace al paso
+siguiente de la ruta), `texto` (un bloque de texto) y `objetivos` (un botón). Hoy el Diseñador real no deja
+`vistas`: sin ellas, el antes es la captura del visitante al llegar a cada página y el después dice que no hay
+captura. Los datos de prueba (`mock/generar.py`) sí las dejan, para ver la pestaña completa.
 
 ### Animaciones del Replay
 
@@ -136,7 +180,7 @@ el resto.
 |---|---|
 | Siempre | `⌘K` paleta de comandos · `?` atajos · `g c` ir a Corridas · `/` paleta (en Corridas, el buscador) |
 | Corridas | `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
-| Tanda | `1` `2` Mapa de caminos, Replay · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
+| Tanda | `1` `2` `3` Mapa de caminos, Replay, Propuesta · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
 | Mapa de caminos | `+` `-` acercar / alejar · `0` ajustar · `Esc` cerrar (con el foco en el mapa, las flechas lo mueven) |
 | Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `,` `.` más lento / más rápido · `↑` `↓` en la lista de pasos |
 
@@ -157,11 +201,12 @@ delante.
 
 ```
 backoffice/
-├── servidor.js          ← node:http: la página, /api/tandas, /api/tandas/<host>/visitor/<objetivo>/<corrida> y /archivos/…
+├── servidor.js          ← node:http: la página, /api/tandas, /api/tandas/<host>/visitor/<objetivo>/<corrida>, /api/propuestas/…, /archivos/… y /propuestas/…
 ├── lib/                 ← lado del servidor, lógica pura salvo la fuente
 │   ├── tandas.js        ← lista y lee tandas a través de la fuente; valida todo lo que llega de afuera
 │   ├── fuente.js        ← la interfaz Fuente y crearFuente(); fuentes/archivos.js (node:fs) y fuentes/s3.js
 │   ├── revisiones.js    ← lee la tabla de revisiones y deriva el avance por etapa y goal; aws.js carga el SDK
+│   ├── propuestas.js    ← la propuesta del Diseñador para una tanda: tema.css → cambios y paleta, mejora.json, vistas
 │   ├── derivar.js       ← de route_tree.json + run.json + criteria.json a la tanda que dibujan las pantallas
 │   ├── paginas.js       ← une nodos en páginas y les da un título corto
 │   ├── hallazgos.js     ← hallazgos y titulares (clave + vars)
@@ -169,8 +214,8 @@ backoffice/
 ├── public/
 │   ├── index.html, app.js   ← arranque: idioma, menú, paleta, atajos globales, enrutador
 │   ├── nucleo/          ← enrutador por hash, marco de la tanda, atajos, paleta ⌘K, i18n, formatos, estados, íconos
-│   ├── pantallas/       ← una por vista: corridas, telarana, replay
-│   ├── corridas/ telarana/ replay/   ← piezas de cada pantalla (las puras se prueban con node:test)
+│   ├── pantallas/       ← una por vista: corridas, telarana, replay, propuesta
+│   ├── corridas/ telarana/ replay/ propuesta/   ← piezas de cada pantalla (las puras se prueban con node:test)
 │   ├── datos/           ← textos.js convierte { clave, vars } de la API en texto; nombres.js, el nivel de cada perfil
 │   ├── i18n/{es,en}/    ← diccionarios por sección
 │   └── estilos/         ← tokens, base y componentes compartidos; un .css por pantalla, prefijado con .p-<id>
@@ -192,7 +237,8 @@ Las corridas muestran páginas de terceros y a veces datos de quien corrió la p
 - Rechaza (403) toda petición cuya cabecera `Host` no sea `localhost`, `127.0.0.1` o `[::1]` en su puerto, para que
   una página maliciosa no pueda leer las corridas con DNS rebinding (`BACKOFFICE_HOSTS` agrega excepciones).
 - De un perfil sirve únicamente `step_NN.png` y `video.webm` (con rangos de bytes, para el video), y solo de tandas
-  que la fuente listó: ni `run.json` ni rutas fuera de la carpeta. De `public/` sirve solo
+  que la fuente listó: ni `run.json` ni rutas fuera de la carpeta. De una corrida del Diseñador sirve solo
+  `vistas/*.png` (y `tema.css` como texto, por `resultados/`). De `public/` sirve solo
   `.html/.js/.css/.svg/.woff2` con nombres en minúscula.
 - Manda una política de seguridad estricta (`script-src 'self'`, sin `unsafe-inline`; solo Google Fonts como
   origen externo), `nosniff`, `no-referrer` y `frame-ancestors 'none'`.
