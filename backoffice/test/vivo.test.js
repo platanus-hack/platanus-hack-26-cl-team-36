@@ -322,6 +322,21 @@ test("una traza que queda a medio escribir usa la última versión buena; lo en 
   assert.equal(lecturas(), antes + 1, "una corrida en curso nunca sale de la memoria");
 });
 
+test("costo por refresco de un Visitante en curso: un LIST y un GET por intento, sin run.json y con tope", async () => {
+  const almacen = objetos();
+  for (let i = 1; i <= 20; i++) almacen[`${VISITA}/intento-${String(i).padStart(2, "0")}/trace.json`] = almacen[`${VISITA}/desktop/trace.json`];
+  const { revisiones, s3 } = armar(EN_VIVO, almacen);
+  await revisiones.leer("en-vivo");
+  const antes = s3.llamadas.length;
+  const avance = await revisiones.leer("en-vivo");
+  const deLaVisita = s3.llamadas.slice(antes).map((c) => c.input.Key ?? `LIST ${c.input.Prefix}`).filter((clave) => clave.includes(VISITA));
+  assert.equal(deLaVisita.filter((clave) => clave.startsWith("LIST")).length, 1);
+  assert.equal(deLaVisita.filter((clave) => clave.endsWith("/trace.json")).length, 12);
+  assert.ok(!deLaVisita.some((clave) => clave.endsWith("/run.json")));
+  const horario = avance.goals.find((goal) => goal.goal === "horario");
+  assert.ok(horario.visitor.intentos.some((intento) => intento.carpeta === "desktop"), "el intento de trace_key siempre entra");
+});
+
 test("terminado: la telaraña es la de la tanda terminada y lo cerrado se lee una sola vez", async () => {
   const { revisiones, s3 } = armar(TERMINADA);
   const avance = await revisiones.leer("terminada");

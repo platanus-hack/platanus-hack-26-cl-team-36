@@ -196,7 +196,15 @@ export function avanceDeRevision(items) {
 
 const porFecha = (a, b) => String(b.creada ?? "").localeCompare(String(a.creada ?? "")) || a.revision.localeCompare(b.revision);
 
-const LIMITE_DE_TRAZAS = 500;
+const LIMITE_EN_MEMORIA = 500;
+// Por refresco, un Visitante en curso cuesta un LIST y un GET por intento: con este tope, a lo más 1 + 12.
+const LIMITE_DE_INTENTOS = 12;
+
+function recordar(mapa, clave, valor) {
+  mapa.delete(clave);
+  mapa.set(clave, valor);
+  if (mapa.size > LIMITE_EN_MEMORIA) mapa.delete(mapa.keys().next().value);
+}
 
 /**
  * Lo que se dibuja de cada goal, leído del almacén con las claves de la tabla ya validadas (paso()).
@@ -220,13 +228,11 @@ export function crearLectorDeTrazas(fuente) {
     }
     let datos = leido.estado === "ok" && leido.datos && typeof leido.datos === "object" ? leido.datos : null;
     if (datos && relativa.endsWith(TRAZA)) {
-      ultimaBuena.delete(clave);
-      ultimaBuena.set(clave, datos);
-      if (ultimaBuena.size > LIMITE_DE_TRAZAS) ultimaBuena.delete(ultimaBuena.keys().next().value);
+      recordar(ultimaBuena, clave, datos);
     } else if (!datos && leido.estado === "danado") {
       datos = ultimaBuena.get(clave) ?? null;
     }
-    if (cerrada && leido.estado !== "danado") cerradas.set(clave, datos);
+    if (cerrada && leido.estado !== "danado") recordar(cerradas, clave, datos);
     return datos;
   }
 
@@ -251,11 +257,11 @@ export function crearLectorDeTrazas(fuente) {
       console.error(`revisiones: no se pudo listar «${paso.runKey}».`, error);
     }
     const deLaTraza = paso.traza?.split("/").at(-2);
-    if (deLaTraza && !carpetas.includes(deLaTraza)) carpetas.push(deLaTraza);
+    const elegidas = [...new Set([deLaTraza, ...carpetas.sort()].filter(Boolean))].slice(0, LIMITE_DE_INTENTOS);
     const leidos = await Promise.all(
-      carpetas.sort().map(async (carpeta) => {
-        // run.json existe solo cuando el intento terminó: manda sobre su trace.json.
-        const run = await leer(paso.runKey, `${carpeta}/run.json`, cerrada);
+      elegidas.sort().map(async (carpeta) => {
+        // run.json sube recién con finish_run y manda sobre el trace.json.
+        const run = cerrada ? await leer(paso.runKey, `${carpeta}/run.json`, true) : null;
         if (run) return { carpeta, archivo: "run.json", datos: run };
         const traza = await leer(paso.runKey, `${carpeta}/${TRAZA}`, cerrada);
         return traza ? { carpeta, archivo: TRAZA, datos: traza } : null;
@@ -275,7 +281,7 @@ export function crearLectorDeTrazas(fuente) {
       console.error(`revisiones: no se pudo leer la tanda «${runKey}».`, error);
       return null;
     }
-    if (telarana) cerradas.set(clave, telarana);
+    if (telarana) recordar(cerradas, clave, telarana);
     return telarana;
   }
 
