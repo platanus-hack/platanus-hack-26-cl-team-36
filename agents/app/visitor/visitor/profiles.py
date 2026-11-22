@@ -44,37 +44,14 @@ class Profile:
         return self.max_turnos or config.MAX_TURNS
 
 
-_POR_DEFECTO: dict[str, Profile] = {
-    "first_time": Profile(
-        key="first_time",
-        name="Primera vez",
-        screen=SCREENS["desktop"],
-        description=(
-            "Es tu primera vez en este sitio: no sabes cómo está organizado ni qué nombre usa "
-            "para cada cosa. Lees con calma los títulos, menús y textos visibles antes de "
-            "decidir, y prefieres entender la página antes de hacer clic. Si no ves lo que "
-            "buscas, exploras con scroll antes de cambiar de página. Haz una acción a la vez."
-        ),
-    ),
-    "hurried": Profile(
-        key="hurried",
-        name="Apurado",
-        screen=SCREENS["desktop"],
-        description=(
-            "Tienes prisa. Lees poco: recorres la pantalla buscando palabras parecidas a las de tu "
-            "tarea y haces clic en lo primero que parece correcto, sin comparar alternativas. Haces "
-            "scroll solo si no ves nada útil. Si algo no funciona, pruebas otra cosa rápido."
-        ),
-    ),
+# Recorridos normales, uno por pantalla: hacen la tarea sin imitar un tipo de usuario.
+_RECORRIDOS: dict[str, Profile] = {
+    "desktop": Profile(key="desktop", name="Escritorio", screen=SCREENS["desktop"], description=""),
     "mobile": Profile(
         key="mobile",
         name="Móvil",
         screen=SCREENS["mobile"],
-        description=(
-            "Estás usando el sitio desde tu teléfono, con una pantalla angosta. Tocas con el dedo y "
-            "haces scroll vertical para ver más; si el menú está escondido, buscas el ícono de menú "
-            "(tres rayas). Lees con atención normal, ni muy lento ni muy apurado."
-        ),
+        description="Usas el sitio desde un teléfono, con pantalla angosta: tocas con el dedo y haces scroll vertical.",
     ),
 }
 
@@ -178,10 +155,18 @@ def exploradores_del_conjunto(nombre: str) -> tuple[str, ...]:
 
 
 # Todos los perfiles por clave. Los exploradores son opcionales: se piden por nombre (--profiles explorador,...).
-PROFILES: dict[str, Profile] = {**_POR_DEFECTO, **_EXPLORADORES}
+PROFILES: dict[str, Profile] = {**_RECORRIDOS, **_EXPLORADORES}
 
-# Los que corren si no se piden perfiles (main.py y agentcore_app.py).
-PERFILES_POR_DEFECTO: tuple[str, ...] = ("first_time", "hurried", "mobile")
+# Los que corren si no se piden perfiles (main.py y agentcore_app.py); `mobile` se pide.
+PERFILES_POR_DEFECTO: tuple[str, ...] = ("desktop",)
+
+# Perfiles retirados que siguen en corridas guardadas, con el perfil actual de su misma pantalla.
+_RETIRADOS = {"first_time": "desktop", "hurried": "desktop"}
+
+
+def profile_of(key: str) -> Profile | None:
+    """El perfil de una corrida, también de una vieja con un perfil retirado; None si no se conoce."""
+    return PROFILES.get(key) or PROFILES.get(_RETIRADOS.get(key, ""))
 
 _FRONTMATTER = re.compile(r"\A---\s*\n.*?\n---\s*\n", re.DOTALL)
 
@@ -245,10 +230,11 @@ LÍMITES
 - Tienes como máximo {_limites(profile)}.
 - No inicies sesión, no crees cuentas, no envíes formularios finales (compras, reservas, contacto, postulaciones), no pagues y no escribas datos personales reales (nombre, RUT, correo, teléfono, tarjeta). Si la tarea no se puede completar sin hacer algo de eso, detente y repórtalo.
 
-{how_to_finish}
+{how_to_finish}{_seccion_de_perfil(profile)}{_seccion_de_conocimiento(profile)}{_seccion_de_skill(profile, engine)}"""
 
-TU PERFIL
-{profile.description}{_seccion_de_conocimiento(profile)}{_seccion_de_skill(profile, engine)}"""
+
+def _seccion_de_perfil(profile: Profile) -> str:
+    return f"\n\nTU PERFIL\n{profile.description}" if profile.description else ""
 
 
 # Reglas concretas por nivel: Haiku ignora una persona vaga ("eres alguien que no sabe..."), así que cada regla dice

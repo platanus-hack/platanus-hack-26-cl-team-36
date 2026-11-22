@@ -110,7 +110,7 @@ class Step:
 
 @dataclass
 class Run:
-    """Un intento de un usuario sintético: sus pasos, cómo terminó y el veredicto del juez."""
+    """Un intento de un usuario sintético: sus pasos, cómo terminó y su resultado (`verdict`, ver outcome.py)."""
 
     profile: str
     profile_name: str
@@ -119,6 +119,8 @@ class Run:
     start_url: str
     instruction: str
     engine: str = ""
+    attempt: int = 1                                # n.º de intento del perfil en la tanda (--runs)
+    folder: str = ""                                # su carpeta en la corrida; las corridas viejas no la tienen
     started_at: str = ""                            # hora local ISO 8601 del segundo 0 del intento
     start: dict = field(default_factory=dict)       # url, title, screenshot
     steps: list[Step] = field(default_factory=list)
@@ -133,7 +135,7 @@ class Run:
     final_screenshot: str = ""
     videos: list[str] = field(default_factory=list)  # con --record-video: video.webm y uno más por pestaña nueva
     video_offset_s: float = 0.0                     # segundo del video en que empieza el intento (carga inicial)
-    verdict: dict = field(default_factory=dict)     # outcome, justification y, si aplica, model_verdict
+    verdict: dict = field(default_factory=dict)
     # Exploradores con nivel de conocimiento (conocimiento.py): el nivel, si `sin_contexto` leyó la tarea con palabras
     # de todos los días (False = la tarea no traía esa versión y leyó la original) y los términos oficiales que intentó
     # escribir antes de verlos en el sitio (el harness no los dejó).

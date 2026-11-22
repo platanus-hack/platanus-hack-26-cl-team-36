@@ -14,7 +14,6 @@ const archivos = [
     [16, 32].map((size) => [`assets/extension-${estado}-${size}.png`, `icons/extension-${estado}-${size}.png`]),
   ),
 ].map(([origen, destino]) => [resolve(kit, origen), resolve(extension, destino)]);
-archivos.push([resolve(kit, "assets/project-logo-1000.png"), resolve(raiz, "project-logo.png")]);
 
 const comprobar = process.argv.includes("--check");
 const diferentes = [];

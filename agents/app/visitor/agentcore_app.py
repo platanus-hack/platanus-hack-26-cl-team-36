@@ -5,12 +5,13 @@ resultado de cada perfil y el reporte. Así `agentcore invoke` muestra el avance
 callada durante los minutos que dura una tanda.
 
     {"url": "https://...", "instruction": "...", "task_id": "baja-fibra",
-     "profiles": ["first_time", "mobile"], "effort": "medium"}
+     "profiles": ["desktop", "mobile"], "effort": "medium"}
 
 Solo `url` e `instruction` son obligatorios; `task_id` es el objetivo y, sin él, es el objetivo libre de la
-instrucción. En AWS usa Claude en Bedrock, solo Sonnet 4.6 (usuarios y juez, ver config.BEDROCK_*_MODEL), y AgentCore
-Browser; VISITOR_ENGINE y VISITOR_BROWSER los cambian (por ejemplo, para `agentcore dev` sin AWS). La corrida queda
-en AGENTS_STORE o, sin él, en una carpeta temporal que se borra al responder.
+instrucción. Sin ruta de referencia ni juez, cada intento queda sin medir. En AWS usa Claude en Bedrock
+(config.bedrock_model(): AGENTS_MODEL o Haiku 4.5) y AgentCore Browser; VISITOR_ENGINE y VISITOR_BROWSER los cambian
+(por ejemplo, para `agentcore dev` sin AWS). La corrida queda en AGENTS_STORE o, sin él, en una carpeta temporal que se
+borra al responder. La etapa de una revisión (medida contra la ruta de la Guía) es visitor.stage.run_stage.
 """
 
 import asyncio
@@ -31,7 +32,8 @@ from visitor.profiles import PERFILES_POR_DEFECTO, PROFILES
 
 ENGINE = os.environ.get("VISITOR_ENGINE", "bedrock")
 BROWSER = os.environ.get("VISITOR_BROWSER", "agentcore")
-EFFORTS = ("low", "medium", "high", "max")  # los de config.BEDROCK_USER_MODEL (Sonnet 4.6 no tiene xhigh)
+# Los que aceptan los modelos de Bedrock de la cuenta (Sonnet 4.6 no tiene xhigh); con Haiku 4.5 no se envía.
+EFFORTS = ("low", "medium", "high", "max")
 PROGRESS_SECONDS = 20
 
 app = BedrockAgentCoreApp()
@@ -79,11 +81,11 @@ def parse_request(payload) -> dict:
 
 
 def outcomes(backend: store.Backend, run: store.RunKey) -> dict:
-    """El resultado de cada perfil, leído de sus run.json."""
+    """El resultado de cada intento por su carpeta (`desktop`, `desktop-2`...), leído de sus run.json."""
     result = {}
-    for profile in backend.list_profiles(run):
-        data = backend.read_json(run.file("run.json", profile))
-        result[data.get("profile", profile)] = (data.get("verdict") or {}).get("outcome", data.get("end_reason"))
+    for folder in backend.list_profiles(run):
+        data = backend.read_json(run.file("run.json", folder))
+        result[folder] = (data.get("verdict") or {}).get("outcome", data.get("end_reason"))
     return result
 
 

@@ -51,6 +51,7 @@ class SyntheticUser:
         run_dir: Path,
         record_video: bool = False,
         conocimiento: ConocimientoDeTarea | None = None,
+        attempt: int = 1,
     ):
         self.engine = engine
         self.browser = browser
@@ -70,6 +71,8 @@ class SyntheticUser:
             viewport=f"{profile.screen.width}x{profile.screen.height}",
             model=engine.model,
             engine=engine.name,
+            attempt=attempt,
+            folder=run_dir.name,
             start_url=url,
             instruction=self.tarea.instruccion,
             conocimiento=profile.conocimiento,
@@ -77,7 +80,7 @@ class SyntheticUser:
         )
 
     def _log(self, text: str) -> None:
-        print(f"[{self.profile.key}] {text}", flush=True)
+        print(f"[{self.run_dir.name}] {text}", flush=True)
 
     async def attempt(self) -> Run:
         self.run_dir.mkdir(parents=True, exist_ok=True)
@@ -85,6 +88,8 @@ class SyntheticUser:
         try:
             self.session = BrowserSession(context, self.profile.screen)
             self.executor = Executor(self.session)
+            if hasattr(self.engine, "attach"):  # solo el motor guionizado (scripted_engine.py) mira la página
+                self.engine.attach(self.session)
             await self.session.open(self.url)
             await self._loop()
         finally:

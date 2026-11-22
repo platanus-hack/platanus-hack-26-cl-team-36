@@ -21,6 +21,7 @@ uv run main.py --task wom.cl/baja-fibra
 uv run main.py --task sii.cl/exencion-contribuciones --profiles mobile --effort low
 uv run main.py --url https://ejemplo.cl --instruction "Encontrar el horario de la sucursal de Providencia"
 uv run main.py --site https://www.wom.cl/ --limit 3
+uv run main.py --url https://www.wom.cl/ --revision r1 --goal baja-fibra --profiles desktop --runs 1
 uv run main.py --task wom.cl/baja-fibra --css ../../.runs/diseno/www.wom.cl/<fecha-hora>/rep-01/tema.css
 ```
 
@@ -29,11 +30,14 @@ uv run main.py --task wom.cl/baja-fibra --css ../../.runs/diseno/www.wom.cl/<fec
 | `--task <host>/<id>` | Una tarea de [`agents/tasks/`](../../tasks/). |
 | `--url` y `--instruction` | Una URL y una tarea libres, en vez de `--task`; el objetivo es `libre-<palabras>-<hash>` de la instrucción. |
 | `--site <url>` | El último catálogo del sitio, del [Catalogador](../cataloger/README.md): una tanda por objetivo, como con `--task`. Ver [catálogo](#catálogo). |
-| `--profiles` | Perfiles separados por coma: `first_time`, `hurried`, `mobile` (por defecto, los tres; con `--site`, `first_time`) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido` (y los 8 [con nivel de conocimiento](#exploradores-con-nivel-de-conocimiento)), que solo corren si se piden. |
+| `--revision <rev>` | Con `--url` y un `--goal`: la etapa `visitor` de una revisión. Toma el objetivo del catálogo de esa revisión y la ruta verificada de la Guía de esa revisión (`store.revision_run`, nunca la última del host) y crea la corrida con esa revisión. Sin catálogo, objetivo o ruta verificada, la corrida queda `failed` sin llamar al modelo y el comando sale con error; si no, sale con 0 aunque el usuario no logre la tarea. |
+| `--runs N` | Intentos por perfil (por defecto 1), en carpetas `<perfil>`, `<perfil>-2`... |
+| `--judge` | Para intentos sin ruta de la Guía: un juez propone un criterio y dictamina con la última captura (dos llamadas más). Apagado por defecto; sin ruta ni juez, el intento queda `unmeasured`. Ver [resultado](#resultado). |
+| `--profiles` | Perfiles separados por coma: `desktop` (por defecto: hace la tarea sin imitar un tipo de usuario), `mobile` (la misma, en un teléfono) y los [exploradores](#exploradores) `explorador`, `explorador_buscador`, `explorador_pie` y `explorador_contenido` (y los 8 [con nivel de conocimiento](#exploradores-con-nivel-de-conocimiento)), que solo corren si se piden. |
 | `--exploradores [CONJUNTO]` | Suma un conjunto de exploradores: `base` (los 4 de siempre) o `conocimiento` (los 8 con nivel de conocimiento). Sin nombre, el de `config.CONJUNTO_EXPLORADORES` (`conocimiento`, el estándar). Sin `--profiles`, corren solo ellos. |
-| `--engine` | `claude-code` (por defecto), `api` o `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS). |
-| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `claude-sonnet-4-6`). |
-| `--browser` | `local` (Chromium, por defecto) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
+| `--engine` | `claude-code` (por defecto, o `AGENTS_ENGINE`), `api`, `bedrock` (Claude en Amazon Bedrock, con tus credenciales de AWS) o `fake` (un usuario guionizado, sin Claude, que repite los pasos de la ruta de la Guía y declara que terminó: para probar la etapa de punta a punta). |
+| `--model`, `--effort` | Modelo y nivel de esfuerzo de los usuarios (por defecto `claude-sonnet-5-5`, `medium`; con `--engine bedrock`, `AGENTS_MODEL` o Haiku 4.5, que no acepta esfuerzo: no se envía). |
+| `--browser` | `local` (Chromium, por defecto, o `AGENTS_BROWSER`) o `agentcore` (AgentCore Browser en AWS, una sesión por usuario). |
 | `--cdp-url` | Un navegador remoto vía CDP, en vez del Chromium local. |
 | `--record-video` | Graba un video `.webm` de cada intento (al tamaño del viewport), además de las capturas de cada paso. El reporte enlaza el video y marca en qué minuto ocurre cada paso. |
 | `--css <archivo>` | Aplica un tema en cada página de cada usuario y en la del criterio, como la extensión: clase `mi-tema` en `<html>` y el CSS en `<style id="mt-tema-css">`, desde que se crea cada documento y repuestos si el sitio los quita. La tanda guarda una copia en `tema.css` y registra archivo y sha256 corto en `route_tree.json` (`tema`) y en el reporte, para comparar tandas con y sin tema. Un tema con `url(`, `image-set(`, `@import`, `expression(`, `javascript:` o barra invertida se rechaza: el filtro de la extensión lo borraría. Todas las tandas, con y sin tema, ignoran la CSP del sitio (`bypass_csp`, como `insertCSS` en la extensión), para que lo único distinto sea el tema. Con `--site`, una corrida con tema no cuenta como hecha para el sitio sin tema ni al revés, y [summary](../summary/README.md) con `--css` resume solo las de ese tema. Los temas salen del [diseñador](../web_designer/README.md). |
@@ -129,23 +133,23 @@ reading from the driver*. La imagen no instala Chromium, porque en AWS el navega
 CodeBuild en arm64 al desplegar. Su contexto es `agents/`, para que entre `agents/shared/`; para revisarla en local,
 desde `agents/`: `docker build --platform linux/arm64 -f app/visitor/Dockerfile .`.
 
-En AWS se usa solo Claude Sonnet 4.6, tanto para los usuarios sintéticos como para el juez (`BEDROCK_USER_MODEL` y
-`BEDROCK_JUDGE_MODEL` en `config.py`); el pedido no puede cambiarlo. La cuenta del proyecto no tiene acceso en Bedrock a
-Claude Opus 4.7 ni a los modelos posteriores: responden *is not available for this account* y solo AWS puede
-habilitarlos. Se llama por el endpoint `bedrock-runtime` con el perfil de inferencia de EE.UU.,
-`us.anthropic.claude-sonnet-4-6`, que reparte entre us-east-1, us-east-2 y us-west-2.
+En AWS los usuarios sintéticos (y el juez, si se pide) usan `AGENTS_MODEL`, por defecto Claude Haiku 4.5
+(`us.anthropic.claude-haiku-4-5-20251001-v1:0`, `config.bedrock_model()`); el pedido no puede cambiarlo. La cuenta del
+proyecto no tiene acceso en Bedrock a los modelos 5.x. Se llama por el endpoint `bedrock-runtime` con el perfil de
+inferencia de EE.UU., que reparte entre us-east-1, us-east-2 y us-west-2.
 
-Sonnet 4.6 no acepta el toolset de computer use (`computer_toolset_20260801`, desde Opus 4.7), así que con él
-`ApiEngine` declara la herramienta anterior, `computer_20251124` con la beta `computer-use-2025-11-24`, y le da el
-tamaño de la pantalla a partir de la primera captura (ver `LEGACY_COMPUTER_MODELS` en `actions.py`). Tampoco acepta el
-esfuerzo `xhigh`. El endpoint no acepta la caché automática, así que `ApiEngine` marca el punto de caché a mano. Ojo:
-Sonnet 4.6 puede errar más la puntería de los clics que Sonnet 5.5, y esos errores se cuentan como fricción del sitio;
-conviene comparar una misma tarea en local y en AWS antes de confiar en los resultados.
+Esos modelos no aceptan el toolset de computer use (`computer_toolset_20260801`, desde Opus 4.7), así que `ApiEngine`
+declara la herramienta anterior de cada uno (`LEGACY_COMPUTER_TOOLS` en `actions.py`): Haiku 4.5, `computer_20250124`
+con la beta `computer-use-2025-01-24`; Sonnet 4.6, `computer_20251124` con `computer-use-2025-11-24`. Le da el tamaño
+de la pantalla a partir de la primera captura. Haiku 4.5 no acepta `output_config.effort`, así que con él no se envía.
+El endpoint no acepta la caché automática, así que `ApiEngine` marca el punto de caché a mano. Ojo: un modelo más chico
+puede errar más la puntería de los clics, y esos errores se cuentan como fricción del sitio; conviene comparar una
+misma tarea en local y en AWS antes de confiar en los resultados.
 
 Con `export AWS_PROFILE=<perfil de la cuenta del proyecto>`, una prueba de concepto en tres pasos:
 
 ```bash
-just local visit https://example.com "Encontrar el enlace More information" --profiles first_time \
+just local visit https://example.com "Encontrar el enlace More information" --profiles desktop \
     --engine bedrock --browser agentcore   # 1. desde tu computador: ¿la cuenta deja usar Claude y el navegador?
 just aws deploy                            # 2. despliega (al mergear a main lo hace el workflow AgentCore)
 just aws visit wom.cl/baja-fibra           # 3. la tanda corre en AgentCore; el reporte queda en local/.state/aws/
@@ -180,19 +184,22 @@ Cada archivo `agents/tasks/<host>/<id>.json` es una tarea: un objetivo de su hos
 (`bibliotecanacional.gob.cl/socio-prestamo-domicilio`, `metro.cl/tarifa-sabado`, `sernac.cl/retracto-compra-online`,
 `uchile.cl/arancel-medicina` e `ine.gob.cl/fecha-ipc-noviembre`) tienen varias rutas comprobadas y señuelos, para
 probar a los [exploradores](#exploradores). `expected_answer` sirve para
-revisar el resultado a mano: el juez todavía no lo usa, decide con un criterio que propone a partir de la tarea.
+revisar el resultado a mano: ni la ruta ni el juez lo usan.
 
 ## Cómo funciona
 
 | Módulo | Qué hace |
 |---|---|
-| `main.py` | Punto de entrada: lee las opciones y lanza una tanda o las de un catálogo. |
+| `main.py` | Punto de entrada: lee las opciones y lanza una tanda, las de un catálogo o la etapa de una revisión. |
+| `visitor/stage.py` | La etapa `visitor` de una revisión (`run_stage`): sus entradas y su corrida. |
+| `visitor/outcome.py` | El resultado de cada intento: ruta de la Guía, juez o sin medir. |
+| `visitor/scripted_engine.py` | El usuario guionizado de `--engine fake`. |
 | `agentcore_app.py` | Punto de entrada en AgentCore Runtime: recibe la tarea por HTTP y responde en stream. |
-| `visitor/batch.py` | Una tanda: criterio de éxito, usuarios en paralelo, veredictos, árbol y reporte. |
+| `visitor/batch.py` | Una tanda: usuarios en paralelo, su resultado, árbol y reporte. |
 | `visitor/harness.py` | El ciclo de cada usuario: captura → modelo → acción → registro. |
 | `visitor/turns.py` | Pedidos del modelo, sus resultados y el fin de un intento. |
 | `visitor/claude_code_engine.py`, `visitor/api_engine.py` | Cómo decide el modelo: `claude -p` o computer use por la API o Bedrock. |
-| `visitor/judge.py` | El juez: propone el criterio de éxito y da el veredicto de cada intento. |
+| `visitor/judge.py` | El juez opcional (`--judge`): propone el criterio de éxito y da el veredicto de cada intento sin ruta. |
 | `visitor/browsers.py`, `visitor/actions.py` | Qué navegador usa la tanda (local, CDP o AgentCore Browser) y las acciones que puede pedir el agente. |
 | `visitor/recording.py` | Los pasos y el recorrido (`Step`, `Run`), y las señales que se leen del DOM solo para el registro. |
 | `visitor/route_tree.py`, `visitor/report.py` | El árbol de rutas, la ruta recomendada y `report.md`. |
@@ -223,7 +230,7 @@ La sesión del navegador, la red de seguridad de formularios, el proceso de Clau
 - **Red de seguridad:** si las acciones de un turno siguen corriendo 60 s después del límite de tiempo (el navegador se
   colgó), el intento termina por tiempo y queda anotado en `incidents`. Cada respuesta de `claude -p` (usuarios y
   juez) se espera como máximo `CLAUDE_CODE_TIMEOUT_S` (180 s); después, error claro en vez de esperar para siempre.
-- **Resultados del juez:** `success`, `failed` (terminó en un estado equivocado) o `abandoned`.
+- **Resultado:** ver [resultado](#resultado).
 - **Árbol:** un nodo es una URL normalizada más el título de la página. Una rama es la acción entre dos nodos,
   identificada por el texto del elemento clicado. La ruta recomendada es la de menor costo, con
   costo = -ln((éxitos+1)/(éxitos+fallos+2)) por rama.
@@ -236,8 +243,8 @@ Cada tanda es una corrida en el almacén de [`shared.store`](../../shared/README
 ```
 <host>/visitor/<id>/<run>/
 ├── manifest.json     inputs: las corridas de guide con que se comparó y, con --site, la del catálogo
-├── criteria.json
-├── <perfil>/         step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
+├── criteria.json     solo si el juez dictaminó algún intento
+├── <perfil>[-<n>]/   un intento: step_NN.png, run.json, claude_code.log y, con --record-video, video.webm
 ├── route_tree.json   nodos, ramas y ruta recomendada
 ├── tema.css          solo con --css: el tema aplicado (route_tree.json lo registra en `tema`)
 ├── comparison.json   solo si hay ruta de referencia
@@ -247,6 +254,16 @@ Cada tanda es una corrida en el almacén de [`shared.store`](../../shared/README
 
 Un intento interrumpido por un error técnico no cuenta como éxito ni como fallo: no entra en la comparación, el
 árbol ni el resumen. Si todos se interrumpen, la corrida termina `failed`, con su reporte, y el comando sale con error.
+
+### Resultado
+
+El éxito de un intento lo decide el programa: `success` si pasó por la página final de la ruta de la Guía
+(`reached_final_node`); si la ruta termina en la página inicial, solo si además declaró que terminó. Si no llegó,
+`failed` cuando declaró que terminó (el reporte dice «declaró que terminó sin llegar») y `abandoned` cuando se rindió, quedó bloqueado o se le acabaron las acciones o el tiempo. Lo que declara el
+usuario queda en `end_reason`, `final_message` y `verdict.claimed_done`; `verdict.source` dice quién decidió (`route`
+o `judge`). Sin ruta, con `--judge` decide el juez; sin juez, `unmeasured`. Un perfil sin ruta de su pantalla se mide
+con la de escritorio (`reference_viewport` en `comparison.json`). Las corridas viejas con perfiles retirados
+(`first_time`, `hurried`) se siguen leyendo como de escritorio.
 
 Si el objetivo tiene una ruta vigente de la Guía, verificada para el viewport del perfil, el reporte la compara con
 cada intento ([fórmulas](../../../docs/agents/niveles-de-tarea.md), sección 5). El avance se informa como llegada a la

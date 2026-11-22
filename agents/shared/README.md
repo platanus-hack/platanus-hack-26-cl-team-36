@@ -82,7 +82,7 @@ run = start_run(store, visitor("wom.cl", "baja-fibra"), model="claude-haiku-5-5"
 # Playwright y el agente escriben en run.workdir: report.md, first_time/step_00.png, first_time/video.webm …
 (run.workdir / "report.md").write_text(report)
 finish_run(store, run, "succeeded")                      # publica la carpeta y cierra el manifiesto
-store.list_profiles(run.key)                             # ["first_time"]: las carpetas de perfil de la corrida
+store.list_profiles(run.key)                             # ["desktop"]: las carpetas de perfil de la corrida
 ```
 
 `with running(store, prefix, model=..., inputs=[...]) as run:` hace lo mismo y cierra la corrida como `failed` si el

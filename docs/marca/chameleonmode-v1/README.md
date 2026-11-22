@@ -36,7 +36,7 @@ Espectro original: lima `#B8FF5C`, turquesa `#2EE6C5`, azul `#4C8DFF`, violeta `
 
 ## Integración reproducible
 
-La extensión consume recursos locales del kit. `extension/scripts/sincronizar-marca.js` copia los estados ON/OFF de la barra, los iconos del manifest y el logo del proyecto. `brand:check` compara los bytes para detectar divergencias.
+La extensión consume recursos locales del kit. `extension/scripts/sincronizar-marca.js` copia los estados ON/OFF de la barra y los iconos del manifest. `brand:check` compara los bytes para detectar divergencias.
 
 ```sh
 npm --prefix extension run brand:sync

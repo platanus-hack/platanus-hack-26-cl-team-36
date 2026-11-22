@@ -341,8 +341,8 @@ def test_main_elige_el_conjunto_de_exploradores_y_pasa_el_conocimiento_de_la_tar
     llamada = _main_con(monkeypatch, "--exploradores")  # sin nombre: el de config
     assert llamada["profile_keys"] == list(CONJUNTOS_EXPLORADORES[config.CONJUNTO_EXPLORADORES])
 
-    llamada = _main_con(monkeypatch, "--profiles", "first_time,explorador", "--exploradores", "base")
-    assert llamada["profile_keys"] == ["first_time", "explorador", "explorador_buscador", "explorador_pie",
+    llamada = _main_con(monkeypatch, "--profiles", "desktop,explorador", "--exploradores", "base")
+    assert llamada["profile_keys"] == ["desktop", "explorador", "explorador_buscador", "explorador_pie",
                                        "explorador_contenido"]
 
     llamada = _main_con(monkeypatch)  # sin --exploradores, lo de siempre

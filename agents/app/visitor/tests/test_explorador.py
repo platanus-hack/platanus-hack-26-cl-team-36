@@ -27,9 +27,9 @@ EXPLORADORES = ("explorador", "explorador_buscador", "explorador_pie", "explorad
 
 
 def test_los_perfiles_por_defecto_no_cambian_y_los_exploradores_se_piden_por_nombre():
-    assert PERFILES_POR_DEFECTO == ("first_time", "hurried", "mobile")
-    # los 4 de siempre y después los 8 con nivel de conocimiento (test_conocimiento.py)
-    assert list(PROFILES) == [*PERFILES_POR_DEFECTO, *EXPLORADORES, *profiles.CONJUNTOS_EXPLORADORES["conocimiento"]]
+    assert PERFILES_POR_DEFECTO == ("desktop",)
+    # los recorridos normales, los 4 de siempre y después los 8 con nivel de conocimiento (test_conocimiento.py)
+    assert list(PROFILES) == ["desktop", "mobile", *EXPLORADORES, *profiles.CONJUNTOS_EXPLORADORES["conocimiento"]]
     for key in EXPLORADORES:
         assert PROFILES[key].key == key and PROFILES[key].explora and key not in PERFILES_POR_DEFECTO
     assert "no_existe" not in PROFILES
@@ -65,8 +65,9 @@ def test_los_exploradores_empiezan_por_lugares_distintos():
 
 
 def test_el_prompt_de_los_otros_perfiles_no_cambia():
-    prompt = system_prompt(PROFILES["first_time"])
+    prompt = system_prompt(PROFILES["desktop"])
     assert "CÓMO EXPLORAR" not in prompt and "volver_a_nodo" not in prompt
+    assert "TU PERFIL" not in prompt  # escritorio no imita un tipo de usuario: solo hace la tarea
     assert f"Tienes como máximo {config.MAX_STEPS} acciones y {config.MAX_SECONDS // 60} minutos." in prompt
 
 
@@ -104,7 +105,7 @@ def test_config_se_importa_fuera_del_repo_como_en_agentcore(monkeypatch):
 
 
 def test_los_limites_son_por_perfil():
-    explorador, primera_vez = PROFILES["explorador"], PROFILES["first_time"]
+    explorador, primera_vez = PROFILES["explorador"], profiles.profile_of("first_time")
     assert (explorador.limite_acciones, explorador.limite_segundos, explorador.limite_turnos) == (
         config.EXPLORADOR_MAX_ACCIONES, config.EXPLORADOR_MAX_SEGUNDOS, config.EXPLORADOR_MAX_TURNOS
     )
@@ -264,14 +265,14 @@ def test_el_reporte_usa_los_limites_de_cada_perfil(tmp_path):
     run, _ = _intento(tmp_path, replace(EXPLORADOR, key="explorador"), [_clic(1, 40, 35), Turn(final=("done", "ok"))])
     explorador = run.to_dict()
     explorador["verdict"] = {"outcome": "success", "justification": "ok"}
-    normal = {**explorador, "profile": "first_time", "profile_name": "Primera vez", "end_reason": "step_limit"}
+    normal = {**explorador, "profile": "desktop", "profile_name": "Escritorio", "end_reason": "step_limit"}
     meta = {"url": "u", "instruction": "i", "task_id": None, "timestamp": "t", "engine": "claude-code",
             "user_model": "fake", "judge_model": "fake", "effort": "low"}
     vacio = {"nodes": [], "branches": [], "recommended_route": None}
     texto = report.generate(meta, {"criterion": "c"}, [explorador, normal], vacio)
     acciones, segundos = config.EXPLORADOR_MAX_ACCIONES, config.EXPLORADOR_MAX_SEGUNDOS
     assert f"Explorador: {acciones} acciones y {segundos // 60} minutos" in texto
-    assert f"Primera vez: {config.MAX_STEPS} acciones y {config.MAX_SECONDS // 60} minutos" in texto
+    assert f"Escritorio: {config.MAX_STEPS} acciones y {config.MAX_SECONDS // 60} minutos" in texto
     assert f"| 1 de {acciones} |" in texto and f"s de {segundos} s |" in texto
     assert f"Se agotaron las {config.MAX_STEPS} acciones" in texto
     # una tanda con un solo tipo de perfil da una sola frase
