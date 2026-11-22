@@ -13,7 +13,7 @@ const PROMINENCIA = ["buried", "secondary", "primary"];
 
 export function goalsElegidos(goals, goalsMax) {
   return goals
-    .filter((goal) => goal.level === "user_goal" && !(goal.gates ?? []).some((gate) => BARRERAS.includes(gate)))
+    .filter((goal) => goal.level === "user_goal" && ![].concat(goal.gates ?? []).some((gate) => BARRERAS.includes(gate)))
     .sort((a, b) => PROMINENCIA.indexOf(a.prominence) - PROMINENCIA.indexOf(b.prominence) || (a.id < b.id ? -1 : 1))
     .slice(0, goalsMax)
     .map((goal) => goal.id);
@@ -29,8 +29,9 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
 
   // goals_total es la estimación del catálogo; si el conductor elige otros, sus GOAL# aparecen igual.
   async function crearGoals(revision, runKey, updated_at) {
-    const { goals } = await almacen.leerJson(`${runKey}/goals.json`);
-    const ids = goalsElegidos(goals, goalsMax);
+    const goals = (await leerJsonValido(`${runKey}/goals.json`))?.goals;
+    if (!Array.isArray(goals)) return;
+    const ids = goalsElegidos(goals.filter((goal) => goal && typeof goal.id === "string"), goalsMax);
     for (const id of ids) {
       for (const agente of ["guide", "visitor"]) {
         await avanzarEtapa(revision, `GOAL#${id}#${agente}`, "pending", { updated_at });
@@ -39,10 +40,21 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
     await actualizarMeta(revision, { goals_total: ids.length, updated_at });
   }
 
+  // Un JSON malformado se salta con un aviso: reintentar no lo arregla.
+  async function leerJsonValido(clave) {
+    try {
+      return await almacen.leerJson(clave);
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      console.warn(`✖ ${clave}: JSON inválido`);
+      return null;
+    }
+  }
+
   return async function proyectar(clave) {
     if (!clave.endsWith(MANIFIESTO)) return;
-    const { agent, goal, status, revision } = await almacen.leerJson(clave);
-    if (!revision || !(status in META_DE)) return;
+    const { agent, goal, status, revision } = (await leerJsonValido(clave)) ?? {};
+    if (typeof revision !== "string" || !revision || !Object.hasOwn(META_DE, status)) return;
     const run_key = clave.slice(0, -MANIFIESTO.length);
     const updated_at = ahora().toISOString();
 
@@ -61,7 +73,7 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
         break;
       case "guide":
       case "visitor":
-        if (goal) await avanzarEtapa(revision, `GOAL#${goal}#${agent}`, status, { run_key, updated_at });
+        if (typeof goal === "string" && goal) await avanzarEtapa(revision, `GOAL#${goal}#${agent}`, status, { run_key, updated_at });
         break;
     }
   };

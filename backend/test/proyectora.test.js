@@ -49,6 +49,24 @@ test("ignora manifiestos sin revisión y claves que no son manifiestos", async (
   assert.equal(db.items.size, 1);
 });
 
+test("manifiestos y catálogos malformados se saltan sin lanzar", async () => {
+  const { db, almacen, proyectar, evento, item } = escenario();
+  almacen.archivos[`${CONDUCTOR}/manifest.json`] = "{ no es json";
+  await proyectar(`${CONDUCTOR}/manifest.json`);
+  for (const manifiesto of [null, 5, [], { agent: "conductor", status: "toString" }, { agent: "conductor", status: "running", revision: 7 }]) {
+    almacen.archivos[`${CONDUCTOR}/manifest.json`] = JSON.stringify(manifiesto);
+    await proyectar(`${CONDUCTOR}/manifest.json`);
+  }
+  assert.equal(db.items.size, 1);
+
+  for (const goals of ["{ roto", { goals: null }, { goals: [null, { id: 3 }, goal("ok", { gates: "login" })] }]) {
+    almacen.archivos[`${CATALOGO}/goals.json`] = goals;
+    await evento(CATALOGO, { agent: "cataloger", status: "succeeded" });
+  }
+  assert.equal(item("STAGE#cataloger").status, "succeeded");
+  assert.equal(item("GOAL#ok#guide"), undefined);
+});
+
 test("conductor: running → running, succeeded → done, failed → failed", async () => {
   for (const [status, meta] of [["running", "running"], ["succeeded", "done"], ["failed", "failed"]]) {
     const { evento, item } = escenario();
