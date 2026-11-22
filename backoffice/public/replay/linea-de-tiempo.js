@@ -1,186 +1,84 @@
-// Línea de tiempo del Replay (diseño §10.6, §10.6.2): tira de capturas "después" (una por paso, la actual
-// enmarcada), carril de la ruta (■ en ruta / □ fuera) y el reproductor: reproducir/pausar, la velocidad (un <select>
-// nativo junto a reproducir: teclado, lectores de pantalla y pantallas táctiles sin código propio), una barra con una
-// marca por paso (coloreada si tiene señal), el reloj y "solo pasos" (solo con video).
-//
-// La tira es un atajo para el puntero: el riel de pasos es su equivalente accesible, así que la tira no entra en el
-// orden de tabulación y está oculta para lectores de pantalla.
+// Línea de tiempo del Replay (abajo, a todo el ancho): reproducir/pausar, una barra para recorrer los pasos con una
+// marca por paso (coloreada si tiene señal o sale de la ruta) y "Paso n de N". La barra avanza por pasos, no por
+// segundos: cada posición es la captura de un paso.
 
 import { el, reemplazar } from "../nucleo/dom.js";
-import { kbd } from "../nucleo/atajos.js";
-import { conGlobo } from "../nucleo/globo.js";
 import { icono } from "../nucleo/iconos.js";
-import { VELOCIDADES, formatoReloj, ventanasDePasos } from "./sincronia.js";
-
-const TONO_DE_SENAL = { no_effect: "aviso", went_back: "aviso", visible_error: "peligro", security_block: "peligro" };
-
-function tonoDelPaso(paso) {
-  const tonos = (paso.senales ?? []).map((senal) => TONO_DE_SENAL[senal] ?? "aviso");
-  if (tonos.includes("peligro")) return "peligro";
-  if (tonos.length) return "aviso";
-  return paso.carril === "fuera-de-ruta" ? "fuera" : null;
-}
-
-const globoConTecla = (texto, tecla) => () => el("span", { class: "globo-con-tecla" }, el("span", { texto }), kbd(tecla));
+import { tonoDelPaso } from "./paso.js";
 
 /**
- * @param {{ t: Function, fmt: object, urlDeArchivo: Function, senal: AbortSignal, elegir: (indice: number) => void,
- *           buscar: (t: number) => void, alternar: () => void, velocidad: (valor: number) => void,
- *           soloPasos: () => void }} opciones
+ * @param {{ t: Function, senal: AbortSignal, elegir: (indice: number) => void, alternar: () => void }} opciones
  */
-export function crearLineaDeTiempo({ t, fmt, urlDeArchivo, senal, elegir, buscar, alternar, velocidad, soloPasos }) {
+export function crearLineaDeTiempo({ t, senal, elegir, alternar }) {
   let total = 0;
-  let pasos = [];
-  let indiceActual = -1;
 
-  const tira = el("ol", { class: "replay-tira", "aria-hidden": "true" });
-  tira.addEventListener(
-    "click",
-    (evento) => {
-      const boton = evento.target instanceof Element ? evento.target.closest("button[data-indice]") : null;
-      if (boton) elegir(Number(boton.dataset.indice));
+  const botonReproducir = el(
+    "button",
+    {
+      type: "button",
+      class: "boton boton-secundario boton-icono replay-reproducir",
+      "aria-label": t("replay.linea.reproducir"),
+      "aria-keyshortcuts": "Space",
+      "data-foco": "replay:reproducir",
     },
-    { signal: senal },
+    icono("reproducir"),
   );
-
-  const botonReproducir = el("button", {
-    type: "button",
-    class: "boton boton-secundario boton-icono replay-reproducir",
-    "aria-label": t("replay.linea.reproducir"),
-    "aria-keyshortcuts": "Space",
-    "data-foco": "replay:reproducir",
-  }, icono("reproducir"));
   botonReproducir.addEventListener("click", () => alternar(), { signal: senal });
-  conGlobo(botonReproducir, () => globoConTecla(botonReproducir.getAttribute("aria-label"), "Space")(), { senal });
 
   const barra = el("input", {
     type: "range",
     class: "replay-barra",
     min: "0",
     max: "0",
-    step: "0.1",
+    step: "1",
     value: "0",
     "aria-label": t("replay.linea.etiqueta"),
     "data-foco": "replay:barra",
   });
-  barra.addEventListener("input", () => buscar(Number(barra.value)), { signal: senal });
+  barra.addEventListener("input", () => elegir(Number(barra.value)), { signal: senal });
   const marcas = el("div", { class: "replay-marcas", "aria-hidden": "true" });
-  const pista = el("div", { class: "replay-pista" }, marcas, barra);
-
-  const reloj = el("span", { class: "replay-reloj num" });
-  const textoVelocidad = (valor) => t("replay.linea.velocidadValor", { v: fmt.numero(valor) });
-  const selectorVelocidad = el(
-    "select",
-    {
-      class: "replay-velocidad num",
-      "aria-label": t("replay.linea.velocidad"),
-      "aria-keyshortcuts": ", .",
-      "data-foco": "replay:velocidad",
-    },
-    VELOCIDADES.map((valor) => el("option", { value: String(valor), texto: textoVelocidad(valor) })),
-  );
-  selectorVelocidad.addEventListener("change", () => velocidad(Number(selectorVelocidad.value)), { signal: senal });
-  conGlobo(
-    selectorVelocidad,
-    () => el("span", { class: "globo-con-tecla" }, el("span", { texto: t("replay.linea.velocidadAyuda") }), kbd(","), kbd(".")),
-    { senal },
+  const posicion = el("span", { class: "replay-posicion num" });
+  const nodo = el(
+    "section",
+    { class: "replay-linea", "aria-label": t("replay.linea.etiqueta") },
+    botonReproducir,
+    el("div", { class: "replay-pista" }, marcas, barra),
+    posicion,
   );
 
-  const botonSoloPasos = el("button", {
-    type: "button",
-    class: "chip replay-solo-pasos",
-    "aria-pressed": "false",
-    "aria-keyshortcuts": "s",
-    "data-foco": "replay:solo-pasos",
-    hidden: true,
-    texto: t("replay.linea.soloPasos"),
-  });
-  botonSoloPasos.addEventListener("click", () => soloPasos(), { signal: senal });
-  conGlobo(botonSoloPasos, globoConTecla(t("replay.linea.soloPasosAyuda"), "s"), { senal });
-
-  const controles = el("div", { class: "replay-controles" }, botonReproducir, selectorVelocidad, pista, reloj, botonSoloPasos);
-  const nodo = el("section", { class: "replay-linea", "aria-label": t("replay.linea.etiqueta") }, tira, controles);
-
-  function cuadro(intento, paso, indice) {
-    const tono = tonoDelPaso(paso);
-    return el(
-      "li",
-      {},
-      el(
-        "button",
-        { type: "button", tabindex: "-1", class: `replay-cuadro${tono ? ` tono-${tono}` : ""}`, "data-indice": String(indice) },
-        paso.captura
-          ? el("img", { src: urlDeArchivo(intento.id, paso.captura), alt: "", loading: "lazy", decoding: "async" })
-          : el("span", { class: "replay-cuadro-vacio" }),
-        el("span", { class: "replay-cuadro-numero num", texto: String(paso.numero) }),
-      ),
-      paso.carril === "sin-ruta" ? null : el("span", { class: `replay-carril-ruta carril-${paso.carril}` }),
-    );
-  }
-
-  /** Arma la tira y las marcas de un intento. */
-  function pintar(intento, { duracion }) {
-    pasos = intento.pasos ?? [];
-    total = duracion;
-    nodo.hidden = !pasos.length;
-    const viewport = intento.viewport ?? { ancho: 1024, alto: 768 };
-    tira.style.setProperty("--proporcion", String(viewport.ancho / viewport.alto));
-    reemplazar(tira, pasos.map((paso, indice) => cuadro(intento, paso, indice)));
-    barra.max = String(Math.max(0.1, Math.round(total * 10) / 10));
-    const ventanas = ventanasDePasos(pasos);
+  /** Arma la barra y las marcas de un intento. */
+  function pintar(intento) {
+    const pasos = intento.pasos ?? [];
+    total = pasos.length;
+    nodo.hidden = !total;
+    barra.max = String(Math.max(0, total - 1));
     reemplazar(
       marcas,
-      ventanas.map((ventana, indice) => {
-        const tono = tonoDelPaso(pasos[indice]);
-        const marca = el("span", { class: `replay-marca${tono ? ` tono-${tono}` : ""}` });
-        marca.style.setProperty("--pos", `${total ? (ventana.desde / total) * 100 : 0}%`);
-        return marca;
+      pasos.map((paso, indice) => {
+        const tono = tonoDelPaso(paso);
+        return el("span", {
+          class: `replay-marca${tono ? ` tono-${tono}` : ""}`,
+          estilo: { "--pos": `${total > 1 ? (indice / (total - 1)) * 100 : 0}%` },
+        });
       }),
     );
-    indiceActual = -1;
   }
 
+  /** Lleva la barra, la marca actual y el texto al paso `indice`. */
   function marcar(indice) {
-    if (indice === indiceActual) return;
-    tira.querySelector('[aria-current="step"]')?.removeAttribute("aria-current");
+    barra.value = String(indice);
+    const texto = t("replay.linea.posicion", { n: indice + 1, total });
+    posicion.textContent = texto;
+    barra.setAttribute("aria-valuetext", texto);
     marcas.querySelector(".actual")?.classList.remove("actual");
-    indiceActual = indice;
-    const boton = tira.querySelector(`button[data-indice="${indice}"]`);
-    if (boton) {
-      boton.setAttribute("aria-current", "step");
-      // Desplaza solo la tira, nunca la página.
-      const caja = tira.getBoundingClientRect();
-      const cuadroActual = boton.getBoundingClientRect();
-      if (cuadroActual.left < caja.left) tira.scrollLeft -= caja.left - cuadroActual.left + 16;
-      else if (cuadroActual.right > caja.right) tira.scrollLeft += cuadroActual.right - caja.right + 16;
-    }
     marcas.children[indice]?.classList.add("actual");
   }
 
-  function ponerTiempo(segundos, indice) {
-    const valor = Math.min(total, Math.max(0, segundos));
-    if (!barra.matches(":active")) barra.value = String(Math.round(valor * 10) / 10);
-    const actual = formatoReloj(valor);
-    const fin = formatoReloj(total);
-    reloj.textContent = t("replay.linea.reloj", { actual, total: fin });
-    barra.setAttribute("aria-valuetext", t("replay.linea.valor", { actual, total: fin, n: pasos[indice]?.numero ?? "" }));
-  }
-
   function ponerReproduciendo(activo) {
-    const etiqueta = t(activo ? "replay.linea.pausar" : "replay.linea.reproducir");
-    botonReproducir.setAttribute("aria-label", etiqueta);
+    botonReproducir.setAttribute("aria-label", t(activo ? "replay.linea.pausar" : "replay.linea.reproducir"));
     botonReproducir.replaceChildren(icono(activo ? "pausar" : "reproducir"));
     botonReproducir.classList.toggle("activo", activo);
   }
 
-  function ponerVelocidad(valor) {
-    selectorVelocidad.value = String(valor);
-  }
-
-  function ponerSoloPasos(activo, visible) {
-    botonSoloPasos.hidden = !visible;
-    botonSoloPasos.setAttribute("aria-pressed", activo ? "true" : "false");
-  }
-
-  return { nodo, pintar, marcar, ponerTiempo, ponerReproduciendo, ponerVelocidad, ponerSoloPasos };
+  return { nodo, pintar, marcar, ponerReproduciendo };
 }

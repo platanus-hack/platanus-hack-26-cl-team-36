@@ -35,7 +35,7 @@ veredicto) y tres pestañas:
 |---|---|---|
 | **Resumen** (por defecto) | ¿Llegaron a la respuesta y qué hay que mirar? Abre con el titular y los hallazgos (desvíos, demoras, tropiezos, errores), cada uno con enlace al paso exacto en Replay y Telaraña; luego la ruta, los intentos y el criterio del juez. | `route_tree.json`, cada `<perfil>/run.json` y `criteria.json`, derivados en `lib/` |
 | **Telaraña** | ¿Por dónde fueron? Un grafo de izquierda a derecha: el inicio al medio a la izquierda, la meta (el final de la ruta y las páginas donde alguien encontró la respuesta) al medio a la derecha y las demás páginas entre ellos, repartidas encima y debajo, en columnas según los pasos desde el inicio. Dos caminos y nada más: **camino feliz** (la ruta recomendada, una fila recta) y **camino ineficiente** (desvíos, vueltas atrás y caminos que dan vueltas o no llegan); la leyenda de dos botones resalta uno u otro. Los avances son rectas; las vueltas atrás y los pasos laterales, curvas suaves. Panel por página (quién pasó, adónde fue, cómo terminó, con enlace al paso en Replay). | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
-| **Replay** | ¿Qué hizo un intento, paso a paso? Riel de pasos, visor (después, antes, deslizar, superponer) y línea de tiempo sincronizados, con el veredicto y el criterio fijos arriba. Si hay `video.webm`, se puede ver el video. | `<perfil>/run.json`, `step_NN.png`, `video.webm` y `criteria.json` |
+| **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que se puede reproducir. | `<perfil>/run.json` y `step_NN.png` |
 
 ## Cómo leer las cifras
 
@@ -85,7 +85,7 @@ el resto.
 | Tanda | `1` `2` `3` Resumen, Telaraña, Replay · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
 | Resumen | `j` `k` hallazgo siguiente / anterior |
 | Telaraña | `+` `-` acercar / alejar · `0` ajustar · `Esc` quitar la selección (con el foco en el mapa, las flechas lo mueven) |
-| Replay | `←` `→` o `j` `k` paso · `n` `Shift+N` paso con problema · `Inicio` `Fin` · `d` `a` `l` `o` modo del visor · mantener `b` ver "antes" · `Espacio` reproducir · `,` `.` velocidad · `v` video · `s` solo pasos · `i` `Shift+I` intento · `e` veredicto · `t` abrir el paso en la telaraña |
+| Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `↑` `↓` en la lista de pasos |
 
 ## Fuente de corridas
 
