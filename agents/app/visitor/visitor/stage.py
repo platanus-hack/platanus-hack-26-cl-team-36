@@ -39,9 +39,11 @@ def stage_inputs(backend: store.Backend, url: str, revision: str, goal_id: str, 
     goal = next((item for item in read_catalog(backend, catalog)[1] if item.id == goal_id), None)
     if goal is None:
         raise MissingInput(f"el catálogo {catalog} no tiene el objetivo {goal_id}")
+    if store.normalize_host(goal.start_url) != store.normalize_host(url):
+        raise MissingInput(f"el objetivo {goal_id} empieza en otro sitio: {goal.start_url}")
     references: References = {}
     for viewport in reference_viewports(profile_keys):
-        route_run = _succeeded(backend, store.guide(goal.start_url, goal.id, viewport), revision)
+        route_run = _succeeded(backend, store.guide(url, goal.id, viewport), revision)
         route_key = route_run.file("route.json") if route_run else None
         if route_key and backend.exists(route_key) and (route := backend.read_json(route_key)).get("status") == "verified":
             references[viewport] = (route_run, route)
@@ -67,6 +69,5 @@ async def run_stage(backend: store.Backend, url: str, revision: str, goal_id: st
                                                    encoding="utf-8")
             raise
     goal = found.goal
-    return await run_batch(backend, store.visitor(goal.start_url, goal.id), goal.start_url, goal.instruction,
-                           profile_keys, found.references, inputs=(found.catalog,), runs=runs, revision=revision,
-                           **batch_options)
+    return await run_batch(backend, prefix, goal.start_url, goal.instruction, profile_keys, found.references,
+                           inputs=(found.catalog,), runs=runs, revision=revision, **batch_options)

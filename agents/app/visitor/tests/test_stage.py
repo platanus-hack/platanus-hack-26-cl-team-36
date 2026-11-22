@@ -244,6 +244,17 @@ def test_without_a_verified_route_of_the_revision_it_fails_without_calling_the_m
     assert "No se corrió" in backend.read_text(failed.file("report.md"))
 
 
+def test_a_goal_starting_on_another_site_fails_where_the_conductor_waits(tmp_path, site):
+    backend = store.LocalBackend(tmp_path / "almacen")
+    goal = Goal(**{**asdict(_goal(site)), "start_url": "https://otro.cl/"})
+    _catalog(backend, site, REVISION, goal, 0)
+    with pytest.raises(MissingInput, match="otro sitio"):
+        _stage(backend, site)
+    failed = store.revision_run(backend, store.visitor(site, "horario"), REVISION)
+    assert store.read_manifest(backend, failed).status == "failed"
+    assert store.revision_run(backend, store.visitor("https://otro.cl/", "horario"), REVISION) is None
+
+
 def test_the_cli_exits_zero_when_the_run_succeeds_and_not_without_inputs(tmp_path, site, monkeypatch):
     backend = store.LocalBackend(tmp_path / "almacen")
     goal = _goal(site)
