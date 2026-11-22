@@ -161,7 +161,7 @@ dibuja o la persona pide ver el original: no lo ocultes tú.
 `@media (prefers-reduced-motion: reduce) { html.mi-tema * { transition-duration: 0s !important;
 animation-duration: 0s !important; scroll-behavior: auto !important; } }`.
 
-**Fuentes empaquetadas** (la extensión las carga solo si el tema nombra alguna): "MT Inter", "MT Source Serif",
+**Fuentes empaquetadas** (la extensión las carga solo si el tema nombra alguna): "MT Inter", "MT Serif",
 "MT Archivo" (ancho variable 62–125 %), "MT Geist" y "MT Geist Mono", cada una seguida de su "<nombre> Fallback" y de
 las del sistema, p. ej. `"MT Inter", "MT Inter Fallback", Inter, system-ui, sans-serif`.
 

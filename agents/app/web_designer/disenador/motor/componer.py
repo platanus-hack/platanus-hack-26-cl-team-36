@@ -38,7 +38,7 @@ def _pila(*familias: str, sistema: str = 'system-ui, -apple-system, "Segoe UI", 
     return ", ".join([*(f'"{f}"' for f in familias), sistema])
 
 
-FAMILIAS_DISPONIBLES = ("MT Inter", "MT Source Serif", "MT Archivo", "MT Geist", "MT Geist Mono")
+FAMILIAS_DISPONIBLES = ("MT Inter", "MT Serif", "MT Archivo", "MT Geist", "MT Geist Mono")
 FAMILIAS = {
     "condensada": {
         "display": _pila("MT Archivo", "MT Archivo Fallback", "Archivo", "Bahnschrift", "DIN Condensed",
