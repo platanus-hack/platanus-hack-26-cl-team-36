@@ -62,6 +62,7 @@ let listaDeTandas = { carpeta: null, tandas: [] };
 let hojaAbierta = null;
 /** El último enlace interno con clic: el que abrió la hoja, para devolverle el foco al cerrarla. */
 let ultimoEnlace = null;
+let hojas = 0;
 /** El desmontaje de la pantalla que sale con la hoja: espera a que termine su animación (o a la próxima pantalla). */
 let diferido = null;
 
@@ -131,7 +132,8 @@ function crearContexto(v) {
     atajos: {
       registrar(mapa) {
         if (controlador.signal.aborted) return () => {};
-        const quitar = registrarAtajos(mapa, { ambito: "pantalla", grupo: v.id });
+        // Bajo la hoja de una tanda, la pantalla de debajo sigue montada pero sus teclas no responden.
+        const quitar = registrarAtajos(mapa, { ambito: "pantalla", grupo: v.id, activo: () => vista === v });
         v.quitar.push(quitar);
         return quitar;
       },
@@ -270,7 +272,8 @@ function enfocarDespues({ clave, completa, panel, quedarseEnArmazon = false }) {
       return;
     }
   }
-  const perdido = !activo || activo === document.body || !activo.isConnected;
+  // Dentro de lo inerte (la vista bajo la hoja o la hoja que sale) el foco no sirve: cuenta como perdido.
+  const perdido = !activo || activo === document.body || !activo.isConnected || !!activo.closest?.("[inert]");
   const enArmazon = !!activo?.closest?.(".barra-superior");
   if (!perdido && !(completa && enArmazon && !quedarseEnArmazon)) return;
   const objetivo = completa
@@ -581,6 +584,7 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
     if (origen === "idioma" && hojaAbierta.fondo) {
       desmontarPantalla(hojaAbierta.fondo);
       hojaAbierta.fondo = null;
+      reemplazar(raiz);
     }
   } else {
     const conFondo = !!vista?.modulo && vista.tipo !== "tanda";
@@ -590,7 +594,9 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
       desmontarVista();
       reemplazar(raiz);
     }
-    hojaAbierta = { hoja: null, fondo: conFondo ? vista : null, volver, abridor };
+    hojaAbierta = { hoja: null, fondo: conFondo ? vista : null, volver, abridor, scroll: scrollY, id: `hoja-${++hojas}` };
+    // La entrada de la tanda queda marcada como la primera de esta hoja: volver es retroceder en el historial.
+    if (conFondo) history.replaceState({ hoja: hojaAbierta.id, paso: 1 }, "", location.href);
   }
   vista = null;
   const marco = montarMarco({
@@ -598,10 +604,11 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
     ruta: nueva,
     navegar,
     volver: hojaAbierta.volver,
+    alVolver: volverDesdeLaHoja,
     escapar: () => vista?.modulo?.escapar?.() === true,
   });
   if (hojaAbierta.hoja) reemplazar(hojaAbierta.hoja.nodo, marco.raiz);
-  else hojaAbierta.hoja = abrirHoja(marco.raiz, { fondo: raiz });
+  else hojaAbierta.hoja = abrirHoja(marco.raiz, { fondo: raiz, titulo: marco.titulo });
   const v = { tipo: "tanda", id: nueva.pestana, ruta: nueva, tanda: null, tandaId: nueva.tandaId, pestana: nueva.pestana, marco, quitar: [] };
   vista = v;
   enfocar(marco.titulo);
@@ -621,7 +628,7 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
   fijarRuta(nueva, hash);
   if (!cargado.tanda) {
     reemplazar(marco.panel, noExisteLaTanda(nueva.tandaId));
-    document.title = [t("comun.estado.tandaNoExiste", { id: nueva.tandaId }), t("comun.marco.titulo")].join(" · ");
+    document.title = [t("comun.estado.tandaNoExiste", { id: nueva.tandaId }), t("comun.marca.titulo")].join(" · ");
     avisarRuta();
     return;
   }
@@ -634,8 +641,9 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
 
 /** Cierra la hoja y deja a la vista la de debajo, en su scroll, con el foco en lo que abrió la hoja. */
 function volverAlFondo() {
-  const { fondo, abridor } = hojaAbierta;
+  const { fondo, abridor, scroll } = hojaAbierta;
   cerrarHoja({ conservarFondo: true });
+  scrollTo(0, scroll);
   vista = fondo;
   vista.ruta = ruta;
   ponerTitulo(vista);
@@ -664,12 +672,30 @@ async function actualizarPantalla() {
 // ── API pública ────────────────────────────────────────────────────────────
 
 /** Navegación completa a `hash` (monta, transición, foco). `reemplazar` usa replaceState. */
+/** El estado de una entrada nueva del historial: dentro de una hoja, cuántos pasos lleva desde que se abrió. */
+function estadoNuevo() {
+  if (!hojaAbierta) return null;
+  const actual = history.state?.hoja === hojaAbierta.id ? history.state.paso : 0;
+  return { hoja: hojaAbierta.id, paso: actual + 1 };
+}
+
+/**
+ * ← o Esc en la hoja: si las entradas desde el origen son de esta hoja, se retrocede hasta él (Atrás no la reabre);
+ * si no (enlace directo, otra pestaña del navegador), se navega al origen.
+ */
+function volverDesdeLaHoja() {
+  if (!hojaAbierta) return;
+  const { id, volver, fondo } = hojaAbierta;
+  if (fondo && history.state?.hoja === id && history.state.paso > 0) history.go(-history.state.paso);
+  else navegar(volver.hash);
+}
+
 export function navegar(hash, { reemplazar: sinHistorial = false } = {}) {
   const destino = String(hash).startsWith("#") ? String(hash) : `#${hash}`;
   if (destino === location.hash && !sinHistorial) return Promise.resolve();
   guardarDesplazamiento();
   if (sinHistorial) history.replaceState(history.state, "", destino);
-  else history.pushState(null, "", destino);
+  else history.pushState(estadoNuevo(), "", destino);
   return procesar({ origen: "navegar" });
 }
 
@@ -688,7 +714,7 @@ export function actualizarParametros(cambios, { historial = "reemplazar" } = {})
   if (hash !== location.hash) {
     if (historial === "agregar") {
       guardarDesplazamiento();
-      history.pushState(null, "", hash);
+      history.pushState(estadoNuevo(), "", hash);
     } else history.replaceState(history.state, "", hash);
   }
   ruta = parsearHash(hash);

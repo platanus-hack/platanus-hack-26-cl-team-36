@@ -129,17 +129,18 @@ function crearSubrayado(nav, senal) {
 /**
  * Arma el marco. → { raiz, panel, ponerTanda(tanda), actualizar(ruta), cerrarMenu(), desmontar() }.
  * @param {{ tandaId: string, ruta: object, navegar: (hash: string) => void,
- *           volver: { clave: string, hash: string }, escapar: () => boolean }} opciones
- *   escapar: lo que hace Esc antes de cerrar la hoja (la pantalla suelta su selección); true si lo usó.
+ *           volver: { clave: string, hash: string }, alVolver?: () => void, escapar: () => boolean }} opciones
+ *   alVolver: cierra la hoja (← y Esc); escapar: lo que hace Esc antes de cerrarla (la pantalla suelta su selección);
+ *   true si lo usó.
  */
-export function montarMarco({ tandaId, ruta, navegar, volver, escapar = () => false }) {
+export function montarMarco({ tandaId, ruta, navegar, volver, alVolver = () => navegar(volver.hash), escapar = () => false }) {
   const partes = partesDeTanda(tandaId) ?? { host: null, objetivo: tandaId };
   const controlador = new AbortController();
   const senal = controlador.signal;
   let tanda = null;
   let rutaActual = ruta;
 
-  const titulo = el("h1", { class: "marco-titulo truncar", tabindex: "-1", texto: partes.objetivo });
+  const titulo = el("h1", { id: "marco-titulo", class: "marco-titulo truncar", tabindex: "-1", texto: partes.objetivo });
   const sitio = el("span", { class: "marco-hueco" }, partes.host ? el("span", { class: "marco-sitio", texto: partes.host }) : null);
   const insignia = el("span", { class: "marco-hueco" }, el("span", { class: "esqueleto marco-insignia-esqueleto", "aria-hidden": "true" }));
 
@@ -150,6 +151,11 @@ export function montarMarco({ tandaId, ruta, navegar, volver, escapar = () => fa
     icono("anterior"),
     el("span", { texto: etiquetaDeVolver }),
   );
+  botonVolver.addEventListener("click", (evento) => {
+    if (evento.button || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) return;
+    evento.preventDefault();
+    alVolver();
+  }, { signal: senal });
   conGlobo(botonVolver, globoConTecla(t("comun.marco.volver", { origen: etiquetaDeVolver }), "Escape"), { senal });
 
   const enlacesDePestana = new Map(
@@ -214,7 +220,7 @@ export function montarMarco({ tandaId, ruta, navegar, volver, escapar = () => fa
       descripcion: t("comun.atajos.desc.cerrarTanda"),
       accion: () => {
         if (menu.cerrar(true) || ocultarGlobo() || escapar()) return;
-        navegar(volver.hash);
+        alVolver();
       },
     },
   };

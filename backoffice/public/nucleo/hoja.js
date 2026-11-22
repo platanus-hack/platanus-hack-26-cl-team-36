@@ -11,12 +11,13 @@ const DENTRO = { opacity: 1, transform: "none" };
 const movimientoReducido = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 /**
- * Abre la hoja con `contenido` sobre `fondo` (el <main> del armazón). → { nodo, cerrar(): Promise<void> }.
+ * Abre la hoja con `contenido` sobre `fondo` (el <main> del armazón); `titulo` (con id) la nombra.
+ * → { nodo, cerrar(): Promise<void> }.
  * @param {Node} contenido
- * @param {{ fondo: HTMLElement }} opciones
+ * @param {{ fondo: HTMLElement, titulo: HTMLElement }} opciones
  */
-export function abrirHoja(contenido, { fondo }) {
-  const nodo = el("div", { class: "hoja" }, contenido);
+export function abrirHoja(contenido, { fondo, titulo }) {
+  const nodo = el("div", { class: "hoja", role: "region", "aria-labelledby": titulo.id }, contenido);
   fondo.after(nodo);
   fondo.inert = true;
   document.documentElement.classList.add("con-hoja");
@@ -29,7 +30,11 @@ export function abrirHoja(contenido, { fondo }) {
         fondo.inert = false;
         document.documentElement.classList.remove("con-hoja");
         nodo.inert = true;
-        if (!movimientoReducido()) await nodo.animate([DENTRO, FUERA], SALIDA).finished.catch(() => {});
+        // Con cuadros lentos (un lienzo WebGL pesado) `finished` puede tardar: a lo más 40 ms después de la salida.
+        if (!movimientoReducido()) {
+          const tope = new Promise((listo) => setTimeout(listo, SALIDA.duration + 40));
+          await Promise.race([nodo.animate([DENTRO, FUERA], SALIDA).finished.catch(() => {}), tope]);
+        }
         nodo.remove();
       })();
       return cerrada;

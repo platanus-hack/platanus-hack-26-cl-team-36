@@ -87,3 +87,25 @@ test("atajos de la tanda y de la telaraña: un juego chico, sin restos de lo que
   assert.doesNotMatch(atajos, /"resumen"/);
   assert.doesNotMatch(fuente("nucleo/marco-tanda.js"), /desc\.(pestanas|hallazgos|vecinas)/);
 });
+
+test("bajo la hoja de una tanda, las teclas de la pantalla de debajo no responden ni ocupan su lugar", async () => {
+  const { atajoPara, listarAtajos, registrarAtajos } = await import("../public/nucleo/atajos.js");
+  let debajo = true;
+  const accion = () => {};
+  const quitarFondo = registrarAtajos({ Escape: { accion, descripcion: "fondo" }, "+": { accion, descripcion: "zoom" } }, { grupo: "vivo", activo: () => debajo });
+  assert.equal(atajoPara("+")?.grupo, "vivo");
+  debajo = false;
+  const errores = [];
+  const original = console.error;
+  console.error = (...a) => errores.push(a.join(" "));
+  const quitarHoja = registrarAtajos({ Escape: { accion, descripcion: "cerrar" } }, { grupo: "tanda" });
+  console.error = original;
+  assert.deepEqual(errores, [], "la tecla de la hoja no choca con la del fondo inactivo");
+  assert.equal(atajoPara("Escape")?.grupo, "tanda");
+  assert.equal(atajoPara("+"), null);
+  assert.ok(!listarAtajos().some((a) => a.grupo === "vivo"));
+  quitarHoja();
+  debajo = true;
+  assert.equal(atajoPara("Escape")?.grupo, "vivo");
+  quitarFondo();
+});
