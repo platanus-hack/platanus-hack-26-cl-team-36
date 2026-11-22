@@ -188,13 +188,14 @@ async def _attempts(judge, make_engine, slots: list[tuple[str, int]], references
             continue  # ni siquiera cargó la página: no aporta al árbol
         runs.append(run)
 
-    await asyncio.gather(*(
-        _record_verdict(run, batch_dir / run.folder, references, judge, instruction, criteria) for run in runs
-    ))
     for user in users:
         if user.trace is not None and user.run.start:
             interrupted = user.run.end_reason in outcome.INTERRUPTED_REASONS
             user.trace.write("failed" if interrupted else "succeeded", user.run.start, user.run.to_dict()["steps"])
+
+    await asyncio.gather(*(
+        _record_verdict(run, batch_dir / run.folder, references, judge, instruction, criteria) for run in runs
+    ))
     return runs, criteria
 
 

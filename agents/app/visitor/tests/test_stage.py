@@ -306,3 +306,19 @@ def test_each_attempt_publishes_its_trace_after_every_step_and_ends_as_its_run(t
         assert (final["status"], final["start"], final["steps"]) == ("succeeded", data["start"], data["steps"])
         files = sorted(path.name for path in (backend.root / str(run) / folder).iterdir())
         assert files == ["run.json", "step_00.png", "step_01.png", "step_02.png", "trace.json"]
+
+
+def test_the_trace_ends_even_if_the_verdict_fails(tmp_path, site, monkeypatch):
+    backend = store.LocalBackend(tmp_path / "almacen")
+    goal = _goal(site)
+    _catalog(backend, site, REVISION, goal, 0)
+    _route(backend, site, REVISION, goal, 1)
+
+    async def broken(*args):
+        raise RuntimeError("juez caído")
+
+    monkeypatch.setattr(batch, "_record_verdict", broken)
+    with pytest.raises(RuntimeError):
+        _stage(backend, site)
+    [run] = backend.list_runs(store.visitor(site, "horario"))
+    assert backend.read_json(run.file("trace.json", "desktop"))["status"] == "succeeded"
