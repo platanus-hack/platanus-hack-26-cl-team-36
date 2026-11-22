@@ -69,15 +69,16 @@ export function contraste(a, b) {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
-/** Los dos colores posibles de la inicial: --texto-1 y --fondo de tokens.css. */
-export const TEXTO_CLARO = "#f5f5f7";
-export const TEXTO_OSCURO = "#0b0b10";
 /** La inicial es un objeto gráfico (aria-hidden): basta 3:1 (WCAG 1.4.11) para seguir en claro, como en la maqueta. */
 export const CONTRASTE_MINIMO = 3;
 
-/** "claro" (inicial clara) u "oscuro" sobre el color de marca `hex`: clara mientras llegue a 3:1, si no oscura. */
-export function textoSobre(hex) {
-  const conClaro = contraste(hex, TEXTO_CLARO);
+/**
+ * "claro" u "oscuro": la inicial va clara sobre el color de marca `hex` mientras llegue a 3:1 contra `claro`, el color
+ * del texto claro (el valor de --texto-1, que la página lee de tokens.css); si no, oscura (--fondo). Sin un color con
+ * que comparar, clara.
+ */
+export function textoSobre(hex, claro) {
+  const conClaro = contraste(hex, claro);
   if (conClaro === null) return "claro";
   return conClaro >= CONTRASTE_MINIMO ? "claro" : "oscuro";
 }

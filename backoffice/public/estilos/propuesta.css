@@ -17,7 +17,7 @@
   transition: border-color var(--dur-1), background-color var(--dur-1);
 }
 .p-propuesta .propuesta-vista:hover { border-color: var(--borde-fuerte); }
-.p-propuesta .propuesta-vista[aria-pressed="true"] { border-color: color-mix(in oklch, var(--acento) 60%, transparent); background: var(--superficie-2); }
+.p-propuesta .propuesta-vista[aria-pressed="true"] { border-color: color-mix(in srgb, var(--acento) 60%, transparent); background: var(--superficie-2); }
 .p-propuesta .propuesta-miniatura {
   display: block; overflow: hidden; height: 112px; border-radius: var(--radio-2); background: var(--superficie-3);
 }
@@ -59,7 +59,7 @@
 .p-propuesta .propuesta-despues { position: absolute; inset: 0; z-index: 1; clip-path: inset(0 0 0 var(--corte, 50%)); }
 .p-propuesta .propuesta-divisor {
   position: absolute; top: 0; bottom: 0; left: var(--corte, 50%); z-index: 3; width: 2px; margin-left: -1px;
-  background: var(--acento); box-shadow: 0 0 0 1px oklch(0 0 0 / 0.25); pointer-events: none;
+  background: var(--acento); box-shadow: 0 0 0 1px color-mix(in srgb, var(--negro) 25%, transparent); pointer-events: none;
 }
 .p-propuesta .propuesta-asa {
   position: absolute; top: 50%; left: 50%; display: inline-flex; align-items: center; gap: 0;
@@ -85,7 +85,7 @@
 .p-propuesta .propuesta-esqueleto > span:nth-child(2) { width: 38%; }
 .p-propuesta .propuesta-escaneo {
   position: absolute; inset-inline: 0; top: 0; height: 22%;
-  background: linear-gradient(to bottom, transparent, color-mix(in oklch, var(--acento) 22%, transparent), transparent);
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--acento) 22%, transparent), transparent);
   animation: propuesta-escaneo 2.4s var(--curva-entrada-salida) infinite;
 }
 
@@ -93,9 +93,9 @@
 .p-propuesta .propuesta-marcas { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .p-propuesta .propuesta-marca {
   position: absolute; box-sizing: border-box; border: 2px dashed var(--acento); border-radius: var(--radio-1);
-  background: color-mix(in oklch, var(--acento) 8%, transparent);
+  background: color-mix(in srgb, var(--acento) 8%, transparent);
 }
-.p-propuesta .propuesta-marca-evidencia { border-color: var(--peligro-texto); background: color-mix(in oklch, var(--peligro) 8%, transparent); }
+.p-propuesta .propuesta-marca-evidencia { border-color: var(--peligro-texto); background: color-mix(in srgb, var(--peligro) 8%, transparent); }
 .p-propuesta .propuesta-marca-numero {
   position: absolute; top: -11px; left: -11px; display: inline-grid; place-items: center; width: 22px; height: 22px;
   border-radius: 50%; background: var(--acento); color: var(--fondo); font-size: 12px; font-weight: 700;
@@ -109,7 +109,7 @@
   display: grid; gap: var(--e-3); padding: var(--e-4);
   border: 1px solid var(--borde-sutil); border-radius: var(--radio-3); background: var(--superficie-1);
 }
-.p-propuesta .propuesta-disenador-en-curso { border-color: color-mix(in oklch, var(--acento) 35%, transparent); }
+.p-propuesta .propuesta-disenador-en-curso { border-color: color-mix(in srgb, var(--acento) 35%, transparent); }
 .p-propuesta .propuesta-disenador-cabecera { display: flex; align-items: center; gap: var(--e-2); min-width: 0; }
 .p-propuesta .propuesta-disenador-icono {
   display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radio-2);
@@ -146,23 +146,23 @@
 /* Muestras: cómo era → cómo queda, sin palabras. */
 .p-propuesta .propuesta-muestra {
   display: flex; align-items: center; justify-content: center; gap: var(--e-3); min-height: 56px; padding: var(--e-2) var(--e-3);
-  border-radius: var(--radio-2); background: oklch(0.985 0.004 85); color: oklch(0.30 0.02 260);
+  border-radius: var(--radio-2); background: var(--muestra-papel); color: var(--muestra-tinta);
 }
-.p-propuesta .propuesta-muestra > .icono { flex: none; color: oklch(0.55 0.01 260); }
+.p-propuesta .propuesta-muestra > .icono { flex: none; color: var(--muestra-tinta-suave); }
 .p-propuesta .propuesta-enlace-antes, .p-propuesta .propuesta-enlace-despues { display: block; width: 88px; height: 8px; border-radius: 2px; }
-.p-propuesta .propuesta-enlace-antes { background: oklch(0.82 0.03 255); }
+.p-propuesta .propuesta-enlace-antes { background: var(--muestra-enlace); }
 .p-propuesta .propuesta-enlace-despues {
-  background: var(--acento-tema, oklch(0.6 0.15 45));
-  box-shadow: 0 5px 0 -3px var(--acento-tema, oklch(0.6 0.15 45));
+  background: var(--acento-tema, var(--muestra-acento));
+  box-shadow: 0 5px 0 -3px var(--acento-tema, var(--muestra-acento));
 }
 .p-propuesta .propuesta-aa { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; line-height: 1; }
 .p-propuesta .propuesta-aa-despues { font-size: 19px; }
 .p-propuesta .propuesta-lineas { display: grid; gap: 3px; width: 40px; }
-.p-propuesta .propuesta-lineas span { display: block; height: 3px; border-radius: 2px; background: oklch(0.80 0.01 260); }
+.p-propuesta .propuesta-lineas span { display: block; height: 3px; border-radius: 2px; background: var(--muestra-linea); }
 .p-propuesta .propuesta-aa-despues .propuesta-lineas { gap: 6px; }
-.p-propuesta .propuesta-aa-despues .propuesta-lineas span { background: oklch(0.45 0.02 260); }
-.p-propuesta .propuesta-barra { display: grid; place-items: center; width: 64px; height: 20px; border-radius: var(--radio-1); background: oklch(0.82 0.01 260); }
-.p-propuesta .propuesta-barra-despues { height: 30px; background: oklch(0.45 0.02 260); color: white; font-size: 11px; }
+.p-propuesta .propuesta-aa-despues .propuesta-lineas span { background: var(--muestra-linea-fuerte); }
+.p-propuesta .propuesta-barra { display: grid; place-items: center; width: 64px; height: 20px; border-radius: var(--radio-1); background: var(--muestra-barra); }
+.p-propuesta .propuesta-barra-despues { height: 30px; background: var(--muestra-linea-fuerte); color: var(--blanco); font-size: 11px; }
 
 .p-propuesta .propuesta-decisiones { padding: 0 var(--e-1); color: var(--texto-3); font-size: 13px; }
 .p-propuesta .propuesta-decisiones summary { cursor: pointer; }
@@ -173,7 +173,7 @@
 .p-propuesta .propuesta-paleta { display: inline-flex; }
 .p-propuesta .propuesta-color {
   width: 22px; height: 22px; margin-left: -6px; border-radius: 50%; background: var(--color);
-  box-shadow: 0 0 0 2px var(--fondo), inset 0 0 0 1px oklch(0 0 0 / 0.12);
+  box-shadow: 0 0 0 2px var(--fondo), inset 0 0 0 1px color-mix(in srgb, var(--negro) 12%, transparent);
 }
 .p-propuesta .propuesta-color:first-child { margin-left: 0; }
 .p-propuesta .propuesta-tema { display: inline-flex; align-items: center; gap: 6px; color: var(--texto-2); font-size: 12px; }

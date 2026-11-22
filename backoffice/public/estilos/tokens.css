@@ -55,6 +55,15 @@
   --rayado: repeating-linear-gradient(135deg, color-mix(in srgb, var(--neutro) 22%, transparent) 0 2px, transparent 2px 4px);
   --serie-1: var(--acento);
   --serie-2: var(--aviso);
+  /* muestras de la pestaña Propuesta: dibujan una página clara de un sitio (cómo era → cómo queda), no la interfaz */
+  --muestra-papel:        #FBFAF7;
+  --muestra-tinta:        #282E38;
+  --muestra-tinta-suave:  #6E7278;
+  --muestra-enlace:       #B7C6D8;
+  --muestra-linea:        #BABEC4;
+  --muestra-linea-fuerte: #4F5661;
+  --muestra-barra:        #C0C4CB;
+  --muestra-acento:       #C65D26;   /* si el tema no trae su acento */
   /* velos y sombras: solo capas flotantes */
   --velo: rgb(0 0 0 / 0.5);
   --sombra-flotante: 0 0 0 1px var(--borde), 0 4px 8px -2px rgb(0 0 0 / 0.5), 0 16px 32px -8px rgb(0 0 0 / 0.6);

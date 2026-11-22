@@ -51,7 +51,8 @@ test("índice: el estado de cada corrida y los intentos de cada tanda, con sus e
 
 test("índice: lo cerrado se lee una vez; de lo abierto, solo el manifest, las trazas y las carpetas sin run.json", async () => {
   const fuente = almacen();
-  const indice = crearIndice(fuente);
+  // Con listadoMs 0 cada pasada vuelve a listar (el plazo de LISTADO_MS se prueba en listado-s3.test.js).
+  const indice = crearIndice(fuente, { listadoMs: 0 });
   await indice.leer();
   fuente.lecturas.length = 0;
   await indice.leer();

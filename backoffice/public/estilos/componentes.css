@@ -52,7 +52,7 @@
 .insignia {
   --tono: var(--neutro);
   display: inline-flex; align-items: center; gap: 6px; min-height: 22px; padding: 0 var(--e-2);
-  border-radius: var(--radio-pildora); background: color-mix(in oklch, var(--tono) 14%, transparent);
+  border-radius: var(--radio-pildora); background: color-mix(in srgb, var(--tono) 14%, transparent);
   color: var(--tono); font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap;
   vertical-align: middle;
 }

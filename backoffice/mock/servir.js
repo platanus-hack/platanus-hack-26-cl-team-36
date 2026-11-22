@@ -28,14 +28,15 @@ const comandos = { QueryCommand: class QueryCommand extends Comando {}, ScanComm
 
 /**
  * Las revisiones de revisiones.json, en memoria: nada de AWS ni de red. Responde con la misma forma que el SDK
- * para que lib/revisiones.js funcione sin cambios: entiende su Scan (`SK = :meta`) y su Query (`PK = :pk`) y
+ * para que lib/revisiones.js funcione sin cambios: entiende su Scan (`SK IN (:meta, :url)`) y su Query (`PK = :pk`) y
  * pagina con LastEvaluatedKey, como la tabla real.
  */
 export function tablaEnMemoria(items, { porPagina = 100, latenciaMs = 0 } = {}) {
   const filtro = (expresion, valores) => {
-    const partes = /^(PK|SK) = (:\w+)$/.exec(expresion ?? "");
+    const partes = /^(PK|SK) (?:= (:\w+)|IN \((:\w+(?:, :\w+)*)\))$/.exec(expresion ?? "");
     if (!partes) throw new Error(`Expresión no soportada por la tabla de prueba: ${expresion}`);
-    return (item) => item[partes[1]] === valores[partes[2]];
+    const aceptados = (partes[2] ?? partes[3]).split(", ").map((nombre) => valores[nombre]);
+    return (item) => aceptados.includes(item[partes[1]]);
   };
   return {
     async send(comando) {

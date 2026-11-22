@@ -105,7 +105,8 @@ export function clienteDynamoFalso(tabla, items, { porPagina = 2 } = {}) {
         if (input.KeyConditionExpression !== "PK = :pk") throw new Error("consulta inesperada");
         encontrados = items.filter((item) => item.PK === valores[":pk"]);
       } else if (comando instanceof comandosDynamo.ScanCommand) {
-        encontrados = input.FilterExpression === "SK = :meta" ? items.filter((item) => item.SK === valores[":meta"]) : items;
+        const sks = { "SK = :meta": [":meta"], "SK IN (:meta, :url)": [":meta", ":url"] }[input.FilterExpression]?.map((nombre) => valores[nombre]);
+        encontrados = sks ? items.filter((item) => sks.includes(item.SK)) : items;
       } else {
         throw new Error(`comando inesperado: ${comando.constructor.name}`);
       }

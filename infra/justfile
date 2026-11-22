@@ -2,7 +2,7 @@
 # From anywhere in the repo, as `just aws <command>`. They use your AWS credentials for the project
 # account: export AWS_PROFILE=<profile>.
 #
-#   just aws revision https://www.wom.cl/      reviews a page on AWS and follows its stages
+#   just aws revision https://www.wom.cl/      the whole pipeline on one page in AgentCore, followed stage by stage
 #   just aws deploy                            deploys from your computer (CI does it on every merge)
 #   just aws seed [--force] [<url>...]         revisions on the deployed API (default: agents/tasks/demo.json)
 #   just aws improve [<url>...] [--todas]      reruns only the improver on revisions already done
@@ -22,25 +22,32 @@ runtime_arn := "aws bedrock-agentcore-control list-agent-runtimes --query \"agen
 # The API and its table (infra/app/).
 api_function := "chameleon-backend"
 table := "chameleon-revisiones"
+# Where each revision's progress shows (backoffice/, in ECS).
+backoffice := "https://chameleonmode.app/backoffice/"
 
 # What `just aws` alone runs.
 [private]
 [default]
 help:
-    @just --list aws --unsorted --list-heading '{{ list_heading }}'
+    @just --justfile ../justfile --list aws --unsorted --list-heading '{{ list_heading }}'
 
-# Reviews a page through the API (POST /revisiones) and follows its stages; saves tema.css in local/.state/aws/. --force reviews it again
+# The whole pipeline on one page in AgentCore, through the API (POST /revisiones): follows its stages and saves tema.css in local/.state/aws/. --force reviews it again
 [group('Revisions on AgentCore · Claude on Bedrock, billed to the AWS account')]
 revision url force="":
     #!/usr/bin/env bash
     set -euo pipefail
     [[ -z "$2" || "$2" == "--force" ]] || { echo "usage: just aws revision <url> [--force]" >&2; exit 1; }
+    aws sts get-caller-identity > /dev/null 2>&1 \
+        || { echo "  ✘ No AWS credentials: export AWS_PROFILE=<profile of the project account>, and aws login if it expired." >&2; exit 1; }
     api=$(aws lambda get-function-url-config --function-name {{ api_function }} --query FunctionUrl --output text)
     api="${api%/}"
     body=$(node -e 'console.log(JSON.stringify({url: process.argv[1], force: process.argv[2] === "--force"}))' "$1" "$2")
     answer=$(curl -sS --fail-with-body -X POST "$api/revisiones" -H 'content-type: application/json' -d "$body")
     revision=$(node -p 'JSON.parse(process.argv[1]).revision' "$answer")
-    echo "revision $revision"
+    echo "revision $revision · {{ backoffice }}#/revisiones/$revision"
+    if [[ "$(node -p 'JSON.parse(process.argv[1]).status' "$answer")" == done && -z "$2" ]]; then
+        echo "  This page already has a finished revision: --force reviews it again."
+    fi
     # The projector copies each manifest from S3 to the revision's rows in DynamoDB: META and one per stage.
     seen="$(mktemp)"
     trap 'rm -f "$seen"' EXIT

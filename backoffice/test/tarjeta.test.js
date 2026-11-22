@@ -256,7 +256,7 @@ test("armarTarjeta: la forma del contrato, en ese orden", () => {
     acento: "#d35609",
     sitio: "Móvil Sur",
   });
-  assert.deepEqual(Object.keys(tarjeta), ["revision", "url", "host", "ruta", "sitio", "estado", "creada", "actualizada", "etapas", "agentes", "goals", "capturas", "acento", "motivo"]);
+  assert.deepEqual(Object.keys(tarjeta), ["revision", "url", "host", "ruta", "sitio", "estado", "creada", "actualizada", "etapas", "agentes", "goals", "capturas", "acento", "motivo", "anteriores"]);
   assert.deepEqual([tarjeta.revision, tarjeta.host, tarjeta.ruta, tarjeta.estado, tarjeta.actualizada], ["rev-1", "movilsur.test", "/", "running", "2026-11-22T03:36:47.428Z"]);
   assert.deepEqual(tarjeta.capturas, { desktop: null, mobile: null });
   const detenida = armarTarjeta({ meta: meta({ status: "running", updated_at: "2026-11-22T00:36:49.000Z" }), items: BANCO, ahora: AHORA, sitio: "Banco Andino" });

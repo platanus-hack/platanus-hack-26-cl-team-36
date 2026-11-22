@@ -98,6 +98,8 @@ curso, detenidas y en cola), Delivered y Failed. Cada pestaña muestra 6 tarjeta
 abajo, paginadas en el servidor (`/api/overview?pestana=…&limite=…`). Una tarjeta lleva directo a Path map / Replay: la
 telaraña de su primer goal con tanda terminada (cada goal, a la suya); si la revisión todavía no tiene una, la de la
 tanda de su captura (la más nueva del mismo host y ruta); solo si no hay ninguna, al avance de la revisión.
+Hay una tarjeta por página: la revisión vigente (la que apunta el ítem `URL#<url>` de la tabla), aunque esté en curso;
+las que reemplazó un `force` no cuentan y la tarjeta enlaza a ellas ("2 previous reviews").
 El filtro de dispositivo (All · Desktop · Mobile) cambia los visitantes, las capturas, los medidores y los cuadritos
 de cada tarjeta. El dispositivo y la pestaña quedan en la URL (`#/?dispositivo=mobile&pestana=failed`); la página
 vuelve a pedir cada 5 s mientras la pestaña del navegador está visible.
@@ -107,8 +109,9 @@ por día. Cada fila abre la tanda y dice solo qué tanda es y cómo le fue: tare
 medidor), los errores de la herramienta si los hay y cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla
 quedan en la URL.
 
-**Revisiones** (`#/revisiones`, con `?estado=live|done|failed` para filtrar) lista las revisiones de la tabla y abre
-el avance de cada una por etapa y por goal.
+**Revisiones** (`#/revisiones`, con `?estado=live|done|failed` para filtrar) lista las revisiones vigentes y abre
+el avance de cada una por etapa y por goal; `?estado=historial` lista las reemplazadas. `npm run historial` (con
+`AWS_PROFILE`) imprime esas mismas en la terminal, las que se podrían archivar: solo lee, no archiva ni borra.
 
 Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene una cabecera mínima, común a sus pestañas:
 la tarea (con tanda anterior/siguiente y copiar enlace) y, debajo, sitio, fecha y cuántos llegan. Debajo, tres

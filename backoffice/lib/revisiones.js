@@ -2,7 +2,8 @@
 // proyectora; el backoffice solo lee). Una revisión es un ítem META y uno por etapa (STAGE#…) o goal (GOAL#…).
 //
 // GET /api/revisiones → { disponible, revisiones: [{ revision, url, host, estado, goalsTotal, css, creada, actualizada,
-//   resumen | null }] }
+//   resumen | null, anteriores }], historial: [lo mismo sin anteriores] }
+//   revisiones: la vigente de cada página (revisionesVigentes), aunque esté en curso; historial: las que reemplazó.
 // GET /api/revisiones/<rev> → lo mismo de su META, más:
 //   resumen: { fases: { catalog|guide|visitor|improver: { pending, running, succeeded, failed, skipped } }, agentesActivos,
 //              pasos, goalsTotal, calculado }   (calculado: true si META no lo traía y salió de los ítems)
@@ -214,6 +215,43 @@ export function avanceDeRevision(items) {
   };
 }
 
+const idDe = (meta) => String(meta?.PK ?? "").replace(/^REV#/, "");
+
+/** La URL del ítem URL#<url> (backend/urls.js) que le corresponde al `url` de META (origin + pathname), o null. */
+export function paginaDeRevision(url) {
+  try {
+    const partes = new URL(url);
+    const nombre = partes.hostname.replace(/\.$/, "").replace(/^www\./, "");
+    return `${partes.protocol}//${partes.port ? `${nombre}:${partes.port}` : nombre}${partes.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Qué revisiones están vigentes: la que apunta el ítem URL#<url> de su página (`revision`). Las demás de esa página
+ * quedan en el historial (un `force` deja la anterior ahí). Una página sin ese ítem, o con uno que apunta a una
+ * revisión sin META, deja vigentes todas las suyas.
+ * @param {object[]} metas     ítems META
+ * @param {object[]} punteros  ítems SK = URL
+ * @returns {{ vigentes: Set<string>, anteriores: Map<string, number> }}  anteriores: por revisión vigente, cuántas reemplazó
+ */
+export function revisionesVigentes(metas, punteros) {
+  const ids = new Set(metas.map(idDe));
+  const apuntada = new Map(
+    punteros.filter((item) => item?.SK === "URL" && ids.has(item.revision)).map((item) => [String(item.PK).replace(/^URL#/, ""), item.revision]),
+  );
+  const vigentes = new Set();
+  const anteriores = new Map();
+  for (const meta of metas) {
+    const id = idDe(meta);
+    const actual = apuntada.get(paginaDeRevision(meta.url));
+    if (actual === undefined || actual === id) vigentes.add(id);
+    else anteriores.set(actual, (anteriores.get(actual) ?? 0) + 1);
+  }
+  return { vigentes, anteriores };
+}
+
 const porFecha = (a, b) => String(b.creada ?? "").localeCompare(String(a.creada ?? "")) || a.revision.localeCompare(b.revision);
 
 const LIMITE_EN_MEMORIA = 500;
@@ -344,17 +382,26 @@ export function crearRevisiones({ tabla, cliente, comandos, fuente = null }) {
     } while (desde);
     return items;
   }
-  /** Los ítems META tal cual (Scan con SK = META), en cualquier orden. */
-  const metas = () => todas(ScanCommand, { FilterExpression: "SK = :meta", ExpressionAttributeValues: { ":meta": "META" } });
+  /** Los ítems META y los URL#<url> tal cual (un Scan), en cualquier orden. */
+  async function metasYPunteros() {
+    const leidos = await todas(ScanCommand, { FilterExpression: "SK IN (:meta, :url)", ExpressionAttributeValues: { ":meta": "META", ":url": "URL" } });
+    return { metas: leidos.filter((item) => item.SK === "META"), punteros: leidos.filter((item) => item.SK === "URL") };
+  }
   /** Todos los ítems de una revisión tal cual (Query por PK = REV#<revision>); [] si el id no es válido. */
   const items = async (revision) =>
     esRevision(revision) ? todas(QueryCommand, { KeyConditionExpression: "PK = :pk", ExpressionAttributeValues: { ":pk": `REV#${revision}` } }) : [];
   return {
     descripcion: `dynamodb://${tabla}`,
 
-    /** Resúmenes de todas las revisiones, de la más nueva a la más vieja. */
+    /** Resúmenes de las vigentes y del historial, de la más nueva a la más vieja. */
     async listar() {
-      return (await metas()).map(resumenDeMeta).sort(porFecha);
+      const { metas, punteros } = await metasYPunteros();
+      const { vigentes, anteriores } = revisionesVigentes(metas, punteros);
+      const resumenes = metas.map(resumenDeMeta).sort(porFecha);
+      return {
+        revisiones: resumenes.filter((r) => vigentes.has(r.revision)).map((r) => ({ ...r, anteriores: anteriores.get(r.revision) ?? 0 })),
+        historial: resumenes.filter((r) => !vigentes.has(r.revision)),
+      };
     },
 
     /** El avance de una revisión, o null si no existe. */
@@ -366,7 +413,7 @@ export function crearRevisiones({ tabla, cliente, comandos, fuente = null }) {
     },
 
     // Crudos, para el Overview (lib/panel.js): necesita campos que listar() y leer() no entregan (META.error).
-    metas,
+    metasYPunteros,
     items,
   };
 }

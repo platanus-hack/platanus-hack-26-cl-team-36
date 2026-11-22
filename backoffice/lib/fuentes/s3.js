@@ -140,6 +140,8 @@ export function crearFuenteS3({ bucket, prefijo = "", cliente, comandos }) {
 
     async existe(id, relativa) {
       const clave = claveDe(id, relativa);
+      // De una corrida cerrada ya se listó su carpeta: un archivo suelto en ella se sabe sin pedir nada.
+      if (cerradas.has(id) && !relativa.includes("/")) return cerradas.get(id).archivos.has(relativa);
       return recordar(id, `existe:${clave}`, async () => {
         try {
           await enviar(HeadObjectCommand, { Key: clave });

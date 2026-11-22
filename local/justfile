@@ -10,10 +10,11 @@
 #   6. just local visit <url> "<task>"       visitor: synthetic users (calls Claude)
 #      just local visit-tasks [prefix]       visitor on the tasks in agents/tasks/ (calls Claude)
 #   7. just local backoffice                 viewer of the visitor runs, at http://localhost:4848/backoffice/ (`up` already starts it)
-#   8. just local site <url> [goals]         catalog, guide and visitor per goal, and summary (calls Claude)
+#   8. just local revision <url>             the whole pipeline on one page, as in AWS: catalog, guide and visitor
+#                                            per goal, and the improver's tema.css (calls Claude)
+#   9. just local site <url> [goals]         per site, without tema.css: catalog, guide and visitor per goal, and summary (calls Claude)
 #      just local summary <url>              a new summary from the latest runs in the store
-#      just local revision <url>             one page as in AWS: catalog, guide and visitor per goal, tema.css (calls Claude)
-#   9. just local migrate-runs <store>       old-layout runs of agents/.runs/ into a store (plan unless --write)
+#  10. just local migrate-runs <store>       old-layout runs of agents/.runs/ into a store (plan unless --write)
 #
 # Recipes run from the repo root, so every path here is relative to it. What `up`
 # leaves behind (process ids and logs) goes to local/.state/, outside git. The agents
@@ -61,13 +62,13 @@ setup:
     else
         fail "uv" "https://docs.astral.sh/uv/"
     fi
-    # Only steps 4, 5, 6 and 8 need Claude Code, so it warns instead of stopping the setup.
+    # Only steps 4, 5, 6, 8 and 9 need Claude Code, so it warns instead of stopping the setup.
     if ! command -v claude >/dev/null; then
-        echo "  ! Claude Code is missing (needed for steps 4, 5, 6 and 8) → https://claude.com/claude-code"
+        echo "  ! Claude Code is missing (needed for steps 4, 5, 6, 8 and 9) → https://claude.com/claude-code"
     elif claude auth status 2>/dev/null | grep -q '"loggedIn": *true'; then
         ok "Claude Code, logged in"
     else
-        echo "  ! Claude Code is not logged in (needed for steps 4, 5, 6 and 8) → claude auth login"
+        echo "  ! Claude Code is not logged in (needed for steps 4, 5, 6, 8 and 9) → claude auth login"
     fi
     if [ "$missing" -gt 0 ]; then
         echo "Fix the ✘ items and run \`just local setup\` again."
@@ -294,10 +295,47 @@ backoffice:
     @echo "Backoffice at http://localhost:4848/backoffice/ · Ctrl+C to stop"
     npm --prefix backoffice start
 
-# ── 8. Site ───────────────────────────────────────────────────────────────
+# ── 8. Revision ───────────────────────────────────────────────────────────
 
-# Catalog, then guide and visitor for up to N goals (or all), then the summary. E.g. just local site https://www.wom.cl/ 3
-[group('8. Site · `site` calls Claude, uses your plan')]
+# The `--goals-max`, `--profiles`, `--runs` and `--concurrency` options go to the conductor (agents/app/conductor/README.md).
+# The whole pipeline on one page, as in AWS: catalog, guide and visitor per goal, and the improver's tema.css in local/.state/local/. E.g. just local revision https://www.wom.cl/ --goals-max 1
+[group('8. Revision · the whole pipeline, calls Claude, uses your plan')]
+[positional-arguments]
+revision url *options: _ready _agents_ready _claude
+    #!/usr/bin/env bash
+    set -euo pipefail
+    url="$1"
+    shift
+    # A new revision, unless the options bring one: the conductor keeps the last --revision.
+    revision="local-$(date -u +%Y%m%d-%H%M%S)"
+    previous=""
+    for option in ${1+"$@"}; do
+        [ "$previous" = --revision ] && revision="$option"
+        case "$option" in --revision=*) revision="${option#--revision=}" ;; esac
+        previous="$option"
+    done
+    # The conductor runs each stage's CLI in its own folder and exits with 0 only if the improver succeeded.
+    if ! (cd agents/app/conductor && uv run main.py --url "$url" --revision "$revision" ${1+"$@"}); then
+        echo "The revision failed: its conductor.json says how each stage ended, next to their <stage>[-<goal>].log." >&2
+        exit 1
+    fi
+    # tema.css from the store (AGENTS_STORE), next to the ones `just aws revision` saves.
+    out="local/.state/local/$revision"
+    mkdir -p "$out"
+    (cd agents/app/conductor && uv run python - "$url" "$revision") > "$out/tema.css" <<'PY'
+    import sys
+    from shared import store
+    url, revision = sys.argv[1:]
+    backend = store.open_backend()
+    run = store.revision_run(backend, store.improver(url), revision)
+    sys.stdout.write(backend.read_text(run.file("tema.css")))
+    PY
+    echo "tema.css: $out/tema.css"
+
+# ── 9. Site ───────────────────────────────────────────────────────────────
+
+# Per site, without the improver: catalog, then guide and visitor for up to N goals (or all), then the summary. E.g. just local site https://www.wom.cl/ 3
+[group('9. Site · without tema.css, `site` calls Claude, uses your plan')]
 [positional-arguments]
 site url goals="3": _ready _agents_ready
     #!/usr/bin/env bash
@@ -313,7 +351,7 @@ site url goals="3": _ready _agents_ready
     uv run main.py --site "$url"
 
 # Writes a new summary of a site from the latest runs in the store, without calling Claude. E.g. just local summary https://www.wom.cl/
-[group('8. Site · `site` calls Claude, uses your plan')]
+[group('9. Site · without tema.css, `site` calls Claude, uses your plan')]
 [positional-arguments]
 summary url: _agents_ready
     #!/usr/bin/env bash
@@ -321,27 +359,21 @@ summary url: _agents_ready
     cd agents/app/summary
     exec uv run main.py --site "$1"
 
-# A revision of one page, as POST /revisiones triggers it in AWS (just aws revision): catalog, guide and visitor per goal, and the improver's tema.css. E.g. just local revision https://www.wom.cl/ --goals-max 1
-[group('8. Site · `site` calls Claude, uses your plan')]
-[working-directory('agents/app/conductor')]
-[positional-arguments]
-revision url *options: _ready _agents_ready
-    #!/usr/bin/env bash
-    set -euo pipefail
-    url="$1"
-    shift
-    # The conductor runs each stage's CLI in its own folder; a --revision in the options wins over this one.
-    exec uv run main.py --url "$url" --revision "local-$(date -u +%Y%m%d-%H%M%S)" ${1+"$@"}
-
 [private]
 _agents_ready:
     @for project in cataloger guide summary web_designer conductor; do test -x "agents/app/$project/.venv/bin/python" \
         || { echo "The $project dependencies are missing: run \`just local setup\` first." >&2; exit 1; }; done
 
-# ── 9. Migration ──────────────────────────────────────────────────────────
+# Claude Code installed and logged in, which the agents call unless AGENTS_ENGINE names another engine
+[private]
+_claude:
+    @[ "${AGENTS_ENGINE:-claude-code}" != claude-code ] || claude auth status 2> /dev/null | grep -q '"loggedIn": *true' \
+        || { echo "Claude Code is missing or not logged in → https://claude.com/claude-code, then \`claude auth login\`." >&2; exit 1; }
+
+# ── 10. Migration ─────────────────────────────────────────────────────────
 
 # Copies the old-layout runs of agents/.runs/ into a store, without touching them; prints the plan unless --write. E.g. just local migrate-runs file:///tmp/runs --write
-[group('9. Migration · once, does not call Claude')]
+[group('10. Migration · once, does not call Claude')]
 [working-directory('agents/shared')]
 [positional-arguments]
 migrate-runs store *options:

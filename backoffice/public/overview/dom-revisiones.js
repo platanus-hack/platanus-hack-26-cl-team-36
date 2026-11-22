@@ -29,6 +29,14 @@ import { cifra } from "./textos.js";
 
 const ICONO_DE_ETAPA = { catalog: "catalogo", guide: "ruta", visitor: "visitantes", improver: "tema" };
 
+// El color del texto claro de la inicial, de tokens.css (--texto-1): contra él se decide si la inicial va clara u
+// oscura. Se lee una vez, cuando ya cargaron los estilos.
+let textoClaro = null;
+function colorDelTextoClaro() {
+  if (!textoClaro) textoClaro = getComputedStyle(document.documentElement).getPropertyValue("--texto-1").trim() || null;
+  return textoClaro;
+}
+
 /** URL de una captura (o null): la «después» del Diseñador si está; si no, { tanda, carpeta, archivo } del Visitante. */
 const src = (captura) => (captura?.despues ? urlDePropuesta(captura.despues) : captura ? urlDeArchivo(captura.tanda, captura.carpeta, captura.archivo) : null);
 
@@ -41,7 +49,7 @@ function marcaDe(modelo) {
   const leido = ruta ? colorDeCaptura(ruta) : null;
   if (ruta && leido === undefined) return null;
   const color = leido ?? colorDeRespaldo(modelo.host);
-  return { color, texto: textoSobre(color) };
+  return { color, texto: textoSobre(color, colorDelTextoClaro()) };
 }
 
 function pista(t) {

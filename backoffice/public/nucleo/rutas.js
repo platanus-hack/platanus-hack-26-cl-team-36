@@ -5,7 +5,7 @@
 //   #/?q=…&sitio=…              (enlace viejo, de cuando Corridas era #/) → #/corridas?… con esos parámetros
 //   #/t/<tandaId>               → #/t/<tandaId>/telarana
 //   #/t/<tandaId>/<pestaña>     telarana · replay · propuesta   (#/t/<tandaId>/resumen, de cuando existía, → telarana)
-//   #/revisiones                Revisiones (DynamoDB)   ?estado=live|done|failed   (live = running + queued)
+//   #/revisiones                Revisiones (DynamoDB)   ?estado=live|done|failed|historial   (live = running + queued)
 //   #/revisiones/<revision>     el avance de una revisión
 //
 // Todo el estado de la vista vive en el hash. `idioma=` puede venir en cualquier ruta: el enrutador lo aplica y lo
@@ -22,7 +22,7 @@ export const DISPOSITIVOS = Object.freeze(["all", "desktop", "mobile"]);
 /** Pestañas de revisiones del Overview (la primera es la de por defecto). */
 export const PESTANAS_DEL_OVERVIEW = Object.freeze(["recent", "live", "delivered", "failed"]);
 /** Filtro `estado=` de la lista de Revisiones. */
-export const ESTADOS_DE_REVISIONES = Object.freeze(["live", "done", "failed"]);
+export const ESTADOS_DE_REVISIONES = Object.freeze(["live", "done", "failed", "historial"]);
 
 // Valores válidos de los parámetros con un conjunto cerrado; lo demás se descarta al leer y al escribir.
 const VALORES = {
