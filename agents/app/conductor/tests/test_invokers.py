@@ -192,3 +192,11 @@ def test_timeouts_from_the_environment(monkeypatch):
     monkeypatch.setenv("CONDUCTOR_TIMEOUT_GUIDE_S", "-1")
     with pytest.raises(ValueError):
         config.timeouts()
+
+
+def test_agentcore_client_retries_throttling(backend, monkeypatch):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "x")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "x")
+    client = AgentCoreInvoker(backend, "arn:runtime").client
+    assert client.meta.service_model.service_name == "bedrock-agentcore"
+    assert client.meta.config.retries == {"mode": "standard", "total_max_attempts": 6}

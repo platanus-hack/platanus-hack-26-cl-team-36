@@ -127,8 +127,11 @@ class AgentCoreInvoker:
                  monotonic: Callable[[], float] = time.monotonic):
         if client is None:
             import boto3
+            from botocore.config import Config
 
-            client = boto3.client("bedrock-agentcore", region_name=aws.region())
+            # Reintentos con espera ante throttling o un 5xx de la invocación.
+            client = boto3.client("bedrock-agentcore", region_name=aws.region(),
+                                  config=Config(retries={"mode": "standard", "total_max_attempts": 6}))
         self.backend = backend
         self.runtime_arn = runtime_arn
         self.client = client
