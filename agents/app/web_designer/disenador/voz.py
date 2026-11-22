@@ -15,7 +15,9 @@ from urllib.parse import urlsplit
 from disenador import atajos
 
 # La página: títulos de sección (también los que no son <h*>, como `.card-title`), el menú completo (también lo que
-# está plegado en un desplegable) y los botones visibles.
+# está plegado en un desplegable) y después los enlaces del primer pantallazo (como una lista de accesos), los botones
+# visibles y `a_mano`, las rutas que el primer pantallazo ya enlaza. Un enlace es del sitio si su host es el de la
+# página o un subdominio del mismo sitio (www.sii.cl redirige a homer.sii.cl).
 VOZ_JS = r"""() => {
   const limpio = (t, max) => (t || "").replace(/\s+/g, " ").trim().slice(0, max);
   const visible = (el) => { const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1; };
@@ -23,14 +25,28 @@ VOZ_JS = r"""() => {
     "h1, h2, h3, h4, legend, [role=heading], [class*=title], [class*=titulo]")]
     .filter((el) => !el.closest("script, style, template"))
     .map((el) => limpio(el.textContent, 80)).filter((t) => t && t.length <= 70);
+  const sinWww = (h) => h.replace(/^www\./, "");
+  const sitio = sinWww(location.hostname);
+  const delSitio = (url) => {
+    const host = sinWww(url.hostname);
+    return /^https?:$/.test(url.protocol)
+      && (host === sitio || host.endsWith("." + sitio) || sitio.endsWith("." + host));
+  };
+  const enPantalla = (el) => { const r = el.getBoundingClientRect();
+                               return r.width > 1 && r.height > 1 && r.top < innerHeight && r.bottom > 0; };
   const menu = [];
   const vistos = new Set();
-  for (const a of document.querySelectorAll("header a[href], nav a[href], [role=navigation] a[href], [role=banner] a[href]")) {
-    if (menu.length >= 150) break;
-    const texto = limpio(a.textContent || a.getAttribute("aria-label"), 60);
+  const aMano = new Set();
+  const delMenu = [...document.querySelectorAll(
+    "header a[href], nav a[href], [role=navigation] a[href], [role=banner] a[href]")];
+  const primerPantallazo = [...document.querySelectorAll("a[href]")].filter(enPantalla);
+  for (const a of [...delMenu, ...primerPantallazo]) {
     let url;
     try { url = new URL(a.getAttribute("href"), location.href); } catch { continue; }
-    if (!texto || url.origin !== location.origin || vistos.has(url.pathname)) continue;
+    if (!delSitio(url)) continue;
+    if (enPantalla(a) && !a.closest("header, nav, [role=navigation], [role=banner]")) aMano.add(url.pathname);
+    const texto = limpio(a.textContent || a.getAttribute("aria-label"), 60);
+    if (!texto || menu.length >= 150 || vistos.has(url.pathname)) continue;
     vistos.add(url.pathname);
     menu.push({ texto, href: url.pathname });
   }
@@ -38,7 +54,7 @@ VOZ_JS = r"""() => {
     .map((b) => limpio(b.tagName === "INPUT" ? b.value : b.textContent || b.getAttribute("aria-label"), 40))
     .filter(Boolean);
   return { titulo: limpio(document.title, 120), titulos: [...new Set(titulos)].slice(0, 40), menu,
-           botones: [...new Set(botones)].slice(0, 20) };
+           botones: [...new Set(botones)].slice(0, 20), a_mano: [...aMano].slice(0, 200) };
 }"""
 
 _PREGUNTA_ES = (r"(?:¿|^\s*(?=qu[eé]|a?\s*d[oó]nde|c[oó]mo|cu[aá]l))[^?]*"

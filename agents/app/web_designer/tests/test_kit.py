@@ -146,6 +146,13 @@ def test_titulo_derivado_corto_y_sin_cabos_sueltos():
     assert titulos["conocer-linea-a"] == "Conoce el proyecto de la Línea A"
     assert all(len(t.split()) <= 7 and len(t) <= 48 for t in titulos.values())
     assert not any(t.split()[-1] in atajos._ENLACES for t in titulos.values())
+    # «Llega a…» no nombra la tarea: queda el destino, sin el propósito.
+    assert atajos._titulo("Llega a la página de la Encuesta de Presupuestos Familiares.") == \
+        "Encuesta de Presupuestos Familiares"
+    assert atajos._titulo("Llega a la sala de prensa para leer el comunicado del IPC.") == "Sala de prensa"
+    assert atajos._titulo("Llega al Portal de Mapas del INE.") == "Portal de Mapas del INE"
+    assert atajos._titulo("Llega al trámite para iniciar actividades como contribuyente.") == \
+        "Iniciar actividades como contribuyente"
 
 
 def test_lanzador_con_el_catalogo_de_metro():

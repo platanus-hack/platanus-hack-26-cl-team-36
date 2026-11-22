@@ -8,7 +8,8 @@ import pytest
 from playwright.async_api import async_playwright
 
 from disenador import atajos, motor
-from disenador.mejora import BLOQUE_JS
+from disenador.mejora import ANCLA_JS, BLOQUE_JS, CONTENIDO_JS
+from disenador.voz import VOZ_JS
 from disenador.motor.azar import Azar
 from disenador.motor.color import contraste, ok
 from disenador.motor.componer import RAIZ, aplicar_ajustes
@@ -196,6 +197,41 @@ def test_un_form_que_envuelve_la_pagina_no_se_oculta():
                                .replace("</form>", "</div>"), ["#binicio", "#fin"], "body > div")) is None
 
 
+async def _evaluar(html: str, *pedidos: tuple[str, object]) -> list:
+    async with async_playwright() as p:
+        navegador = await p.chromium.launch()
+        page = await navegador.new_page()
+        await page.route("https://www.ejemplo.cl/", lambda ruta: ruta.fulfill(body=html, content_type="text/html"))
+        await page.goto("https://www.ejemplo.cl/")
+        try:
+            return [await page.evaluate(script, argumento) for script, argumento in pedidos]
+        finally:
+            await navegador.close()
+
+
+def test_el_ancla_no_deja_el_kit_sobre_la_cabecera():
+    # Sin <main> y con todo dentro de un <form>: `body > :has(h1)` es el form, que envuelve la cabecera; el ancla
+    # de respaldo es el bloque donde empieza el contenido.
+    form, contenido, cabecera_medida = asyncio.run(_evaluar(
+        WEBFORMS, (ANCLA_JS, ["body > :has(h1)", []]), (CONTENIDO_JS, [[]]), (ANCLA_JS, ["#contenido", ["header"]])))
+    assert form is False and contenido == "#contenido" and cabecera_medida is True
+    # Sin ids: por etiqueta y clases bajo el id más cercano.
+    envoltorio = ('<!doctype html><body><div id="todo"><div class="cabecera"><nav><a href="/">Inicio</a></nav>'
+                  '<h1 class="logo"></h1></div><div class="cuerpo home"><h2>Accesos</h2></div></div></body>')
+    assert asyncio.run(_evaluar(envoltorio, (CONTENIDO_JS, [[".cabecera"]]))) == ["#todo > div.cuerpo.home"]
+
+
+def test_la_voz_lee_los_enlaces_del_sitio_y_lo_que_ya_esta_a_mano():
+    html = ('<!doctype html><body><nav><a href="/menu">Menú</a></nav>'
+            '<div><a href="/ipc">Índice de Precios</a><a href="https://otro.cl/x">Fuera</a>'
+            '<a href="https://tramites.ejemplo.cl/f22">Renta</a></div>'
+            '<div style="margin-top:3000px"><a href="/abajo">Abajo</a></div></body>')
+    [voz] = asyncio.run(_evaluar(html, (VOZ_JS, None)))
+    # Un subdominio es del mismo sitio; otro sitio y lo que está bajo el primer pantallazo, no.
+    assert voz["a_mano"] == ["/ipc", "/f22"]
+    assert {m["href"] for m in voz["menu"]} == {"/menu", "/ipc", "/f22"}
+
+
 class _PaginaFalsa:
     def __init__(self):
         self.pedidos = []
@@ -247,6 +283,16 @@ def test_orden_del_lanzador_verificada_tasa_y_prominencia():
     vista = atajos.lanzador(goals, {"verificada": _ruta_verificada("/b")}, "https://ejemplo.cl/", set(),
                             {"prominente": 0.0, "verificada": 1.0})
     assert [t["enlace"] for t in vista["datos"]] == ["/b", "/a"]
+
+
+def test_el_lanzador_deja_al_final_lo_que_la_pagina_ya_muestra_y_no_enlaza_noticias_fechadas():
+    goals = [_goal("indicador", "primary", "/ipc"), _goal("otra", "buried", "/otra")]
+    vista = atajos.lanzador(goals, {}, "https://ejemplo.cl/", set(), a_mano={"/ipc/"})
+    assert [t["enlace"] for t in vista["datos"]] == ["/otra", "/ipc"]
+    # Si la Guía llegó a una noticia del día, la tarea enlaza la página estable del tema.
+    vista = atajos.lanzador(goals[:1], {"indicador": _ruta_verificada("/prensa/2026/11/06/ipc-octubre")},
+                            "https://ejemplo.cl/", set())
+    assert vista["datos"][0]["enlace"] == "/ipc"
 
 
 def test_las_hojas_del_motor_solo_usan_marcadores_conocidos():

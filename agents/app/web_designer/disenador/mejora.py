@@ -524,10 +524,11 @@ async def mejorar(backend: store.Backend, url: str, revision: str, skill: Skill 
                         informe["medida"] = medida
                     titulo = _corto(await page.title(), 300)
                     tasas = {o["id"]: o["tasa_llegada"] for o in resumen["objetivos"]}
-                    selects = await _selects(page)
-                    kit = atajos.derivar(leida.goals, leida.rutas, selects, url, tasas, leida.catalogo)
+                    selects, pagina_voz = await _selects(page), await page.evaluate(voz.VOZ_JS)
+                    kit = atajos.derivar(leida.goals, leida.rutas, selects, url, tasas, leida.catalogo,
+                                         set(pagina_voz.get("a_mano") or ()))
                     _escribir_json(run.workdir / "atajos.json", kit)
-                    voz_sitio = voz.de_la_pagina(await page.evaluate(voz.VOZ_JS), selects, kit, leida.catalogo)
+                    voz_sitio = voz.de_la_pagina(pagina_voz, selects, kit, leida.catalogo)
                     diag = diagnostico(resumen, kit, sitio, voz_sitio)
                     _escribir_json(run.workdir / "diagnostico.json", diag)
                     texto = mensaje_de_diseno(url, config.GUSTOS_MEJORA, peor and peor["descripcion"],
