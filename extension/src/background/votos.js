@@ -88,7 +88,7 @@ export function validarVoto({ voto, comentario } = {}) {
   return { ok: true, voto, comentario: texto };
 }
 
-// ---------- Compresión (gzip, con las APIs de streams de Firefox y Node) ----------
+// ---------- Compresión (gzip, con las APIs de streams del navegador y de Node) ----------
 
 export async function comprimir(texto) {
   const flujo = new Blob([texto]).stream().pipeThrough(new CompressionStream("gzip"));

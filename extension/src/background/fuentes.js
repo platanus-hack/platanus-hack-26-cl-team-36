@@ -1,7 +1,7 @@
 // Fuentes empaquetadas para los temas (src/fuentes/). Lógica pura, sin `browser.*`.
 // Un tema remoto no puede declarar @font-face ni url() (css-remoto.js): nombra la familia, p. ej.
 // `font-family: "MT Inter", "MT Inter Fallback", Inter, system-ui, sans-serif`, y el background inyecta
-// fuentes/fuentes.css junto al tema. Firefox descarga cada archivo solo si algún texto lo usa.
+// fuentes/fuentes.css junto al tema. El navegador descarga cada archivo solo si algún texto lo usa.
 
 export const HOJA_FUENTES = "fuentes/fuentes.css";
 

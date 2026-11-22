@@ -21,9 +21,10 @@ test("el icono sigue el encendido guardado y conserva el badge existente", async
   const comprobar = (estado) => {
     assert.equal(escritos.setBadgeText.text, estado ? "ON" : "");
     for (const size of [16, 32]) {
-      const icono = `icons/extension-${estado ? "on" : "off"}-${size}.png`;
+      // Ruta absoluta: Chrome resuelve las relativas contra el service worker (background/icons/… no existe).
+      const icono = `/icons/extension-${estado ? "on" : "off"}-${size}.png`;
       assert.equal(escritos.setIcon.path[size], icono);
-      assert.ok(existsSync(new URL(`../src/${icono}`, import.meta.url)));
+      assert.ok(existsSync(new URL(`../src${icono}`, import.meta.url)));
     }
   };
   try {
@@ -35,7 +36,10 @@ test("el icono sigue el encendido guardado y conserva el badge existente", async
     await new Promise((resolve) => setImmediate(resolve));
     comprobar(true);
     activo = false;
-    await instalacion({ temporary: false });
+    await instalacion({ temporary: false }); // Firefox
     comprobar(false);
+    activo = true;
+    await instalacion({ reason: "update" }); // Chrome no manda `temporary`
+    comprobar(true);
   } finally { globalThis.browser = original; }
 });

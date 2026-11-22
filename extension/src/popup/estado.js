@@ -7,7 +7,7 @@
 //   modo "solo-comentario"  se puede hablar con la página pero no hay con qué comparar (no
 //                           tiene tema, o Chameleon está apagado): sin Mejor/Peor, solo el
 //                           comentario, con un aviso que explica por qué.
-//   modo "no-disponible"    la pestaña no tiene content script (about:, addons.mozilla.org,
+//   modo "no-disponible"    la pestaña no tiene content script (about:, chrome://, las tiendas,
 //                           una pestaña abierta antes de instalar la extensión): no se puede
 //                           capturar, así que no hay formulario, solo un aviso. También en una
 //                           ventana privada: ahí no se guardan opiniones (el interruptor sí anda).

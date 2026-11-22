@@ -147,7 +147,7 @@
     vigilarCambios(refrescar);
   }
 
-  // Lo maneja el content script y no el background, que Firefox descarga tras un rato sin uso.
+  // Lo maneja el content script y no el background, que el navegador descarga tras un rato sin uso.
   function esperarRevision({ intervaloMs, topeMs }, pagina = paginaActual(), inicio = Date.now()) {
     setTimeout(async () => {
       if (tema || paginaActual() !== pagina || Date.now() - inicio > topeMs) return;
