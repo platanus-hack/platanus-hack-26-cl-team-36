@@ -29,12 +29,15 @@ Solo tema oscuro. La tipografía (Inter, JetBrains Mono) viene de Google Fonts.
 tanda es y cómo le fue: tarea y sitio, cuántos llegan (con el medidor), los errores de la herramienta si los hay y
 cuándo corrió. Búsqueda, filtros, sitio, orden y lista/grilla quedan en la URL.
 
-Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene un marco común (migas, tanda anterior/siguiente, instrucción,
-veredicto) y tres pestañas:
+Una tanda (`#/t/<host>/visitor/<objetivo>/<corrida>/<pestaña>`) tiene una cabecera corta,
+común a sus pestañas: tarea, sitio y fecha (con tanda anterior/siguiente y copiar enlace); el titular de quién no
+llega; las cifras clave en una fila (cuántos llegan, pasos en mediana contra la ruta y, si la tanda los tiene, los dos
+niveles de conocimiento lado a lado); hasta 3 hallazgos en una línea cada uno, que abren Replay en su paso; y la
+instrucción (con su versión sin contexto) tras «Ver instrucción». Debajo, dos pestañas (la primera es la de por
+defecto; los enlaces viejos a `/resumen` llevan a ella):
 
 | Pestaña | Qué pregunta responde | De dónde sale |
 |---|---|---|
-| **Resumen** (por defecto) | ¿Llegaron a la respuesta y qué hay que mirar? Una pantalla: el titular, cuántos llegan y los pasos (mediana contra la ruta), los dos niveles de conocimiento lado a lado, los 3 hallazgos que más pesan (quien no llega, errores, tropiezos, desvíos), cada uno con enlace al paso exacto en Replay y en el Mapa de caminos, y la ruta recomendada. | `route_tree.json` y cada `<perfil>/run.json`, derivados en `lib/` |
 | **Mapa de caminos** | ¿Por dónde fueron? Un grafo dirigido de izquierda a derecha: el inicio a la izquierda, la meta (el final de la ruta y las páginas donde alguien encontró la respuesta) a la derecha y las demás páginas en columnas según los pasos desde el inicio, ordenadas para cruzarse lo menos posible y repartidas encima y debajo de la ruta recomendada, que es una fila recta; los tramos son rectas (casi rectas si saltan columnas). Las vueltas atrás y los pasos laterales son arcos bajos, tenues y de un tono neutro, que se encienden al pasar el puntero o elegir una página. Grosor = intentos, color = cómo terminaron (leyenda abajo); cada camino termina en su resultado (logrado, fallido, abandonado, error) y unas partículas lo recorren. Panel por página (quién pasó, adónde fue, cómo terminó, con enlace al paso en Replay), marcas donde alguien se trabó y modo historia (un intento recorriendo el mapa, paso a paso). | `nodes`, `branches` y `recommended_route` de `route_tree.json`, unidos en páginas |
 | **Replay** | ¿Qué hizo un intento, paso a paso? A la izquierda los pasos (número, acción y descripción corta) con un selector de intento, al centro la captura del paso, a la derecha su análisis en palabras simples (señales, qué esperaba, qué pasó, dónde quedó y la nota del juez) y abajo una línea de tiempo que se puede reproducir. | `<perfil>/run.json` y `step_NN.png` |
 
@@ -82,8 +85,7 @@ el resto.
 |---|---|
 | Siempre | `⌘K` paleta de comandos · `?` atajos · `g c` ir a Corridas · `/` paleta (en Corridas, el buscador) |
 | Corridas | `j` `k` fila siguiente / anterior · `v` lista ↔ grilla |
-| Tanda | `1` `2` `3` Resumen, Mapa de caminos, Replay · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
-| Resumen | `j` `k` hallazgo siguiente / anterior |
+| Tanda | `1` `2` Mapa de caminos, Replay · `[` `]` tanda anterior / siguiente · `c` copiar enlace |
 | Mapa de caminos | `+` `-` acercar / alejar · `0` ajustar · `h` historia (con ella: `Espacio` reproducir / pausar, `←` `→` paso) · `Esc` cerrar (con el foco en el mapa, las flechas lo mueven) |
 | Replay | `←` `→` paso · `Inicio` `Fin` primer / último paso · `Espacio` reproducir / pausar · `↑` `↓` en la lista de pasos |
 
@@ -121,7 +123,7 @@ backoffice/
 ├── public/
 │   ├── index.html, app.js   ← arranque: idioma, menú, paleta, atajos globales, enrutador
 │   ├── nucleo/          ← enrutador por hash, marco de la tanda, atajos, paleta ⌘K, i18n, formatos, estados, íconos
-│   ├── pantallas/       ← una por vista: corridas, resumen, telarana, replay
+│   ├── pantallas/       ← una por vista: corridas, telarana, replay
 │   ├── corridas/ telarana/ replay/   ← piezas de cada pantalla (las puras se prueban con node:test)
 │   ├── datos/           ← textos.js convierte { clave, vars } de la API en texto; nombres.js, el nivel de cada perfil
 │   ├── i18n/{es,en}/    ← diccionarios por sección

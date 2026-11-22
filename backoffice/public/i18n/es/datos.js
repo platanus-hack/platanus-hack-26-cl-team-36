@@ -123,7 +123,7 @@ export default {
   },
 
   titular: {
-    // Todos llegan, pero alguien lo pasó mal: el titular de Resumen y Corridas no lo esconde.
+    // Todos llegan, pero alguien lo pasó mal: el titular de la cabecera de la tanda y de Corridas no lo esconde.
     tanda: ({ validos, errores, caso, intento, pagina, pasos: cuenta, pasosIdeales }) => {
       const [v, e] = [n(validos), n(errores)];
       const sujeto = v === 1

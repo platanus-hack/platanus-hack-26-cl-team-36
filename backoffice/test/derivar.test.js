@@ -614,62 +614,15 @@ test("firma de un salto del explorador: «volver a «X»», con su propio tipo (
   assert.equal(firmaDelPaso({ action: "volver_a_nodo", description: "volver a «Mapa del sitio»" }).objetivo, "Mapa del sitio");
 });
 
-test("tarjeta de la ruta: las acciones humanas primero; un «volver a …» nunca la encabeza", async () => {
-  const { accionesDelTramo } = await import("../public/pantallas/resumen.js");
-  const ctx = { t: (clave, vars = {}) => (clave === "resumen.ruta.accionVeces" ? `${vars.accion} (${vars.n})` : clave === "resumen.ruta.masAcciones" ? `+${vars.n}` : clave) };
-  const c = {
-    tanda: {
-      intentos: ["a", "b", "c"].map((id) => ({ id, perfil: id, resultado: "logrado" })),
-      telarana: {
-        ramas: [{
-          origen: "n1", destino: "n2",
-          acciones: [
-            { accion: "volver a «Agenda»", perfiles: ["a", "b", "c"], salto: true },
-            { accion: "clic «Horarios»", perfiles: ["a", "b"], salto: false },
-          ],
-        }],
-      },
-    },
-  };
-  assert.equal(accionesDelTramo(ctx, c, { origen: "n1", destino: "n2", accion: "" }).texto, "clic «Horarios» (2) · volver a «Agenda» (3)");
-});
-
-test("tarjeta de la ruta: encabeza la acción de la ruta del tramo, aunque otra se repita más en la rama", async () => {
-  const { accionesDelTramo } = await import("../public/pantallas/resumen.js");
-  const ctx = { t: (clave, vars = {}) => (clave === "resumen.ruta.accionVeces" ? `${vars.accion} (${vars.n})` : clave === "resumen.ruta.masAcciones" ? `+${vars.n}` : clave) };
-  const perfiles = ["a", "b", "c", "d", "e", "f", "g", "h"];
-  const c = {
-    tanda: {
-      intentos: perfiles.map((id) => ({ id, perfil: id, resultado: "logrado" })),
-      telarana: {
-        ramas: [{
-          origen: "n1", destino: "n2",
-          acciones: [
-            { accion: "clic «Buscar»", perfiles: perfiles.slice(0, 6), salto: false },
-            { accion: "clic «Ir al Centro de Ayuda»", perfiles: perfiles.slice(0, 3), salto: false },
-            { accion: "volver a «Inicio»", perfiles: ["h"], salto: true },
-          ],
-        }],
-      },
-    },
-  };
-  const tramo = { origen: "n1", destino: "n2", accion: "clic «Ir al Centro de Ayuda»" };
-  assert.equal(accionesDelTramo(ctx, c, tramo).texto.split(" · ")[0], "clic «Ir al Centro de Ayuda» (3)");
-  // Si la rama no tiene la acción de la ruta, igual va primero (sin cuenta).
-  assert.equal(accionesDelTramo(ctx, c, { ...tramo, accion: "tecla Enter" }).texto.split(" · ")[0], "tecla Enter");
-  // Un «volver a …» de la ruta no encabeza la tarjeta.
-  assert.equal(accionesDelTramo(ctx, c, { ...tramo, accion: "volver a «Inicio»" }).texto.split(" · ")[0], "clic «Buscar» (6)");
-});
-
-test("resultado por nivel de conocimiento: intentos, logrados, medianas y escrituras rechazadas", () => {
+test("resultado por nivel de conocimiento: intentos y logrados", () => {
   const intento = (conocimiento, resultado, pasos, duracion, rechazados = []) => ({ conocimiento, resultado, pasos: Array(pasos).fill({}), duracion, terminosRechazados: rechazados });
   const intentos = [
     intento("sin_contexto", "logrado", 20, 78), intento("sin_contexto", "logrado", 18, 70),
     intento("conoce_tema", "logrado", 24, 91, ["ipc"]), intento("conoce_tema", "fallido", 30, 120), intento("conoce_tema", "error", 2, 5),
   ];
   assert.deepEqual(porConocimiento(intentos), [
-    { nivel: "sin_contexto", intentos: 2, logrados: 2, pasosMediana: 19, segundosMediana: 74 },
-    { nivel: "conoce_tema", intentos: 3, logrados: 1, pasosMediana: 24, segundosMediana: 91 },
+    { nivel: "sin_contexto", intentos: 2, logrados: 2 },
+    { nivel: "conoce_tema", intentos: 3, logrados: 1 },
   ]);
   // Sin los dos niveles (perfiles comunes, o un solo nivel), no hay comparación.
   assert.equal(porConocimiento(intentos.map((i) => ({ ...i, conocimiento: null }))), null);

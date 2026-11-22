@@ -42,16 +42,19 @@ test("cada pestaña, con y sin tarea, va y vuelve", () => {
       assert.deepEqual(parsearHash(hash), { tipo: "tanda", tandaId, pestana, parametros: {} });
     }
   }
-  assert.deepEqual(PESTANAS, ["resumen", "telarana", "replay"]);
+  assert.deepEqual(PESTANAS, ["telarana", "replay"]);
   // Perfiles ya no existe: su pestaña y su enlace de la v0 son rutas desconocidas.
   assert.equal(parsearHash(`#/t/${CON_TAREA}/perfiles`).tipo, "desconocida");
   assert.equal(parsearHash(`#/perfiles?t=${CON_TAREA}`).tipo, "desconocida");
 });
 
-test("#/t/<id> sin pestaña es el Resumen", () => {
+test("#/t/<id> sin pestaña abre el mapa; un enlace viejo a /resumen también", () => {
   const ruta = parsearHash(`#/t/${CON_TAREA}`);
-  assert.deepEqual(ruta, { tipo: "tanda", tandaId: CON_TAREA, pestana: "resumen", parametros: {} });
-  assert.equal(hashDe(ruta), `#/t/${CON_TAREA}/resumen`);
+  assert.deepEqual(ruta, { tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: {} });
+  assert.equal(hashDe(ruta), `#/t/${CON_TAREA}/telarana`);
+  const vieja = parsearHash(`#/t/${CON_TAREA}/resumen?x=1`);
+  assert.deepEqual(vieja, { tipo: "tanda", tandaId: CON_TAREA, pestana: "telarana", parametros: {} });
+  assert.equal(hashDe(vieja), `#/t/${CON_TAREA}/telarana`);
   assert.equal(parsearHash("#/t/2026-11-21_07-28-42").tipo, "desconocida");
 });
 
@@ -105,22 +108,22 @@ test("idioma= se separa del hash y nunca vuelve a escribirse", () => {
 
 test("tandaId con caracteres especiales se codifica por segmento", () => {
   const hash = enlaceATanda("localhost:8080/visitor/baja/2026-11-21T07-28-42Z");
-  assert.equal(hash, "#/t/localhost%3A8080/visitor/baja/2026-11-21T07-28-42Z/resumen");
+  assert.equal(hash, "#/t/localhost%3A8080/visitor/baja/2026-11-21T07-28-42Z/telarana");
   assert.equal(parsearHash(hash).tandaId, "localhost:8080/visitor/baja/2026-11-21T07-28-42Z");
 });
 
 test("un tandaId que armaría otra ruta no es una tanda", () => {
   for (const hash of [
-    "#/t/..%2F..%2Fx/visitor/a/2026-01-01T00-00-00Z/resumen",
-    "#/t/../visitor/a/2026-01-01T00-00-00Z/resumen",
-    "#/t/s.cl/visitor/.oculta/2026-01-01T00-00-00Z/resumen",
-    "#/t/s.cl/visitor/a%5Cb/2026-01-01T00-00-00Z/resumen",
-    "#/t/s.cl/guide/a/2026-01-01T00-00-00Z/resumen",
+    "#/t/..%2F..%2Fx/visitor/a/2026-01-01T00-00-00Z/telarana",
+    "#/t/../visitor/a/2026-01-01T00-00-00Z/telarana",
+    "#/t/s.cl/visitor/.oculta/2026-01-01T00-00-00Z/telarana",
+    "#/t/s.cl/visitor/a%5Cb/2026-01-01T00-00-00Z/telarana",
+    "#/t/s.cl/guide/a/2026-01-01T00-00-00Z/telarana",
   ]) {
     assert.equal(parsearHash(hash).tipo, "desconocida", hash);
   }
-  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra-2/2026-01-01T00-00-00Z_01/resumen").tipo, "tanda");
-  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra/2026-01-01T00-00-00Z_00/resumen").tipo, "desconocida");
+  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra-2/2026-01-01T00-00-00Z_01/telarana").tipo, "tanda");
+  assert.equal(parsearHash("#/t/wom.cl/visitor/baja-fibra/2026-01-01T00-00-00Z_00/telarana").tipo, "desconocida");
 });
 
 test("normalizarPaso: vacío, inválido, fuera de rango", () => {
@@ -129,4 +132,23 @@ test("normalizarPaso: vacío, inválido, fuera de rango", () => {
   assert.deepEqual(normalizarPaso("abc", 12), { paso: 1, aviso: { clave: "comun.estado.pasoInvalido", vars: { paso: "abc" } } });
   assert.deepEqual(normalizarPaso("0", 12), { paso: 1, aviso: { clave: "comun.estado.pasoInvalido", vars: { paso: "0" } } });
   assert.deepEqual(normalizarPaso("40", 12), { paso: 12, aviso: { clave: "comun.estado.pasoFueraDeRango", vars: { total: 12 } } });
+});
+
+test("cabecera de la tanda: hasta 3 hallazgos que abren un paso de Replay, los más graves primero", async () => {
+  const { hallazgosPrincipales } = await import("../public/nucleo/marco-tanda.js");
+  const lista = [
+    { id: "resultado", nivel: "atencion", intento: "a", paso: 1 },
+    { id: "desvio:a:3", nivel: "info", intento: "a", paso: 3 },
+    { id: "costo", nivel: "info" },
+    { id: "demora:b", nivel: "atencion", intento: "b", paso: 5 },
+    { id: "tropiezos", nivel: "atencion", vars: { casos: [{ intento: "c", paso: 4 }] } },
+    { id: "detenido:d", nivel: "atencion", intento: "d", paso: 9 },
+  ];
+  assert.deepEqual(hallazgosPrincipales(lista).map((h) => h.id), ["detenido:d", "tropiezos", "demora:b"]);
+  // Uno de cada tipo antes de repetir: un segundo «detenido» no desplaza a los tropiezos ni a la demora.
+  const conOtro = [...lista, { id: "detenido:e", nivel: "atencion", intento: "e", paso: 7 }];
+  assert.deepEqual(hallazgosPrincipales(conOtro).map((h) => h.id), ["detenido:d", "tropiezos", "demora:b"]);
+  const soloDetenidos = ["d", "e", "f", "g"].map((id) => ({ id: `detenido:${id}`, nivel: "atencion", intento: id, paso: 2 }));
+  assert.deepEqual(hallazgosPrincipales(soloDetenidos).map((h) => h.id), ["detenido:d", "detenido:e", "detenido:f"]);
+  assert.deepEqual(hallazgosPrincipales(null), []);
 });
