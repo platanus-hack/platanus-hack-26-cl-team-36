@@ -17,7 +17,7 @@
   /* bordes alfa */
   --borde-sutil:  rgb(255 255 255 / 0.06);
   --borde:        rgb(255 255 255 / 0.08);
-  --borde-medio:  rgb(255 255 255 / 0.10);   /* insignia "backoffice", teclas */
+  --borde-medio:  rgb(255 255 255 / 0.10);   /* teclas, conector de los roles del Overview */
   --borde-fuerte: rgb(255 255 255 / 0.16);
   /* texto (sobre --fondo) */
   --texto-1: #F5F5F7;        /* títulos, cifras */

@@ -32,17 +32,11 @@
   border-bottom: 1px solid var(--borde-sutil);
 }
 
-/* La firma horizontal al mínimo de la marca (180 px de ancho, ≈ 47 px de alto), centrada en la barra; nunca más chica.
-   El SVG trae su propio margen libre (1/8 del símbolo), así que el hueco visible con la insignia es mayor que `gap`. */
-.marca { display: inline-flex; align-items: center; gap: 6px; flex: none; color: var(--texto-1); text-decoration: none; }
+/* La firma horizontal al mínimo de la marca (180 px de ancho, ≈ 47 px de alto), centrada en la barra; nunca más chica. */
+.marca { display: inline-flex; align-items: center; flex: none; color: var(--texto-1); text-decoration: none; }
 .marca:hover { color: var(--texto-1); text-decoration: none; }
 .marca picture { display: block; flex: none; }
 .marca-logo { display: block; width: 180px; max-width: none; height: auto; }
-/* La insignia, en proporción con la palabra "chameleon" del logo (≈ 17 px) y con su línea base. */
-.marca-insignia {
-  margin-block-start: 3px; padding: 2px 8px; border: 1px solid var(--borde-medio); border-radius: var(--radio-2);
-  color: var(--texto-3); font-size: 13px; line-height: 18px; font-weight: 500; letter-spacing: 0; white-space: nowrap;
-}
 
 .barra-acciones { display: flex; align-items: center; gap: var(--e-2); flex: none; margin-inline-start: auto; }
 
@@ -80,18 +74,11 @@
   }
   #contenido { padding: var(--e-4); }
 }
-/* Angosto (medido: logo 180 + insignia 84 + píldora 90–103 + lupa 32 + huecos y gutter). Entre 370 y 459 px la
-   insignia no cabe junto a la firma horizontal y se oculta. Bajo 370 px tampoco cabe la firma, que nunca baja de
-   180 px: queda el símbolo a color (36 px, sobre el mínimo de 32 px de la marca) y, junto a él, la insignia vuelve a
-   caber (≈ 310 px en total aun con "12 en curso"). El <picture> de la marca cambia de imagen en el mismo ancho
-   (MARCA.soloSimbolo en nucleo/shell.js). */
-@media (min-width: 370px) and (max-width: 459px) {
-  .marca-insignia { display: none; }
-}
+/* Angosto (medido: logo 180 + píldora 90–103 + lupa 32 + huecos y gutter). Bajo 370 px no cabe la firma, que nunca
+   baja de 180 px: queda el símbolo a color (36 px, sobre el mínimo de 32 px de la marca). El <picture> de la marca
+   cambia de imagen en el mismo ancho (MARCA.soloSimbolo en nucleo/shell.js). */
 @media (max-width: 369px) {
-  .marca { gap: var(--e-2); }
   .marca-logo { width: 36px; height: 36px; }
-  .marca-insignia { margin-block-start: 0; }
 }
 
 /* ── Paleta ⌘K (sin animación: se usa a cada rato) ──────────────────── */

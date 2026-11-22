@@ -4,7 +4,6 @@
 export default {
   marca: {
     nombre: "chameleon mode",
-    producto: "backoffice",
     titulo: "Backoffice",
   },
   // Barra superior (marca, revisiones en curso, buscador) y los nombres de las vistas.

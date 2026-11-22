@@ -103,9 +103,10 @@ function armar({ items = ITEMS, memoriaMs } = {}) {
 
 test("tarjetas: intentos por goal (con los en curso), goals en el orden de goals.json y capturas solo de tandas listadas", async () => {
   const { panel } = armar();
-  const { tarjetas, pestanas, cola } = await panel.overview();
-  assert.deepEqual(pestanas.recent.ids, ["corre", "lista", "mala", "roja"]);
-  assert.deepEqual(cola.ids, ["espera"]);
+  const { tarjetas, pestanas } = await panel.overview();
+  // Las en cola son tarjetas (§7.3): en Recent y en Live, más nuevas primero.
+  assert.deepEqual(pestanas.recent.ids, ["espera", "corre", "lista", "mala", "roja"]);
+  assert.deepEqual(pestanas.live.ids, ["espera", "corre"]);
   const corre = tarjetas.corre;
   assert.equal(corre.sitio, "Sitio Uno");
   // tanda: la del Visitante del goal en esta revisión si se lista; la que corre todavía no (null).
@@ -174,6 +175,64 @@ test("memorizar: comparte la promesa mientras corre y por un rato después; un e
   assert.equal(await falla(), "ok");
 });
 
+// 20 revisiones entregadas más, para paginar Delivered (§7.4).
+const VIEJAS = Array.from({ length: 20 }, (_, i) =>
+  meta(`vieja-${String(i).padStart(2, "0")}`, "done", { created_at: `2026-11-21T${String(i).padStart(2, "0")}:00:00.000Z` }),
+);
+
+test("páginas: no se mezclan en la memoria; la larga trae las tarjetas de la corta, iguales y en orden; lo cerrado no se relee", async () => {
+  const { panel, cliente } = armar({ items: [...ITEMS, ...VIEJAS], memoriaMs: 60_000 });
+  const consultadas = () => cliente.llamadas.filter((c) => c.constructor.name === "QueryCommand").map((c) => c.input.ExpressionAttributeValues[":pk"].replace(/^REV#/, ""));
+  const corta = await panel.overview();
+  const antes = consultadas().length;
+  const larga = await panel.overview({ pestana: "delivered", limite: "16" });
+
+  assert.equal(corta.pestanas.delivered.ids.length, 6);
+  assert.equal(larga.pestanas.delivered.ids.length, 16);
+  assert.equal(larga.pestanas.delivered.total, corta.pestanas.delivered.total);
+  assert.deepEqual(larga.pestanas.delivered.ids.slice(0, 6), corta.pestanas.delivered.ids);
+  for (const otra of ["recent", "live", "failed"]) assert.deepEqual(larga.pestanas[otra], corta.pestanas[otra], otra);
+  const deLaCorta = Object.keys(corta.tarjetas);
+  for (const id of deLaCorta) assert.deepEqual(larga.tarjetas[id], corta.tarjetas[id], id);
+  assert.deepEqual(Object.keys(larga.tarjetas).filter((id) => deLaCorta.includes(id)), deLaCorta, "en el mismo orden");
+  assert.ok(larga.pestanas.delivered.ids.every((id) => larga.tarjetas[id]), "una tarjeta por cada id devuelto");
+
+  // Solo se consultan las cerradas que se suman (y la que está en cola, que no se guarda).
+  const sumadas = Object.keys(larga.tarjetas).filter((id) => !deLaCorta.includes(id));
+  assert.equal(sumadas.length, 10);
+  assert.deepEqual(consultadas().slice(antes).sort(), [...sumadas, "espera"].sort());
+
+  // Cada página tiene su lugar en la memoria (un parámetro inválido es la página de siempre).
+  assert.equal(await panel.overview(), corta);
+  assert.equal(await panel.overview({ pestana: "delivered", limite: 16 }), larga);
+  assert.equal(await panel.overview({ pestana: "delivered", limite: "5" }), corta);
+  assert.equal(await panel.overview({ pestana: "otra", limite: "16" }), corta);
+  assert.notEqual(await panel.overview({ pestana: "delivered", limite: "26" }), larga);
+});
+
+test("servidor: ?pestana=&limite= pagina la pestaña pedida (6 por defecto, inválido o menor que 6 vale 6, tope 500)", async () => {
+  const { fuente } = armar();
+  const conViejas = crearServidor({
+    fuente,
+    revisiones: crearRevisiones({ tabla: TABLA, cliente: clienteDynamoFalso(TABLA, [...ITEMS, ...VIEJAS]), comandos: comandosDynamo }),
+    reloj: RELOJ,
+  });
+  await new Promise((listo) => conViejas.listen(0, "127.0.0.1", listo));
+  try {
+    const pestanas = async (consulta) => (await (await fetch(`${base(conViejas)}/api/overview${consulta}`)).json()).pestanas;
+    const largos = async (consulta) => Object.fromEntries(Object.entries(await pestanas(consulta)).map(([nombre, p]) => [nombre, [p.ids.length, p.total]]));
+    assert.deepEqual(await largos(""), { recent: [6, 25], live: [2, 2], delivered: [6, 23], failed: [0, 0] });
+    assert.deepEqual(await largos("?pestana=delivered&limite=16"), { recent: [6, 25], live: [2, 2], delivered: [16, 23], failed: [0, 0] });
+    assert.deepEqual(await largos("?pestana=recent&limite=500"), { recent: [25, 25], live: [2, 2], delivered: [6, 23], failed: [0, 0] });
+    assert.deepEqual(await largos("?pestana=delivered&limite=999"), { recent: [6, 25], live: [2, 2], delivered: [23, 23], failed: [0, 0] }, "tope");
+    for (const consulta of ["?pestana=delivered&limite=abc", "?pestana=delivered&limite=3", "?pestana=delivered&limite=10.5", "?limite=16", "?pestana=nada&limite=16"]) {
+      assert.deepEqual(await largos(consulta), await largos(""), consulta);
+    }
+  } finally {
+    conViejas.close();
+  }
+});
+
 let servidor;
 let sinTabla;
 const base = (s) => `http://127.0.0.1:${s.address().port}/backoffice`;
@@ -191,7 +250,7 @@ after(() => {
 test("servidor: /api/resumen y /api/overview solo con GET o HEAD, con ahora del reloj", async () => {
   const overview = await (await fetch(`${base(servidor)}/api/overview`)).json();
   assert.equal(overview.ahora, AHORA);
-  assert.deepEqual(Object.keys(overview), ["ahora", "disponible", "umbralDetenidaMin", "cuentas", "pestanas", "cola", "tarjetas"]);
+  assert.deepEqual(Object.keys(overview), ["ahora", "disponible", "umbralDetenidaMin", "cuentas", "pestanas", "tarjetas"]);
   for (const ruta of ["/api/resumen", "/api/overview"]) {
     assert.equal((await fetch(`${base(servidor)}${ruta}`, { method: "HEAD" })).status, 200, ruta);
     for (const method of ["POST", "PUT", "DELETE"]) assert.equal((await fetch(`${base(servidor)}${ruta}`, { method })).status, 405, `${method} ${ruta}`);

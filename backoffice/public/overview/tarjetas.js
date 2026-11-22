@@ -1,6 +1,6 @@
-// Revisiones del Overview (spec §3.4, §3.5): pestañas, tarjetas, medidores por goal, etapas, "Up next" y la pista
-// de arranque vacío. Puro: no toca document ni window. Trabaja sobre /api/overview (contrato §2); los textos los
-// pone overview/textos.js y el DOM, overview/piezas.js.
+// Revisiones del Overview (spec §3.4, §3.5; contrato §7): pestañas, tarjetas, medidores por goal, etapas, el
+// paginado ("Show 10 more") y la pista de arranque vacío. Puro: no toca document ni window. Trabaja sobre
+// /api/overview (contrato §2 y §7); los textos los pone overview/textos.js y el DOM, overview/dom-*.js.
 
 import { partesDeTanda } from "../nucleo/almacen.js";
 import { ordenarEstados } from "./agentes.js";
@@ -10,25 +10,26 @@ import { sinAvance, tiempoDeTarjeta } from "./tiempo.js";
 export const PESTANAS = Object.freeze(["recent", "live", "delivered", "failed"]);
 export const leerPestana = (valor) => (PESTANAS.includes(valor) ? valor : "recent");
 
-/** Filtro de #/revisiones equivalente a cada pestaña (enlaceARevisiones): recent → sin filtro. */
-export const ESTADO_EN_REVISIONES = Object.freeze({ recent: null, live: "live", delivered: "done", failed: "failed" });
-
 export const ESTADOS_DE_TARJETA = Object.freeze(["running", "stalled", "queued", "delivered", "failed"]);
 export const ETAPAS = Object.freeze(["catalog", "guide", "visitor", "improver"]);
 export const ESTADOS_DE_ETAPA = Object.freeze(["hecho", "en_curso", "pendiente", "detenido", "fallido"]);
 export const MOTIVOS = Object.freeze(["sin_avance", "limite", "catalogador", "guia", "disenador", "error"]);
 /** Goals con medidor visible por tarjeta; el resto va como "+N". */
 export const MAX_GOALS = 3;
-/** Cada pestaña trae hasta 6 tarjetas (contrato §2). */
-export const MAX_TARJETAS = 6;
+/** Tarjetas que trae el servidor por pestaña si no se le pide otro límite (contrato §7.4). */
+export const TARJETAS_POR_PAGINA = 6;
+/** Cuántas suma "Show N more". */
+export const PASO = 10;
+/** Tope del límite en el servidor. */
+export const LIMITE_MAXIMO = 500;
 /** Con menos tarjetas que esto en Recent aparece la pista de cómo empieza una revisión (artboard 5). */
 export const TARJETAS_SIN_PISTA = 3;
 
 const estadoDeTarjeta = (valor) => (ESTADOS_DE_TARJETA.includes(valor) ? valor : "queued");
 
 /**
- * Insignia de una pestaña: la cifra o null (sin insignia). Recent nunca; Live con `cuentas.live` (corriendo + en
- * cola); Delivered y Failed con su cuenta. Con 0 no hay insignia.
+ * Insignia de una pestaña: la cifra o null (sin insignia). Recent nunca; Live con `cuentas.live` (corriendo,
+ * detenidas y en cola: el total de la pestaña); Delivered y Failed con su cuenta. Con 0 no hay insignia.
  */
 export function insigniaDePestana(pestana, cuentas) {
   if (pestana === "recent") return null;
@@ -65,19 +66,23 @@ export function ordenarTramos(tramos) {
   return [...(tramos ?? [])].map((tramo) => (tramo === "en_cola" ? "espera" : tramo)).sort((a, b) => posicion(a) - posicion(b));
 }
 
-/** El id de tanda de un goal (`<host>/visitor/<goal>/<corrida>`) si sigue el layout; si no, null (sin enlace). */
-export const tandaDeGoal = (goal) => (typeof goal?.tanda === "string" && partesDeTanda(goal.tanda) ? goal.tanda : null);
+/** Un id de tanda (`<host>/visitor/<goal>/<corrida>`) si sigue el layout; si no, null (no se arma un enlace roto). */
+const tandaValida = (tanda) => (typeof tanda === "string" && partesDeTanda(tanda) ? tanda : null);
+
+/** La tanda de un goal (su fila enlaza a la telaraña) o null. */
+export const tandaDeGoal = (goal) => tandaValida(goal?.tanda);
 
 /**
- * Adónde lleva la tarjeta (contrato §6.5): la telaraña del primer goal, en el orden de la tarjeta, que tenga tanda; si
- * ninguno tiene (en curso sin Visitante terminado, en cola, fallida antes de las visitas), null: al avance de la revisión.
+ * Adónde lleva la tarjeta (contrato §6.5 y §7.1): la telaraña del primer goal, en el orden de la tarjeta, que tenga
+ * tanda; si ninguno tiene, la tanda de su captura (la de escritorio, si no la móvil: la más nueva del mismo host y
+ * ruta); si tampoco hay, null: al avance de la revisión.
  */
 export function tandaDeTarjeta(tarjeta) {
   for (const goal of tarjeta?.goals ?? []) {
     const tanda = tandaDeGoal(goal);
     if (tanda) return tanda;
   }
-  return null;
+  return tandaValida(tarjeta?.capturas?.desktop?.tanda) ?? tandaValida(tarjeta?.capturas?.mobile?.tanda);
 }
 
 /**
@@ -169,29 +174,37 @@ export function modeloDeTarjeta(tarjeta, { dispositivo = "all", ahora = null } =
   };
 }
 
+/** Ids de una pestaña, en el orden de la API. */
+export const idsDePestana = (overview, pestana) => overview?.pestanas?.[leerPestana(pestana)]?.ids ?? [];
+
 /** Tarjetas de una pestaña, en el orden de la API: las que traen datos (un id sin tarjeta se salta). */
 export function tarjetasDePestana(overview, pestana) {
-  const ids = overview?.pestanas?.[leerPestana(pestana)]?.ids ?? [];
-  return ids.map((id) => overview?.tarjetas?.[id]).filter(Boolean).slice(0, MAX_TARJETAS);
+  return idsDePestana(overview, pestana)
+    .map((id) => overview?.tarjetas?.[id])
+    .filter(Boolean);
 }
 
-/** Enlace "ver todas": { total, estado } si la pestaña tiene más de las que trae; si no, null. */
+/**
+ * Lo que falta por mostrar de una pestaña (botón "Show N more"): { total, traidas, faltan, siguiente } con
+ * siguiente = min(10, faltan); null si ya están todas.
+ */
 export function masDePestana(overview, pestana) {
-  const datos = overview?.pestanas?.[leerPestana(pestana)];
-  const total = Math.floor(Number(datos?.total) || 0);
-  const traidas = datos?.ids?.length ?? 0;
-  return total > traidas ? { total, estado: ESTADO_EN_REVISIONES[leerPestana(pestana)] } : null;
+  const total = Math.floor(Number(overview?.pestanas?.[leerPestana(pestana)]?.total) || 0);
+  const traidas = idsDePestana(overview, pestana).length;
+  const faltan = total - traidas;
+  return faltan > 0 ? { total, traidas, faltan, siguiente: Math.min(PASO, faltan) } : null;
 }
 
-/** "Up next": las revisiones en cola (FIFO) que trae la API y cuántas quedan fuera. */
-export function colaDeOverview(overview) {
-  const ids = overview?.cola?.ids ?? [];
-  const tarjetas = ids.map((id) => overview?.tarjetas?.[id]).filter(Boolean);
-  const total = Math.max(Math.floor(Number(overview?.cola?.total) || 0), tarjetas.length);
-  return { tarjetas, mas: Math.max(0, total - tarjetas.length) };
+/** El límite de una pestaña después de "Show N more": 10 más, con el tope del servidor. */
+export function limiteSiguiente(limite) {
+  const actual = Math.max(TARJETAS_POR_PAGINA, Math.floor(Number(limite)) || TARJETAS_POR_PAGINA);
+  return Math.min(LIMITE_MAXIMO, actual + PASO);
 }
 
-/** ¿Va la pista de arranque vacío? Solo en Recent y con menos de 3 revisiones (sin contar las en cola). */
+/** Cuántas tarjetas se sumaron a una pestaña entre dos respuestas (0 si no creció: el servidor ignoró el límite). */
+export const sumadas = (antes, despues, pestana) => Math.max(0, idsDePestana(despues, pestana).length - idsDePestana(antes, pestana).length);
+
+/** ¿Va la pista de arranque vacío? Solo en Recent y con menos de 3 revisiones. */
 export function hayPista(overview, pestana) {
   if (leerPestana(pestana) !== "recent") return false;
   const total = Math.floor(Number(overview?.pestanas?.recent?.total) || 0);
