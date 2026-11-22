@@ -109,7 +109,8 @@ function crucesEntre(enlaces, posicion) {
  * así lo más cercano al tronco sigue cerca). Pasa si así no hay más cruces y quedan más parejas las páginas de arriba
  * y las de abajo. Modifica `columnas` (y `posicion`, con `numerar`).
  */
-function repartirAlrededorDelTronco({ columnas, elementos, derecha, posicion, numerar, crucesTotales }) {
+/** Grupos de elementos fuera del tronco unidos entre sí sin pasar por él (cada uno, una lista de ids). */
+function gruposSinTronco(elementos, derecha) {
   const libres = [...elementos.values()].filter((e) => !e.tronco).map((e) => e.id);
   const grupoDe = new Map(libres.map((id) => [id, id]));
   const raiz = (id) => (grupoDe.get(id) === id ? id : raiz(grupoDe.get(id)));
@@ -119,6 +120,31 @@ function repartirAlrededorDelTronco({ columnas, elementos, derecha, posicion, nu
     if (!grupos.has(raiz(id))) grupos.set(raiz(id), []);
     grupos.get(raiz(id)).push(id);
   }
+  return [...grupos.values()];
+}
+
+/**
+ * Pone un grupo pegado al tronco en cada columna que ocupa: al otro lado (en espejo, así lo más cercano al tronco
+ * sigue cerca) o del mismo. Modifica `columnas` (y `posicion`, con `numerar`).
+ */
+function moverGrupo({ columnas, elementos, posicion, numerar }, grupo, alOtroLado) {
+  const suyos = new Set(grupo);
+  const abajo = grupo.reduce((suma, id) => suma + Math.sign(posicion.get(id)), 0) > 0;
+  const debajo = abajo !== alOtroLado;
+  for (const c of new Set(grupo.map((id) => elementos.get(id).columna))) {
+    const enGrupo = columnas[c].filter((id) => suyos.has(id));
+    if (alOtroLado) enGrupo.reverse();
+    const resto = columnas[c].filter((id) => !suyos.has(id));
+    const t = resto.findIndex((id) => elementos.get(id).tronco);
+    let arriba = t; // encima del tronco, pero sin meterse entre él y los atajos que lo saltan
+    while (arriba > 0 && elementos.get(resto[arriba - 1]).atajo) arriba -= 1;
+    columnas[c] = debajo ? [...resto.slice(0, t + 1), ...enGrupo, ...resto.slice(t + 1)] : [...resto.slice(0, arriba), ...enGrupo, ...resto.slice(arriba)];
+    numerar(columnas[c]);
+  }
+}
+
+function repartirAlrededorDelTronco({ columnas, elementos, derecha, posicion, numerar, crucesTotales }) {
+  const grupos = gruposSinTronco(elementos, derecha);
   const conTronco = new Set(columnas.filter((columna) => columna.some((id) => elementos.get(id).tronco)));
   const desequilibrio = () => {
     let suma = 0;
@@ -126,7 +152,7 @@ function repartirAlrededorDelTronco({ columnas, elementos, derecha, posicion, nu
     return Math.abs(suma);
   };
   // Los grupos grandes primero (empate: el id de su primer elemento, para que no dependa del orden de la entrada).
-  const ordenados = [...grupos.values()]
+  const ordenados = grupos
     .filter((grupo) => grupo.every((id) => conTronco.has(columnas[elementos.get(id).columna])))
     .sort((a, b) => b.length - a.length || comparar(a[0], b[0]));
   // Lo lejos del tronco que quedan, en puestos: a igual reparto, mejor más cerca (los tramos bajan menos).
@@ -138,22 +164,12 @@ function repartirAlrededorDelTronco({ columnas, elementos, derecha, posicion, nu
     });
   let actual = { cruces: crucesTotales(), parejo: desequilibrio(), lejos: lejania() };
   for (const grupo of ordenados) {
-    const suyos = new Set(grupo);
-    const abajo = grupo.reduce((suma, id) => suma + Math.sign(posicion.get(id)), 0) > 0;
     const antes = columnas.map((columna) => [...columna]);
     let mejor = null;
     // Al otro lado, en espejo; o del mismo lado, pegado al tronco.
     for (const alOtroLado of [true, false]) {
       ubicar(antes.map((columna) => [...columna]));
-      const debajo = abajo !== alOtroLado;
-      for (const c of new Set(grupo.map((id) => elementos.get(id).columna))) {
-        const enGrupo = columnas[c].filter((id) => suyos.has(id));
-        if (alOtroLado) enGrupo.reverse();
-        const resto = columnas[c].filter((id) => !suyos.has(id));
-        const t = resto.findIndex((id) => elementos.get(id).tronco);
-        columnas[c] = debajo ? [...resto.slice(0, t + 1), ...enGrupo, ...resto.slice(t + 1)] : [...resto.slice(0, t), ...enGrupo, ...resto.slice(t)];
-        numerar(columnas[c]);
-      }
+      moverGrupo({ columnas, elementos, posicion, numerar }, grupo, alOtroLado);
       const nuevo = { cruces: crucesTotales(), parejo: desequilibrio(), lejos: lejania(), orden: columnas.map((columna) => [...columna]) };
       const base = mejor ?? actual;
       if (nuevo.cruces <= actual.cruces && (nuevo.parejo < base.parejo || (nuevo.parejo === base.parejo && nuevo.lejos < base.lejos))) mejor = nuevo;
@@ -161,6 +177,134 @@ function repartirAlrededorDelTronco({ columnas, elementos, derecha, posicion, nu
     if (mejor) actual = mejor;
     ubicar(mejor ? mejor.orden : antes);
   }
+}
+
+/** Resuelve A·x = b (A cuadrada, simétrica y definida positiva en la práctica) por eliminación con pivote parcial. */
+export function resolverSistema(A, b) {
+  const n = b.length;
+  const m = A.map((fila, i) => [...fila, b[i]]);
+  for (let k = 0; k < n; k += 1) {
+    let p = k;
+    for (let i = k + 1; i < n; i += 1) if (Math.abs(m[i][k]) > Math.abs(m[p][k])) p = i;
+    [m[k], m[p]] = [m[p], m[k]];
+    const pivote = m[k][k] || 1e-12;
+    for (let i = k + 1; i < n; i += 1) {
+      const factor = m[i][k] / pivote;
+      if (!factor) continue;
+      for (let j = k; j <= n; j += 1) m[i][j] -= factor * m[k][j];
+    }
+  }
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i -= 1) {
+    let suma = m[i][n];
+    for (let j = i + 1; j < n; j += 1) suma -= m[i][j] * x[j];
+    x[i] = suma / (m[i][i] || 1e-12);
+  }
+  return x;
+}
+
+// Paso 10: lo que pesa cada cosa al buscar las alturas con los tramos largos rectos.
+const PESO_DE_SEPARACION = 1e5; // una separación que no se cumple (casi una restricción dura)
+const PESO_DE_ANCLA = 1e-3; // quedarse cerca de la altura del paso 8 (desempata y fija lo que no se toca con nada)
+const VUELTAS_DE_NEWTON = 60;
+const VUELTAS_DE_ORDEN = 4;
+const PESO_DEL_ALTO = 5; // (filas)² de energía por (fila de alto del mapa)²
+const ALTO_DE_ATAJO = 0.3; // filas que reserva cada nivel de atajos sobre el tronco
+const PESO_DE_CRUCE_DE_ATAJO = 30; // un arco de atajo que cruza un tramo más que al ubicarlo
+const PESO_DE_CRUCE_LATERAL = 10; // un tramo que cruza el arco de un paso lateral, en (filas)² de la energía
+
+/**
+ * Alturas con cada tramo largo recto de punta a punta. La altura de una parada virtual no es libre: es la de la recta
+ * entre las dos puntas de su tramo en esa columna. Las de las páginas y terminales (las del tronco quedan en 0) se
+ * buscan para que (1) cada columna conserve su orden y sus separaciones, contando las paradas, y (2) los tramos sean
+ * lo más cortos posible (suma de (Δy)² / columnas que salta). Es un problema cuadrático convexo con desigualdades;
+ * se resuelve con una penalidad grande por separación incumplida (Newton por conjunto activo, con búsqueda lineal).
+ * → resolver(x0?): { x, energia, incumplidas, aplicar() } con el orden actual de `columnas` (aplicar() escribe `y`).
+ */
+function crearEnderezador({ columnas, elementos, tramos, paradas, separacion, y }) {
+  const variables = [...elementos.values()].filter((e) => e.clase !== "virtual" && !e.tronco).map((e) => e.id);
+  const indice = new Map(variables.map((id, i) => [id, i]));
+  // Forma lineal de la altura de cada elemento: { terminos: [[índice, coeficiente]], constante }.
+  const forma = new Map();
+  for (const e of elementos.values()) {
+    if (e.clase === "virtual") continue;
+    forma.set(e.id, indice.has(e.id) ? { terminos: [[indice.get(e.id), 1]], constante: 0 } : { terminos: [], constante: 0 });
+  }
+  const tramoDe = new Map(tramos.map((tramo) => [tramo.id, tramo]));
+  for (const [id, suyas] of paradas) {
+    const tramo = tramoDe.get(id);
+    const [a, b] = [elementos.get(tramo.origen), elementos.get(tramo.destino)];
+    for (const parada of suyas) {
+      if (tramo.atajo) {
+        forma.set(parada, { terminos: [], constante: -tramo.atajo * ALTO_DE_ATAJO });
+        continue;
+      }
+      const t = (elementos.get(parada).columna - a.columna) / (b.columna - a.columna);
+      const [fa, fb] = [forma.get(a.id), forma.get(b.id)];
+      forma.set(parada, {
+        terminos: [...fa.terminos.map(([i, c]) => [i, c * (1 - t)]), ...fb.terminos.map(([i, c]) => [i, c * t])],
+        constante: fa.constante * (1 - t) + fb.constante * t,
+      });
+    }
+  }
+  const n = variables.length;
+  const valor = (f, x) => f.terminos.reduce((suma, [i, c]) => suma + c * x[i], f.constante);
+  const restar = (f, g, extra = 0) => ({ terminos: [...f.terminos, ...g.terminos.map(([i, c]) => [i, -c])], constante: f.constante - g.constante + extra });
+  // Términos (peso, forma lineal f) de la energía Σ peso·f² que no dependen del orden.
+  const fijos = [];
+  for (const tramo of tramos) {
+    const [a, b] = [elementos.get(tramo.origen), elementos.get(tramo.destino)];
+    if (!a || !b || b.columna <= a.columna) continue;
+    fijos.push([1 / (b.columna - a.columna), restar(forma.get(a.id), forma.get(b.id))]);
+  }
+  variables.forEach((id, i) => fijos.push([PESO_DE_ANCLA, { terminos: [[i, 1]], constante: -y.get(id) }]));
+
+  return function resolver(x0 = variables.map((id) => y.get(id))) {
+    // Una separación por cada par seguido de cada columna: f > 0 si no se cumple.
+    const separaciones = [];
+    for (const columna of columnas) {
+      for (let k = 1; k < columna.length; k += 1) {
+        const f = restar(forma.get(columna[k - 1]), forma.get(columna[k]), separacion(columna[k - 1], columna[k]));
+        if (f.terminos.length) separaciones.push(f);
+      }
+    }
+    const energia = (x) =>
+      fijos.reduce((suma, [peso, f]) => suma + peso * valor(f, x) ** 2, 0) +
+      separaciones.reduce((suma, f) => suma + PESO_DE_SEPARACION * Math.max(0, valor(f, x)) ** 2, 0);
+    let x = [...x0];
+    for (let vuelta = 0; n && vuelta < VUELTAS_DE_NEWTON; vuelta += 1) {
+      const A = Array.from({ length: n }, () => new Array(n).fill(0));
+      const b = new Array(n).fill(0);
+      const sumar = (peso, f) => {
+        for (const [i, ci] of f.terminos) {
+          b[i] -= peso * ci * f.constante;
+          for (const [j, cj] of f.terminos) A[i][j] += peso * ci * cj;
+        }
+      };
+      for (const [peso, f] of fijos) sumar(peso, f);
+      for (const f of separaciones) if (valor(f, x) > -1e-9) sumar(PESO_DE_SEPARACION, f);
+      const objetivo = resolverSistema(A, b);
+      const antes = energia(x);
+      let paso = 1;
+      let nuevo = objetivo;
+      while (paso > 1e-4 && energia(nuevo) > antes + 1e-12) {
+        paso /= 2;
+        nuevo = x.map((valorX, i) => valorX + paso * (objetivo[i] - valorX));
+      }
+      const cambio = Math.max(0, ...nuevo.map((valorX, i) => Math.abs(valorX - x[i])));
+      x = nuevo;
+      if (cambio < 1e-7) break;
+    }
+    return {
+      x,
+      energia: energia(x),
+      incumplidas: separaciones.filter((f) => valor(f, x) > 0.01).length,
+      aplicar() {
+        variables.forEach((id, i) => y.set(id, x[i]));
+        for (const [id, f] of forma) if (elementos.get(id).clase === "virtual") y.set(id, valor(f, x));
+      },
+    };
+  };
 }
 
 /**
@@ -466,6 +610,164 @@ export function distribuir(entrada, { barridos = BARRIDOS } = {}) {
     if (!movidas) break;
     calcularAlturas();
   }
+
+  // 10. Cada tramo largo, una recta de punta a punta (C4-1): sus paradas virtuales van exactamente sobre la recta
+  // entre sus dos puntas, y son las páginas las que se corren para dejarles lugar (crearEnderezador). El orden de
+  // cada columna se retoca solo si no suma cruces entre tramos rectos a los que dejó el paso 7.
+  //
+  // Un atajo entre dos estaciones del tronco (que está en una fila recta) no puede ser una recta sin pasar por encima
+  // de las estaciones del tronco que salta: se dibuja como un arco bajo por encima del tronco (arcoDeAtajo). Sus
+  // paradas quedan fijas justo encima del tronco, para reservarle el lugar; si varios atajos pasan por la misma
+  // columna, los más largos van más arriba. Sus cruces se cuentan aparte (pesan en el costo, no son un tope).
+  const deAtajo = new Set();
+  const crucesDeAvance = () =>
+    enlacesDe.reduce((suma, enlaces) => suma + crucesEntre(enlaces.filter(([a, b]) => !deAtajo.has(a) && !deAtajo.has(b)), posicion), 0);
+  const crucesConAtajos = () => enlacesDe.reduce((suma, enlaces) => suma + crucesEntre(enlaces, posicion), 0);
+  const atajos = tramos
+    .filter((tramo) => tramo.tipo !== "tronco" && paradas.get(tramo.id)?.length && elementos.get(tramo.origen).tronco && elementos.get(tramo.destino).tronco)
+    .sort((p, q) => paradas.get(p.id).length - paradas.get(q.id).length || comparar(p.id, q.id));
+  for (const [k, tramo] of atajos.entries()) {
+    const columnasDe = (otro) => new Set(paradas.get(otro.id).map((id) => elementos.get(id).columna));
+    const suyas = columnasDe(tramo);
+    tramo.atajo = 1 + Math.max(0, ...atajos.slice(0, k).filter((otro) => [...columnasDe(otro)].some((c) => suyas.has(c))).map((otro) => otro.atajo));
+    for (const id of paradas.get(tramo.id)) {
+      elementos.get(id).atajo = tramo.atajo;
+      deAtajo.add(id);
+    }
+  }
+  const avancePermitido = crucesDeAvance();
+  const sinCrucesDeMas = () => crucesDeAvance() <= avancePermitido;
+  for (const columna of columnas) {
+    const deAtajo = columna.filter((id) => elementos.get(id).atajo).sort((p, q) => elementos.get(q).atajo - elementos.get(p).atajo);
+    if (!deAtajo.length) continue;
+    const resto = columna.filter((id) => !elementos.get(id).atajo);
+    const t = resto.findIndex((id) => elementos.get(id).tronco);
+    columna.splice(0, columna.length, ...resto.slice(0, t), ...deAtajo, ...resto.slice(t));
+    numerar(columna);
+  }
+  const conAtajosPermitido = crucesConAtajos();
+  const resolver = crearEnderezador({ columnas, elementos, tramos, paradas, separacion, y });
+  // Lo que se busca bajar: tramos cortos, el mapa bajo (así entra en la vista), pocos tramos por encima del arco de
+  // un paso lateral y pocos cruces nuevos con los arcos de los atajos.
+  const costo = ({ energia, x }) =>
+    energia + PESO_DEL_ALTO * (Math.max(0, ...x) - Math.min(0, ...x)) ** 2 + PESO_DE_CRUCE_LATERAL * crucesDeLaterales() + PESO_DE_CRUCE_DE_ATAJO * Math.max(0, crucesConAtajos() - conAtajosPermitido);
+  let recto = resolver();
+  recto.costo = costo(recto);
+  // Con las paradas sobre su recta, el orden que convenía antes puede obligar a separar mucho las páginas: se prueban
+  // grupos enteros al otro lado del tronco, tramos largos un puesto más arriba o abajo, cada parada en el puesto que
+  // le toca por su recta y trasposiciones de vecinos; se queda lo que no suma cruces y baja el costo.
+  const atajoEnSuLugar = (columna) => {
+    const t = columna.findIndex((id) => elementos.get(id).tronco);
+    let k = t - 1;
+    while (k >= 0 && elementos.get(columna[k]).atajo) k -= 1;
+    return columna.every((id, i) => !elementos.get(id).atajo || (i > k && i < t));
+  };
+  const probar = (cambiar) => {
+    const antes = columnas.map((columna) => [...columna]);
+    if (cambiar() === false || !columnas.every(atajoEnSuLugar)) {
+      antes.forEach((columna, c) => {
+        columnas[c] = columna;
+        numerar(columna);
+      });
+      return false;
+    }
+    columnas.forEach(numerar);
+    if (sinCrucesDeMas()) {
+      const otro = resolver(recto.x);
+      otro.costo = costo(otro);
+      if (otro.costo < recto.costo - 1e-6) {
+        recto = otro;
+        return true;
+      }
+    }
+    antes.forEach((columna, c) => {
+      columnas[c] = columna;
+      numerar(columna);
+    });
+    return false;
+  };
+  const largos = tramos.filter((tramo) => paradas.get(tramo.id)?.length);
+  const conTronco = (c) => columnas[c].some((id) => elementos.get(id).tronco);
+  const grupos = gruposSinTronco(elementos, derecha).filter((grupo) => grupo.every((id) => conTronco(elementos.get(id).columna) && !elementos.get(id).atajo));
+  const contexto = { columnas, elementos, posicion, numerar };
+  for (let vuelta = 0; vuelta < VUELTAS_DE_ORDEN; vuelta += 1) {
+    let mejoro = false;
+    // Un grupo entero al otro lado del tronco, o pegado a él; si así cruza a otros, esos pasan al otro lado también
+    // (de a uno, el que más cruces quita), hasta no sumar cruces.
+    for (const grupo of grupos) {
+      for (const alOtroLado of [true, false]) {
+        mejoro =
+          probar(() => {
+            moverGrupo(contexto, grupo, alOtroLado);
+            const movidos = new Set([grupo]);
+            while (!sinCrucesDeMas()) {
+              let mejor = null;
+              for (const otro of grupos) {
+                if (movidos.has(otro)) continue;
+                const antes = columnas.map((columna) => [...columna]);
+                moverGrupo(contexto, otro, true);
+                const cruces = crucesDeAvance() + crucesConAtajos();
+                antes.forEach((columna, c) => {
+                  columnas[c] = columna;
+                  numerar(columna);
+                });
+                if (!mejor || cruces < mejor.cruces) mejor = { otro, cruces };
+              }
+              if (!mejor) break;
+              moverGrupo(contexto, mejor.otro, true);
+              movidos.add(mejor.otro);
+            }
+          }) || mejoro;
+      }
+    }
+    // Las paradas de un tramo largo (todas, o las primeras k, o las últimas k), un puesto más arriba o más abajo.
+    for (const tramo of largos) {
+      if (tramo.atajo) continue;
+      const suyas = paradas.get(tramo.id);
+      const tandas = suyas.flatMap((_, k) => (k + 1 < suyas.length ? [suyas.slice(0, k + 1), suyas.slice(-k - 1)] : [suyas]));
+      for (const sentido of [-1, 1]) for (const tanda of tandas) {
+        mejoro =
+          probar(() => {
+            let movio = false;
+            for (const id of tanda) {
+              const c = elementos.get(id).columna;
+              const i = columnas[c].indexOf(id);
+              const j = i + sentido;
+              if (j < 0 || j >= columnas[c].length) continue;
+              const columna = [...columnas[c]];
+              [columna[i], columna[j]] = [columna[j], columna[i]];
+              columnas[c] = columna;
+              movio = true;
+            }
+            return movio;
+          }) || mejoro;
+      }
+    }
+    recto.aplicar();
+    for (const [id, e] of elementos) {
+      if (e.clase !== "virtual" || e.atajo) continue;
+      const c = e.columna;
+      mejoro =
+        probar(() => {
+          const sin = columnas[c].filter((otro) => otro !== id);
+          const puesto = sin.filter((otro) => y.get(otro) < y.get(id)).length;
+          if (columnas[c][puesto] === id) return false;
+          columnas[c] = [...sin.slice(0, puesto), id, ...sin.slice(puesto)];
+        }) || mejoro;
+    }
+    for (let c = 0; c < columnas.length; c += 1) {
+      for (let i = 0; i + 1 < columnas[c].length; i += 1) {
+        mejoro =
+          probar(() => {
+            const columna = [...columnas[c]];
+            [columna[i], columna[i + 1]] = [columna[i + 1], columna[i]];
+            columnas[c] = columna;
+          }) || mejoro;
+      }
+    }
+    if (!mejoro) break;
+  }
+  recto.aplicar();
   const fila = (id) => redondearFila(y.get(id));
 
   for (const tramo of tramos) tramo.escalas = (paradas.get(tramo.id) ?? []).map((id) => ({ capa: elementos.get(id).columna, fila: fila(id) }));
@@ -502,6 +804,7 @@ const ALTURA_DE_VUELTA = 0.5;
 // Pasos laterales (dentro de una columna): un arco hacia la derecha, con los puntos de control a esta fracción del
 // ancho de columna (la curva se aparta 0.75 de eso).
 const ANCHO_DE_LATERAL = 0.3;
+const ALTURA_RELATIVA_DE_ATAJO = 0.065;
 const HACIA_LA_DERECHA = new Set(["tronco", "avance", "final"]);
 
 const distanciaEntre = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
@@ -535,6 +838,19 @@ export function arcoDeVuelta(a, b, altoFila) {
   const y = (afuera > 0 ? Math.max(a.y, b.y) : Math.min(a.y, b.y)) + afuera * ALTURA_DE_VUELTA * altoFila;
   const tercio = (a.x - b.x) / 3;
   return [a, { x: a.x - tercio, y }, { x: b.x + tercio, y }, b];
+}
+
+/**
+ * Arco bajo de un atajo entre dos estaciones del tronco (de a hacia b, a la derecha): por encima de ellas, a lo más
+ * `altura` px y a lo más un 6.5 % de su largo (así sale y llega a menos de 15° de la recta y no se aparta de ella más
+ * de un 8 %). Depende solo de los extremos y del nivel.
+ */
+export function arcoDeAtajo(a, b, altura) {
+  const largo = distanciaEntre(a, b);
+  const control = Math.min(altura, ALTURA_RELATIVA_DE_ATAJO * largo) / 0.75;
+  const y = Math.min(a.y, b.y) - control;
+  const tercio = (b.x - a.x) / 3;
+  return [a, { x: a.x + tercio, y }, { x: b.x - tercio, y }, b];
 }
 
 /** Arco de un paso lateral (de a hacia b, en la misma columna): hacia la derecha, entre las dos alturas. */
@@ -591,7 +907,11 @@ export function geometria(distribucion, { anchoCapa = 220, altoFila = ALTO_FILA,
     if (!a || !b) continue;
     let puntos;
     let d;
-    if (b.x > a.x) {
+    if (b.x > a.x && tramo.atajo) {
+      const arco = arcoDeAtajo(a, b, tramo.atajo * ALTO_DE_ATAJO * altoFila);
+      puntos = muestrear(arco);
+      d = caminoDeCubicas([arco]);
+    } else if (b.x > a.x) {
       puntos = [a, ...(tramo.escalas ?? []).map((escala) => punto(escala.capa, escala.fila)), b];
       d = enUnaRecta(puntos) ? `M${a.x} ${a.y} L${b.x} ${b.y}` : caminoDeCubicas(piezasDeAvance(puntos));
     } else {
