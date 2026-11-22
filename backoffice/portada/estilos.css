@@ -1,0 +1,36 @@
+/* Portada de chameleonmode.app: solo la marca y un aviso (colores de docs/marca/chameleonmode-v1). */
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: #0B0B10;
+  color: #F5F5F7;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+main {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+h1 img {
+  display: block;
+  width: min(360px, 80vw);
+  height: auto;
+}
+
+p {
+  color: #ADAEBB;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

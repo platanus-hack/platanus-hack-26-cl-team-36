@@ -149,7 +149,7 @@ before(async () => {
   servidor = crearServidor({ raizCorridas: RAIZ, revisiones });
   sinTabla = crearServidor({ raizCorridas: RAIZ });
   await Promise.all([servidor, sinTabla].map((s) => new Promise((listo) => s.listen(0, "127.0.0.1", listo))));
-  base = (s) => `http://127.0.0.1:${s.address().port}`;
+  base = (s) => `http://127.0.0.1:${s.address().port}/backoffice`;
 });
 after(() => {
   servidor.close();

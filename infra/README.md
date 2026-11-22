@@ -3,7 +3,7 @@
 La API (`backend/`) corre en AWS como una Lambda, en https://api.chameleonmode.app (API Gateway) y en su URL pública
 de Lambda. Terraform la crea y la actualiza desde GitHub Actions, en el repo personal
 [brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36).
-El backoffice (`backoffice/`) corre en ECS Fargate, en https://chameleonmode.app, y también lo crea Terraform
+El backoffice (`backoffice/`) corre en ECS Fargate, en https://chameleonmode.app/backoffice/, y también lo crea Terraform
 (ver [El backoffice en chameleonmode.app](#el-backoffice-en-chameleonmodeapp)).
 Los agentes (`agents/`) corren en AgentCore Runtime, en un solo runtime, `chameleon`; lo despliega la CLI de
 AgentCore desde `agentcore/`, en el mismo repo personal.
@@ -139,10 +139,11 @@ Eso dispara `Terraform` por primera vez. La extensión llama a `api.chameleonmod
 
 ## El backoffice en chameleonmode.app
 
-[`app/backoffice.tf`](app/backoffice.tf) pone el backoffice (`backoffice/`) en https://chameleonmode.app: una tarea de
+[`app/backoffice.tf`](app/backoffice.tf) pone el backoffice (`backoffice/`) en https://chameleonmode.app/backoffice/: una tarea de
 ECS Fargate en la VPC por defecto, detrás de un balanceador (ALB) con certificado de ACM, que lee el almacén y la tabla
 de revisiones con un rol de solo lectura. **Es público, sin login**, por decisión del equipo: lo que está en el almacén
-lo ve cualquiera. Terraform también construye la imagen (`backoffice/Dockerfile`) con docker y la sube a ECR cuando
+lo ve cualquiera que conozca la ruta. La raíz del dominio solo muestra una portada ("work in progress") que no enlaza
+al backoffice. Terraform también construye la imagen (`backoffice/Dockerfile`) con docker y la sube a ECR cuando
 cambia algo de lo que entra en ella; el runner de Actions trae docker, así que un `apply` en local también lo necesita.
 
 Cuesta unos 40 USD al mes, casi todo el balanceador y las IP públicas: pasa la alerta de 20 USD de `bootstrap/`.

@@ -1,4 +1,6 @@
 // Pedidos a la API del backoffice (diseño §3, §5.3), con caché en memoria: las tandas no cambian una vez escritas.
+// Las rutas son relativas a la página: el backoffice vive en /backoffice/ (servidor.js), así que "api/tandas"
+// pide /backoffice/api/tandas.
 
 export class ErrorDeDatos extends Error {
   /** @param {string} mensaje  @param {number} estado  código HTTP, o 0 si no hubo respuesta */
@@ -28,7 +30,7 @@ let tandas = null;
 /** → { carpeta, tandas: ResumenDeTanda[] } (de la más nueva a la más vieja). */
 export function pedirTandas({ refrescar = false } = {}) {
   if (!tandas || refrescar) {
-    tandas = pedirJson("/api/tandas").then((datos) => {
+    tandas = pedirJson("api/tandas").then((datos) => {
       // Tolera la forma anterior de la API (un arreglo) mientras se actualiza el servidor.
       if (Array.isArray(datos)) return { carpeta: null, tandas: datos };
       return { carpeta: datos?.carpeta ?? null, tandas: datos?.tandas ?? [] };
@@ -45,7 +47,7 @@ const detalle = new Map();
 /** → Tanda | null (404). Guardada por id. */
 export function pedirTanda(id) {
   if (!detalle.has(id)) {
-    const promesa = pedirJson(`/api/tandas/${segmentosCodificados(id)}`);
+    const promesa = pedirJson(`api/tandas/${segmentosCodificados(id)}`);
     detalle.set(id, promesa);
     promesa.catch(() => detalle.delete(id));
   }
@@ -54,13 +56,13 @@ export function pedirTanda(id) {
 
 // Las revisiones cambian mientras corren: sin caché, la pantalla vuelve a pedirlas cada pocos segundos.
 /** → { disponible, revisiones: ResumenDeRevision[] } */
-export const pedirRevisiones = () => pedirJson("/api/revisiones");
+export const pedirRevisiones = () => pedirJson("api/revisiones");
 /** → AvanceDeRevision | null (404) */
-export const pedirRevision = (revision) => pedirJson(`/api/revisiones/${encodeURIComponent(revision)}`);
-/** "/resultados/<clave de corrida>/<archivo>" */
-export const urlDeResultado = (clave) => `/resultados/${segmentosCodificados(clave)}`;
+export const pedirRevision = (revision) => pedirJson(`api/revisiones/${encodeURIComponent(revision)}`);
+/** "resultados/<clave de corrida>/<archivo>" */
+export const urlDeResultado = (clave) => `resultados/${segmentosCodificados(clave)}`;
 
-/** "/archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<archivo>", cada segmento codificado. */
+/** "archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<archivo>", cada segmento codificado. */
 export function urlDeArchivo(tandaId, perfil, archivo) {
-  return `/archivos/${[...String(tandaId).split("/"), perfil, archivo].map(encodeURIComponent).join("/")}`;
+  return `archivos/${[...String(tandaId).split("/"), perfil, archivo].map(encodeURIComponent).join("/")}`;
 }

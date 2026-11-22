@@ -2,13 +2,19 @@
 // Sirve la página de public/ y una API que lee las corridas a través de una fuente (lib/fuente.js;
 // por defecto, la carpeta agents/.runs/). No gatilla nada ni llama a Claude.
 //
-//   GET /api/tandas                       → { carpeta, tandas: resumen de cada tanda, de la más nueva a la más vieja }
-//   GET /api/tandas/<host>/visitor/<objetivo>/<corrida>  → la tanda completa, ya derivada para las pantallas
-//   GET /archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<step_NN.png | video.webm>
-//   GET /api/revisiones                   → { disponible, revisiones } (DynamoDB; solo con BACKOFFICE_FUENTE=s3)
-//   GET /api/revisiones/<revision>        → el avance de una revisión por etapa y por goal
-//   GET /resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
-//   GET /<ruta>.{html,js,css,svg,woff2}   → archivos de public/
+// La raíz es una portada pública ("work in progress", de portada/) que no enlaza al backoffice: el backoffice
+// entero (página, API y archivos) vive bajo /backoffice/.
+//
+//   GET /                                 → la portada; GET /<archivo>.{html,css,svg} → archivos de portada/
+//   GET /backoffice                       → 301 a /backoffice/ (la página pide lo suyo con rutas relativas)
+//   GET /backoffice/                      → la página del backoffice (public/index.html)
+//   GET /backoffice/api/tandas            → { carpeta, tandas: resumen de cada tanda, de la más nueva a la más vieja }
+//   GET /backoffice/api/tandas/<host>/visitor/<objetivo>/<corrida>  → la tanda completa, ya derivada para las pantallas
+//   GET /backoffice/archivos/<host>/visitor/<objetivo>/<corrida>/<perfil>/<step_NN.png | video.webm>
+//   GET /backoffice/api/revisiones        → { disponible, revisiones } (DynamoDB; solo con BACKOFFICE_FUENTE=s3)
+//   GET /backoffice/api/revisiones/<revision>  → el avance de una revisión por etapa y por goal
+//   GET /backoffice/resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
+//   GET /backoffice/<ruta>.{html,js,css,svg,woff2}  → archivos de public/
 //   GET /salud                            → { ok: true }, con cualquier Host (el health check del balanceador)
 //
 // Solo responde a pedidos dirigidos a este computador (Host localhost, 127.0.0.1 o [::1] con el puerto del
@@ -28,6 +34,9 @@ import { abrirArchivoDeIntento, leerTanda, listarTandas } from "./lib/tandas.js"
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const PUBLICO = path.join(AQUI, "public");
+const PORTADA = path.join(AQUI, "portada");
+// El backoffice cuelga de /<PREFIJO>/; todo lo demás es la portada.
+const PREFIJO = "/backoffice";
 const TIPOS = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -42,6 +51,8 @@ const TIPOS = {
 const TIPOS_DE_RESULTADO = { ".css": "text/plain; charset=utf-8" };
 // Lo que se sirve de public/: cualquier archivo con estas extensiones, en minúsculas, a cualquier profundidad.
 const RUTA_PUBLICA = /^(?:[a-z0-9-]+\/)*[a-z0-9-]+\.(?:html|js|css|svg|woff2)$/;
+// De portada/ solo se sirven archivos sueltos, sin subcarpetas.
+const RUTA_DE_PORTADA = /^[a-z0-9-]+\.(?:html|css|svg)$/;
 
 // Las capturas muestran páginas de terceros y a veces datos de quien corrió la prueba: la página
 // solo carga lo propio (más las fuentes de Google) y nada de lo leído de una corrida se ejecuta.
@@ -103,6 +114,14 @@ async function servirPublico(req, res, ruta) {
   return enviar(req, res, ruta, { cuerpo: createReadStream(ruta), tamano: size, rango: null });
 }
 
+// La portada de la raíz: index.html y los archivos que pide, nada más.
+function servirPortada(req, res, partes) {
+  const archivo = partes.length === 0 ? "index.html" : partes.length === 1 ? partes[0] : "";
+  const ruta = path.join(PORTADA, archivo);
+  if (RUTA_DE_PORTADA.test(archivo) && existsSync(ruta)) return servirPublico(req, res, ruta);
+  return responderJson(res, 404, { error: "No encontrado" });
+}
+
 const NOMBRES_LOCALES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /**
@@ -145,13 +164,20 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
       if (req.method !== "GET" && req.method !== "HEAD") {
         return responderJson(res, 405, { error: "Solo lectura" });
       }
-      const { pathname } = new URL(req.url, "http://localhost");
+      const { pathname, search } = new URL(req.url, "http://localhost");
+      // Sin la barra final, las rutas relativas de la página (app.js, api/…) apuntarían a la raíz.
+      if (pathname === PREFIJO) {
+        res.writeHead(301, { Location: `${PREFIJO}/${search}`, "Cache-Control": "no-store", ...CABECERAS_DE_SEGURIDAD });
+        return res.end();
+      }
+      const enBackoffice = pathname.startsWith(`${PREFIJO}/`);
       let partes;
       try {
-        partes = pathname.split("/").filter(Boolean).map(decodeURIComponent);
+        partes = (enBackoffice ? pathname.slice(PREFIJO.length) : pathname).split("/").filter(Boolean).map(decodeURIComponent);
       } catch {
         return responderJson(res, 400, { error: "Ruta inválida" });
       }
+      if (!enBackoffice) return servirPortada(req, res, partes);
 
       if (partes[0] === "api" && partes[1] === "tandas") {
         if (partes.length === 2) return responderJson(res, 200, await listarTandas(origen));
@@ -216,7 +242,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   servidor.on("error", (error) => {
     if (error.code !== "EADDRINUSE") throw error;
     console.error(
-      `✘ El puerto ${puerto} ya está ocupado: probablemente el backoffice ya está corriendo en http://localhost:${puerto}.\n` +
+      `✘ El puerto ${puerto} ya está ocupado: probablemente el backoffice ya está corriendo en http://localhost:${puerto}${PREFIJO}/.\n` +
         `  Ábrelo ahí, mira qué proceso lo usa con: lsof -nP -iTCP:${puerto} -sTCP:LISTEN, o usa otro puerto con PORT=4849.`,
     );
     process.exit(1);
@@ -224,6 +250,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   servidor.listen(puerto, escucha, () => {
     const conRevisiones = revisiones ? ` · revisiones de ${revisiones.descripcion} (${aws.region})` : "";
     const abierto = escucha === "127.0.0.1" ? "" : ` · escucha en ${escucha}:${puerto}`;
-    console.log(`Backoffice en http://localhost:${puerto}${abierto} · corridas de ${fuente.descripcion}${conRevisiones}`);
+    console.log(`Backoffice en http://localhost:${puerto}${PREFIJO}/${abierto} · corridas de ${fuente.descripcion}${conRevisiones}`);
   });
 }

@@ -12,7 +12,7 @@ de AWS.
 just local backoffice        # o: npm run backoffice, desde la raíz (dentro de backoffice/, npm run dev reinicia el servidor al guardar)
 ```
 
-Abre <http://localhost:4848>. Para tener algo que ver, primero hay que correr el Visitante, por ejemplo
+Abre <http://localhost:4848/backoffice/>. Para tener algo que ver, primero hay que correr el Visitante, por ejemplo
 `just local visit-tasks wom` o `just local visit <url> "<tarea>"`; la tanda aparece al recargar.
 
 | Variable | Por defecto | Qué cambia |
@@ -40,7 +40,7 @@ revisiones de la tabla y, por revisión, el avance por etapa y por goal, con enl
 terminada. La página vuelve a pedir cada 2,5 s. Solo lee: el perfil necesita `s3:ListBucket`, `s3:GetObject`,
 `dynamodb:Query` y `dynamodb:Scan`.
 
-### En AWS: https://chameleonmode.app
+### En AWS: https://chameleonmode.app/backoffice/
 
 Corre en ECS Fargate detrás de un balanceador, con la fuente `s3` sobre el almacén de los agentes y la tabla de
 revisiones ([`infra/app/backoffice.tf`](../infra/app/backoffice.tf)). La imagen sale de `Dockerfile` y se despliega
@@ -48,6 +48,14 @@ sola al mergear a `main` un cambio de `backoffice/` (menos `test/`); los detalle
 [la infraestructura](../infra/README.md#el-backoffice-en-chameleonmodeapp). **Es público, sin login:** todo lo que
 se sube al almacén se puede ver ahí. El balanceador revisa la tarea con `GET /salud`, que responde `{ ok: true }`
 con cualquier `Host` y no lee nada.
+
+### La raíz es una portada
+
+El backoffice entero (la página, `api/`, `archivos/` y `resultados/`) vive bajo `/backoffice/`; `/backoffice` sin la barra
+final redirige ahí, porque la página pide todo con rutas relativas. La raíz (`/`) sirve la portada de
+[`portada/`](portada/): la marca y "Work in progress", sin enlaces al backoffice. Es lo que ve quien abre
+https://chameleonmode.app, la URL de la entrega en `platanus-hack-project.jsonc`. No es un control de acceso: quien
+conozca la ruta entra.
 
 ## Pantallas
 
