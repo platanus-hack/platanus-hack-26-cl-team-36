@@ -44,6 +44,10 @@ export default {
     cortadoAntes: "El intento se cortó antes del primer paso.",
   },
 
+  animacion: {
+    volver: "Volver a «{pagina}»",
+  },
+
   linea: {
     etiqueta: "Línea de tiempo",
     reproducir: "Reproducir",
