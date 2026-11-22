@@ -48,6 +48,10 @@ class Caller:
         self.cost_usd += answer.cost_usd
         if not isinstance(answer.output, dict):
             raise ClaudeCallError(f"{self.engine} no devolvió una respuesta estructurada: {answer.detail[:300]}")
+        # Ni el JSON leído del texto ni la herramienta de Bedrock garantizan el esquema.
+        missing = [key for key in schema.get("required", []) if key not in answer.output]
+        if missing:
+            raise ClaudeCallError(f"{self.engine} respondió sin {', '.join(missing)}")
         return answer
 
     async def _answer(self, system_prompt: str, schema: dict, parts: list[Part]) -> Answer:

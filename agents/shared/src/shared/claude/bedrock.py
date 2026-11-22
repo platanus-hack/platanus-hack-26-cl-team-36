@@ -17,7 +17,8 @@ from shared.claude.process import DEFAULT_TIMEOUT_S, content_blocks
 MAX_TOKENS = 16_000
 ANSWER_TOOL = "responder"
 # La cuota de la cuenta es de 50 requests/min: ante un rechazo se espera 2, 4, 8… s (hasta 60) con jitter.
-RETRYABLE_CODES = {"ThrottlingException", "ServiceUnavailableException"}
+RETRYABLE_CODES = {"ThrottlingException", "ServiceUnavailableException", "InternalServerException",
+                   "ModelNotReadyException"}
 MAX_ATTEMPTS = 8
 BACKOFF_BASE_S = 2.0
 BACKOFF_MAX_S = 60.0
@@ -81,6 +82,8 @@ class BedrockCaller(Caller):
         self._log({"model": self.model, "stop_reason": data.get("stop_reason"), "usage": data.get("usage")})
         output = next((block.get("input") for block in data.get("content") or []
                        if block.get("type") == "tool_use" and block.get("name") == ANSWER_TOOL), None)
+        if data.get("stop_reason") != "tool_use":
+            output = None   # cortada por `max_tokens`, la entrada de la herramienta viene incompleta
         return Answer(output, data.get("usage") or {}, 0.0, f"stop_reason {data.get('stop_reason')}")
 
     def _log(self, entry: dict) -> None:

@@ -5,6 +5,7 @@ import json
 import pytest
 
 from shared.claude import bedrock, engines
+from shared.claude import caller as caller_module
 from shared.claude.bedrock import BedrockCaller
 from shared.claude.caller import ClaudeCallError, ClaudeCaller
 from shared.claude.fake import FakeCaller, from_schema
@@ -21,6 +22,8 @@ SCHEMA = {
     "required": ["action", "parent", "items", "score"],
     "additionalProperties": False,
 }
+DONE = {"action": "done", "parent": None, "items": ["a"], "score": 3}
+GIVE_UP = {**DONE, "action": "give_up"}
 
 
 class ClientError(Exception):
@@ -93,10 +96,10 @@ def test_fake_engine_and_unknown_engine(no_engine_env, monkeypatch, tmp_path):
 
 
 def test_bedrock_forces_the_answer_tool_with_the_schema_and_sends_images(tmp_path):
-    client = FakeBedrock(_tool_response({"action": "done"}))
+    client = FakeBedrock(_tool_response(DONE))
     caller = BedrockCaller("us.anthropic.claude-haiku-4-5-20251001-v1:0", "high", tmp_path / "log", client=client)
     output = asyncio.run(caller.ask("sistema", SCHEMA, "la página", b"\x89PNG"))
-    assert output == {"action": "done"}
+    assert output == DONE
     request = client.requests[0]
     body = json.loads(request["body"])
     assert request["modelId"] == "us.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -109,12 +112,12 @@ def test_bedrock_forces_the_answer_tool_with_the_schema_and_sends_images(tmp_pat
 
 
 def test_bedrock_retries_throttling_with_growing_waits(tmp_path):
-    client = FakeBedrock(ClientError("ThrottlingException"), ClientError("ThrottlingException"),
-                         _tool_response({"action": "give_up"}))
+    client = FakeBedrock(ClientError("ThrottlingException"), ClientError("InternalServerException"),
+                         _tool_response(GIVE_UP))
     waits, sleep = _sleeps()
     caller = BedrockCaller("modelo", "high", tmp_path / "log", client=client, sleep=sleep)
     answer = asyncio.run(caller.answer("s", SCHEMA, ["texto"]))
-    assert answer.output == {"action": "give_up"} and len(client.requests) == 3
+    assert answer.output == GIVE_UP and len(client.requests) == 3
     assert len(waits) == 2 and waits[0] < waits[1] <= bedrock.BACKOFF_MAX_S
 
 
@@ -140,16 +143,62 @@ def test_bedrock_without_the_answer_tool_is_an_error(tmp_path):
         asyncio.run(caller.ask("s", SCHEMA, "texto"))
 
 
+def test_bedrock_cut_by_max_tokens_or_missing_required_keys_is_an_error(tmp_path):
+    cut = {**_tool_response({"action": "done"}), "stop_reason": "max_tokens"}
+    client = FakeBedrock(cut, _tool_response({"action": "done"}))
+    caller = BedrockCaller("modelo", "high", tmp_path / "log", client=client)
+    with pytest.raises(ClaudeCallError, match="max_tokens"):
+        asyncio.run(caller.ask("s", SCHEMA, "texto"))
+    with pytest.raises(ClaudeCallError, match="sin parent, items, score"):
+        asyncio.run(caller.ask("s", SCHEMA, "texto"))
+
+
+class ScriptedProcess:
+    """`ClaudeCodeProcess` falso que termina con el evento `result` dado."""
+
+    event: dict = {}
+
+    @classmethod
+    async def open(cls, *args):
+        return cls()
+
+    async def send_content(self, content):
+        pass
+
+    async def wait_for_result(self, timeout_s):
+        return self.event
+
+    async def close(self):
+        pass
+
+
+@pytest.mark.parametrize("event, error", [
+    ({"subtype": "success", "structured_output": DONE}, None),
+    ({"subtype": "success", "result": "```json\n" + json.dumps(DONE) + "\n```"}, None),
+    ({"subtype": "success", "result": '{"action": "done"}'}, "sin parent"),
+    ({"subtype": "error_max_turns", "is_error": False, "structured_output": DONE}, "error_max_turns"),
+    ({"subtype": "success", "is_error": True, "result": json.dumps(DONE)}, "estructurada"),
+])
+def test_claude_code_reads_the_result_event(monkeypatch, tmp_path, event, error):
+    monkeypatch.setattr(caller_module, "ClaudeCodeProcess", type("P", (ScriptedProcess,), {"event": event}))
+    caller = ClaudeCaller("m", "low", tmp_path, tmp_path / "log")
+    if error is None:
+        assert asyncio.run(caller.ask("s", SCHEMA, "texto")) == DONE
+    else:
+        with pytest.raises(ClaudeCallError, match=error):
+            asyncio.run(caller.ask("s", SCHEMA, "texto"))
+
+
 def test_fake_answers_the_script_then_the_responder_then_the_schema():
     seen = []
 
     def responder(system_prompt, schema, parts):
         seen.append(parts)
-        return {"action": "give_up"} if "rendirse" in parts[0] else None
+        return GIVE_UP if "rendirse" in parts[0] else None
 
-    caller = FakeCaller("m", "low", responder, script=[{"action": "done"}])
+    caller = FakeCaller("m", "low", responder, script=[DONE])
     answers = [asyncio.run(caller.ask("s", SCHEMA, text)) for text in ("uno", "rendirse", "otro")]
-    assert answers[0] == {"action": "done"} and answers[1] == {"action": "give_up"}
+    assert answers[0] == DONE and answers[1] == GIVE_UP
     assert answers[2] == {"action": "done", "parent": None, "items": [], "score": 1}
     assert seen == [["rendirse"], ["otro"]] and len(caller.calls) == 3
 
