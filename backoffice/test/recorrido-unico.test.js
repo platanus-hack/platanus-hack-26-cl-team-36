@@ -139,3 +139,17 @@ test("las corridas viejas siguen igual: veredicto del juez, un intento por perfi
   assert.ok(tanda.telarana.ramas.every((rama) => rama.intentosIds.every((id) => rama.perfiles.includes(id))));
   assert.ok(tanda.criterio);
 });
+
+test("un intento interrumpido no está en el árbol: no descuenta finales ni se asigna a tramos", () => {
+  const leer = (relativa) => JSON.parse(readFileSync(new URL(`./fixtures/recorrido-unico/${CON_RUTA}/${relativa}`, import.meta.url), "utf8"));
+  const crudos = ["desktop", "desktop-2", "mobile", "mobile-2"].map((carpeta) => ({ perfil: carpeta, run: leer(`${carpeta}/run.json`), video: false }));
+  // Como lo deja outcome.interrupted: el camino de `mobile`, fuera del route_tree.json.
+  const interrumpido = { ...leer("mobile/run.json"), attempt: 3, folder: "mobile-3", end_reason: "api_error", final_message: "Timeout" };
+  interrumpido.verdict = { outcome: "interrupted", source: null, claimed_done: false, justification: "Se interrumpió." };
+  crudos.push({ perfil: "mobile-3", run: interrumpido, video: false });
+  const tanda = armarTanda({ id: CON_RUTA, arbol: leer("route_tree.json"), criterio: null, intentos: crudos });
+  assert.equal(tanda.intentos.find((i) => i.id === "mobile-3").resultado, "error");
+  assert.deepEqual(tanda.telarana.paginas.find((p) => p.id === "n2").finales, { logrado: 0, fallido: 0, abandonado: 1, sin_medir: 0, error: 1 });
+  const rama = tanda.telarana.ramas.find((r) => r.id === "n1>n2");
+  assert.deepEqual([rama.intentosIds, rama.exitos, rama.fallos, rama.errores], [["desktop", "mobile", "mobile-2"], 2, 1, 0]);
+});

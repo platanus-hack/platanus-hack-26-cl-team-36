@@ -78,7 +78,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string | null} modelo
  * @property {string | null} motor
  * @property {Resultado} resultado
- * @property {"success" | "failed" | "abandoned" | "unmeasured"} resultadoJuez   el `outcome` del run.json
+ * @property {"success" | "failed" | "abandoned" | "unmeasured" | "interrupted"} resultadoJuez   el `outcome` del run.json
  * @property {"ruta" | "juez" | null} fuente   de dónde sale el resultado: la ruta de la Guía o el juez
  * @property {boolean | null} declaroTerminar   el usuario dijo que terminó (null en corridas viejas)
  * @property {"directo" | "indirecto" | "declaro_sin_llegar" | null} logro   matiz del resultado: un logrado por la ruta
@@ -200,6 +200,9 @@ const ANCHO_DE_ESCRITORIO = 1000;
 const ORDEN_DE_SENALES = ["visible_error", "went_back", "no_effect", "security_block"];
 const RESULTADO_DEL_VEREDICTO = { success: "logrado", failed: "fallido", abandoned: "abandonado", unmeasured: "sin_medir" };
 const FUENTE_DEL_VEREDICTO = { route: "ruta", judge: "juez" };
+// Error técnico en el Visitante nuevo: el intento no entra en route_tree.json.
+const INTERRUMPIDO = "interrupted";
+const fueraDelArbol = (run) => run.verdict?.outcome === INTERRUMPIDO;
 const ACCIONES_DE_CLIC = new Set(["left_click", "double_click", "triple_click"]);
 
 /** Acción con que un explorador vuelve a una página ya vista para abrir otra rama (no la hace un humano). */
@@ -418,7 +421,10 @@ function unirRamas(ramasCrudas, paginaDeNodo, intentosDelTramo, intentosConError
     }
     // Un intento con error nunca es success, así que cada tramo suyo quedó como fallo en el árbol.
     const perfiles = cruda.profiles ?? [];
-    const conError = perfiles.filter((perfil) => intentosDelTramo(perfil, origen, destino).every((id) => intentosConError.has(id))).length;
+    const conError = perfiles.filter((perfil) => {
+      const ids = intentosDelTramo(perfil, origen, destino);
+      return ids.length > 0 && ids.every((id) => intentosConError.has(id));
+    }).length;
     rama.exitos += cruda.successes ?? 0;
     rama.fallos += Math.max(0, (cruda.failures ?? 0) - conError);
     rama.errores += conError;
@@ -795,13 +801,16 @@ function finalesCorregidos(nodosCrudos, intentos, nodoFinalDe) {
       },
     ]),
   );
-  // El evaluador contó el final de un intento con error como abandono (o fallo): pasa a "error".
+  // El evaluador contó el final de un intento con error como abandono (o fallo): pasa a "error". Un interrumpido
+  // no está en el árbol: no hay qué descontar.
   for (const intento of intentos) {
     if (intento.resultado !== "error") continue;
     const suyos = finales.get(nodoFinalDe.get(intento.id));
     if (!suyos) continue;
-    const campo = RESULTADO_DEL_VEREDICTO[intento.resultadoJuez] ?? "abandonado";
-    suyos[campo] = Math.max(0, suyos[campo] - 1);
+    if (intento.resultadoJuez !== INTERRUMPIDO) {
+      const campo = RESULTADO_DEL_VEREDICTO[intento.resultadoJuez] ?? "abandonado";
+      suyos[campo] = Math.max(0, suyos[campo] - 1);
+    }
     suyos.error += 1;
   }
   return finales;
@@ -941,11 +950,13 @@ export function fechaIsoDe(fecha) {
 
 /**
  * El árbol nombra perfiles, no intentos: con repeticiones (`desktop`, `desktop-2`), un tramo es de los intentos del
- * perfil cuyo camino lo recorre (de todos, si ninguno calza). Con un intento por perfil, ese intento.
+ * perfil cuyo camino lo recorre (de ninguno, si ninguno calza). Con un intento por perfil, ese intento. Los
+ * interrumpidos no están en el árbol.
  */
 function intentosDelTramoSegun(crudos, ubicaciones) {
   const porPerfil = new Map();
   crudos.forEach(({ perfil: carpeta, run }, i) => {
+    if (fueraDelArbol(run)) return;
     const perfil = run.profile || carpeta;
     if (!porPerfil.has(perfil)) porPerfil.set(perfil, []);
     porPerfil.get(perfil).push({ id: carpeta, camino: ubicaciones[i].camino });
@@ -954,7 +965,7 @@ function intentosDelTramoSegun(crudos, ubicaciones) {
     const suyos = porPerfil.get(perfil) ?? [{ id: perfil, camino: [] }];
     if (suyos.length === 1) return [suyos[0].id];
     const pasaron = suyos.filter(({ camino }) => camino.some((pagina, i) => pagina === origen && camino[i + 1] === destino));
-    return (pasaron.length ? pasaron : suyos).map(({ id }) => id);
+    return pasaron.map(({ id }) => id);
   };
 }
 
