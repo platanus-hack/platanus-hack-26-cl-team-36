@@ -193,6 +193,14 @@ def revision_run(
 
     Con `since` no lee los manifiestos de las corridas que empezaron antes: en S3 cada uno es un GET.
     """
+    found = revision_manifest(backend, prefix, revision, since=since)
+    return found[0] if found else None
+
+
+def revision_manifest(
+    backend: Backend, prefix: RunPrefix, revision: str, *, since: datetime | None = None
+) -> tuple[RunKey, Manifest] | None:
+    """Como `revision_run`, con el manifiesto ya leído."""
     validate_revision(revision)
     runs = _manifests(backend, prefix, since)
-    return next((run for run, manifest in runs if manifest.revision == revision), None)
+    return next(((run, manifest) for run, manifest in runs if manifest.revision == revision), None)

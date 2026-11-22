@@ -55,7 +55,7 @@ async def ready_for_improver(tasks: list[asyncio.Task], grace_s: float) -> set[a
     pending = set(tasks)
     while pending:
         done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-        if any(not task.exception() and _visited(task.result()) for task in done):
+        if any(_visited(task.result()) for task in done):
             break
     if pending:
         _, pending = await asyncio.wait(pending, timeout=grace_s)
@@ -97,22 +97,28 @@ async def conduct(backend: store.Backend, invoker: Invoker, url: str, revision: 
     semaphore = asyncio.Semaphore(options.concurrency)
 
     async def evaluate(goal: str) -> dict[str, Any]:
-        async with semaphore:
-            guide = await stage("guide", goal=goal)
-            entry: dict[str, Any] = {"id": goal, "guide": guide.to_dict(), "visitor": None}
-            if not await asyncio.to_thread(route_verified, backend, guide):
-                entry["skipped"] = "la ruta no quedó verificada: no se lanza el Visitante"
-                return entry
-            visitor = await stage("visitor", goal=goal, profiles=options.profiles, runs=options.runs)
-            entry["visitor"] = visitor.to_dict()
-            return entry
+        entry: dict[str, Any] = {"id": goal, "guide": None, "visitor": None}
+        try:
+            async with semaphore:
+                guide = await stage("guide", goal=goal)
+                entry["guide"] = guide.to_dict()
+                if not await asyncio.to_thread(route_verified, backend, guide):
+                    entry["skipped"] = "la ruta no quedó verificada: no se lanza el Visitante"
+                    return entry
+                visitor = await stage("visitor", goal=goal, profiles=options.profiles, runs=options.runs)
+                entry["visitor"] = visitor.to_dict()
+        except Exception as error:   # un objetivo que falla no cancela la mejora ni a los demás
+            entry["error"] = f"{type(error).__name__}: {error}"
+            log(f"objetivo {goal}: {entry['error']}")
+        return entry
 
     async def improve(tasks: list[asyncio.Task]) -> Outcome:
         running = await ready_for_improver(tasks, options.improver_grace_s)
         pending = [goal for goal, task in zip(goals, tasks) if task in running]
         if pending:
             log(f"mejora sin esperar a: {', '.join(pending)}")
-        improver = await stage("improver")
+        async with semaphore:
+            improver = await stage("improver")
         report["stages"]["improver"] = {**improver.to_dict(), "pending_goals": pending}
         return improver
 

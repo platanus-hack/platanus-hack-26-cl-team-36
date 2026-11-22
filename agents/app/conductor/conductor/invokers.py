@@ -44,8 +44,8 @@ Found = tuple[store.RunKey, store.Status]
 
 
 def _find(backend: store.Backend, command: stages.StageCommand, revision: str, since) -> Found | None:
-    key = store.revision_run(backend, command.prefix, revision, since=since)
-    return (key, store.read_manifest(backend, key).status) if key else None
+    found = store.revision_manifest(backend, command.prefix, revision, since=since)
+    return (found[0], found[1].status) if found else None
 
 
 def _outcome(found: Found | None, error: str | None, seconds: float) -> Outcome:

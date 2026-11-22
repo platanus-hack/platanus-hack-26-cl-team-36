@@ -1,6 +1,7 @@
 """El flujo de una revisión con un invocador falso que deja las corridas de cada etapa en un almacén en disco."""
 
 import asyncio
+import collections
 import json
 import os
 import signal
@@ -31,28 +32,37 @@ def goal(goal_id: str, prominence: str = "buried", level: str = "user_goal", gat
 class FakeInvoker:
     """Cada etapa deja su corrida de la revisión; `results[(etapa, goal)]` puede ser failed, timeout o raise.
 
-    `delays[(etapa, goal)]` cambia lo que tarda esa etapa.
+    `delays[(etapa, goal)]` cambia lo que tarda esa etapa; `waits[(etapa, goal)] = ("start" | "end", etapa, goal)`
+    la hace terminar solo después de que otra empiece o termine.
     """
 
-    def __init__(self, backend: store.Backend, goals: list[dict], results=None, delay: float = 0.01, delays=None):
+    def __init__(self, backend: store.Backend, goals: list[dict], results=None, delay: float = 0.01, delays=None,
+                 waits=None):
         self.backend = backend
         self.goals = goals
         self.results = results or {}
         self.delay = delay
         self.delays = delays or {}
+        self.waits = waits or {}
+        self.events = collections.defaultdict(asyncio.Event)
         self.calls: list[tuple[str, str | None]] = []
         self.payloads: list[dict] = []
         self.active = self.max_active = 0
 
     async def run(self, stage, payload, timeout_s):
-        self.calls.append((stage, payload.get("goal")))
+        key = (stage, payload.get("goal"))
+        self.calls.append(key)
         self.payloads.append(payload)
+        self.events[("start", *key)].set()
         self.active += 1
         self.max_active = max(self.max_active, self.active)
         try:
-            await asyncio.sleep(self.delays.get((stage, payload.get("goal")), self.delay))
+            if key in self.waits:
+                await asyncio.wait_for(self.events[self.waits[key]].wait(), 5)
+            await asyncio.sleep(self.delays.get(key, self.delay))
         finally:
             self.active -= 1
+            self.events[("end", *key)].set()
         result = self.results.get((stage, payload.get("goal")), "succeeded")
         if result == "raise":
             raise RuntimeError("se cayó")
@@ -120,7 +130,7 @@ def test_stage_timeout_and_errors_do_not_stop_the_others(backend):
 
 
 def test_the_improver_starts_after_the_grace_with_a_visitor_done(backend):
-    invoker = FakeInvoker(backend, [goal("a"), goal("b")], delays={("guide", "b"): 0.5})
+    invoker = FakeInvoker(backend, [goal("a"), goal("b")], waits={("guide", "b"): ("start", "improver", None)})
     report = conduct(backend, invoker, improver_grace_s=0.05)
     assert invoker.calls.index(("improver", None)) < invoker.calls.index(("visitor", "b"))
     assert report["stages"]["improver"]["pending_goals"] == ["b"] and report["status"] == "succeeded"
@@ -143,10 +153,33 @@ def test_without_a_successful_visitor_the_improver_waits_for_all(backend):
 
 def test_a_late_goal_does_not_change_what_the_improver_reported(backend):
     invoker = FakeInvoker(backend, [goal("a"), goal("b")], {("visitor", "b"): "failed"},
-                          delays={("guide", "b"): 0.2, ("improver", None): 0.4})
+                          waits={("guide", "b"): ("start", "improver", None), ("improver", None): ("end", "visitor", "b")})
     report = conduct(backend, invoker, improver_grace_s=0)
     assert report["stages"]["improver"]["pending_goals"] == ["b"] and report["status"] == "succeeded"
     assert report["goals"][1]["visitor"]["status"] == "failed"
+
+
+def test_the_improver_shares_the_concurrency_cap(backend):
+    invoker = FakeInvoker(backend, [goal("a"), goal("b"), goal("c")], delays={("guide", "b"): 0.3, ("guide", "c"): 0.3})
+    report = conduct(backend, invoker, improver_grace_s=0, concurrency=2)
+    assert report["stages"]["improver"]["pending_goals"] and invoker.max_active <= 2
+
+
+def test_a_goal_that_raises_does_not_cancel_the_improver(backend, monkeypatch):
+    verified = flow.route_verified
+
+    def route_verified(backend, guide):
+        if "/guide/b/" in guide.run:
+            raise RuntimeError("S3 no responde")
+        return verified(backend, guide)
+
+    monkeypatch.setattr(flow, "route_verified", route_verified)
+    invoker = FakeInvoker(backend, [goal("a"), goal("b")], delays={("improver", None): 0.2},
+                          waits={("guide", "b"): ("start", "improver", None), ("improver", None): ("end", "guide", "b")})
+    report = conduct(backend, invoker, improver_grace_s=0)
+    assert report["status"] == "succeeded" and report["stages"]["improver"]["status"] == "succeeded"
+    b = report["goals"][1]
+    assert b["error"] == "RuntimeError: S3 no responde" and b["guide"]["status"] == "succeeded" and b["visitor"] is None
 
 
 @pytest.mark.parametrize("goals", [[], [goal("d", level="subfunction"), goal("e", gates=["bot_check"])]])

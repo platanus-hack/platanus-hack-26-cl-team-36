@@ -186,8 +186,8 @@ def _visitas(backend: store.Backend, tanda: store.RunKey, nodos_ruta: list[str])
 
 def _terminada(backend: store.Backend, prefijo: store.RunPrefix, revision: str) -> store.RunKey | None:
     """La corrida de la revisión si ya terminó: el conductor puede lanzar la mejora con objetivos aún en curso."""
-    corrida = store.revision_run(backend, prefijo, revision)
-    return corrida if corrida and store.read_manifest(backend, corrida).status != "running" else None
+    found = store.revision_manifest(backend, prefijo, revision)
+    return found[0] if found and found[1].status != "running" else None
 
 
 def _objetivo(backend: store.Backend, url: str, revision: str, goal) -> tuple[dict, list[store.RunKey], dict | None]:
