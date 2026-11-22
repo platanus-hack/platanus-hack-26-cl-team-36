@@ -383,6 +383,18 @@ def sitio_para_el_modelo(sitio: motor.Sitio) -> dict:
             "auto_si_transforma": motor.probabilidades_auto(sitio)}
 
 
+def tareas_a_escribir(kit: dict) -> dict[str, list[str]]:
+    """Los enlaces de las tareas que el modelo debe titular: `completas`, las que se ven sin buscar (todo el lanzador
+    y las sugeridas del buscador), y `solo_titulo`, las demás del buscador."""
+    lanzador, buscador = kit.get("lanzador"), kit.get("buscador")
+    sugeridas = (buscador or {}).get("opciones", {}).get("sugeridas", 0)
+    completas = [t["enlace"] for t in (lanzador or {}).get("datos", [])]
+    completas += [t["enlace"] for t in (buscador or {}).get("datos", [])[:sugeridas]]
+    completas = list(dict.fromkeys(completas))
+    resto = [t["enlace"] for t in (buscador or {}).get("datos", []) if t["enlace"] not in completas]
+    return {"completas": completas, "solo_titulo": list(dict.fromkeys(resto))}
+
+
 def diagnostico(resumen: dict, kit: dict, sitio: motor.Sitio | None = None, voz_sitio: dict | None = None) -> dict:
     """Lo que el modelo recibe además del mapa: por qué no llegaron, qué sortearon, los componentes propuestos (con los
     textos del sitio), la voz del sitio de cada uno y, con `sitio`, lo medido del sitio."""
@@ -396,7 +408,8 @@ def diagnostico(resumen: dict, kit: dict, sitio: motor.Sitio | None = None, voz_
     voz_sitio = voz_sitio or {"componentes": {}}
     componentes = [voz.con_voz(v, voz_sitio["componentes"].get(v["id"])) for v in componentes]
     diag = {"viewport": config.REVISION, "mensajes_visitante": mensajes, "obstaculos": obstaculos,
-            "componentes": componentes, "sin_atajo": kit["descartes"], "voz_del_sitio": voz_sitio}
+            "componentes": componentes, "tareas_a_escribir": tareas_a_escribir(kit), "sin_atajo": kit["descartes"],
+            "voz_del_sitio": voz_sitio}
     if sitio is not None:
         diag["sitio"] = sitio_para_el_modelo(sitio)
     return diag

@@ -16,7 +16,8 @@ export const MAX_PALABRAS = 12;
 export const MAX_CADENA = 200;
 
 const TEXTO_CORTO = { type: "string", maxLength: 160 };
-const TEXTO = { type: "object", properties: { es: TEXTO_CORTO, en: TEXTO_CORTO }, required: ["es", "en"], additionalProperties: false };
+// El español es obligatorio; el inglés, solo si alguien lo tradujo (sin él se muestra el español).
+const TEXTO = { type: "object", properties: { es: TEXTO_CORTO, en: TEXTO_CORTO }, required: ["es"], additionalProperties: false };
 // Sin `\s`: no es el mismo conjunto en Python y en JS. Sin controles: el parser de URLs borra tabs y saltos.
 const RUTA = {
   type: "string",

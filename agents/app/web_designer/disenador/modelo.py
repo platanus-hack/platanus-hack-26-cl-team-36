@@ -171,14 +171,18 @@ CONTRATO_KIT = """- `componentes`: uno por cada componente del diagnóstico (`at
     no titula ese bloque: el componente va sin titular), `subtitulo` (una frase corta, o vacío) y `boton` (el verbo
     de la acción en el atajo; el que abre la búsqueda en el buscador; en el lanzador, vacío).
   - `etiquetas`: en el atajo, una por campo (`nombre` del campo), corta y en ambos idiomas ("Origen" / "Origin").
-  - `tareas`: en el lanzador y el buscador, una por tarea (mismo `enlace`, hasta 40). `titulo_es`: el texto del menú
-    que lleva a ese enlace, si lo hay ("Planificador de Viajes"); si no, de 2 a 5 palabras con las del objetivo, no
-    la descripción recortada. `titulo_en`: su traducción. `detalle_es` y `detalle_en`: una frase breve
-    (≤ 160 caracteres). El inglés es la traducción, nunca una copia del español. Una tarea que está en ambos
-    componentes basta escribirla en uno.
-  - `fuentes`: una por texto que escribiste: `texto` (`titulo`, `subtitulo`, `boton`, `etiqueta:<nombre>` o
-    `tarea:<enlace>`), `fuente` (`sitio`, `objetivo` o `reformulado`) y `origen` (el texto del sitio o del objetivo
-    del que sale).
+  - `tareas`: todas las de `tareas_a_escribir` del diagnóstico, sin omitir ninguna, cada `enlace` una sola vez (en
+    el lanzador o en el buscador: vale para los dos). Las de `completas` (las que se ven sin buscar) con título y
+    detalle; las de `solo_titulo`, con `titulo_es` y `titulo_en` y los detalles vacíos. Lo que no escribas queda con
+    el título derivado del catálogo y sin inglés. `titulo_es`: el texto del sitio que lleva a ese enlace
+    (`voz_del_sitio`), si lo hay ("Planificador de Viajes"); si no, un nombre de 2 a 5 palabras sin el verbo de la
+    instrucción del catálogo ("Valor de la UTM", no "Encuentra el valor de la UTM"), nunca la descripción recortada.
+    `titulo_en`: su traducción, siempre ("Portal de Mapas del INE" → "INE Maps Portal"); solo una sigla o una marca
+    queda igual. `detalle_es` y `detalle_en`: una frase breve (≤ 120 caracteres).
+  - En ambos idiomas siempre: el inglés es la traducción, nunca una copia del español ni un campo vacío.
+  - `fuentes`: una por texto que escribiste (de las tareas, solo las de `completas`): `texto` (`titulo`,
+    `subtitulo`, `boton`, `etiqueta:<nombre>` o `tarea:<enlace>`), `fuente` (`sitio`, `objetivo` o `reformulado`) y
+    `origen` (el texto del sitio o del objetivo del que sale).
   - `contenedor`: un selector del mapa (un `id` o etiqueta, ≤ 200 caracteres) del bloque antes del cual va el
     componente, arriba y a la vista; vacío para dejar el propuesto. Si no existe en la página, queda el propuesto.
 """

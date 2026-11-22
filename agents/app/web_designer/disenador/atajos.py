@@ -5,13 +5,15 @@
   copian del `<select>` de la página que le corresponde; una clave sin `<select>` va fija en el enlace. Si la Guía
   envió el formulario sin elegir nada (con lo que traía), valen solo las claves que nombran un `<select>` de la página.
 - Lanzador: los objetivos del catálogo, cada uno con la URL a la que llegó la Guía o su `entry`; si llegó enviando un
-  formulario, sin la consulta (las elecciones de esa corrida, como un viaje SP→EL). Primero los que
+  formulario, sin la consulta (las elecciones de esa corrida, como un viaje SP→EL), y sin lo que la página ya enlaza
+  en su primer pantallazo. Primero los que
   tienen ruta verificada (el enlace lleva de verdad a la tarea), después los que menos lograron los Visitantes (donde
   un atajo ayuda más) y, a igual medida, los más prominentes del catálogo.
 - Buscador: todos los objetivos del catálogo con enlace (hasta `MAX_BUSCADOR`, también el del atajo), con el mismo
   título y detalle que el lanzador y, si el catálogo los agrupa (`parent`), el título del objetivo padre como grupo.
 
-Todos los enlaces quedan como rutas relativas del mismo sitio; lo que apunta a otro sitio no entra.
+Todos los enlaces quedan como rutas relativas del mismo sitio; lo que apunta a otro sitio no entra. Los textos van solo
+en español (`{"es": …}`): el inglés lo escribe el modelo, y sin él la extensión muestra el español.
 """
 
 import re
@@ -29,8 +31,8 @@ _PROMINENCIA = {"primary": 0, "secondary": 1, "buried": 2}
 _ELECCIONES = {"select", "check", "uncheck"}
 _ROLES_ELECCION = {"combobox", "listbox", "option", "radio", "checkbox"}
 _ID_CSS = re.compile(r"^#([A-Za-z][\w-]*)$")
-_TITULO_MAX = 48
-_TITULO_PALABRAS = 6
+_TITULO_MAX = 56
+_TITULO_PALABRAS = 9
 _ENLACES = {"a", "al", "como", "con", "cuando", "de", "del", "desde", "donde", "e", "el", "en", "entre", "hacia",
             "hasta", "la", "las", "lo", "los", "mediante", "mi", "mis", "ni", "o", "para", "por", "que", "según", "sin",
             "sobre", "su", "sus", "todas", "todos", "tu", "tus", "u", "un", "una", "unos", "unas", "y"}
@@ -43,6 +45,18 @@ _NAVEGAR = re.compile(r"^(?:llega|ve|ir|entra|accede|navega)\s+(?:a\s+|al\s+)(?:
 # «Llega a la sala de prensa para leer…»: tras el verbo de navegar, el propósito no es parte del nombre (salvo que
 # el destino sea una sola palabra).
 _PROPOSITO = re.compile(r"\s+para\s+(?=\w+(?:ar|er|ir)\b)", re.I)
+# «Encuentra el valor de la UTM», «Consulta cómo rectificar…»: el verbo de la instrucción no nombra la tarea; lo que
+# sigue sí, si es el nombre de algo (con artículo definido o posesivo) o una pregunta («cómo…», «cuáles son…»).
+_INSTRUCCION = re.compile(
+    r"^(?:encuentra|consulta|revisa|accede|obt[eé]n|conoce|busca|ubica|averigua|descubre|mira|lee|descarga"
+    r"|localiza|identifica|infórmate\s+(?:sobre|de))\s+"
+    r"(?:(?P<articulo>(?:a\s+)?(?:el|la|los|las|lo)\s+|al\s+)|(?:cu[aá]les\s+son|cu[aá]l\s+es)\s+"
+    r"|(?=(?:c[oó]mo|d[oó]nde|cu[aá]ndo|cu[aá]nto|qu[eé]|tus?|sus?)\s))", re.I)
+# Donde se corta un título largo sin dejar una frase a medias: antes de un complemento («para…», «en…»); si no hay,
+# antes de «de» o de una conjunción.
+_CORTE = {"a", "al", "como", "con", "cuando", "desde", "donde", "en", "entre", "hacia", "hasta", "mediante", "para",
+          "por", "que", "según", "sin", "sobre"}
+_CORTE_DEBIL = {"de", "del", "e", "o", "u", "y"}
 # Una ruta con fecha (/2026/11/06/…): una noticia o comunicado que mañana ya no es lo más reciente.
 _FECHADA = re.compile(r"/(?:19|20)\d{2}/\d{1,2}/")
 _DE_FORMULARIO = {"select", "check", "uncheck", "fill", "type", "press"}
@@ -172,7 +186,7 @@ def atajo(objetivo_id: str, route: dict, selects: list[SelectDePagina], inicio: 
         por_nombre[clave] = select
         etiqueta = select.etiqueta or clave.capitalize()
         vacio = bool(select.valores) and select.elegido not in select.valores
-        campos.append({"nombre": clave, "etiqueta": {"es": etiqueta, "en": etiqueta}, "opciones": select.selector,
+        campos.append({"nombre": clave, "etiqueta": {"es": etiqueta}, "opciones": select.selector,
                        "requerido": select.selector in de_ruta or vacio})
     if not campos:
         return None, "ninguna clave de la consulta tiene un <select> en la página"
@@ -204,11 +218,48 @@ def _mayuscula(texto: str) -> str:
     return texto[:1].upper() + texto[1:]
 
 
+def sin_instruccion(texto: str, articulo: bool = False) -> str:
+    """`texto` sin el verbo de instrucción del catálogo con que empieza («Encuentra el valor de la UTM» → «Valor de la
+    UTM»), si lo que sigue nombra algo; con `articulo`, conserva el artículo («El valor de la UTM»)."""
+    if not (encontrado := _INSTRUCCION.match(texto)):
+        return texto
+    inicio = encontrado.start("articulo") if articulo and encontrado.group("articulo") else encontrado.end()
+    resto = texto[inicio:]
+    if articulo:
+        resto = re.sub(r"^al\s+", "el ", re.sub(r"^a\s+", "", resto, flags=re.I), flags=re.I)
+    return _mayuscula(resto) if resto.strip() else texto
+
+
+def _nombre_partido(palabras: list[str], i: int) -> bool:
+    """Si cortar antes de `palabras[i]` parte un nombre: lo separa de su número o letra («Línea 7», «Línea A») o corta
+    dentro de uno («Índice de Precios al Consumidor»)."""
+    palabra, antes = palabras[i], palabras[i - 1]
+    if antes[:1].isupper() and len(palabra) <= 3 and (palabra.isdigit() or palabra.isupper()):
+        return True
+    despues = palabras[i + 1] if i + 1 < len(palabras) else ""
+    return i > 1 and antes[:1].isupper() and palabra.lower() in _ENLACES and despues[:1].isupper()
+
+
+def _recortar(palabras: list[str]) -> list[str]:
+    """Las primeras palabras que caben en `_TITULO_PALABRAS` y `_TITULO_MAX`, cortando antes de un complemento
+    («… para personas») o, si no hay, antes de «de» o una conjunción; nunca entre un nombre y su número."""
+    def cabe(i: int) -> bool:
+        return i <= _TITULO_PALABRAS and len(" ".join(palabras[:i])) <= _TITULO_MAX
+
+    if cabe(len(palabras)):
+        return palabras
+    cortes = [i for i in range(2, len(palabras)) if cabe(i) and not _nombre_partido(palabras, i)]
+    for corte in (_CORTE, _CORTE_DEBIL):
+        if utiles := [i for i in cortes if palabras[i].lower() in corte]:
+            return palabras[:max(utiles)]
+    return palabras[:max(cortes)] if cortes else palabras[:1]
+
+
 def _titulo(descripcion: str) -> str:
     """La primera frase de la descripción (tras la escena que precede a «:») hasta su primer gerundio («ingresando…»),
-    sin «información sobre» ni el verbo de navegar («Llega a la página de…») con su propósito, en
-    hasta `_TITULO_PALABRAS` palabras y `_TITULO_MAX` caracteres, sin terminar en preposición, artículo ni
-    conjunción."""
+    sin «información sobre», el verbo de navegar («Llega a la página de…») con su propósito ni el de instrucción
+    («Encuentra el…»), en hasta `_TITULO_PALABRAS` palabras y `_TITULO_MAX` caracteres cortados donde termina una
+    frase, sin terminar en preposición, artículo ni conjunción."""
     frase = re.split(r"[.;(]", " ".join(descripcion.split()), maxsplit=1)[0]
     escena, dos_puntos, tarea = frase.partition(":")
     # «Te contactaron para una encuesta del INE: encuentra la información…»: la tarea va después de la escena.
@@ -220,20 +271,17 @@ def _titulo(descripcion: str) -> str:
         destino, *proposito = _PROPOSITO.split(sin_verbo, maxsplit=1)
         # «Llega al trámite para iniciar actividades»: un destino de una palabra no dice cuál; lo dice el propósito.
         texto = _mayuscula(proposito[0] if proposito and len(destino.split()) < 2 else destino)
+    texto = _RELLENO.sub("", sin_instruccion(texto))
     palabras = []
     for palabra in texto.split(" "):
         # Tras un artículo o preposición no es gerundio sino sustantivo («el arriendo»).
-        gerundio = palabras and palabras[-1].lower() not in _ENLACES and _GERUNDIO.match(palabra)
-        # «Línea 7», «Línea A»: el nombre propio no se corta antes de su número o letra.
-        nombre = (palabras and palabras[-1][:1].isupper() and len(palabra) <= 3
-                  and (palabra.isdigit() or palabra.isupper()))
-        if gerundio or (not nombre and len(palabras) >= _TITULO_PALABRAS) \
-                or len(" ".join([*palabras, palabra])) > _TITULO_MAX:
+        if palabras and palabras[-1].lower() not in _ENLACES and _GERUNDIO.match(palabra):
             break
         palabras.append(palabra)
+    palabras = _recortar(palabras)
     while len(palabras) > 1 and palabras[-1].lower() in _ENLACES and not palabras[-1].isupper():
         palabras.pop()
-    return " ".join(palabras) or texto[:_TITULO_MAX]
+    return _mayuscula(" ".join(palabras)) or texto[:_TITULO_MAX]
 
 
 def llegada(route: dict | None) -> str | None:
@@ -269,11 +317,12 @@ def _enlace(goal, rutas: dict[str, dict], inicio: str) -> tuple[str | None, bool
 
 def _tarea(goal, enlace: str) -> dict:
     titulo = _titulo(goal.description)
-    tarea = {"titulo": {"es": titulo, "en": titulo}, "enlace": enlace}
+    tarea = {"titulo": {"es": titulo}, "enlace": enlace}
     detalle = " ".join(goal.description.split()).rstrip(".")
     detalle = _mayuscula(_NAVEGAR.sub("", detalle)) or detalle  # «Llega a la página de…» no agrega nada al título
-    if detalle and detalle != titulo:
-        tarea["detalle"] = {"es": detalle[:160], "en": detalle[:160]}
+    detalle = sin_instruccion(detalle, articulo=True)  # «Encuentra el valor de la UTM del mes» → «El valor de…»
+    if detalle and detalle.lower() != titulo.lower():
+        tarea["detalle"] = {"es": detalle[:160]}
     return tarea
 
 
@@ -305,8 +354,12 @@ def _ordenadas(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[st
 def lanzador(goals: list, rutas: dict[str, dict], inicio: str, excluir: set[str],
              tasas: dict[str, float | None] | None = None, a_mano: set[str] | None = None) -> dict | None:
     """La vista `lanzador` con los objetivos del catálogo (sin los de `excluir`), o None si ninguno tiene enlace.
-    `tasas`: la tasa de llegada del Visitante por objetivo, si se midió."""
-    ordenadas = _ordenadas(goals, rutas, inicio, excluir, tasas=tasas, a_mano=a_mano)
+    `tasas`: la tasa de llegada del Visitante por objetivo, si se midió. Lo que la página ya enlaza en su primer
+    pantallazo (`a_mano`, como unos «Accesos rápidos») no entra: el lanzador no repite un bloque del sitio, y ocultar
+    ese bloque se llevaría lo que el kit no puede enlazar (otros subdominios, «Más opciones»). Sigue en el buscador."""
+    a_la_vista = {r.rstrip("/") for r in a_mano or ()}
+    ordenadas = [(enlace, goal) for enlace, goal in _ordenadas(goals, rutas, inicio, excluir, tasas=tasas)
+                 if ruta_de(enlace).rstrip("/") not in a_la_vista]
     tareas = [_tarea(goal, enlace) for enlace, goal in ordenadas[:MAX_TAREAS]]
     if not tareas:
         return None
@@ -323,7 +376,7 @@ def buscador(goals: list, rutas: dict[str, dict], inicio: str, catalogo: list | 
     for enlace, goal in _ordenadas(goals, rutas, inicio, set(), a_mano=a_mano)[:MAX_BUSCADOR]:
         tarea = _tarea(goal, enlace)
         if grupo := grupos.get(goal.parent or ""):
-            tarea["grupo"] = {"es": grupo, "en": grupo}
+            tarea["grupo"] = {"es": grupo}
         tareas.append(tarea)
     if not tareas:
         return None
@@ -338,7 +391,8 @@ def derivar(goals: list, rutas: dict[str, dict], selects: list[SelectDePagina], 
             tasas: dict[str, float | None] | None = None, catalogo: list | None = None,
             a_mano: set[str] | None = None) -> dict:
     """`{atajos: [{objetivo, vista}], lanzador: vista | None, buscador: vista | None, descartes: [{objetivo, razon}]}`.
-    `a_mano`: las rutas que la página ya enlaza en su primer pantallazo; esas tareas van al final."""
+    `a_mano`: las rutas que la página ya enlaza en su primer pantallazo: no van al lanzador y en el buscador van al
+    final."""
     atajos, descartes = [], []
     for goal in goals:
         if goal.id not in rutas:

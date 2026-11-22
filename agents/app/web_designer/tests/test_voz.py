@@ -92,7 +92,8 @@ def test_los_cliches_y_los_titulos_sin_anclaje_vuelven_al_sitio():
     verificado, reemplazos = voz.verificar(propuesto, atajo, vocabulario)
     assert verificado["opciones"]["textos"] == {"es": {"titulo": "Planifica tu viaje", "boton": "Ver ruta"},
                                                 "en": {"titulo": "Planifica tu viaje", "boton": "See route"}}
-    assert [c["etiqueta"]["en"] for c in verificado["datos"][:2]] == ["Origin", atajo["datos"][1]["etiqueta"]["en"]]
+    assert [c["etiqueta"] for c in verificado["datos"][:2]] == [{"es": "Origen", "en": "Origin"},
+                                                                atajo["datos"][1]["etiqueta"]]
     assert {(r["texto"], r["razon"]) for r in reemplazos} == {
         ("titulo", "pregunta retórica a la persona"), ("subtitulo", "frase de app"), ("etiqueta:fin", "emoji")}
 
@@ -107,7 +108,7 @@ def test_los_cliches_y_los_titulos_sin_anclaje_vuelven_al_sitio():
     por_enlace = {t["enlace"]: t for t in verificado["datos"]}
     # Sin titular del sitio para el lanzador: se quita y el componente va sin él.
     assert "textos" not in verificado["opciones"]
-    assert por_enlace["/el-viaje/estaciones"]["titulo"] == {"es": "Estaciones", "en": "Estaciones"}
+    assert por_enlace["/el-viaje/estaciones"]["titulo"] == {"es": "Estaciones"}
     assert "detalle" in por_enlace["/el-viaje/estaciones"] and voz.cliche(
         por_enlace["/el-viaje/estaciones"]["detalle"]["es"]) is None
     assert por_enlace["/el-viaje/carga-bip"]["titulo"] == {"es": "Carga tu bip!", "en": "Top up your bip!"}

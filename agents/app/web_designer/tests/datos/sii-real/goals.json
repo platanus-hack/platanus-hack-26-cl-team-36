@@ -1,0 +1,707 @@
+{
+  "host": "sii.cl",
+  "start_url": "https://www.sii.cl/",
+  "viewport": "1024x768",
+  "pages": 1,
+  "model": "us.anthropic.claude-sonnet-5-5",
+  "effort": "high",
+  "catalog_tokens": {
+    "input_tokens": 12071,
+    "output_tokens": 4729,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "catalog_cost_usd": 0.0,
+  "issues": [
+    "consultar-uf: ya hay 6 tareas principales; queda common"
+  ],
+  "goals": [
+    {
+      "id": "ingresar-mi-sii",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Inicia sesión en Mi SII para acceder a tus trámites y datos tributarios.",
+      "expected_answer": null,
+      "level": "subfunction",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://misiir.sii.cl/cgi_misii/siihome.cgi",
+      "submits_form": true,
+      "prominence": "primary",
+      "gates": [
+        "login"
+      ],
+      "instruction": "Inicia sesión en Mi SII para acceder a tus trámites y datos tributarios. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": "nivel subfunction",
+      "demand": "top",
+      "estimated_steps": 3
+    },
+    {
+      "id": "declarar-formulario-29",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Declara y paga tu IVA mensual con el formulario 29.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1042-3264.html",
+      "submits_form": true,
+      "prominence": "primary",
+      "gates": [
+        "login",
+        "side_effect"
+      ],
+      "instruction": "Declara y paga tu IVA mensual con el formulario 29. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": "barrera login",
+      "demand": "top",
+      "estimated_steps": 6
+    },
+    {
+      "id": "emitir-boleta-honorarios",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Emite una boleta de honorarios electrónica.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1040-1287.html#-collapseOne",
+      "submits_form": true,
+      "prominence": "primary",
+      "gates": [
+        "login",
+        "side_effect"
+      ],
+      "instruction": "Emite una boleta de honorarios electrónica. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": "barrera login",
+      "demand": "top",
+      "estimated_steps": 7
+    },
+    {
+      "id": "emitir-factura-electronica",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Emite una factura electrónica desde el sistema gratuito del SII.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1039-1183.html#-collapseOne",
+      "submits_form": true,
+      "prominence": "primary",
+      "gates": [
+        "login",
+        "side_effect"
+      ],
+      "instruction": "Emite una factura electrónica desde el sistema gratuito del SII. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": "barrera login",
+      "demand": "common",
+      "estimated_steps": 7
+    },
+    {
+      "id": "pagar-contribuciones",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Busca el rol de tu propiedad y paga tus contribuciones de bienes raíces.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www4.sii.cl/cuotaanualbienesraicespubinternetui/#!/buscaRolPagos",
+      "submits_form": true,
+      "prominence": "primary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Busca el rol de tu propiedad y paga tus contribuciones de bienes raíces. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 6
+    },
+    {
+      "id": "certificado-avaluo",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Solicita el certificado de avalúo fiscal de una propiedad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www2.sii.cl/vica/Menu/CertificadosAvaluoCC",
+      "submits_form": true,
+      "prominence": "primary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Solicita el certificado de avalúo fiscal de una propiedad. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 5
+    },
+    {
+      "id": "inicio-actividades",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega al trámite para iniciar actividades como contribuyente.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1031-1034.html",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Llega al trámite para iniciar actividades como contribuyente. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "registro-compras-ventas",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega al Registro de Compras y Ventas para revisar tus documentos tributarios.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1039-3256.html",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Llega al Registro de Compras y Ventas para revisar tus documentos tributarios. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "cesion-documentos-electronicos",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega al menú para ceder una factura electrónica (cesión de documentos).",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://palena.sii.cl/rtc/RTC/RTCMenu.html",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Llega al menú para ceder una factura electrónica (cesión de documentos). Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "rectificar-renta-2026",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra cómo rectificar tu declaración de renta 2026.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/destacados/renta/2026/rectificatorias/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra cómo rectificar tu declaración de renta 2026.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 1
+    },
+    {
+      "id": "declaracion-renta",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega a los servicios para declarar tu impuesto a la renta.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1044-.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega a los servicios para declarar tu impuesto a la renta. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 2
+    },
+    {
+      "id": "clave-tributaria",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra cómo obtener o recuperar tu clave tributaria.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1943-.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Encuentra cómo obtener o recuperar tu clave tributaria.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "termino-giro",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra cómo realizar el término de giro de tu actividad.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1046-.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Encuentra cómo realizar el término de giro de tu actividad.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "infracciones-pago-giros",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega a los servicios para pagar giros, multas o solicitar condonaciones.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1045-.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega a los servicios para pagar giros, multas o solicitar condonaciones. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "tasacion-vehiculos",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega a la consulta de tasación fiscal de vehículos.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1049-.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega a la consulta de tasación fiscal de vehículos. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "herencias-donaciones",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega a los servicios para tramitar herencias y donaciones.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/3140-.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega a los servicios para tramitar herencias y donaciones. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "peticiones-administrativas",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega a los servicios para enviar una petición administrativa al SII.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/1037-.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega a los servicios para enviar una petición administrativa al SII. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "consultar-uf",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra el valor de la UF de hoy.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/valores_y_fechas/uf/uf2026.htm",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra el valor de la UF de hoy.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "consultar-utm",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra el valor de la UTM del mes.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/valores_y_fechas/utm/utm2026.htm",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra el valor de la UTM del mes.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "consultar-dolar",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra el valor del dólar observado de hoy.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/valores_y_fechas/dolar/dolar2026.htm",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra el valor del dólar observado de hoy.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "fechas-valores-renta",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra los plazos y valores de la declaración de renta.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/valores_y_fechas/renta/datos_valores_renta.html",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra los plazos y valores de la declaración de renta.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "fechas-valores-iva",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra los datos y valores del IVA.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/valores_y_fechas/iva/datos_valores_iva.html",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra los datos y valores del IVA.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "contactar-sii",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra cómo contactar al SII.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www2.sii.cl/buscador/contactenos.html",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Encuentra cómo contactar al SII. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "ayudas-sii",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega a la sección de ayudas del SII.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www2.sii.cl/buscador/ayudas.html",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Llega a la sección de ayudas del SII. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "buscar-en-sii",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Busca un tema en el sitio del SII y abre un resultado.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www2.sii.cl/buscador/buscador.html",
+      "submits_form": true,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Busca un tema en el sitio del SII y abre un resultado.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 3
+    },
+    {
+      "id": "denunciar-portal-denuncias",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega al Portal de Denuncias para presentar una denuncia tributaria.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/destacados/portal_denuncias/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Llega al Portal de Denuncias para presentar una denuncia tributaria. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "circulares-resoluciones",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra la lista de circulares del año 2026.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/normativa_legislacion/circulares/2026/indcir2026.htm",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra la lista de circulares del año 2026.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "derechos-contribuyentes",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra cuáles son tus derechos como contribuyente.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/sobre_el_sii/derechos_contribuyentes.htm",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra cuáles son tus derechos como contribuyente.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "solicitud-informacion-transparencia",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega al formulario para solicitar información pública al SII.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/transparencia/solicitud_informacion.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega al formulario para solicitar información pública al SII. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "trabaja-con-nosotros",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Llega a la página de ofertas para trabajar en el SII.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/sobre_el_sii/trabaja_con_nosotros.html",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Llega a la página de ofertas para trabajar en el SII. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "descargar-apps-sii",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra las aplicaciones móviles del SII.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/ayudas/apps/",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra las aplicaciones móviles del SII. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "iusif-impuesto-vehiculos-alto-valor",
+      "host": "sii.cl",
+      "start_url": "https://www.sii.cl/",
+      "description": "Encuentra los servicios del impuesto a aviones, helicópteros, yates y vehículos de alto valor.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://homer.sii.cl/"
+      ],
+      "entry": "https://www.sii.cl/servicios_online/4485-.html",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Encuentra los servicios del impuesto a aviones, helicópteros, yates y vehículos de alto valor.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    }
+  ]
+}
