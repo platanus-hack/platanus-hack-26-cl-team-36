@@ -1,0 +1,80 @@
+/* Sitio sin carpeta: las zonas medidas en su página (`disenador.zonas`), solo tokens. Cada bloque entra si su zona
+   existe; el pie lee --mt-pie-* que pone el motor según el modo y el fondo original del pie. */
+
+/* El ancla del kit puede estar dentro de un envoltorio del sitio: el componente igual toma el ancho del tema. */
+html.mi-tema :not(body) > .mt-vista {
+  box-sizing: border-box;
+  width: var(--mt-ancho);
+  max-width: 100%;
+  margin: var(--mt-hueco) auto;
+}
+
+{{#z.cabecera}}
+html.mi-tema {{z.cabecera}} {
+  border-color: var(--mt-linea) !important;
+  background-color: var(--mt-nav-fondo) !important;
+  box-shadow: inset 0 -1px 0 var(--mt-linea);
+  color: var(--mt-tinta);
+}
+{{/z.cabecera}}
+{{#z.nav_enlace}}
+html.mi-tema {{z.nav_enlace}} {
+  color: var(--mt-tinta) !important;
+  font-weight: 560;
+  text-decoration-color: transparent;
+}
+html.mi-tema {{z.nav_enlace}}:hover {
+  color: var(--mt-acento-legible) !important;
+  text-decoration-color: currentColor;
+}
+{{/z.nav_enlace}}
+{{#z.titulos_seccion}}
+html.mi-tema {{z.titulos_seccion}} {
+  font-family: var(--mt-familia-display) !important;
+  font-size: var(--mt-paso-2) !important;
+  font-weight: var(--mt-titulo-peso) !important;
+  font-stretch: var(--mt-display-ancho);
+  line-height: 1.08 !important;
+  letter-spacing: var(--mt-display-tracking);
+  text-transform: var(--mt-display-caja);
+  text-wrap: balance;
+}
+{{/z.titulos_seccion}}
+{{#z.tarjetas}}
+/* La tarjeta crece con un anillo de su propio color en vez de con relleno (no mueve el diseño del sitio), hasta la
+   mitad de la holgura medida con sus vecinas. */
+html.mi-tema {{z.tarjetas}} {
+  border-color: transparent !important;
+  border-radius: var(--mt-radio-2) !important;
+  background-color: var(--mt-superficie) !important;
+  box-shadow: 0 0 0 var(--mt-anillo-tarjeta) var(--mt-superficie), 0 0 0 calc(var(--mt-anillo-tarjeta) + 1px) var(--mt-linea),
+    0 12px 28px -14px var(--mt-linea-fuerte);
+  color: var(--mt-tinta);
+  transition: box-shadow var(--mt-duracion), transform var(--mt-duracion);
+}
+html.mi-tema {{z.tarjetas}}:hover {
+  box-shadow: 0 0 0 var(--mt-anillo-tarjeta) var(--mt-superficie), 0 0 0 calc(var(--mt-anillo-tarjeta) + 1px) var(--mt-linea-fuerte),
+    var(--mt-sombra-2);
+}
+html.mi-tema {{z.tarjetas}} :where(img, picture) {
+  border-radius: var(--mt-radio-1);
+}
+{{/z.tarjetas}}
+{{#z.pie}}
+html.mi-tema {{z.pie}} {
+  position: relative;
+  border-color: transparent !important;
+  background-color: var(--mt-pie-fondo) !important;
+  background-image: none !important;
+  color: var(--mt-pie-texto) !important;
+}
+html.mi-tema {{z.pie}} :where(p, span, li, small, address, dt, dd, div, a, label, h2, h3, h4, h5, h6, strong, b) {
+  color: inherit !important;
+}
+html.mi-tema {{z.pie}} :where(div, section, ul, ol, li, nav, aside) {
+  background-color: transparent !important;
+}
+html.mi-tema {{z.pie}} :where(h2, h3, h4, h5, h6, strong, a:hover) {
+  color: var(--mt-pie-titulo) !important;
+}
+{{/z.pie}}

@@ -1,7 +1,9 @@
 """Compone un tema desde una dirección de arte: el modelo elige, el código escribe el CSS y lo verifica.
 
 `tema.css` = elegancia (capa base) + tokens (de la dirección y la semilla) + kit (atajo y lanzador) + estructura del
-sitio y sus variantes (si el sitio tiene carpeta) + recetas (bloques que solo leen tokens), saneado con `css.sanear`.
+sitio y sus variantes (si el sitio tiene carpeta; si no, la genérica sobre las zonas medidas) + recetas (bloques que
+solo leen tokens), saneado con `css.sanear`. Un bloque `{{#z.x}}…{{/z.x}}` de una hoja entra solo si el sitio tiene la
+zona `x`: una receta pide solo las zonas que usa fuera de esos bloques.
 La paleta se verifica AA y, si un par no llega, se mueve L en OKLCH hasta que cumpla.
 
 Una dirección (`direcciones/<id>.json`) son datos: rangos de neutros, tinta, acento, tipo, forma y densidad; las
@@ -93,8 +95,19 @@ def _receta(nombre: str) -> str:
     return (RAIZ / "recetas" / f"{nombre}.css").read_text(encoding="utf-8")
 
 
+_SI_ZONA_BLOQUE = re.compile(r"(?m)^[ \t]*\{\{#z\.(\w+)\}\}\n([\s\S]*?)^[ \t]*\{\{/z\.\1\}\}\n")
+_SI_ZONA = re.compile(r"\{\{#z\.(\w+)\}\}([\s\S]*?)\{\{/z\.\1\}\}")
+
+
+def _condicionales(texto: str, zonas) -> str:
+    """Resuelve los bloques `{{#z.x}}…{{/z.x}}`: quedan si la zona existe y se van si no (en su línea o en línea)."""
+    texto = _SI_ZONA_BLOQUE.sub(lambda m: m.group(2) if m.group(1) in zonas else "", texto)
+    return _SI_ZONA.sub(lambda m: m.group(2) if m.group(1) in zonas else "", texto)
+
+
 def zonas_de(texto: str) -> set[str]:
-    return set(re.findall(r"\{\{z\.(\w+)\}\}", texto))
+    """Las zonas que una hoja necesita: las que usa fuera de un bloque condicional."""
+    return set(re.findall(r"\{\{z\.(\w+)\}\}", _condicionales(texto, ())))
 
 
 def _redondear(x: float) -> int:
@@ -104,16 +117,28 @@ def _redondear(x: float) -> int:
 
 # ---------- 1. Dirección: fija o elegida según los rasgos del sitio ----------
 
-def _elegir_direccion(pedida: str, sitio: Sitio, dirs: dict, azar: Azar) -> tuple[dict, dict | None]:
-    if pedida != "auto":
-        return dirs[pedida], None
+def _puntajes(sitio: Sitio, dirs: dict) -> dict[str, float]:
     puntajes = {}
     for d in dirs.values():
         total = 0.0
         for rasgo, peso in d["afinidad"].items():
             total += peso * sitio.rasgos.get(rasgo, 0)
         puntajes[d["id"]] = fijo(total, 2)
-    return dirs[azar.ponderado({k: math.exp(v) for k, v in puntajes.items()})], puntajes
+    return puntajes
+
+
+def probabilidades_auto(sitio: Sitio) -> dict[str, float]:
+    """Con qué probabilidad `auto` elige cada dirección para este sitio."""
+    pesos = {k: math.exp(v / sitio.temperatura) for k, v in _puntajes(sitio, direcciones()).items()}
+    total = sum(pesos.values())
+    return {k: round(p / total, 2) for k, p in pesos.items()}
+
+
+def _elegir_direccion(pedida: str, sitio: Sitio, dirs: dict, azar: Azar) -> tuple[dict, dict | None]:
+    if pedida != "auto":
+        return dirs[pedida], None
+    puntajes = _puntajes(sitio, dirs)
+    return dirs[azar.ponderado({k: math.exp(v / sitio.temperatura) for k, v in puntajes.items()})], puntajes
 
 
 # ---------- 2. Ajustes del modelo: solo dentro de los rangos de la dirección ----------
@@ -403,8 +428,11 @@ def _bucle(texto: str, nombre: str, items: list[dict]) -> str:
     return re.sub(rf"\{{\{{#{nombre}\}}\}}([\s\S]*?)\{{\{{/{nombre}\}}\}}", expandir_cuerpo, texto)
 
 
-def expandir(texto: str, sitio: Sitio, vistas: dict[str, list[str]]) -> str:
-    """Resuelve los marcadores de una receta o una hoja del sitio: categorías, zonas y ids de las vistas."""
+def expandir(texto: str, sitio: Sitio, vistas: dict[str, list[str]], zonas: dict[str, str] | None = None) -> str:
+    """Resuelve los marcadores de una receta o una hoja del sitio: categorías, zonas y ids de las vistas. `zonas`:
+    las que valen para esta hoja, si no son todas las del sitio."""
+    zonas = sitio.zonas if zonas is None else zonas
+    texto = _condicionales(texto, zonas)
     cats = [{"i": i + 1, "nombre": c["nombre"], "num": c["num"]} for i, c in enumerate(sitio.categorias)]
     indices = sitio.lanzador_categorias if sitio.lanzador_categorias is not None else list(range(len(cats)))
     lanz = [{"i": i + 1, "c": c + 1} for i, c in enumerate(indices)]
@@ -412,9 +440,9 @@ def expandir(texto: str, sitio: Sitio, vistas: dict[str, list[str]]) -> str:
     t = t.replace("{{ncats}}", str(len(cats)))
 
     def zona(m):
-        if m.group(1) not in sitio.zonas:
+        if m.group(1) not in zonas:
             raise ErrorDeComposicion(f"se usa la zona {m.group(1)}, que el sitio no define")
-        return sitio.zonas[m.group(1)]
+        return zonas[m.group(1)]
 
     def ids(componente: str) -> list[str]:
         if componente not in vistas:
@@ -433,6 +461,33 @@ def expandir(texto: str, sitio: Sitio, vistas: dict[str, list[str]]) -> str:
         raise ErrorDeComposicion(f"marcador sin resolver: {pendiente.group(0)}")
     # Un bucle vacío (un sitio sin categorías) deja declaraciones sin valor.
     return re.sub(r"(?m)^\s*[\w-]+:\s*;\s*\n", "", t)
+
+
+def _hojas_genericas(sitio: Sitio, oscuro: bool, vistas: dict[str, list[str]]) -> list[str]:
+    """Las hojas de un sitio sin carpeta. Lo que el sitio ya pensó para un fondo oscuro (una cabecera oscura con su
+    logo claro) no se repinta claro: en una dirección clara esa franja queda como está; en una oscura, el logo solo va
+    sobre una placa si la cabecera era clara. El pie toma el fondo del modo; en claro, el panel si el pie era oscuro."""
+    zonas = dict(sitio.zonas)
+    if not oscuro or sitio.oscuros.get("cabecera"):
+        zonas.pop("logo", None)
+    if not oscuro and sitio.oscuros.get("cabecera"):
+        for zona in ("cabecera", "nav", "nav_enlace"):
+            zonas.pop(zona, None)
+    if oscuro:
+        pie = ("var(--mt-superficie)", "var(--mt-tinta-2)", "var(--mt-tinta)")
+    elif sitio.oscuros.get("pie"):
+        pie = ("var(--mt-panel)", "var(--mt-panel-texto-2)", "var(--mt-panel-texto)")
+    else:
+        pie = ("var(--mt-superficie-2)", "var(--mt-tinta-2)", "var(--mt-tinta)")
+    anillo = max(0, min(10, sitio.holgura_tarjetas // 2 - 2))
+    hojas = [f"html.mi-tema {{\n  --mt-pie-fondo: {pie[0]};\n  --mt-pie-texto: {pie[1]};\n  --mt-pie-titulo: {pie[2]};\n"
+             f"  --mt-anillo-tarjeta: {anillo}px;\n}}"]
+    if oscuro:
+        hojas.append(expandir((RAIZ / "base" / "oscuro-generico.css").read_text(encoding="utf-8"), sitio, vistas,
+                              zonas))
+    hojas.append(expandir((RAIZ / "base" / "estructura-generica.css").read_text(encoding="utf-8"), sitio, vistas,
+                          zonas))
+    return hojas
 
 
 def regla_de_ocultar(vista: str, selector: str) -> str:
@@ -485,6 +540,8 @@ def componer(sitio: Sitio, direccion: str = "auto", semilla: int = 1, ajustes: d
     partes.append(expandir((RAIZ / "base" / "kit.css").read_text(encoding="utf-8"), sitio, vistas))
     if estructura := sitio.estructura():
         partes.append(expandir(estructura, sitio, vistas))
+    elif sitio.carpeta is None:
+        partes += _hojas_genericas(sitio, p["modo"] == "oscuro", vistas)
     for clave in VARIANTES:
         if p[clave] and (variante := sitio.variante(f"{clave}-{p[clave]}")):
             partes.append(expandir(variante, sitio, vistas))

@@ -1,0 +1,41 @@
+/* Sitio sin carpeta en una dirección oscura: sin una hoja escrita para el sitio, sus fondos claros se vuelven
+   transparentes sobre el fondo del tema y sus textos toman la tinta; los botones y campos, una superficie. Los
+   componentes del kit (.mt-vista) quedan fuera. Especificidad (0,1,2): las zonas medidas la superan. */
+html.mi-tema body :where(header, nav, main, section, article, aside, footer, div, ul, ol, li, dl, dt, dd, form, fieldset, table, caption, thead, tbody, tfoot, tr, td, th, p, figure, figcaption, blockquote, address, center, font, a, span:not(:empty)):where(:not(.mt-vista, .mt-vista *, button *, [role="button"] *, .btn *)) {
+  border-color: var(--mt-linea) !important;
+  background-color: transparent !important;
+  color: var(--mt-tinta) !important;
+  text-shadow: none !important;
+}
+html.mi-tema body :where(h1, h2, h3, h4, h5, h6, strong, b, label, legend, small, em, i:not(:empty), time, cite):where(:not(.mt-vista *, button *, [role="button"] *, .btn *)) {
+  color: var(--mt-tinta) !important;
+}
+html.mi-tema body :where(a):where(:not(.mt-vista *)) {
+  color: var(--mt-tinta) !important;
+}
+html.mi-tema body :where(p, li, dd, td) :where(a):where(:not(.mt-vista *, .btn, [role="button"])) {
+  color: var(--mt-acento-legible) !important;
+}
+html.mi-tema body :where(button, [role="button"], .btn, input[type="submit"], input[type="button"], input[type="reset"]):where(:not(.mt-vista *)) {
+  border-color: var(--mt-linea-fuerte) !important;
+  background-color: var(--mt-superficie-2) !important;
+  color: var(--mt-tinta) !important;
+}
+html.mi-tema body :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="image"], [type="submit"], [type="button"], [type="reset"]), select, textarea):where(:not(.mt-vista *)) {
+  border-color: var(--mt-linea-fuerte) !important;
+  background-color: var(--mt-campo) !important;
+  color: var(--mt-tinta) !important;
+}
+/* Los menús desplegables y las capas encima del contenido necesitan un fondo propio. */
+html.mi-tema body :where(header, nav, [role="navigation"], [role="banner"]) :where(ul ul, [role="menu"], [class*="dropdown" i] > ul, [class*="dropdown-menu" i], [class*="submenu" i], [class*="sub-menu" i]),
+html.mi-tema body :where(dialog, [role="dialog"], [aria-modal="true"]):where(:not(.mt-vista *)) {
+  background-color: var(--mt-superficie) !important;
+}
+{{#z.logo}}
+/* El logo del sitio, pensado para un fondo claro, va sobre una placa clara. */
+html.mi-tema {{z.logo}} {
+  border-radius: var(--mt-radio-1) !important;
+  background-color: oklch(0.985 0.003 90) !important;
+  box-shadow: 0 0 0 6px oklch(0.985 0.003 90);
+}
+{{/z.logo}}
