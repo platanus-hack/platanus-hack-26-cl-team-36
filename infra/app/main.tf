@@ -39,12 +39,16 @@ data "aws_iam_policy_document" "backend" {
 
   statement {
     actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.almacen.arn}/*"]
+    resources = ["${aws_s3_bucket.almacen.arn}/*/improver/*/tema.css"]
   }
 
+  # ARN `runtime/<proyecto>_<destino>_<nombre>-<sufijo>`; el `*` final cubre también su endpoint.
   statement {
-    actions   = ["bedrock-agentcore:InvokeAgentRuntime"]
-    resources = ["arn:aws:bedrock-agentcore:${var.region}:${data.aws_caller_identity.actual.account_id}:runtime/*"]
+    actions = ["bedrock-agentcore:InvokeAgentRuntime"]
+    resources = [
+      "arn:aws:bedrock-agentcore:${var.region}:${data.aws_caller_identity.actual.account_id}:runtime/${var.runtime_agentes}-*",
+      "arn:aws:bedrock-agentcore:${var.region}:${data.aws_caller_identity.actual.account_id}:runtime/*_${var.runtime_agentes}-*",
+    ]
   }
 
   statement {

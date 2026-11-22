@@ -14,7 +14,7 @@ resource "aws_iam_role_policy_attachment" "proyectora_logs" {
 data "aws_iam_policy_document" "proyectora" {
   statement {
     actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.almacen.arn}/*"]
+    resources = ["${aws_s3_bucket.almacen.arn}/*/manifest.json", "${aws_s3_bucket.almacen.arn}/*/cataloger/*/goals.json"]
   }
 
   statement {
