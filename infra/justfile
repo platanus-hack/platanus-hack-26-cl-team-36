@@ -5,6 +5,7 @@
 #   just aws explore wom-baja-fibra              a task from agents/tasks/, on AgentCore
 #   just aws explore <url> "<task>" [profiles]   any site, on AgentCore
 #   just aws deploy                              deploys from your computer (CI does it on every merge)
+#   just aws runs wom.cl                         a host's runs in the S3 runs bucket
 #
 # Recipes run from infra/, the AgentCore CLI project: its configuration is in infra/agentcore/ and the
 # code it deploys in agents/app/web_evaluator/.
@@ -16,6 +17,8 @@ list_heading := "Run as `just aws <command>`, with AWS_PROFILE set to the projec
 # The deployed runtime: <project>_<target>_<runtime>. The CLI only finds it by its name in agentcore.json on the
 # computer that deployed it, and CI deploys, so explore, status and logs look it up in AWS instead.
 runtime_name := "ChameleonAgents_default_web_evaluator_image"
+# The runs bucket (AGENTS_STORE), from the outputs of infra/app: it needs `terraform init` there (see README.md).
+runs_store := "terraform -chdir=app output -raw agents_store"
 runtime_arn := "aws bedrock-agentcore-control list-agent-runtimes --query \"agentRuntimes[?agentRuntimeName=='" + runtime_name + "'].agentRuntimeArn | [0]\" --output text"
 
 # What `just aws` alone runs.
@@ -83,6 +86,23 @@ logs *options:
     runtime=$({{ runtime_arn }})
     [[ "$runtime" == arn:* ]] || { echo "{{ runtime_name }} is not deployed in this account" >&2; exit 1; }
     aws logs tail "/aws/bedrock-agentcore/runtimes/${runtime##*/}-DEFAULT" --since 30m --format short "$@"
+
+# Uploads agents/.runs/ to the runs bucket: only what is missing or changed. E.g. just aws runs-sync --dryrun
+[group('Agent runs in S3')]
+runs-sync *options:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    store=$({{ runs_store }})
+    aws s3 sync ../agents/.runs/ "$store/" --exclude '.*' --exclude '*/.*' "$@"
+
+# A host's runs in the runs bucket, one manifest.json per run. E.g. just aws runs wom.cl
+[group('Agent runs in S3')]
+runs host:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    store=$({{ runs_store }})
+    keys=$(aws s3 ls "$store/$1/" --recursive || true)
+    grep '/manifest\.json$' <<< "$keys" || echo "no runs for $1 in $store" >&2
 
 [private]
 _ready:
