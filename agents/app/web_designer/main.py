@@ -114,7 +114,7 @@ def _mejorar(parser: argparse.ArgumentParser, args) -> None:
         parser.error(str(error))
     _exigir_claude(parser)
     skill = _skill(parser, args)
-    modelo = engines.model_for(args.model)
+    modelo = engines.model_for(args.model, strong=True)  # en bedrock, la dirección de arte la elige el fuerte
     claude_cwd = Path(tempfile.mkdtemp(prefix="web_designer-claude-"))
     try:
         manifest = asyncio.run(mejora.mejorar(
@@ -146,7 +146,7 @@ def main() -> None:
     if args.repeticiones < 1:
         parser.error("--repeticiones debe ser al menos 1")
     _exigir_claude(parser)
-    args.model, args.juez_model = engines.model_for(args.model), engines.model_for(args.juez_model)
+    args.model, args.juez_model = engines.model_for(args.model), engines.model_for(args.juez_model, strong=True)
     skill = _skill(parser, args)
     if args.solo_evaluar and not args.solo_evaluar.is_file():
         parser.error(f"no existe el archivo {args.solo_evaluar}")

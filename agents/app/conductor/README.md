@@ -27,7 +27,7 @@ Desde la raíz, `just local revision <url>` hace lo mismo con una revisión nuev
 | `CONDUCTOR_POLL_S` | Con `agentcore`, cada cuánto lee el manifiesto (por defecto 10 s). |
 | `CONDUCTOR_TIMEOUT_<ETAPA>_S` | Tiempo máximo de `CATALOG`, `GUIDE`, `VISITOR` e `IMPROVER` (por defecto 900, 1200, 1800 y 900 s). Con `local`, al vencer se mata el proceso y su corrida queda `failed`. |
 
-Las etapas leen `AGENTS_STORE`, `AGENTS_ENGINE`, `AGENTS_BROWSER` y `AGENTS_MODEL` del mismo entorno.
+Las etapas leen `AGENTS_STORE`, `AGENTS_ENGINE`, `AGENTS_BROWSER`, `AGENTS_MODEL` y `AGENTS_MODEL_FUERTE` del mismo entorno.
 
 ## Salida
 
