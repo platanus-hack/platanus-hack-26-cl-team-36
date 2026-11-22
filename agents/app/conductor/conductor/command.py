@@ -28,7 +28,8 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--revision", required=True, help="id de la revisión: [a-z0-9]+(-[a-z0-9]+)*, máx. 40")
     parser.add_argument("--goals-max", type=_positive, default=config.GOALS_MAX,
                         help=f"objetivos evaluables que se recorren (por defecto: {config.GOALS_MAX})")
-    parser.add_argument("--profiles", default=None, help="perfiles del Visitante (por defecto, los suyos)")
+    parser.add_argument("--profiles", default=config.PROFILES,
+                        help=f"perfiles del Visitante separados por coma (por defecto: {config.PROFILES})")
     parser.add_argument("--runs", type=_positive, default=config.RUNS,
                         help=f"intentos por perfil del Visitante (por defecto: {config.RUNS})")
     parser.add_argument("--concurrency", type=_positive, default=config.CONCURRENCY,

@@ -23,7 +23,7 @@ _NAMES = {"catalog": "catálogo", "guide": "Guía", "visitor": "Visitante", "imp
 @dataclass(frozen=True)
 class Options:
     goals_max: int = config.GOALS_MAX
-    profiles: str | None = None
+    profiles: str | None = config.PROFILES
     """Perfiles del Visitante tal cual su `--profiles`; None, los suyos por defecto."""
     runs: int = config.RUNS
     concurrency: int = config.CONCURRENCY

@@ -104,6 +104,26 @@ def test_order_selection_and_payloads(backend):
     assert report["stages"]["improver"]["pending_goals"] == []
 
 
+def test_a_revision_without_options_runs_the_full_visitor(backend):
+    """La API manda solo url y revision: cada objetivo lleva los perfiles e intentos por defecto, y la etapa los acepta."""
+    invoker = FakeInvoker(backend, [goal(f"g{n}") for n in range(10)])
+    report = conduct(backend, invoker)
+    visitors = [payload for payload in invoker.payloads if "profiles" in payload]
+    assert len(visitors) == 8
+    assert visitors[0]["profiles"] == "desktop,mobile,explorador,explorador_buscador" and visitors[0]["runs"] == 2
+    assert stages.command("visitor", visitors[0]).args[-4:] == (
+        "--profiles", "desktop,mobile,explorador,explorador_buscador", "--runs", "2")
+    assert report["options"]["goals_max"] == 8
+
+
+def test_defaults_come_from_the_environment():
+    env = {**os.environ, "CONDUCTOR_GOALS_MAX": "3", "CONDUCTOR_PROFILES": "desktop", "CONDUCTOR_RUNS": "4"}
+    code = "from conductor import config; print(config.GOALS_MAX, config.PROFILES, config.RUNS)"
+    output = subprocess.run([sys.executable, "-c", code], cwd=Path(main.__file__).parent, env=env, check=True,
+                            capture_output=True, text=True).stdout
+    assert output.split() == ["3", "desktop", "4"]
+
+
 def test_concurrency_is_capped(backend):
     invoker = FakeInvoker(backend, [goal(f"g{n}") for n in range(5)], delay=0.05)
     report = conduct(backend, invoker, goals_max=5, concurrency=2)

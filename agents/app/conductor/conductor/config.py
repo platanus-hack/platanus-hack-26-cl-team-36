@@ -3,9 +3,12 @@
 import os
 from pathlib import Path
 
-GOALS_MAX = 6
-RUNS = 1
-CONCURRENCY = int(os.environ.get("CONDUCTOR_CONCURRENCY") or 6)   # 6: todos los goals de una revisión a la vez
+# Lo que recorre una revisión que no pide opciones (la API manda solo url y revision). Cada objetivo lleva
+# perfiles × intentos usuarios del Visitante, todos a la vez: con los valores por defecto, 8 por objetivo.
+GOALS_MAX = int(os.environ.get("CONDUCTOR_GOALS_MAX") or 8)
+PROFILES = os.environ.get("CONDUCTOR_PROFILES") or "desktop,mobile,explorador,explorador_buscador"
+RUNS = int(os.environ.get("CONDUCTOR_RUNS") or 2)
+CONCURRENCY = int(os.environ.get("CONDUCTOR_CONCURRENCY") or 6)   # objetivos a la vez
 
 INVOKER_VAR = "CONDUCTOR_INVOKER"           # local (por defecto) o agentcore
 RUNTIME_ARN_VAR = "CONDUCTOR_RUNTIME_ARN"   # con agentcore: el runtime que corre cada etapa
