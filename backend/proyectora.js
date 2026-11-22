@@ -8,10 +8,12 @@ const TRAZA = "/trace.json";
 const META_DE = { running: "running", succeeded: "done", failed: "failed" };
 
 // Misma selección que el conductor (agents/shared, catalog/goal.py `for_revision`): user_goal
-// sin barreras que lo excluyan; primero los que no salen del sitio, luego sin barreras, luego
-// los más prominentes y en el orden del catálogo, hasta `goalsMax`.
+// sin barreras que lo excluyan, ordenados: primero los que no salen del sitio, luego sin barreras,
+// los más demandados, los más prominentes y en el orden del catálogo. Hasta `goalsMax`, un tercio
+// largos y otro tercio medianos (lo que falte de un nivel lo completa el siguiente) y el resto, los primeros.
 const BARRERAS = ["login", "personal_data", "bot_check"];
 const PROMINENCIA = ["buried", "secondary", "primary"];
+const DEMANDA = ["top", "common", "rare"];
 
 // Como `site_host` de agents/shared (nodes/urls.py): sin www y con el puerto si no es el de siempre.
 const sitio = (url) => new URL(url).host.toLowerCase().replace(/^www\./, "");
@@ -26,15 +28,37 @@ function saleDelSitio(goal) {
   }
 }
 
+// Como `depth` de goal.py: long con formulario o 5 pasos o más, medium con 3 o 4, short con 1 o 2.
+export function profundidad(goal) {
+  const pasos = Number.isInteger(goal.estimated_steps) ? goal.estimated_steps : null;
+  if (goal.submits_form || (pasos ?? 0) >= 5) return "long";
+  if (pasos === null) return null;
+  return pasos >= 3 ? "medium" : "short";
+}
+
 export function goalsElegidos(goals, goalsMax) {
-  const orden = (goal) => [saleDelSitio(goal) ? 1 : 0, [].concat(goal.gates ?? []).length ? 1 : 0, -PROMINENCIA.indexOf(goal.prominence)];
+  const demanda = (goal) => (DEMANDA.includes(goal.demand) ? DEMANDA.indexOf(goal.demand) : DEMANDA.indexOf("common"));
+  const orden = (goal) => [
+    saleDelSitio(goal) ? 1 : 0,
+    [].concat(goal.gates ?? []).length ? 1 : 0,
+    demanda(goal),
+    -PROMINENCIA.indexOf(goal.prominence),
+  ];
   const comparar = (a, b) => a.reduce((diferencia, valor, i) => diferencia || valor - b[i], 0);
-  return goals
+  const candidatos = goals
     .filter((goal) => goal.level === "user_goal" && ![].concat(goal.gates ?? []).some((gate) => BARRERAS.includes(gate)))
     .map((goal) => ({ goal, clave: orden(goal) }))
     .sort((a, b) => comparar(a.clave, b.clave))
-    .slice(0, goalsMax)
-    .map(({ goal }) => goal.id);
+    .map(({ goal }) => goal);
+  if (!(goalsMax < candidatos.length)) return candidatos.map((goal) => goal.id);
+  const cuota = Math.floor(goalsMax / 3);
+  const elegidos = new Set();
+  for (const [nivel, quiero] of [["long", cuota], ["medium", 2 * cuota]]) {
+    const faltan = quiero - elegidos.size;
+    candidatos.filter((goal) => profundidad(goal) === nivel).slice(0, Math.max(faltan, 0)).forEach((goal) => elegidos.add(goal));
+  }
+  candidatos.filter((goal) => !elegidos.has(goal)).slice(0, goalsMax - elegidos.size).forEach((goal) => elegidos.add(goal));
+  return candidatos.filter((goal) => elegidos.has(goal)).map((goal) => goal.id);
 }
 
 const GOAL = /^GOAL#(.+)#(guide|visitor)$/;
@@ -81,7 +105,7 @@ function ultimoPaso({ steps, start }) {
   };
 }
 
-export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMax = 3 }) {
+export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMax = 6 }) {
   const avanzarEtapa = (revision, SK, status, atributos) =>
     db.actualizar(claveRevision(revision, SK), { status, ...atributos }, { previos: previos(ORDEN_ETAPA, status) });
 
@@ -219,7 +243,7 @@ export async function handler(evento) {
     proyectar = crearProyectora({
       db: await tablaDynamo(process.env.REVISIONES_TABLA),
       almacen: await almacenS3(process.env.ALMACEN_BUCKET),
-      goalsMax: Number(process.env.GOALS_MAX) || 3,
+      goalsMax: Number(process.env.GOALS_MAX) || 6,
     });
   }
   // Si algo falla, Lambda reintenta el evento entero: proyectar es idempotente.

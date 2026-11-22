@@ -20,7 +20,9 @@
       "prominence": "secondary",
       "gates": [],
       "instruction": "Planifica una ruta de viaje ingresando tu estación de inicio, fin y horario.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 6
     },
     {
       "id": "consultar-estado-red",
@@ -39,7 +41,9 @@
       "prominence": "secondary",
       "gates": [],
       "instruction": "Consulta el estado actual del servicio de la red de Metro.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 1
     },
     {
       "id": "ver-estaciones",
@@ -58,7 +62,9 @@
       "prominence": "secondary",
       "gates": [],
       "instruction": "Encuentra información sobre las estaciones de Metro.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 3
     },
     {
       "id": "usar-metromuv",
@@ -77,7 +83,9 @@
       "prominence": "secondary",
       "gates": [],
       "instruction": "Accede a MetroMuv, la aplicación móvil de Metro. Termina en esa página y cita su título o encabezado principal.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
     },
     {
       "id": "enviar-consulta-sugerencia-reclamo",
@@ -98,7 +106,9 @@
         "side_effect"
       ],
       "instruction": "Envía una consulta, sugerencia o reclamo al Metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 6
     },
     {
       "id": "reservar-metro-tour",
@@ -117,7 +127,9 @@
       "prominence": "secondary",
       "gates": [],
       "instruction": "Reserva un Metro Tour para conocer el sistema. Termina en esa página y cita su título o encabezado principal.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
     },
     {
       "id": "consultar-informacion-inversionistas",
@@ -136,7 +148,9 @@
       "prominence": "secondary",
       "gates": [],
       "instruction": "Consulta información financiera e inversora del Metro.",
-      "exclusion": "nivel summary"
+      "exclusion": "nivel summary",
+      "demand": "rare",
+      "estimated_steps": 2
     },
     {
       "id": "solicitar-permiso-comercial",
@@ -157,7 +171,9 @@
         "side_effect"
       ],
       "instruction": "Solicita un permiso comercial en el Metro. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 6
     },
     {
       "id": "acceder-transparencia-activa",
@@ -176,7 +192,9 @@
       "prominence": "primary",
       "gates": [],
       "instruction": "Accede a información de transparencia activa del Metro. Termina en esa página y cita su título o encabezado principal.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
     },
     {
       "id": "postular-trabaja-metro",
@@ -195,7 +213,9 @@
       "prominence": "buried",
       "gates": [],
       "instruction": "Postula a una oferta de trabajo en el Metro. Termina en esa página y cita su título o encabezado principal.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
     },
     {
       "id": "acceder-mail-preferencial",
@@ -214,7 +234,9 @@
       "prominence": "buried",
       "gates": [],
       "instruction": "Accede al correo preferencial del Metro. Termina en esa página y cita su título o encabezado principal.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
     },
     {
       "id": "verificar-documentos",
@@ -233,20 +255,25 @@
       "prominence": "buried",
       "gates": [],
       "instruction": "Verifica documentos del Metro.",
-      "exclusion": null
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 3
     }
   ],
-  "goals_max": 3,
+  "goals_max": 6,
   "expected": [
-    "acceder-transparencia-activa",
-    "planificar-viaje",
-    "consultar-estado-red"
-  ],
-  "expected_all": [
-    "acceder-transparencia-activa",
     "planificar-viaje",
     "consultar-estado-red",
     "ver-estaciones",
+    "acceder-transparencia-activa",
+    "verificar-documentos",
+    "enviar-consulta-sugerencia-reclamo"
+  ],
+  "expected_all": [
+    "planificar-viaje",
+    "consultar-estado-red",
+    "ver-estaciones",
+    "acceder-transparencia-activa",
     "acceder-mail-preferencial",
     "verificar-documentos",
     "enviar-consulta-sugerencia-reclamo",
@@ -254,5 +281,82 @@
     "usar-metromuv",
     "reservar-metro-tour",
     "postular-trabaja-metro"
-  ]
+  ],
+  "expected_by_limit": {
+    "1": [
+      "planificar-viaje"
+    ],
+    "2": [
+      "planificar-viaje",
+      "consultar-estado-red"
+    ],
+    "3": [
+      "planificar-viaje",
+      "consultar-estado-red",
+      "ver-estaciones"
+    ],
+    "4": [
+      "planificar-viaje",
+      "consultar-estado-red",
+      "ver-estaciones",
+      "acceder-transparencia-activa"
+    ],
+    "5": [
+      "planificar-viaje",
+      "consultar-estado-red",
+      "ver-estaciones",
+      "acceder-transparencia-activa",
+      "acceder-mail-preferencial"
+    ],
+    "6": [
+      "planificar-viaje",
+      "consultar-estado-red",
+      "ver-estaciones",
+      "acceder-transparencia-activa",
+      "verificar-documentos",
+      "enviar-consulta-sugerencia-reclamo"
+    ],
+    "7": [
+      "planificar-viaje",
+      "consultar-estado-red",
+      "ver-estaciones",
+      "acceder-transparencia-activa",
+      "acceder-mail-preferencial",
+      "verificar-documentos",
+      "enviar-consulta-sugerencia-reclamo"
+    ],
+    "8": [
+      "planificar-viaje",
+      "consultar-estado-red",
+      "ver-estaciones",
+      "acceder-transparencia-activa",
+      "acceder-mail-preferencial",
+      "verificar-documentos",
+      "enviar-consulta-sugerencia-reclamo",
+      "solicitar-permiso-comercial"
+    ],
+    "9": [
+      "planificar-viaje",
+      "consultar-estado-red",
+      "ver-estaciones",
+      "acceder-transparencia-activa",
+      "acceder-mail-preferencial",
+      "verificar-documentos",
+      "enviar-consulta-sugerencia-reclamo",
+      "solicitar-permiso-comercial",
+      "usar-metromuv"
+    ],
+    "10": [
+      "planificar-viaje",
+      "consultar-estado-red",
+      "ver-estaciones",
+      "acceder-transparencia-activa",
+      "acceder-mail-preferencial",
+      "verificar-documentos",
+      "enviar-consulta-sugerencia-reclamo",
+      "solicitar-permiso-comercial",
+      "usar-metromuv",
+      "reservar-metro-tour"
+    ]
+  }
 }

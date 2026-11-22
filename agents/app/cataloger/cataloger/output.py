@@ -17,12 +17,14 @@ def write_outline(out_dir: Path, outline: SiteOutline) -> None:
 
 
 def _row(goal: Goal) -> str:
-    cells = [f"`{goal.id}` {goal.description}", goal.level, goal.intent, goal.prominence, ", ".join(goal.gates) or "—"]
+    cells = [f"`{goal.id}` {goal.description}", goal.level, goal.intent, goal.demand or "—",
+             str(goal.estimated_steps or "—"), goal.prominence, ", ".join(goal.gates) or "—"]
     return "| " + " | ".join(cell.replace("|", "\\|") for cell in cells) + " |"
 
 
 def goals_markdown(meta: dict, goals: list[Goal], issues: list[str]) -> str:
-    header = ["| Objetivo | Nivel | Intención | Prominencia | Barreras |", "|---|---|---|---|---|"]
+    header = ["| Objetivo | Nivel | Intención | Demanda | Pasos | Prominencia | Barreras |",
+              "|---|---|---|---|---|---|---|"]
     lines = [f"# Objetivos de {meta['host']}", "",
              f"{len(goals)} objetivos de {meta['pages']} páginas · modelo {meta['model']} · catálogo US$ {meta['catalog_cost_usd']}"]
     groups = [goal for goal in goals if goal.level == "summary"] + [None]

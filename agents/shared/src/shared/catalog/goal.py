@@ -11,6 +11,8 @@ from shared.nodes.urls import same_site
 LEVELS = ("summary", "user_goal", "subfunction")
 INTENTS = ("find_info", "reach_page", "transact")
 PROMINENCE_ORDER = ("buried", "secondary", "primary")
+DEMANDS = ("top", "common", "rare")  # cuánta gente viene a la página a hacerlo; `top` son sus 3–6 tareas principales
+DEPTHS = ("short", "medium", "long")
 EXCLUDING_GATES = ("login", "personal_data", "bot_check")  # el Visitante no puede intentarlos
 # Un objetivo libre, que solo tiene instrucción, lleva este prefijo; el catálogo y las tareas no lo aceptan.
 FREE_GOAL_PREFIX = "libre-"
@@ -44,6 +46,9 @@ class Goal:
     # Lo que leen la Guía y el Visitante sin repetir estas reglas: la tarea que reciben y por qué no se intenta.
     instruction: str = ""
     exclusion: str | None = None
+    # Lo estima el modelo del catálogo; un catálogo anterior no los trae.
+    demand: str | None = None
+    estimated_steps: int | None = None
 
 
 def instruction(goal: Goal) -> str:
@@ -75,12 +80,36 @@ def leaves_site(goal: Goal) -> bool:
     return bool(goal.entry) and not same_site(urljoin(goal.start_url, goal.entry), goal.start_url)
 
 
+def depth(goal: Goal) -> str | None:
+    """`long` con formulario o 5 pasos o más, `medium` con 3 o 4, `short` con 1 o 2; None si no hay estimación."""
+    if goal.submits_form or (goal.estimated_steps or 0) >= 5:
+        return "long"
+    if goal.estimated_steps is None:
+        return None
+    return "medium" if goal.estimated_steps >= 3 else "short"
+
+
+def _demand_rank(goal: Goal) -> int:
+    return DEMANDS.index(goal.demand) if goal.demand in DEMANDS else DEMANDS.index("common")
+
+
 def for_revision(goals: list[Goal], limit: int | None) -> list[Goal]:
-    """Los que el Visitante puede intentar, los que más probablemente busca quien llega a la página primero: dentro
-    del sitio, sin barreras, más prominentes y en el orden del catálogo. `backend/proyectora.js` elige igual."""
+    """Los que el Visitante puede intentar, en el orden en que más probablemente los busca quien llega a la página:
+    dentro del sitio, sin barreras, más demandados, más prominentes y en el orden del catálogo. Con `limit`, un tercio
+    son largos y otro tercio medianos (los que falten de un nivel los completa el siguiente) y el resto, los primeros
+    de ese orden. `backend/proyectora.js` elige igual."""
     candidates = [goal for goal in goals if exclusion(goal) is None]
-    candidates.sort(key=lambda goal: (leaves_site(goal), bool(goal.gates), -PROMINENCE_ORDER.index(goal.prominence)))
-    return candidates[:limit]
+    candidates.sort(key=lambda goal: (leaves_site(goal), bool(goal.gates), _demand_rank(goal),
+                                      -PROMINENCE_ORDER.index(goal.prominence)))
+    if limit is None or limit >= len(candidates):
+        return candidates
+    quota = limit // 3
+    chosen: set[int] = set()
+    for band, wanted in (("long", quota), ("medium", 2 * quota)):
+        found = [index for index, goal in enumerate(candidates) if depth(goal) == band][:wanted - len(chosen)]
+        chosen.update(found)
+    chosen.update([index for index in range(len(candidates)) if index not in chosen][:limit - len(chosen)])
+    return [goal for index, goal in enumerate(candidates) if index in chosen]
 
 
 def slugify(text: str) -> str:

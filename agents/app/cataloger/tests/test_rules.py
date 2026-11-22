@@ -80,6 +80,17 @@ def test_one_page_catalog_takes_that_page_as_evidence_when_the_model_cites_a_lin
     assert [(goal.evidence, goal.entry) for goal in goals] == [([start], workers)] and not issues
 
 
+def test_demand_and_estimated_steps_are_kept_when_valid_and_top_tasks_are_capped():
+    goals, issues = validate([
+        *(_raw(f"t{number}", demand="top", estimated_steps=number) for number in range(1, 8)),
+        _raw("raro", demand="urgente", estimated_steps=0),
+        _raw("anterior"),
+    ], OUTLINE, reserved=set())
+    assert [goal.demand for goal in goals] == ["top"] * 6 + ["common", None, None]
+    assert [goal.estimated_steps for goal in goals] == [1, 2, 3, 4, 5, 6, 7, None, None]
+    assert issues == ["t7: ya hay 6 tareas principales; queda common"]
+
+
 def test_the_free_goal_prefix_is_reserved():
     goals, issues = validate([_raw("libre-baja-0a1b2c3d"), _raw("baja")], OUTLINE, reserved=set())
     assert [goal.id for goal in goals] == ["baja"] and "libre-" in issues[0]

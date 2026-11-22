@@ -52,9 +52,12 @@ El objetivo, el esquema, la prominencia y la lectura de los archivos están en
    página a la vez y sin enviar formularios. De cada una guarda título, encabezados, enlaces por zona (navegación,
    contenido, pie), formularios, botones y señales de barrera.
 2. **Catálogo, con el modelo.** El modelo lee el esquema y propone objetivos con `description`, `level`, `parent`,
-   `intent`, `submits_form`, `evidence` y `entry`, aplicando las reglas de niveles de tarea.
+   `intent`, `submits_form`, `evidence` y `entry`, aplicando las reglas de niveles de tarea, más `demand` (`top` para
+   las 3 a 6 tareas principales de la página, `common` o `rare`) y `estimated_steps` (clics y campos desde la página
+   inicial), que ordenan y estratifican la selección de la revisión (`for_revision`).
 3. **Campos sin modelo.** Se valida lo que propuso el modelo; lo que se descarta o corrige queda en `issues`. Con una
-   sola página leída, un objetivo sin evidencia del esquema toma esa página como evidencia.
+   sola página leída, un objetivo sin evidencia del esquema toma esa página como evidencia. Desde la séptima tarea `top`
+   quedan `common`.
    `prominence` sale de dónde está `entry` en la página inicial y `gates` de las señales de sus páginas de evidencia
    (solo campos visibles de formularios del contenido, no del encabezado ni del pie).
 4. **Para la Guía y el Visitante.** Cada objetivo guarda `instruction`, la tarea que reciben los dos, y `exclusion`,

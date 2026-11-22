@@ -10,7 +10,7 @@ import pytest
 from shared import store
 from shared.catalog import tasks
 from shared.catalog.files import read_catalog, read_outline
-from shared.catalog.goal import (Goal, exclusion, for_revision, instruction, instruction_goal_id, is_free_goal_id, leaves_site,
+from shared.catalog.goal import (Goal, depth, exclusion, for_revision, instruction, instruction_goal_id, is_free_goal_id, leaves_site,
                                  routable, slugify)
 from shared.catalog.outline import Link, PageOutline, SiteOutline
 from shared.catalog.prominence import complexity, link_prominence, prominence, route_prominence
@@ -103,6 +103,33 @@ def test_revision_selection_of_a_real_catalog_matches_the_projector():
     goals = [Goal(**{key: value for key, value in raw.items() if key in fields}) for raw in data["goals"]]
     assert [goal.id for goal in for_revision(goals, data["goals_max"])] == data["expected"]
     assert [goal.id for goal in for_revision(goals, None)] == data["expected_all"]
+    for limit, expected in data["expected_by_limit"].items():
+        assert [goal.id for goal in for_revision(goals, int(limit))] == expected
+
+
+def test_depth_bands_from_estimated_steps_or_form():
+    steps = [None, 1, 2, 3, 4, 5]
+    assert [depth(_goal("a", estimated_steps=value)) for value in steps] == [None, "short", "short", "medium", "medium", "long"]
+    assert depth(_goal("a", submits_form=True)) == depth(_goal("a", submits_form=True, estimated_steps=1)) == "long"
+
+
+def test_revision_prefers_top_tasks_and_mixes_long_and_medium_ones():
+    goals = [
+        _goal("raro", demand="rare", prominence="primary", estimated_steps=1),
+        _goal("top-corto", demand="top", estimated_steps=1),
+        _goal("top-medio", demand="top", estimated_steps=3),
+        _goal("comun-largo", demand="common", estimated_steps=7),
+        _goal("raro-largo", demand="rare", submits_form=True),
+        _goal("comun-corto", demand="common", estimated_steps=2),
+        _goal("anterior"),
+    ]
+    order = ["top-corto", "top-medio", "comun-largo", "comun-corto", "anterior", "raro", "raro-largo"]
+    assert [goal.id for goal in for_revision(goals, None)] == order
+    assert [goal.id for goal in for_revision(goals, 2)] == ["top-corto", "top-medio"]
+    assert [goal.id for goal in for_revision(goals, 3)] == ["top-corto", "top-medio", "comun-largo"]
+    # Dos largos y dos medianos; con un solo mediano, el que falta lo completa el primero del orden.
+    assert [goal.id for goal in for_revision(goals, 6)] == ["top-corto", "top-medio", "comun-largo", "comun-corto",
+                                                           "anterior", "raro-largo"]
 
 
 def test_transact_routes_stop_before_submitting():
