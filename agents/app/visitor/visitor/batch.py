@@ -133,6 +133,7 @@ def _engines(engine: str, client, user_model: str, effort: str, claude_cwd: Path
     if engine == SCRIPTED:
         return lambda key: RouteEngine(found[1] if (found := reference_for(references, key)) else None)
     if client is not None:
+        client = client.with_options(max_retries=0)  # ApiEngine reintenta con su backoff; el SDK los multiplicaría
         return lambda key: ApiEngine(client, user_model, effort)
     return lambda key: ClaudeCodeEngine(user_model, effort, claude_cwd)
 
