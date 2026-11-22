@@ -10,8 +10,8 @@ from route_tree import normalize_url
 from mapper import config
 
 def site_host(url: str) -> str:
-    """El host normalizado como en los nodos (sin www, con el puerto si no es el de siempre)."""
-    return normalize_url(url).split("/")[2]
+    """El host normalizado como en los nodos (sin www, con el puerto si no es el de siempre); vacío sin host."""
+    return urlsplit(normalize_url(url)).netloc
 
 
 def same_site(url: str, start_url: str) -> bool:

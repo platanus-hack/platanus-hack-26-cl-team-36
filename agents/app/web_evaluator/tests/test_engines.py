@@ -28,35 +28,46 @@ def test_final_actions():
     assert decision_to_turn({"expectation": "x", "action": "give_up", "text": "No está."}, 6).final == ("gave_up", "No está.")
 
 
+def _png_header(width: int, height: int) -> bytes:
+    """Lo justo de un PNG para que engines.png_size lea su tamaño."""
+    import struct
+
+    return b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + struct.pack(">II", width, height) + b"\x08\x02\x00\x00\x00"
+
+
+class _FakeMessages:
+    """Responde siempre lo mismo y guarda los pedidos."""
+
+    def __init__(self, content):
+        self.calls = []
+        self.content = content
+
+    async def create(self, **kwargs):
+        from types import SimpleNamespace
+
+        self.calls.append(kwargs)
+        usage = SimpleNamespace(input_tokens=1, output_tokens=1, cache_read_input_tokens=0, cache_creation_input_tokens=0)
+        return SimpleNamespace(stop_reason="tool_use", content=self.content, usage=usage)
+
+
 def test_api_engine_marks_only_the_last_block_for_caching(tmp_path):
     import asyncio
     from types import SimpleNamespace
 
-    import config
     from engines import ApiEngine
 
-    calls = []
-
-    class FakeMessages:
-        async def create(self, **kwargs):
-            calls.append(kwargs)
-            usage = SimpleNamespace(input_tokens=1, output_tokens=1, cache_read_input_tokens=0, cache_creation_input_tokens=0)
-            text = SimpleNamespace(type="text", text="TERMINADO: listo")
-            return SimpleNamespace(stop_reason="end_turn", content=[text], usage=usage)
-
-    model = config.BEDROCK_MODEL_PREFIX + config.BEDROCK_USER_MODEL
-    engine = ApiEngine(SimpleNamespace(messages=FakeMessages()), model, "medium")
+    messages = _FakeMessages([SimpleNamespace(type="text", text="TERMINADO: listo")])
+    engine = ApiEngine(SimpleNamespace(messages=messages), "us.anthropic.claude-haiku-5-5", "medium")
     asyncio.run(engine.start("sistema", "primer mensaje", b"png", tmp_path))
     turn = asyncio.run(engine.decide())
 
     assert turn.final == ("done", "listo")
-    request = calls[0]
+    request = messages.calls[0]
     # Bedrock (bedrock-runtime) no acepta la caché automática: el punto va a mano, solo en el último bloque.
-    assert "cache_control" not in request and request["model"] == "us.anthropic.claude-haiku-5-5"
+    assert "cache_control" not in request and request["tools"][0]["type"] == "computer_toolset_20260801"
     blocks = request["messages"][-1]["content"]
     assert [block.get("cache_control") for block in blocks] == [None, {"type": "ephemeral"}]
     assert all("cache_control" not in block for block in engine.messages[0]["content"])  # el historial queda igual
-
 
 
 def test_claude_code_sin_respuesta_da_un_error_claro_en_vez_de_esperar_para_siempre(tmp_path):
@@ -74,3 +85,31 @@ def test_claude_code_sin_respuesta_da_un_error_claro_en_vez_de_esperar_para_siem
             claude.log_file.close()
 
     asyncio.run(escenario())
+
+
+def test_api_engine_uses_the_legacy_computer_tool_on_bedrock(tmp_path):
+    """El modelo de AWS (anterior a Opus 4.7) no acepta el toolset: va la herramienta `computer`, con beta."""
+    import asyncio
+    from types import SimpleNamespace
+
+    import config
+    from engines import ActionResult, ApiEngine
+
+    click = SimpleNamespace(type="tool_use", id="t1", name="computer", input={"action": "left_click", "coordinate": [10, 20]})
+    messages = _FakeMessages([click])
+    model = config.BEDROCK_MODEL_PREFIX + config.BEDROCK_USER_MODEL
+    engine = ApiEngine(SimpleNamespace(beta=SimpleNamespace(messages=messages)), model, "medium")
+    asyncio.run(engine.start("sistema", "primer mensaje", _png_header(390, 844), tmp_path))
+    turn = asyncio.run(engine.decide())
+
+    request = messages.calls[0]
+    assert request["betas"] == ["computer-use-2025-11-24"]
+    assert request["tools"][0] == {
+        "type": "computer_20251124", "name": "computer", "display_width_px": 390, "display_height_px": 844,
+    }
+    [action] = turn.requests
+    assert (action.name, action.input, action.is_computer) == ("left_click", {"coordinate": [10, 20]}, True)
+
+    asyncio.run(engine.respond([ActionResult(action, "OK")], _png_header(390, 844)))
+    [result] = engine.messages[-1]["content"]
+    assert result["tool_use_id"] == "t1" and "toolset_name" not in result
