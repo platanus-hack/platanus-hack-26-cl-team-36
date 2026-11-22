@@ -11,6 +11,7 @@
 // - motivo: por qué está detenida o falló, ver motivoDe(). El texto lo pone la página (i18n); aquí va el tipo y el
 //   error crudo.
 // - capturas: la de inicio de un intento desktop y de uno mobile, ver elegirCapturas().
+// - anteriores: cuántas revisiones de la misma página reemplazó esta, la vigente (quedan en #/revisiones?estado=historial).
 
 import { hostDeRevision, rutaDeUrl } from "./sitio.js";
 
@@ -280,7 +281,7 @@ export function elegirCapturas(grupos) {
  *           intentosDe?: (goal: string) => object[], tandaDe?: (goal: string) => string | null, capturas?: object,
  *           acento?: string | null, sitio: string }} entrada
  */
-export function armarTarjeta({ meta, items, ahora, catalogo = null, intentosDe = () => [], tandaDe = () => null, capturas = { desktop: null, mobile: null }, acento = null, sitio }) {
+export function armarTarjeta({ meta, items, ahora, catalogo = null, intentosDe = () => [], tandaDe = () => null, capturas = { desktop: null, mobile: null }, acento = null, sitio, anteriores = 0 }) {
   const propios = items.filter((item) => item?.SK !== "META");
   const actualizada = actualizadaDe(meta, propios);
   const estado = estadoDeTarjeta(meta?.status, estaDetenida(meta?.status, actualizada, ahora));
@@ -300,5 +301,6 @@ export function armarTarjeta({ meta, items, ahora, catalogo = null, intentosDe =
     capturas,
     acento,
     motivo: motivoDe(estado, meta, propios),
+    anteriores,
   };
 }

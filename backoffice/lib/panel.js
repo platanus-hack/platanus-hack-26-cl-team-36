@@ -8,9 +8,10 @@
 // - Cada lectura compartida (índice del almacén, ids de tandas, tabla) y cada respuesta se guardan MEMORIA_MS desde
 //   que terminan: dos pedidos que llegan juntos comparten la misma lectura. /api/overview se guarda aparte por cada
 //   página pedida (?pestana=<p>&limite=<n>, ya normalizada): una no responde por otra.
-// - Tabla: un Scan de los META y una Query por cada revisión que corre (para en_cola y "detenida"). En /api/overview,
-//   además, una Query por cada revisión con tarjeta (6 por pestaña, hasta LIMITE_MAXIMO en la pedida); los ítems de
-//   las cerradas (done, failed) se guardan, así una página más larga solo consulta las que se suman.
+// - Tabla: un Scan de los META y los URL#<url> (solo cuentan las vigentes: revisionesVigentes en lib/revisiones.js) y
+//   una Query por cada revisión que corre (para en_cola y "detenida"). En /api/overview, además, una Query por cada
+//   revisión con tarjeta (6 por pestaña, hasta LIMITE_MAXIMO en la pedida); los ítems de las cerradas (done, failed) se
+//   guardan, así una página más larga solo consulta las que se suman.
 // - Almacén: el índice lista el almacén entero a lo más cada LISTADO_MS (30 s) y en cada pasada relee solo lo abierto.
 //   goals.json y el acento del tema.css de corridas cerradas se leen una vez. Las tandas que se listan (capturas,
 //   `tanda`, /archivos/) salen del índice, sin listar; un id que no está ahí se busca en un listado fresco.
@@ -23,7 +24,7 @@
 import { REVISION } from "../public/nucleo/almacen.js";
 import { LISTADO_MS, crearIndice } from "./indice.js";
 import { contarResumen, idsConTarjeta, listasDelOverview, parametrosDelOverview } from "./overview.js";
-import { claveDeCorridaDelItem, claveDelTema } from "./revisiones.js";
+import { claveDeCorridaDelItem, claveDelTema, revisionesVigentes } from "./revisiones.js";
 import { acentoDelTema, hostDeRevision, nombreDelSitio, nombreDeHost, rutaComparable } from "./sitio.js";
 import { idsDeTandas } from "./tandas.js";
 import {
@@ -165,10 +166,13 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
     return listada;
   }
   const leerTabla = memorizar(async () => {
-    const metas = (await revisiones.metas()).filter((meta) => meta?.SK === "META" && REVISION.test(idDe(meta)));
+    const leidas = await revisiones.metasYPunteros();
+    const todas = leidas.metas.filter((meta) => meta?.SK === "META" && REVISION.test(idDe(meta)));
+    const { vigentes, anteriores } = revisionesVigentes(todas, leidas.punteros);
+    const metas = todas.filter((meta) => vigentes.has(idDe(meta)));
     const corriendo = metas.filter((meta) => meta.status === "running");
     const items = new Map(await Promise.all(corriendo.map(async (meta) => [idDe(meta), sinMeta(await revisiones.items(idDe(meta)))])));
-    return { metas, items };
+    return { metas, todas, anteriores, items };
   }, memoriaMs);
 
   const itemsCerrados = new Map();
@@ -250,6 +254,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
       capturas,
       acento,
       sitio: host ? deHost.sitioDe(host) : nombreDeHost(""),
+      anteriores: tabla.anteriores.get(idDe(meta)) ?? 0,
     });
   }
 
@@ -306,7 +311,7 @@ export function crearPanel({ fuente, revisiones = null, reloj = () => new Date()
       if (!revisiones || !REVISION.test(String(revision ?? ""))) return null;
       const ahora = reloj();
       const tabla = await leerTabla();
-      const meta = tabla.metas.find((otra) => idDe(otra) === revision);
+      const meta = tabla.todas.find((otra) => idDe(otra) === revision);
       if (!meta) return null;
       const almacen = await leerIndice();
       return tarjetaDe(meta, { tabla, ahora, almacen, deHost: deHostDe(almacen) });
