@@ -13,7 +13,8 @@
 // (Reintentar, un actualizar que devuelve false), montar recibe datos undefined y los pide ella, con su esqueleto.
 //
 // Una tanda se abre en una hoja sobre la vista de la que vino, que queda montada debajo (nucleo/hoja.js): la hoja
-// aparece al instante con el título y un esqueleto, y volver a esa vista cierra la hoja sin remontar nada.
+// aparece al instante con el título y un esqueleto, y volver a esa vista cierra la hoja sin remontar nada. Una
+// revisión fallida (#/f/<revision>) se abre igual, con la misma cabecera y la pantalla de la falla en el panel.
 
 import { avisar, anunciar } from "./avisos.js";
 import { pedirTanda, pedirTandas, urlDeArchivo } from "./datos.js";
@@ -23,7 +24,7 @@ import { EVENTO_IDIOMA, IDIOMAS, cambiarIdioma, cargarSeccion, fmt, idioma, t } 
 import { registrarAtajos } from "./atajos.js";
 import { abrirHoja } from "./hoja.js";
 import { recargarUnaVez } from "./recarga.js";
-import { montarMarco } from "./marco-tanda.js";
+import { montarMarco, montarMarcoDeFallo } from "./marco-tanda.js";
 import { NOMBRES_DE_PESTANA, enlaceATanda, extraerIdioma, hashDe, origenDeHoja, parsearHash } from "./rutas.js";
 import { ponerTituloDeVista } from "./shell.js";
 import { conTransicion } from "./transiciones.js";
@@ -44,6 +45,9 @@ function esqueletoDeVista(ruta) {
 const ESPERAN_LA_LISTA = new Set(["corridas"]);
 // Vistas cuyos parámetros cambian sin remontar (actualizarParametros → actualizar(ctx) de la pantalla).
 const CON_PARAMETROS = new Set(["overview", "corridas", "tanda", "revisiones"]);
+// Las vistas que se abren en una hoja, sobre la vista de la que vinieron.
+const EN_HOJA = new Set(["tanda", "fallo"]);
+const enHoja = (v) => EN_HOJA.has(v?.tipo);
 // Título de respaldo de una vista sin título propio.
 const TITULO_DE_VISTA = { overview: "comun.shell.overview", corridas: "comun.shell.corridas", revisiones: "comun.shell.revisiones" };
 
@@ -164,7 +168,7 @@ function ponerTitulo(v) {
   const tanda = v.tanda ? (v.tanda.tarea ?? v.tanda.host ?? v.tanda.id) : null;
   document.title = [titulo, tanda, t("comun.marca.titulo")].filter(Boolean).join(" · ");
   // La barra superior nombra la vista de abajo; una hoja (tanda) tiene su propia cabecera y la deja como estaba.
-  if (v.tipo !== "tanda") ponerTituloDeVista(titulo);
+  if (!enHoja(v)) ponerTituloDeVista(titulo);
 }
 
 // ── Montar y desmontar ────────────────────────────────────────────────────
@@ -201,7 +205,7 @@ function cerrarHoja({ conservarFondo = false } = {}) {
   const { hoja, fondo } = hojaAbierta;
   hojaAbierta = null;
   const salida = hoja?.cerrar() ?? Promise.resolve();
-  if (vista?.tipo === "tanda") {
+  if (enHoja(vista)) {
     desmontarPantalla(vista, { despues: salida });
     vista.marco?.desmontar();
     vista = null;
@@ -212,7 +216,7 @@ function cerrarHoja({ conservarFondo = false } = {}) {
 
 function desmontarVista() {
   if (vista) {
-    if (hojaAbierta && vista.tipo === "tanda") return void cerrarHoja();
+    if (hojaAbierta && enHoja(vista)) return void cerrarHoja();
     desmontarPantalla(vista);
     vista.marco?.desmontar();
     vista = null;
@@ -241,7 +245,7 @@ async function montarPantalla(v, modulo, destino, datos) {
         titulo: t("comun.estado.errorDeVista"),
         detalle: error?.stack ?? String(error),
         reintentar: () => remontarPantalla(),
-        nivel: v.tipo === "tanda" ? 2 : 1,
+        nivel: enHoja(v) ? 2 : 1,
       }),
     );
   }
@@ -250,7 +254,7 @@ async function montarPantalla(v, modulo, destino, datos) {
 
 async function remontarPantalla() {
   if (!vista?.modulo) return;
-  const destino = vista.tipo === "tanda" ? vista.marco.panel : raiz;
+  const destino = enHoja(vista) ? vista.marco.panel : raiz;
   const modulo = vista.modulo;
   desmontarPantalla(vista);
   await montarPantalla(vista, modulo, destino);
@@ -482,6 +486,8 @@ async function procesar({ origen = "historial" } = {}) {
     return;
   }
 
+  if (nueva.tipo === "fallo") return abrirFallo(nueva, hash, { miTurno, fijarRuta, origen });
+
   // Solo cambia la pestaña: el marco se queda.
   const soloPestana = !remontarTodo && nueva.tipo === "tanda" && vista?.tipo === "tanda" && vista.tandaId === nueva.tandaId && !!vista.tanda;
   if (nueva.tipo === "tanda" && !soloPestana) return abrirTanda(nueva, hash, { miTurno, fijarRuta, origen });
@@ -583,9 +589,10 @@ function abridorDeLaHoja() {
  * Abre una tanda en la hoja: al instante el marco con el título y un esqueleto; los datos y la pantalla después.
  * Sobre la vista de antes (que queda montada debajo) o, si ya hay una hoja abierta, en su lugar.
  */
-async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
+/** Deja lista la hoja para otro marco: la que ya está abierta (sin su contenido) o una nueva sobre la vista de antes. */
+function prepararHoja(origen) {
   if (hojaAbierta) {
-    if (vista?.tipo === "tanda") {
+    if (enHoja(vista)) {
       desmontarPantalla(vista);
       vista.marco?.desmontar();
     }
@@ -596,7 +603,7 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
       reemplazar(raiz);
     }
   } else {
-    const conFondo = !!vista?.modulo && vista.tipo !== "tanda";
+    const conFondo = !!vista?.modulo && !enHoja(vista);
     const volver = origenDeHoja(conFondo ? vista.ruta : null, conFondo ? hashMostrado : null);
     const abridor = conFondo ? abridorDeLaHoja() : { elemento: null, clave: null };
     if (!conFondo) {
@@ -608,6 +615,16 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
     if (conFondo) history.replaceState({ hoja: hojaAbierta.id, paso: 1 }, "", location.href);
   }
   vista = null;
+}
+
+/** Pone el marco en la hoja (la abre si todavía no está). */
+function mostrarEnHoja(marco) {
+  if (hojaAbierta.hoja) reemplazar(hojaAbierta.hoja.nodo, marco.raiz);
+  else hojaAbierta.hoja = abrirHoja(marco.raiz, { fondo: raiz, titulo: marco.titulo });
+}
+
+async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
+  prepararHoja(origen);
   const marco = montarMarco({
     tandaId: nueva.tandaId,
     ruta: nueva,
@@ -616,8 +633,7 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
     alVolver: volverDesdeLaHoja,
     escapar: () => vista?.modulo?.escapar?.() === true,
   });
-  if (hojaAbierta.hoja) reemplazar(hojaAbierta.hoja.nodo, marco.raiz);
-  else hojaAbierta.hoja = abrirHoja(marco.raiz, { fondo: raiz, titulo: marco.titulo });
+  mostrarEnHoja(marco);
   const v = { tipo: "tanda", id: nueva.pestana, ruta: nueva, tanda: null, tandaId: nueva.tandaId, pestana: nueva.pestana, marco, quitar: [] };
   vista = v;
   enfocar(marco.titulo);
@@ -648,6 +664,37 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
   avisarRuta();
 }
 
+/**
+ * Abre una revisión fallida en la hoja: al instante la cabecera (con las pestañas apagadas) y un esqueleto; con los
+ * datos, el sitio y la pastilla «Stopped at …», y la cadena de etapas en el panel (pantallas/fallo.js).
+ */
+async function abrirFallo(nueva, hash, { miTurno, fijarRuta, origen }) {
+  prepararHoja(origen);
+  const marco = montarMarcoDeFallo({ revision: nueva.revision, alVolver: volverDesdeLaHoja, escapar: () => vista?.modulo?.escapar?.() === true });
+  mostrarEnHoja(marco);
+  const v = { tipo: "fallo", id: "fallo", ruta: nueva, marco, quitar: [] };
+  vista = v;
+  enfocar(marco.titulo);
+
+  let cargado;
+  try {
+    cargado = await cargarRuta(nueva);
+  } catch (error) {
+    if (miTurno !== turno) return;
+    console.error(error);
+    fijarRuta(nueva, hash);
+    reemplazar(marco.panel, errorDeCarga(error, "fallo"));
+    avisarRuta();
+    return;
+  }
+  if (miTurno !== turno || vista !== v) return;
+  fijarRuta(nueva, hash);
+  if (cargado.datos?.cabecera) marco.ponerRevision(cargado.datos.cabecera);
+  await montarPantalla(v, cargado.modulo, marco.panel, cargado.datos);
+  if (miTurno !== turno) return;
+  avisarRuta();
+}
+
 /** Cierra la hoja y deja a la vista la de debajo, en su scroll, con el foco en lo que abrió la hoja. */
 function volverAlFondo() {
   const { fondo, abridor, scroll } = hojaAbierta;
@@ -669,7 +716,7 @@ async function actualizarPantalla() {
     console.error(`enrutador: actualizar() de «${vista.id}» falló`, error);
   }
   if (!sigue) {
-    const raizDeFoco = vista.tipo === "tanda" ? vista.marco.panel : raiz;
+    const raizDeFoco = enHoja(vista) ? vista.marco.panel : raiz;
     const clave = claveDeFoco();
     await remontarPantalla();
     enfocarDespues({ clave, completa: false, panel: raizDeFoco });

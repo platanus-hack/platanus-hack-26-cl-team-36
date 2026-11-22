@@ -108,6 +108,14 @@ test("mock: ?pestana=delivered&pagina=3 trae esa página de 6 con sus tarjetas; 
   assert.deepEqual([ultima.ids.length, ultima.pagina], [5, 11]);
 });
 
+test("mock: /api/tarjetas/<revision> da la tarjeta de una fallida (la hoja #/f/); una que no existe, 404", { skip: SALTAR }, async () => {
+  const respuesta = await (await fetch(`${base}/api/tarjetas/mwqhgg8u-c7d205`)).json();
+  assert.equal(respuesta.tarjeta.estado, "failed");
+  assert.equal(respuesta.tarjeta.etapas.catalog, "fallido");
+  assert.equal(typeof respuesta.ahora, "string");
+  assert.equal((await fetch(`${base}/api/tarjetas/zzzzzzzz-000000`)).status, 404);
+});
+
 test("mock: Banco Andino /personas está detenida hace 3 h; las otras 4 que corren llevan de 2 a 11 min", { skip: SALTAR }, () => {
   const banco = overview.tarjetas["mwr3wz54-abd5a1"];
   assert.deepEqual([banco.sitio, banco.ruta, banco.estado, banco.motivo], ["Banco Andino", "/personas", "stalled", { tipo: "sin_avance", detalle: null }]);

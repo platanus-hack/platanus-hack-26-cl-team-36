@@ -72,9 +72,15 @@ const tandaValida = (tanda) => (typeof tanda === "string" && partesDeTanda(tanda
 export const tandaDeGoal = (goal) => tandaValida(goal?.tanda);
 
 /**
+ * ¿La tarjeta abre la hoja de la falla (#/f/<revision>)? Sí si la revisión falló antes de que algún goal tuviera su
+ * tanda: no hay telaraña propia que mostrar (la de la captura es de otra revisión del mismo sitio).
+ */
+export const abreLaFalla = (tarjeta) => estadoDeTarjeta(tarjeta?.estado) === "failed" && !(tarjeta?.goals ?? []).some(tandaDeGoal);
+
+/**
  * Adónde lleva la tarjeta (contrato §6.5 y §7.1): la telaraña del primer goal, en el orden de la tarjeta, que tenga
  * tanda; si ninguno tiene, la tanda de su captura (la de escritorio, si no la móvil: la más nueva del mismo host y
- * ruta); si tampoco hay, null: al avance de la revisión.
+ * ruta); si tampoco hay, null: al avance de la revisión. Una fallida sin tanda propia abre la falla (abreLaFalla).
  */
 export function tandaDeTarjeta(tarjeta) {
   for (const goal of tarjeta?.goals ?? []) {
@@ -173,6 +179,7 @@ export function modeloDeTarjeta(tarjeta, { dispositivo = "all", ahora = null } =
     sitio: tarjeta?.sitio || tarjeta?.host || "",
     estado,
     tanda: tandaDeTarjeta(tarjeta),
+    falla: abreLaFalla(tarjeta),
     capturas: { desktop: captura(tarjeta?.capturas?.desktop), mobile: captura(tarjeta?.capturas?.mobile) },
     cuadritos: cuadritosDeTarjeta(tarjeta, dispositivo),
     etapas: etapasDeTarjeta(tarjeta),

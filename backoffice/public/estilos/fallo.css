@@ -1,0 +1,72 @@
+/* La hoja de una revisión fallida (pantallas/fallo.js): la página revisada en gris a la izquierda y la cadena de los
+   cuatro agentes a la derecha; el que falló, en rojo con su motivo, y los que no corrieron, en gris. */
+
+.panel-fallo { overflow: auto; }
+.p-fallo .fallo {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 28px; align-items: start;
+  padding: 26px 28px; max-width: 1100px;
+}
+
+/* ── La página revisada, como en las tarjetas del Overview, en gris ──── */
+.p-fallo .fallo-captura { border: 1px solid var(--borde); border-radius: var(--radio-3); overflow: hidden; background: var(--superficie-2); }
+.p-fallo .fallo-cromo { display: flex; align-items: center; gap: var(--e-2); height: 26px; padding: 0 10px; background: var(--superficie-2); }
+.p-fallo .fallo-cromo-puntos { display: flex; gap: 4px; }
+.p-fallo .fallo-cromo-puntos i { width: 6px; height: 6px; border-radius: 50%; background: var(--superficie-4); }
+.p-fallo .fallo-cromo-url {
+  flex: 1; min-width: 0; padding: 2px 8px; border-radius: var(--radio-1); background: var(--fondo);
+  color: var(--texto-3); font: 11px var(--fuente-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.p-fallo .fallo-captura-imagen { aspect-ratio: 4 / 3; max-height: 340px; overflow: hidden; background: var(--texto-1); }
+.p-fallo .fallo-captura-imagen img { display: block; width: 100%; height: auto; filter: grayscale(1) brightness(0.62); }
+.p-fallo .fallo-captura-vacia {
+  display: grid; place-items: center; aspect-ratio: 4 / 3; max-height: 340px;
+  color: var(--texto-4); font-size: 40px; font-weight: 600; background: var(--superficie-3);
+}
+
+/* ── La cadena de agentes ─────────────────────────────────────────────── */
+.p-fallo .fallo-cadena { display: grid; margin: 0; padding: 0; list-style: none; }
+.p-fallo .fallo-paso { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 14px; padding-bottom: 18px; }
+.p-fallo .fallo-paso::before {
+  content: ""; position: absolute; inset-inline-start: 17px; top: 36px; bottom: 0; width: 1px; background: var(--superficie-4);
+}
+.p-fallo .fallo-paso:last-child::before { display: none; }
+.p-fallo .fallo-paso-hecho::before { background: color-mix(in srgb, var(--exito) 55%, transparent); }
+.p-fallo .fallo-circulo {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--superficie-4); background: var(--fondo); color: var(--texto-4);
+}
+.p-fallo .fallo-circulo .icono { width: 16px; height: 16px; }
+.p-fallo .fallo-paso-hecho .fallo-circulo { border-color: var(--exito); color: var(--exito); }
+.p-fallo .fallo-paso-en_curso .fallo-circulo { border-color: var(--acento); color: var(--acento); }
+.p-fallo .fallo-paso-fallido .fallo-circulo { border-color: var(--peligro); color: var(--peligro); background: var(--peligro-fondo); }
+.p-fallo .fallo-paso-cuerpo { min-width: 0; padding-top: 7px; }
+.p-fallo .fallo-paso-titulo { display: flex; align-items: baseline; gap: 10px; margin: 0; }
+.p-fallo .fallo-paso-nombre { color: var(--texto-3); font-size: 14px; font-weight: 500; }
+.p-fallo .fallo-paso-hecho .fallo-paso-nombre { color: var(--texto-2); }
+.p-fallo .fallo-paso-fallido .fallo-paso-nombre { color: var(--texto-1); font-weight: 600; }
+.p-fallo .fallo-chip {
+  padding: 0 8px; border: 1px dashed var(--superficie-4); border-radius: var(--radio-pildora);
+  color: var(--texto-4); font-size: 11px; line-height: 18px;
+}
+.p-fallo .fallo-chip-hecho { border-style: solid; border-color: color-mix(in srgb, var(--exito) 35%, transparent); color: var(--exito); }
+
+/* La caja del error: el motivo, el detalle técnico, cuánto duró, hace cuánto, el id y el manifest.json. */
+.p-fallo .fallo-error {
+  display: grid; gap: 10px; margin-top: 10px; padding: 12px 14px; border-radius: var(--radio-3);
+  border: 1px solid color-mix(in srgb, var(--peligro) 30%, transparent);
+  background: color-mix(in srgb, var(--peligro) 7%, var(--superficie-1));
+}
+.p-fallo .fallo-motivo { display: flex; align-items: center; gap: var(--e-2); margin: 0; color: var(--peligro-texto); font-size: 14px; font-weight: 500; }
+.p-fallo .fallo-detalle {
+  margin: 0; padding: 6px 8px; border-radius: var(--radio-2); background: var(--fondo);
+  color: var(--texto-3); font: 12px/1.45 var(--fuente-mono); overflow-wrap: anywhere;
+}
+.p-fallo .fallo-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0; color: var(--texto-4); font-size: 12px; }
+.p-fallo .fallo-id { padding: 2px 6px; border-radius: var(--radio-1); background: var(--fondo); color: var(--texto-3); font: 11.5px var(--fuente-mono); }
+.p-fallo .fallo-acciones { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.p-fallo .fallo-boton { height: 30px; gap: 6px; padding: 0 10px; font-size: 12.5px; }
+.p-fallo .fallo-boton .icono { width: 14px; height: 14px; }
+
+@container contenido (width < 820px) {
+  .p-fallo .fallo { grid-template-columns: minmax(0, 1fr); padding: var(--e-4); gap: var(--e-5); }
+}
