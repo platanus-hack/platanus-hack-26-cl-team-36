@@ -14,7 +14,7 @@
 
 /* ── Columnas ─────────────────────────────────────────────────────────── */
 .p-replay .replay-columnas {
-  display: grid; grid-template-columns: 240px minmax(0, 1fr) 300px; gap: var(--e-3);
+  display: grid; grid-template-columns: 240px minmax(0, 1fr) 320px; gap: var(--e-3);
   min-height: 0; min-width: 0;
 }
 .p-replay .replay-columna {
@@ -145,16 +145,83 @@
   .p-replay .replay-tecleo-cursor, .p-replay .replay-desplazar::before { animation: none; }
 }
 
-/* ── Análisis ─────────────────────────────────────────────────────────── */
-.p-replay .replay-analisis-contenido { display: grid; align-content: start; gap: var(--e-4); padding: var(--e-3); overflow: auto; overscroll-behavior: contain; min-height: 0; }
-.p-replay .replay-analisis-titulo { display: grid; gap: 2px; margin: 0; font-size: 15px; line-height: 22px; font-weight: 600; color: var(--texto-1); }
-.p-replay .replay-analisis-numero { font-size: 12px; font-weight: 500; color: var(--texto-3); }
-.p-replay .replay-analisis-seccion { display: grid; gap: var(--e-1); min-width: 0; }
-.p-replay .replay-analisis-seccion:last-child { padding-top: var(--e-3); border-top: 1px solid var(--borde-sutil); }
-.p-replay .replay-analisis-seccion p { margin: 0; overflow-wrap: anywhere; }
-.p-replay .replay-senales { display: grid; gap: var(--e-2); margin: 0; padding: 0; list-style: none; }
-.p-replay .replay-senales li { display: grid; gap: 2px; justify-items: start; font-size: 13px; line-height: 19px; }
-.p-replay .replay-url { font-size: 12px; }
+/* ── Análisis: el seguimiento de la ruta ──────────────────────────────── */
+/* Acción, ruta, paso y, pegado abajo, el resultado del intento (del intento, no del paso). */
+.p-replay .replay-analisis-contenido { display: flex; flex-direction: column; overflow: auto; overscroll-behavior: contain; min-height: 0; }
+.p-replay .riel-cabecera-paso { margin: 0; }
+.p-replay .riel-de { color: var(--texto-4); }
+.p-replay .riel-duracion { display: inline-flex; align-items: center; gap: 6px; color: var(--texto-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.p-replay .riel-seccion { display: grid; gap: var(--e-3); min-width: 0; padding: var(--e-3) var(--e-4); border-bottom: 1px solid var(--borde-sutil); }
+.p-replay .riel-seccion p { margin: 0; overflow-wrap: anywhere; }
+.p-replay .riel-paso { border-bottom: 0; }
+.p-replay .riel-accion { grid-template-columns: 28px minmax(0, 1fr); align-items: center; }
+.p-replay .riel-icono-accion {
+  display: inline-grid; place-items: center; width: 28px; height: 28px;
+  border-radius: var(--radio-2); background: var(--superficie-3); color: var(--texto-2);
+}
+.p-replay .riel-firma { color: var(--texto-1); font-size: 16px; line-height: 22px; font-weight: 600; overflow-wrap: anywhere; }
+.p-replay .riel-seccion-cabecera { display: flex; align-items: center; justify-content: space-between; gap: var(--e-2); }
+.p-replay .riel-seccion-cabecera h4 { margin: 0; }
+.p-replay .riel-cifra { color: var(--texto-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* La ruta: por fila, un eje (punto o flecha de desvío + línea hacia la siguiente) y el texto. Línea continua hasta
+   donde llegó; punteada lo que falta. */
+.p-replay .riel-lista { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.p-replay .riel-fila { display: grid; grid-template-columns: 20px minmax(0, 1fr); column-gap: var(--e-3); min-height: 34px; }
+.p-replay .riel-meta { min-height: 24px; }
+.p-replay .riel-eje { display: flex; flex-direction: column; align-items: center; }
+.p-replay .riel-punto {
+  flex: none; width: 12px; height: 12px; margin-top: 4px; box-sizing: border-box;
+  border: 2px dashed var(--texto-4); border-radius: 50%;
+}
+.p-replay .riel-alcanzado .riel-punto { border-style: solid; border-color: var(--texto-2); background: var(--texto-2); }
+.p-replay .riel-hito.riel-aqui .riel-punto {
+  width: 16px; height: 16px; margin-top: 2px; border-style: solid; border-color: var(--acento);
+  background: var(--acento); box-shadow: 0 0 0 4px var(--acento-sutil);
+}
+.p-replay .riel-meta.riel-pendiente .riel-punto { border-color: var(--peligro-texto); }
+.p-replay .riel-linea { flex: 1; width: 0; min-height: 10px; border-left: 2px dashed var(--borde-fuerte); }
+.p-replay .riel-sigue .riel-linea { border-left-style: solid; border-left-color: color-mix(in oklch, var(--texto-2) 45%, transparent); }
+.p-replay .riel-texto {
+  display: flex; flex-wrap: wrap; align-items: center; align-content: flex-start; gap: 4px var(--e-2);
+  min-width: 0; padding: 1px 0 var(--e-2);
+}
+.p-replay .riel-nombre { min-width: 0; color: var(--texto-3); font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }
+.p-replay .riel-alcanzado .riel-nombre { color: var(--texto-2); }
+.p-replay .riel-hito.riel-aqui .riel-nombre { color: var(--texto-1); font-size: 14px; font-weight: 600; }
+.p-replay .riel-bandera { flex: none; color: var(--peligro-texto); }
+.p-replay .riel-meta.riel-alcanzado .riel-bandera, .p-replay .riel-meta.riel-aqui .riel-bandera { color: var(--exito); }
+.p-replay .riel-chip {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 7px;
+  border-radius: var(--radio-pildora); font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.p-replay .riel-chip-aqui { background: var(--acento-sutil); color: var(--acento-fuerte); }
+.p-replay .riel-chip-desvio { background: var(--aviso-fondo); color: var(--aviso); }
+.p-replay .riel-icono-desvio { flex: none; margin-top: 3px; color: var(--aviso); }
+.p-replay .riel-desvios:not(.riel-aqui) .riel-icono-desvio { opacity: 0.75; }
+.p-replay .riel-cuantos { color: var(--aviso); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.p-replay .riel-paginas { max-width: 100%; min-width: 0; overflow: hidden; color: var(--texto-3); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+
+/* El paso, en dos líneas: qué esperaba y dónde quedó. */
+.p-replay .riel-senales { display: flex; flex-wrap: wrap; gap: 6px; }
+.p-replay .riel-lineas { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: var(--e-3); align-items: start; margin: 0; }
+.p-replay .riel-lineas dt { margin-top: 3px; color: var(--texto-3); }
+.p-replay .riel-lineas dd { display: grid; gap: 2px; min-width: 0; margin: 0; }
+.p-replay .riel-esperaba { color: var(--texto-1); font-size: 14px; line-height: 21px; overflow-wrap: anywhere; }
+.p-replay .riel-quedo { color: var(--texto-2); font-size: 14px; line-height: 21px; overflow-wrap: anywhere; }
+.p-replay .riel-url { color: var(--texto-3); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
+
+/* El intento, al pie y siempre a la vista. */
+.p-replay .riel-pie {
+  position: sticky; bottom: 0; display: flex; align-items: center; gap: var(--e-2); min-width: 0;
+  margin-top: auto; padding: var(--e-3) var(--e-4); border-top: 1px solid var(--borde); background: var(--superficie-2);
+}
+.p-replay .riel-pie h4 { flex: none; margin: 0; }
+.p-replay .riel-pie .insignia { flex: none; }
+.p-replay .riel-razon {
+  display: -webkit-box; flex: 1; min-width: 0; overflow: hidden; color: var(--texto-3); font-size: 12px; line-height: 16px;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
 
 /* ── Línea de tiempo ──────────────────────────────────────────────────── */
 .p-replay .replay-linea {

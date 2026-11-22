@@ -60,8 +60,8 @@ test("atajos de la tanda y de la telaraña: un juego chico, sin restos de lo que
   const bloque = telarana.slice(telarana.indexOf("ctx.atajos.registrar({"));
   const teclas = [...bloque.matchAll(/^ {4}("[^"]+"|\w+): \{/gm)].map((m) => m[1].replaceAll('"', ""));
   assert.deepEqual(teclas, ["+", "-", "0", "Escape"]);
-  // La tanda: 1 mapa, 2 Replay (sin Resumen ni Perfiles), [ ] y c; sin j/k de hallazgos.
-  assert.deepEqual((await import("../public/nucleo/rutas.js")).PESTANAS, ["telarana", "replay"]);
+  // La tanda: 1 mapa, 2 Replay, 3 Propuesta (sin Resumen ni Perfiles), [ ] y c; sin j/k de hallazgos.
+  assert.deepEqual((await import("../public/nucleo/rutas.js")).PESTANAS, ["telarana", "replay", "propuesta"]);
   assert.doesNotMatch(atajos, /"resumen"/);
   assert.doesNotMatch(fuente("nucleo/marco-tanda.js"), /desc\.(pestanas|hallazgos)/);
 });
