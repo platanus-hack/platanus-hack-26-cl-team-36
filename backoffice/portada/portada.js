@@ -75,15 +75,30 @@ const ES = {
   "replay.pie": "Un intento real en metro.cl, a 2×.",
   "descargar.etiqueta": "Descargar",
   "descargar.titulo": "Instala Chameleon en tu navegador",
+  "descargar.bajada":
+    "Chameleon todavía no está en las tiendas de los navegadores, así que se instala desde aquí. La versión de Firefox está firmada por Mozilla; la de Chrome se carga en modo de desarrollador. Cada una toma más o menos un minuto.",
+  "firefox.paso1":
+    "Abre esta página en Firefox y aprieta <em>Descargar el .xpi</em>. Firefox avisa que bloqueó al sitio para instalar software: aprieta <em>Continuar con la instalación</em>.",
+  "firefox.paso2": "Pide acceso a tus datos en todos los sitios: aprieta <em>Añadir</em>.",
+  "firefox.paso3": "Fíjala en la barra desde el menú de extensiones (la pieza de puzzle): su ícono enciende y apaga el tema.",
   "firefox.ayuda":
-    "Firefox te pedirá permiso para instalarla: aprieta <em>Continuar con la instalación</em> y luego <em>Añadir</em>. Si se descarga como archivo, arrástralo a una ventana de Firefox. Necesita Firefox 140 o superior.",
+    "Necesita Firefox 140 o superior. Hacer doble clic en el archivo .xpi no lo instala: si ya lo descargaste, arrástralo a una ventana de Firefox, o abre <code>about:addons</code>, aprieta el engranaje y elige <em>Instalar complemento desde archivo…</em>",
   "chrome.paso1": "Descomprime el .zip en una carpeta que no vayas a borrar.",
   "chrome.paso2": "Abre <code>chrome://extensions</code> y activa <em>Modo de desarrollador</em>.",
   "chrome.paso3": "Aprieta <em>Cargar descomprimida</em> y elige esa carpeta.",
+  "chrome.paso4": "Fíjala en la barra desde el menú de extensiones (la pieza de puzzle): su ícono enciende y apaga el tema.",
   "chrome.ayuda": "Necesita Chrome 148 o superior. En la Chrome Web Store, próximamente.",
+  "permisos.titulo": "Por qué pide acceso a todos los sitios",
+  "permisos.texto":
+    "Aplica temas en el sitio que abras, así que necesita llegar a la página. Para saber si la página tiene tema solo envía su dirección, sin parámetros, y no envía nada en ventanas privadas ni mientras está apagada.",
+  "actualizar.titulo": "Cómo actualizar",
+  "actualizar.texto":
+    "No se actualiza sola. La versión de esta página es siempre la última: en Firefox, descárgala e instálala encima de la anterior; en Chrome, reemplaza la carpeta y aprieta el botón de recargar de la extensión en <code>chrome://extensions</code>.",
   "cierre.titulo": "Mira a los agentes trabajar",
   "cierre.texto": "Los sitios revisados, las tandas de visitantes y los temas propuestos, en vivo.",
-  pie: "chameleonmode.app · Hecho en Platanus Hack 26, Santiago",
+  "pie.antes": "chameleonmode.app · Hecho en",
+  "pie.despues": ", Santiago",
+  huevo: "Platanus Hack 26: ¡plátanos!",
 };
 
 // Lo que escribe este script (descargas y versiones), en los dos idiomas.

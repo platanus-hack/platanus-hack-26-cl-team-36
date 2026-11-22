@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="/estilos.css">
   <script src="/portada.js" defer></script>
+  <script type="module" src="/huevo-de-pascua.js"></script>
 </head>
 <!-- La página está en inglés; portada.js la pasa a español (su diccionario ES, por las claves data-i18n*). -->
 <body>
@@ -222,6 +223,10 @@
         <header class="seccion-cabecera">
           <p class="etiqueta" data-i18n="descargar.etiqueta">Download</p>
           <h2 id="titulo-descargar" data-i18n="descargar.titulo">Install Chameleon in your browser</h2>
+          <p data-i18n="descargar.bajada">
+            Chameleon isn't in the browser stores yet, so it installs from here. The Firefox version is signed by
+            Mozilla; the Chrome version loads in developer mode. Each takes about a minute.
+          </p>
         </header>
 
         <div class="descargas">
@@ -235,9 +240,15 @@
               <svg class="icono" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>Download the .xpi</span>
             </a>
+            <ol class="descarga-pasos">
+              <li data-i18n-html="firefox.paso1">Open this page in Firefox and click <em>Download the .xpi</em>. Firefox says it blocked the site from installing software: click <em>Continue to Installation</em>.</li>
+              <li data-i18n-html="firefox.paso2">It asks to access your data on all websites: click <em>Add</em>.</li>
+              <li data-i18n-html="firefox.paso3">Pin it to the toolbar from the extensions menu (the puzzle piece): its icon turns the theme on and off.</li>
+            </ol>
             <p class="descarga-ayuda" data-i18n-html="firefox.ayuda">
-              Firefox will ask for permission to install it: click <em>Continue to Installation</em> and then
-              <em>Add</em>. If it downloads as a file, drag it onto a Firefox window. Requires Firefox 140 or later.
+              Requires Firefox 140 or later. Double-clicking the .xpi file won't install it: if you already downloaded it,
+              drag it onto a Firefox window, or open <code>about:addons</code>, click the gear icon and choose
+              <em>Install Add-on From File…</em>
             </p>
           </article>
 
@@ -255,9 +266,29 @@
               <li data-i18n="chrome.paso1">Unzip the .zip into a folder you won't delete.</li>
               <li data-i18n-html="chrome.paso2">Open <code>chrome://extensions</code> and turn on <em>Developer mode</em>.</li>
               <li data-i18n-html="chrome.paso3">Click <em>Load unpacked</em> and choose that folder.</li>
+              <li data-i18n="chrome.paso4">Pin it to the toolbar from the extensions menu (the puzzle piece): its icon turns the theme on and off.</li>
             </ol>
             <p class="descarga-ayuda" data-i18n="chrome.ayuda">Requires Chrome 148 or later. On the Chrome Web Store, coming soon.</p>
           </article>
+        </div>
+
+        <div class="descarga-notas">
+          <div class="descarga-nota">
+            <h3 data-i18n="permisos.titulo">Why it asks for access to every site</h3>
+            <p data-i18n="permisos.texto">
+              It applies themes on whatever site you open, so it needs to reach the page. To find out whether the page
+              has a theme it only sends its address, without parameters, and it sends nothing in private windows or
+              while it's switched off.
+            </p>
+          </div>
+          <div class="descarga-nota">
+            <h3 data-i18n="actualizar.titulo">How to update</h3>
+            <p data-i18n-html="actualizar.texto">
+              It doesn't update itself. The version on this page is always the latest: in Firefox, download it and
+              install it over the old one; in Chrome, replace the folder and click the extension's reload button on
+              <code>chrome://extensions</code>.
+            </p>
+          </div>
         </div>
       </div>
     </section>
@@ -274,7 +305,8 @@
   <footer class="pie">
     <div class="contenedor pie-interior">
       <img src="/logo.svg" alt="Chameleon Mode" width="492" height="128" loading="lazy">
-      <p data-i18n="pie">chameleonmode.app · Made at Platanus Hack 26, Santiago</p>
+      <!-- Huevo de pascua: «Platanus Hack 26» es un botón (huevo-de-pascua.js); el resto de la frase se traduce aparte. -->
+      <p><span data-i18n="pie.antes">chameleonmode.app · Made at</span> <button type="button" class="huevo" aria-label="Platanus Hack 26: bananas!" data-i18n-aria-label="huevo">Platanus Hack 26</button><span data-i18n="pie.despues">, Santiago</span></p>
     </div>
   </footer>
 </body>
