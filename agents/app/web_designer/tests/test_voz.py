@@ -1,6 +1,9 @@
 """La voz del sitio en el kit: clichés, anclaje léxico con el catálogo real de metro.cl y los textos que vuelven al
 sitio."""
 
+import json
+from pathlib import Path
+
 import pytest
 
 from disenador import atajos, tema_json, voz
@@ -121,6 +124,18 @@ def test_el_kit_real_de_metro_conserva_lo_que_ya_era_del_sitio():
     for vista in vistas.values():
         verificado, reemplazos = voz.verificar(vista, vista, vocabulario)
         assert reemplazos == [] and verificado == vista
+
+
+def test_el_kit_de_ejemplo_de_la_extension_habla_como_metro():
+    fixture = Path(__file__).parents[4] / "extension" / "test" / "fixtures" / "metro" / "tema.json"
+    vistas = {v["id"]: v for v in json.loads(fixture.read_text(encoding="utf-8"))["features"]["vista"]}
+    textos = [t for v in vistas.values() for por_idioma in v["opciones"].get("textos", {}).values()
+              for t in por_idioma.values()]
+    textos += [t for v in vistas.values() for item in v["datos"] for clave in ("titulo", "detalle", "etiqueta")
+               for t in (item.get(clave) or {}).values()]
+    assert textos and [t for t in textos if voz.cliche(t)] == []
+    assert vistas["planificar"]["opciones"]["textos"]["es"]["titulo"] == "Planifica tu viaje"
+    assert vistas["tareas"]["opciones"]["textos"]["es"] == {"titulo": "MetroServicio"}
 
 
 def test_el_modelo_dice_de_donde_sale_cada_texto():
