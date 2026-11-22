@@ -1,12 +1,16 @@
 // Enrutador por hash y contrato de las pantallas (diseño §5.2).
 //
-// Cada pantalla (public/pantallas/<id>.js) exporta por defecto { titulo(ctx), montar(contenedor, ctx),
-// actualizar?(ctx) → boolean, desmontar?() }. El enrutador la carga con import() y espera su sección del
-// diccionario antes de montarla; si el archivo todavía no existe, muestra "Esta vista todavía no está lista".
+// Cada pantalla (public/pantallas/<id>.js) exporta por defecto { titulo(ctx), cargar?(ctx) → datos,
+// montar(contenedor, ctx, datos), actualizar?(ctx) → boolean, desmontar?() }. El enrutador la carga con import() y
+// espera su sección del diccionario antes de montarla; si el archivo todavía no existe, muestra "Esta vista todavía no
+// está lista".
 //
-// Por navegación: (1) parsear (enlaces viejos → redirigir), (2) cargar datos con esqueleto a los 150 ms,
-// (3) dentro de conTransicion desmontar y montar, (4) foco (§5.4), (5) evento `backoffice:ruta`.
-// Si solo cambia la pestaña, el marco se queda y se cambia el panel. Si solo cambian parámetros, no se remonta.
+// Por navegación: (1) parsear (enlaces viejos → redirigir), (2) cargar datos con esqueleto a los 150 ms: la lista o
+// la tanda, y lo que pida cargar(ctx) de la pantalla (el Overview, Revisiones y la Propuesta traen sus propios datos);
+// (3) dentro de conTransicion desmontar y montar con esos datos (montar no espera la red: durante la transición la
+// página está congelada), (4) foco (§5.4), (5) evento `backoffice:ruta`. Si solo cambia la pestaña, el marco se queda
+// y se cambia el panel. Si solo cambian parámetros, no se remonta. Cuando una pantalla se remonta sin pasar por aquí
+// (Reintentar, un actualizar que devuelve false), montar recibe datos undefined y los pide ella, con su esqueleto.
 
 import { avisar, anunciar } from "./avisos.js";
 import { pedirTanda, pedirTandas, urlDeArchivo } from "./datos.js";
@@ -20,7 +24,15 @@ import { conTransicion } from "./transiciones.js";
 
 export const EVENTO_RUTA = "backoffice:ruta";
 
-const ESQUELETO_DE_PESTANA = { telarana: "lienzo", replay: "replay" };
+const ESQUELETO_DE_PESTANA = { telarana: "lienzo", replay: "replay", propuesta: "propuesta" };
+
+/** El esqueleto de una vista entera mientras carga, con su geometría (estados.js). */
+function esqueletoDeVista(ruta) {
+  if (ruta.tipo === "tanda") return "tanda";
+  if (ruta.tipo === "overview") return "overview";
+  if (ruta.tipo === "revisiones") return ruta.revision ? "tabla" : "revisiones";
+  return "lista";
+}
 
 // Corridas y la tanda trabajan sobre la lista de tandas y la esperan. El Overview y Revisiones traen sus propios
 // datos: no esperan /api/tandas (que con S3 tarda) y la usan si ya llegó; mientras, la lista se carga en segundo plano.
@@ -159,14 +171,15 @@ function desmontarVista() {
   vista = null;
 }
 
-async function montarPantalla(v, modulo, destino) {
+/** `datos`: lo que devolvió cargar(ctx) de la pantalla; undefined si no se cargó antes (la pantalla lo pide). */
+async function montarPantalla(v, modulo, destino, datos) {
   v.modulo = modulo;
   v.controlador = new AbortController();
   v.quitar = [];
   v.contenedor = el("div", { class: "vista-pantalla" });
   reemplazar(destino, v.contenedor);
   try {
-    await modulo.montar(v.contenedor, crearContexto(v));
+    await modulo.montar(v.contenedor, crearContexto(v), datos);
   } catch (error) {
     console.error(`enrutador: montar() de «${v.id}» falló`, error);
     reemplazar(
@@ -294,6 +307,14 @@ function errorDeCarga(error, tipo) {
   });
 }
 
+/**
+ * Lo que recibe cargar(ctx) de una pantalla: la ruta y sus parámetros, la tanda (en una tanda) y lo que no depende
+ * de la vista montada. No trae la señal ni la URL: cargar solo pide datos.
+ */
+function contextoDeCarga(nueva, tanda = null) {
+  return { ruta: nueva, parametros: { ...(nueva.parametros ?? {}) }, tanda, tandas: listaDeTandas.tandas, cargarEstilos, t, fmt, idioma: idioma() };
+}
+
 async function cargarRuta(nueva) {
   const espera = ESPERAN_LA_LISTA.has(nueva.tipo);
   if (!espera) {
@@ -310,8 +331,14 @@ async function cargarRuta(nueva) {
       : cargarPantalla(nueva.tipo),
   ]);
   if (lista) listaDeTandas = lista;
-  if (nueva.tipo === "tanda") return { tanda: extra[0], modulo: extra[1] };
-  return { modulo: extra };
+  if (nueva.tipo === "tanda") {
+    const [tanda, modulo] = extra;
+    // Sin tanda no hay qué montar (la vista dice que no existe): no se piden sus datos.
+    const datos = tanda && typeof modulo.cargar === "function" ? await modulo.cargar(contextoDeCarga(nueva, tanda)) : undefined;
+    return { tanda, modulo, datos };
+  }
+  const datos = typeof extra.cargar === "function" ? await extra.cargar(contextoDeCarga(nueva)) : undefined;
+  return { modulo: extra, datos };
 }
 
 /** Procesa location.hash. `origen`: "inicio" | "navegar" | "historial" | "idioma" | "reintento". */
@@ -405,7 +432,7 @@ async function procesar({ origen = "historial" } = {}) {
           reemplazar(panel, esqueleto(ESQUELETO_DE_PESTANA[nueva.pestana] ?? "tabla"));
         } else {
           desmontarVista();
-          reemplazar(raiz, esqueleto(nueva.tipo === "tanda" ? "tanda" : "lista"));
+          reemplazar(raiz, esqueleto(esqueletoDeVista(nueva)));
         }
       },
       null,
@@ -442,19 +469,19 @@ async function procesar({ origen = "historial" } = {}) {
       vista.pestana = nueva.pestana;
       vista.id = nueva.pestana;
       vista.marco.actualizar(nueva);
-      await montarPantalla(vista, cargado.modulo, vista.marco.panel);
+      await montarPantalla(vista, cargado.modulo, vista.marco.panel, cargado.datos);
       return;
     }
     desmontarVista();
     if (nueva.tipo !== "tanda") {
       vista = { tipo: nueva.tipo, id: nueva.tipo, ruta: nueva, quitar: [] };
-      await montarPantalla(vista, cargado.modulo, raiz);
+      await montarPantalla(vista, cargado.modulo, raiz, cargado.datos);
       return;
     }
     const marco = montarMarco({ tanda: cargado.tanda, ruta: nueva, navegar });
     reemplazar(raiz, marco.raiz);
     vista = { tipo: "tanda", id: nueva.pestana, ruta: nueva, tanda: cargado.tanda, tandaId: nueva.tandaId, pestana: nueva.pestana, marco, quitar: [] };
-    await montarPantalla(vista, cargado.modulo, marco.panel);
+    await montarPantalla(vista, cargado.modulo, marco.panel, cargado.datos);
   };
 
   try {

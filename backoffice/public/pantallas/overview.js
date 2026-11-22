@@ -13,6 +13,7 @@
 
 import { pedirOverview, pedirResumen } from "../nucleo/datos.js";
 import { el, reemplazar } from "../nucleo/dom.js";
+import { esqueleto } from "../nucleo/estados.js";
 import { leerDispositivo, modeloDeAgentes } from "../overview/agentes.js";
 import { escucharColores, imagenes } from "../overview/capturas.js";
 import { crearBloqueDeAgentes } from "../overview/dom-agentes.js";
@@ -122,21 +123,37 @@ async function cargarMas(actual) {
   }
 }
 
+/**
+ * Los datos para montar: los dos endpoints y la hoja de estilos. El enrutador lo llama antes de la transición, con el
+ * esqueleto del Overview mientras tanto. → { resumen, overview, limites }
+ */
+async function cargar(ctx) {
+  const limites = Object.fromEntries(PESTANAS.map((pestana) => [pestana, TARJETAS_POR_PAGINA]));
+  const [[resumen, overview]] = await Promise.all([pedirTodo({ ctx, limites }), ctx.cargarEstilos("estilos/overview.css")]);
+  return { resumen, overview, limites };
+}
+
 export default {
   titulo(ctx) {
     return ctx.t("comun.shell.overview");
   },
 
-  async montar(contenedor, ctx) {
-    const limites = Object.fromEntries(PESTANAS.map((pestana) => [pestana, TARJETAS_POR_PAGINA]));
-    const inicial = { ctx, limites };
-    const [[resumen, overview]] = await Promise.all([pedirTodo(inicial), ctx.cargarEstilos("estilos/overview.css")]);
+  cargar,
+
+  async montar(contenedor, ctx, cargado) {
+    if (!cargado) {
+      // Remontada sin pasar por el enrutador (Reintentar): pide ella, con el mismo esqueleto.
+      reemplazar(contenedor, esqueleto("overview"));
+      cargado = await cargar(ctx);
+    }
     // Si otra navegación reemplazó la vista mientras se pedían los datos, no se arma ni se programa nada.
     if (ctx.senal.aborted) return;
     contenedor.classList.add("p-overview");
+    const { resumen, overview, limites } = cargado;
 
     const actual = {
-      ...inicial,
+      ctx,
+      limites,
       datos: { resumen, overview },
       firma: firmaDe(resumen, overview),
       error: false,

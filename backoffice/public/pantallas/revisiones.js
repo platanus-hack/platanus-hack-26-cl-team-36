@@ -6,7 +6,7 @@
 
 import { pedirRevision, pedirRevisiones, urlDeResultado } from "../nucleo/datos.js";
 import { conservarFoco, el, esUrlWeb, reemplazar } from "../nucleo/dom.js";
-import { avisoEnLinea, vacio } from "../nucleo/estados.js";
+import { avisoEnLinea, esqueleto, vacio } from "../nucleo/estados.js";
 import { icono } from "../nucleo/iconos.js";
 import { enlaceARevision, enlaceARevisiones, enlaceATanda, enlaceAVivo } from "../nucleo/rutas.js";
 import { goalEnVivo } from "../datos/vivo.js";
@@ -249,20 +249,35 @@ function programar(actual) {
   }, INTERVALO);
 }
 
+/**
+ * La lista o la revisión, y la hoja de estilos. El enrutador lo llama antes de la transición, con el esqueleto de
+ * Revisiones mientras tanto. → { datos } (datos null: la revisión no existe)
+ */
+async function cargar(ctx) {
+  const [datos] = await Promise.all([pedir({ revision: ctx.ruta.revision ?? null }), ctx.cargarEstilos("estilos/revisiones.css")]);
+  return { datos };
+}
+
 export default {
   titulo(ctx) {
     return ctx.ruta.revision ?? ctx.t("comun.shell.revisiones");
   },
 
-  async montar(contenedor, ctx) {
+  cargar,
+
+  async montar(contenedor, ctx, cargado) {
     contenedor.classList.add("p-revisiones");
     const revision = ctx.ruta.revision ?? null;
     const filtro = revision ? null : (ctx.parametros.estado ?? null);
     const actual = { contenedor, ctx, revision, filtro, firma: null, datos: null, error: false, reloj: null };
-    const [datos] = await Promise.all([pedir(actual), ctx.cargarEstilos("estilos/revisiones.css")]);
+    if (!cargado) {
+      // Remontada sin pasar por el enrutador (Reintentar): pide ella, con el mismo esqueleto.
+      reemplazar(contenedor, esqueleto(revision ? "tabla" : "revisiones"));
+      cargado = await cargar(ctx);
+    }
     if (ctx.senal.aborted) return;
     estado = actual;
-    dibujar(actual, datos);
+    dibujar(actual, cargado.datos);
     programar(actual);
   },
 
