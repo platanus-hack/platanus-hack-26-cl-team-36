@@ -60,7 +60,7 @@ function crearPantalla(contenedor, ctx) {
       alElegir: (id) => {
         if (id === goal) return;
         const tanda = tandaDelGoal(goals.find((cada) => cada.goal === id));
-        ctx.navegar(tanda ? enlaceATanda(tanda, "telarana") : enlaceAVivo(revision, id));
+        ctx.navegar(tanda ? enlaceATanda(tanda, "telarana", { revision }) : enlaceAVivo(revision, id));
       },
     });
     reemplazar(lado, estado.riel.nodo);
@@ -103,7 +103,7 @@ function crearPantalla(contenedor, ctx) {
           "div",
           { class: "vivo-aviso tarjeta" },
           el("span", { class: "texto-2", texto: t("vivo.terminado.conTanda") }),
-          el("a", { class: "boton", href: enlaceATanda(tanda, "telarana"), texto: t("vivo.terminado.verTanda") }),
+          el("a", { class: "boton", href: enlaceATanda(tanda, "telarana", { revision }), texto: t("vivo.terminado.verTanda") }),
         ),
       );
     }

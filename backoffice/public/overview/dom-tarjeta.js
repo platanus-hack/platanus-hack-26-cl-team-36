@@ -114,7 +114,11 @@ function goals(modelo, t) {
   const { visibles, mas } = modelo.medidores;
   const aviso = modelo.aviso;
   const fila = (medidor, ...hijos) => {
-    const href = medidor.tanda ? enlaceATanda(medidor.tanda) : medidor.vivo ? enlaceAVivo(modelo.revision, medidor.goal) : null;
+    const href = medidor.tanda
+      ? enlaceATanda(medidor.tanda, undefined, { revision: modelo.revision })
+      : medidor.vivo
+        ? enlaceAVivo(modelo.revision, medidor.goal)
+        : null;
     return href
       ? el("li", {}, el("a", { class: "ov-goal ov-goal-enlace", href, title: medidor.instruccion, "data-foco": `overview:goal:${modelo.key}:${medidor.goal}` }, hijos))
       : el("li", {}, el("div", { class: "ov-goal", title: medidor.instruccion }, hijos));
@@ -215,7 +219,7 @@ function actualizarTarjeta(registro, modelo, deps) {
     : modelo.vivo
       ? enlaceAVivo(modelo.revision, modelo.vivo)
       : modelo.tanda
-        ? enlaceATanda(modelo.tanda)
+        ? enlaceATanda(modelo.tanda, undefined, modelo.tandaPropia ? { revision: modelo.revision } : {})
         : deps.enlace(modelo.revision);
   if (enlace.getAttribute("href") !== href) enlace.setAttribute("href", href);
   const etiqueta = etiquetaDeTarjeta(modelo, deps);

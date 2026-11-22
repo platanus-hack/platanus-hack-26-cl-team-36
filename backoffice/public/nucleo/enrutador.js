@@ -640,7 +640,8 @@ async function abrirTanda(nueva, hash, { miTurno, fijarRuta, origen }) {
   mostrarEnHoja(marco);
   const v = { tipo: "tanda", id: nueva.pestana, ruta: nueva, tanda: null, tandaId: nueva.tandaId, pestana: nueva.pestana, marco, quitar: [] };
   vista = v;
-  enfocar(marco.titulo);
+  // Al cambiar de goal desde la franja, el foco sigue en la franja; si no, va al título.
+  enfocar(marco.focoInicial ?? marco.titulo);
 
   let cargado;
   try {
