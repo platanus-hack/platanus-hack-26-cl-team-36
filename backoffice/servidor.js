@@ -21,6 +21,7 @@
 //                                           revisiones del Overview, cada tarjeta con todo lo que dibuja (§2); 6 ids por
 //                                           pestaña y hasta `limite` (6–500) en la pedida (§7.4); sin tabla,
 //                                           { ahora, disponible: false }
+//   GET /backoffice/api/vivo/<revision>/<goal>  → los pasos de los agentes del goal en vivo (SSE, lib/transmision.js)
 //   GET /backoffice/resultados/<corrida>/<manifest.json | goals.json | route.json | tema.css>
 //   GET /backoffice/api/propuestas/<host>/visitor/<objetivo>/<corrida>  → la propuesta del Diseñador para esa tanda
 //   GET /backoffice/propuestas/<host>/improver/<corrida>/vistas/<nombre>.png  → una captura antes/después del tema
@@ -48,6 +49,7 @@ import { ARCHIVO_DE_VISTA, crearPropuestas } from "./lib/propuestas.js";
 import { crearRevisiones, partesDeResultado } from "./lib/revisiones.js";
 import { abrirArchivoDeIntento, leerTanda, listarTandas } from "./lib/tandas.js";
 import { partesDeCorrida, partesDeTanda } from "./public/nucleo/almacen.js";
+import { crearTransmisor } from "./lib/transmision.js";
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const PUBLICO = path.join(AQUI, "public");
@@ -174,10 +176,12 @@ const hostsDelEntorno = () =>
  *        `revisiones`: la tabla de revisiones (lib/revisiones.js); sin ella, /api/revisiones y /api/overview dicen que
  *        no está disponible y /api/resumen cuenta 0 en cola.
  *        `reloj`: la hora de referencia del Overview (`ahora`); por defecto, la real.
+ *        `vivo`: opciones de lib/transmision.js (intervaloMs, latidoMs, tope).
  */
-export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisiones = null, reloj = () => new Date() } = {}) {
+export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisiones = null, reloj = () => new Date(), vivo = {} } = {}) {
   const origen = fuente ?? crearFuente({ tipo: "archivos", raiz: raizCorridas });
   const panel = crearPanel({ fuente: origen, revisiones, reloj });
+  const transmitir = crearTransmisor({ revisiones, cabeceras: CABECERAS_DE_SEGURIDAD, ...vivo });
   const extra = hostsPermitidos ? new Set(hostsPermitidos.map((host) => host.toLowerCase())) : hostsDelEntorno();
   const propuestas = crearPropuestas(origen);
   return createServer(async (req, res) => {
@@ -219,6 +223,10 @@ export function crearServidor({ fuente, raizCorridas, hostsPermitidos, revisione
         }
         const avance = revisiones ? await revisiones.leer(partes[2]) : null;
         return avance ? responderJson(res, 200, avance) : responderJson(res, 404, { error: "No existe esa revisión" });
+      }
+
+      if (partes[0] === "api" && partes[1] === "vivo" && partes.length === 4) {
+        return transmitir(req, res, partes[2], partes[3], responderJson);
       }
 
       if (partes[0] === "api" && partes.length === 2 && partes[1] === "resumen") return responderJson(res, 200, await panel.resumen());

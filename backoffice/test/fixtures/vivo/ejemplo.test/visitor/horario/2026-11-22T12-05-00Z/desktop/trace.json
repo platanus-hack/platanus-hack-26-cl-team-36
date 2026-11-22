@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "agent": "visitor",
+  "goal": "horario",
+  "revision": "en-curso",
+  "profile": "desktop",
+  "status": "running",
+  "updated_at": "2026-11-22T12:05:04.000Z",
+  "start": { "url": "https://www.ejemplo.test/", "title": "Inicio", "screenshot": "step_00.png" },
+  "steps": [
+    {
+      "number": 1, "action": "left_click", "description": "clic en (10, 40)", "element": { "tag": "a", "text": "Ayuda", "href": null },
+      "url_before": "https://www.ejemplo.test/", "title_before": "Inicio",
+      "url": "https://www.ejemplo.test/ayuda", "title": "Ayuda", "screenshot": "step_01.png",
+      "seconds_since_start": 4.0, "settled_at": "2026-11-22T12:05:04.000Z", "signals": []
+    }
+  ]
+}
