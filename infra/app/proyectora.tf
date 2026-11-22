@@ -18,6 +18,8 @@ data "aws_iam_policy_document" "proyectora" {
       "${aws_s3_bucket.almacen.arn}/*/manifest.json",
       "${aws_s3_bucket.almacen.arn}/*/trace.json",
       "${aws_s3_bucket.almacen.arn}/*/cataloger/*/goals.json",
+      # Solo para saber si el improver dejó un tema.json (ver `existe` en proyectora.js).
+      "${aws_s3_bucket.almacen.arn}/*/improver/*/tema.json",
     ]
   }
 

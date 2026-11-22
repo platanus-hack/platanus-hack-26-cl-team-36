@@ -30,7 +30,7 @@ resource "aws_iam_role_policy_attachment" "backend_logs" {
 }
 
 # /revisiones: marca páginas y crea revisiones (TransactWriteItems pide los permisos de
-# cada Put; Scan cuenta las en curso para el tope), lee el tema.css del almacén y dispara el conductor, que busca por nombre.
+# cada Put; Scan cuenta las en curso para el tope), lee el tema.css (y el tema.json) del almacén y dispara el conductor, que busca por nombre.
 data "aws_iam_policy_document" "backend" {
   statement {
     actions   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Scan"]
@@ -38,8 +38,11 @@ data "aws_iam_policy_document" "backend" {
   }
 
   statement {
-    actions   = ["s3:GetObject"]
-    resources = ["${aws_s3_bucket.almacen.arn}/*/improver/*/tema.css"]
+    actions = ["s3:GetObject"]
+    resources = [
+      "${aws_s3_bucket.almacen.arn}/*/improver/*/tema.css",
+      "${aws_s3_bucket.almacen.arn}/*/improver/*/tema.json",
+    ]
   }
 
   # ARN `runtime/<proyecto>_<destino>_<nombre>-<sufijo>`; el `*` final cubre también su endpoint.
