@@ -1,5 +1,5 @@
 from guide.operate import perform_step
-from guide.page_view import element_for_ref, page_text, read_page_view
+from guide.page_view import Element, element_for_ref, page_text, read_page_view
 from guide.prompts import render_view
 
 
@@ -16,7 +16,7 @@ def test_view_flags_hidden_offscreen_and_revealer(with_session):
         assert not help_link.visible and help_link.revealed_by == menu.ref
         contact = _by_name(view, "Contacto")
         assert contact.visible and not contact.in_viewport
-        assert contact.same_host_href(view.url) == contact.href
+        assert contact.site_href([view.url]) == contact.href
         lines = render_view(view)
         assert f"{help_link.ref} · link · «Ayuda»" in lines and "oculto, lo muestra " + menu.ref in lines
         assert await element_for_ref(session.page, menu.ref) is not None
@@ -102,3 +102,15 @@ def test_element_below_the_fold_of_an_inner_scroll_panel_is_usable(with_session)
         assert step.title_after == "Productos" and step.in_viewport is False
 
     with_session("app.html", body)
+
+
+def test_links_of_the_site_are_shown_and_allowed_after_a_redirect_to_a_subdomain():
+    sii = ("https://www.sii.cl/", "https://homer.sii.cl/")
+
+    def link(href):
+        return Element("e17", "a", "link", "Digital VAT Portal", "", href, None, None, False, True, True, None)
+
+    for href in ("https://www.sii.cl/vat/index.html", "https://sii.cl/destacados/", "https://zeus.sii.cl/cvc/"):
+        assert link(href).site_href(sii) == href and not link(href).leaves_site(sii)
+    assert link("https://www.gob.cl/").leaves_site(sii) and link("https://www.gob.cl/").site_href(sii) is None
+    assert not link("javascript:void(0)").leaves_site(sii) and not link("mailto:a@sii.cl").leaves_site(sii)

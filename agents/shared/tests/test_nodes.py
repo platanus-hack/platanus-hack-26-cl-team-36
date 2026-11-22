@@ -1,4 +1,4 @@
-from shared.nodes.urls import node_key, normalize_url, same_site
+from shared.nodes.urls import node_key, normalize_url, on_site, same_site
 
 
 def test_normalize_url_drops_tracking_fragment_and_www():
@@ -24,3 +24,10 @@ def test_links_without_a_host_belong_to_no_site():
     start = "https://www.dt.gob.cl/portal/"
     assert not same_site("mailto:contacto@dt.gob.cl", start) and not same_site(start, "javascript:void(0)")
     assert not same_site("tel:+56226749300", start)
+
+
+def test_on_site_accepts_the_site_of_the_requested_url_after_a_redirect():
+    sii = ("https://www.sii.cl/", "https://homer.sii.cl/")
+    assert on_site("https://www.sii.cl/vat/index.html", sii) and on_site("https://WWW.SII.CL:443/destacados/", sii)
+    assert not same_site("https://www.sii.cl/vat/index.html", "https://homer.sii.cl/")
+    assert not on_site("https://www.gob.cl/", sii) and not on_site("https://sii.cl.evil.com/", sii)
