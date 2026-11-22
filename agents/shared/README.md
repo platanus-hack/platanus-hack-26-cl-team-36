@@ -96,6 +96,9 @@ La clave `wom.cl/cataloger/2026-11-21T10-44-22Z/goals.json` es `agents/.runs/wom
 y `s3://bucket/prefijo/wom.cl/cataloger/…/goals.json` en S3. Como el árbol es el mismo, copiar de uno a otro es
 `aws s3 sync agents/.runs/ s3://bucket/prefijo/`.
 
+En S3 cada video (`video/*`) se sube con la etiqueta `tipo=video`, que la regla de ciclo de vida del bucket usa
+para expirarlo: S3 no filtra por extensión. Escribirla pide `s3:PutObjectTagging` además de `s3:PutObject`.
+
 ## Instalación
 
 Desde un agente en `agents/app/<agente>/`, como dependencia de ruta editable (sin editable no ubica `agents/.runs/`):
