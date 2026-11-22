@@ -127,8 +127,8 @@
           "sugeridas": 16,
           "agrupar": true,
           "textos": {
-            "es": { "boton": "Buscar una tarea en metro.cl…", "campo": "¿Qué quieres hacer? Prueba «tarifa» o «bip»" },
-            "en": { "boton": "Search metro.cl for a task…", "campo": "What do you want to do? Try “fare” or “bip”" }
+            "es": { "boton": "Buscar una tarea en metro.cl…" },
+            "en": { "boton": "Search metro.cl for a task…" }
           }
         }
       },
