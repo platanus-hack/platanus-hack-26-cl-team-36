@@ -6,8 +6,8 @@
 // ({ clave, vars }) o como campos estructurados, y public/datos/textos.js lo traduce.
 
 import { demorasDelIntento, hallazgos as calcularHallazgos, recortarHallazgos, titulares as calcularTitulares } from "./hallazgos.js";
-import { titularPaginas, unirNodos } from "./paginas.js";
-import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinConsulta } from "./url.js";
+import { quitarSufijo, sufijoComun, titularPaginas, tituloDesdeRuta, unirNodos } from "./paginas.js";
+import { caminoDe, claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinConsulta } from "./url.js";
 
 /**
  * @typedef {import("./hallazgos.js").Hallazgo} Hallazgo
@@ -182,6 +182,7 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {{ tanda: Texto, telarana: Texto, perfiles: Texto }} titulares
  * @property {ReturnType<typeof porConocimiento>} porConocimiento
  * @property {"ok" | "falta" | "danado"} arbol  estado del route_tree.json de la tanda
+ * @property {RutaDeLaGuia | null} rutaGuia   la ruta de la Guía (solo en GET /api/tandas/<id>: lib/tandas.js la lee)
  */
 
 // Motivos de fin que son fallas de la herramienta, no del usuario: los _INTERRUPTED_REASONS de
@@ -501,6 +502,65 @@ export function distancias(paginas, ramas) {
 }
 
 const esVolver = (accion) => /^volver a\b/i.test(String(accion ?? "").trim());
+
+/**
+ * @typedef {Object} PaginaDeLaGuia
+ * @property {string | null} id      la página de la telaraña, o null si ningún intento llegó a ella
+ * @property {string} url
+ * @property {string} titulo
+ * @property {string | null} tituloCorto
+ * @property {"sitio" | "inicio" | "url"} tituloTipo   como en Pagina: para nombrarla si no está en la telaraña
+ * @property {string | null} accion  lo que hizo la Guía para llegar a ella (null en la página inicial)
+ *
+ * @typedef {{ paginas: PaginaDeLaGuia[], verificada: boolean }} RutaDeLaGuia
+ */
+
+/**
+ * La ruta de la Guía (su route.json) pasada a las páginas de la tanda: la página inicial y cada página a la que lleva
+ * un paso, sin repetidos seguidos. Es la ruta contra la que se mide el resultado de cada intento; la de la telaraña
+ * (`telarana.ruta`) sale de los intentos que llegaron y no existe si ninguno llegó.
+ * @param {object | null} guia  route.json (pasos con url_after/title_after; los viejos, con url/title)
+ * @param {(url: string, titulo: string) => string | null} paginaDe   URL + título → id de página de la tanda
+ * @param {{ titulo: string }[]} paginasDeLaTanda   para quitar el sufijo común de los títulos
+ * @returns {RutaDeLaGuia | null}  null sin route.json o si la ruta no sale de la página inicial
+ */
+export function rutaDeLaGuia(guia, paginaDe, paginasDeLaTanda = []) {
+  if (!guia || typeof guia !== "object") return null;
+  const texto = (valor) => (typeof valor === "string" ? valor : "");
+  const pasos = (Array.isArray(guia.steps) ? guia.steps : []).filter((paso) => paso && typeof paso === "object");
+  const inicio = texto(guia.start?.url)
+    ? { url: texto(guia.start.url), titulo: texto(guia.start.title) }
+    : texto(pasos[0]?.url_before)
+      ? { url: texto(pasos[0].url_before), titulo: texto(pasos[0].title_before) }
+      : null;
+  if (!inicio) return null;
+  const lugares = [{ ...inicio, accion: null }];
+  for (const paso of pasos) {
+    const url = texto(paso.url_after) || texto(paso.url);
+    if (url) lugares.push({ url, titulo: texto(paso.title_after) || texto(paso.title), accion: texto(paso.label) || texto(paso.action) || null });
+  }
+  // Títulos distintos: uno repetido (el inicio, en la tanda y en la ruta) haría de sufijo común a sí mismo.
+  const sufijo = sufijoComun([...new Set([...paginasDeLaTanda.map((pagina) => pagina.titulo), ...lugares.map((lugar) => lugar.titulo)])]);
+  const paginas = [];
+  for (const lugar of lugares) {
+    const id = paginaDe(lugar.url, lugar.titulo) ?? null;
+    const clave = id ?? `url:${rutaSinConsulta(lugar.url)}`;
+    if (paginas.at(-1)?.clave === clave) continue;
+    const inicioDelSitio = caminoDe(lugar.url) === "/";
+    const corto = lugar.titulo.trim() ? quitarSufijo(lugar.titulo, sufijo) : null;
+    paginas.push({
+      clave,
+      id,
+      url: lugar.url,
+      titulo: lugar.titulo,
+      tituloCorto: inicioDelSitio ? null : (corto ?? tituloDesdeRuta(lugar.url) ?? lugar.url),
+      tituloTipo: inicioDelSitio ? "inicio" : corto ? "sitio" : "url",
+      accion: lugar.accion,
+    });
+  }
+  if (paginas.length < 2) return null;
+  return { paginas: paginas.map(({ clave, ...pagina }) => pagina), verificada: guia.status === "verified" || guia.verified === true };
+}
 
 /**
  * La ruta recomendada del evaluador, pasada a páginas: los nodos de una misma página se juntan y cada tramo va de un
@@ -988,7 +1048,7 @@ function intentosDelTramoSegun(crudos, ubicaciones) {
  *           intentos: { perfil: string, run: object, video: boolean }[] }} entrada   `perfil`: la carpeta del intento
  * @returns {Tanda}
  */
-export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArbol = arbol ? "ok" : "falta" }) {
+export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArbol = arbol ? "ok" : "falta", guia = null }) {
   const nodosCrudos = arbol?.nodes ?? [];
   const idPorClave = new Map();
   const idPorUrl = new Map();
@@ -1040,6 +1100,11 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos, estadoDelArb
     exploradores: Boolean(arbol?.conjunto_exploradores) || (intentos.length > 0 && intentos.every((intento) => intento.perfil.startsWith("explorador"))),
     intentos,
     telarana: { paginas, ramas, ruta, rutaEnInicio: ruta ? null : rutaEnLaPaginaDeInicio(arbol?.recommended_route ?? null, paginaDeNodo), alias },
+    // La ruta de la Guía contra la que se midió cada intento (route.json de la corrida que la tanda lista en sus inputs).
+    rutaGuia: rutaDeLaGuia(guia, (url, titulo) => {
+      const nodo = buscarNodo(url, titulo);
+      return nodo ? (paginaDeNodo.get(nodo) ?? null) : null;
+    }, paginas),
     kpis: armarKpis(intentos, ruta),
     perfiles: armarPerfiles(intentos, ruta),
     porConocimiento: porConocimiento(intentos),

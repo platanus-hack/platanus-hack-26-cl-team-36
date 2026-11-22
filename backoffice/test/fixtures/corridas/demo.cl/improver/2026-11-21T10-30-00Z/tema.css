@@ -1,0 +1,3 @@
+html.mi-tema { --mi-acento: #0e7c86; }
+html.mi-tema body { font-size: 110% !important; line-height: 1.5 !important; }
+html.mi-tema a { color: var(--mi-acento) !important; text-decoration: underline !important; }

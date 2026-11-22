@@ -81,3 +81,14 @@
     }
   }
 }
+
+/* La pestaña Propuesta, con un punto que late mientras el Diseñador diseña. */
+.pestana-punto { display: none; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--acento); }
+.pestana-en-curso .pestana-punto { display: inline-block; animation: pestana-latido 1.4s var(--curva-entrada-salida) infinite; }
+@keyframes pestana-latido {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--acento-sutil); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 4px var(--acento-sutil); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pestana-en-curso .pestana-punto { animation: none; }
+}

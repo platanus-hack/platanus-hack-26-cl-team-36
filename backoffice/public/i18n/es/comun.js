@@ -35,8 +35,10 @@ export default {
   pestana: {
     telarana: "Mapa de caminos",
     replay: "Replay",
+    propuesta: "Propuesta",
   },
   marco: {
+    disenando: "El Diseñador está preparando la propuesta",
     vistas: "Vistas de la tanda",
     anterior: "Anterior",
     siguiente: "Siguiente",
