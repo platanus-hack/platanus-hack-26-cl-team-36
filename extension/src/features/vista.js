@@ -48,7 +48,8 @@
   };
 
   function leerItems(contenedor, { datos, items, campos, accion }) {
-    if (datos) return [].concat(datos);
+    // Copias: abajo se les pone `original`, y no hay que tocar las opciones del tema.
+    if (datos) return [].concat(datos).map((item) => ({ ...item }));
     return [...contenedor.querySelectorAll(items)]
       .map((el) => ({
         ...MiTema.plantillas.leerCampos(el, campos),
@@ -69,8 +70,13 @@
     // Sin datos (p. ej. la portada de YouTube sin sesión), se deja la sección original.
     if (items.length === 0) return quitar(id);
 
-    // El idioma entra en la firma: si cambia, la vista se redibuja con los textos nuevos.
-    const firma = JSON.stringify([MiTema.idioma.actual(), items.map(({ original, ...datos }) => datos)]);
+    // El idioma entra en la firma: si cambia, la vista se redibuja con los textos nuevos. El
+    // componente puede sumar lo que lee de la página por su cuenta (p. ej. las opciones de un <select>).
+    const firma = JSON.stringify([
+      MiTema.idioma.actual(),
+      items.map(({ original, ...datos }) => datos),
+      dibujante.firma?.(items, opciones) ?? null,
+    ]);
     const previo = estado.get(id);
     if (previo && previo.firma === firma && previo.nodo.isConnected && previo.contenedor === contenedor) {
       // Mismos datos: no se redibuja, pero el sitio pudo recrear sus elementos.
@@ -91,15 +97,17 @@
   }
 
   let esperandoCarga = false;
+  let ultimas = [];
 
   function actualizar(vistas = []) {
     // A mitad del parseo una sección puede estar incompleta (un <select> con la mitad de sus opciones).
     if (document.readyState === "loading") {
+      ultimas = vistas;
       if (!esperandoCarga) {
         esperandoCarga = true;
         document.addEventListener("DOMContentLoaded", () => {
           esperandoCarga = false;
-          actualizar(vistas);
+          actualizar(ultimas);
         }, { once: true });
       }
       return;

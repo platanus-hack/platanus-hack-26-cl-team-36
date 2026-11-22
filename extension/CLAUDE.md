@@ -67,7 +67,7 @@ No se toca la extensión: el tema sale de la revisión de la página. La extensi
 
 ## Agregar un componente
 
-`src/componentes/<id>.js` con `MiTema.registrarComponente("<id>", { dibujar(items, opciones, contexto) {…} })` que devuelve un `Element` hecho con `MiTema.dom.crear`; `contexto` trae `abrir(item, evento)`, `viendoOriginal()` y `alternarOriginal()`. CSS en `src/componentes/<id>.css`, scopeado por su clase. Ambos en `content_scripts` del manifest (el test de orden lo verifica).
+`src/componentes/<id>.js` con `MiTema.registrarComponente("<id>", { dibujar(items, opciones, contexto) {…} })` que devuelve un `Element` hecho con `MiTema.dom.crear`; `contexto` trae `abrir(item, evento)`, `viendoOriginal()` y `alternarOriginal()`. Opcional: `firma(items, opciones)` → algo serializable con lo que el componente lee de la página por su cuenta (el atajo, los `value` de los `<select>`); la vista lo suma a su firma y redibuja si cambia. Que solo lea la página, nunca lo que dibujó, o redibujar volvería a cambiarla. CSS en `src/componentes/<id>.css`, scopeado por su clase. Ambos en `content_scripts` del manifest (el test de orden lo verifica).
 
 Para conocer el HTML actual de un sitio antes de escribir una plantilla, no adivinar: pedir al usuario el HTML del elemento o sondearlo con un Firefox headless.
 
