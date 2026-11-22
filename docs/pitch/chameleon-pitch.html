@@ -153,7 +153,17 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; font-featu
 .t5 span { color: rgba(245, 245, 247, .28); }
 .pct .big { font: 600 9cqw/.9 var(--sans); letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
 .pct .big small { font-size: .45em; font-weight: 500; color: var(--muted); margin-left: .1em; }
-.pct .lab5 { font-size: 1.1cqw; color: var(--muted); margin-bottom: .8cqw; }
+.pct .lab5, .pasos .lab5 { font-size: 1.1cqw; color: var(--muted); margin-bottom: .8cqw; }
+/* pasos hasta «Enviar»: una mini-ruta (Inicio hueco, Enviar turquesa) que pierde los pasos que se funden y se acorta */
+.pasos { position: absolute; left: 5.6cqw; top: 49cqh; }
+.fp { display: flex; align-items: center; gap: 2.6cqw; }
+.np { position: relative; font: 600 4.6cqw/1 var(--sans); letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.np em { position: absolute; left: calc(100% + .35cqw); top: -.2cqw; font-size: 1.15cqw; font-style: normal; letter-spacing: 0; color: var(--turq); }
+.pips { position: relative; width: 13.6cqw; height: 1cqw; }
+.pips b { position: absolute; left: .5cqw; top: calc(50% - 1px); width: 12.6cqw; height: 2px; background: rgba(245, 245, 247, .28); transform-origin: 0 50%; }
+.pips i { position: absolute; top: 0; left: calc(var(--k) * 1.8cqw); width: 1cqw; height: 1cqw; border-radius: 50%; background: var(--ink); }
+.pips i:first-of-type { background: var(--bg); border: 2px solid rgba(245, 245, 247, .6); }
+.pips i:last-of-type { background: var(--turq); }
 .words { margin-top: 2cqw; font-size: 1.35cqw; color: var(--faint); display: flex; gap: .9cqw; }
 .words span { color: rgba(245, 245, 247, .3); }
 .words em { font-style: normal; color: rgba(245, 245, 247, .2); }
@@ -343,6 +353,13 @@ body { font-family: var(--sans); -webkit-font-smoothing: antialiased; font-featu
     <section class="slide s5" aria-label="Refinamiento">
       <div class="tag m">visión</div>
       <h1 class="t t--m t5"><span>Mide</span> ·<br><span>rediseña</span> ·<br><span>repite</span></h1>
+      <div class="pasos">
+        <div class="lab5 m">pasos</div>
+        <div class="fp">
+          <div class="np"><span id="p5">7</span><em class="m">−2</em><em class="m">−1</em></div>
+          <div class="pips"><b></b><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i><i style="--k:3"></i><i style="--k:4"></i><i style="--k:5"></i><i style="--k:6"></i><i style="--k:7"></i></div>
+        </div>
+      </div>
       <div class="pct">
         <div class="lab5 m">llegan</div>
         <div class="fila5">
@@ -524,12 +541,12 @@ const nodes = [], edges = [];
 function nodo(o) { o.i = nodes.length; o.al = 1; o.el = 1; o.heat = 0; o.x = 0; o.y = 0; o.r = 0; o.a = 0; nodes.push(o); return o; }
 function arista(a, b, kind) { edges.push({ a, b, kind }); }
 
-const I = nodo({ k: 'I', ring: 0, u: UC, rm: 0, rw: 0, route: 1, rs: 0 });
-const S = nodo({ k: 'S', ring: 1, u: UC, rm: 166, rw: 100, route: 1, rs: 0 });
+const I = nodo({ k: 'I', ring: 0, u: UC, rm: 0, rw: 0, route: 1 });
+const S = nodo({ k: 'S', ring: 1, u: UC, rm: 166, rw: 100, route: 1 });
 arista(I, S, 'route');
 const CATS = [];
 for (let c = 0; c < 19; c++) {
-  const n = nodo({ k: 'C' + c, ring: 2, u: (c + 0.5) / 19, rm: c === RUTA_CAT ? 344 : 336 + (c % 2 ? 20 : 0), rw: 205, route: c === RUTA_CAT ? 1 : 0, cat: c, rs: 240 });
+  const n = nodo({ k: 'C' + c, ring: 2, u: (c + 0.5) / 19, rm: c === RUTA_CAT ? 344 : 336 + (c % 2 ? 20 : 0), rw: 205, route: c === RUTA_CAT ? 1 : 0, cat: c });
   CATS.push(n);
   arista(S, n, c === RUTA_CAT ? 'route' : 'cat');
 }
@@ -541,21 +558,35 @@ for (let c = 0; c < 19; c++) {
     const n = nodo({
       k: 'L' + c + '_' + j, ring: 3, u: isD ? UC - 0.045 : (c + (j + 0.5) / NCAT[c]) / 19,
       rm: isF ? 560 : isD ? 590 : 502 + (j % 4) * 27, rw: isF ? 312 : isD ? 334 : 290 + (j % 4) * 24,
-      route: isF ? 1 : 0, cat: c, parent: CATS[c], dj: isD ? 1 : 0, rs: 240,
+      route: isF ? 1 : 0, cat: c, j, parent: CATS[c], dj: isD ? 1 : 0,
     });
     if (isF) F22 = n; if (isD) DJ = n;
     LINKS.push(n);
     arista(CATS[c], n, isF ? 'route' : 'link');
   }
 }
-const K = nodo({ k: 'K', ring: 4, u: UC, rm: 718, rw: 430, route: 1, rs: 380 });
-const A = nodo({ k: 'A', ring: 5, u: UC, rm: 858, rw: 490, route: 1, rs: 500 });
-const P = nodo({ k: 'P', ring: 6, u: UC, rm: 998, rw: 550, route: 1, rs: 500 });
-const E = nodo({ k: 'E', ring: 7, u: UC, rm: 1138, rw: 610, route: 1, rs: 610 });
+const K = nodo({ k: 'K', ring: 4, u: UC, rm: 718, rw: 430, route: 1 });
+const A = nodo({ k: 'A', ring: 5, u: UC, rm: 858, rw: 490, route: 1 });
+const P = nodo({ k: 'P', ring: 6, u: UC, rm: 998, rw: 550, route: 1 });
+const E = nodo({ k: 'E', ring: 7, u: UC, rm: 1138, rw: 610, route: 1 });
 arista(F22, K, 'route'); arista(K, A, 'route'); arista(A, P, 'route'); arista(P, E, 'route');
 const C3 = CATS[3], C8 = CATS[8], C12 = CATS[RUTA_CAT];
 const ROUTE = [I, S, C12, F22, K, A, P, E];
 const RINGS_W = [100, 205, 326, 430, 490, 550, 610];
+// Radio de cada paso en la revisión 2 (5 pasos) y 3 (4 pasos), sobre los hilos de la telaraña: Servicios online se funde
+// en Inicio y el menú de Renta en el F22 (atajo directo); en la 3, Año tributario se funde en Propuesta.
+for (const [n, r2, r3] of [[I, 0, 0], [S, 0, 0], [C12, 100, 100], [F22, 100, 100], [K, 205, 205], [A, 326, 326], [P, 430, 326], [E, 550, 430]]) { n.r2 = r2; n.r3 = r3; }
+// Horquillas: al rediseñar, los enlaces de cada categoría (menos la de Renta, que se pliega) se abren en dos ramas.
+const FORKS = [];
+for (const c of CATS) {
+  if (c === C12) continue;
+  const hojas = LINKS.filter((n) => n.parent === c), mitad = Math.ceil(hojas.length / 2);
+  for (const grupo of [hojas.slice(0, mitad), hojas.slice(mitad)]) {
+    const f = { ring: 2.5, cat: c, hojas: grupo, u: grupo.reduce((t, n) => t + n.u, 0) / grupo.length, r: 0, a: 0, px: 0, py: 0, lx: 0, ly: 0 };
+    for (const n of grupo) n.fork = f;
+    FORKS.push(f);
+  }
+}
 
 // Línea de vistas del SII (S1): cada pantalla termina como miniatura en su ranura; en S3 se contrae a su nodo.
 const ROW_Y = 330, SLOT0 = -777, SLOT_DX = 222, TW = 176, TH = 110;
@@ -660,10 +691,10 @@ function agentes(opts) {
   for (const a of list) { if (a.ok) ok++; else lost.set(a.end, (lost.get(a.end) || 0) + 1); }
   return { list, end, lost, okF: ok / list.length };
 }
-// Tres revisiones del mismo sitio: 31 % → 64 % → 88 % llegan.
+// Tres revisiones del mismo sitio: la ruta pasa de 7 a 5 y a 4 pasos, y llegan 31 % → 64 % → 88 %.
 const SET3 = agentes({ seed: 7, bursts: 8, gap: 0.72, spread: 0.32, dur: 0.3, route: ROUTE,
   mix: [['ok', 159], ['C3', 44], ['C8', 40], ['DJ', 104], [K, 94], [P, 71]] });
-const SET1 = agentes({ seed: 11, bursts: 4, gap: 0.42, spread: 0.22, dur: 0.21, route: ROUTE,
+const SET1 = agentes({ seed: 11, bursts: 4, gap: 0.42, spread: 0.22, dur: 0.21, route: [I, F22, K, A, P, E],
   mix: [['ok', 164], [K, 52], [P, 30], [A, 10]] });
 const SET2 = agentes({ seed: 23, bursts: 3, gap: 0.32, spread: 0.16, dur: 0.19, route: [I, F22, K, P, E],
   mix: [['ok', 169], [K, 15], [P, 8]] });
@@ -984,35 +1015,49 @@ plano.position.set(PLANE_X, PLANE_Y, 0); plano.renderOrder = 5; plano.frustumCul
 scene.add(plano);
 
 // ─────────────────────────────────────────────── geometría por cuadro
-let OX = 0, OY = 0;
+let OX = 0, OY = 0, AB = 0;
 function layout(time) {
   const m = G.morph, s1 = clamp(G.simp, 0, 1), s2 = clamp(G.simp - 1, 0, 1);
   OX = lerp(OM[0], OW[0], m); OY = lerp(OM[1], OW[1], m);
   const th = lerp(THM, THW, m), sp = lerp(SPM, SPW, m);
   const br = 1 + G.breathe * 0.012 * Math.sin(time * 0.9);
-  const sc = (1 - 0.06 * s2) * br;
+  const sc = br;
   const sw = SWIRL * 4 * m * (1 - m);
+  // Apertura de los otros caminos: 0 → .6 (revisión 2) → 1 (revisión 3). GAP: medio ancho del corredor libre alrededor de la ruta.
+  AB = 0.6 * sstep(0, 1, s1) + 0.4 * s2;
+  const GAP = 0.075 * AB;
   for (const n of nodes) {
     let r = lerp(n.rm, n.rw, m), u = n.u, al = 1, el = 1;
-    if (s1 > 0 || s2 > 0) {
-      // s1: se pliegan los callejones sin salida · s2: la ruta se acorta (de 7 pasos a 4) y la telaraña se aquieta.
+    if (s1 > 0) {
+      // s1: la ruta pasa de 7 pasos a 5 · s2: de 5 a 4. Los callejones del menú de Renta se pliegan en el atajo;
+      // los otros caminos se apartan de la ruta y cada categoría se bifurca en dos ramas.
       if (n.route) {
-        r = lerp(r, n.rs, s2);
-        if (n === S || n === C12 || n === A) al = 1 - s2;
-      } else if (n === C3 || n === C8 || n.dj) {
-        u = lerp(u, UC, sstep(0, 1, s1) * 0.85); al = 1 - sstep(0.15, 1, s1); el = al;
-      } else if (n.ring === 2) {
-        al = (1 - 0.55 * s1) * (1 - 0.3 * s2); el = al;
+        r = lerp(lerp(r, n.r2, s1), n.r3, s2);
+        if (n === S || n === C12) al = 1 - sstep(0, 0.8, s1);
+        if (n === A) al = 1 - sstep(0, 0.8, s2);
+      } else if (n.parent === C12) {
+        u = lerp(u, UC, sstep(0, 1, s1) * 0.85); r = lerp(r, C12.rw + 60, s1); al = 1 - sstep(0.1, 0.9, s1); el = al;
       } else {
-        const hot = n.parent === C3 || n.parent === C8;
-        r = lerp(r, n.parent.rw + 40, s1 * 0.4 + s2 * 0.2);
-        al = (hot ? 1 - s1 : 1 - 0.5 * s1) * (1 - 0.3 * s2); el = al;
+        if (n.fork) {
+          u = lerp(u, n.fork.u, 0.32 * AB);
+          r = lerp(r, 352 + (n.j % 2) * 18, AB);
+        }
+        let d = u - UC; d -= Math.round(d);
+        u = UC + Math.sign(d) * (GAP + (1 - 2 * GAP) * Math.abs(d));
       }
     }
     r *= sc;
     n.r = r; n.a = th + (u - UC) * sp + sw * (1 - n.ring / 8); n.al = al; n.el = el;
     n.px = OX + r * Math.cos(n.a); n.py = OY + r * Math.sin(n.a);
     n.x = lerp(n.px, n.lx, G.lin); n.y = lerp(n.py, n.ly, G.lin);
+  }
+  if (AB > 0) {
+    for (const f of FORKS) {
+      let sa = 0, sr = 0;
+      for (const n of f.hojas) { sa += n.a; sr += n.r; }
+      f.a = sa / f.hojas.length; f.r = lerp(f.cat.r, sr / f.hojas.length, 0.5);
+      f.px = OX + f.r * Math.cos(f.a); f.py = OY + f.r * Math.sin(f.a);
+    }
   }
 }
 // Punto t ∈ [0,1] del tramo A→B: polares interpoladas; desde el centro, abanico suave.
@@ -1056,6 +1101,7 @@ function calor() {
   }
 }
 const LIT = new Set();
+const VF = { ring: 2.5, r: 0, a: 0, px: 0, py: 0, lx: 0, ly: 0 };
 function render(time) {
   const zoom = G.zoom;
   camera.left = G.camX - 960 / zoom; camera.right = G.camX + 960 / zoom;
@@ -1089,7 +1135,7 @@ function render(time) {
   // hilos de la telaraña
   const ringA = G.ringsA * G.dimG * (0.075 + G.breathe * 0.03 * Math.sin(time * 1.1));
   if (ringA > 0.002) {
-    const sc = (1 - 0.06 * clamp(G.simp - 1, 0, 1)) * (1 + G.breathe * 0.012 * Math.sin(time * 0.9)) * lerp(0.3, 1, G.ringK);
+    const sc = (1 + G.breathe * 0.012 * Math.sin(time * 0.9)) * lerp(0.3, 1, G.ringK);
     for (const R0 of RINGS_W) {
       const R = R0 * sc;
       // dos mitades de 79 segmentos (SEGS guarda 80 puntos)
@@ -1112,6 +1158,15 @@ function render(time) {
       const base = e.kind === 'link' ? 0.085 : e.kind === 'cat' ? 0.2 : 0.26;
       const a = (e.kind === 'route' ? gR : gA) * base * al;
       if (a < 0.003) continue;
+      if (e.b.fork && AB > 0) {
+        // horquilla: el tramo pasa por su punto medio, que se desliza hasta el punto compartido de la rama
+        const f = e.b.fork;
+        VF.r = lerp((e.a.r + e.b.r) / 2, f.r, AB); VF.a = lerp((e.a.a + e.b.a) / 2, f.a, AB);
+        VF.px = OX + VF.r * Math.cos(VF.a); VF.py = OY + VF.r * Math.sin(VF.a);
+        cinta(RIB_A, SEGS, muestrear(e.a, VF, 0, 1, 5), 2, C.link, a);
+        cinta(RIB_A, SEGS, muestrear(VF, e.b, 0, 1, 5), 2, C.link, a);
+        continue;
+      }
       const n = muestrear(e.a, e.b, 0, 1, nseg(e.a, e.b));
       cinta(RIB_A, SEGS, n, 2, e.kind === 'route' ? C.cat : C.link, a);
       if (e.b.dj && G.morph < 1) cinta(RIB_A, SEGS, n, 2.5, C.red, gR * 0.85 * (1 - G.morph) * al);
@@ -1493,18 +1548,23 @@ const BUILD = [
   },
   // 5 · mide · rediseña · repite: tres revisiones del mismo sitio. Parte de lo que midieron los agentes (revisión 1)
   // y cada vuelta deja la marca de la anterior: los focos se achican dentro de su borde viejo y la llegada crece.
+  // Cada rediseño acorta la ruta (7 → 5 → 4 pasos) y abre los otros caminos hacia los lados, en ramas.
   function (s) {
     const tl = gsap.timeline({ paused: true });
     const num = $('#m5', s), w = $$('.t5 span', s), v = { n: 31 };
     const revs = $$('.rev', s), barra = revs.map((r) => $('i', r)), val = revs.map((r) => $('b', r)), dif = revs.map((r) => $('em', r));
     const pinta = () => { num.textContent = Math.round(v.n); };
+    const pips = $$('.pips i', s), linea = $('.pips b', s), pnum = $('#p5', s), pdif = $$('.np em', s), vp = { n: 7 };
+    const pintaP = () => { pnum.textContent = Math.round(vp.n); };
     const DIM = 'rgba(245,245,247,.28)', VIEJA = 'rgba(245,245,247,.2)';
     tl.set(v, { n: 31, onComplete: pinta }, 0);
+    tl.set(vp, { n: 7, onComplete: pintaP }, 0);
     tl.set(w, { color: DIM }, 0);
-    tl.set(revs.concat(val, dif.filter(Boolean)), { autoAlpha: 0 }, 0);
+    tl.set(revs.concat(val, dif.filter(Boolean), pdif), { autoAlpha: 0 }, 0);
     tl.set(barra, { scaleY: 0 }, 0);
     tl.to(G, Object.assign({ planeA: 0, dimG: 1, duration: 0.7, ease: 'power2.inOut' }, CAMW), 0);
     entra(tl, [$('.tag', s), $('.t', s)], 0.05, { stagger: 0.08 });
+    entra(tl, $('.pasos', s), 0.15, { y: 16 });
     entra(tl, $('.pct', s), 0.2, { y: 16 });
     entra(tl, $('.sitio-a', s), 0.3, { y: 8 });
     tl.to(G, { orbA: 1, duration: 0.6 }, 0.1);
@@ -1524,11 +1584,21 @@ const BUILD = [
         if (dif[i - 1]) tl.to(dif[i - 1], { autoAlpha: 0, duration: 0.3 }, at);
       }
     };
+    // Mini-ruta de pasos: los que se funden se apagan donde están y el resto se corre (una ranura = 180 % del punto).
+    const acorta = (at, quita, corre, n, i) => {
+      tl.to(quita.map((k) => pips[k]), { scale: 0, autoAlpha: 0, duration: 0.45, ease: 'power2.in' }, at);
+      for (const [k, ranuras] of corre) tl.to(pips[k], { xPercent: -180 * ranuras, duration: 0.7, ease: 'power3.inOut' }, at + 0.2);
+      tl.to(linea, { scaleX: n / 7, duration: 0.7, ease: 'power3.inOut' }, at + 0.2);
+      tl.to(vp, { n, duration: 0.5, ease: 'none', onUpdate: pintaP, onComplete: pintaP }, at + 0.2);
+      if (i > 0) tl.to(pdif[i - 1], { autoAlpha: 0, duration: 0.25 }, at);
+      tl.fromTo(pdif[i], { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'back.out(2)', immediateRender: false }, at + 0.6);
+    };
     // revisión 1: lo que dejaron los agentes en la lámina anterior (focos, «se pierden», 31 %)
     revision(0, 0.35, 0.6);
     on(0, 0.3); mide(0.6);
-    // rediseña: se pliegan los callejones sin salida; el foco viejo queda como borde
+    // rediseña: Servicios online y el menú de Renta se funden en un atajo (7 → 5 pasos) y los otros caminos se abren
     on(1, 1.45); tl.to(G, { simp: 1, h3: 0, g3: 1, a3: 0, duration: 0.9, ease: 'power2.inOut' }, 1.45);
+    acorta(1.45, [1, 2], [[3, 2], [4, 2], [5, 2], [6, 2], [7, 2]], 5, 0);
     // repite: revisión 2
     on(2, 2.35);
     tl.set(G, { a1: 1, h1: 1 }, 2.3);
@@ -1536,8 +1606,9 @@ const BUILD = [
     tl.to(v, { n: 64, duration: 1.4, ease: 'power1.inOut', onUpdate: pinta, onComplete: pinta }, 2.45);
     revision(1, 2.45, 1.4);
     on(0, 4.05); mide(4.1);
-    // rediseña: la ruta se acorta de 7 pasos a 4
+    // rediseña: Año tributario se funde en Propuesta (5 → 4 pasos) y cada categoría termina de bifurcarse
     on(1, 4.7); tl.to(G, { simp: 2, h1: 0, g1: 1, g3: 0, a1: 0, duration: 0.9, ease: 'power2.inOut' }, 4.7);
+    acorta(4.7, [5], [[6, 3], [7, 3]], 4, 1);
     // repite: revisión 3
     on(2, 5.6);
     tl.set(G, { a2: 1, h2: 1 }, 5.55);
