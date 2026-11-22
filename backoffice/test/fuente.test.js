@@ -94,6 +94,7 @@ function crearFuenteFalsa(archivos) {
   return {
     descripcion: "memoria://corridas",
     listarIds: async () => ids,
+    listarCorridas: async () => ids,
     listarPerfiles: async (id) =>
       [...new Set(Object.keys(archivos).filter((r) => r.startsWith(`${id}/`)).map((r) => r.split("/")[4]).filter((p) => !p.includes(".")))],
     leerJson: async (id, relativa) => (de(id, relativa) ? JSON.parse(de(id, relativa)) : null),
