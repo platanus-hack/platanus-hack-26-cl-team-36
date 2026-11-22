@@ -114,7 +114,7 @@ function etapas(modelo, t) {
 function goals(modelo, t) {
   const { visibles, mas } = modelo.medidores;
   const aviso = modelo.aviso;
-  const destino = (medidor) => (medidor.tanda ? enlaceATanda(medidor.tanda) : medidor.vivo ? enlaceAVivo(modelo.revision, medidor.goal) : null);
+  const destino = (medidor) => (medidor.tanda ? enlaceATanda(medidor.tanda, undefined, { revision: modelo.revision }) : medidor.vivo ? enlaceAVivo(modelo.revision, medidor.goal) : null);
   const fila = (medidor, ...hijos) =>
     destino(medidor)
       ? el(
@@ -227,7 +227,7 @@ function actualizarTarjeta(registro, modelo, deps) {
 function hrefDeDestino(modelo, deps) {
   const { tipo, tanda, goal } = modelo.destino ?? { tipo: "avance" };
   if (tipo === "falla") return enlaceAFallo(modelo.revision);
-  if (tipo === "tanda") return enlaceATanda(tanda);
+  if (tipo === "tanda") return enlaceATanda(tanda, undefined, modelo.tandaPropia ? { revision: modelo.revision } : {});
   if (tipo === "vivo") return enlaceAVivo(modelo.revision, goal);
   return deps.enlace(modelo.revision);
 }

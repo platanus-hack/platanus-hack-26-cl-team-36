@@ -25,7 +25,7 @@ export const HUECOS_DEL_PAGINADOR = 7;
 /** Con menos tarjetas que esto en Recent aparece la pista de cómo empieza una revisión (artboard 5). */
 export const TARJETAS_SIN_PISTA = 3;
 
-const estadoDeTarjeta = (valor) => (ESTADOS_DE_TARJETA.includes(valor) ? valor : "queued");
+export const estadoDeTarjeta = (valor) => (ESTADOS_DE_TARJETA.includes(valor) ? valor : "queued");
 
 /**
  * Cifra de un filtro, o null (sin cifra): All con `cuentas.total`; Live con `cuentas.live` (corriendo, detenidas y
@@ -77,17 +77,22 @@ export const tandaDeGoal = (goal) => tandaValida(goal?.tanda);
  */
 export const abreLaFalla = (tarjeta) => estadoDeTarjeta(tarjeta?.estado) === "failed" && !(tarjeta?.goals ?? []).some(tandaDeGoal);
 
+/** La tanda del primer goal que la tiene (una tanda de esta revisión) o null. */
+export function tandaPropiaDeTarjeta(tarjeta) {
+  for (const goal of tarjeta?.goals ?? []) {
+    const tanda = tandaDeGoal(goal);
+    if (tanda) return tanda;
+  }
+  return null;
+}
+
 /**
  * Adónde lleva la tarjeta (contrato §6.5 y §7.1): la telaraña del primer goal, en el orden de la tarjeta, que tenga
  * tanda; si ninguno tiene, la tanda de su captura (la de escritorio, si no la móvil: la más nueva del mismo host y
  * ruta); si tampoco hay, null: al avance de la revisión. Una fallida sin tanda propia abre la falla (abreLaFalla).
  */
 export function tandaDeTarjeta(tarjeta) {
-  for (const goal of tarjeta?.goals ?? []) {
-    const tanda = tandaDeGoal(goal);
-    if (tanda) return tanda;
-  }
-  return tandaValida(tarjeta?.capturas?.desktop?.tanda) ?? tandaValida(tarjeta?.capturas?.mobile?.tanda);
+  return tandaPropiaDeTarjeta(tarjeta) ?? tandaValida(tarjeta?.capturas?.desktop?.tanda) ?? tandaValida(tarjeta?.capturas?.mobile?.tanda);
 }
 
 // Una revisión que corre (o se detuvo corriendo): sus goals abren su hoja en vivo, no la tanda de otra revisión.
@@ -210,6 +215,8 @@ export function modeloDeTarjeta(tarjeta, { dispositivo = "all", ahora = null } =
     sitio: tarjeta?.sitio || tarjeta?.host || "",
     estado,
     tanda: tandaDeTarjeta(tarjeta),
+    // ¿La tanda es de un goal de esta revisión? Entonces el enlace lleva ?revision= (la hoja muestra la franja de goals).
+    tandaPropia: tandaPropiaDeTarjeta(tarjeta) !== null,
     falla: abreLaFalla(tarjeta),
     destino: destinoDeTarjeta(tarjeta),
     capturas: { desktop: captura(tarjeta?.capturas?.desktop), mobile: captura(tarjeta?.capturas?.mobile) },

@@ -46,6 +46,13 @@ export default {
     sinMedir: "Not measured: no Guide route nor judge",
     algunosSinMedir: "{n} not measured (no Guide route nor judge): not counted in the figure",
     errores: ({ n }, { plural }) => `${n} ${plural(n, { one: "tool error", other: "tool errors" })}`,
+    // Goal strip: the review's goals between the title and the tabs.
+    goals: "Goals",
+    goal: "Goal {n}: {instruccion} · {cifra}",
+    goalAnterior: "Previous goal",
+    goalSiguiente: "Next goal",
+    sinTanda: "No batch yet",
+    revision: { running: "Running", queued: "Queued", stalled: "Stalled", delivered: "Delivered", failed: "Failed" },
   },
   // Trace rail of the Path map and Replay: traces sorted by interest and why (tanda/priorizar.js).
   traza: {
