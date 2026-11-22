@@ -1,8 +1,9 @@
-// Clientes de AWS de la API y la proyectora. El SDK v3 viene en el runtime nodejs22.x
-// de Lambda, así que no se empaqueta; se importa recién al usarlo para que el
-// servidor local y las pruebas no lo necesiten.
+// Clientes de AWS de la API y la proyectora. DynamoDB y S3 usan el SDK v3 que trae el
+// runtime nodejs22.x de Lambda, importado recién al usarlo para que el servidor local y
+// las pruebas no lo necesiten; AgentCore no viene garantizado ahí y se firma a mano.
 
 import { randomUUID } from "node:crypto";
+import { credencialesDelEntorno, firmar } from "./firma.js";
 
 // `previos`: solo escribe si `status` no existe o es uno de ellos. `existente`: solo si el ítem existe.
 export function expresionActualizar(atributos, { previos, existente = false } = {}) {
@@ -93,21 +94,41 @@ export function coincideRuntime(nombreRuntime, nombre) {
   return nombreRuntime === nombre || nombreRuntime.endsWith(`_${nombre}`);
 }
 
+// Llama a AgentCore firmando a mano (ver firma.js). Lanza si la respuesta no es 2xx.
+export function clienteAgentCore({ region = process.env.AWS_REGION, credenciales = credencialesDelEntorno, fetch = globalThis.fetch } = {}) {
+  return async function llamar(servicio, path, { cuerpo = "", cabeceras = {}, timeoutMs = 10_000 } = {}) {
+    const url = `https://${servicio}.${region}.amazonaws.com${path}`;
+    const firmadas = firmar({
+      metodo: "POST",
+      url,
+      cabeceras,
+      cuerpo,
+      region,
+      servicio: "bedrock-agentcore",
+      credenciales: credenciales(),
+    });
+    const respuesta = await fetch(url, { method: "POST", headers: firmadas, body: cuerpo, signal: AbortSignal.timeout(timeoutMs) });
+    if (!respuesta.ok) {
+      const detalle = (await respuesta.text()).slice(0, 300);
+      throw Object.assign(new Error(`${servicio} ${path}: ${respuesta.status} ${detalle}`), { name: `AgentCore${respuesta.status}` });
+    }
+    return respuesta;
+  };
+}
+
 // El runtime corre en modo async: responde al aceptar la tarea, sin esperar a que termine.
-export async function runtimeAgentes(nombre, { timeoutMs = 10_000 } = {}) {
-  const { BedrockAgentCoreClient, InvokeAgentRuntimeCommand } = await import("@aws-sdk/client-bedrock-agentcore");
-  const { BedrockAgentCoreControlClient, ListAgentRuntimesCommand } = await import(
-    "@aws-sdk/client-bedrock-agentcore-control"
-  );
-  const cliente = new BedrockAgentCoreClient({});
-  const control = new BedrockAgentCoreControlClient({});
+export function runtimeAgentes(nombre, { llamar = clienteAgentCore() } = {}) {
   let arn;
 
   // Por nombre y no por ARN: el ARN cambia si el runtime se recrea o se renombra.
   async function resolver() {
     let nextToken;
     do {
-      const pagina = await control.send(new ListAgentRuntimesCommand({ nextToken }));
+      const respuesta = await llamar("bedrock-agentcore-control", "/runtimes/", {
+        cuerpo: JSON.stringify({ maxResults: 100, ...(nextToken && { nextToken }) }),
+        cabeceras: { "content-type": "application/json" },
+      });
+      const pagina = await respuesta.json();
       const runtime = pagina.agentRuntimes?.find((r) => coincideRuntime(r.agentRuntimeName, nombre));
       if (runtime) return runtime.agentRuntimeArn;
       nextToken = pagina.nextToken;
@@ -119,17 +140,15 @@ export async function runtimeAgentes(nombre, { timeoutMs = 10_000 } = {}) {
     async invocar(payload) {
       arn ??= await resolver();
       try {
-        const respuesta = await cliente.send(
-          new InvokeAgentRuntimeCommand({
-            agentRuntimeArn: arn,
-            runtimeSessionId: randomUUID(),
-            contentType: "application/json",
+        const respuesta = await llamar("bedrock-agentcore", `/runtimes/${encodeURIComponent(arn)}/invocations`, {
+          cuerpo: JSON.stringify(payload),
+          cabeceras: {
+            "content-type": "application/json",
             accept: "application/json",
-            payload: new TextEncoder().encode(JSON.stringify(payload)),
-          }),
-          { abortSignal: AbortSignal.timeout(timeoutMs) },
-        );
-        respuesta.response?.destroy?.();
+            "x-amzn-bedrock-agentcore-runtime-session-id": randomUUID(),
+          },
+        });
+        await respuesta.body?.cancel();
       } catch (error) {
         arn = undefined;
         throw error;

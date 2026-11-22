@@ -47,7 +47,7 @@ function revisiones() {
     return crearRevisiones({
       db: await tablaDynamo(process.env.REVISIONES_TABLA),
       almacen: await almacenS3(process.env.ALMACEN_BUCKET),
-      agentes: await runtimeAgentes(process.env.AGENTE_RUNTIME),
+      agentes: runtimeAgentes(process.env.AGENTE_RUNTIME),
     });
   })().catch((error) => {
     servicio = undefined;
@@ -56,7 +56,7 @@ function revisiones() {
   return servicio;
 }
 
-// POST /revisiones  { "url": "<url completa>", "force"?: true }  (force: revisión nueva aunque ya se haya visto)
+// POST /revisiones  { "url": "<url completa>", "force"?: true }  (force: revisión nueva si la anterior terminó)
 // GET  /revisiones?url=<url>
 //   202 { success: true, revision, status: "queued" }       → página nueva, revisión disparada
 //   200 { success: true, revision, status, css? }           → ya vista; css cuando status es "done"

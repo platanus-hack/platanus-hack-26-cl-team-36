@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coincideRuntime, condicionRegistro, expresionActualizar } from "../aws.js";
+import { clienteAgentCore, coincideRuntime, condicionRegistro, expresionActualizar, runtimeAgentes } from "../aws.js";
 
 test("expresionActualizar: SET de los atributos, sin los undefined", () => {
   assert.deepEqual(expresionActualizar({ css_key: "a/tema.css", nada: undefined }), {
@@ -41,4 +41,47 @@ test("condicionRegistro: ítem nuevo o reemplazo de la revisión vista", () => {
     ExpressionAttributeNames: { "#revision": "revision" },
     ExpressionAttributeValues: { ":revision": "rev-1" },
   });
+});
+
+const CREDENCIALES = () => ({ accessKeyId: "AKIDEXAMPLE", secretAccessKey: "secreto" });
+const ARN = "arn:aws:bedrock-agentcore:us-east-2:123456789012:runtime/Proyecto_default_chameleon-abc";
+
+function agentesConRespuestas(respuestas) {
+  const llamadas = [];
+  const fetch = async (url, opciones) => {
+    llamadas.push({ url, ...opciones });
+    const [estado, cuerpo] = respuestas.shift();
+    return new Response(JSON.stringify(cuerpo), { status: estado });
+  };
+  const llamar = clienteAgentCore({ region: "us-east-2", credenciales: CREDENCIALES, fetch });
+  return { llamadas, agentes: runtimeAgentes("chameleon", { llamar }) };
+}
+
+test("runtimeAgentes: resuelve el ARN por nombre, paginando, e invoca con una sesión nueva cada vez", async () => {
+  const { llamadas, agentes } = agentesConRespuestas([
+    [200, { agentRuntimes: [{ agentRuntimeName: "otro", agentRuntimeArn: "x" }], nextToken: "t" }],
+    [200, { agentRuntimes: [{ agentRuntimeName: "Proyecto_default_chameleon", agentRuntimeArn: ARN }] }],
+    [200, {}],
+    [200, {}],
+  ]);
+  await agentes.invocar({ stage: "revision" });
+  await agentes.invocar({ stage: "revision" });
+
+  assert.equal(llamadas.length, 4);
+  assert.equal(llamadas[0].url, "https://bedrock-agentcore-control.us-east-2.amazonaws.com/runtimes/");
+  assert.equal(JSON.parse(llamadas[1].body).nextToken, "t");
+  assert.equal(llamadas[2].url, `https://bedrock-agentcore.us-east-2.amazonaws.com/runtimes/${encodeURIComponent(ARN)}/invocations`);
+  assert.equal(llamadas[2].body, '{"stage":"revision"}');
+  assert.match(llamadas[2].headers.authorization, /^AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE\//);
+  const sesion = (i) => llamadas[i].headers["x-amzn-bedrock-agentcore-runtime-session-id"];
+  assert.ok(sesion(2).length >= 33); // mínimo de AgentCore
+  assert.notEqual(sesion(2), sesion(3));
+});
+
+test("runtimeAgentes: un error HTTP lanza y la siguiente invocación vuelve a resolver el ARN", async () => {
+  const lista = [200, { agentRuntimes: [{ agentRuntimeName: "chameleon", agentRuntimeArn: ARN }] }];
+  const { llamadas, agentes } = agentesConRespuestas([lista, [404, { message: "no existe" }], lista, [200, {}]]);
+  await assert.rejects(agentes.invocar({}), { name: "AgentCore404" });
+  await agentes.invocar({});
+  assert.equal(llamadas.length, 4);
 });
