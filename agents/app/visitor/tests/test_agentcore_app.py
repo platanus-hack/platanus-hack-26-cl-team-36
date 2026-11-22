@@ -19,7 +19,7 @@ def test_parse_request_fills_defaults():
     assert request["profiles"] == list(PERFILES_POR_DEFECTO)
     assert request["goal"].startswith("libre-encontrar-el-horario-")
     assert request["effort"] == "medium"
-    assert "model" not in request  # en AWS el modelo no se elige por pedido: siempre Sonnet 4.6
+    assert "model" not in request  # en AWS el modelo no se elige por pedido: es AGENTS_MODEL
 
 
 @pytest.mark.parametrize("payload", [
@@ -38,8 +38,12 @@ def test_parse_request_rejects_bad_payloads(payload):
         parse_request(payload)
 
 
-def test_aws_uses_only_sonnet_4_6():
-    assert models_for("bedrock") == ("claude-sonnet-4-6", "claude-sonnet-4-6")
+def test_aws_uses_haiku_4_5_unless_agents_model_says_otherwise(monkeypatch):
+    monkeypatch.delenv("AGENTS_MODEL", raising=False)
+    haiku = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    assert models_for("bedrock") == (haiku, haiku)
+    monkeypatch.setenv("AGENTS_MODEL", "us.anthropic.claude-sonnet-4-6")
+    assert models_for("bedrock") == ("us.anthropic.claude-sonnet-4-6", "us.anthropic.claude-sonnet-4-6")
     assert models_for("api") == ("claude-sonnet-5-5", "claude-opus-5-5")
     assert models_for("claude-code", "claude-haiku-5-5") == ("claude-haiku-5-5", "claude-opus-5-5")
 
@@ -56,7 +60,7 @@ def test_invoke_streams_an_error_for_a_bad_request():
 
 def test_invoke_streams_progress_and_report(tmp_path, monkeypatch):
     async def fake_batch(backend, prefix, url, instruction, profile_keys, **kwargs):
-        assert kwargs.get("user_model") is None  # run_batch elige Sonnet 4.6 con el motor bedrock
+        assert kwargs.get("user_model") is None  # run_batch elige config.bedrock_model() con el motor bedrock
         run = store.start_run(backend, prefix, model=None)
         (run.workdir / "mobile").mkdir()
         (run.workdir / "mobile" / "run.json").write_text(json.dumps({"profile": "mobile", "verdict": {"outcome": "success"}}))

@@ -35,17 +35,21 @@ COMPUTER_TOOLSET = {
 # Los modelos anteriores a Claude Opus 4.7 no aceptan el toolset: usan la herramienta `computer` de una pieza, con
 # beta y el tamaño de la pantalla. La acción va en `input.action` y no se pueden desactivar miembros: si el modelo
 # pide uno que no está en UI_ACTIONS, se responde con error, igual que con el toolset. Son los que la cuenta de AWS
-# del proyecto puede usar en Bedrock (ver config.BEDROCK_USER_MODEL).
-LEGACY_COMPUTER_MODELS = ("claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5")
-LEGACY_COMPUTER_BETA = "computer-use-2025-11-24"
+# del proyecto puede usar en Bedrock (ver config.bedrock_model). Por modelo: (tipo de la herramienta, beta).
+LEGACY_COMPUTER_TOOLS = {
+    "claude-sonnet-4-6": ("computer_20251124", "computer-use-2025-11-24"),
+    "claude-opus-4-6": ("computer_20251124", "computer-use-2025-11-24"),
+    "claude-haiku-4-5": ("computer_20250124", "computer-use-2025-01-24"),
+}
 
 
-def uses_legacy_computer_tool(model: str) -> bool:
-    return any(name in model for name in LEGACY_COMPUTER_MODELS)
+def legacy_computer(model: str) -> tuple[str, str] | None:
+    """(tipo, beta) de la herramienta `computer` de `model`; None si usa el toolset."""
+    return next((tool for name, tool in LEGACY_COMPUTER_TOOLS.items() if name in model), None)
 
 
-def legacy_computer_tool(width: int, height: int) -> dict:
-    return {"type": "computer_20251124", "name": "computer", "display_width_px": width, "display_height_px": height}
+def legacy_computer_tool(tool_type: str, width: int, height: int) -> dict:
+    return {"type": tool_type, "name": "computer", "display_width_px": width, "display_height_px": height}
 
 
 # `volver_a_nodo` no es del toolset: el harness la ofrece solo a los perfiles exploradores (ver harness.py).

@@ -7,7 +7,7 @@ from pathlib import Path
 from shared.claude.process import png_image_block
 
 from visitor import config
-from visitor.actions import COMPUTER_TOOLSET, LEGACY_COMPUTER_BETA, legacy_computer_tool, uses_legacy_computer_tool
+from visitor.actions import COMPUTER_TOOLSET, legacy_computer, legacy_computer_tool
 from visitor.turns import ActionRequest, ActionResult, AttemptEnded, Turn
 
 EXPECTATION_TOOL = {
@@ -55,7 +55,7 @@ class ApiEngine:
         self.client = client
         self.model = model
         self.effort = effort
-        self.legacy_computer = uses_legacy_computer_tool(model)  # herramienta `computer` en vez del toolset
+        self.legacy_computer = legacy_computer(model)  # (tipo, beta) de la herramienta `computer`, o None
         self.tools = [COMPUTER_TOOLSET, EXPECTATION_TOOL]
         self.messages: list[dict] = []
         self.usage = {"input_tokens": 0, "output_tokens": 0, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}
@@ -65,7 +65,7 @@ class ApiEngine:
         self.messages = [{"role": "user", "content": [{"type": "text", "text": first_message}, png_image_block(screenshot)]}]
         if self.legacy_computer:
             # Las capturas son del viewport a escala 1:1: su tamaño es el de la pantalla del perfil.
-            self.tools = [legacy_computer_tool(*png_size(screenshot)), EXPECTATION_TOOL]
+            self.tools = [legacy_computer_tool(self.legacy_computer[0], *png_size(screenshot)), EXPECTATION_TOOL]
 
     async def decide(self) -> Turn:
         import anthropic
@@ -76,11 +76,12 @@ class ApiEngine:
             "system": self.system_prompt,
             "tools": self.tools,
             "messages": _with_cache_breakpoint(self.messages),
-            "output_config": {"effort": self.effort},
         }
+        if config.accepts_effort(self.model):
+            request["output_config"] = {"effort": self.effort}
         try:
             if self.legacy_computer:
-                response = await self.client.beta.messages.create(**request, betas=[LEGACY_COMPUTER_BETA])
+                response = await self.client.beta.messages.create(**request, betas=[self.legacy_computer[1]])
             else:
                 response = await self.client.messages.create(**request)
         except (anthropic.APIStatusError, anthropic.APIConnectionError) as error:

@@ -17,7 +17,7 @@ def _run_with(monkeypatch, tmp_path, finished: int):
 
     monkeypatch.setattr(batch, "_write_batch", fake_write_batch)
     backend = store.LocalBackend(tmp_path)
-    return backend, asyncio.run(run_batch(backend, PREFIX, "https://www.sitio.cl/", "x", ["first_time"], {}))
+    return backend, asyncio.run(run_batch(backend, PREFIX, "https://www.sitio.cl/", "x", ["desktop"], {}))
 
 
 def test_a_batch_with_a_finished_attempt_succeeds(tmp_path, monkeypatch):
