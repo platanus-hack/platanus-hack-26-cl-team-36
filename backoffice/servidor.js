@@ -236,7 +236,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     almacen: process.env.BACKOFFICE_ALMACEN,
     s3: aws?.s3,
   });
-  const revisiones = aws ? crearRevisiones({ tabla: process.env.BACKOFFICE_TABLA || "chameleon-revisiones", ...aws.dynamo }) : null;
+  const revisiones = aws ? crearRevisiones({ tabla: process.env.BACKOFFICE_TABLA || "chameleon-revisiones", ...aws.dynamo, fuente }) : null;
   // Por defecto, solo en este computador: las corridas pueden mostrar datos de quien corrió la prueba.
   const servidor = crearServidor({ fuente, revisiones });
   servidor.on("error", (error) => {
