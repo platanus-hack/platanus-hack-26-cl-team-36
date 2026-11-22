@@ -1,7 +1,7 @@
 # Local environment. From anywhere in the repo, as `just local <command>`, in this order:
 #
 #   1. just local setup                      once, after cloning
-#   2. just local up                         backend + Firefox with the extension, in the background
+#   2. just local up                         backend, backoffice and Firefox with the extension, in the background
 #      just local up sesion                  same, with a copy of your Firefox profile
 #      just local down                       stops them
 #   3. just local test                       before pushing
@@ -9,7 +9,7 @@
 #   5. just local guide <host>/<goal>        guide: reference route of a task (calls Claude)
 #   6. just local visit <url> "<task>"       visitor: synthetic users (calls Claude)
 #      just local visit-tasks [prefix]       visitor on the tasks in agents/tasks/ (calls Claude)
-#   7. just local backoffice                 viewer of the visitor runs, at http://localhost:4848/backoffice/
+#   7. just local backoffice                 viewer of the visitor runs, at http://localhost:4848/backoffice/ (`up` already starts it)
 #   8. just local site <url> [goals]         catalog, guide and visitor per goal, and summary (calls Claude)
 #      just local summary <url>              a new summary from the latest runs in the store
 #      just local revision <url>             one page as in AWS: catalog, guide and visitor per goal, tema.css (calls Claude)
@@ -86,7 +86,7 @@ setup:
 # ── 2. Run ────────────────────────────────────────────────────────────────
 
 # `sesion` uses a copy of your Firefox profile in extension/.perfil-dev/, made the first time you use it.
-# Starts the backend (localhost:4747) and a separate Firefox with the extension, in the background
+# Starts the backend (localhost:4747), the backoffice (localhost:4848/backoffice/) and a separate Firefox with the extension, in the background
 [group('2. Run')]
 up profile="temporary": _ready
     #!/usr/bin/env bash
@@ -145,6 +145,17 @@ up profile="temporary": _ready
         fi
     fi
     start backend backend "localhost:4747" node --watch index.js
+    # The backoffice is optional here: if 4848 is taken (e.g. by `just local backoffice` in another
+    # terminal), it warns and goes on instead of stopping the rest.
+    backoffice_url="http://localhost:4848/backoffice/"
+    taken=""
+    running backoffice || taken="$(lsof -nP -iTCP:4848 -sTCP:LISTEN -t 2>/dev/null | head -n 1 || true)"
+    if [ -n "$taken" ]; then
+        echo "  ! backoffice not started: port 4848 is already in use by: $(ps -o command= -p "$taken")" >&2
+        backoffice_url="$backoffice_url (not started by \`up\`, see above)"
+    else
+        start backoffice backoffice "Backoffice en http" node --watch servidor.js
+    fi
     if running firefox; then
         if [ "$(cat "{{ state }}/firefox.profile" 2>/dev/null || echo temporary)" != "{{ profile }}" ]; then
             echo "  ! Firefox is already running with another profile: \`just local down\` first to switch." >&2
@@ -153,7 +164,10 @@ up profile="temporary": _ready
         echo "{{ profile }}" > "{{ state }}/firefox.profile"
     fi
     start firefox extension "as a temporary add-on" "${firefox[@]}"
-    echo "Running. Follow the logs with \`just local logs\`, stop with \`just local down\`."
+    echo "Running:"
+    echo "  backend     http://localhost:4747"
+    echo "  backoffice  $backoffice_url"
+    echo "Follow the logs with \`just local logs\`, stop with \`just local down\`."
 
 # Stops what `just local up` started
 [group('2. Run')]
@@ -161,7 +175,7 @@ down:
     #!/usr/bin/env bash
     set -uo pipefail
     stopped=0
-    for name in firefox backend; do
+    for name in firefox backoffice backend; do
         pidfile="{{ state }}/$name.pid"
         [ -f "$pidfile" ] || continue
         group="$(cat "$pidfile")"
@@ -179,11 +193,11 @@ down:
     done
     [ "$stopped" -eq 1 ] || echo "Nothing was running."
 
-# Follows the backend and Firefox logs (Ctrl+C to stop following)
+# Follows the backend, backoffice and Firefox logs (Ctrl+C to stop following)
 [group('2. Run')]
 logs:
     @test -f {{ state }}/backend.log || { echo "No logs yet: start with \`just local up\`." >&2; exit 1; }
-    tail -n 30 -F {{ state }}/backend.log {{ state }}/firefox.log
+    tail -n 30 -F {{ state }}/backend.log {{ state }}/backoffice.log {{ state }}/firefox.log
 
 # ── 3. Test ───────────────────────────────────────────────────────────────
 
