@@ -12,7 +12,7 @@ import { icono, insignia } from "./iconos.js";
 import { registrarFuenteDePaleta } from "./paleta.js";
 import { NOMBRES_DE_PESTANA, PESTANAS, enlaceATanda } from "./rutas.js";
 
-const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", error: "error-herramienta" };
+const ICONO_DE_RESULTADO = { logrado: "logrado", fallido: "fallido", abandonado: "abandonado", sin_medir: "sin-medir", error: "error-herramienta" };
 
 /** Nombre visible de una página: nombreDePagina de datos/textos.js con el idioma actual (§2.3). */
 export function nombreDePagina(pagina) {
@@ -25,18 +25,20 @@ function cifras(tanda) {
   const intentos = kpis.intentos ?? tanda.intentos?.length ?? 0;
   const errores = kpis.errores ?? 0;
   const validos = kpis.validos ?? intentos - errores;
+  const medidos = kpis.medidos ?? validos;
   const logrados = kpis.logrados ?? kpis.exitos ?? 0;
-  return { intentos, errores, validos, logrados };
+  return { intentos, errores, validos, medidos, logrados };
 }
 
-function resumenDelVeredicto({ logrados, validos }) {
+function resumenDelVeredicto({ logrados, validos, medidos }) {
   if (!validos) return el("span", { class: "insignia insignia-neutro" }, icono("abandonado"), el("span", { texto: t("comun.marco.ningunoValido") }));
-  const todos = logrados === validos;
+  if (!medidos) return el("span", { class: "insignia insignia-sin_medir" }, icono("sin-medir"), el("span", { texto: t("comun.marco.sinMedir") }));
+  const todos = logrados === medidos;
   return el(
     "span",
     { class: `insignia ${todos ? "insignia-logrado" : "insignia-fallido"}` },
     icono(todos ? "logrado" : "fallido"),
-    el("span", { texto: t("comun.marco.llegan", { n: logrados, de: validos }) }),
+    el("span", { texto: t("comun.marco.llegan", { n: logrados, de: medidos }) }),
   );
 }
 
@@ -81,7 +83,7 @@ function botonVecina({ id, pestana, tipo, senal }) {
 export function montarMarco({ tanda, ruta, navegar }) {
   const titulo = tanda.tarea ?? tanda.host ?? tanda.id;
   const fecha = tanda.fechaIso ?? tanda.fecha;
-  const { intentos, errores, validos, logrados } = cifras(tanda);
+  const { intentos, errores, validos, medidos, logrados } = cifras(tanda);
   const vecinas = tanda.vecinas ?? {};
   let pestanaActual = ruta.pestana;
   const controlador = new AbortController();
@@ -157,7 +159,7 @@ export function montarMarco({ tanda, ruta, navegar }) {
     fecha ? el("time", { class: "marco-fecha", datetime: tanda.fechaIso ?? null, texto: fmt.fechaLegible(fecha) }) : null,
     fecha ? el("span", { class: "marco-relativo", title: fmt.fechaLegible(fecha), texto: fmt.tiempoRelativo(fecha) }) : null,
     el("span", { class: "marco-intentos", texto: t("comun.marco.intentos", { n: intentos }) }),
-    el("span", { class: "marco-veredicto" }, resumenDelVeredicto({ logrados, validos })),
+    el("span", { class: "marco-veredicto" }, resumenDelVeredicto({ logrados, validos, medidos })),
     errores ? el("span", { class: "marco-errores" }, el("span", { class: "insignia insignia-error" }, icono("error-herramienta"), el("span", { texto: t("comun.marco.errores", { n: errores }) }))) : null,
     tanda.modeloUsuarios ? el("span", { class: "marco-modelo", title: tanda.modeloUsuarios, texto: t("comun.marco.usuarios", { modelo: fmt.modelo(tanda.modeloUsuarios) }) }) : null,
     tanda.modeloJuez ? el("span", { class: "marco-modelo", title: tanda.modeloJuez, texto: t("comun.marco.juez", { modelo: fmt.modelo(tanda.modeloJuez) }) }) : null,

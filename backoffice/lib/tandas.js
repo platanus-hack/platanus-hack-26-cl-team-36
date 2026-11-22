@@ -8,8 +8,9 @@ import { AGENTE, partesDeTanda } from "../public/nucleo/almacen.js";
 const NOMBRE_SEGURO = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
 // Solo estos archivos de un perfil se sirven al navegador.
 export const ARCHIVO_DE_PERFIL = /^(step_\d{2,3}\.png|video\.webm)$/;
-// El orden de los perfiles en el Visitante: first_time, hurried, mobile; los demás, por nombre.
-const ORDEN_DE_PERFILES = ["first_time", "hurried", "mobile"];
+// El orden de los perfiles en el Visitante (first_time y hurried, de corridas viejas); los demás, por nombre. Dentro
+// de un perfil, por n.º de intento (`desktop`, `desktop-2`, …, `desktop-10`).
+const ORDEN_DE_PERFILES = ["desktop", "first_time", "hurried", "mobile"];
 
 /** @typedef {import("./fuente.js").Fuente} Fuente */
 
@@ -75,9 +76,15 @@ async function leerSinVecinas(fuente, id) {
     if (!run) continue;
     intentos.push({ perfil, run, video: await fuente.existe(id, `${perfil}/video.webm`) });
   }
-  const posicion = (perfil) =>
-    ORDEN_DE_PERFILES.includes(perfil) ? ORDEN_DE_PERFILES.indexOf(perfil) : ORDEN_DE_PERFILES.length;
-  intentos.sort((a, b) => posicion(a.perfil) - posicion(b.perfil) || (a.perfil < b.perfil ? -1 : 1));
+  const perfilDe = ({ perfil, run }) => run.profile || perfil;
+  const posicion = (intento) => {
+    const indice = ORDEN_DE_PERFILES.indexOf(perfilDe(intento));
+    return indice < 0 ? ORDEN_DE_PERFILES.length : indice;
+  };
+  const repeticion = ({ run }) => (Number.isInteger(run.attempt) ? run.attempt : 1);
+  const comparar = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  intentos.sort((a, b) =>
+    posicion(a) - posicion(b) || comparar(perfilDe(a), perfilDe(b)) || repeticion(a) - repeticion(b) || comparar(a.perfil, b.perfil));
   return armarTanda({ id, arbol: arbol.datos, criterio, intentos, estadoDelArbol: arbol.estado });
 }
 

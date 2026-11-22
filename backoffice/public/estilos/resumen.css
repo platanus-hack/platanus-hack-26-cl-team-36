@@ -10,7 +10,7 @@
 .p-resumen .resumen-titular.resumen-nivel-bien .resumen-titular-icono { color: var(--exito); }
 .p-resumen .resumen-titular.resumen-nivel-atencion .resumen-titular-icono { color: var(--peligro); }
 .p-resumen .resumen-titular.resumen-nivel-dificultad .resumen-titular-icono { color: var(--aviso); }
-.p-resumen .resumen-titular.resumen-nivel-error .resumen-titular-icono { color: var(--neutro); }
+.p-resumen .resumen-titular:is(.resumen-nivel-error, .resumen-nivel-info) .resumen-titular-icono { color: var(--neutro); }
 .p-resumen .resumen-cifras { row-gap: var(--e-4); }
 .p-resumen .resumen-cifras dd { margin: 0; }
 

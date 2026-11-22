@@ -1,0 +1,102 @@
+{
+  "profile": "desktop",
+  "profile_name": "Escritorio",
+  "viewport": "1024x768",
+  "model": "us.anthropic.claude-haiku-4-5",
+  "start_url": "https://www.ejemplo.test/",
+  "instruction": "Encontrar el horario de atención",
+  "engine": "bedrock",
+  "attempt": 1,
+  "folder": "desktop",
+  "started_at": "",
+  "start": {
+    "url": "https://www.ejemplo.test/",
+    "title": "Inicio",
+    "screenshot": "step_00.png"
+  },
+  "steps": [
+    {
+      "number": 1,
+      "action": "left_click",
+      "action_input": {},
+      "description": "clic en (10, 40)",
+      "coordinates": [
+        10,
+        40
+      ],
+      "expectation": "Llego a Ayuda",
+      "element": {
+        "text": "Ayuda"
+      },
+      "url_before": "https://www.ejemplo.test/",
+      "title_before": "Inicio",
+      "url": "https://www.ejemplo.test/ayuda",
+      "title": "Ayuda",
+      "screenshot_before": "step_00.png",
+      "screenshot": "step_01.png",
+      "seconds_since_start": 4.0,
+      "duration_s": 4.0,
+      "screen_change": 0.5,
+      "signals": [],
+      "error_detail": null,
+      "events": [],
+      "decided_s": null,
+      "executed_s": 0.0,
+      "settled_s": 4.0,
+      "decided_at": "",
+      "executed_at": "",
+      "settled_at": ""
+    },
+    {
+      "number": 2,
+      "action": "left_click",
+      "action_input": {},
+      "description": "clic en (20, 40)",
+      "coordinates": [
+        20,
+        40
+      ],
+      "expectation": "Llego a Horario",
+      "element": {
+        "text": "Horario"
+      },
+      "url_before": "https://www.ejemplo.test/ayuda",
+      "title_before": "Ayuda",
+      "url": "https://www.ejemplo.test/ayuda/horario",
+      "title": "Horario",
+      "screenshot_before": "step_01.png",
+      "screenshot": "step_02.png",
+      "seconds_since_start": 8.0,
+      "duration_s": 4.0,
+      "screen_change": 0.5,
+      "signals": [],
+      "error_detail": null,
+      "events": [],
+      "decided_s": null,
+      "executed_s": 0.0,
+      "settled_s": 8.0,
+      "decided_at": "",
+      "executed_at": "",
+      "settled_at": ""
+    }
+  ],
+  "end_reason": "done",
+  "final_message": "Atienden de 9 a 18.",
+  "duration_s": 9.0,
+  "turns": 3,
+  "screenshots_requested": 0,
+  "incidents": [],
+  "token_usage": {},
+  "final_screenshot": "step_02.png",
+  "videos": [],
+  "video_offset_s": 0.0,
+  "verdict": {
+    "outcome": "success",
+    "source": "route",
+    "claimed_done": true,
+    "justification": "Llegó a la página final de la ruta de la Guía."
+  },
+  "conocimiento": null,
+  "tarea_coloquial": null,
+  "terminos_rechazados": []
+}

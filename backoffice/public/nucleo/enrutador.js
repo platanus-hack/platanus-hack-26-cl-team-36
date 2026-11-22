@@ -73,8 +73,9 @@ function cargarPantalla(id) {
 
 // ── Contexto que recibe cada pantalla ─────────────────────────────────────
 
-function perfilDeIntento(tanda, intentoId) {
-  return tanda?.intentos?.find((intento) => intento.id === intentoId)?.perfil ?? intentoId;
+// Las capturas están en la carpeta del intento (`desktop-2`), no en la de su perfil.
+function carpetaDeIntento(tanda, intentoId) {
+  return tanda?.intentos?.find((intento) => intento.id === intentoId)?.carpeta ?? intentoId;
 }
 
 function crearContexto(v) {
@@ -90,7 +91,7 @@ function crearContexto(v) {
     carpeta: listaDeTandas.carpeta,
     tanda: v.tanda ?? null,
     pestana: v.pestana ?? null,
-    urlDeArchivo: (intentoId, archivo) => urlDeArchivo(tandaId, perfilDeIntento(v.tanda, intentoId), archivo),
+    urlDeArchivo: (intentoId, archivo) => urlDeArchivo(tandaId, carpetaDeIntento(v.tanda, intentoId), archivo),
     enlace: (pestana, parametros = {}) =>
       tandaId ? enlaceATanda(tandaId, pestana, parametros) : hashDe({ tipo: "corridas", parametros }),
     enlaceATanda,

@@ -21,6 +21,8 @@ export default {
     ninguno: "ninguno",
     erroresContexto: "no cuentan en las cifras",
     sinValidos: "No aplica: ningún intento válido",
+    sinMedir: "{n} sin medir",
+    sinMedirTitulo: "Sin medir: no hay ruta de la Guía ni juez",
   },
   hallazgo: {
     titulo: "Hallazgos",

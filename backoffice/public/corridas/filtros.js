@@ -21,19 +21,20 @@ export function leerParametros(parametros = {}) {
   };
 }
 
-/** Cifras de una tanda con respaldo para campos ausentes. */
+/** Cifras de una tanda con respaldo para campos ausentes. `medidos`: los válidos con resultado (sin los sin medir). */
 export function cifrasDeTanda(resumen) {
   const intentos = typeof resumen?.intentos === "number" ? resumen.intentos : 0;
   const errores = Number(resumen?.errores ?? 0) || 0;
   const validos = typeof resumen?.validos === "number" ? resumen.validos : Math.max(0, intentos - errores);
+  const medidos = typeof resumen?.medidos === "number" ? resumen.medidos : validos;
   const logrados = Number(resumen?.logrados ?? 0) || 0;
-  return { intentos, errores, validos, logrados };
+  return { intentos, errores, validos, medidos, logrados };
 }
 
-/** "Con problemas": algún intento válido no llega a la respuesta. */
+/** "Con problemas": algún intento medido no llega a la respuesta. */
 export const tieneProblemas = (resumen) => {
-  const { validos, logrados } = cifrasDeTanda(resumen);
-  return validos > logrados;
+  const { medidos, logrados } = cifrasDeTanda(resumen);
+  return medidos > logrados;
 };
 
 /** "Con errores": algún intento no cuenta por un error de la herramienta. */
@@ -87,10 +88,10 @@ export function sitiosDe(tandas) {
 const comparar = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const claveDeFecha = (resumen) => String(resumen?.fechaIso ?? resumen?.fecha ?? "");
 
-/** Tasa de éxito; sin intentos válidos cuenta como la peor (-1) para que quede arriba en "exito". */
+/** Tasa de éxito; sin intentos medidos cuenta como la peor (-1) para que quede arriba en "exito". */
 function tasa(resumen) {
-  const { validos, logrados } = cifrasDeTanda(resumen);
-  return validos ? logrados / validos : -1;
+  const { medidos, logrados } = cifrasDeTanda(resumen);
+  return medidos ? logrados / medidos : -1;
 }
 
 /**
@@ -155,8 +156,8 @@ export function agruparPorDia(tandas, ahora = Date.now()) {
 /** ¿Se agrupa por día con este orden? */
 export const agrupaPorDia = (orden) => orden === "nuevas" || orden === "viejas";
 
-/** Orden de los resultados en el medidor: logrados, fallidos, abandonados, errores. */
-const ORDEN_DE_RESULTADO = { logrado: 0, fallido: 1, abandonado: 2, error: 3 };
+/** Orden de los resultados en el medidor: logrados, fallidos, abandonados, sin medir, errores. */
+const ORDEN_DE_RESULTADO = { logrado: 0, fallido: 1, abandonado: 2, sin_medir: 3, error: 4 };
 
 /** Los resultados de los intentos para el medidor, de mejor a peor (estable). */
 export function resultadosParaMedidor(perfiles) {
