@@ -258,8 +258,8 @@ Un intento interrumpido por un error técnico no cuenta como éxito ni como fall
 ### Resultado
 
 El éxito de un intento lo decide el programa: `success` si pasó por la página final de la ruta de la Guía
-(`reached_final_node`). Si no llegó, `failed` cuando declaró que terminó (el reporte dice «declaró que terminó sin
-llegar») y `abandoned` cuando se rindió, quedó bloqueado o se le acabaron las acciones o el tiempo. Lo que declara el
+(`reached_final_node`); si la ruta termina en la página inicial, solo si además declaró que terminó. Si no llegó,
+`failed` cuando declaró que terminó (el reporte dice «declaró que terminó sin llegar») y `abandoned` cuando se rindió, quedó bloqueado o se le acabaron las acciones o el tiempo. Lo que declara el
 usuario queda en `end_reason`, `final_message` y `verdict.claimed_done`; `verdict.source` dice quién decidió (`route`
 o `judge`). Sin ruta, con `--judge` decide el juez; sin juez, `unmeasured`. Un perfil sin ruta de su pantalla se mide
 con la de escritorio (`reference_viewport` en `comparison.json`). Las corridas viejas con perfiles retirados
