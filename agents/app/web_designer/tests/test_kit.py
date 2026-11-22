@@ -141,10 +141,10 @@ def test_el_lanzador_no_enlaza_el_viaje_que_eligio_la_guia():
 def test_titulo_derivado_corto_y_sin_cabos_sueltos():
     titulos = {g.id: atajos._titulo(g.description) for g in _goals_reales()}
     assert titulos["planificar-viaje"] == "Planifica tu viaje en metro"
-    assert titulos["encontrar-informacion-estacion"] == "Encuentra las estaciones del metro"
-    assert titulos["gestionar-arriendo-terrenos"] == "Gestiona el arriendo de terrenos"
-    assert titulos["conocer-linea-a"] == "Conoce el proyecto de la Línea A"
-    assert all(len(t.split()) <= 7 and len(t) <= 48 for t in titulos.values())
+    assert titulos["encontrar-informacion-estacion"] == "Estaciones del metro"
+    assert titulos["gestionar-arriendo-terrenos"] == "Gestiona el arriendo de terrenos del metro"
+    assert titulos["conocer-linea-a"] == "Proyecto de la Línea A del metro"
+    assert all(len(t.split()) <= 9 and len(t) <= 56 for t in titulos.values())
     assert not any(t.split()[-1] in atajos._ENLACES for t in titulos.values())
     # «Llega a…» no nombra la tarea: queda el destino, sin el propósito.
     assert atajos._titulo("Llega a la página de la Encuesta de Presupuestos Familiares.") == \
@@ -154,7 +154,38 @@ def test_titulo_derivado_corto_y_sin_cabos_sueltos():
     assert atajos._titulo("Llega al trámite para iniciar actividades como contribuyente.") == \
         "Iniciar actividades como contribuyente"
     assert atajos._titulo("Te contactaron para una encuesta del INE: encuentra la información para personas.") == \
-        "Encuentra la información para personas"
+        "Información para personas"
+
+
+def _titulos_de(sitio: str) -> dict[str, str]:
+    goals = json.loads((Path(__file__).with_name("datos") / sitio / "goals.json").read_text(encoding="utf-8"))
+    return {g["id"]: atajos._titulo(g["description"]) for g in goals["goals"]}
+
+
+def test_el_titulo_nombra_la_tarea_sin_el_verbo_del_catalogo_ni_cortes_a_medias():
+    sii, ine = _titulos_de("sii-real"), _titulos_de("ine-real")
+    # Antes: «Encuentra el valor de la UTM», «Encuentra los datos y valores», «Encuentra las estadísticas de permisos».
+    assert sii["consultar-utm"] == "Valor de la UTM del mes"
+    assert sii["fechas-valores-iva"] == "Datos y valores del IVA"
+    assert sii["fechas-valores-renta"] == "Plazos y valores de la declaración de renta"
+    assert sii["derechos-contribuyentes"] == "Tus derechos como contribuyente"
+    assert sii["rectificar-renta-2026"] == "Cómo rectificar tu declaración de renta 2026"
+    assert ine["permisos-de-edificacion"] == "Estadísticas de permisos de edificación"
+    # Un nombre propio no se parte: mejor la frase sin él que «… del Índice de Precios».
+    assert ine["variacion-mensual-ipc"] == "Variación mensual más reciente"
+    # «Busca un tema»: sin artículo definido no es el nombre de algo; el verbo se queda.
+    assert sii["buscar-en-sii"] == "Busca un tema"
+    for titulo in [*sii.values(), *ine.values()]:
+        assert len(titulo.split()) <= 9 and len(titulo) <= 56, titulo
+        assert titulo.split()[-1].lower() not in atajos._ENLACES, titulo
+        assert not re.match(r"(?i)(encuentra|consulta|revisa|conoce|obtén) (el|la|los|las) ", titulo), titulo
+
+
+def test_el_detalle_derivado_conserva_el_articulo():
+    goal = next(Goal(**g) for g in json.loads((Path(__file__).with_name("datos") / "sii-real" / "goals.json")
+                                              .read_text(encoding="utf-8"))["goals"] if g["id"] == "consultar-utm")
+    tarea = atajos._tarea(goal, "/utm")
+    assert tarea["titulo"]["es"] == "Valor de la UTM del mes" and tarea["detalle"]["es"] == "El valor de la UTM del mes"
 
 
 def test_lanzador_con_el_catalogo_de_metro():

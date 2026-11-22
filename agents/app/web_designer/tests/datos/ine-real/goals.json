@@ -1,0 +1,631 @@
+{
+  "host": "ine.gob.cl",
+  "start_url": "https://www.ine.gob.cl/",
+  "viewport": "1024x768",
+  "pages": 1,
+  "model": "us.anthropic.claude-sonnet-5-5",
+  "effort": "high",
+  "catalog_tokens": {
+    "input_tokens": 16936,
+    "output_tokens": 6500,
+    "cache_read_input_tokens": 0,
+    "cache_creation_input_tokens": 0
+  },
+  "catalog_cost_usd": 0.0,
+  "issues": [],
+  "goals": [
+    {
+      "id": "variacion-mensual-ipc",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra la variación mensual más reciente del Índice de Precios al Consumidor (IPC).",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/estadisticas-por-tema/precios-e-inflacion/indice-de-precios-al-consumidor",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Encuentra la variación mensual más reciente del Índice de Precios al Consumidor (IPC).",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 1
+    },
+    {
+      "id": "calculadora-ipc",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Calcula cuánto equivale hoy un monto en pesos de una fecha pasada usando la calculadora IPC.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://calculadoraipc.ine.cl/",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Calcula cuánto equivale hoy un monto en pesos de una fecha pasada usando la calculadora IPC.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 4
+    },
+    {
+      "id": "tasa-desocupacion",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra la tasa de desocupación nacional del último trimestre móvil.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/estadisticas-por-tema/mercado-laboral/ocupacion-y-desocupacion",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Encuentra la tasa de desocupación nacional del último trimestre móvil.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 1
+    },
+    {
+      "id": "poblacion-total-proyectada",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra la población total de Chile proyectada para el año en curso.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/estadisticas-por-tema/demografia-y-poblacion/proyecciones-de-poblacion",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Encuentra la población total de Chile proyectada para el año en curso.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 1
+    },
+    {
+      "id": "resultados-censo-2024",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Llega al sitio de resultados del Censo 2024.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://censo2024.ine.gob.cl/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega al sitio de resultados del Censo 2024. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "top",
+      "estimated_steps": 1
+    },
+    {
+      "id": "esperanza-de-vida",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra la esperanza de vida al nacer proyectada para Chile.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/estadisticas-por-tema/demografia-y-poblacion/proyecciones-de-poblacion",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Encuentra la esperanza de vida al nacer proyectada para Chile.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "indice-remuneraciones",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra la variación mensual más reciente del Índice Nominal de Remuneraciones.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/estadisticas-por-tema/mercado-laboral/remuneraciones-y-costos-laborales",
+      "submits_form": false,
+      "prominence": "primary",
+      "gates": [],
+      "instruction": "Encuentra la variación mensual más reciente del Índice Nominal de Remuneraciones.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "agenda-estadistica",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra la fecha de publicación de un próximo indicador en la agenda estadística.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/inicio/agendaestadistica/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Encuentra la fecha de publicación de un próximo indicador en la agenda estadística.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "verificar-encuestador",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Una persona se presentó en tu casa como encuestadora del INE: verifica que es personal autorizado.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://verificador.ine.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Una persona se presentó en tu casa como encuestadora del INE: verifica que es personal autorizado.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 3
+    },
+    {
+      "id": "canales-de-atencion",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra los canales para contactar al INE.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/ine-educa/participacion-ciudadana/canales-de-atencion-a-usuarios",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra los canales para contactar al INE.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "enviar-solicitud-atencion-ciudadana",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Envía una consulta o solicitud al INE por la plataforma de atención ciudadana.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://atencionciudadana.ine.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Envía una consulta o solicitud al INE por la plataforma de atención ciudadana. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 5
+    },
+    {
+      "id": "direccion-oficina-regional",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Vives en Concepción: encuentra la dirección de la oficina regional del INE en Biobío.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://regiones.ine.gob.cl/biobio",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Vives en Concepción: encuentra la dirección de la oficina regional del INE en Biobío.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 2
+    },
+    {
+      "id": "info-personas-encuestadas",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/acceso-informantes/informacion-para-personas-encuestadas",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas.",
+      "exclusion": null,
+      "demand": "common",
+      "estimated_steps": 1
+    },
+    {
+      "id": "info-empresas-encuestadas",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/acceso-informantes/informacion-para-empresas-encuestadas",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "suscribirse-boletines",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Suscríbete a los boletines del INE con tu correo.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "transact",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "http://newsletter.ine.cl/lists/?p=subscribe&id=1",
+      "submits_form": true,
+      "prominence": "secondary",
+      "gates": [
+        "side_effect"
+      ],
+      "instruction": "Suscríbete a los boletines del INE con tu correo. Llega hasta el último paso antes de enviar, pagar o confirmar, sin hacerlo, y termina citando el texto de esa pantalla.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 4
+    },
+    {
+      "id": "calculadora-ict",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Calcula el reajuste de un contrato de transporte con la calculadora del Índice de Costos del Transporte.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://calculadoraict.ine.gob.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Calcula el reajuste de un contrato de transporte con la calculadora del Índice de Costos del Transporte.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 5
+    },
+    {
+      "id": "calculadora-ict-diesel",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Calcula el reajuste del costo del diésel de un contrato con la calculadora ICT - Diesel.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://calculadoraict-diesel.ine.gob.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Calcula el reajuste del costo del diésel de un contrato con la calculadora ICT - Diesel.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 5
+    },
+    {
+      "id": "consulta-datos-censo-redatam",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Genera una tabla de datos del censo con Redatam.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://redatam-ine.ine.cl/",
+      "submits_form": true,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Genera una tabla de datos del censo con Redatam.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 6
+    },
+    {
+      "id": "buscar-serie-ine-stat",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra una serie estadística en la base de datos INE.Stat.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://stat.ine.cl/?lang=es",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Encuentra una serie estadística en la base de datos INE.Stat.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 4
+    },
+    {
+      "id": "portal-de-mapas",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Llega al Portal de Mapas del INE para ver indicadores en mapas.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/herramientas/portal-de-mapas",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega al Portal de Mapas del INE para ver indicadores en mapas. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "banco-datos-ene",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Llega al Banco de datos de la Encuesta Nacional de Empleo (ENE).",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://bancodatosene.ine.cl/",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega al Banco de datos de la Encuesta Nacional de Empleo (ENE). Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "sistema-simel",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Llega al Sistema de Información de Mercado Laboral (SIMEL).",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/simel",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega al Sistema de Información de Mercado Laboral (SIMEL). Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "permisos-de-edificacion",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra las estadísticas de permisos de edificación.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/estadisticas-por-tema/industria-energia-y-construccion/permisos-de-edificacion",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Encuentra las estadísticas de permisos de edificación. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "encuesta-presupuestos-familiares",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Llega a la página de la Encuesta de Presupuestos Familiares.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/estadisticas-por-tema/sociedad-y-condiciones-de-vida/encuesta-de-presupuestos-familiares",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Llega a la página de la Encuesta de Presupuestos Familiares. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "estadisticas-seguridad-ciudadana",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Llega a las estadísticas de seguridad ciudadana.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/estadisticas-por-tema/sociedad-y-condiciones-de-vida/seguridad-ciudadana",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Llega a las estadísticas de seguridad ciudadana. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "sala-de-prensa",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Llega a la sala de prensa para leer el comunicado más reciente del IPC.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/sala-de-prensa",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega a la sala de prensa para leer el comunicado más reciente del IPC. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 2
+    },
+    {
+      "id": "transparencia-activa",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Llega a la transparencia activa del INE.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.portaltransparencia.cl/PortalPdT/pdtta?codOrganismo=AH007",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Llega a la transparencia activa del INE. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "solicitudes-ley-lobby",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Llega a las solicitudes de la Ley del Lobby del INE.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "reach_page",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.leylobby.gob.cl/instituciones/AH007",
+      "submits_form": false,
+      "prominence": "secondary",
+      "gates": [],
+      "instruction": "Llega a las solicitudes de la Ley del Lobby del INE. Termina en esa página y cita su título o encabezado principal.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    },
+    {
+      "id": "licencia-datos-abiertos",
+      "host": "ine.gob.cl",
+      "start_url": "https://www.ine.gob.cl/",
+      "description": "Encuentra los términos de uso y la licencia de los datos abiertos del INE.",
+      "expected_answer": null,
+      "level": "user_goal",
+      "parent": null,
+      "intent": "find_info",
+      "evidence": [
+        "https://www.ine.gob.cl/"
+      ],
+      "entry": "https://www.ine.gob.cl/terminos-de-uso-y-licencia-de-datos-abiertos",
+      "submits_form": false,
+      "prominence": "buried",
+      "gates": [],
+      "instruction": "Encuentra los términos de uso y la licencia de los datos abiertos del INE.",
+      "exclusion": null,
+      "demand": "rare",
+      "estimated_steps": 1
+    }
+  ]
+}

@@ -1,0 +1,281 @@
+{
+  "nombre": "ine.gob.cl — kit de la revisión kitv2-ine-1",
+  "features": {
+    "vista": [
+      {
+        "id": "tareas",
+        "rutas": [
+          "/"
+        ],
+        "contenedor": "#MargenContentFullPantalla > div.row.row-eq-height",
+        "reemplazar": false,
+        "componente": "lanzador",
+        "datos": [
+          {
+            "titulo": {
+              "es": "Canales de atención",
+              "en": "Contact channels"
+            },
+            "enlace": "/ine-educa/participacion-ciudadana/canales-de-atencion-a-usuarios",
+            "detalle": {
+              "es": "Canales para contactar al INE.",
+              "en": "Ways to contact INE."
+            }
+          },
+          {
+            "titulo": {
+              "es": "Encuentra las estadísticas de permisos",
+              "en": "Encuentra las estadísticas de permisos"
+            },
+            "enlace": "/estadisticas-por-tema/industria-energia-y-construccion/permisos-de-edificacion",
+            "detalle": {
+              "es": "Encuentra las estadísticas de permisos de edificación",
+              "en": "Encuentra las estadísticas de permisos de edificación"
+            }
+          },
+          {
+            "titulo": {
+              "es": "Encuesta de Presupuestos Familiares",
+              "en": "Encuesta de Presupuestos Familiares"
+            },
+            "enlace": "/estadisticas-por-tema/sociedad-y-condiciones-de-vida/encuesta-de-presupuestos-familiares"
+          },
+          {
+            "titulo": {
+              "es": "Estadísticas de seguridad ciudadana",
+              "en": "Estadísticas de seguridad ciudadana"
+            },
+            "enlace": "/estadisticas-por-tema/sociedad-y-condiciones-de-vida/seguridad-ciudadana"
+          },
+          {
+            "titulo": {
+              "es": "Agenda estadística",
+              "en": "Statistical calendar"
+            },
+            "enlace": "/inicio/agendaestadistica/",
+            "detalle": {
+              "es": "Fecha de publicación de próximos indicadores.",
+              "en": "Release dates for upcoming indicators."
+            }
+          },
+          {
+            "titulo": {
+              "es": "Encuentra la información para personas",
+              "en": "Encuentra la información para personas"
+            },
+            "enlace": "/acceso-informantes/informacion-para-personas-encuestadas",
+            "detalle": {
+              "es": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas",
+              "en": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas"
+            }
+          },
+          {
+            "titulo": {
+              "es": "Encuentra la información para instituciones",
+              "en": "Encuentra la información para instituciones"
+            },
+            "enlace": "/acceso-informantes/informacion-para-empresas-encuestadas",
+            "detalle": {
+              "es": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas",
+              "en": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas"
+            }
+          },
+          {
+            "titulo": {
+              "es": "Portal de Mapas del INE",
+              "en": "INE Maps Portal"
+            },
+            "enlace": "/herramientas/portal-de-mapas",
+            "detalle": {
+              "es": "Indicadores sobre mapas.",
+              "en": "Indicators on maps."
+            }
+          }
+        ],
+        "opciones": {
+          "max": 6
+        }
+      },
+      {
+        "id": "buscar",
+        "rutas": [
+          "/"
+        ],
+        "contenedor": "#MargenContentFullPantalla > div.row.row-eq-height",
+        "reemplazar": false,
+        "componente": "buscador",
+        "datos": [
+          {
+            "titulo": {
+              "es": "Canales de atención",
+              "en": "Contact channels"
+            },
+            "enlace": "/ine-educa/participacion-ciudadana/canales-de-atencion-a-usuarios",
+            "detalle": {
+              "es": "Canales para contactar al INE.",
+              "en": "Ways to contact INE."
+            }
+          },
+          {
+            "titulo": {
+              "es": "Encuentra las estadísticas de permisos",
+              "en": "Encuentra las estadísticas de permisos"
+            },
+            "enlace": "/estadisticas-por-tema/industria-energia-y-construccion/permisos-de-edificacion",
+            "detalle": {
+              "es": "Encuentra las estadísticas de permisos de edificación",
+              "en": "Encuentra las estadísticas de permisos de edificación"
+            }
+          },
+          {
+            "titulo": {
+              "es": "Encuesta de Presupuestos Familiares",
+              "en": "Encuesta de Presupuestos Familiares"
+            },
+            "enlace": "/estadisticas-por-tema/sociedad-y-condiciones-de-vida/encuesta-de-presupuestos-familiares"
+          },
+          {
+            "titulo": {
+              "es": "Estadísticas de seguridad ciudadana",
+              "en": "Estadísticas de seguridad ciudadana"
+            },
+            "enlace": "/estadisticas-por-tema/sociedad-y-condiciones-de-vida/seguridad-ciudadana"
+          },
+          {
+            "titulo": {
+              "es": "Agenda estadística",
+              "en": "Statistical calendar"
+            },
+            "enlace": "/inicio/agendaestadistica/",
+            "detalle": {
+              "es": "Fecha de publicación de próximos indicadores.",
+              "en": "Release dates for upcoming indicators."
+            }
+          },
+          {
+            "titulo": {
+              "es": "Encuentra la información para personas",
+              "en": "Encuentra la información para personas"
+            },
+            "enlace": "/acceso-informantes/informacion-para-personas-encuestadas",
+            "detalle": {
+              "es": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas",
+              "en": "Te contactaron para una encuesta del INE: encuentra la información para personas encuestadas"
+            }
+          },
+          {
+            "titulo": {
+              "es": "Encuentra la información para instituciones",
+              "en": "Encuentra la información para instituciones"
+            },
+            "enlace": "/acceso-informantes/informacion-para-empresas-encuestadas",
+            "detalle": {
+              "es": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas",
+              "en": "Tu empresa fue seleccionada para una encuesta del INE: encuentra la información para instituciones y empresas encuestadas"
+            }
+          },
+          {
+            "titulo": {
+              "es": "Portal de Mapas del INE",
+              "en": "INE Maps Portal"
+            },
+            "enlace": "/herramientas/portal-de-mapas",
+            "detalle": {
+              "es": "Indicadores sobre mapas.",
+              "en": "Indicators on maps."
+            }
+          },
+          {
+            "titulo": {
+              "es": "SIMEL",
+              "en": "SIMEL"
+            },
+            "enlace": "/simel",
+            "detalle": {
+              "es": "Sistema de Información de Mercado Laboral.",
+              "en": "Labour Market Information System."
+            }
+          },
+          {
+            "titulo": {
+              "es": "Sala de prensa",
+              "en": "Press room"
+            },
+            "enlace": "/sala-de-prensa",
+            "detalle": {
+              "es": "Lee el comunicado más reciente del IPC.",
+              "en": "Read the latest CPI release."
+            }
+          },
+          {
+            "titulo": {
+              "es": "Encuentra los términos de uso",
+              "en": "Encuentra los términos de uso"
+            },
+            "enlace": "/terminos-de-uso-y-licencia-de-datos-abiertos",
+            "detalle": {
+              "es": "Encuentra los términos de uso y la licencia de los datos abiertos del INE",
+              "en": "Encuentra los términos de uso y la licencia de los datos abiertos del INE"
+            }
+          },
+          {
+            "titulo": {
+              "es": "Índice de Precios al Consumidor",
+              "en": "Consumer Price Index"
+            },
+            "enlace": "/estadisticas-por-tema/precios-e-inflacion/indice-de-precios-al-consumidor",
+            "detalle": {
+              "es": "Variación mensual más reciente del IPC.",
+              "en": "Latest monthly change of the CPI."
+            }
+          },
+          {
+            "titulo": {
+              "es": "Tasa de desocupación nacional",
+              "en": "National unemployment rate"
+            },
+            "enlace": "/estadisticas-por-tema/mercado-laboral/ocupacion-y-desocupacion",
+            "detalle": {
+              "es": "Tasa del último trimestre móvil.",
+              "en": "Rate for the latest rolling quarter."
+            }
+          },
+          {
+            "titulo": {
+              "es": "Población total",
+              "en": "Total population"
+            },
+            "enlace": "/estadisticas-por-tema/demografia-y-poblacion/proyecciones-de-poblacion",
+            "detalle": {
+              "es": "Población proyectada de Chile.",
+              "en": "Projected population of Chile."
+            }
+          },
+          {
+            "titulo": {
+              "es": "Índice Nominal de Remuneraciones",
+              "en": "Nominal Wage Index"
+            },
+            "enlace": "/estadisticas-por-tema/mercado-laboral/remuneraciones-y-costos-laborales",
+            "detalle": {
+              "es": "Variación mensual más reciente.",
+              "en": "Latest monthly change."
+            }
+          }
+        ],
+        "opciones": {
+          "max": 8,
+          "sugeridas": 6,
+          "textos": {
+            "es": {
+              "boton": "Buscar"
+            },
+            "en": {
+              "boton": "Search"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,519 @@
+{
+  "viewport": {
+    "width": 1024,
+    "height": 768
+  },
+  "mensajes_visitante": [
+    {
+      "objetivo": "declaracion-renta",
+      "perfil": "desktop",
+      "llego": true,
+      "mensaje": "Llegué a la página de Declarar Renta (F22) a través de Servicios online > Declaración de renta. El encabezado principal que veo es \"Para realizar tus trámites Ingresa con:\", con las opciones Clave Tr…"
+    }
+  ],
+  "obstaculos": [],
+  "componentes": [
+    {
+      "id": "tareas",
+      "rutas": [
+        "/"
+      ],
+      "contenedor": "main",
+      "reemplazar": false,
+      "componente": "lanzador",
+      "datos": [
+        {
+          "titulo": {
+            "es": "Encuentra cómo rectificar tu declaración",
+            "en": "Encuentra cómo rectificar tu declaración"
+          },
+          "enlace": "/destacados/renta/2026/rectificatorias/",
+          "detalle": {
+            "es": "Encuentra cómo rectificar tu declaración de renta 2026",
+            "en": "Encuentra cómo rectificar tu declaración de renta 2026"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra el valor de la UF",
+            "en": "Encuentra el valor de la UF"
+          },
+          "enlace": "/valores_y_fechas/uf/uf2026.htm",
+          "detalle": {
+            "es": "Encuentra el valor de la UF de hoy",
+            "en": "Encuentra el valor de la UF de hoy"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra el valor de la UTM",
+            "en": "Encuentra el valor de la UTM"
+          },
+          "enlace": "/valores_y_fechas/utm/utm2026.htm",
+          "detalle": {
+            "es": "Encuentra el valor de la UTM del mes",
+            "en": "Encuentra el valor de la UTM del mes"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra el valor del dólar observado",
+            "en": "Encuentra el valor del dólar observado"
+          },
+          "enlace": "/valores_y_fechas/dolar/dolar2026.htm",
+          "detalle": {
+            "es": "Encuentra el valor del dólar observado de hoy",
+            "en": "Encuentra el valor del dólar observado de hoy"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra los plazos y valores",
+            "en": "Encuentra los plazos y valores"
+          },
+          "enlace": "/valores_y_fechas/renta/datos_valores_renta.html",
+          "detalle": {
+            "es": "Encuentra los plazos y valores de la declaración de renta",
+            "en": "Encuentra los plazos y valores de la declaración de renta"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra los datos y valores",
+            "en": "Encuentra los datos y valores"
+          },
+          "enlace": "/valores_y_fechas/iva/datos_valores_iva.html",
+          "detalle": {
+            "es": "Encuentra los datos y valores del IVA",
+            "en": "Encuentra los datos y valores del IVA"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Portal de Denuncias",
+            "en": "Portal de Denuncias"
+          },
+          "enlace": "/destacados/portal_denuncias/",
+          "detalle": {
+            "es": "Portal de Denuncias para presentar una denuncia tributaria",
+            "en": "Portal de Denuncias para presentar una denuncia tributaria"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra la lista de circulares",
+            "en": "Encuentra la lista de circulares"
+          },
+          "enlace": "/normativa_legislacion/circulares/2026/indcir2026.htm",
+          "detalle": {
+            "es": "Encuentra la lista de circulares del año 2026",
+            "en": "Encuentra la lista de circulares del año 2026"
+          }
+        }
+      ],
+      "opciones": {
+        "max": 6
+      }
+    },
+    {
+      "id": "buscar",
+      "rutas": [
+        "/"
+      ],
+      "contenedor": "main",
+      "reemplazar": false,
+      "componente": "buscador",
+      "datos": [
+        {
+          "titulo": {
+            "es": "Encuentra cómo rectificar tu declaración",
+            "en": "Encuentra cómo rectificar tu declaración"
+          },
+          "enlace": "/destacados/renta/2026/rectificatorias/",
+          "detalle": {
+            "es": "Encuentra cómo rectificar tu declaración de renta 2026",
+            "en": "Encuentra cómo rectificar tu declaración de renta 2026"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra el valor de la UF",
+            "en": "Encuentra el valor de la UF"
+          },
+          "enlace": "/valores_y_fechas/uf/uf2026.htm",
+          "detalle": {
+            "es": "Encuentra el valor de la UF de hoy",
+            "en": "Encuentra el valor de la UF de hoy"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra el valor de la UTM",
+            "en": "Encuentra el valor de la UTM"
+          },
+          "enlace": "/valores_y_fechas/utm/utm2026.htm",
+          "detalle": {
+            "es": "Encuentra el valor de la UTM del mes",
+            "en": "Encuentra el valor de la UTM del mes"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra el valor del dólar observado",
+            "en": "Encuentra el valor del dólar observado"
+          },
+          "enlace": "/valores_y_fechas/dolar/dolar2026.htm",
+          "detalle": {
+            "es": "Encuentra el valor del dólar observado de hoy",
+            "en": "Encuentra el valor del dólar observado de hoy"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra los plazos y valores",
+            "en": "Encuentra los plazos y valores"
+          },
+          "enlace": "/valores_y_fechas/renta/datos_valores_renta.html",
+          "detalle": {
+            "es": "Encuentra los plazos y valores de la declaración de renta",
+            "en": "Encuentra los plazos y valores de la declaración de renta"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra los datos y valores",
+            "en": "Encuentra los datos y valores"
+          },
+          "enlace": "/valores_y_fechas/iva/datos_valores_iva.html",
+          "detalle": {
+            "es": "Encuentra los datos y valores del IVA",
+            "en": "Encuentra los datos y valores del IVA"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Portal de Denuncias",
+            "en": "Portal de Denuncias"
+          },
+          "enlace": "/destacados/portal_denuncias/",
+          "detalle": {
+            "es": "Portal de Denuncias para presentar una denuncia tributaria",
+            "en": "Portal de Denuncias para presentar una denuncia tributaria"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra la lista de circulares",
+            "en": "Encuentra la lista de circulares"
+          },
+          "enlace": "/normativa_legislacion/circulares/2026/indcir2026.htm",
+          "detalle": {
+            "es": "Encuentra la lista de circulares del año 2026",
+            "en": "Encuentra la lista de circulares del año 2026"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra cuáles son tus derechos",
+            "en": "Encuentra cuáles son tus derechos"
+          },
+          "enlace": "/sobre_el_sii/derechos_contribuyentes.htm",
+          "detalle": {
+            "es": "Encuentra cuáles son tus derechos como contribuyente",
+            "en": "Encuentra cuáles son tus derechos como contribuyente"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Trabajar en el SII",
+            "en": "Trabajar en el SII"
+          },
+          "enlace": "/sobre_el_sii/trabaja_con_nosotros.html",
+          "detalle": {
+            "es": "Ofertas para trabajar en el SII",
+            "en": "Ofertas para trabajar en el SII"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra las aplicaciones móviles del SII",
+            "en": "Encuentra las aplicaciones móviles del SII"
+          },
+          "enlace": "/ayudas/apps/"
+        },
+        {
+          "titulo": {
+            "es": "Declarar tu impuesto a la renta",
+            "en": "Declarar tu impuesto a la renta"
+          },
+          "enlace": "/servicios_online/1044-.html",
+          "detalle": {
+            "es": "Servicios para declarar tu impuesto a la renta",
+            "en": "Servicios para declarar tu impuesto a la renta"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra cómo obtener o recuperar",
+            "en": "Encuentra cómo obtener o recuperar"
+          },
+          "enlace": "/servicios_online/1943-.html",
+          "detalle": {
+            "es": "Encuentra cómo obtener o recuperar tu clave tributaria",
+            "en": "Encuentra cómo obtener o recuperar tu clave tributaria"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Encuentra cómo realizar el término",
+            "en": "Encuentra cómo realizar el término"
+          },
+          "enlace": "/servicios_online/1046-.html",
+          "detalle": {
+            "es": "Encuentra cómo realizar el término de giro de tu actividad",
+            "en": "Encuentra cómo realizar el término de giro de tu actividad"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Pagar giros",
+            "en": "Pagar giros"
+          },
+          "enlace": "/servicios_online/1045-.html",
+          "detalle": {
+            "es": "Servicios para pagar giros, multas o solicitar condonaciones",
+            "en": "Servicios para pagar giros, multas o solicitar condonaciones"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Consulta de tasación fiscal de vehículos",
+            "en": "Consulta de tasación fiscal de vehículos"
+          },
+          "enlace": "/servicios_online/1049-.html"
+        },
+        {
+          "titulo": {
+            "es": "Tramitar herencias y donaciones",
+            "en": "Tramitar herencias y donaciones"
+          },
+          "enlace": "/servicios_online/3140-.html",
+          "detalle": {
+            "es": "Servicios para tramitar herencias y donaciones",
+            "en": "Servicios para tramitar herencias y donaciones"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Enviar una petición administrativa al SII",
+            "en": "Enviar una petición administrativa al SII"
+          },
+          "enlace": "/servicios_online/1037-.html",
+          "detalle": {
+            "es": "Servicios para enviar una petición administrativa al SII",
+            "en": "Servicios para enviar una petición administrativa al SII"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Solicitar información pública al SII",
+            "en": "Solicitar información pública al SII"
+          },
+          "enlace": "/transparencia/solicitud_informacion.html",
+          "detalle": {
+            "es": "Formulario para solicitar información pública al SII",
+            "en": "Formulario para solicitar información pública al SII"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Consulta, solicitudes y pago",
+            "en": "Consulta, solicitudes y pago"
+          },
+          "enlace": "/servicios_online/4485-.html",
+          "detalle": {
+            "es": "Encuentra los servicios del impuesto a aviones, helicópteros, yates y vehículos de alto valor",
+            "en": "Encuentra los servicios del impuesto a aviones, helicópteros, yates y vehículos de alto valor"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Inicio de actividades",
+            "en": "Inicio de actividades"
+          },
+          "enlace": "/servicios_online/1031-1034.html",
+          "detalle": {
+            "es": "Trámite para iniciar actividades como contribuyente",
+            "en": "Trámite para iniciar actividades como contribuyente"
+          }
+        },
+        {
+          "titulo": {
+            "es": "Registro de Compras y Ventas",
+            "en": "Registro de Compras y Ventas"
+          },
+          "enlace": "/servicios_online/1039-3256.html",
+          "detalle": {
+            "es": "Registro de Compras y Ventas para revisar tus documentos tributarios",
+            "en": "Registro de Compras y Ventas para revisar tus documentos tributarios"
+          }
+        }
+      ],
+      "opciones": {
+        "max": 8,
+        "sugeridas": 6
+      }
+    }
+  ],
+  "sin_atajo": [
+    {
+      "objetivo": "rectificar-renta-2026",
+      "razon": "la ruta no está verificada"
+    },
+    {
+      "objetivo": "declaracion-renta",
+      "razon": "la ruta no termina en una URL con consulta del mismo sitio"
+    },
+    {
+      "objetivo": "buscar-en-sii",
+      "razon": "la ruta no está verificada"
+    }
+  ],
+  "voz_del_sitio": {
+    "titulo": "SII | Servicio de Impuestos Internos",
+    "titulos": [
+      "Accesos rápidos",
+      "Destacados Ver más portales",
+      "Noticias Ver más noticias",
+      "Valores y fechas",
+      "Normativa y legislación",
+      "Redes Sociales y APPs",
+      "Sitios de interés",
+      "Sobre el SII",
+      "Menú",
+      "Servicios online",
+      "Clave tributaria, mandatario digital y representantes electrónicos",
+      "RUT, Inicio de Actividades e Inscripción en Registros",
+      "Actualización de información",
+      "Peticiones administrativas y otras solicitudes",
+      "Autorización de documentos tributarios",
+      "Factura electrónica",
+      "Boleta de ventas y servicios electrónica",
+      "Boletas de honorarios electrónicas",
+      "Libros contables electrónicos",
+      "Impuestos mensuales",
+      "Declaraciones juradas",
+      "Declaración de renta",
+      "Infracciones, pago de giros y condonaciones",
+      "Término de giro",
+      "Situación tributaria",
+      "Herencias y Donaciones",
+      "Avalúos y contribuciones de bienes raíces",
+      "Tasación fiscal de vehículos",
+      "Impuesto a aviones, helicópteros, yates y vehículos de alto valor",
+      "Buscar"
+    ],
+    "menu": [
+      "cancel",
+      "Clave tributaria",
+      "Mandatario Digital",
+      "Representantes electrónicos",
+      "Inscripción y obtención de N° de RUT",
+      "Cédula RUT electrónica (e-RUT)",
+      "Inicio de actividades",
+      "Inscripción en registros",
+      "Certificados de inicio de actividades y otros",
+      "Peticiones administrativas y otras solicitudes",
+      "Consultas sobre interpretación y aplicación de disposiciones",
+      "Presentación reposición administrativa voluntaria (RAV) y Re",
+      "Regímenes tributarios",
+      "Aviso de venta de vehículos",
+      "Solicitud de contabilidad computacional",
+      "Dar aviso de pérdida y/o recuperación de cédula de identidad",
+      "Certificados a presentar ante Administraciones Tributarias E",
+      "Conozca sobre Factura Electrónica",
+      "Sistema de facturación gratuito del SII",
+      "Sistema de facturación de mercado",
+      "Registro de Compras y Ventas",
+      "Registro de Guía de Despacho",
+      "Consultas DTE",
+      "Verificación de actividad para emitir facturas",
+      "Registro de Aceptación o Reclamo de un DTE",
+      "Consulta de contribuyentes",
+      "Publicación de Facturas",
+      "Sistema de emisión de Boletas Electrónicas SII",
+      "Boleta electrónica de mercado",
+      "Emisor de boleta de honorarios",
+      "Boleta de prestación de servicios de terceros electrónica",
+      "Inscripción Libros Contables Electrónicos",
+      "Envío de Documentos",
+      "Declaración mensual (F29)",
+      "Declaración mensual (F50)",
+      "Registro de compras y ventas",
+      "Asistente para cálculos",
+      "Consulta y seguimiento (F29 y F50)",
+      "Solicitud de devoluciones",
+      "Impuesto de timbres y estampillas (F24 y F24.1)",
+      "Otras aplicaciones y nóminas",
+      "Declaraciones juradas de IVA",
+      "Declaraciones juradas de Renta",
+      "Declaración jurada de impuesto de timbres y estampilla",
+      "Declaraciones juradas de bienes raíces",
+      "Registro de inversiones en el extranjero",
+      "Declaración jurada extraordinaria de bienes y rentas",
+      "Consulta y seguimiento",
+      "Asistentes para cálculos",
+      "Escritorio contable",
+      "Declaración jurada simple de cesión de beneficio de crédito ",
+      "Bonificación ahorro previsional voluntario",
+      "Acuerdos Anticipados de Precios de Transferencia (APA)",
+      "Infracciones",
+      "Consultar y revisar situación tributaria",
+      "Carpeta tributaria electrónica",
+      "Nóminas",
+      "Impuestos a las herencias y donaciones",
+      "Compañías de seguros",
+      "Mis bienes raíces (información integrada)"
+    ],
+    "botones": [
+      "Mi Sii",
+      "Contáctanos",
+      "Ayudas",
+      "Ingresa aquí"
+    ],
+    "componentes": {
+      "tareas": {
+        "tareas": {}
+      },
+      "buscar": {
+        "tareas": {
+          "/servicios_online/4485-.html": "Consulta, solicitudes y pago",
+          "/servicios_online/1031-1034.html": "Inicio de actividades",
+          "/servicios_online/1039-3256.html": "Registro de Compras y Ventas"
+        }
+      }
+    }
+  },
+  "sitio": {
+    "carpeta": false,
+    "rasgos": {
+      "institucional": 0.6,
+      "comercio": 0.1,
+      "categorias_color": 0,
+      "video_hero": 0,
+      "tarea_formulario": 0
+    },
+    "zonas": [
+      "nav",
+      "nav_enlace",
+      "pie",
+      "tarjetas",
+      "titulos_seccion"
+    ],
+    "auto_si_transforma": {
+      "A": 0.4,
+      "B": 0.26,
+      "C": 0.34
+    }
+  }
+}
