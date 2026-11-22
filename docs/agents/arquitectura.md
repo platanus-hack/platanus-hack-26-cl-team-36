@@ -37,11 +37,11 @@ dependencia de ruta editable. Ningún agente importa la carpeta de otro: se comu
 
 | | `cataloger` (Catalogador) | `guide` (Guía) | `visitor` (Visitante) |
 |---|---|---|---|
-| **Qué hace** | Cataloga los objetivos de un sitio y los clasifica. | Encuentra la ruta de referencia de un objetivo, con sus pasos mínimos. | Intenta un objetivo con varios perfiles y mide cuántos lo logran. |
+| **Qué hace** | Cataloga los objetivos de un sitio y los clasifica. | Encuentra la ruta de referencia de un objetivo, con sus pasos mínimos. | Intenta un objetivo en escritorio (y en móvil si se pide), `--runs` veces, y mide cuántos lo logran. |
 | **Qué ve** | El DOM de cada página. | El DOM de la página y capturas. | Solo capturas de lo visible. |
 | **Qué puede hacer** | Recorrer enlaces del mismo sitio, sin enviar formularios. | Clic, escribir, elegir, teclas, atrás y scroll sobre elementos a la vista; no puede ir a una URL ni seguir un enlace a otro host. | Las nueve acciones de la sección 3 del [diseño](evaluador.md). |
 | **Qué entrega** | `goals.json`: los objetivos clasificados. | `route.json`: la ruta verificada y la cita que la respalda. | Recorridos, árbol de rutas, comparación con la referencia y reporte. |
-| **Quién decide** | Reglas sin modelo sobre lo que propone el modelo. | La repetición: la ruta vale si llega a la misma página y la cita está en ella. | El juez, no el agente. |
+| **Quién decide** | Reglas sin modelo sobre lo que propone el modelo. | La repetición: la ruta vale si llega a la misma página y la cita está en ella. | El programa, no el agente: llegó si pasó por la página final de la ruta de la Guía (sin ruta, un juez si se pide con `--judge`). |
 
 **La expectativa que ordena el producto:** cada objetivo pasa por separado por la Guía y por el Visitante, y la Guía,
 que tiene herramientas web, debe lograrlo al menos igual de bien.

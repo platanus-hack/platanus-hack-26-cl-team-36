@@ -5,7 +5,7 @@ from typing import Protocol
 
 from shared.claude.caller import Caller
 
-from guide.prompts import DECISION_SCHEMA
+from guide.prompts import DECISION_SCHEMA, TEXT_HEADING
 
 
 @dataclass
@@ -46,5 +46,9 @@ class ClaudeDecider:
 
 
 def scripted_decision(system_prompt: str, schema: dict, parts: list) -> dict:
-    """La respuesta del motor guionizado: rendirse en el primer turno, así la exploración termina sin ruta."""
-    return {"reason": "motor guionizado", "action": "give_up", "text": "respuesta guionizada, sin modelo"}
+    """La respuesta del motor guionizado: termina en la página inicial citando su primera línea de texto, o se rinde."""
+    text = parts[0].split(TEXT_HEADING, 1)[-1]
+    line = next((line.strip() for line in text.splitlines() if line.strip() and not line.startswith("(")), None)
+    if line is None:
+        return {"reason": "motor guionizado", "action": "give_up", "text": "respuesta guionizada, sin texto que citar"}
+    return {"reason": "motor guionizado", "action": "done", "answer": line, "quote": line}

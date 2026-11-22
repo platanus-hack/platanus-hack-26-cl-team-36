@@ -67,7 +67,7 @@ def test_api_engine_marks_only_the_last_block_for_caching(tmp_path):
 
 
 def test_api_engine_uses_the_legacy_computer_tool_on_bedrock(tmp_path):
-    """El modelo de AWS (anterior a Opus 4.7) no acepta el toolset: va la herramienta `computer`, con beta."""
+    """El modelo de AWS (Haiku 4.5) no acepta el toolset ni `effort`: va la herramienta `computer` de su versión."""
     import asyncio
     from types import SimpleNamespace
 
@@ -77,15 +77,15 @@ def test_api_engine_uses_the_legacy_computer_tool_on_bedrock(tmp_path):
 
     click = SimpleNamespace(type="tool_use", id="t1", name="computer", input={"action": "left_click", "coordinate": [10, 20]})
     messages = _FakeMessages([click])
-    model = config.BEDROCK_MODEL_PREFIX + config.BEDROCK_USER_MODEL
+    model = config.BEDROCK_DEFAULT_MODEL
     engine = ApiEngine(SimpleNamespace(beta=SimpleNamespace(messages=messages)), model, "medium")
     asyncio.run(engine.start("sistema", "primer mensaje", _png_header(390, 844), tmp_path))
     turn = asyncio.run(engine.decide())
 
     request = messages.calls[0]
-    assert request["betas"] == ["computer-use-2025-11-24"]
+    assert request["betas"] == ["computer-use-2025-01-24"] and "output_config" not in request
     assert request["tools"][0] == {
-        "type": "computer_20251124", "name": "computer", "display_width_px": 390, "display_height_px": 844,
+        "type": "computer_20250124", "name": "computer", "display_width_px": 390, "display_height_px": 844,
     }
     [action] = turn.requests
     assert (action.name, action.input, action.is_computer) == ("left_click", {"coordinate": [10, 20]}, True)
