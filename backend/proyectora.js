@@ -235,17 +235,25 @@ export function crearProyectora({ db, almacen, ahora = () => new Date(), goalsMa
 // Las claves de los eventos S3 vienen codificadas como en un formulario.
 export const claveDeEvento = (registro) => decodeURIComponent(registro.s3.object.key.replace(/\+/g, " "));
 
-let proyectar;
+let iniciando;
+
+function iniciar() {
+  iniciando ??= (async () => {
+    const { almacenS3, tablaDynamo } = await import("./aws.js");
+    const [db, almacen] = await Promise.all([tablaDynamo(process.env.REVISIONES_TABLA), almacenS3(process.env.ALMACEN_BUCKET)]);
+    return crearProyectora({ db, almacen, goalsMax: Number(process.env.GOALS_MAX) || 6 });
+  })().catch((error) => {
+    iniciando = undefined;
+    throw error;
+  });
+  return iniciando;
+}
+
+// El SDK empieza a cargarse al importar el módulo, a la par con la llegada del primer evento; si falla, el evento reintenta.
+if (process.env.REVISIONES_TABLA) iniciar().catch(() => {});
 
 export async function handler(evento) {
-  if (!proyectar) {
-    const { almacenS3, tablaDynamo } = await import("./aws.js");
-    proyectar = crearProyectora({
-      db: await tablaDynamo(process.env.REVISIONES_TABLA),
-      almacen: await almacenS3(process.env.ALMACEN_BUCKET),
-      goalsMax: Number(process.env.GOALS_MAX) || 6,
-    });
-  }
-  // Si algo falla, Lambda reintenta el evento entero: proyectar es idempotente.
+  const proyectar = await iniciar();
+  // Si algo falla, Lambda reintenta el evento entero: cada proyección es idempotente.
   for (const registro of evento.Records ?? []) await proyectar(claveDeEvento(registro));
 }

@@ -43,7 +43,7 @@ test("POST de una página nueva: 202, URL y META queued, invoca el conductor", a
 });
 
 test("POST de una página ya vista: 200 con su estado, sin disparar otra revisión", async () => {
-  for (const status of ["queued", "running", "done"]) {
+  for (const status of ["queued", "running"]) {
     const { db, agentes, api } = escenario();
     await api.solicitar(URL_PAGINA);
     await db.actualizar(claveRevision("rev-1"), { status });
@@ -54,7 +54,7 @@ test("POST de una página ya vista: 200 con su estado, sin disparar otra revisi�
 });
 
 test("POST y GET de una revisión done devuelven el css", async () => {
-  const { db, api } = escenario({ archivos: { "ejemplo.cl/improver/r1/tema.css": "html.mi-tema { color: red; }" } });
+  const { db, agentes, api } = escenario({ archivos: { "ejemplo.cl/improver/r1/tema.css": "html.mi-tema { color: red; }" } });
   await api.solicitar(URL_PAGINA);
   await db.actualizar(claveRevision("rev-1"), { status: "done", css_key: "ejemplo.cl/improver/r1/tema.css" });
   const esperado = {
@@ -63,6 +63,7 @@ test("POST y GET de una revisión done devuelven el css", async () => {
   };
   assert.deepEqual(await api.solicitar(URL_PAGINA), esperado);
   assert.deepEqual(await api.consultar("https://ejemplo.cl/precios/"), esperado);
+  assert.equal(agentes.invocaciones.length, 1);
 });
 
 const CSS_KEY = "ejemplo.cl/improver/r1/tema.css";
@@ -111,11 +112,60 @@ test("tema solo de un tema.json del improver", async () => {
   assert.equal(Object.hasOwn(datos, "tema"), false);
 });
 
-test("css solo de un tema.css del improver", async () => {
-  const { db, api } = escenario({ archivos: { "otro/secreto.json": "{}" } });
+test("una revisión done sin un tema.css del improver responde running, sin leer nada", async () => {
+  for (const css_key of [undefined, "otro/secreto.json"]) {
+    const { db, api, almacen } = escenario({ archivos: { "otro/secreto.json": "{}" } });
+    await api.solicitar(URL_PAGINA);
+    await db.actualizar(claveRevision("rev-1"), { status: "done", css_key, updated_at: "2026-11-21T11:50:00.000Z" });
+    const esperado = { estado: 200, datos: { success: true, revision: "rev-1", status: "running" } };
+    assert.deepEqual(await api.consultar(URL_PAGINA), esperado);
+    assert.deepEqual(await api.solicitar(URL_PAGINA), esperado);
+    assert.deepEqual(almacen.leidos, []);
+  }
+});
+
+test("tema listo y conductor failed después: done con css y un POST no la reemplaza", async () => {
+  const { db, agentes, api } = escenario({ archivos: { [CSS_KEY]: "a{}" } });
   await api.solicitar(URL_PAGINA);
-  await db.actualizar(claveRevision("rev-1"), { status: "done", css_key: "otro/secreto.json" });
-  assert.deepEqual((await api.consultar(URL_PAGINA)).datos, { success: true, revision: "rev-1", status: "done" });
+  await db.actualizar(claveRevision("rev-1"), { status: "failed", css_key: CSS_KEY });
+  const esperado = { estado: 200, datos: { success: true, revision: "rev-1", status: "done", css: "a{}" } };
+  assert.deepEqual(await api.consultar(URL_PAGINA), esperado);
+  assert.deepEqual(await api.solicitar(URL_PAGINA), esperado);
+  assert.equal(agentes.invocaciones.length, 1);
+});
+
+test("una revisión done sin tema pasados 10 minutos responde failed y un POST la reemplaza", async () => {
+  const { db, agentes, api } = escenario();
+  await api.solicitar(URL_PAGINA);
+  await db.actualizar(claveRevision("rev-1"), { status: "done", updated_at: "2026-11-21T11:49:59.000Z" });
+  assert.deepEqual((await api.consultar(URL_PAGINA)).datos, { success: true, revision: "rev-1", status: "failed" });
+  assert.deepEqual((await api.solicitar(URL_PAGINA)).datos, { success: true, revision: "rev-2", status: "queued" });
+  assert.equal(agentes.invocaciones.length, 2);
+});
+
+test("tema listo con el conductor aún corriendo: done con css, sigue contando para el tope y force no la duplica", async () => {
+  const { db, agentes, api } = escenario({ archivos: { [CSS_KEY]: "a{}" }, maxEnCurso: 1 });
+  await api.solicitar(URL_PAGINA);
+  await db.actualizar(claveRevision("rev-1"), { status: "running", css_key: CSS_KEY });
+  const esperado = { estado: 200, datos: { success: true, revision: "rev-1", status: "done", css: "a{}" } };
+  assert.deepEqual(await api.consultar(URL_PAGINA), esperado);
+  assert.deepEqual(await api.solicitar(URL_PAGINA, { force: true }), esperado);
+  assert.equal((await api.solicitar("https://otra.cl/")).estado, 429);
+  assert.equal(agentes.invocaciones.length, 1);
+});
+
+test("conductor done antes que el improver: running hasta que llega el tema, luego done con css", async () => {
+  const { db, api, almacen } = escenario({ archivos: { [CSS_KEY]: "a{}" } });
+  await api.solicitar(URL_PAGINA);
+  const proyectar = crearProyectora({ db, almacen, ahora: () => new Date(AHORA) });
+  const publicar = (runKey, manifiesto) => {
+    almacen.archivos[`${runKey}/manifest.json`] = { revision: "rev-1", ...manifiesto };
+    return proyectar(`${runKey}/manifest.json`);
+  };
+  await publicar("ejemplo.cl/conductor/r0", { agent: "conductor", status: "succeeded" });
+  assert.equal((await api.consultar(URL_PAGINA)).datos.status, "running");
+  await publicar("ejemplo.cl/improver/r1", { agent: "improver", status: "succeeded" });
+  assert.deepEqual((await api.consultar(URL_PAGINA)).datos, { success: true, revision: "rev-1", status: "done", css: "a{}" });
 });
 
 test("force no duplica una revisión en curso", async () => {

@@ -21,9 +21,10 @@ function revisiones() {
   if (!process.env.REVISIONES_TABLA) return null;
   servicio ??= (async () => {
     const { almacenS3, runtimeAgentes, tablaDynamo } = await import("./aws.js");
+    const [db, almacen] = await Promise.all([tablaDynamo(process.env.REVISIONES_TABLA), almacenS3(process.env.ALMACEN_BUCKET)]);
     return crearRevisiones({
-      db: await tablaDynamo(process.env.REVISIONES_TABLA),
-      almacen: await almacenS3(process.env.ALMACEN_BUCKET),
+      db,
+      almacen,
       agentes: runtimeAgentes(process.env.AGENTE_RUNTIME),
       ...(process.env.REVISIONES_EN_CURSO_MAX && { maxEnCurso: Number(process.env.REVISIONES_EN_CURSO_MAX) }),
     });
@@ -33,6 +34,9 @@ function revisiones() {
   });
   return servicio;
 }
+
+// El SDK empieza a cargarse al importar el módulo, a la par con la primera request; si falla, la request reintenta.
+revisiones()?.catch(() => {});
 
 // POST /revisiones  { "url": "<url completa>", "force"?: true }  (force: revisión nueva si la anterior terminó)
 // GET  /revisiones?url=<url>

@@ -69,10 +69,8 @@ export function filtroEnCurso(estados, desde) {
 }
 
 export async function tablaDynamo(tabla) {
-  const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
-  const { DynamoDBDocumentClient, GetCommand, QueryCommand, ScanCommand, TransactWriteCommand, UpdateCommand } = await import(
-    "@aws-sdk/lib-dynamodb"
-  );
+  const [{ DynamoDBClient }, { DynamoDBDocumentClient, GetCommand, QueryCommand, ScanCommand, TransactWriteCommand, UpdateCommand }] =
+    await Promise.all([import("@aws-sdk/client-dynamodb"), import("@aws-sdk/lib-dynamodb")]);
   const cliente = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
   // true si escribió; false si una condición no se cumplió.

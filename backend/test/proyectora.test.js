@@ -186,6 +186,14 @@ test("improver terminado guarda css_key en META", async () => {
   assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
 });
 
+test("improver terminado guarda el tema sin tocar el status de META", async () => {
+  const { evento, item } = escenario();
+  await evento(CONDUCTOR, { agent: "conductor", status: "running" });
+  await evento(MEJORA, { agent: "improver", status: "succeeded" });
+  assert.equal(item("META").status, "running");
+  assert.equal(item("META").css_key, `${MEJORA}/tema.css`);
+});
+
 test("improver con tema.json guarda también tema_key; sin él, no", async () => {
   const conTema = escenario();
   conTema.almacen.archivos[`${MEJORA}/tema.json`] = { features: {} };
