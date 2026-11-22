@@ -285,8 +285,8 @@ function crearPantalla(contenedor, ctx) {
     if (tramo.tipo === "retroceso") filas.push(el("span", { class: "texto-3", texto: t("telarana.tramo.vuelta") }));
     for (const accion of rama?.acciones ?? []) filas.push(el("span", { class: "telarana-globo-accion" }, el("span", { texto: accion.accion }), el("span", { class: "num texto-3", texto: `×${accion.intentos}` })));
     const desglose = [t("telarana.tramo.intentos", { n: rama?.intentos ?? tramo.intentos })];
-    if (rama?.exitos) desglose.push(t("telarana.tramo.exitos", { n: rama.exitos }));
-    if (rama?.fallos) desglose.push(t("telarana.tramo.fallos", { n: rama.fallos }));
+    if (rama?.llegaron) desglose.push(t("telarana.tramo.llegaron", { n: rama.llegaron }));
+    if (rama?.noLlegaron) desglose.push(t("telarana.tramo.noLlegaron", { n: rama.noLlegaron }));
     if (rama?.errores) desglose.push(t("telarana.tramo.errores", { n: rama.errores }));
     filas.push(el("span", { class: "texto-2", texto: desglose.join(" · ") }));
     const extra = [];

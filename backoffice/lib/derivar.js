@@ -124,15 +124,17 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} destino
  * @property {{ accion: string, intentos: number, perfiles: string[] }[]} acciones
  * @property {string} accion
- * @property {number} exitos
- * @property {number} fallos
+ * @property {number} exitos  pasadas que el evaluador marcó en camino a la página final
+ * @property {number} fallos  pasadas que no (desvíos, saltos, vueltas)
  * @property {number} errores
  * @property {number} intentos
  * @property {string[]} perfiles
  * @property {string[]} intentosIds
  * @property {number | null} medianaSegundos
  * @property {number} pasosMinimos
- * @property {"exito" | "mixto" | "fallo" | "abandono" | "error"} resultado
+ * @property {number} llegaron  intentos válidos que pasaron por la rama y lograron la tarea
+ * @property {number} noLlegaron  intentos válidos que pasaron por la rama y no la lograron
+ * @property {"exito" | "mixto" | "fallo" | "abandono" | "error"} resultado  cómo terminaron los que pasaron por ella
  * @property {boolean} enRuta
  *
  * @typedef {Object} Ruta
@@ -423,13 +425,25 @@ function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
   });
 }
 
-/** Cómo terminó lo que pasó por una rama, para su color. */
-export function resultadoDeRama(rama, finalesDelDestino) {
-  if (rama.exitos === 0 && rama.fallos === 0 && rama.errores > 0) return "error";
-  if (rama.exitos > 0 && rama.fallos === 0) return "exito";
-  if (rama.exitos > 0) return "mixto";
-  const finales = finalesDelDestino ?? {};
-  return (finales.abandonado ?? 0) > 0 && !(finales.fallido ?? 0) ? "abandono" : "fallo";
+/**
+ * Cómo terminaron los intentos que pasaron por una rama (su color): todos los válidos lograron la tarea → "exito";
+ * algunos → "mixto"; ninguno → "abandono" si todos abandonaron, si no "fallo"; solo intentos con error de la
+ * herramienta → "error". No es la marca del evaluador de si el tramo iba hacia la página final (un desvío de alguien
+ * que después llegó no es una falla). → { resultado, llegaron, noLlegaron }
+ * @param {{ perfiles: string[] }} rama
+ * @param {Map<string, "logrado" | "fallido" | "abandonado" | "error">} resultadoDe  resultado de cada intento por id
+ */
+export function resultadoDeRama(rama, resultadoDe) {
+  const suyos = (rama.perfiles ?? []).map((id) => resultadoDe.get(id)).filter(Boolean);
+  const validos = suyos.filter((resultado) => resultado !== "error");
+  const llegaron = validos.filter((resultado) => resultado === "logrado").length;
+  const noLlegaron = validos.length - llegaron;
+  let resultado;
+  if (!validos.length) resultado = suyos.length ? "error" : "fallo";
+  else if (!noLlegaron) resultado = "exito";
+  else if (llegaron) resultado = "mixto";
+  else resultado = validos.every((r) => r === "abandonado") ? "abandono" : "fallo";
+  return { resultado, llegaron, noLlegaron };
 }
 
 /** Distancia en ramas desde el inicio; lo inalcanzable queda un paso más allá del máximo. */
@@ -901,11 +915,11 @@ export function armarTanda({ id, arbol, criterio, intentos: crudos }) {
   const nodoFinalDe = new Map(intentos.map((intento, i) => [intento.id, ubicaciones[i].nodoFinal]));
   const finalesPorNodo = finalesCorregidos(nodosCrudos, intentos, nodoFinalDe);
   const paginas = armarPaginas(grupos, finalesPorNodo, ruta, ramasUnidas, capturasDePaginas(intentos));
-  const finalesDe = new Map(paginas.map((pagina) => [pagina.id, pagina.finales]));
   const tramosDeRuta = new Set((ruta?.tramos ?? []).map((tramo) => `${tramo.origen}>${tramo.destino}`));
+  const resultadoDe = new Map(intentos.map((intento) => [intento.id, intento.resultado]));
   const ramas = ramasUnidas.map((rama) => ({
     ...rama,
-    resultado: resultadoDeRama(rama, finalesDe.get(rama.destino)),
+    ...resultadoDeRama(rama, resultadoDe),
     enRuta: tramosDeRuta.has(rama.id),
   }));
 
