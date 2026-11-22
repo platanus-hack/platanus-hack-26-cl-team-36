@@ -122,13 +122,14 @@ import { claveDeNodo, consultaDe, hostDe, normalizarUrl, rutaLegible, rutaSinCon
  * @property {string} id
  * @property {string} origen
  * @property {string} destino
- * @property {{ accion: string, intentos: number, perfiles: string[], salto: boolean }[]} acciones  salto: un
+ * @property {{ accion: string, intentos: number, pasadas: number, perfiles: string[], salto: boolean }[]} acciones  salto: un
  *   «volver a …» del explorador (no lo hace un humano)
  * @property {string} accion
  * @property {number} exitos  pasadas que el evaluador marcó en camino a la página final
  * @property {number} fallos  pasadas que no (desvíos, saltos, vueltas)
  * @property {number} errores
- * @property {number} intentos
+ * @property {number} intentos  intentos distintos que tomaron el tramo
+ * @property {number} pasadas  veces que se pasó por el tramo (exitos + fallos + errores)
  * @property {string[]} perfiles
  * @property {string[]} intentosIds
  * @property {number | null} medianaSegundos
@@ -395,7 +396,7 @@ function ubicarIntento(run, buscarNodo, paginaDeNodo) {
 
 // Une las ramas crudas según las páginas: suma lo que coincide, descarta los lazos que deja la unión
 // y separa los tramos de intentos con error de la herramienta (que el evaluador contó como fallos).
-function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
+export function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
   const porPar = new Map();
   for (const cruda of ramasCrudas) {
     const origen = paginaDeNodo.get(cruda.source);
@@ -419,19 +420,24 @@ function unirRamas(ramasCrudas, paginaDeNodo, intentosConError) {
     const texto = String(cruda.action ?? "");
     const accion = rama.acciones.find((otra) => otra.accion.toLocaleLowerCase() === texto.toLocaleLowerCase());
     if (accion) {
-      accion.intentos += perfiles.length;
+      accion.pasadas += perfiles.length;
       for (const perfil of perfiles) if (!accion.perfiles.includes(perfil)) accion.perfiles.push(perfil);
     } else {
-      rama.acciones.push({ accion: texto, intentos: perfiles.length, perfiles: [...new Set(perfiles)], salto: esVolver(texto) });
+      rama.acciones.push({ accion: texto, pasadas: perfiles.length, perfiles: [...new Set(perfiles)], salto: esVolver(texto) });
     }
   }
   return [...porPar.values()].map(({ tiempos, pasos, ...rama }) => {
-    const acciones = rama.acciones.sort((a, b) => b.intentos - a.intentos || (a.accion < b.accion ? -1 : 1));
+    // intentos = cuántos intentos distintos tomaron el tramo o hicieron la acción (lo que dice «Grosor = intentos»);
+    // pasadas = cuántas veces se pasó por ahí (un explorador que vuelve pasa varias veces).
+    const acciones = rama.acciones
+      .map((accion) => ({ ...accion, intentos: accion.perfiles.length }))
+      .sort((a, b) => b.intentos - a.intentos || b.pasadas - a.pasadas || (a.accion < b.accion ? -1 : 1));
     return {
       ...rama,
       acciones,
       accion: acciones[0]?.accion ?? "",
-      intentos: rama.exitos + rama.fallos + rama.errores,
+      intentos: rama.perfiles.length,
+      pasadas: rama.exitos + rama.fallos + rama.errores,
       intentosIds: [...rama.perfiles],
       medianaSegundos: mediana(tiempos),
       pasosMinimos: pasos.length ? Math.min(...pasos) : 1,

@@ -18,6 +18,7 @@ import {
   resumenDeError,
   textoDeElemento,
   porConocimiento,
+  unirRamas,
 } from "../lib/derivar.js";
 import { idsDeTandas, leerTanda, listarTandas } from "../lib/tandas.js";
 import { consultaDe, normalizarUrl, rutaSinConsulta } from "../lib/url.js";
@@ -272,8 +273,8 @@ test("tanda nueva: el error de la herramienta se marca y no cuenta", async () =>
   const inicioAyuda = tanda.telarana.ramas.find((r) => r.id === "n1>n2");
   assert.deepEqual([inicioAyuda.exitos, inicioAyuda.fallos, inicioAyuda.errores, inicioAyuda.intentos], [2, 0, 1, 3]);
   assert.deepEqual(inicioAyuda.acciones, [
-    { accion: "clic «Ayuda»", intentos: 2, perfiles: ["hurried", "mobile"], salto: false },
-    { accion: "clic «Buscar»", intentos: 1, perfiles: ["first_time"], salto: false },
+    { accion: "clic «Ayuda»", intentos: 2, pasadas: 2, perfiles: ["hurried", "mobile"], salto: false },
+    { accion: "clic «Buscar»", intentos: 1, pasadas: 1, perfiles: ["first_time"], salto: false },
   ]);
   assert.equal(inicioAyuda.accion, "clic «Ayuda»");
   const ayuda = tanda.telarana.paginas.find((p) => p.id === "n2");
@@ -694,4 +695,18 @@ test("resultado por nivel de conocimiento: intentos, logrados, medianas y escrit
   // Sin los dos niveles (perfiles comunes, o un solo nivel), no hay comparación.
   assert.equal(porConocimiento(intentos.map((i) => ({ ...i, conocimiento: null }))), null);
   assert.equal(porConocimiento(intentos.filter((i) => i.conocimiento === "conoce_tema")), null);
+});
+
+test("grosor de un tramo = intentos distintos que lo tomaron, no las pasadas (C4-4)", async () => {
+  const { anchoDeTramo } = await import("../public/telarana/escena.js");
+  // 8 intentos pasan 43 veces de n1 a n2 (un explorador vuelve y repite): el tramo tiene 8 intentos y 43 pasadas.
+  const perfiles = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const crudas = Array.from({ length: 43 }, (_, i) => ({ source: "x1", target: "x2", action: i % 2 ? "clic «Ayuda»" : "clic «Buscar»", profiles: [perfiles[i % 8]], successes: 1 }));
+  const [rama] = unirRamas(crudas, new Map([["x1", "n1"], ["x2", "n2"]]), new Set());
+  assert.equal(rama.intentos, 8);
+  assert.equal(rama.pasadas, 43);
+  assert.deepEqual(rama.acciones.map((a) => [a.accion, a.intentos, a.pasadas]), [["clic «Ayuda»", 4, 21], ["clic «Buscar»", 4, 22]].sort((p, q) => q[2] - p[2]));
+  assert.equal(anchoDeTramo({ tipo: "avance", intentos: rama.intentos }), 1.5 + 1.25 * 8, "como un tramo que tomaron los 8");
+  // Los secundarios siguen con su tope de 3 px.
+  assert.equal(anchoDeTramo({ tipo: "retroceso", intentos: rama.intentos }), 3);
 });
