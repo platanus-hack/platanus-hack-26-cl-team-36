@@ -33,6 +33,10 @@ just local site <url> [goals]         # 7. catalog, routes, synthetic users and 
 just local summary <url>              #    rewrites that summary from the files on disk
 ```
 
+Cada pull request a `main` corre las mismas pruebas en GitHub Actions ([`pruebas.yml`](.github/workflows/pruebas.yml)):
+`npm run check` y `pytest` en cada proyecto de Python bajo `agents/` que tenga `tests/`, sin llamar a Claude ni a AWS.
+El check **Todas las pruebas** tiene que pasar para mergear.
+
 Los despliegues y las versiones de la extensión corren como GitHub Actions en el repo personal
 [brayanmoreno/hackathon-grupo36](https://github.com/brayanmoreno/hackathon-grupo36), una copia de `main` de este
 (ver [infra/README.md](infra/README.md)). Necesitan [`gh`](https://cli.github.com) con la sesión iniciada:
